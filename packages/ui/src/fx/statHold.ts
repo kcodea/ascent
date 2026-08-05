@@ -34,15 +34,22 @@ export interface StatDelta {
 }
 
 /**
- * WHO put a hold here — which decides what happens when the other one sees the same change.
+ * WHO placed a hold, ordered by HOW MUCH THEY KNOW about when the number should land. Higher wins.
  *
- * `authored` is an effect that was written to deliver this number: a cue's gem hold, a `react` layer with
- * `carries` ticked, the combat score. It knows the moment and has its own clock.
+ * `intrinsic` — `Card` noticed its own printed value move. Knows nothing but that something changed, and
+ *   exists so a stat change is never silent because an effect was never authored for it.
+ * `cue` — a cue that computed a stagger (`Land[]`) and can say when this particular minion's number is due.
+ * `effect` — a `react` layer with "Carries the number" ticked. Knows the moment AND owns a clock, so the
+ *   store's ticker leaves it alone entirely.
  *
- * `intrinsic` is `Card`'s fallback roll, which fires off the value simply MOVING, with nothing authored. It
- * exists so a stat change is never silent, and it must always yield to an authored effect — see `holdStat`.
+ * Higher replaces lower outright, because they describe the SAME change and the better-informed one should
+ * deliver it. Equal accumulates — two of those really are two changes. Lower never overwrites higher, which
+ * is what stops `Card`'s intrinsic hold (React flushes layout effects child-first, so it always lands first)
+ * from stomping the cue's.
  */
-export type HoldOrigin = 'authored' | 'intrinsic';
+export type HoldOrigin = 'intrinsic' | 'cue' | 'effect';
+
+const RANK: Record<HoldOrigin, number> = { intrinsic: 1, cue: 2, effect: 3 };
 
 interface Hold extends StatDelta {
   /** See `HoldOrigin`. Decides accumulate-vs-replace when a second hold lands on a live one. */
@@ -145,32 +152,32 @@ export function statHoldVersion(): number {
  * the same as a hold of nothing, and storing it would make `heldFor` report a hold that changes no digit.
  *
  * ── except when the two holds are the SAME change seen twice ─────────────────────────────────────────
- * `Card`'s intrinsic roll fires off the value moving; an authored cue holds the same delta for the same
- * commit. React flushes layout effects CHILD FIRST, so the card's intrinsic hold reliably lands before the
- * parent's authored one, and accumulating them would withhold +2/+2 for a +1/+1 gem — a badge printing a
+ * `Card`'s intrinsic roll fires off the value moving; a better-informed cue or effect holds the same delta
+ * for the same commit. React flushes layout effects CHILD FIRST, so the card's intrinsic hold reliably lands
+ * before the parent's, and accumulating them would withhold +2/+2 for a +1/+1 gem — a badge printing a
  * number the unit never had, which is the exact failure this module exists to prevent.
  *
- * So `origin` breaks the tie: an authored hold REPLACES a live intrinsic one (same change, and the authored
- * clock is the one the player was meant to see), and an intrinsic hold never lands on top of an authored
- * one. Same-origin holds accumulate as before, because two of those really are two changes.
+ * So `origin` is a RANK that breaks the tie: a higher-ranked hold REPLACES a live lower one (same change,
+ * and the better-informed clock is the one the player was meant to see), and a lower-ranked hold never lands
+ * on top of a higher one. Same-rank holds accumulate as before, because two of those really are two changes.
  */
 export function holdStat(
   uid: string,
   delta: Partial<StatDelta>,
   opts: { ttlMs?: number; origin?: HoldOrigin; startAt?: number; rollMs?: number } = {},
 ): void {
-  const { ttlMs, origin = 'authored', startAt = 0, rollMs = DEFAULT_ROLL_MS } = opts;
+  const { ttlMs, origin = 'effect', startAt = 0, rollMs = DEFAULT_ROLL_MS } = opts;
   const attack = delta.attack ?? 0;
   const health = delta.health ?? 0;
   if (attack === 0 && health === 0) return;
   const prev = holds.get(uid);
   const live = prev !== undefined && prev.until > now();
-  // The authored effect already owns this change; the intrinsic fallback exists only for changes nobody
-  // authored, so here it stands down entirely rather than stacking a second copy.
-  if (live && prev.origin === 'authored' && origin === 'intrinsic') return;
-  // The mirror image: the authored effect supersedes the fallback outright, so its delta lands whole and
-  // its roll starts from the top instead of inheriting a fraction the intrinsic loop had already shown.
-  const supersedes = live && prev.origin === 'intrinsic' && origin === 'authored';
+  // A better-informed placer owns this change; a worse-informed one stands down rather than stacking a
+  // second copy of the same delta on top of it.
+  if (live && RANK[origin] < RANK[prev.origin]) return;
+  // …and supersedes outright, so its delta lands whole and its roll starts from the top instead of
+  // inheriting a fraction the lower-ranked one had already shown.
+  const supersedes = live && RANK[origin] > RANK[prev.origin];
   // Carry the UNREVEALED remainder, not the whole previous delta. A hold half-way through its roll has
   // already shown half its change; adding the full old delta back would put the badge further behind than
   // it ever was — printing a number the unit never had. (Caught by test, not by eye.)
@@ -179,7 +186,7 @@ export function holdStat(
   const owedHealth = carry ? Math.round(prev.health * (1 - prev.revealed)) : 0;
   // The TTL has to outlast the SCHEDULE, or the failsafe force-delivers the tail of a long cascade before
   // its own gem arrives — the exact desync this feature exists to remove, reintroduced by the safety net.
-  // `HOLD_TTL_MS` stays the floor: an unscheduled authored hold still needs room for a react layer to peak.
+  // `HOLD_TTL_MS` stays the floor: an unscheduled effect hold still needs room for a react layer to peak.
   const lifetimeMs = ttlMs ?? Math.max(HOLD_TTL_MS, startAt + rollMs + HOLD_GRACE_MS);
   const placedAt = now();
   holds.set(uid, {
@@ -211,7 +218,7 @@ export function holdStat(
 /**
  * Who owns the live hold on a unit, or `null` when nothing is held.
  *
- * `Card`'s intrinsic roll polls this to notice it has been SUPERSEDED: once an authored effect takes the
+ * `Card`'s intrinsic roll polls this to notice it has been SUPERSEDED: once a higher-ranked hold takes the
  * change over, the intrinsic rAF loop must stop driving `revealStat` or two clocks fight over one counter
  * and the digits stutter. Expired holds read as absent, exactly as in `heldFor`.
  */
@@ -302,7 +309,7 @@ export function stepHolds(): void {
   const t = now();
   let changed = false;
   for (const [uid, h] of [...holds]) {
-    if (h.origin === 'authored') continue;    // its player owns the clock (renamed to `effect` in Task 3)
+    if (h.origin === 'effect') continue;      // its player owns the clock
     if (t < h.placedAt + h.startAt) continue; // scheduled for later in the cascade
     const p = h.rollMs <= 0 ? 1 : (t - h.placedAt - h.startAt) / h.rollMs;
     if (revealQuiet(uid, Math.min(1, p))) changed = true;

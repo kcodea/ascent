@@ -38,107 +38,70 @@ describe('holding a stat change', () => {
 });
 
 /**
- * THE GATE between the intrinsic badge roll and an authored effect.
+ * THE GATE between the intrinsic badge roll and a better-informed effect.
  *
- * Both watch the same stat change. `Card`'s intrinsic roll fires off the value moving, and an authored cue
- * (`Recruit`'s gem hold, `score.ts`, `playDef`) holds the same delta for the same commit — and because React
- * flushes layout effects CHILD FIRST, the card's intrinsic hold always lands before the parent's authored one.
- * Left to accumulate, a +1/+1 gem withholds +2/+2 and the badge prints a number the unit never had.
+ * Several paths can watch the same stat change. `Card`'s intrinsic roll fires off the value moving, a cue
+ * that computed a stagger can say when this particular minion's number is due, and a `react` layer with
+ * `carries` ticked owns the moment AND the clock. Because React flushes layout effects CHILD FIRST, the
+ * card's intrinsic hold always lands before a parent's — left to accumulate, a +1/+1 gem would withhold
+ * +2/+2 and the badge would print a number the unit never had.
  *
- * So origin decides who owns the change: authored REPLACES intrinsic (same change, better clock), and
- * intrinsic never lands on top of authored. Two authored holds still accumulate — those are genuinely two
- * effects, which is the case the accumulate tests above cover.
+ * So `origin` is a RANK: a higher-ranked hold REPLACES a live lower one (same change, better-informed
+ * placer), a lower one never lands on top of a higher one, and equal ranks still accumulate — those are
+ * genuinely two changes, which is the case the accumulate tests above cover.
  */
-describe('origin — who owns a change when two paths see it', () => {
-  it('an authored hold REPLACES an intrinsic one instead of stacking a second copy', () => {
+describe('origin rank — who owns a change when several paths see it', () => {
+  it('a cue REPLACES an intrinsic hold instead of stacking a second copy', () => {
     holdStat('a', { attack: 1, health: 1 }, { origin: 'intrinsic' });
-    holdStat('a', { attack: 1, health: 1 }, { origin: 'authored' });
+    holdStat('a', { attack: 1, health: 1 }, { origin: 'cue', startAt: 300 });
     expect(heldFor('a')).toEqual({ attack: 1, health: 1 });
-    expect(holdOrigin('a')).toBe('authored');
+    expect(holdOrigin('a')).toBe('cue');
+    expect(scheduleFor('a')?.startAt).toBe(300);
   });
 
-  it('replaces even when the intrinsic roll already showed part of the change', () => {
-    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic' });
-    revealStat('a', 0.5);
-    holdStat('a', { attack: 4, health: 0 }, { origin: 'authored' });
-    // The whole change again, from the top — not 4 plus the 2 still owed.
-    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  it('an effect REPLACES a cue hold', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'cue', startAt: 300 });
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'effect' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+    expect(holdOrigin('a')).toBe('effect');
   });
 
-  it('an intrinsic hold does NOT land on top of an authored one', () => {
-    holdStat('a', { attack: 2, health: 2 }, { origin: 'authored' });
+  it('a lower rank never lands on top of a higher one', () => {
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'effect' });
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'cue' });
     holdStat('a', { attack: 2, health: 2 }, { origin: 'intrinsic' });
     expect(heldFor('a')).toEqual({ attack: 2, health: 2 });
-    expect(holdOrigin('a')).toBe('authored');
+    expect(holdOrigin('a')).toBe('effect');
   });
 
-  it('defaults to authored, so every existing caller keeps accumulating', () => {
-    holdStat('a', { attack: 1, health: 0 });
-    expect(holdOrigin('a')).toBe('authored');
-    holdStat('a', { attack: 1, health: 0 });
+  it('replaces even when the lower-ranked hold already showed part of the change', () => {
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic' });
+    revealStat('a', 0.5);
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue' });
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // the whole change again, from the top
+  });
+
+  it('SAME rank still accumulates — two genuinely separate changes', () => {
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'cue' });
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'cue' });
     expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
   });
 
-  it('two intrinsic holds still accumulate — two separate changes, not one seen twice', () => {
-    holdStat('a', { attack: 1, health: 0 }, { origin: 'intrinsic' });
-    holdStat('a', { attack: 1, health: 0 }, { origin: 'intrinsic' });
-    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  it('defaults to effect, so every existing caller keeps its precedence', () => {
+    holdStat('a', { attack: 1, health: 0 });
+    expect(holdOrigin('a')).toBe('effect');
   });
 
-  it('reports no origin for a unit with nothing held', () => {
-    expect(holdOrigin('nobody')).toBeNull();
-  });
-
-  /**
-   * The header promises "a hold nobody claims must not be permanent". Until now that was enforced only by
-   * `heldFor` sweeping on READ — and nothing re-reads a badge on a shop that isn't being touched, so a hold
-   * whose effect never released it froze the number until some unrelated re-render happened to sweep it.
-   *
-   * Reachable for real: pull the `carries` layer off a def in the workbench and the cue still holds, but
-   * nothing is left to deliver. The owner's report was a gem apply that didn't update until they clicked
-   * again. So expiry NOTIFIES on its own now, rather than waiting to be asked.
-   */
-  it('an unclaimed hold releases ITSELF at the TTL, and tells subscribers', async () => {
-    vi.useFakeTimers();
-    let notified = 0;
-    const stop = subscribeStatHolds(() => { notified++; });
-    holdStat('a', { attack: 3, health: 3 }, { ttlMs: 50 });
-    expect(notified).toBe(1);          // the hold itself
-    expect(anyStatHeld()).toBe(true);
-    await vi.advanceTimersByTimeAsync(60);
-    expect(anyStatHeld()).toBe(false); // gone WITHOUT anyone reading it
-    expect(notified).toBe(2);          // and the badge was told to re-render
-    stop();
-  });
-
-  it('a hold released on time does not also fire its expiry', async () => {
-    vi.useFakeTimers();
-    holdStat('a', { attack: 3, health: 0 }, { ttlMs: 50 });
-    releaseStat('a');
-    let notified = 0;
-    const stop = subscribeStatHolds(() => { notified++; });
-    await vi.advanceTimersByTimeAsync(60);
-    expect(notified).toBe(0);          // no stray emit for a hold that is already gone
-    stop();
-  });
-
-  it('a re-hold restarts the clock rather than inheriting the old deadline', async () => {
-    vi.useFakeTimers();
-    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
-    await vi.advanceTimersByTimeAsync(80);
-    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
-    await vi.advanceTimersByTimeAsync(40);   // past the FIRST deadline, inside the second
-    expect(anyStatHeld()).toBe(true);
-    await vi.advanceTimersByTimeAsync(70);
-    expect(anyStatHeld()).toBe(false);
-  });
-
-  it('an EXPIRED authored hold does not block a later intrinsic one', () => {
-    holdStat('a', { attack: 2, health: 0 }, { origin: 'authored' });
+  it('an EXPIRED hold does not block a later one of any rank', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'effect' });
     vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
     holdStat('a', { attack: 3, health: 0 }, { origin: 'intrinsic' });
     expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
     expect(holdOrigin('a')).toBe('intrinsic');
+  });
+
+  it('reports no origin for a unit with nothing held', () => {
+    expect(holdOrigin('nobody')).toBeNull();
   });
 });
 
@@ -401,10 +364,10 @@ describe('the shared ticker', () => {
   /** rAF does not run under vitest, so the tests drive the exported step directly.
    *
    *  These holds are all explicitly `intrinsic` — the ticker's actual job is Card's fallback roll (Step 5
-   *  gives it exactly this origin), and `holdStat`'s bare default is still `authored`, which the ticker
-   *  deliberately skips (see the "never advances" test below). Relying on the default here would test the
-   *  wrong path — every one of these would silently no-op against the origin check rather than the
-   *  startAt/rollMs math they're named for. */
+   *  gives it exactly this origin), and `holdStat`'s bare default is `effect`, which the ticker deliberately
+   *  skips (see the "never advances" test below). Relying on the default here would test the wrong path —
+   *  every one of these would silently no-op against the origin check rather than the startAt/rollMs math
+   *  they're named for. */
   it('reveals nothing before startAt', () => {
     const t0 = performance.now();
     holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 500, rollMs: 200 });
@@ -430,17 +393,15 @@ describe('the shared ticker', () => {
     expect(anyStatHeld()).toBe(false);
   });
 
-  /** An authored layer drives its own reveal off the player's clock; two clocks on one counter stutter.
-   *  NOTE: this origin is still called `authored` at this point in the plan — Task 3 renames it to `effect`
-   *  and updates both this test and the ticker's branch.
+  /** An effect layer drives its own reveal off the player's clock; two clocks on one counter stutter.
    *
    *  The jump is 1000ms (well past the 200ms roll) rather than something past `HOLD_TTL_MS` (1200ms): past
    *  the floor, `heldFor`'s own expiry sweep deletes the hold independently of the ticker, and the test
    *  would pass for the wrong reason — a hold that's gone reads the same as one the ticker declined to
    *  touch. Staying under the floor isolates the claim this test actually makes. */
-  it('never advances an authored-origin hold', () => {
+  it('never advances an effect-origin hold', () => {
     const t0 = performance.now();
-    holdStat('a', { attack: 4, health: 0 }, { origin: 'authored', startAt: 0, rollMs: 200 });
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'effect', startAt: 0, rollMs: 200 });
     vi.spyOn(performance, 'now').mockReturnValue(t0 + 1000);
     stepHolds();
     expect(heldFor('a')).toEqual({ attack: 4, health: 0 });

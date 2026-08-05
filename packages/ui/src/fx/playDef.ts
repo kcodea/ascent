@@ -444,6 +444,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
      * Args: uid, how much to withhold, how long to roll, reel amplitude (0 = honest odometer).
      */
     roll: (uid: string, delta = 4, ms = 600, reel = 6): void => {
+      // Defaults to `effect` origin: this handle drives its own rAF below, so the store's ticker must not
+      // also advance it.
       holdStat(uid, { attack: delta, health: delta });
       const t0 = performance.now();
       const step = (): void => {

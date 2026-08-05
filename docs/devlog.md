@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena Step 3 begins: Sergeant's Echo migrates
+
+Third shared body: `deathrattleBuffAllHealth` (Sergeant). Both legacy halves deleted; the ratchet floor rises
+to 3. First body to read a PER-INSTANCE accrual — `hpGrantBonus` joins `ArenaBody` as an optional field, which
+both phases' minion types already carry structurally, so neither adapter changed. The shop half's `hp <= 0`
+guard is kept in the shared body (unreachable in content, harmless in combat). Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Effect Arena Step 2: the buff verb, a second migration, and the ratchet
 
 Same branch as Step 1, building on the green spike.

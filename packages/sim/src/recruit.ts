@@ -3163,10 +3163,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffAllHealth: (ctx, self, params) => {
-    const hp = num(params.health, 2) * gold(self) + (self.hpGrantBonus ?? 0);
-    if (hp <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, hp);
+    ARENA_EFFECTS.deathrattleBuffAllHealth(shopArena(ctx.state, self), params);
   },
 
   /** Trickster (recruit half) — give the carry (highest-Attack friend) this minion's Health; golden picks twice. */

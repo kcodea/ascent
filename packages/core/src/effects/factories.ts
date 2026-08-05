@@ -2134,10 +2134,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Sergeant — Deathrattle: give all living friendly minions +Health equal to `params.health` × golden,
    *  plus any `hpGrantBonus` accumulated by the Sergeant gaining Attack during this combat. */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffAllHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const hp = num(params.health, 2) * mul(self) + (self.hpGrantBonus ?? 0);
-    for (const m of ctx.living(self.side)) ctx.buff(m, 0, hp, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAllHealth(combatArena(ctx, self), params);
   },
 
   /** Sergeant — when THIS minion's Attack rises in combat (onGainAttack), improve the Deathrattle's

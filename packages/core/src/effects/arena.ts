@@ -29,6 +29,8 @@ export interface ArenaBody {
   health: number;
   keywords: readonly string[];
   golden?: boolean;
+  /** Sergeant's per-instance HP-grant accrual — carried on both phases' bodies already. */
+  hpGrantBonus?: number;
 }
 
 export interface EffectArena {
@@ -78,5 +80,14 @@ export const ARENA_EFFECTS = {
     const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
     const h = (typeof params.health === 'number' ? params.health : 1) * g;
     for (const f of arena.friends()) arena.buff(f, a, h);
+  },
+
+  /** Sergeant — Echo: your minions gain +Health (golden doubles), plus this instance's accrued
+   *  `hpGrantBonus`. The shop half's `hp <= 0` guard is kept — unreachable in content (base 2), harmless. */
+  deathrattleBuffAllHealth(arena: EffectArena, params: Record<string, unknown>): void {
+    const hp = (typeof params.health === 'number' ? params.health : 2) * (arena.self.golden ? 2 : 1)
+      + (arena.self.hpGrantBonus ?? 0);
+    if (hp <= 0) return;
+    for (const f of arena.friends()) arena.buff(f, 0, hp);
   },
 } as const;

@@ -1,5 +1,49 @@
 # ASCENT — development log
 
+
+## 2026-08-05 (drag the artwork itself)
+
+### feat(dev): Card Art gets a direct-manipulation overlay — drag, wheel-zoom, ✗/✓
+
+The last piece of the owner's original brief. Double-click a card (with the 🖌️ Card Art panel open) and it
+enters a transform session: **drag anywhere on the card** to reposition its illustration, **wheel** to zoom,
+then **✓** to keep or **✗** to put it back. The panel's sliders track the drag live, so you can rough it in by
+hand and finish numerically.
+
+**Why the layer sits on the card root but measures `.art`.** First pass mounted it inside `.art`, which is the
+frame's window — and `.art` CLIPS. Two consequences the owner hit immediately: the ✗/✓ could not escape the
+card, so they collided with the stat badges and the tribe medallion and the hand's hover-pop lifted the card
+over them; and the "you are editing this" outline, drawn as an inset shadow in there, was invisible because the
+frame's gold overhang paints on top of the window's edges. It had been rendering correctly the whole time,
+under the gold.
+
+So the layer moved to the card ROOT (buttons now flank the card at ∓14%), while the drag maths reaches into
+`.art` for its box. That distinction is load-bearing: the stored offset is a % of the ART WINDOW, so measuring
+the card instead would make every drag land short by the ratio between the two — which reads as "the drag
+doesn't quite track my cursor" rather than as an obvious bug.
+
+**The ring is gone entirely** (owner call): the ✗/✓ pair flanking the card is the indicator, and a cyan outline
+read as clutter.
+
+**Details worth keeping:**
+
+- **✗ restores the exact prior state, including "no entry at all."** A card that had never been tuned goes back
+  to untuned rather than to an entry of zeroes. They look identical on screen but are not — a zeroed entry
+  silently pins that card against any later frame-family retune.
+- **✓ writes the file**, not just the browser, and a failed write alerts rather than passing silently.
+- **The rect is measured once per press**, not per move: reading layout on every pointermove is this repo's
+  documented anti-pattern, and the box cannot change mid-drag anyway.
+- **Wheel zoom is multiplicative**, so a notch feels the same at every zoom level.
+- A double-click *inside* a live session is swallowed, or it would re-open a session on top of the running one
+  and reset the ✗ snapshot to the half-dragged state.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3970 tests** / 248 files, `build:web` green.
+The interaction itself was reviewed by the owner in the live game — the first pass came back with both the
+buried buttons and the invisible ring, which is exactly the class of thing the automated checks cannot see.
+
+*Note: `packages/ui/src/fx/directCalls.test.ts` is a slow test (1.3s alone, 4.2s under full-suite load) that
+intermittently trips its timeout. Unrelated to this change; it passed on re-run and in isolation.*
+
 ## 2026-08-05 — `main` is not protected, and CLAUDE.md said the opposite
 
 Found while merging #877. CLAUDE.md asserted *"Branch protection requires a review that can't be satisfied

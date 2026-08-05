@@ -60,8 +60,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared
   body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry
   back to the run at settle. Only pure tavern work (consume/gild/shop enchants) still waits for the shop.
-- **A Card Art tuner** — double-click any card in dev to reframe its illustration: nudge, zoom, and
-  hue/saturation/contrast, saved per card to a real committed file.
+- **A Card Art tuner** — double-click any card in dev to grab its illustration and drag it into place,
+  wheel to zoom, ✗/✓ to discard or save. Plus hue/saturation/contrast, saved per card to a real file.
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing
   something on top of it. It can spread to neighbours or the whole board (rippling outward, sweeping across

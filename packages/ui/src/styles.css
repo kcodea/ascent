@@ -7230,3 +7230,26 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   cursor: pointer;
 }
 .lobbyscout-x:hover { color: #fff; border-color: var(--gold); }
+
+/* ── CARD ART TRANSFORM SESSION (dev only) ────────────────────────────────────────────────────────────────
+   The layer double-clicking a card opens. It covers the whole CARD (grab anywhere to pan) and its ✗/✓ sit
+   OUTSIDE the card's edges — inside, they collided with the stat badges and the tribe medallion, and the
+   hand's hover-pop lifted the card over them (owner report 2026-08-05).
+
+   There is deliberately NO ring or tint marking the edited card: the ✗/✓ pair flanking it is the indicator,
+   and an earlier cyan ring read as clutter (owner call 2026-08-05). */
+.card .cardart-edit { position: absolute; inset: 0; z-index: 8; cursor: grab; }
+.card .cardart-edit:active { cursor: grabbing; }
+
+/* Outside the card on both flanks, level with the middle of the art. `z-index` above the layer itself so a
+   press lands on the button rather than starting a drag under it. */
+.cardart-edit-btn {
+  position: absolute; top: 34%; z-index: 9;
+  width: 2.1em; height: 2.1em; border-radius: 50%; border: 3px solid rgba(0, 0, 0, 0.55);
+  font-size: calc(var(--ccw) * 0.1); line-height: 1; font-weight: 900; cursor: pointer;
+  display: grid; place-items: center; padding: 0;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+}
+.cardart-edit-btn.cancel { left: -14%; background: #ef5f5f; color: #2a0c0c; }
+.cardart-edit-btn.ok { right: -14%; background: #55d15a; color: #10240f; }
+.cardart-edit-btn:hover { filter: brightness(1.12); }

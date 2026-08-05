@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
-import { cardArtVars, cardArtVersion, isPickingCardArt, selectCard, subscribeCardArt } from './cardArtConfig';
+import {
+  beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
+} from './cardArtConfig';
+import { CardArtEditor } from './CardArtEditor';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, statHoldKey, subscribeStatHolds } from './fx/statHold';
@@ -579,7 +582,7 @@ export const Card = memo(function Card({
         if (!isPickingCardArt()) return;
         e.preventDefault();
         e.stopPropagation();
-        selectCard(card.cardId!);
+        beginEditCardArt(card.cardId!);
       } : undefined}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}
@@ -745,6 +748,11 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
+            clips, so buttons parented there could never sit outside the card. The drag maths still measures
+            `.art` (see CardArtEditor) because the stored offset is a % of the ART window, not the card. */}
+        {card.cardId && editingCardArt() === card.cardId && <CardArtEditor cardId={card.cardId} />}
+
         {/* WARD GLASS (Divine Shield) — the "engulf the frame" layer (owner-chosen approach B, 2026-07-21).
             The `.ward` dome above is trimmed to the ART window by design, so it can never reach the gold.
             This is a SECOND dome painted OVER the frame (z4 vs the frame's z3) and clipped to the frame's own

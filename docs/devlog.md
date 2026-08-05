@@ -2,6 +2,29 @@
 
 
 
+
+## 2026-08-05 (card-art pass 2 — 27 more cards)
+
+### content(ui): card-art framing for 27 more cards
+
+A full tuning pass with the 🖌️ Card Art overlay, taking the table from 11 entries to **38**.
+
+**Added (27):** Dawnclaw, Echohorn, Solaris, Sunmane, T-Rex, Beetle, Blazing Keeper, Chorus, Matriarch,
+Recaller, Scalechanter, Skald, Spellvault, Voicekeeper, Avarice, Gourmand, Tallymonger, Bladethrower, Brakka,
+Wardkeeper, Frenzied, Gemline, Geode, Prismcaster, Veinbreaker, Spellsword, Nimbus.
+**Re-tuned (1):** Clerk. **Removed:** none.
+
+Overwhelmingly framing (x/y/zoom), which is what the tool is for.
+
+**Three entries carry identity-valued colour fields** — `dm_clerk` (hue/sat/contrast), `n2_spellsword.hue`,
+`d2_skald.contrast`. They render as no change, but an explicit entry PINS that field against a later
+frame-family retune, which is the documented difference between "no entry" and "an entry of zeroes". Left as
+authored rather than silently stripped; worth a sweep if the colour knobs stay unused in practice.
+
+**Verified:** valid JSON, 38 entries, no unknown fields and no non-numeric values (the same checks the write
+endpoint enforces, re-run against the committed file); `typecheck` clean, `lint` 0 errors, **3992 tests** /
+249 files, `build:web` green.
+
 ## 2026-08-05 (card-art tuning pass)
 
 ### content(ui): the owner's card-art framing — 11 cards

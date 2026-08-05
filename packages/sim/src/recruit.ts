@@ -64,18 +64,27 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const ruby = (t as BoardCard).buffs?.find((b) => b.source === 'Ruby');
       return { attack: ruby?.attack ?? 0, health: ruby?.health ?? 0 };
     },
-    summonToken: (id, a, h) => {
+    summonToken: (id, opts) => {
       const token = CARD_INDEX[id];
-      if (!token) return;
+      if (!token) return undefined;
       const before = state.board.length;
       const made0 = makeContext(state).summon(token, self.uid);
-      if (state.board.length === before) return; // board full
+      if (state.board.length === before) return undefined; // board full
       const made = made0 ?? state.board[state.board.length - 1];
-      if (!made) return;
-      // Label the above-base share as a RUBY buff and notify watchers — the legacy shop bookkeeping, so a
-      // Resonance Idol still bounces off the landing Shard and the inspect breakdown attributes correctly.
-      const ea = a - made.attack, eh = h - made.health;
-      if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+      if (!made) return undefined;
+      if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
+      // Explicit stats: label the above-base share as a RUBY buff and notify watchers — the legacy shop
+      // bookkeeping, so a Resonance Idol still bounces and the inspect breakdown attributes correctly.
+      if (opts?.attack !== undefined && opts.health !== undefined) {
+        const ea = opts.attack - made.attack, eh = opts.health - made.health;
+        if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+      }
+      return made;
+    },
+    playRubiesOn: (t, per) => {
+      const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+      const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
+      if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h); }
     },
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
@@ -1761,23 +1770,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The Rubies go through `addBuff` + `fireOnRubyPlayed`, exactly like a hand-cast Ruby, so the golems' own
    *  on-Ruby watchers see them AND the reducer's Ruby-landed cue detonates on them (it measures the 'Ruby'
    *  buff-count delta, and a freshly summoned body counts from 0 — which is correct, those Rubies just landed). */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleSummonGolemsWithRuby: (ctx, self, params) => {
-    const golem = CARD_INDEX['gemheart-shard'];
-    if (!golem) return;
-    const state = ctx.state;
-    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-    const per = num(params.rubies, 1) * gold(self);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    for (let i = 0; i < num(params.count, 2); i++) {
-      const before = state.board.length;
-      const summoned = ctx.summon(golem, self.uid);
-      if (state.board.length === before) break; // board full
-      const body = summoned ?? state.board[state.board.length - 1];
-      if (!body) break;
-      if (!body.keywords.includes('T')) body.keywords = [...body.keywords, 'T'];
-      if (a > 0 || h > 0) { addBuff(body, 'Ruby', a, h); fireOnRubyPlayed(state, body, a, h); }
-    }
+    ARENA_EFFECTS.deathrattleSummonGolemsWithRuby(shopArena(ctx.state, self), params);
   },
 
   rubyStatGain: (ctx, self, params) => {

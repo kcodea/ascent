@@ -149,7 +149,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const shopRuby = m.buffs?.find((b) => b.source === 'Ruby');
       return { attack: (shopRuby?.attack ?? 0) + (m.rubyGain?.attack ?? 0), health: (shopRuby?.health ?? 0) + (m.rubyGain?.health ?? 0) };
     },
-    summonToken: (id, a, h) => { ctx.summon(self.side, ctx.getCard(id), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h }); },
+    summonToken: (id, opts) => {
+      const kw = opts?.keyword ? [opts.keyword as Keyword] : undefined;
+      const ov = opts?.attack !== undefined && opts.health !== undefined
+        ? { attack: opts.attack, health: opts.health, maxHealth: opts.health } : undefined;
+      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, false, false, ov);
+    },
+    playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
     rng: () => ctx.rng,
   };
 }
@@ -822,15 +828,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Geode Guardian (owner rework 2026-07-31) — Echo: summon `count` Gemheart Golems with Taunt and play
    *  `rubies` Rubies on each. The COUNT is deliberately NOT golden-doubled (a Gilded copy still summons 2 —
    *  owner's explicit call); the Rubies are, via `playRubyOn`'s per-cast stacking. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleSummonGolemsWithRuby: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const golem = ctx.getCard('gemheart-shard');
-    if (!golem) return;
-    for (let i = 0; i < num(params.count, 2); i++) {
-      const summoned = ctx.summon(self.side, golem, self.uid, ['T']);
-      if (!summoned) break; // board full
-      playRubyOn(ctx, self, summoned, num(params.rubies, 1) * mul(self));
-    }
+    ARENA_EFFECTS.deathrattleSummonGolemsWithRuby(combatArena(ctx, self), params);
   },
 
   /**

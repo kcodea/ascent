@@ -57,9 +57,14 @@ export interface EffectArena {
   /** The Rubies sitting ON a body — each phase's own per-instance ledger (combat: the carried 'Ruby' buff
    *  snapshot plus mid-fight `rubyGain`; shop: the 'Ruby' entry in the buff breakdown). */
   rubyTallyOf(t: ArenaBody): { attack: number; health: number };
-  /** Summon ONE token at explicit stats. The shop adapter labels the above-base share as a Ruby buff and
-   *  fires its onRubyPlayed watchers (the legacy shop bookkeeping); combat folds stats into the summon. */
-  summonToken(tokenId: string, attack: number, health: number): void;
+  /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
+   *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
+   *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string }): ArenaBody | undefined;
+  /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
+   *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
+   *  'Ruby' buff and fires its watchers. */
+  playRubiesOn(t: ArenaBody, per: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -134,6 +139,18 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
-    arena.summonToken(id, (1 + t.attack) * g, (1 + t.health) * g);
+    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g });
+  },
+
+  /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
+   *  summons two) with Taunt, and play `rubies × golden` Rubies on each as it lands. */
+  deathrattleSummonGolemsWithRuby(arena: EffectArena, params: Record<string, unknown>): void {
+    const per = (typeof params.rubies === 'number' ? params.rubies : 1) * (arena.self.golden ? 2 : 1);
+    const count = typeof params.count === 'number' ? params.count : 2;
+    for (let i = 0; i < count; i++) {
+      const golem = arena.summonToken('gemheart-shard', { keyword: 'T' });
+      if (!golem) break; // board full
+      arena.playRubiesOn(golem, per);
+    }
   },
 } as const;

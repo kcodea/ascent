@@ -31,7 +31,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     buff: () => {},
     grantRubyPower: () => {},
     rubyTallyOf: () => ({ attack: 0, health: 0 }),
-    summonToken: () => {},
+    summonToken: () => undefined,
+    playRubiesOn: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -99,7 +100,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 6; // +deathrattleSummonRubyStats (golden = one Shard, doubled — owner ruling)
+  const MIGRATED_FLOOR = 7; // +deathrattleSummonGolemsWithRuby (Geode Guardian)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

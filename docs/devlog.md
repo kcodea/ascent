@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-04 — Geode Guardian is the seventh arena body; summonToken grows keyword + return
+
+`deathrattleSummonGolemsWithRuby` (Geode Guardian's Echo) migrates — both legacy halves deleted, ratchet
+floor → 7. `summonToken` matured into its general shape: optional keyword + explicit stats, returning the
+summoned body (undefined = board full) so bodies can chain. New verb `playRubiesOn(t, per)` — combat routes
+through `playRubyOn` (rubyBonus + Deepdelve multiplier + the target's own onRubyPlayed listeners), the shop
+applies `(1+rubyBonus)×per` as a 'Ruby' buff and fires its watchers. The owner's standing count ruling is
+preserved in the body: a Gilded Geode still summons TWO Golems — golden scales the RUBIES, never the count.
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness ✓.
+
 ## 2026-08-04 — Gemheart's golden is ONE Shard at double stats (owner ruling); sixth arena body
 
 Divergent dual #2, ruled and migrated. `deathrattleSummonRubyStats` (Gemheart Carver) read its golden two

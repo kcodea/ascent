@@ -167,6 +167,14 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     impAura: () => ctx.impAura(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
+    tribesOf: (t) => {
+      const m = t as Minion;
+      return [m.tribe, m.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');
+    },
+    isUniversalTribe: (t) => (t as Minion).universalTribe === true || !!ctx.getCard(t.cardId)?.universalTribe,
+    improveReps: () => ctx.improveRepsFor(self.side),
+    matriarchReps: () => ctx.matriarchRepsFor(self.side),
+    logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     grantUndeadAttackAura: (a) => {
       for (const m of ctx.living(self.side)) {
         if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
@@ -1534,46 +1542,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  exactly like the shop half. This half was missing entirely, so combat casts silently skipped her.
    *  `excludeSelf` (Runekeg): "other Dwarves". Rune of the Matriarch doubles via `matriarchRepsFor`,
    *  mirroring the recruit engine's wrapper. Golden doubles the magnitude. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastBuffRandomTribe: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
-    const tribe = str(params.tribe) as Tribe | '';
-    const a = num(params.attack, 3) * mul(self);
-    const h = num(params.health, 3) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    const reps = self.cardId === 'b2_runebloom' ? ctx.matriarchRepsFor(self.side) : 1;
-    for (let r = 0; r < reps; r++) {
-      const pool = ctx.living(self.side).filter(
-        (m) => (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!m.universalTribe) && !(params.excludeSelf && m === self),
-      );
-      if (pool.length === 0) return;
-      const want = Math.min(num(params.count, 3), pool.length);
-      for (let i = 0; i < want; i++) {
-        const idx = ctx.rng.int(pool.length);
-        ctx.buff(pool.splice(idx, 1)[0]!, a, h, self.uid);
-      }
-    }
+    ARENA_EFFECTS.onSpellCastBuffRandomTribe(combatArena(ctx, self), params);
   },
 
   /** Fatecarver, branch A (combat half — owner audit 2026-08-02): each spell cast mid-fight buffs one living
    *  minion of each type, deterministically in board order — the same walk as the recruit half, so seating
    *  steers who benefits in combat too. Gated on the Choose One pick like the Growth branch. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts. The Choose One gate stays with dispatch.
   onSpellCastBuffOnePerTribe: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
     if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 2) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    const seen = new Set<string>();
-    for (const m of ctx.living(self.side)) {
-      if (m.universalTribe) { ctx.buff(m, a, h, self.uid); continue; } // its own slot, not every tribe's
-      const tribes = [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-      if (tribes.length === 0) continue;
-      if (tribes.every((t) => seen.has(t))) continue;
-      for (const t of tribes) seen.add(t);
-      ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.onSpellCastBuffOnePerTribe(combatArena(ctx, self), params);
   },
 
   /** Archmagus Guel (combat half) — when a friendly spell is cast mid-fight (Taragosa's Growth), give
@@ -1632,15 +1616,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'improve', target: self.uid, amount: num(params.step, 1) * ctx.improveRepsFor(self.side) });
   },
 
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastImproveSelf: (ctx, self, params, payload) => {
-    const { side } = payload as { side: Side; count: number };
+    const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
-    void params;
-    // Rune of Mastery: each cast's Improve tick applies twice (the SoC Dragon grant derives from this
-    // progress — Spirit Pup's transform tick above is a CAST COUNT, not an Improve, and stays ×1).
-    self.spellProgress = (self.spellProgress ?? 0) + ctx.improveRepsFor(self.side);
-    ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
+    ARENA_EFFECTS.spellCastImproveSelf(combatArena(ctx, self), params);
   },
+
 
   /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.
    *  Health-only, so it never re-triggers onGainAttack (no loop). Golden doubles. */
@@ -2958,16 +2940,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  This half was missing entirely (owner report 2026-07-25): the factory existed only in the recruit table,
    *  so Groveweaver paid for shop summons and silently did nothing for the Echo/Rise tokens that make up most
    *  of a summon board's bodies. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts; the arriver rides params.
   summonBuffTribeAsym: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
-    const tribe = str(params.tribe);
-    if (tribe && !(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    const a = (num(params.attack, 2) + bonus) * mul(self);
-    const h = (num(params.health, 4) + bonus) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.buff(minion, a, h, self.uid);
+    ARENA_EFFECTS.summonBuffTribeAsym(combatArena(ctx, self), { ...params, arriver: minion });
   },
 
   /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).

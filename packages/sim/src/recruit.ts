@@ -103,6 +103,15 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
     grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
+    tribesOf: (t) => {
+      const def = CARD_INDEX[t.cardId];
+      return [def?.tribe, def?.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');
+    },
+    isUniversalTribe: (t) => !!CARD_INDEX[t.cardId]?.universalTribe,
+    improveReps: () => improveReps(state),
+    matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
+    logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
+
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
@@ -1900,15 +1909,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  symmetric grant, and it does NOT self-improve here — the improvement rides spell casts instead
    *  (`onSpellCastImproveSummon`), which is what the card says. Golden doubles the whole magnitude at grant
    *  time so base and step each double exactly once. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts; the arriver rides params.
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
     if (minion === self) return;
-    const tribe = str(params.tribe);
-    if (tribe && !isTribe(minion, tribe as Tribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    const a = (num(params.attack, 2) + bonus) * gold(self);
-    const h = (num(params.health, 4) + bonus) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    addBuff(minion, nameOf(self), a, h);
+    ARENA_EFFECTS.summonBuffTribeAsym(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
@@ -2366,9 +2370,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Runescale Drake (recruit half): each tavern spell cast while THIS instance is on the board ticks its
    *  per-instance `spellProgress` by 1 (non-retroactive — a freshly bought copy starts at 0). The Start-of-
    *  Combat half reads that tally to size its Dragon buff; combat casts tick it at settle (see resolveCombat). */
-  spellCastImproveSelf: (ctx, self) => {
-    // Rune of Mastery: each cast's Improve tick applies twice (the SoC Dragon grant derives from this tally).
-    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  spellCastImproveSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.spellCastImproveSelf(shopArena(ctx.state, self), params);
   },
 
   /** Flowing Monk (recruit half): when a summon can't fit the full board, Engrave `count` random friendly
@@ -3391,26 +3395,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * steer who benefits by arranging the line. A universal-tribe minion counts as its own slot rather than
    * soaking every tribe's buff, matching `onRallyBuffOnePerTribe`.
    */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts. The Choose One gate stays with dispatch (a persistent
+  // branch cannot live in chooseOne[].effects - it would fire once at pick time and never again).
   onSpellCastBuffOnePerTribe: (ctx, self, params) => {
-    // Gated on the Choose One pick. `applyChooseOne` fires a branch's effects ONCE as a battlecry, so a
-    // PERSISTENT branch cannot live in `chooseOne[].effects` — it would fire at pick time and never again. Both
-    // halves are printed effects on the card instead, each checking which branch this body became.
     if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    const seen = new Set<string>();
-    for (const c of ctx.state.board) {
-      const def = CARD_INDEX[c.cardId];
-      if (!def) continue;
-      if (def.universalTribe) { addBuff(c, nameOf(self), a, h); continue; } // its own slot, not every tribe's
-      const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-      if (tribes.length === 0) continue;
-      if (tribes.every((t) => seen.has(t))) continue; // every type it covers already got its buff
-      for (const t of tribes) seen.add(t);
-      addBuff(c, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.onSpellCastBuffOnePerTribe(shopArena(ctx.state, self), params);
   },
+
 
   /** Copycat (rune gift — owner spec 2026-08-02): an EXACT copy of the target friendly minion into hand.
    *  A spread of the live BoardCard — stats, keywords, gilding, enchants and every per-instance accrual
@@ -3426,20 +3417,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.hand.push(clone);
   },
 
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    // `excludeSelf` (Runekeg): "other Dwarves" — the caster never buffs itself.
-    const pool = ctx.state.board.filter((c) => (!tribe || isTribe(c, tribe as never)) && !(params.excludeSelf && c === self));
-    if (pool.length === 0) return;
-    const rng = makeRng(ctx.state.rngCursor);
-    const targets = [...pool];
-    const picks: BoardCard[] = [];
-    const want = Math.min(num(params.count, 3), targets.length);
-    for (let i = 0; i < want; i++) picks.push(targets.splice(rng.int(targets.length), 1)[0]!);
-    ctx.state.rngCursor = rng.state();
-    const a = num(params.attack, 3) * gold(self), h = num(params.health, 3) * gold(self);
-    for (const c of picks) addBuff(c, nameOf(self), a, h);
+    ARENA_EFFECTS.onSpellCastBuffRandomTribe(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
    *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).

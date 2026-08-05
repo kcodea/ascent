@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 21–24: the spellCast/summon buff wave; one divergence deferred
+
+`onSpellCastBuffRandomTribe`, `onSpellCastBuffOnePerTribe`, `summonBuffTribeAsym` and `spellCastImproveSelf`
+migrate in one pass — floor → 24 of 42. New vocabulary: `tribesOf`/`isUniversalTribe` (Fatecarver's
+one-per-type walk, Paragon takes its own slot), `improveReps` (Rune of Mastery), `matriarchReps` (the shop
+returns 1 — the legacy shop halves never applied Matriarch, preserved until ruled), `logSpellProgress`
+(combat log event, shop no-op), and per-instance fields `chosenOption`/`spellProgress`/`summonBonus` on
+`ArenaBody`. Payload-carried actors (the summon ARRIVER) ride params, the same channel as the Idol's Ruby
+amounts. Choose One gates stay with dispatch in the wrappers.
+
+**Deferred to the owner:** `summonBuffSelfTribe` — a DOCUMENTED pre-existing divergence (the combat half's own
+comment flags it): combat grows (base + spells) ADDITIVELY with base 1/1; the shop multiplies
+base×(1+spells) with base 3/3. Materially different scaling; needs a ruling, not a guess.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 19+20: the spellCast family begins
 
 `spellCastBuffAll` and `spellCastBuffUndeadAttack` migrate — floor → 20, and the sweep is at the halfway

@@ -47,6 +47,11 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     addTribeAura: () => {},
     grantCardTypeBuff: () => {},
     grantUndeadAttackAura: () => {},
+    tribesOf: () => [],
+    isUniversalTribe: () => false,
+    improveReps: () => 1,
+    matriarchReps: () => 1,
+    logSpellProgress: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -114,7 +119,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 20; // +spellCastBuffAll, spellCastBuffUndeadAttack
+  const MIGRATED_FLOOR = 24; // +onSpellCastBuffRandomTribe/OnePerTribe, summonBuffTribeAsym, spellCastImproveSelf
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

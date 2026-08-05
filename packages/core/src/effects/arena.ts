@@ -33,6 +33,12 @@ export interface ArenaBody {
   hpGrantBonus?: number;
   /** Combat carries a separate max; the shop's printed health IS its max. Bodies read `maxHealth ?? health`. */
   maxHealth?: number;
+  /** Choose One: which branch this instance became (display + gating). */
+  chosenOption?: number;
+  /** The per-instance improve tally several cards share (Guel / Spirit Pup / Groveweaver / Kennelmaster). */
+  spellProgress?: number;
+  /** The per-instance summon-accrual tally (Pack Leader / Mama Bear / the asym buffers). */
+  summonBonus?: number;
 }
 
 export interface EffectArena {
@@ -102,6 +108,17 @@ export interface EffectArena {
    *  adapter: combat live-buffs the Undead on board AND carries back via `grantUndeadBuyAtk`; the shop runs
    *  `buffUndeadAttackEverywhere`. The body only states the amount. */
   grantUndeadAttackAura(attack: number): void;
+  /** The REAL tribes of a body (non-neutral, both slots). */
+  tribesOf(t: ArenaBody): string[];
+  /** Paragon's all-type flag. */
+  isUniversalTribe(t: ArenaBody): boolean;
+  /** Rune of Mastery reps — how many times an Improve tick applies (2 under the rune, else 1). */
+  improveReps(): number;
+  /** Rune of the Matriarch reps (2 with the rune, else 1). The shop adapter returns 1 — the legacy shop
+   *  halves never applied Matriarch, and that behaviour is preserved until ruled otherwise. */
+  matriarchReps(): number;
+  /** Announce a spellProgress tick (the live countdown). A combat log event; a shop no-op. */
+  logSpellProgress(amount: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -341,5 +358,65 @@ export const ARENA_EFFECTS = {
   /** Deathswarmer's spell-cast twin: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */
   spellCastBuffUndeadAttack(arena: EffectArena, params: Record<string, unknown>): void {
     arena.grantUndeadAttackAura((typeof params.attack === 'number' ? params.attack : 2) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Runebloom / Runekeg — whenever you cast a Shop spell: give `count` random minions of `tribe` +atk/+hp
+   *  (golden doubles; `excludeSelf` for "other"). Runebloom repeats under Rune of the Matriarch — combat's
+   *  legacy behaviour, carried by the adapter's `matriarchReps` (the shop returns 1, as it always did). */
+  onSpellCastBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 3) * g;
+    const h = (typeof params.health === 'number' ? params.health : 3) * g;
+    if (a <= 0 && h <= 0) return;
+    const reps = arena.self.cardId === 'b2_runebloom' ? arena.matriarchReps() : 1;
+    const rng = arena.rng();
+    for (let r = 0; r < reps; r++) {
+      const pool = arena.friends().filter((m) =>
+        (!tribe || arena.isTribe(m, tribe)) && !(params.excludeSelf && m.uid === arena.self.uid));
+      if (pool.length === 0) return;
+      const want = Math.min(typeof params.count === 'number' ? params.count : 3, pool.length);
+      for (let i = 0; i < want; i++) arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+  },
+
+  /** Fatecarver — each Shop spell buffs ONE minion of each type, walking the board in order (seating steers
+   *  who benefits). A Paragon takes its own slot, not every tribe's. Golden doubles. */
+  onSpellCastBuffOnePerTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    if (a <= 0 && h <= 0) return;
+    const seen = new Set<string>();
+    for (const f of arena.friends()) {
+      if (arena.isUniversalTribe(f)) { arena.buff(f, a, h); continue; }
+      const tribes = arena.tribesOf(f);
+      if (tribes.length === 0) continue;
+      if (tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      arena.buff(f, a, h);
+    }
+  },
+
+  /** The asym on-summon buffer: when a friend of `tribe` is played/summoned beside this, buff THE ARRIVER by
+   *  (base + this instance's `summonBonus`) × golden. The arriver rides `params.arriver` (merged by the
+   *  wrappers from the dispatch payload). */
+  summonBuffTribeAsym(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    if (!arriver || arriver.uid === arena.self.uid) return;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    if (tribe && !arena.isTribe(arriver, tribe)) return;
+    const g = arena.self.golden ? 2 : 1;
+    const bonus = arena.self.summonBonus ?? 0;
+    const a = ((typeof params.attack === 'number' ? params.attack : 2) + bonus) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 4) + bonus) * g;
+    if (a <= 0 && h <= 0) return;
+    arena.buff(arriver, a, h);
+  },
+
+  /** Spirit Pup's improve tick: each Shop spell advances this instance's `spellProgress` (× Rune of Mastery). */
+  spellCastImproveSelf(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.self.spellProgress = (arena.self.spellProgress ?? 0) + arena.improveReps();
+    arena.logSpellProgress(arena.self.spellProgress);
   },
 } as const;

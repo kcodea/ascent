@@ -133,7 +133,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 41; // ECHO FAMILY: +GrantRebornAll (shop half born), +GainRandomMinion (combat half born)
+  const MIGRATED_FLOOR = 42; // +ImpsOverflowGrant (Legion Shepherd, shop half born - owner bug report)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

@@ -763,12 +763,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       // the ORIGINAL `state`, so an increment on the draft is discarded with everything else, which is correct.
       applyCardsPlayed(s, 1);
 
-      // Funeral on Loan: a BORROWED minion never enters the board — playing it triggers its Echo (Deathrattle)
-      // out of combat, then it's destroyed (consumed from hand). No board slot needed; a non-Echo body just vanishes.
+      // Funeral on Loan: playing a BORROWED minion triggers its Echo out of combat, then it's destroyed.
+      //
+      // It OCCUPIES ITS DROP SLOT while the Echo fires (owner report 2026-08-04: a borrowed Dawnclaw dropped
+      // beside a Shout "does not trigger the adjacent shouts"). Positional Echoes need the body to actually
+      // BE somewhere — Dawnclaw's neighbours, Legion Shepherd's overflow counting against a real board — so
+      // the card is spliced in at `toIndex` for the duration of the trigger and removed after, never staying.
       if (card.borrowed) {
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
-        triggerBorrowedEcho(s, card);
+        const at = Math.max(0, Math.min(action.toIndex ?? s.board.length, s.board.length));
+        s.board.splice(at, 0, card);
+        try {
+          triggerBorrowedEcho(s, card);
+        } finally {
+          // Find it by uid — the Echo may have summoned bodies around it and shifted the index.
+          const gone = s.board.findIndex((c) => c.uid === card.uid);
+          if (gone >= 0) s.board.splice(gone, 1);
+        }
         return s;
       }
 

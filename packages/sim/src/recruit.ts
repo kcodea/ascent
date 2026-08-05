@@ -2360,6 +2360,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleGrantRebornAll: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleGrantRebornAll(shopArena(ctx.state, self), params);
   },
+  // ARENA-BORN (Echo family, owner report 2026-08-04): a borrowed Legion Shepherd summoned nothing.
+  deathrattleImpsOverflowGrant: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleImpsOverflowGrant(shopArena(ctx.state, self), params);
+  },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
    *  bonus-Gold channel so it survives the per-turn embers reset. */

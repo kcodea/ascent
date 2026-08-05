@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-04 — Funeral on Loan live-testing fixes: the borrowed body occupies its drop slot
+
+Owner found both by playing (the audit the sweep exists to make unnecessary — these were on the un-migrated
+remainder):
+
+- **A borrowed minion now OCCUPIES ITS DROP SLOT while its Echo fires**, then leaves — never staying. The old
+  flow consumed the card from hand and fired the Echo bodiless, so every POSITIONAL Echo was meaningless: a
+  borrowed Dawnclaw beside a Shout found no neighbours ("does not trigger the adjacent shouts"), and Legion
+  Shepherd's overflow had no real board to count against. The reducer splices the card in at `toIndex`, fires,
+  and removes it by uid (the Echo may have summoned bodies around it and shifted the index). A ghost slot also
+  makes overflow semantics honest: the Shepherd takes up room while it dies, exactly as it would in combat.
+- **Legion Shepherd migrated (arena body 42, shop half ARENA-BORN)** — it had no shop half at all, so a
+  borrowed Shepherd summoned nothing. One combat nuance surfaced by its own full-board test: the summon's
+  RETURN is not a reliable landed-signal (combat can defer a body onto the immediate-attack queue), so the
+  shared body counts landings by board size — the same trick the legacy half used, now stated.
+
+Two regression tests pin the reports verbatim: the 6-board Shepherd converts all four Imps into +8/+8 (and on
+a roomy board actually lands three), and a borrowed Dawnclaw dropped between two Dwarves re-fires the
+Captain's Shout. Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — The Echo family sweep begins: the first ARENA-BORN halves
 
 Bodies 40+41, and a milestone: these are the first effects to GAIN a phase rather than merely deduplicate one.

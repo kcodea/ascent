@@ -2594,22 +2594,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  the Imp Aura channel — which advances the aura (so Imps summoned LATER this combat inherit it) and rides
    *  the `playerImpBuffGain` carry-back into run state (so Imps in the shop and on the board get it too, and
    *  keep it). The living Imps already on the field are buffed directly, since the aura only reaches new bodies. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN. `grantImpAura` buffs every
+  // imp-flagged body rather than only impscrap literals — a deliberate widening ("your Imps" means Imps).
   deathrattleImpsOverflowGrant: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const imp = ctx.getCard('impscrap');
-    if (!imp) return;
-    const total = num(params.count, 4); // fixed — golden scales the per-overflow grant, not the body count
-    let overflowed = 0;
-    for (let i = 0; i < total; i++) {
-      const before = ctx.living(self.side).length;
-      ctx.summon(self.side, imp, self.uid);
-      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
-    }
-    if (overflowed === 0) return;
-    const a = num(params.attack, 2) * mul(self) * overflowed;
-    const h = num(params.health, 2) * mul(self) * overflowed;
-    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
-    ctx.grantImpBuff(a, h, self.side);
+    ARENA_EFFECTS.deathrattleImpsOverflowGrant(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Endless Overseer (owner rework 2026-07-27): Start of Combat, graft an Echo onto your RIGHT-most

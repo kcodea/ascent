@@ -681,4 +681,26 @@ export const ARENA_EFFECTS = {
       },
       (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
   },
+
+  /** Legion Shepherd — Echo: summon `count` Imps (count FIXED — golden scales the grant, not the bodies);
+   *  every Imp that can't fit instead improves your Imps EVERYWHERE, permanently, by +a/+h per overflow.
+   *  ARENA-BORN shop half (owner report 2026-08-04: a borrowed Shepherd summoned nothing and never overflowed
+   *  — it had no shop half at all). */
+  deathrattleImpsOverflowGrant(arena: EffectArena, params: Record<string, unknown>): void {
+    const total = typeof params.count === 'number' ? params.count : 4;
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      // Count landings by BOARD SIZE, not the summon's return — combat's summon can defer a body onto the
+      // immediate-attack queue and return nothing for a summon that WILL land (the legacy half counted
+      // `living()` length for exactly this reason; caught by the full-board overflow test).
+      const before = arena.friends().length;
+      arena.summonToken('impscrap');
+      if (arena.friends().length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g * overflowed,
+      (typeof params.health === 'number' ? params.health : 2) * g * overflowed);
+  },
 } as const;

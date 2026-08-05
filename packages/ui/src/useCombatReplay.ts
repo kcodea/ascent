@@ -1462,24 +1462,38 @@ export function useCombatReplay(
   //
   // Places the beat's buffs into the shared module store (`fx/statHold`) at `effect` origin — its ticker
   // skips `effect` holds outright, so combat's own strike timers stay the only clock driving delivery.
-  // `combatHeldRef` tracks exactly what THIS instance placed so the release below only ever drops its own
-  // holds, never a hold some other beat or another surface placed on a uid that outlives this component.
+  //
+  // THE INVARIANT: every uid this beat is about to (re-)place must be RELEASED first, whether or not its
+  // strike already fired. Two lists jointly guarantee that — `combatHeldRef` (last beat's leftovers: a uid
+  // whose `driveRoll` never got to run) AND this beat's own `combatBuffDeltas` (uids whose `driveRoll`
+  // *did* already fire and start walking a live hold). Releasing only the first was the Task 3 regression:
+  // `driveRoll` drops a uid from `combatHeldRef` the moment it takes over delivery (so the *next* beat's
+  // release-first doesn't yank a roll out from under it), but that also means a SAME-beat re-seek — a manual
+  // scrub back onto the beat already on screen, mid-roll (`seekNonce` bumps, `beatIdx` doesn't) — no longer
+  // finds that uid in `combatHeldRef`. `holdStat` then lands on the still-live, partially-revealed hold and
+  // takes the "carry the unrevealed remainder" path: it ADDS the fresh delta on top of what's already been
+  // shown, instead of replacing it — e.g. a 24-point buff half-revealed (12 shown, 12 still owed) plus a
+  // fresh 24 held again totals 36 held against a 49-attack unit, printing 13 for a frame: BELOW the 25
+  // pre-buff floor, a number the minion never had. Releasing this beat's own uids unconditionally (not just
+  // `combatHeldRef`'s) closes that gap: `holdStat` always sees a clean slate for a uid it's about to place.
   useLayoutEffect(() => {
-    // Release last beat's module-store holds BEFORE placing this beat's — on every pass through this effect,
-    // including the inactive/beat-0 early-out just below. Skipping the release on that path would leave a
-    // stale hold live into the next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold
-    // rather than replacing them — so the next install would land on top of an unreleased remainder instead
-    // of a clean placement, double-counting one beat's buff. This is also what makes a re-seek back to the
-    // SAME beat (`seekNonce` bump, same `beatIdx`) safe: the effect tears down and re-runs, and without a
-    // release-first the delta for that one beat would stack a second time on top of itself. It also covers a
-    // uid whose strike-time `driveRoll` never got to fire (the beat advanced before the release timeout did)
-    // — that uid is still in `combatHeldRef`, so it gets force-released here instead of sitting stuck.
+    // Release last beat's leftover holds — see THE INVARIANT above. On every pass through this effect,
+    // including the inactive/beat-0 early-out just below: skipping it would leave a stale hold live into the
+    // next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold rather than replacing
+    // them, double-counting one beat's buff.
     for (const uid of combatHeldRef.current) releaseStat(uid);
     combatHeldRef.current = [];
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
-    for (const d of combatBuffDeltas(beat, events, frame)) {
+    // Computed once and reused for both the release pass and the place pass below, rather than calling
+    // `combatBuffDeltas` twice for the same beat.
+    const deltas = combatBuffDeltas(beat, events, frame);
+    // Release THIS beat's own targets too, even the ones no longer in `combatHeldRef` because their strike
+    // already fired and `driveRoll` took over — see THE INVARIANT above. Safe/cheap when nothing is held
+    // (`releaseStat` no-ops), which covers the ordinary forward-playback case where nothing has fired yet.
+    for (const d of deltas) releaseStat(d.uid);
+    for (const d of deltas) {
       // `effect` origin: the store's ticker leaves it alone, so the badge holds pre-buff until the STRIKE
       // drives it — same contract an authored `react` layer gets from `carries`; combat's strike timers are
       // that layer's hand-rolled equivalent here. A hold nobody claims still fails OPEN on its own TTL
@@ -1487,12 +1501,12 @@ export function useCombatReplay(
       holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'effect' });
       combatHeldRef.current.push(d.uid);
     }
-    // `seekNonce`: this is the ONLY installer of these holds, and both the release-first line above and the
-    // cue effect's cleanup interact with the same `combatHeldRef` list. `frame` can't stand in — it is
-    // memoised on `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a
-    // same-index re-seek. Without this the badge shows the POST-buff number for the whole replayed beat
-    // instead of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this
-    // effect exists to kill.
+    // `seekNonce`: this is the ONLY installer of these holds, and it's what makes a same-beat re-seek re-run
+    // this effect at all (`beatIdx` alone wouldn't change). `frame` can't stand in — it is memoised on
+    // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index
+    // re-seek. Without `seekNonce` the badge shows the POST-buff number for the whole replayed beat instead
+    // of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this effect
+    // exists to kill.
   }, [active, beatIdx, seekNonce, beats, events, frame]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks

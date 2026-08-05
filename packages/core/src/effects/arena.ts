@@ -161,6 +161,10 @@ export interface EffectArena {
   narrate(text: string): void;
   /** The run's active tribes — the generation-pool filter for tier/tribe-scoped random grants. */
   activeTribes(): string[];
+  /** Deal `amount` to every living body — combat: BOTH sides; shop: YOUR board (there is no enemy), and a
+   *  body taken to 0 dies there too — removed, its own Echo firing (owner ruling 2026-08-04: "Blaster should
+   *  still deal dmg to your board if borrowed and played"). */
+  damageAll(amount: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -702,5 +706,33 @@ export const ARENA_EFFECTS = {
     arena.grantImpAura(
       (typeof params.attack === 'number' ? params.attack : 2) * g * overflowed,
       (typeof params.health === 'number' ? params.health : 2) * g * overflowed);
+  },
+
+  /** Blaster — Echo: deal `amount` to EVERY minion (golden doubles). In the shop that means your own board —
+   *  a borrowed Blaster is a live grenade, by ruling. */
+  deathrattleDamageAll(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.damageAll((typeof params.amount === 'number' ? params.amount : 3) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Nanon — Echo: summon `count` tokens (count FIXED); every one that can't fit instead buffs your `tribe`
+   *  minions +a/+h EACH (golden doubles the buff). ARENA-BORN shop half — same class as Legion Shepherd. */
+  deathrattleSummonOverflowBuff(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const total = typeof params.count === 'number' ? params.count : 6;
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      const before = arena.friends().length;
+      arena.summonToken(id);
+      if (arena.friends().length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g * overflowed;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g * overflowed;
+    for (const f of arena.friends()) {
+      if (!tribe || arena.isTribe(f, tribe)) arena.buff(f, a, h);
+    }
   },
 } as const;

@@ -153,6 +153,17 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     nameOf: (t) => CARD_INDEX[t.cardId]?.name ?? t.cardId,
     narrate: () => {}, // the shop has FX, not narration
     activeTribes: () => state.tribes,
+    damageAll: (amount) => {
+      // The shop has no enemy: YOUR board takes it (owner ruling 2026-08-04). A body taken to 0 dies here
+      // too — removed, its own Echo firing, the same cascade combat runs.
+      for (const c of [...state.board]) c.health -= amount;
+      const dead = state.board.filter((c) => c.health <= 0);
+      for (const d of dead) {
+        const idx = state.board.indexOf(d);
+        if (idx >= 0) state.board.splice(idx, 1);
+      }
+      for (const d of dead) fireRecruitDeathrattles(makeContext(state), d);
+    },
     stampKarwindFlash: (t) => {
       const flash = (state.karwindFlash ??= []);
       if (!flash.includes(t.uid)) flash.push(t.uid);
@@ -2363,6 +2374,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-BORN (Echo family, owner report 2026-08-04): a borrowed Legion Shepherd summoned nothing.
   deathrattleImpsOverflowGrant: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleImpsOverflowGrant(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family, owner ruling): a borrowed Blaster damages YOUR board.
+  deathrattleDamageAll: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleDamageAll(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
+  deathrattleSummonOverflowBuff: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleSummonOverflowBuff(shopArena(ctx.state, self), params);
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard

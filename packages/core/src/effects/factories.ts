@@ -227,6 +227,11 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     nameOf: (t) => (t as Minion).name,
     narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
     activeTribes: () => ctx.activeTribesFor(self.side),
+    damageAll: (amount) => {
+      for (const sideKey of ['player', 'enemy'] as Side[]) {
+        for (const m of [...ctx.living(sideKey)]) ctx.damage(m, amount);
+      }
+    },
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -471,24 +476,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Nanon — Deathrattle: summon `count` tokens; every one that can't fit the full board (a `summonOverflow`)
    *  instead buffs your minions of `tribe` by +atk/+hp EACH. Golden doubles the *buff* (the summon count is
    *  fixed — a full board converts more bodies into a bigger Mech-wide pump). The gift lasts the combat. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN (Legion Shepherd's class).
   deathrattleSummonOverflowBuff: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 6); // fixed — golden scales the overflow buff, not the summon count
-    let overflowed = 0;
-    for (let i = 0; i < total; i++) {
-      const before = ctx.living(self.side).length;
-      ctx.summon(self.side, card, self.uid); // emits `summonOverflow` when the board is already full
-      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
-    }
-    if (overflowed === 0) return;
-    const tribe = str(params.tribe) as Tribe | '';
-    const a = num(params.attack, 2) * mul(self) * overflowed; // +2/+2 per overflow (golden +4/+4)
-    const h = num(params.health, 2) * mul(self) * overflowed;
-    for (const m of ctx.living(self.side)) {
-      if (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleSummonOverflowBuff(combatArena(ctx, self), params);
   },
+
 
   /** Sporebat — Deathrattle: grant N random tavern-tier spells to your hand after combat (golden 2). The
    *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
@@ -692,12 +685,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN by ruling (a borrowed Blaster
+  // damages YOUR board).
   deathrattleDamageAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const amount = num(params.amount, 3) * mul(self);
-    for (const side of ['player', 'enemy'] as Side[]) {
-      for (const m of [...ctx.living(side)]) ctx.damage(m, amount);
-    }
+    ARENA_EFFECTS.deathrattleDamageAll(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Jenkins & Fi): destroy the minion that dealt the killing blow (`killer` on the onDeath

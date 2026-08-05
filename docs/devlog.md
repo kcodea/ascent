@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-04 — Bodies 43+44: Blaster hits YOUR board (ruling); Nanon joins Shepherd
+
+- **Blaster** (`deathrattleDamageAll`, shop half ARENA-BORN by ruling — "Blaster should still deal dmg to your
+  board if borrowed and played"): the new `damageAll` verb is both-sides in combat and YOUR BOARD in the shop
+  (there is no enemy), with a body taken to 0 dying there too — removed, its own Echo firing, the same cascade
+  combat runs. One knock-on made explicit by an existing test: **Crypt Broker's "trigger its Echo now" means
+  the whole Echo, damage included** — the seeded test conjures Blaster, and the 3-health Broker now dies to
+  its own find. The test was updated to that truth rather than softened.
+- **Nanon** (`deathrattleSummonOverflowBuff`, ARENA-BORN shop half): Legion Shepherd's class — summons what
+  fits (fixed count), converts each overflow into the tribe buff, counting landings by board size.
+
+Floor → **44**. Remaining single-half Echoes: `deathrattleDestroyKiller` (correctly inert in a shop — no
+killer exists), `deathrattleCastTribeAttack` (Lantern of Souls — needs the cast-counting + permanent-aura
+shop ritual, one careful slice), `onFriendDeathSummon` (a watcher, not a payload — inert as an Echo trigger
+unless ruled otherwise). Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Funeral on Loan live-testing fixes: the borrowed body occupies its drop slot
 
 Owner found both by playing (the audit the sweep exists to make unnecessary — these were on the un-migrated

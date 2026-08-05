@@ -156,6 +156,17 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, false, false, ov);
     },
     playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
+    hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
+    grantReborn: (t) => {
+      const m = t as Minion;
+      m.keywords.push('R');
+      m.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
+    },
+    isTribe: (t, tribe) => {
+      const m = t as Minion;
+      return m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe;
+    },
     rng: () => ctx.rng,
   };
 }
@@ -889,22 +900,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  spent effects re-arm — the same rule as a resummoned body's Deathrattle). Golden grants it to two friends.
    *  Logs a `keyword` event so the target's card gains the Rise pill in the replay the moment it's granted
    *  (the Rise itself then replays through the normal `reborn` event when it procs). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantReborn: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe);
-    for (let i = 0; i < mul(self); i++) {
-      const candidates = ctx.living(self.side).filter((m) => {
-        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
-        if (!tribe) return true;
-        const def = ctx.getCard(m.cardId);
-        return m.tribe === tribe || m.tribe2 === tribe || !!def.universalTribe;
-      });
-      if (candidates.length === 0) return;
-      const target = ctx.rng.pick(candidates);
-      target.keywords.push('R');
-      target.rebornAvailable = true;
-      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
-    }
+    ARENA_EFFECTS.deathrattleGrantReborn(combatArena(ctx, self), params);
   },
 
   /** Avenge (X) — Arcane Weaver: after every `count` friendly deaths, add a copy of a spell to your hand
@@ -1867,14 +1866,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
-  deathrattleGrantShield: (ctx, self, _params, payload) => {
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleGrantShield: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const count = self.golden ? 2 : 1;
-    for (let i = 0; i < count; i++) {
-      const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-      if (pool.length === 0) return;
-      grantShield(ctx, ctx.rng.pick(pool));
-    }
+    ARENA_EFFECTS.deathrattleGrantShield(combatArena(ctx, self), params);
   },
 
   /** Shield Capacitor — when a friendly Shield breaks, give another friend a Shield. */

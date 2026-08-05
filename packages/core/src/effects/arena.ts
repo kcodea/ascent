@@ -65,6 +65,11 @@ export interface EffectArena {
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
   playRubiesOn(t: ArenaBody, per: number): void;
+  /** Rise (Reborn). Combat also reads the live `rebornAvailable` flag; the shop reads the keyword. */
+  hasReborn(t: ArenaBody): boolean;
+  grantReborn(t: ArenaBody): void;
+  /** Does `t` belong to `tribe`? Adapters fold in tribe2 + universalTribe, each phase's own way. */
+  isTribe(t: ArenaBody, tribe: string): boolean;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -151,6 +156,31 @@ export const ARENA_EFFECTS = {
       const golem = arena.summonToken('gemheart-shard', { keyword: 'T' });
       if (!golem) break; // board full
       arena.playRubiesOn(golem, per);
+    }
+  },
+
+  /** Mumi — Echo: give a friendly minion (of `tribe`, if set) RISE; golden grants twice. RANDOM in both
+   *  phases (standing owner ruling 2026-08-04, from Trickster: the shop's highest-Attack pick was a
+   *  pre-cursor-RNG workaround and is retired across the class). */
+  deathrattleGrantReborn(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const rng = arena.rng();
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      const pool = arena.friends().filter((m) =>
+        m.uid !== arena.self.uid && !arena.hasReborn(m) && (!tribe || arena.isTribe(m, tribe)));
+      if (pool.length === 0) return;
+      arena.grantReborn(pool[rng.int(pool.length)]!);
+    }
+  },
+
+  /** Echo: give a friendly minion WARD; golden grants twice (the shop half used to grant once AND pick the
+   *  carry — both retired under the same standing ruling; golden parity follows the combat reading). */
+  deathrattleGrantShield(arena: EffectArena, _params: Record<string, unknown>): void {
+    const rng = arena.rng();
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid && !arena.hasShield(m));
+      if (pool.length === 0) return;
+      arena.grantShield(pool[rng.int(pool.length)]!);
     }
   },
 } as const;

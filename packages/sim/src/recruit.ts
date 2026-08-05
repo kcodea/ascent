@@ -86,6 +86,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
       if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h); }
     },
+    hasReborn: (t) => t.keywords.includes('R'),
+    grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
+    isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -3137,25 +3140,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Deathrattle: give the carry a Divine Shield. */
-  deathrattleGrantShield: (ctx, self) => {
-    const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('DS'));
-    if (pool.length === 0) return;
-    const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    t.keywords.push('DS');
+  // ARENA-MIGRATED (Step 3): random in both phases + golden grants twice (standing ruling); one body.
+  deathrattleGrantShield: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantShield(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle (Mumi): give a friendly minion of `tribe` (default any) **Rise** out of combat — fired when
    *  Mumi is destroyed by Graverobber or Consumed. Mirrors the combat version: skips minions that already have
    *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
    *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
+  // ARENA-MIGRATED (Step 3): random in both phases (standing owner ruling); one body.
   deathrattleGrantReborn: (ctx, self, params) => {
-    const tribe = str(params.tribe) as Tribe | '';
-    for (let i = 0; i < gold(self); i++) {
-      const pool = ctx.state.board.filter((c) => c !== self && !c.keywords.includes('R') && (!tribe || isTribe(c, tribe)));
-      if (pool.length === 0) return;
-      const t = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-      t.keywords.push('R');
-    }
+    ARENA_EFFECTS.deathrattleGrantReborn(shopArena(ctx.state, self), params);
   },
 
   // --- More Deathrattle recruit halves (owner ruling 2026-07-08: ANY Deathrattle should be able to resolve out

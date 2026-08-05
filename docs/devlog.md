@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 8+9: Rise and Ward grants go random-in-both under the standing ruling
+
+`deathrattleGrantReborn` (Mumi) and `deathrattleGrantShield` migrate — floor → 9. Both were Trickster-class
+divergences: combat picked RANDOM, the shop picked the highest-Attack carry (the same pre-cursor-RNG
+workaround, per the shop halves' own comments). Applied the standing ruling — "random = random in both shop
+and in combat" — rather than re-asking per card. Two behaviour notes folded in: the shop GrantShield used to
+grant ONCE regardless of golden (now twice, the combat reading), and combat's extra `rebornAvailable` check
+rides the `hasReborn` adapter verb. New verbs: `hasReborn`/`grantReborn`/`isTribe`. Gates: typecheck ✓,
+3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Geode Guardian is the seventh arena body; summonToken grows keyword + return
 
 `deathrattleSummonGolemsWithRuby` (Geode Guardian's Echo) migrates — both legacy halves deleted, ratchet

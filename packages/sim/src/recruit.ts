@@ -101,6 +101,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
+    grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
@@ -1668,20 +1669,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Errand Fiend / Legion pieces (Echo): summon Imps, optionally keyworded and buffed as they land. */
+  // ARENA-MIGRATED (Step 3): one body. Drift fixed: the shop now honours the printed goldenText ("+2/+4")
+  // by doubling the per-Imp buff for golden, as combat always did.
   summonImps: (ctx, self, params) => {
-    const imp = CARD_INDEX['impscrap'];
-    if (!imp) return;
-    const kw = str(params.keyword);
-    const a = num(params.attack, 0), h = num(params.health, 0);
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      const body = ctx.summon(imp, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
-      if (!made) break;
-      if (kw && !made.keywords.includes(kw as Keyword)) made.keywords = [...made.keywords, kw as Keyword];
-      if (a > 0 || h > 0) addBuff(made, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.summonImps(shopArena(ctx.state, self), params);
   },
 
   /** Ex-Galloper (Echo): summon a copy of itself WITHOUT the Echo. In the shop the copy is a plain body of the
@@ -3580,9 +3571,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCardTypeRunWide: (ctx, self, params) => {
-    const cardId = str(params.cardId) || self.cardId;
-    buffCardTypeRunWide(ctx.state, cardId, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), CARD_INDEX[cardId]?.name ?? cardId);
+    ARENA_EFFECTS.deathrattleBuffCardTypeRunWide(shopArena(ctx.state, self), params);
   },
 
   /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */

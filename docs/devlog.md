@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 17+18: card-type enchants and Imp summons; a second silent drift fixed
+
+`deathrattleBuffCardTypeRunWide` and `summonImps` migrate — floor → 18.
+
+The Imp one is the sweep's SECOND silent drift: golden `summonImps` doubled the per-Imp buff in combat but
+NOT in the shop. **Errand Fiend's goldenText prints "+2/+4"** — the combat half honoured the printed contract,
+the shop half silently under-delivered (+1/+2 per Imp on a golden). Unification fixes the shop to the printed
+text; no ruling needed, the card already said the answer.
+
+`grantCardTypeBuff` follows the whole-ritual pattern: combat = carry-back channel + live-buffing on-board
+copies; shop = `buffCardTypeRunWide` (which covers board + hand itself — the body must not re-loop, or shop
+copies double-buff). The own-swing Rally guard on `summonImps` stays in the combat wrapper, with dispatch.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 15+16: Chef Raag and Grim
 
 `deathrattleBuffAllByImpAura` (the +1/+1 floor now lives in ONE place) and `deathrattleBuffTribeByTally`

@@ -94,6 +94,10 @@ export interface EffectArena {
   /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
    *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
   addTribeAura(tribe: string, attack: number, health: number): void;
+  /** Permanently buff a CARD TYPE run-wide (every copy: board, hand, future). Each adapter runs its whole
+   *  legacy ritual — combat: the carry-back channel PLUS live-buffing copies on the board this fight; shop:
+   *  `buffCardTypeRunWide` (which already covers board + hand itself — the body must NOT re-loop). */
+  grantCardTypeBuff(cardId: string, attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -292,6 +296,32 @@ export const ARENA_EFFECTS = {
     arena.addTribeAura(tribe, amount, amount);
     for (const f of arena.friends()) {
       if (f.uid !== arena.self.uid && (tribe === 'any' || arena.isTribe(f, tribe))) arena.buff(f, amount, amount);
+    }
+  },
+
+  /** Echo: permanently buff every copy of a card type, run-wide (golden doubles). `cardId` defaults to
+   *  the dying minion's own type. */
+  deathrattleBuffCardTypeRunWide(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const cardId = typeof params.cardId === 'string' && params.cardId ? params.cardId : arena.self.cardId;
+    arena.grantCardTypeBuff(cardId,
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Errand Fiend / Imp Wrangler — summon `count` Imps (golden doubles), each optionally keyworded and
+   *  buffed as it lands. GOLDEN DOUBLES THE PER-IMP BUFF TOO — Errand Fiend's goldenText prints "+2/+4",
+   *  which the combat half honoured and the shop half silently didn't (drift fixed by unification). */
+  summonImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const kw = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    const count = (typeof params.count === 'number' ? params.count : 1) * g;
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken('impscrap', kw ? { keyword: kw } : undefined);
+      if (!made) break; // board full
+      if (a > 0 || h > 0) arena.buff(made, a, h);
     }
   },
 } as const;

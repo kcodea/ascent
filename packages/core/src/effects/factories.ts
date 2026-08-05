@@ -167,6 +167,10 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     impAura: () => ctx.impAura(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
+    grantCardTypeBuff: (cardId, a, h) => {
+      ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
+      for (const m of ctx.living(self.side)) if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
+    },
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -1000,16 +1004,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  settleCombat (board / hand / future copies). Each death stacks; `cardId` defaults to self's.
    *  Also immediately buffs any surviving copies of that card on the board right now so the aura is
    *  real-time: 2× Eternal Knights alive → one dies → the survivor gains +3/+2 immediately. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCardTypeRunWide: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const cardId = str(params.cardId) || self.cardId;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
-    ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
-    // Real-time: buff every living copy of that card still on the board this combat.
-    for (const m of ctx.living(self.side)) {
-      if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffCardTypeRunWide(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Burial Imp): queue `count` Fodder (golden doubles) into your next tavern. Player-side
@@ -2652,22 +2650,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Imp Wrangler (Start of Combat) / Errand Fiend (Rally): summon `count` Imps. `keyword` optionally
    *  grants them one on arrival (unused here, but the Captain's Ward path below shares the token). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases. The own-swing Rally guard stays here.
   summonImps: (ctx, self, params, payload) => {
-    // On a RALLY this fires per attack, and only for this minion's own swing.
     const p = payload as MinionPayload;
     if (p.minion && p.minion !== self) return;
-    const imp = ctx.getCard('impscrap');
-    if (!imp) return;
-    // `keyword` grants the Imps one on arrival (Endless Overseer's grafted Echo makes Warded Imps); `attack` /
-    // `health` buff each one as it lands (Errand Fiend's +1/+2). Both default off, so the plain summoners are
-    // unchanged.
-    const kws = str(params.keyword) ? ([str(params.keyword)] as Keyword[]) : undefined;
-    const a = num(params.attack, 0) * mul(self);
-    const h = num(params.health, 0) * mul(self);
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      const born = ctx.summon(self.side, imp, self.uid, kws);
-      if (born && (a > 0 || h > 0)) ctx.buff(born, a, h, self.uid);
-    }
+    ARENA_EFFECTS.summonImps(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Legion Shepherd (owner rework 2026-07-27): Echo — summon `count` Imps; every one that can't fit

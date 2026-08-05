@@ -357,6 +357,7 @@ export const Card = memo(function Card({
   locked,
   lockLabel,
   plated,
+  autoRoll = true,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -427,6 +428,10 @@ export const Card = memo(function Card({
   /** Render the ornate card BACKPLATE behind this card — the full card body used in hand and on the card
    *  dragged out of hand. Board / shop / combat cards are never plated. */
   plated?: boolean;
+  /** Off switch for the intrinsic roll below (default on, so every existing `<Card>` is unaffected). Combat
+   *  passes `false`: a combat badge's changes are either damage (instant by decision) or buffs (driven by the
+   *  replay's own `effect` holds), so an intrinsic roll on top would double-drive damage. */
+  autoRoll?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
@@ -479,7 +484,7 @@ export const Card = memo(function Card({
   useLayoutEffect(() => {
     const prev = prevStats.current;
     prevStats.current = { uid, attack: card.attack, health: card.health };
-    if (prev.uid !== uid || uid === undefined) return;   // a recycled component, not a stat change
+    if (prev.uid !== uid || uid === undefined || !autoRoll) return;   // a recycled component, not a stat change
     const dA = card.attack - prev.attack;
     const dH = card.health - prev.health;
     if (dA === 0 && dH === 0) return;
@@ -487,7 +492,7 @@ export const Card = memo(function Card({
     // NO local loop and no failsafe timer. `fx/statHold.ts` owns the clock for every hold no effect claimed
     // — one rAF for the whole board instead of one per card, and it survives this card unmounting mid-roll.
     // Its schedule-aware TTL is what force-delivers a hold nobody finished.
-  }, [uid, card.attack, card.health]);
+  }, [uid, card.attack, card.health, autoRoll]);
 
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).

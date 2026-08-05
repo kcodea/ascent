@@ -77,6 +77,9 @@ interface Hold extends StatDelta {
   /** `performance.now()` past which this hold is ignored. See the header: an unclaimed hold must not be
    *  permanent, so every hold expires on its own. */
   until: number;
+  /** `now()` at which this hold was placed — `startAt` is an offset, and the ticker needs the origin point
+   *  to know when "later" has arrived. */
+  placedAt: number;
 }
 
 /**
@@ -178,6 +181,7 @@ export function holdStat(
   // its own gem arrives — the exact desync this feature exists to remove, reintroduced by the safety net.
   // `HOLD_TTL_MS` stays the floor: an unscheduled authored hold still needs room for a react layer to peak.
   const lifetimeMs = ttlMs ?? Math.max(HOLD_TTL_MS, startAt + rollMs + HOLD_GRACE_MS);
+  const placedAt = now();
   holds.set(uid, {
     origin,
     attack: owedAttack + attack,
@@ -188,7 +192,8 @@ export function holdStat(
     reel: 0,
     startAt,
     rollMs,
-    until: now() + lifetimeMs,
+    until: placedAt + lifetimeMs,
+    placedAt,
   });
   // Restart the clock, never inherit the old deadline: a fresh hold is a fresh change, and letting it die
   // on the previous one's timer would cut a just-started roll short.
@@ -200,6 +205,7 @@ export function holdStat(
     if (holds.delete(uid)) emit();
   }, lifetimeMs));
   emit();
+  ensureTicking();
 }
 
 /**
@@ -237,6 +243,7 @@ export function releaseStat(uid: string): void {
 export function releaseAllStats(): void {
   for (const t of expiries.values()) clearTimeout(t);
   expiries.clear();
+  if (raf !== 0) { cancelAnimationFrame(raf); raf = 0; }
   if (holds.size === 0) return;
   holds.clear();
   emit();
@@ -244,6 +251,18 @@ export function releaseAllStats(): void {
 
 function now(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+/** The reveal itself, WITHOUT notifying. Returns whether anything actually moved.
+ *  Split out so `stepHolds` can advance many holds and emit once; `revealStat` is this plus an emit. */
+function revealQuiet(uid: string, progress: number): boolean {
+  const h = holds.get(uid);
+  if (h === undefined) return false;
+  const p = Math.max(0, Math.min(1, progress));
+  if (p <= h.revealed) return false;   // MONOTONIC — a counter that ticked back reads as an arithmetic bug
+  if (p >= 1) { disarm(uid); holds.delete(uid); return true; }
+  h.revealed = p;
+  return true;
 }
 
 /**
@@ -256,13 +275,39 @@ function now(): number {
  */
 export function revealStat(uid: string, progress: number, reel = 0): void {
   const h = holds.get(uid);
-  if (h === undefined) return;
-  const p = Math.max(0, Math.min(1, progress));
-  if (p <= h.revealed) return;
-  if (p >= 1) { releaseStat(uid); return; }
-  h.revealed = p;
-  h.reel = Math.max(0, reel);
-  emit();
+  if (h !== undefined) h.reel = Math.max(0, reel);
+  if (revealQuiet(uid, progress)) emit();
+}
+
+let raf = 0;
+
+/** Start the loop if it isn't already running. Called whenever a hold is placed. */
+function ensureTicking(): void {
+  if (raf !== 0 || typeof requestAnimationFrame === 'undefined') return;
+  const loop = (): void => {
+    stepHolds();
+    raf = holds.size > 0 ? requestAnimationFrame(loop) : 0;
+  };
+  raf = requestAnimationFrame(loop);
+}
+
+/**
+ * Advance every hold the store owns. Exported for tests, which have no rAF.
+ *
+ * `emit` fires ONCE at the end rather than per hold. That is not a micro-optimisation: every mounted card
+ * subscribes, so a per-hold emit makes N rolling badges cost N × (every card on screen) snapshot reads per
+ * frame, most of them cards answering "nothing changed for me".
+ */
+export function stepHolds(): void {
+  const t = now();
+  let changed = false;
+  for (const [uid, h] of [...holds]) {
+    if (h.origin === 'authored') continue;    // its player owns the clock (renamed to `effect` in Task 3)
+    if (t < h.placedAt + h.startAt) continue; // scheduled for later in the cascade
+    const p = h.rollMs <= 0 ? 1 : (t - h.placedAt - h.startAt) / h.rollMs;
+    if (revealQuiet(uid, Math.min(1, p))) changed = true;
+  }
+  if (changed) emit();
 }
 
 /**

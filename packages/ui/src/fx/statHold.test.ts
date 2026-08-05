@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, heldFor, holdOrigin, holdStat,
-  releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, subscribeStatHolds,
+  releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, stepHolds, subscribeStatHolds,
 } from './statHold';
 
 afterEach(() => {
@@ -394,5 +394,67 @@ describe('a delivery schedule', () => {
     holdStat('a', { attack: 2, health: 0 }, { startAt: 400, rollMs: 400 });
     vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
     expect(heldFor('a')).toBeNull();
+  });
+});
+
+describe('the shared ticker', () => {
+  /** rAF does not run under vitest, so the tests drive the exported step directly.
+   *
+   *  These holds are all explicitly `intrinsic` — the ticker's actual job is Card's fallback roll (Step 5
+   *  gives it exactly this origin), and `holdStat`'s bare default is still `authored`, which the ticker
+   *  deliberately skips (see the "never advances" test below). Relying on the default here would test the
+   *  wrong path — every one of these would silently no-op against the origin check rather than the
+   *  startAt/rollMs math they're named for. */
+  it('reveals nothing before startAt', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 500, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 100);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // untouched
+  });
+
+  it('walks the reveal once startAt has passed', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 100, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300);   // 200ms into a 400ms roll
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('releases when the roll completes', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 0, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(heldFor('a')).toBeNull();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  /** An authored layer drives its own reveal off the player's clock; two clocks on one counter stutter.
+   *  NOTE: this origin is still called `authored` at this point in the plan — Task 3 renames it to `effect`
+   *  and updates both this test and the ticker's branch.
+   *
+   *  The jump is 1000ms (well past the 200ms roll) rather than something past `HOLD_TTL_MS` (1200ms): past
+   *  the floor, `heldFor`'s own expiry sweep deletes the hold independently of the ticker, and the test
+   *  would pass for the wrong reason — a hold that's gone reads the same as one the ticker declined to
+   *  touch. Staying under the floor isolates the claim this test actually makes. */
+  it('never advances an authored-origin hold', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'authored', startAt: 0, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 1000);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  });
+
+  it('emits once per step, not once per hold', () => {
+    let notified = 0;
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', rollMs: 400 });
+    holdStat('b', { attack: 4, health: 0 }, { origin: 'intrinsic', rollMs: 400 });
+    const t0 = performance.now();
+    const stop = subscribeStatHolds(() => { notified++; });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(notified).toBe(1);
+    stop();
   });
 });

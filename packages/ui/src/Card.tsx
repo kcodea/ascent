@@ -5,15 +5,8 @@ import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
-import { heldFor, holdOrigin, holdStat, releaseStat, revealStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
+import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 
-/** How long a badge takes to roll to a changed stat. A constant rather than an authored param: this is the
- *  game's baseline reading of "a stat changed", not an effect someone opts into. An authored `react` layer
- *  can still carry a number itself, with its own duration and its own reel, for special cases. */
-const STAT_ROLL_MS = 420;
-/** Slack past the roll before the failsafe below force-delivers the number. Long enough that a frame or two
- *  of jank never cuts a roll short, short enough that a stranded hold is gone before anyone reads the badge. */
-const STAT_ROLL_GRACE_MS = 200;
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
 const BADGE_POP_MS = 180;
@@ -478,7 +471,7 @@ export const Card = memo(function Card({
    * **2. It yields to an authored effect**, via the hold's origin (see `fx/statHold.ts`). The gem cue in
    * `Recruit` holds the SAME delta for the same commit, and React flushes layout effects child-first, so
    * this one always lands first — accumulating both would withhold +2/+2 for a +1/+1 gem. `holdStat`
-   * replaces this hold with the authored one, and the loop below stands down when it sees that happen.
+   * replaces this hold with the authored one, and the shared ticker's own origin check stands down for it.
    *
    * A layout effect so the hold lands BEFORE paint: in a passive effect the new number would show for one
    * frame and then jump backwards to roll, which is worse than not rolling at all.
@@ -495,62 +488,10 @@ export const Card = memo(function Card({
     const dH = card.health - prev.health;
     if (dA === 0 && dH === 0) return;
     holdStat(uid, { attack: dA, health: dH }, { origin: 'intrinsic' });
-    const t0 = performance.now();
-    let raf = 0;
-    const step = (): void => {
-      // Superseded: an authored effect claimed this change, and it owns the clock now. Stopping here is
-      // what keeps two loops from driving one counter — `revealStat` is monotonic, so both running means
-      // the faster one wins each frame and the digits stutter between the two curves.
-      if (holdOrigin(uid) !== 'intrinsic') return;
-      const p = (performance.now() - t0) / STAT_ROLL_MS;
-      // NO REEL (owner, 2026-08-04). `revealStat`'s default amplitude is 0: an honest odometer that only
-      // ever prints values BETWEEN the old number and the new one. The intrinsic roll fires on every stat
-      // change in the shop, authored or not, and a wobble on all of that was too much motion — it also
-      // meant a small minion's badge swung through impossible values on the way (a 1/3 buffed to 9/12
-      // printed -3/-1 mid-roll before this). The `reel` dial itself is untouched and still available to an
-      // authored `react` layer, where a single effect opts into it deliberately.
-      revealStat(uid, Math.min(1, p));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    /*
-     * FAILSAFE, because rAF stops dead while the tab is backgrounded.
-     *
-     * The hold lands in this same layout effect, so a player who alt-tabs in the instant between the buff
-     * and the next frame leaves a half-delivered hold with nothing left to finish it. `statHold`'s TTL is
-     * meant to cover exactly that, but it is swept ON READ — and a shop nobody is looking at re-renders
-     * nobody, so nothing ever reads it. Browser-verified with rAF paused: the badge sat on the OLD number
-     * while the store held the new one, and stayed there.
-     *
-     * A timer rather than a `visibilitychange` listener because timers still fire while hidden (throttled,
-     * which is fine — this is a floor, not a schedule). It delivers the remainder at once, the direction
-     * this whole module fails in on purpose: a number arriving early is a missed animation, a number
-     * arriving never is a lie on a badge the player makes decisions from.
-     */
-    const failsafe = window.setTimeout(() => {
-      if (holdOrigin(uid) === 'intrinsic') releaseStat(uid);
-    }, STAT_ROLL_MS + STAT_ROLL_GRACE_MS);
-    // Cancel the loop, but do NOT release here. This cleanup also runs on a plain dep change — a second buff
-    // landing mid-roll — and releasing then would drop the remainder that `holdStat` is written to carry
-    // forward, snapping the badge to the true number for a frame before the new roll starts. Unmount is
-    // handled separately below, where it can be told apart from a re-run.
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(failsafe);
-    };
+    // NO local loop and no failsafe timer. `fx/statHold.ts` owns the clock for every hold no effect claimed
+    // — one rAF for the whole board instead of one per card, and it survives this card unmounting mid-roll.
+    // Its schedule-aware TTL is what force-delivers a hold nobody finished.
   }, [uid, card.attack, card.health]);
-
-  /**
-   * Unmount-only: an intrinsic roll must not outlive the card that was driving it.
-   *
-   * Empty deps, so this runs exactly once on unmount rather than on every stat change. It releases ONLY a
-   * hold this component still owns — an authored hold belongs to the def player, which has its own clock
-   * and its own TTL, and yanking it because a card re-keyed would cut an effect off mid-delivery.
-   */
-  useEffect(() => () => {
-    const u = prevStats.current.uid;
-    if (u !== undefined && holdOrigin(u) === 'intrinsic') releaseStat(u);
-  }, []);
 
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).

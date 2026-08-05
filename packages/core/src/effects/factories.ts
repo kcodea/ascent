@@ -159,7 +159,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       return { attack: (shopRuby?.attack ?? 0) + (m.rubyGain?.attack ?? 0), health: (shopRuby?.health ?? 0) + (m.rubyGain?.health ?? 0) };
     },
     summonToken: (id, opts) => {
-      const kw = opts?.keyword ? [opts.keyword as Keyword] : undefined;
+      const kw = opts?.keywords ? ([...opts.keywords] as Keyword[]) : opts?.keyword ? [opts.keyword as Keyword] : undefined;
       const ov = opts?.attack !== undefined && opts.health !== undefined
         ? { attack: opts.attack, health: opts.health, maxHealth: opts.health } : undefined;
       // arg6 is the immediate-attack ("charge") queue — the Smith's token swings the moment it lands.
@@ -176,6 +176,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
+    isFodder: (t) => !!ctx.getCard(t.cardId)?.keywords.includes('FD'),
     impAura: () => ctx.impAura(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
@@ -205,6 +206,24 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
       for (const m of ctx.living(self.side)) if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
     },
+    grantFodderAura: (a, h) => {
+      for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+      ctx.grantFodderBuff(a, h, self.side);
+    },
+    applyBaneDemonWiden: () => {
+      const dem = ctx.baneDemonWidenFor(self.side);
+      if (!dem || (dem.attack === 0 && dem.health === 0)) return;
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe) {
+          ctx.buff(m, dem.attack, dem.health, self.uid);
+          if (!m.keywords.includes('EG')) {
+            m.permaGain = { attack: (m.permaGain?.attack ?? 0) + dem.attack, health: (m.permaGain?.health ?? 0) + dem.health };
+          }
+        }
+      }
+    },
+    stampKarwindFlash: () => {}, // combat FX ride the buff events
+    stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => e.on !== 'onDeath'); },
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -849,24 +868,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * to. Stripping `onDeath` is what makes it terminate — a copy that kept its own Echo would summon another on
    * death, and so on until the board cap.
    */
+  // ARENA-MIGRATED (Step 3): one body; the copy inherits buffed stats + keywords in BOTH phases (ruling).
   echoSummonCopyNoEcho: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const card = ctx.getCard(self.cardId);
-    if (!card) return;
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      // `copyStats` is the summon API's own channel for "inherit these stats" — mutating the returned Minion
-      // afterwards is too late, because the summon event has already been emitted with the printed numbers.
-      // Copy the BODY it was, not the corpse: at the moment an Echo fires, `self.health` is 0, so copying it
-      // literally summons something already dead. `maxHealth` is the buffed body — the honest reading of "exact".
-      const hp = Math.max(1, self.maxHealth || card.health);
-      const copy = ctx.summon(self.side, card, self.uid, [...self.keywords], false, false, {
-        attack: self.attack, health: hp, maxHealth: hp,
-      });
-      if (!copy) break; // board full
-      // Drop the Echo so the copy can't summon another on ITS death, and so on to the board cap.
-      copy.effects = copy.effects.filter((e) => e.on !== 'onDeath');
-    }
+    ARENA_EFFECTS.echoSummonCopyNoEcho(combatArena(ctx, self), params);
   },
+
 
   /** Geode Guardian (owner rework 2026-07-31) — Echo: summon `count` Gemheart Golems with Taunt and play
    *  `rubies` Rubies on each. The COUNT is deliberately NOT golden-doubled (a Gilded copy still summons 2 —
@@ -2390,18 +2397,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Bane (combat half) — on a triggered Battlecry, buff your living Fodder + Imps +atk/+hp, and raise BOTH
    *  the run-wide Imp buff AND the run-wide Fodder enchant (permanent — carried back) so future Fodder/Imps
    *  inherit it, exactly like the recruit-phase Bane. Golden doubles. */
+  // ARENA-MIGRATED (Step 3): one body; the Bane's Existence widen now fires in combat too (owner ruling).
   onBattlecryBuffFodder: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
-    // `fodder` is OPT-IN, mirroring the recruit half (owner 2026-08-03: Bane is Imps-only now).
-    const fodder = !!params.fodder;
-    for (const m of ctx.living(self.side)) {
-      const def = ctx.getCard(m.cardId);
-      if (def?.imp || (fodder && def?.keywords.includes('FD'))) ctx.buff(m, a, h, self.uid);
-    }
-    ctx.grantImpBuff(a, h, self.side); // Imps permanent — carried back to RunState.impBuff
-    if (fodder) ctx.grantFodderBuff(a, h, self.side); // Fodder enchant permanent — mirrors recruit buffFodderRunWide
+    ARENA_EFFECTS.onBattlecryBuffFodder(combatArena(ctx, self), params);
   },
 
   // ─── 2026-07-06 content batch: Beast "wherever they are" combat auras ──────────
@@ -2812,23 +2811,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  grant. A neighbour that isn't of the tribe gets nothing: the owner chose "instead", not "any tribe".
    *
    *  Neighbours are read off `ctx.living(self.side)` by index, which is board order — deterministic, no RNG. */
+  // ARENA-MIGRATED (Step 3): one body; golden = 2x magnitude in BOTH phases (owner ruling 2026-08-04).
   onBattlecryBuffTribeAdjacentMore: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
-    const tribe = str(params.tribe) as Tribe;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 2) * mul(self);
-    const adjA = num(params.adjAttack, 4) * mul(self);
-    const adjH = num(params.adjHealth, 4) * mul(self);
-    const friends = ctx.living(self.side);
-    const i = friends.indexOf(self);
-    const neighbours = new Set(i < 0 ? [] : [friends[i - 1], friends[i + 1]].filter(Boolean));
-    // Karwind is itself a Dragon and the original buffed it, so "your Dragons" keeps including it. It is
-    // never its own neighbour, so it takes the BASE grant.
-    for (const m of friends) {
-      if (!(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
-      const adj = neighbours.has(m);
-      ctx.buff(m, adj ? adjA : a, adj ? adjH : h, self.uid);
-    }
+    ARENA_EFFECTS.onBattlecryBuffTribeAdjacentMore(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Denkeeper Oona (owner rework 2026-07-25): a Beast you summon in combat gets +atk/+hp and THEN

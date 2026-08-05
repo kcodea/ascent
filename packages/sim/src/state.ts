@@ -195,6 +195,9 @@ export interface BoardCard {
    *  round to round (owner 2026-07-27: "progress carries round to round") and keeps the remainder past each
    *  payout, so a partial tally is never thrown away. Per-instance; absent = 0. */
   soldProgress?: number;
+  /** Ex-Galloper's no-chain guard: a copy summoned "without the Echo". A BoardCard has no per-instance
+   *  effects list to strip, so the shop marks the copy and the Echo dispatch skips marked bodies. */
+  echoStripped?: boolean;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */

@@ -67,7 +67,7 @@ export interface EffectArena {
   /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
    *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
    *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
-  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; golden?: boolean; charge?: boolean; rubyLabel?: boolean }): ArenaBody | undefined;
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; keywords?: readonly string[]; golden?: boolean; charge?: boolean; rubyLabel?: boolean }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -89,6 +89,8 @@ export interface EffectArena {
   isCelestial(t: ArenaBody): boolean;
   /** Is this body an Imp? */
   isImp(t: ArenaBody): boolean;
+  /** Is this body Fodder (the FD keyword on its printed card)? */
+  isFodder(t: ArenaBody): boolean;
   /** Raise the RUN-WIDE Imp aura (+atk/+hp on every Imp, present and future). Each adapter runs its whole
    *  legacy ritual: the shop's `buffImpsRunWide` (board + hand + the persistent aura); combat buffs the
    *  living Imps AND carries the aura back via `grantImpBuff` — so the body only states the amounts. */
@@ -140,6 +142,19 @@ export interface EffectArena {
    *  hand cap). `pred` sees the CardDef; write the FULL legacy filter in the body — clauses a phase's pool
    *  already excludes are harmless no-ops there. */
   grantRandomFromPool(pred: (card: { id: string; keywords: readonly string[]; token?: boolean; spell?: boolean }) => boolean, count: number): void;
+  /** Raise the run-wide FODDER enchant (the Fodder card type, everywhere). Whole-ritual per adapter. */
+  grantFodderAura(attack: number, health: number): void;
+  /** Bane's Existence's Demon-widen, as one ritual: the shop buffs every Demon you have (board + hand); combat
+   *  permanently buffs the living Demons (the carry-back keeps it — hand copies are unreachable mid-fight and
+   *  pick the enchant up as printed run-wide state). No-op when the quest isn't armed. */
+  applyBaneDemonWiden(): void;
+  /** Remove a body's Echo (onDeath) effects — the no-chain guard for "summon a copy WITHOUT the Echo".
+   *  Combat filters the instance's live effects list; a shop copy carries no per-instance effect list, so the
+   *  adapter marks the card (`echoStripped`) and the shop's Echo dispatch skips marked bodies. */
+  stripEchoes(t: ArenaBody): void;
+  /** Stamp Karwind's pulse FX on a body — shop-side bookkeeping (`karwindFlash`); a combat no-op (combat FX
+   *  ride the buff events). */
+  stampKarwindFlash(t: ArenaBody): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -581,5 +596,57 @@ export const ARENA_EFFECTS = {
     const tick = arena.improveReps();
     arena.self.summonBonus = (arena.self.summonBonus ?? 0) + tick;
     arena.logImprove(tick);
+  },
+
+  /** Ex-Galloper — Echo: summon a copy of itself WITHOUT the Echo re-triggering. THE COPY INHERITS the body
+   *  it was — buffed stats and keywords — in BOTH phases (owner ruling 2026-08-04; the shop used to summon a
+   *  plain base card). Golden doubles the count. */
+  echoSummonCopyNoEcho(arena: EffectArena, params: Record<string, unknown>): void {
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    const hp = Math.max(1, arena.self.maxHealth ?? arena.self.health);
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(arena.self.cardId, {
+        attack: arena.self.attack, health: hp, keywords: [...arena.self.keywords],
+      });
+      if (!made) break; // board full
+      arena.stripEchoes(made); // the copy must not summon another on ITS death, and so on to the board cap
+    }
+  },
+
+  /** Bane — whenever a Battlecry fires on your side: enchant your Imps (+ Fodder when `fodder`) run-wide,
+   *  and apply Bane's Existence's Demon-widen — IN COMBAT TOO (owner ruling 2026-08-04; it was shop-only). */
+  onBattlecryBuffFodder(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
+    const h = (typeof params.health === 'number' ? params.health : 1) * g;
+    if (params.fodder) arena.grantFodderAura(a, h);
+    arena.grantImpAura(a, h);
+    arena.applyBaneDemonWiden();
+    // Flash Bane itself (+ any Fodder it enchanted) so the proc is visible even with no Imp out — the enchant
+    // is run-wide, to the card TYPE. A shop FX stamp; combat's adapter no-ops (its FX ride the buff events).
+    arena.stampKarwindFlash(arena.self);
+    if (params.fodder) for (const f of arena.friends()) if (arena.isFodder(f)) arena.stampKarwindFlash(f);
+  },
+
+  /** Karwind — each Shout: your `tribe` gains +a/+h, except this minion's two NEIGHBOURS, who take the bigger
+   *  adjacent grant INSTEAD. GOLDEN = 2× MAGNITUDE in both phases (owner ruling 2026-08-04; the shop used to
+   *  pulse twice at base — equal totals, but one convention now). Karwind is its own tribe and never its own
+   *  neighbour, so it takes the base grant. */
+  onBattlecryBuffTribeAdjacentMore(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    const adjA = (typeof params.adjAttack === 'number' ? params.adjAttack : 4) * g;
+    const adjH = (typeof params.adjHealth === 'number' ? params.adjHealth : 4) * g;
+    const friends = arena.friends();
+    const i = friends.findIndex((f) => f.uid === arena.self.uid);
+    const neighbours = new Set((i < 0 ? [] : [friends[i - 1], friends[i + 1]]).filter(Boolean).map((f) => f!.uid));
+    for (const f of friends) {
+      if (tribe && tribe !== 'any' && !arena.isTribe(f, tribe)) continue;
+      const adj = neighbours.has(f.uid);
+      arena.buff(f, adj ? adjA : a, adj ? adjH : h);
+      arena.stampKarwindFlash(f);
+    }
   },
 } as const;

@@ -74,6 +74,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const made = made0 ?? state.board[state.board.length - 1];
       if (!made) return undefined;
       if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
+      if (opts?.keywords) for (const k of opts.keywords) { if (!made.keywords.includes(k as Keyword)) made.keywords = [...made.keywords, k as Keyword]; }
       if (opts?.golden && !made.golden) { made.golden = true; made.attack *= 2; made.health *= 2; } // gilded token: doubled base + the flag
       // Explicit stats. `rubyLabel` (Gemheart): the above-base share is a RUBY buff + watcher notify — the
       // legacy shop bookkeeping, so a Resonance Idol bounces and the breakdown attributes. Otherwise the
@@ -105,6 +106,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     grantMaxGold: (amount) => { state.maxEmbers += amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
+    isFodder: (t) => !!CARD_INDEX[t.cardId]?.keywords.includes('FD'),
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
@@ -139,6 +141,19 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
 
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
+    grantFodderAura: (a, h) => buffFodderRunWide(state, a, h, nameOf(self)),
+    applyBaneDemonWiden: () => {
+      const dem = state.baneBuffsDemons;
+      if (!dem || (dem.attack === 0 && dem.health === 0)) return;
+      for (const c of [...state.board, ...state.hand]) {
+        if (isTribe(c, 'demon')) addBuff(c, `${nameOf(self)} (Demons)`, dem.attack, dem.health);
+      }
+    },
+    stripEchoes: (t) => { (t as BoardCard).echoStripped = true; },
+    stampKarwindFlash: (t) => {
+      const flash = (state.karwindFlash ??= []);
+      if (!flash.includes(t.uid)) flash.push(t.uid);
+    },
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1215,6 +1230,9 @@ function fireOnRubyGained(state: RunState): void {
  * count this death — matching combat, where the death increments the tally before the rattle runs.
  */
 function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effectsOverride?: EffectDef[]): void {
+  // Ex-Galloper's copy is summoned "WITHOUT the Echo" — the no-chain guard. A BoardCard has no per-instance
+  // effects list to strip, so the copy is marked and skipped here (the shop mirror of combat's effects filter).
+  if (minion.echoStripped) return;
   // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
   // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
   const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
@@ -1712,14 +1730,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Ex-Galloper (Echo): summon a copy of itself WITHOUT the Echo. In the shop the copy is a plain body of the
    *  same card — the recruit board has no per-instance effect list to strip, so the Echo simply doesn't
    *  re-trigger from a summoned token the way it can't in combat either. */
+  // ARENA-MIGRATED (Step 3): one body; the shop copy now INHERITS buffed stats + keywords (owner ruling
+  // 2026-08-04 — it used to summon a plain base card).
   echoSummonCopyNoEcho: (ctx, self, params) => {
-    const card = CARD_INDEX[self.cardId];
-    if (!card) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      ctx.summon(card, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-    }
+    ARENA_EFFECTS.echoSummonCopyNoEcho(shopArena(ctx.state, self), params);
   },
 
   /** Gemheart (Echo): summon a Shard carrying the Rubies that were on this body. */
@@ -2641,27 +2655,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Most of Karwind's procs happen HERE, not in combat: Shouts fire when you play minions in the shop. The
    *  combat twin of the same name covers a Shout re-fired mid-fight. */
+  // ARENA-MIGRATED (Step 3): one body; golden = 2x MAGNITUDE now (owner ruling 2026-08-04 — the
+  // twice-at-base pulse is retired; equal totals, one convention).
   onBattlecryBuffTribeAdjacentMore: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack, 2);
-    const h = num(params.health, 2);
-    const adjA = num(params.adjAttack, 4);
-    const adjH = num(params.adjHealth, 4);
-    const board = ctx.state.board;
-    const i = board.indexOf(self);
-    const neighbours = new Set(i < 0 ? [] : [board[i - 1], board[i + 1]].filter(Boolean));
-    const flash = (ctx.state.karwindFlash ??= []);
-    // Golden applies the pulse twice at base magnitude, matching `onBattlecryBuffTribe`.
-    for (let n = 0; n < gold(self); n++) {
-      for (const c of board) {
-        // Includes Karwind itself (it's a Dragon, and the pre-rework card buffed it) — never as a neighbour.
-        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
-        const adj = neighbours.has(c);
-        addBuff(c, nameOf(self), adj ? adjA : a, adj ? adjH : h);
-        if (!flash.includes(c.uid)) flash.push(c.uid);
-      }
-    }
+    ARENA_EFFECTS.onBattlecryBuffTribeAdjacentMore(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Bathing Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
    *  every turn — Attack on its first turn, Health on the next, and so on (owner spec 2026-07-25).
@@ -2975,29 +2974,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
    *  notifies per fire). Multiple Banes each react, so they stack additively. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffFodder: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    // `fodder` is OPT-IN (owner 2026-08-03: Bane buffs Imps only now). Left as a param rather than deleted
-    // so the Fodder half stays available to anything that wants both.
-    if (params.fodder) buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self));
-    // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
-    const dem = ctx.state.baneBuffsDemons;
-    if (dem && (dem.attack !== 0 || dem.health !== 0)) {
-      for (const c of [...ctx.state.board, ...ctx.state.hand]) {
-        if (isTribe(c, 'demon')) addBuff(c, `${nameOf(self)} (Demons)`, dem.attack, dem.health);
-      }
-    }
-    // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
-    // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
-    // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.
-    const flash = (ctx.state.karwindFlash ??= []);
-    if (!flash.includes(self.uid)) flash.push(self.uid);
-    for (const c of ctx.state.board) {
-      if (CARD_INDEX[c.cardId]?.keywords.includes('FD') && !flash.includes(c.uid)) flash.push(c.uid);
-    }
+    ARENA_EFFECTS.onBattlecryBuffFodder(shopArena(ctx.state, self), params);
   },
+
 
   /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
    *  `deathrattleBuffAll` bakes +1/+1, golden +2/+2, into every board minion) and counts toward the run's

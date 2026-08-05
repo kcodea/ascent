@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 37–39: the last three rulings land; STEP 3 IS COMPLETE
+
+All three deferred divergences ruled and migrated — **floor → 39 of 42**, and every dual that CAN share a
+body now does. The remaining 3 are skipped by design (spellCastTransform's settle-time swap; the two replay
+effects that ARE the dispatchers, which unify at Step 4).
+
+- **Ex-Galloper** (`echoSummonCopyNoEcho`): the copy INHERITS the buffed body — stats and keywords — in both
+  phases (ruling; the shop used to summon a plain base card). The no-chain guard came along: combat strips the
+  copy's `onDeath` effects; a `BoardCard` has no per-instance effects list, so the shop marks the copy
+  (`echoStripped`) and `fireRecruitDeathrattles` skips marked bodies. Two chain-guard tests (Ex-Galloper
+  cannot chain; Living Treasure's copy does not resummon) caught my first cut DROPPING that guard — the
+  index-slice replacement ate an unseen tail — and both pass against the restored logic.
+- **Bane** (`onBattlecryBuffFodder`): Bane's Existence's Demon-widen now fires IN COMBAT too (ruling). That
+  needed real plumbing: `baneDemonWiden` rides `QuestCombatMods` → the reducer passes `s.baneBuffsDemons` →
+  `CombatContext.baneDemonWidenFor(side)` → the adapter's whole-ritual `applyBaneDemonWiden` (shop: board +
+  hand Demons; combat: living Demons buffed permanently via the carry-back — hand copies pick the enchant up
+  as run-wide state). Bane's self-flash FX survived as `stampKarwindFlash` on self + enchanted Fodder, caught
+  by its own test when the first cut dropped it.
+- **Karwind** (`onBattlecryBuffTribeAdjacentMore`): golden = **2× magnitude in both phases** (ruling); the
+  shop's twice-at-base pulse is retired. The `karwindFlash` FX bookkeeping rides the new `stampKarwindFlash`
+  verb (a combat no-op — its FX ride the buff events).
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena body 36 (Flowing Monk) closes the mechanical sweep; the final classification
 
 `overflowBuffRandom` migrates on the new `buffPermanent` verb (a shop buff IS permanent; combat also records

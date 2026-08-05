@@ -3743,6 +3743,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold
     runeFirstClaws: f?.runeFirstClaws, // Rune of First Claws: SoC leftmost+rightmost Beasts attack now
     runePackcraft: f?.runePackcraft, // Rune of Packcraft: combat summon → Beasts +1 Atk
+    baneDemonWiden: s.baneBuffsDemons, // Bane's Existence widen fires in combat too (owner ruling 2026-08-04)
     runeInheritance: f?.runeInheritance, // Rune of Inheritance: leftmost dies → rightmost gains its stats
     runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
     runeTwilight: f?.runeTwilight, // Rune of Twilight: your Start-of-Combat effects trigger an extra time

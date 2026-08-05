@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
-import { rubiedLandsIn } from './rubyLanded';
+import { rubiedLandsIn, rubyLandSchedule, RUBY_BEAT_MS, RUBY_GAP_MS } from './rubyLanded';
 import { groupSelfBuffs } from './buffSelf';
 import { groupBuffCasts } from './buffCast';
 
@@ -83,3 +83,22 @@ describe('a Ruby buff is claimed by the gem, not the generic buff cues', () => {
     expect(rubiedLandsIn(span(0, 2), [big('a'), big('a')]))
       .toEqual([{ uid: 'a', count: 2, attack: 6, health: 4 }]);
   });
+
+describe('rubyLandSchedule', () => {
+  it('staggers recipients by the ruby gap and stack members by the beat', () => {
+    const out = rubyLandSchedule([{ uid: 'a', count: 2 }, { uid: 'b', count: 1 }]);
+    expect(out.map((l) => l.uid)).toEqual(['a', 'a', 'b']);
+    expect(out[0]!.at).toBe(0);
+    expect(out[1]!.at).toBe(RUBY_BEAT_MS);
+    expect(out[2]!.at).toBe(RUBY_GAP_MS);
+  });
+
+  it('is PURE — the same input twice gives identical timings, which is what keeps the hold and the fire in step', () => {
+    const input = [{ uid: 'a', count: 1 }, { uid: 'b', count: 3 }];
+    expect(rubyLandSchedule(input)).toEqual(rubyLandSchedule(input));
+  });
+
+  it('returns nothing for no lands', () => {
+    expect(rubyLandSchedule([])).toEqual([]);
+  });
+});

@@ -16,6 +16,7 @@
  */
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
+import { cascade, scheduleLands, type Land } from '../../fx/land';
 
 export interface RubyLand {
   uid: string;
@@ -74,3 +75,15 @@ export const RUBY_BEAT_MS = 50;
  * surfaces in (`buffWave`, `attackExchange`) already spend theirs on the self-buff cue.
  */
 export const RUBY_LANDED_DEF = 'ruby-gem-apply';
+
+/**
+ * The shop Ruby cascade's schedule, derived ONCE from the raw land list.
+ *
+ * Exists because two consumers need the identical timing: the layout effect that withholds each minion's
+ * number, and the later effect that fires each gem. Two independent `scheduleLands` calls would be two
+ * schedules that happen to agree today — this makes agreement structural instead. Alignment between the
+ * number and the effect is a consequence of one computation, not something maintained by hand.
+ */
+export function rubyLandSchedule(lands: readonly { uid: string; count: number }[]): Land[] {
+  return scheduleLands(cascade(lands), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS });
+}

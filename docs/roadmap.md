@@ -21,12 +21,16 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Author the first react effect, and retire `statflash` into it.** The `react` primitive shipped
-  2026-08-03 (card / badge / plate / value targets, reach with falloff, rides the player's clock,
-  additive so it composes with drag and the reorder slide). Nothing is bound to it yet. First use: a Ruby
-  landing pops `badge.plate` while `badge.value` counts to its new number. `statflash` — the 0.34s CSS badge
-  pop — must be REPLACED by that react, not left running alongside it, or a buffed badge pops twice.
-  Still open underneath: the number itself doesn't yet count (see the `eotAnimStats` generalisation).
+- **Stat readout choreography — implement the approved design.** Design written and approved 2026-08-04:
+  [`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
+  Makes *when a number lands* a first-class property of a stat change, so a cascade's numbers follow the
+  cascade instead of all landing on the reducer tick. Four parts: `startAt`/`rollMs` + an origin RANK on the
+  hold; one shared ticker in `statHold` replacing the per-card rAF; combat's bespoke `statHold`/`statFlash`
+  props deleted in favour of the module store (which also makes `score.ts`'s long-dead `holdStat` live); and
+  three cue sites publishing the `Land` schedule they already compute. `statflash` is RETIRED into the badge
+  pop as part of this, not left running alongside it. **Prerequisite:** `releaseAllStats` is never called in
+  production today — it must be wired to the recruit ↔ combat transitions before combat reads the store.
+  Merge is gated on a per-frame combat assertion that no badge ever shows a wrong number mid-fight.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

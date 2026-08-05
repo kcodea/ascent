@@ -1,5 +1,49 @@
 # ASCENT — development log
 
+## 2026-08-04 — Design: stat readout choreography (spec only, no code)
+
+Design doc for making the stat badge follow an effect's choreography instead of the reducer's tick:
+[`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
+Approved by the owner; **nothing is implemented yet** — this commit is the spec, the roadmap entry and this
+line.
+
+**The problem it names.** A stat change and its effect are currently unrelated events that coincide. The acid
+test is a cascade: if an Excavator drops gems across the board one at a time and all seven numbers tick
+together, the simultaneity *proves* to the player that the effect isn't causing anything. Framed as a
+legibility problem rather than a polish one — nearly every mechanic in the game terminates in "two numbers on
+a card moved", so at a wave-15 board where a Shout, a Ruby cascade, an aura and a triple all commit on one
+tick, staggering is what lets a player attribute the change to a source. Attribution is the skill expression
+of the genre, and the board is the only place players look mid-fight.
+
+**The model.** Three facts get separated: the DELTA (whoever caused it), WHEN it lands (whoever choreographs —
+a cue holding `Land[]`, or a `react` layer), and HOW it lands (the system, unless overridden). "When" is
+currently hardcoded to *now*; making it optional on a hold costs little, because every cue that staggers
+anything already holds a `Land { uid, at }` at the moment it schedules each fire. Alignment is then a
+consequence of one `scheduleLands` call feeding both consumers, not something maintained by hand.
+
+**Four decisions taken.** Automatic floor with authored override (a `react` layer wins where present); shop
+AND combat; unify *wholly* rather than bridge; and damage delivers instantly while the badge still pops — the
+pop needs no special case because it fires on the printed value moving, whatever delivered it.
+
+**Two live defects found while scoping, both recorded in the spec.** `Unit` renders its `<Card>` without a
+`uid`, so `choreo/score.ts:364`'s `holdStat` has always written into a store no combat badge reads — dead
+since it was added. And `releaseAllStats` is never called anywhere in production despite its doc comment
+describing exactly the scenario it exists for; harmless while the store serves only the shop, a hazard the
+moment combat reads it. Wiring it is a prerequisite, not a follow-up.
+
+**Known limits stated rather than hidden.** The cascade *rhythm* stays a per-cue constant
+(`RUBY_GAP_MS`/`RUBY_BEAT_MS`) because one `playDef` fire targets one minion and the def cannot know it is the
+fourth gem in a sweep; per-effect control covers everything *within* an effect (`hold × peak`, `roll`, `reel`,
+`reach`/`order`/`gap`). Timing is wall-clock, so a combat-speed change mid-roll isn't picked up by a roll
+already running. And scheduling means badges intentionally show stale numbers for longer — up to the length of
+a cascade — which is the trade being made deliberately on load-bearing information.
+
+**Verification plan** (for the implementation, not this commit): store units for `startAt`, the TTL now
+covering `startAt + rollMs + grace`, and rank precedence; a cue-level assertion that the hold and the fire
+derive from the same `Land`; and browser runs for cascade stagger, damage-never-holds, and a per-frame combat
+sweep asserting no badge ever shows a wrong number. Merge gated on that last one. Negative controls required
+for the two tests that could otherwise pass for the wrong reason.
+
 ## 2026-08-04 — the number ROLLS to its new value
 
 Owner, once the hold existed: *"a spinning counter that very quickly spins up or down to the new number

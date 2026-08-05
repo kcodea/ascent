@@ -419,4 +419,22 @@ export const ARENA_EFFECTS = {
     arena.self.spellProgress = (arena.self.spellProgress ?? 0) + arena.improveReps();
     arena.logSpellProgress(arena.self.spellProgress);
   },
+
+  /** Archmagus Guel — each Shop spell: give `count` random OTHER friends +atk/+hp, improving +1/+1 per 4
+   *  spells cast while THIS instance is on the board (tick first, × Rune of Mastery; golden doubles the
+   *  grant). Distinct targets per cast. */
+  spellCastBuffOthers(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.self.spellProgress = (arena.self.spellProgress ?? 0) + arena.improveReps();
+    arena.logSpellProgress(arena.self.spellProgress);
+    const g = arena.self.golden ? 2 : 1;
+    const step = Math.floor(arena.self.spellProgress / 4);
+    const a = ((typeof params.attack === 'number' ? params.attack : 1) + step) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 1) + step) * g;
+    const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+    const rng = arena.rng();
+    const want = typeof params.count === 'number' ? params.count : 2;
+    for (let i = 0; i < want && pool.length > 0; i++) {
+      arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+  },
 } as const;

@@ -2352,20 +2352,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
    *  Targets are random (seeded by the run cursor) so the buffs spread rather than snowball one carry. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Guel).
   spellCastBuffOthers: (ctx, self, params) => {
-    const others = ctx.state.board.filter((c) => c !== self);
-    const picks = pickRandom(ctx.state, others, num(params.count, 2));
-    // Scales PER-INSTANCE (owner ruling 2026-07-05: Guel doesn't improve unless he's on board): the grant
-    // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
-    // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
-    // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
-    // Rune of Mastery: each cast's Improve tick applies twice (the countdown + step derive from this tally).
-    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
-    const step = Math.floor(self.spellProgress / 4);
-    const a = (num(params.attack, 1) + step) * gold(self);
-    const h = (num(params.health, 1) + step) * gold(self);
-    for (const m of picks) addBuff(m, nameOf(self), a, h);
+    ARENA_EFFECTS.spellCastBuffOthers(shopArena(ctx.state, self), params);
   },
+
 
   /** Runescale Drake (recruit half): each tavern spell cast while THIS instance is on the board ticks its
    *  per-instance `spellProgress` by 1 (non-retroactive — a freshly bought copy starts at 0). The Start-of-

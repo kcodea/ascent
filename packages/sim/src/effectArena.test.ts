@@ -119,7 +119,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 24; // +onSpellCastBuffRandomTribe/OnePerTribe, summonBuffTribeAsym, spellCastImproveSelf
+  const MIGRATED_FLOOR = 25; // +spellCastBuffOthers (Guel)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

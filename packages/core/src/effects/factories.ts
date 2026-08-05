@@ -1565,27 +1565,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  per-side tally rides in the `spellCast` payload; the triggering cast is already counted, matching the
    *  recruit half). Golden doubles. The grant is a normal combat buff (temporary) — the PERMANENT
    *  improvement comes from the cast being carried back to the run's `spellsCast` (see `ctx.castSpell`). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Guel).
   spellCastBuffOthers: (ctx, self, params, payload) => {
-    const { side } = payload as { side: Side; count: number };
+    const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
-    const pickable = ctx.living(self.side).filter((m) => m !== self);
-    // PER-INSTANCE, matching the recruit half (owner ruling 2026-07-05, + "combat casts count toward Guel's
-    // count" 2026-07-12): tick THIS Guel's on-board tally (the cast counts — tick first), improve +1/+1 per 4,
-    // emit a `spellProgress` event so the live countdown updates, and carry the tally back at settle so it's
-    // permanent. The run-wide `spellsCast` payload count is no longer used here.
-    // Rune of Mastery: each cast's Improve tick applies twice (countdown + step derive from this tally).
-    self.spellProgress = (self.spellProgress ?? 0) + ctx.improveRepsFor(self.side);
-    ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
-    const step = Math.floor(self.spellProgress / 4);
-    const a = (num(params.attack, 1) + step) * mul(self);
-    const h = (num(params.health, 1) + step) * mul(self);
-    const targets = num(params.count, 2);
-    for (let i = 0; i < targets && pickable.length > 0; i++) {
-      const m = ctx.rng.pick(pickable);
-      pickable.splice(pickable.indexOf(m), 1);
-      ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.spellCastBuffOthers(combatArena(ctx, self), params);
   },
+
 
   /** Spirit Pup (combat half) — a spell cast in combat counts toward its transform, exactly like the shop
    *  (owner ruling 2026-07-12: "spells cast in combat count"). Ticks THIS instance's on-board `spellProgress`

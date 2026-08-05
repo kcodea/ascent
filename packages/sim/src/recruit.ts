@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, type EffectArena, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -40,6 +40,28 @@ type RecruitFn = (
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
+
+/** The shop-side `EffectArena` adapter (Step 1 spike). `BoardCard` satisfies `ArenaBody` structurally and
+ *  passes through unwrapped. `rng()` wraps the run's cursor with per-call write-back: mulberry32's state
+ *  round-trips exactly, so create→draw→store per call is the SAME stream as one long-lived instance — the
+ *  legacy bodies' draw sequences are preserved bit-for-bit (the Step-1 hash probe is the proof). */
+function shopArena(state: RunState, self: BoardCard): EffectArena {
+  const cursorRng: Rng = {
+    next: () => { const r = makeRng(state.rngCursor); const v = r.next(); state.rngCursor = r.state(); return v; },
+    int: (maxExclusive) => { const r = makeRng(state.rngCursor); const v = r.int(maxExclusive); state.rngCursor = r.state(); return v; },
+    pick: (xs) => xs[cursorRng.int(xs.length)] as never,
+    fork: () => makeRng((cursorRng.next() * 4294967296) >>> 0),
+    state: () => state.rngCursor,
+  };
+  return {
+    phase: 'shop',
+    self,
+    friends: () => state.board,
+    hasShield: (t) => t.keywords.includes('DS'),
+    grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
+    rng: () => cursorRng,
+  };
+}
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
 // `c` is optional: an UNTARGETED spell cast (Safety Deposit Box) routes through the cast-effect dispatch
@@ -1286,17 +1308,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  has always existed; this one was MISSING, so a Funeral-on-Loan Lastlight destroyed in the shop fired an
    *  Echo that did nothing (owner report 2026-08-03). Mirrors the combat factory's shape: distinct picks,
    *  preferring bodies that don't already have Ward. Deterministic (run rngCursor). */
+  // ── ARENA-MIGRATED (Step 1 spike): the body lives ONCE in @game/core's arena.ts. The legacy body — the
+  //    shop half of the same sentence — is deleted, not deprecated.
   deathrattleGrantWardRandom: (ctx, self, params) => {
-    const state = ctx.state;
-    const unshielded = state.board.filter((c) => c.uid !== self.uid && !c.keywords.includes('DS'));
-    let n = num(params.count, 2) * gold(self);
-    const rng = makeRng(state.rngCursor);
-    while (n > 0 && unshielded.length > 0) {
-      const target = unshielded.splice(rng.int(unshielded.length), 1)[0]!;
-      target.keywords = [...target.keywords, 'DS'];
-      n--;
-    }
-    state.rngCursor = rng.state();
+    ARENA_EFFECTS.deathrattleGrantWardRandom(shopArena(ctx.state, self), params);
   },
 
   onBattlecryBuffSelf: (ctx, self, params) => {

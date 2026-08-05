@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena Step 1: the RNG spike is GREEN
+
+The gate on the whole plan (docs/effect-arena-spec.md), and it passed on the strictest evidence available.
+
+**What was built:** `packages/core/src/effects/arena.ts` — the first cut of `EffectArena` (`friends` /
+`hasShield` / `grantShield` / `rng`, deliberately spike-sized) plus `ARENA_EFFECTS`, the shared-body registry.
+`deathrattleGrantWardRandom` (Lastlight, an effect that actually ROLLS) is written once there; both legacy
+bodies are DELETED and replaced with one-line wrappers handing over an adapter — `combatArena` in
+`factories.ts` (threads the fight's live `Rng`, emits the same `shieldUp` events), `shopArena` in `recruit.ts`
+(wraps `state.rngCursor` with per-call write-back; mulberry32's state round-trips exactly, so per-call
+reconstruction is the same stream as one long-lived instance).
+
+**The proof, per the spec's three criteria:**
+1. A 40-seed hash probe over BOTH phases (full combat event logs + result; shop board mutations + final
+   cursor), captured BEFORE the migration and re-run after — **byte-identical hashes**
+   (`62f73919…`, `8702a866…`). Not a single draw moved.
+2. Full suite green with ZERO golden updates (3,896).
+3. `npm run harness` determinism ✓.
+
+Why it worked first try: both legacy halves already drew identically — one `int(len)` per grant on a
+shrinking board-ordered pool (`rng.pick` + splice ≡ `int` + splice). The spike confirms the spec's claim that
+the RNG risk was carriage, not algorithm.
+
+The throwaway probe is deleted; `effectArena.test.ts` (5) is the committed guard — the body is phase-blind
+(same stream ⇒ same picks under any adapter), golden doubles and the pool bounds, the combat path emits
+`shieldUp`, and the shop path grants + ADVANCES the cursor (a non-advancing cursor would replay differently on
+restore, the exact class the write-back contract prevents).
+
+**Step 2 is unblocked** — grow the interface (buff/summon/announce + defer/no-op probes), migrate
+`deathrattleBuffAll`, add the ratchet test.
 ## 2026-08-04 — Effect Arena simplified: no registries, migrate by trigger family
 
 Owner pushback on the scoped plan, and it was right: *"I feel like we're building the scope out further than

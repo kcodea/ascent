@@ -1,4 +1,5 @@
 import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import { ARENA_EFFECTS, type EffectArena } from './arena';
 import {ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -131,6 +132,20 @@ interface MinionPayload {
 }
 
 /** Grant a Divine Shield to a living minion (Mechs). Idempotent; logs a `shieldUp`. */
+/** The combat-side `EffectArena` adapter (Step 1 spike). Bodies pass through UNWRAPPED — `Minion` satisfies
+ *  `ArenaBody` structurally — and the verbs close over the `CombatContext`, so an arena effect emits the same
+ *  events (`shieldUp` etc.) as the legacy body it replaced. `rng()` hands over the fight's threaded stream. */
+function combatArena(ctx: CombatContext, self: Minion): EffectArena {
+  return {
+    phase: 'combat',
+    self,
+    friends: () => ctx.living(self.side),
+    hasShield: (t) => (t as Minion).divineShield === true,
+    grantShield: (t) => grantShield(ctx, t as Minion),
+    rng: () => ctx.rng,
+  };
+}
+
 function grantShield(ctx: CombatContext, m: Minion): void {
   if (m.dead || m.health <= 0 || m.divineShield) return;
   m.divineShield = true;
@@ -2983,16 +2998,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  on a wide board the random pick would do that often. Falls back to the full living set only if everyone is
    *  already shielded (where it's a no-op anyway). Picks are DISTINCT: `count` is a number of minions, not a
    *  number of rolls, so the same body can't soak both. */
+  // ── ARENA-MIGRATED (Step 1 spike): the body lives ONCE in arena.ts; this wrapper only guards the
+  //    dispatch payload and hands over the combat adapter. The legacy body is deleted, not deprecated.
   deathrattleGrantWardRandom: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-    let n = num(params.count, 2) * mul(self);
-    while (n > 0 && pool.length > 0) {
-      const target = ctx.rng.pick(pool);
-      pool.splice(pool.indexOf(target), 1); // distinct targets
-      grantShield(ctx, target);
-      n--;
-    }
+    ARENA_EFFECTS.deathrattleGrantWardRandom(combatArena(ctx, self), params);
   },
 
 

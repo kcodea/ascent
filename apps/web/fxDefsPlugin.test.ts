@@ -13,6 +13,7 @@ import {
   fxDefsPlugin,
   isInside,
   planBindingsWrite,
+  planCardArtWrite,
   planWrite,
 } from './fxDefsPlugin';
 
@@ -272,8 +273,9 @@ describe('middleware round trip', () => {
     });
   }
 
-  it('registers exactly the three endpoints', async () => {
-    expect([...(await routes()).keys()].sort()).toEqual(['/__fx/art', '/__fx/bindings', '/__fx/def']);
+  it('registers exactly the four endpoints', async () => {
+    expect([...(await routes()).keys()].sort())
+      .toEqual(['/__fx/art', '/__fx/bindings', '/__fx/cardart', '/__fx/def']);
   });
 
   it('writes a def file and reports its path', async () => {
@@ -548,5 +550,56 @@ describe('planBindingsWrite', () => {
       expect(plan.status).toBe(400);
       expect(plan.error).toContain(key);
     }
+  });
+});
+
+/* The card-art table lands in a committed file that `cardArtConfig.ts` STATICALLY imports, so anything the
+   planner lets through renders as a broken card transform later, with nothing pointing back to the write.
+   These pin the shape checks that stop that. */
+describe('planCardArtWrite', () => {
+  const FILE = path.join(tmpdir(), 'cardArt.data.json');
+  const send = (v: unknown) => planCardArtWrite({ json: JSON.stringify(v) }, FILE);
+
+  it('accepts a well-formed table and re-serialises it stably', () => {
+    const plan = send({ echohorn: { x: -4, y: 2.5, zoom: 1.2 } });
+    expect(plan.status).toBe(200);
+    expect(plan.file).toBe(FILE);
+    expect(String(plan.data)).toBe(`${JSON.stringify({ echohorn: { x: -4, y: 2.5, zoom: 1.2 } }, null, 2)}
+`);
+  });
+
+  it('accepts an empty table — clearing every override is a legitimate save', () => {
+    expect(send({}).status).toBe(200);
+  });
+
+  it('rejects a field that is not a card-art knob, rather than ignoring it', () => {
+    // A typo'd key would otherwise be committed and silently do nothing forever.
+    const plan = send({ echohorn: { zoomm: 1.2 } });
+    expect(plan.status).toBe(400);
+    expect(plan.error).toMatch(/not a card-art field/);
+  });
+
+  it('rejects a non-finite value', () => {
+    // JSON has no NaN, but Infinity arrives as null and a string sails through JSON.parse untouched.
+    expect(send({ echohorn: { zoom: 'big' } }).status).toBe(400);
+    expect(send({ echohorn: { zoom: null } }).status).toBe(400);
+  });
+
+  it('rejects prototype-polluting keys', () => {
+    const plan = planCardArtWrite({ json: '{"__proto__":{"x":1}}' }, FILE);
+    expect(plan.status).toBe(400);
+    expect(plan.error).toMatch(/unsafe key/);
+  });
+
+  it('rejects a non-object entry, a non-object body and invalid JSON', () => {
+    expect(send({ echohorn: 5 }).status).toBe(400);
+    expect(planCardArtWrite('nope', FILE).status).toBe(400);
+    expect(planCardArtWrite({ json: '{oops' }, FILE).status).toBe(400);
+    expect(planCardArtWrite({}, FILE).status).toBe(400);
+  });
+
+  it('rejects a table past the size cap', () => {
+    const plan = planCardArtWrite({ json: `{"a":"${'x'.repeat(MAX_DEF_BYTES)}"}` }, FILE);
+    expect(plan.status).toBe(413);
   });
 });

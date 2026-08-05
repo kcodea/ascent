@@ -49,7 +49,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
   body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry
   back to the run at settle. Only pure tavern work (consume/gild/shop enchants) still waits for the shop.
 - **A Card Art tuner** — double-click any card in dev to reframe its illustration: nudge, zoom, and
-  hue/saturation/contrast, saved per card.
+  hue/saturation/contrast, saved per card to a real committed file.
 
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing

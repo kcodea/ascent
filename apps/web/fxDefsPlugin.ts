@@ -117,6 +117,50 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
   return { status: 200, file, data: buf };
 }
 
+/** The framing fields a card-art override may carry. Anything else in the object is rejected rather than
+ *  ignored: a typo'd key would otherwise be written to a committed file and silently do nothing forever. */
+const CARD_ART_FIELDS: readonly string[] = ['x', 'y', 'zoom', 'hue', 'sat', 'contrast'];
+
+/**
+ * Plan a write of the per-card art table to `packages/ui/src/cardArt.data.json`.
+ *
+ * Same shape as `planBindingsWrite`: the destination is fixed by the plugin and never derived from the
+ * request, so there is no traversal question to answer — what is left is shape, size, and key safety.
+ *
+ * The values are all finite numbers, and that is checked rather than assumed. This file is a STATIC import
+ * in `cardArtConfig.ts`, so a NaN or a string here would not fail at the endpoint; it would fail later, as a
+ * card rendering with a broken transform, with nothing pointing back to the write that caused it.
+ */
+export function planCardArtWrite(body: unknown, file: string): WritePlan {
+  if (!isRecord(body)) return bad(400, 'Expected a JSON object body.');
+  const { json } = body;
+  if (typeof json !== 'string') return bad(400, 'Missing `json`.');
+  if (Buffer.byteLength(json, 'utf8') > MAX_DEF_BYTES) {
+    return bad(413, `Card art table is larger than ${MAX_DEF_BYTES} bytes.`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return bad(400, '`json` is not valid JSON.');
+  }
+  if (!isRecord(parsed)) return bad(400, '`json` must be an object keyed by cardId.');
+
+  for (const [cardId, entry] of Object.entries(parsed)) {
+    if (UNSAFE_KEYS.includes(cardId)) {
+      return bad(400, `'${cardId}' is an unsafe key and can never be loaded.`);
+    }
+    if (!isRecord(entry)) return bad(400, `'${cardId}' is not an object.`);
+    for (const [k, v] of Object.entries(entry)) {
+      if (!CARD_ART_FIELDS.includes(k)) return bad(400, `'${cardId}.${k}' is not a card-art field.`);
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        return bad(400, `'${cardId}.${k}' must be a finite number.`);
+      }
+    }
+  }
+  return { status: 200, file, data: `${JSON.stringify(parsed, null, 2)}\n` };
+}
+
 // Duplicated ON PURPOSE across THREE sites that must stay in lockstep: here, `FAN_OUTS` in
 // `packages/ui/src/choreo/bindings.ts` (the reader), and the `FxBinding['fanOut']` TypeScript union. `ui`
 // is off-limits to import from `apps/web` (package-boundary rule in CLAUDE.md) and `FAN_OUTS` isn't on
@@ -213,6 +257,10 @@ const DEFAULT_BINDINGS_FILE = fileURLToPath(
   new URL('../../packages/ui/src/choreo/bindings.json', import.meta.url),
 );
 
+const DEFAULT_CARD_ART_FILE = fileURLToPath(
+  new URL('../../packages/ui/src/cardArt.data.json', import.meta.url),
+);
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -242,11 +290,14 @@ export interface FxDefsPluginOptions {
   defsRoot?: string;
   /** Where the FX binding table is committed. Defaults to `packages/ui/src/choreo/bindings.json`. */
   bindingsFile?: string;
+  /** Overridable for tests. Defaults to `packages/ui/src/cardArt.data.json`. */
+  cardArtFile?: string;
 }
 
 export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
   const defsRoot = path.resolve(options.defsRoot ?? DEFAULT_DEFS_ROOT);
   const bindingsFile = path.resolve(options.bindingsFile ?? DEFAULT_BINDINGS_FILE);
+  const cardArtFile = path.resolve(options.cardArtFile ?? DEFAULT_CARD_ART_FILE);
   // Only used to make the reported path readable ("packages/ui/src/fx/defs/x.json"), never to write.
   const repoRoot = path.resolve(defsRoot, '..', '..', '..', '..', '..');
 
@@ -298,6 +349,10 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
    */
   const handleBindings = respondToWrite((body) => planBindingsWrite(body, bindingsFile));
 
+  /** Per-card art framing (🖌️ Card Art tuner). Like `bindings.json` this is a static import, so a write
+   *  invalidates through the normal import graph and HMR picks it up — no watcher required. */
+  const handleCardArt = respondToWrite((body) => planCardArtWrite(body, cardArtFile));
+
   return {
     name: 'ascent:fx-defs',
     // The one line that makes this dev-only. A production build never runs it.
@@ -306,6 +361,7 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
       server.middlewares.use('/__fx/art', (req, res) => void handle('art')(req, res));
       server.middlewares.use('/__fx/bindings', (req, res) => void handleBindings(req, res));
+      server.middlewares.use('/__fx/cardart', (req, res) => void handleCardArt(req, res));
 
       /**
        * Make a def file that appears on disk actually SHOW UP without restarting the dev server.

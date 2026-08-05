@@ -1,3 +1,4 @@
+import shippedJson from './cardArt.data.json';
 /**
  * PER-CARD art framing — how one card's illustration sits inside its frame window, and an optional colour
  * tweak. The 🖼️ Card Frames tuner already dials `--artY` / `--artZoom` per frame FAMILY (every oval minion at
@@ -63,9 +64,14 @@ export const CARD_ART_DESC: Record<keyof CardArt, string> = {
 
 /**
  * THE SHIPPED OVERRIDES — the committed result of tuning sessions, keyed by cardId.
- * Paste the tuner's export here; anything not listed uses its frame family's framing.
+ *
+ * A real git-tracked file, written by the tuner's "Save to file" through the dev-only `/__fx/cardart`
+ * endpoint (see `apps/web/fxDefsPlugin.ts`), exactly as the FX workbench commits its defs and bindings. That
+ * is what makes a tuning session durable: it survives a reload, a cleared browser cache and a branch switch,
+ * and it reviews as a normal diff. A static import, so a write invalidates through the import graph and HMR
+ * picks it up without a restart.
  */
-const SHIPPED: Record<string, CardArt> = {};
+const SHIPPED = shippedJson as Record<string, CardArt>;
 
 const KEY = 'ascent.cardart';
 
@@ -106,19 +112,34 @@ export function resetCardArt(): void {
   bump();
 }
 
+/**
+ * Commit the current overrides to `cardArt.data.json`.
+ *
+ * The local (localStorage) layer is deliberately NOT cleared afterwards. The file write and the running
+ * page's state are two different things: HMR will reload the module, and dropping the local layer first
+ * would briefly render every card unframed if the write failed. Local edits and the file agree after a
+ * successful save, so the overlay is a no-op either way — and if it failed, your work is still there.
+ */
+export async function saveCardArtToFile(): Promise<{ ok: boolean; error?: string }> {
+  if (!import.meta.env.DEV) return { ok: false, error: 'Saving is DEV-only.' };
+  try {
+    const res = await fetch('/__fx/cardart', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: JSON.stringify(overrides, null, 2) }),
+    });
+    if (!res.ok) return { ok: false, error: `${res.status} ${(await res.text()).slice(0, 200)}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** The tuning session as source you can paste into `SHIPPED` above — option (a) of the owner's brief. */
 export function exportCardArt(): string {
-  const keys = Object.keys(overrides).sort();
-  if (keys.length === 0) return 'const SHIPPED: Record<string, CardArt> = {};';
-  const rows = keys.map((id) => {
-    const a = overrides[id]!;
-    const fields = (Object.keys(a) as (keyof CardArt)[])
-      .filter((k) => a[k] !== undefined)
-      .map((k) => `${k}: ${a[k]}`)
-      .join(', ');
-    return `  ${/^[a-z][a-z0-9]*$/i.test(id) ? id : JSON.stringify(id)}: { ${fields} },`;
-  });
-  return `const SHIPPED: Record<string, CardArt> = {\n${rows.join('\n')}\n};`;
+  const sorted: Record<string, CardArt> = {};
+  for (const id of Object.keys(overrides).sort()) sorted[id] = overrides[id]!;
+  return `${JSON.stringify(sorted, null, 2)}\n`;
 }
 
 /* ── THE TUNER'S SELECTION ────────────────────────────────────────────────────────────────────────────────

@@ -610,11 +610,10 @@ SoC badge beats shipped (#541). Remaining, in impact order:
   listed for completeness.
 
 ### Card Art: drag-on-the-artwork overlay (the tuner's Stage 2)
-The 🖌️ Card Art tuner does per-card framing/zoom/colour via sliders, and double-click already selects a card.
-Still missing from the owner's original brief: entering a transform mode on the card itself — drag the art to
-reposition, handles to resize, a red ✗ / green ✓ to cancel or commit. The values are already translate-shaped
-percentages, so a drag maps to them directly. Also open: writing overrides to a real file instead of pasting
-the exporter output (the FX workbench's `fxDefsPlugin` already proves the dev-only write endpoint pattern).
+The 🖌️ Card Art tuner does per-card framing/zoom/colour via sliders, double-click selects a card, and Save
+writes a git-tracked file. Still missing from the owner's original brief: entering a transform mode on the card
+itself — drag the art to reposition, handles to resize, a red ✗ / green ✓ to cancel or commit. The values are
+already translate-shaped percentages, so a drag maps to them directly.
 
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /

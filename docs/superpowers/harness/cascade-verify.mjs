@@ -50,10 +50,28 @@ const res = await page.evaluate(async () => {
 
   const before = readAll();
   const landedAt = {};
+  // WHAT each badge printed, not just WHEN it changed. The stagger assertion alone would pass a cascade that
+  // flashed `-1` or `0` on its way to the right answer, and that is the failure this whole feature exists to
+  // avoid: a hold is a delta subtracted from the live value, so a hold applied in a commit that has not yet
+  // raised the value — or an oversized reel, or two clocks fighting over one counter — prints a number the
+  // minion never had, on the readout players buy and position from. Every frame's value is recorded per uid
+  // and bounded against that uid's own before/after readings below.
+  const seen = {};
+  const note = (u, text) => {
+    const n = Number(text);
+    if (!Number.isFinite(n)) return;
+    const s = seen[u] ?? (seen[u] = { min: n, max: n });
+    if (n < s.min) s.min = n;
+    if (n > s.max) s.max = n;
+  };
+  for (const u of uids) note(u, before[u]);
   const t0 = performance.now();
   const tick = () => {
     const now = readAll();
-    for (const u of uids) if (landedAt[u] === undefined && now[u] !== before[u]) landedAt[u] = Math.round(performance.now() - t0);
+    for (const u of uids) {
+      note(u, now[u]);
+      if (landedAt[u] === undefined && now[u] !== before[u]) landedAt[u] = Math.round(performance.now() - t0);
+    }
     if (performance.now() - t0 < 3000) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
@@ -72,13 +90,40 @@ const res = await page.evaluate(async () => {
   }));
   await new Promise((r) => setTimeout(r, 3100));
 
+  const after = readAll();
   const times = uids.map((u) => landedAt[u]);
   const spread = Math.max(...times) - Math.min(...times);
-  return { uids, landedAt, spread, allLanded: times.every((t) => t !== undefined) };
+  // The buff above is +2/+2 on every minion, so the settled badge must read exactly that much higher, and no
+  // frame in between may leave the corridor between the two. `min` is the one that catches the real bugs;
+  // `max` catches an overshoot that never comes back down.
+  const printed = uids.map((u) => {
+    const base = Number(before[u]);
+    const final = Number(after[u]);
+    const s = seen[u] ?? { min: NaN, max: NaN };
+    return {
+      uid: u, base, final, min: s.min, max: s.max,
+      settled: final === base + 2,
+      neverBelow: s.min >= base,
+      neverAbove: s.max <= final,
+    };
+  });
+  return {
+    uids, landedAt, spread, printed,
+    allLanded: times.every((t) => t !== undefined),
+    invariantHeld: printed.every((p) => p.settled && p.neverBelow && p.neverAbove),
+  };
 });
 
 console.log(JSON.stringify(res, null, 2));
-const ok = res.allLanded && res.spread > 80;
-console.log(ok ? '\nPASS — numbers are staggered' : `\nFAIL — spread ${res.spread}ms, expected a real cascade`);
+const staggered = res.allLanded && res.spread > 80;
+const ok = staggered && res.invariantHeld;
+if (ok) console.log('\nPASS — numbers are staggered, and no badge printed a value the minion never had');
+else {
+  if (!staggered) console.log(`\nFAIL — spread ${res.spread}ms, expected a real cascade`);
+  for (const p of res.printed) {
+    if (p.settled && p.neverBelow && p.neverAbove) continue;
+    console.log(`FAIL — ${p.uid} printed ${p.min}..${p.max} against a true range of ${p.base}..${p.base + 2} (settled on ${p.final})`);
+  }
+}
 await browser.close();
 process.exit(ok ? 0 : 1);

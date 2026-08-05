@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 27–29: the three ruled divergences land
+
+All three items on the discernment list resolved by owner ruling and migrated in one pass — floor → 29 of 42.
+
+- **Spirit Worgen** (`summonBuffSelfTribe` — the card the divergence belonged to, identified on request): the
+  SHOP formula is the card, and its printed text agrees — "+3/+3, improves by +3/+3 per Shop spell" IS
+  base × (1 + spells). Combat's additive (base + spells) with base-1 defaults is retired.
+- **Hunter** (`onGainAttackBuffImproving`): the SHOP formula — every fire grants (base + accrual) then grows
+  the accrual by base — replaces combat's stepped ×(1 + floor(fires/every)); the `every` param is retired
+  with it. TWO COMBAT TESTS pinned the old stepped behaviour and were updated to the ruling (grants now run
+  +1/+1, +2/+2, +3/+3… per fire); the improve-event tick is preserved via `logImprove` so the live text still
+  climbs mid-fight. Re-entrancy guards (two Hunters must not ping-pong) stay in the wrappers.
+- **`deathrattleSummon`** unified to the combat reading (owner confirm): the shop gains the `fixed` and
+  `goldenTokens` params it was silently missing — a golden Imp King's shop Echo now summons 2 tokens (not 4),
+  and gilded-token summoners (Manasaber) gild in the shop too (`summonToken` grew a `golden` opt: combat rides
+  the summon flag, the shop doubles base stats + sets the flag).
+
+New verb: `spellsThisTurn` (per-side in combat via the captured value). Gates: typecheck ✓, 3,898 tests ✓
+(two updated to rulings, none skipped), harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 25+26 (Guel + the improve tick); the sweep's deferred list
 
 `spellCastBuffOthers` (Archmagus Guel — the per-instance improve tally, the /4 step, distinct random picks)

@@ -2451,7 +2451,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 5 fires (driven by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, growing +1/+1 per fire (owner ruling: the shop formula)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2461,15 +2461,14 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // Hunter's own grants, in order: it improves +1/+1 only every 5th fire (widened from every 3 in the
-    // 2026-07-21 balance pass), so the first five are +1/+1 and the sixth steps to +2/+2.
-    // Each fire emits one buff per OTHER living ally (2 here: Crypt Drake + the sandbag, nothing dies to the
-    // 0-Attack omen), so 5 fires = 10 grants of +1/+1 before the rate steps to +2/+2 on the 6th.
+    // OWNER RULING 2026-08-04 (the arena sweep's divergence list): the SHOP formula is the card — every fire
+    // grants (base + accrual) and then grows the accrual by base. So fire 1 = +1/+1, fire 2 = +2/+2,
+    // fire 3 = +3/+3… (the old combat-only every-5-fires step is retired, and `every` with it). Each fire
+    // emits one buff per OTHER living ally (2 here), so grants come in pairs of the same magnitude.
     const hunterUid = a.initial.player[0]!.uid;
     const grants = a.events.flatMap((e) => (e.type === 'buff' && e.source === hunterUid ? [e.attack] : []));
-    expect(grants.length).toBeGreaterThanOrEqual(11);
-    expect(grants.slice(0, 10)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
-    expect(grants[10]).toBe(2);
+    expect(grants.length).toBeGreaterThanOrEqual(6);
+    expect(grants.slice(0, 6)).toEqual([1, 1, 2, 2, 3, 3]);
   });
 
   it('Burial Imp: its Echo summons an Imp', () => {

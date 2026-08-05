@@ -53,6 +53,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     matriarchReps: () => 1,
     logSpellProgress: () => {},
     logImprove: () => {},
+    spellsThisTurn: () => 0,
     rng: () => rng,
   };
   return { arena, granted };
@@ -120,7 +121,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 26; // +onSpellCastImproveSummon
+  const MIGRATED_FLOOR = 29; // +summonBuffSelfTribe, onGainAttackBuffImproving (shop formulas won), deathrattleSummon
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

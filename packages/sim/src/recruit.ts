@@ -73,6 +73,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const made = made0 ?? state.board[state.board.length - 1];
       if (!made) return undefined;
       if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
+      if (opts?.golden && !made.golden) { made.golden = true; made.attack *= 2; made.health *= 2; } // gilded token: doubled base + the flag
       // Explicit stats: label the above-base share as a RUBY buff and notify watchers — the legacy shop
       // bookkeeping, so a Resonance Idol still bounces and the inspect breakdown attributes correctly.
       if (opts?.attack !== undefined && opts.health !== undefined) {
@@ -112,6 +113,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
+    spellsThisTurn: () => state.spellsThisTurn,
 
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
@@ -2124,14 +2126,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Hunter (recruit half, scaling aura) — when this gains Attack in the shop, give every OTHER friendly
    *  minion the current per-proc +N/+N, then improve this by the base +N/+N (per-instance, via `summonBonus`).
    *  Excludes self + a re-entry guard so a Hunter buffing another Hunter can't loop. Golden doubles the grant. */
+  // ARENA-MIGRATED (Step 3): one body; this shop formula WON the divergence (owner ruling 2026-08-04).
   onGainAttackBuffImproving: (ctx, self, params) => {
     if (recruitHuntGuard.has(self)) return;
     recruitHuntGuard.add(self);
     try {
-      const base = num(params.attack, 1);
-      const m = (base + (self.summonBonus ?? 0)) * gold(self);
-      if (m > 0) for (const c of ctx.state.board) if (c !== self) addBuff(c, nameOf(self), m, m);
-      self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
+      ARENA_EFFECTS.onGainAttackBuffImproving(shopArena(ctx.state, self), params);
     } finally {
       recruitHuntGuard.delete(self);
     }
@@ -2297,16 +2297,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Spirit Worgen: when a friendly minion of one of `tribes` is summoned (played or token-summoned),
    *  gain +X/+X where X = base × (1 + spells cast THIS turn) — so each spell cast this turn improves the
    *  per-summon gain by another full `base`. Golden doubles `base`. Self-targeting; ignores its own arrival. */
+  // ARENA-MIGRATED (Step 3): one body; this shop formula WON the divergence (owner ruling 2026-08-04).
   summonBuffSelfTribe: (ctx, self, params, { minion }) => {
     if (minion === self) return;
-    const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
-    const def = CARD_INDEX[minion.cardId];
-    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
-    // Rune of Mastery: the per-spell Improve contribution counts twice (the base per-play grant is unchanged).
-    const spells = ctx.state.spellsThisTurn * improveReps(ctx.state);
-    const x = num(params.attack, 3) * gold(self) * (1 + spells);
-    const y = num(params.health, 3) * gold(self) * (1 + spells);
-    addBuff(self, nameOf(self), x, y);
+    ARENA_EFFECTS.summonBuffSelfTribe(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
@@ -3077,14 +3071,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   //     of combat there's no RNG, so "random" picks become the highest-Attack carry. ---
 
   /** Deathrattle: summon `count` copies of a token. */
+  // ARENA-MIGRATED (Step 3): one body, unified to the combat reading (owner confirm) — the shop gains the
+  // fixed / goldenTokens params it was silently missing (golden Imp King: 2 tokens, not 4).
   deathrattleSummon: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.tokenId)];
-    if (!token) return;
-    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const m = ctx.summon(token, self.uid);
-      if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
-    }
+    ARENA_EFFECTS.deathrattleSummon(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: give every board minion +atk/+hp (Sporeling — golden doubles). Out-of-combat resolution

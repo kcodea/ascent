@@ -66,7 +66,7 @@ export interface EffectArena {
   /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
    *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
    *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
-  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string }): ArenaBody | undefined;
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; golden?: boolean }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -121,6 +121,8 @@ export interface EffectArena {
   logSpellProgress(amount: number): void;
   /** Announce an Improve tick (the improve pop). A combat log event; a shop no-op. */
   logImprove(amount: number): void;
+  /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
+  spellsThisTurn(): number;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -446,5 +448,50 @@ export const ARENA_EFFECTS = {
     const amount = (typeof params.step === 'number' ? params.step : 1) * arena.improveReps();
     arena.self.summonBonus = (arena.self.summonBonus ?? 0) + amount;
     arena.logImprove(amount);
+  },
+
+  /** Spirit Worgen — when a Beast/Dragon is played beside it, gain base × (1 + spells this turn) × golden.
+   *  THE SHOP FORMULA IS THE CARD (owner ruling 2026-08-04 + the printed text: "+3/+3, improves by +3/+3 per
+   *  Shop spell" IS base×(1+spells)); the combat half's additive (base + spells) is retired. The arriver
+   *  rides `params.arriver`; the body only checks its tribes. */
+  summonBuffSelfTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    if (!arriver || arriver.uid === arena.self.uid) return;
+    const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
+    if (!tribes.some((t) => arena.isTribe(arriver, t))) return;
+    const spells = arena.spellsThisTurn() * arena.improveReps();
+    const g = arena.self.golden ? 2 : 1;
+    arena.buff(arena.self,
+      (typeof params.attack === 'number' ? params.attack : 3) * g * (1 + spells),
+      (typeof params.health === 'number' ? params.health : 3) * g * (1 + spells));
+  },
+
+  /** Hunter — when THIS minion's Attack rises: buff your OTHER minions by (base + accrual) × golden, then
+   *  grow the accrual by base (× Rune of Mastery). THE SHOP FORMULA IS THE CARD (owner ruling 2026-08-04);
+   *  combat's stepped ×(1 + floor(fires/every)) is retired, and `every` with it. Re-entrancy guards (our own
+   *  +Attack grant must not re-fire this) stay in the wrappers. */
+  onGainAttackBuffImproving(arena: EffectArena, params: Record<string, unknown>): void {
+    const base = typeof params.attack === 'number' ? params.attack : 1;
+    const m = (base + (arena.self.summonBonus ?? 0)) * (arena.self.golden ? 2 : 1);
+    if (m > 0) {
+      for (const f of arena.friends()) if (f.uid !== arena.self.uid) arena.buff(f, m, m);
+    }
+    const tick = base * arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + tick;
+    arena.logImprove(tick); // the live-text countdown ticks mid-fight
+  },
+
+  /** Echo: summon `count` copies of a token (golden doubles the count UNLESS `fixed`; `goldenTokens` gilds
+   *  the tokens instead — Manasaber's cubs; optional `keyword` rides the summon snapshot). UNIFIED TO THE
+   *  COMBAT READING (owner confirm 2026-08-04): the shop half was missing `fixed`/`goldenTokens`, so a golden
+   *  Imp King's shop Echo summoned 4 plain tokens where the card means 2. */
+  deathrattleSummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const total = (typeof params.count === 'number' ? params.count : 1)
+      * (params.fixed ? 1 : arena.self.golden ? 2 : 1);
+    const golden = !!params.goldenTokens && arena.self.golden === true;
+    const kw = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
+    for (let i = 0; i < total; i++) arena.summonToken(id, { keyword: kw, golden });
   },
 } as const;

@@ -171,6 +171,13 @@ export interface EffectArena {
    *  and narrates (the pre-existing phase asymmetry — shop permanent, combat fight-long — is each half's
    *  legacy behaviour, preserved, not invented here). */
   castTribeAttackSpell(tribe: string, amount: number, spellId: string): void;
+  /** Grant an arbitrary keyword (combat also arms the live flags — DS → divineShield, R → rebornAvailable —
+   *  and logs the keyword event so the pill appears; the shop appends to the card's keywords). */
+  grantKeywordTo(t: ArenaBody, kw: string): void;
+  /** Permanently raise run-wide spell power (combat: the carry-back channel; shop: `spellBonus`). */
+  grantSpellPower(attack: number, health: number): void;
+  /** The card's printed `targetTribe` restriction, if any (a card-definition read). */
+  targetTribe(): string | undefined;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -814,5 +821,60 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) {
       for (let r = 0; r < per; r++) arena.playRubiesOn(f, 1);
     }
+  },
+
+  /** Targeted stat Shout (Brood Whelp / Baby Gastrid's kin): buff the chosen friend — or, unchosen (a
+   *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`,
+   *  falling back to self. The chosen target rides `params.target`, merged by the shop wrapper. */
+  battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a <= 0 && h <= 0) return;
+    let target = params.target as ArenaBody | undefined;
+    if (!target) {
+      const restrict = arena.targetTribe();
+      const ok = (f: ArenaBody): boolean => !restrict || arena.isTribe(f, restrict);
+      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
+      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      if (pool.length === 0) return;
+      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+    }
+    arena.buff(target, a, h);
+  },
+
+  /** Targeted keyword Shout (Toxin Tender / Plaguebringer): grant keyword(s) to the chosen friend — or
+   *  auto-pick the highest-Attack friend that still LACKS one (never wasting it), honouring `targetTribe`.
+   *  Unification FIXED drift: combat's auto-pick ignored both the lacks-check and the tribe restriction. */
+  battlecryGrantKeyword(arena: EffectArena, params: Record<string, unknown>): void {
+    const kws = Array.isArray(params.keywords) ? (params.keywords as string[]) : [];
+    if (kws.length === 0) return;
+    let target = params.target as ArenaBody | undefined;
+    if (!target) {
+      const restrict = arena.targetTribe();
+      const lacks = (f: ArenaBody): boolean => kws.some((k) => !f.keywords.includes(k));
+      const ok = (f: ArenaBody): boolean => lacks(f) && (!restrict || arena.isTribe(f, restrict));
+      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
+      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      if (pool.length === 0) return;
+      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+    }
+    for (const k of kws) {
+      if (!target.keywords.includes(k)) arena.grantKeywordTo(target, k);
+    }
+  },
+
+  /** Oathshield Orin's Shout: THIS minion gains a keyword (golden re-grants the same one — no stronger). */
+  battlecryGainKeyword(arena: EffectArena, params: Record<string, unknown>): void {
+    const kw = typeof params.keyword === 'string' ? params.keyword : '';
+    if (kw && !arena.self.keywords.includes(kw)) arena.grantKeywordTo(arena.self, kw);
+  },
+
+  /** Cinderwing Matron's Shout: permanently raise run-wide spell power (golden doubles). */
+  battlecryBuffSpellPower(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantSpellPower(
+      (typeof params.attack === 'number' ? params.attack : 0) * g,
+      (typeof params.health === 'number' ? params.health : 0) * g);
   },
 } as const;

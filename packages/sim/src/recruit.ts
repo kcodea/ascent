@@ -96,6 +96,13 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
+    grantKeywordTo: (t, kw) => { const c = t as BoardCard; c.keywords = [...c.keywords, kw as Keyword]; },
+    grantSpellPower: (a, h) => {
+      state.spellBonus ??= { attack: 0, health: 0 };
+      state.spellBonus.attack += a;
+      state.spellBonus.health += h;
+    },
+    targetTribe: () => CARD_INDEX[self.cardId]?.targetTribe,
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
     gainRubyStats: (t, a, h) => addBuff(t as BoardCard, 'Ruby', a, h), // NO fireOnRubyPlayed - the no-rebounce guard
     neighboursOf: (t) => {
@@ -195,18 +202,6 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const gold = (c?: BoardCard): number => (c?.golden ? 2 : 1);
 /** A card's display name (the buff-source label in the inspect breakdown). */
 const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? card.cardId;
-
-/** Pick up to `n` distinct items from `arr`, advancing the run's seeded RNG cursor — for recruit-phase
- *  "random target" effects (Guel, Monk). Deterministic given the cursor, so replays/sims stay exact. */
-function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
-  if (arr.length <= n) return [...arr];
-  const rng = makeRng(state.rngCursor);
-  const pool = [...arr];
-  const out: T[] = [];
-  for (let i = 0; i < n && pool.length > 0; i++) out.push(pool.splice(rng.int(pool.length), 1)[0]!);
-  state.rngCursor = rng.state();
-  return out;
-}
 
 /**
  * Apply a recruit-phase stat buff to a card AND record its source for the inspect-panel breakdown
@@ -1612,11 +1607,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Oathshield Orin (Shout): gain a keyword. Golden re-grants the same keyword — a keyword doesn't stack, so
    *  the gild is deliberately no stronger here (matches the owner's identical golden text). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGainKeyword: (ctx, self, params) => {
-    const kw = str(params.keyword) as Keyword;
-    if (!kw) return;
-    const me = ctx.state.board.find((c) => c.uid === self.uid);
-    if (me && !me.keywords.includes(kw)) me.keywords = [...me.keywords, kw];
+    ARENA_EFFECTS.battlecryGainKeyword(shopArena(ctx.state, self), params);
   },
 
 
@@ -1988,20 +1981,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  lacks a granted keyword (never wasting it). A `targetTribe` on the card restricts the auto-pick to
    *  that tribe too (Toxin Tender → friendly Undead only; dual-types count) — so a re-fire can't grant
    *  Venomous off-tribe, and it simply no-ops when no eligible friend exists. */
+  // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryGrantKeyword: (ctx, self, params, payload) => {
-    const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
-    if (kws.length === 0) return;
-    let target = payload.target;
-    if (!target) {
-      const restrict = CARD_INDEX[self.cardId]?.targetTribe; // Toxin Tender → 'undead'; undefined = any
-      const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
-      const ok = (c: BoardCard): boolean => lacks(c) && (!restrict || isTribe(c, restrict));
-      const others = ctx.state.board.filter((c) => c !== self && ok(c));
-      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
-      if (pool.length === 0) return; // no eligible friend (or everyone already has it)
-      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    }
-    for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
+    ARENA_EFFECTS.battlecryGrantKeyword(shopArena(ctx.state, self), { ...params, target: payload.target });
   },
 
   /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
@@ -2009,20 +1991,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
    *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
    *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+  // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryBuffTarget: (ctx, self, params, payload) => {
-    const attack = num(params.attack) * gold(self);
-    const health = num(params.health) * gold(self);
-    if (attack <= 0 && health <= 0) return;
-    let target = payload.target;
-    if (!target) {
-      const restrict = CARD_INDEX[self.cardId]?.targetTribe;
-      const ok = (c: BoardCard): boolean => !restrict || isTribe(c, restrict);
-      const others = ctx.state.board.filter((c) => c !== self && ok(c));
-      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
-      if (pool.length === 0) return; // no eligible friend
-      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    }
-    addBuff(target, nameOf(self), attack, health);
+    ARENA_EFFECTS.battlecryBuffTarget(shopArena(ctx.state, self), { ...params, target: payload.target });
   },
 
   /** Buddy Buddy / Haven Drake: Battlecry — add `count` random minions to your hand (golden doubles
@@ -2108,10 +2079,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Cinderwing Matron — Battlecry: permanently raise the run-wide SPELL POWER by +atk/+hp (Cinderwing
    *  grants +0/+1 → spells give +1 more Health from now on). Golden doubles. Folds into spellAttackBonus
    *  / spellHealthBonus, so every future stat spell + its display picks it up. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffSpellPower: (ctx, self, params) => {
-    ctx.state.spellBonus ??= { attack: 0, health: 0 };
-    ctx.state.spellBonus.attack += num(params.attack) * gold(self);
-    ctx.state.spellBonus.health += num(params.health) * gold(self);
+    ARENA_EFFECTS.battlecryBuffSpellPower(shopArena(ctx.state, self), params);
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.

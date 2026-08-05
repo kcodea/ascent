@@ -36,6 +36,9 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     playRubiesOn: () => {},
     hasReborn: () => false,
     grantReborn: () => {},
+    grantKeywordTo: () => {},
+    grantSpellPower: () => {},
+    targetTribe: () => undefined,
     isTribe: () => true,
     gainRubyStats: () => {},
     neighboursOf: () => [],
@@ -135,7 +138,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 51; // +BuffImps/BuffUndeadAttack/BuffTribeOthersAttack/PlayRubiesAll (4 inline branches deleted)
+  const MIGRATED_FLOOR = 55; // THE SWITCH IS DEAD: +BuffTarget/GrantKeyword/GainKeyword/BuffSpellPower; set now DERIVED
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

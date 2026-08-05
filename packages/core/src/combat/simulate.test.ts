@@ -1571,11 +1571,11 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
-  it("Ryme's trigger on Field Mechanic DEFERS its economy Battlecry to settle (it is not lost)", () => {
-    // The owner reported this as "it didn't proc". It does — just not during the fight. A Battlecry with no
-    // combat surface (adding a card to hand, gaining Gold) is recorded in `playerDeferredBattlecries` and
-    // re-fired through the real recruit factory at settle, which is where the Patch Job actually appears.
-    // Pinning it here so the deferral isn't mistaken for a dropped trigger again.
+  it("Ryme's trigger on Field Mechanic grants the Patch Job LIVE (no deferral — the switch is dead)", () => {
+    // History: the owner reported this as "it didn't proc"; the first fix DEFERRED the grant to settle and
+    // announced it with a hand-authored toHand log. Since battlecryGrantSpell became a live FACTORIES entry
+    // (2026-08-04) the named spell grants through the real combat channel — `grantToHand` emits the toHand
+    // event AND records `playerHandGrants`, the carry-back settle applies. Nothing defers, nothing is lost.
     const r = run(
       [
         { cardId: 'fieldmechanic', attack: 0, health: 100 },
@@ -1585,14 +1585,15 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.some((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text)), 'Ryme named it').toBe(true);
-    expect(r.playerDeferredBattlecries?.map((d) => d.cardId), 'and it is queued for settle, not dropped')
-      .toContain('fieldmechanic');
+    expect(r.playerHandGrants, 'granted live, carried back').toEqual(['patchjob']);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId) ?? [], 'nothing left to defer')
+      .not.toContain('fieldmechanic');
   });
 
   it("Ryme's trigger on Field Mechanic ANNOUNCES the Patch Job during the fight (owner report 2026-07-27)", () => {
-    // The deferral above is correct, but it left the replay silent: the card only appeared once combat was
-    // over, so its arrival FX played at the very end instead of on the Deathrattle beat. The economy branch
-    // now logs a `toHand` for a NAMED deferred grant so the replay can materialise it at the right moment.
+    // The original report: the card only appeared once combat was over, so its arrival FX played at the very
+    // end instead of on the Deathrattle beat. The live grant (through `grantToHand`) emits the toHand event
+    // at the moment of the trigger — the replay materialises it at the right beat, no hand-authored announce.
     const r = run(
       [
         { cardId: 'fieldmechanic', attack: 0, health: 100 },
@@ -1610,9 +1611,9 @@ describe('simulate (handoff A.3)', () => {
     const grantAt = r.events.findIndex((e) => e.type === 'toHand');
     expect(grantAt).toBeGreaterThan(death);
     expect(grantAt).toBeGreaterThanOrEqual(trigger);
-    // The announcement must NOT also grant it — the settle deferral stays the single source of truth.
-    expect(r.playerHandGrants, 'not double-granted').toBeUndefined();
-    expect(r.playerDeferredBattlecries?.map((d) => d.cardId)).toContain('fieldmechanic');
+    // Granted ONCE, through the live channel — no settle deferral to double it.
+    expect(r.playerHandGrants, 'granted live, exactly once').toEqual(['patchjob']);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId) ?? []).not.toContain('fieldmechanic');
   });
 
   it('Ryme reaches PAST a corpse to the next living neighbour (owner report 2026-07-26)', () => {

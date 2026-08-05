@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: THE SWITCH IS DEAD — replayCombatBattlecry is FACTORIES-only (floor 55)
+
+The final Shout-family pass. `replayCombatBattlecry`'s legacy inline switch is **deleted**: the loop is now
+FACTORIES-first dispatch + economy defer, nothing else. What moved:
+
+- **Four new shared arena bodies** (floor 51 → 55): `battlecryBuffTarget` (targeted stat Shout; chosen target
+  rides `params.target`, auto-pick = highest-Attack other honouring `targetTribe`, fallback self),
+  `battlecryGrantKeyword` (targeted keyword Shout; auto-pick adds the lacks-filter so it never wastes the
+  grant), `battlecryGainKeyword` (Oathshield Orin self-keyword), `battlecryBuffSpellPower` (Cinderwing Matron
+  — combat channel `ctx.grantSpellPower` carry-back, shop channel `state.spellBonus`). New arena verbs:
+  `grantKeywordTo` (combat arms `divineShield`/`rebornAvailable` + logs the keyword event; shop appends),
+  `grantSpellPower`, `targetTribe()`.
+- **Drift FIXED by unification**: combat's `battlecryGrantKeyword` auto-pick ignored both the lacks-check and
+  the `targetTribe` restriction the shop half honoured — a Ryme-refired Toxin Tender could dump Toxic onto a
+  non-Undead that already had it. One body now, the richer shop reading.
+- **Phase-split FACTORIES entries by ruling**: `battlecryDiscoverSpell`/`battlecryDiscoverMinion` combat
+  halves grant randomly from the pool (the interactive 1-of-3 panel never opens mid-combat — Discover ruling
+  2026-08-04); shop halves stay interactive. `battlecryGrantSpell` now grants **LIVE** in combat through
+  `ctx.grantToHand` — the toHand event fires on the trigger beat and `playerHandGrants` carries it back, so
+  the settle deferral AND the hand-authored announce hack are both gone (the two Field Mechanic tests updated
+  to the live-grant truth: granted exactly once, nothing deferred).
+- **`COMBAT_REPLAYABLE_BATTLECRIES` is now DERIVED** — `new Set(Object.keys(FACTORIES))`, declared after
+  FACTORIES. It is definitionally the dispatch lookup, so it can never drift from the dispatcher again.
+- Dead code swept: `pickRandom` in recruit.ts (its callers migrated to arena rng), the `ALE_IDS` import in
+  factories.ts. Lint back at the 7-warning baseline.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
 ## 2026-08-04 — Shout bodies 48–51: four inline branches deleted; the Excavator trigger-count drift fixed
 
 `battlecryBuffImps`, `battlecryBuffUndeadAttack`, `battlecryBuffTribeOthersAttack` and

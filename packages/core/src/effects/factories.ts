@@ -1,6 +1,6 @@
 import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { ARENA_EFFECTS, type EffectArena } from './arena';
-import {ALE_IDS, extraTriggerFires } from '../types';
+import { extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -245,6 +245,15 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
     },
     hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
+    grantKeywordTo: (t, kw) => {
+      const mm = t as Minion;
+      mm.keywords.push(kw as Keyword);
+      if (kw === 'DS') mm.divineShield = true;
+      if (kw === 'R') mm.rebornAvailable = true;
+      ctx.log({ type: 'keyword', target: mm.uid, keyword: kw as Keyword, source: self.uid });
+    },
+    grantSpellPower: (a, h) => ctx.grantSpellPower(a, h, self.side, self.uid),
+    targetTribe: () => ctx.getCard(self.cardId)?.targetTribe,
     grantReborn: (t) => {
       const m = t as Minion;
       m.keywords.push('R');
@@ -290,26 +299,6 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
 /** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
  *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
  *  Kept in sync with the explicit branches below; `settleCombat` reads it to skip the combat ones at settle. */
-export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
-  'battlecrySummon', 'battlecryBuffTribe', 'battlecryBuffUndeadAttack', 'battlecryGrantKeyword',
-  'battlecryDiscoverSpell', 'battlecryDiscoverMinion', 'battlecryBuffSpellPower',
-  // Added 2026-08-04 (owner report: "this Dawnclaw/Shout interaction is not working"). It BUFFS A LIVING BODY,
-  // so deferring it to settle meant a Dawnclaw/Ryme trigger produced a narration and no visible effect — the
-  // buff landed after the fight it was supposed to win. Brood Whelp is the reported case. The rest of the
-  // deferred set really is economy (Gold, hand grants, shop) and correctly stays deferred.
-  'battlecryBuffTarget',
-  // ── Second pass, same owner report (the screenshot was Frenzied Excavator × Dawnclaw, not Brood Whelp) ──
-  // The first pass fixed one factory; these are the rest of the onPlay ids that visibly change LIVING BODIES.
-  // Everything still absent is genuinely economy (Gold, hand grants, shop consumption, run-wide auras) or has
-  // no combat data to read — see the notes on the branches below.
-  'battlecryPlayRubiesAll', 'battlecryBuffTribeOthersAttack', 'onBattlecryBuffSelf', 'battlecryGainKeyword',
-  // NOT new — `battlecryBuffImps` has had a combat branch since the Imp Overseer fix but was never listed
-  // HERE, and this set is what `settleCombat` reads to skip already-resolved effects. No live card is
-  // affected today (Imp Overseer's only onPlay is combat-handled, so it is never deferred at all), but the
-  // moment one pairs it with an economy effect the whole card defers and the Imp buff would land twice.
-  // Closing the desync so the set and the branches below can be trusted to say the same thing.
-  'battlecryBuffImps',
-]);
 
 /** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
  *  battlecries resolve here; economy ones (Fodder/Gold/shop/gain-minion) are recorded via `ctx.deferBattlecry`
@@ -330,93 +319,19 @@ export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set([
  *     `goldSpentThisTurn`, which is not on `CombatContext`; and `battlecryCopyEcho` (Gravetwin) needs the
  *     CHOSEN target that a re-fire has no way to reproduce. */
 function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
-  const g = m.golden ? 2 : 1;
-  const tribeOf = (t: Minion, tribe: string): boolean =>
-    !tribe || tribe === 'any' || t.tribe === tribe || t.tribe2 === tribe || !!ctx.getCard(t.cardId)?.universalTribe;
-  let economy = false; // saw an onPlay effect not handled in combat → defer the card to settle
+  // THE SWITCH IS DEAD (2026-08-04). Every combat-meaningful Shout lives in FACTORIES (arena-backed, or
+  // phase-split by ruling) and resolves LIVE here; anything else is economy — no tavern, Gold or hand exists
+  // in pure combat — and defers to settle, where it replays through its recruit factory.
+  let economy = false;
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay') continue;
-    const p = eff.params ?? {};
-    // ── SHOUT FAMILY dispatch (the switch's replacement): a FACTORIES entry resolves LIVE. Every Shout body
-    // migrated to the arena registers here and its inline branch below is deleted; when the switch below is
-    // empty, it dies — and COMBAT_REPLAYABLE_BATTLECRIES with it. Keep that set in step per migration: it is
-    // what stops settle from applying a live-resolved Shout a second time.
     const live = FACTORIES[eff.do as EffectFactoryId];
     if (live) {
-      live(ctx, m, p, { minion: m, side: m.side });
+      live(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
       continue;
     }
-    if (eff.do === 'battlecryBuffTarget') {
-      // No chosen target in combat, so auto-pick the highest-Attack friend — the same convention
-      // `battlecryGrantKeyword` uses below, and the same fallback order the recruit factory uses (others
-      // first, else self). A `targetTribe` on the card restricts the pick exactly as it does in the shop.
-      const a2 = num(p.attack) * g, h2 = num(p.health) * g;
-      if (a2 > 0 || h2 > 0) {
-        const restrict = ctx.getCard(m.cardId)?.targetTribe;
-        const ok = (t: Minion): boolean => !restrict || tribeOf(t, restrict);
-        const others = ctx.living(m.side).filter((t) => t !== m && ok(t));
-        const pool = others.length > 0 ? others : ok(m) ? [m] : [];
-        if (pool.length > 0) ctx.buff(pool.reduce((x, y) => (y.attack > x.attack ? y : x)), a2, h2, m.uid);
-      }
-    } else if (eff.do === 'battlecryGainKeyword') {
-      // Oathshield Orin gains the keyword ITSELF (unlike `battlecryGrantKeyword`, which targets a friend).
-      const kw = str(p.keyword) as Keyword;
-      if (kw && !m.keywords.includes(kw)) {
-        m.keywords.push(kw);
-        if (kw === 'DS') m.divineShield = true;
-        if (kw === 'R') m.rebornAvailable = true;
-        ctx.log({ type: 'keyword', target: m.uid, keyword: kw, source: m.uid });
-      }
-    } else if (eff.do === 'battlecryGrantKeyword') {
-      const kws = Array.isArray(p.keywords) ? (p.keywords as Keyword[]) : [];
-      const friends = ctx.living(m.side).filter((t) => t !== m); // auto-pick the highest-Attack friend (no chosen target in combat)
-      if (friends.length && kws.length) {
-        const target = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
-        for (const kw of kws) if (!target.keywords.includes(kw)) {
-          target.keywords.push(kw);
-          if (kw === 'DS') target.divineShield = true;
-          if (kw === 'R') target.rebornAvailable = true;
-          ctx.log({ type: 'keyword', target: target.uid, keyword: kw, source: m.uid }); // the pill shows in the replay
-        }
-      }
-    } else if (eff.do === 'battlecryDiscoverSpell') {
-      // A Discover Battlecry can't open the interactive 1-of-3 peek mid-combat — grant a random pool card
-      // instead (resolved at settle, respecting the tavern tier). Golden Discovers twice → grant ×2.
-      ctx.grantRandomSpell(g, m.side, m.uid);
-    } else if (eff.do === 'battlecryDiscoverMinion') {
-      ctx.grantRandomMinion(g, str(p.tribe) || undefined, m.side, m.cardId, m.uid); // …a random minion of the tribe, ≤ tavern tier
-    } else if (eff.do === 'battlecryBuffSpellPower') {
-      // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
-      // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
-      ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
-    } else {
-      economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
-      /* …but if the deferred Battlecry hands you a NAMED card, ANNOUNCE it now. The card really is yours —
-         settleCombat re-fires the economy onPlay through the recruit factory and it lands in hand — it just
-         had no event during the fight, so the replay showed nothing and the arrival FX only played once
-         combat was over (owner report 2026-07-27: Ryme triggering Field Mechanic's Patch Job).
-
-         Presentation only: this logs `toHand` WITHOUT calling ctx.grantToHand, so the card is not granted
-         twice — the deferral remains the single source of truth for what you actually receive (the same
-         split simulate.ts uses for a quest `rewardCardId`). Count mirrors the recruit factory's
-         `count * golden` so a golden Mechanic announces both Patch Jobs.
-
-         Only `battlecryGrantSpell`, because it is the one that names its card up front. A random grant
-         (battlecryGainRandomMinion, the Discover fallbacks) can't be announced without rolling the pick
-         here, and rolling it would move the rng — the replay would stop matching the settle. */
-      if (eff.do === 'battlecryGrantSpell' && m.side === 'player') {
-        const id = str(p.spellId);
-        if (id) {
-          for (let i = 0; i < num(p.count, 1) * g; i++) {
-            ctx.log({ type: 'toHand', cardId: id, side: m.side, source: m.uid });
-          }
-        }
-      }
-    }
+    economy = true;
   }
-  // Economy battlecries can't run in pure combat (no tavern/Gold/hand on the run state). Record the card so
-  // settleCombat re-fires its economy onPlay effects through the real recruit factory. Player-only (gated in
-  // ctx.deferBattlecry). Recorded once per re-fire, so Drakko's doubling carries through to the settle replay.
   if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
   // NB: the `battlecryTriggered` notify (procs Karwind / Bane / Sporeling) is emitted by the CALLER
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
@@ -686,6 +601,32 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // Rubies has to mean two" — the shop half's documented design; combat used to fold per into one notify).
   battlecryPlayRubiesAll: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryPlayRubiesAll(combatArena(ctx, self), params);
+  },
+  battlecryBuffTarget: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffTarget(combatArena(ctx, self), params);
+  },
+  battlecryGrantKeyword: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryGrantKeyword(combatArena(ctx, self), params);
+  },
+  battlecryGainKeyword: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryGainKeyword(combatArena(ctx, self), params);
+  },
+  battlecryBuffSpellPower: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffSpellPower(combatArena(ctx, self), params);
+  },
+  // ── PHASE-SPLIT BY RULING (Discover in combat = a random pool card, 2026-08-04): the interactive 1-of-3
+  //    panel never opens mid-combat, so these combat halves grant randomly; the shop halves stay interactive.
+  battlecryDiscoverSpell: (ctx, self) => {
+    ctx.grantRandomSpell(mul(self), self.side, self.uid);
+  },
+  battlecryDiscoverMinion: (ctx, self, params) => {
+    ctx.grantRandomMinion(mul(self), str(params.tribe) || undefined, self.side, self.cardId, self.uid);
+  },
+  // LIVE now (it used to defer + hand-announce): the named spell grants through the real combat channel.
+  battlecryGrantSpell: (ctx, self, params) => {
+    const id = str(params.spellId);
+    if (!id) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
   },
 
   // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN by ruling (a borrowed Blaster
@@ -2913,3 +2854,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 };
+
+/**
+ * DERIVED, no longer hand-kept (2026-08-04): a Shout resolves live in combat exactly when `FACTORIES` has an
+ * entry for it — the same lookup `replayCombatBattlecry` dispatches on — so this set can never drift from the
+ * dispatcher again. Consumed by settle (skip live-resolved effects when replaying a deferred card's economy
+ * half) and by tests.
+ */
+export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set(Object.keys(FACTORIES));

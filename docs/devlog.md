@@ -60,6 +60,32 @@ buried buttons and the invisible ring, which is exactly the class of thing the a
 
 *Note: `packages/ui/src/fx/directCalls.test.ts` is a slow test (1.3s alone, 4.2s under full-suite load) that
 intermittently trips its timeout. Unrelated to this change; it passed on re-run and in isolation.*
+## 2026-08-05 — Balance telemetry, phase 2: the observer is wired into the run loop
+
+The derivation from phase 1 now runs for real. Three parts:
+
+**One observer, two feeds.** Wiring it revealed a trap: a LOBBY replay is not guaranteed faithful (the
+reason `recordTelemetryAction` exists — its comment says the reconstruct and live paths "must stay in step",
+by hand), and lobby runs are the only ones telemetry uploads. A replay-only deriver would therefore have been
+wrong for exactly the runs that matter. The derivation is now a single `observeAction(before, action, after)`
+fed EITHER by replaying a log OR by the live dispatch — with a test that runs a bot game through both feeds
+and asserts the rows are identical, so agreement is structural rather than maintained.
+
+**Wired.** `deriveState` lives in the store beside `telemetryLog`, fed per dispatched action (a click, never
+a frame), persisted into the save so a quit-and-resume keeps the run's offers and buys, and reset with the
+run. At run end `finishDerive` produces the payload and it uploads alongside the legacy summary, together
+with the raw replay and the content revision.
+
+**Graceful on a stale backend.** The new columns sit at the TOP of the existing insert fallback ladder: on a
+DB that has not run the 2026-08-05 migration the richer insert fails and we drop straight back to the row
+that has always worked, so an un-migrated backend costs the new analytics and nothing else.
+
+Verified live in the app, not just in tests: a real buy through the normal dispatch produced a `shop`-sourced
+acquisition carrying the Gold paid, closed its offer row with `goldAfter`, and wrote a ledger entry
+categorised `minion` naming the card. Gates: typecheck / lint (7-warning baseline) / 3992 tests / harness
+determinism / build:web.
+
+Next: the in-app Balance Report views over this data.
 ## 2026-08-05 — Balance telemetry, phase 1: card revisions + the run derivation
 
 Answering the Codex telemetry spec ("our balance report is not detailed enough" — 8 event tables, dashboards,

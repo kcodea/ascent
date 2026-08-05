@@ -109,25 +109,6 @@ export function getDef(id: string): StoredFxDef | undefined {
 }
 
 /**
- * Will this def actually DELIVER a stat change — does it have a live `react` layer with "Carries the
- * number" ticked?
- *
- * Ask before withholding. A cue holds the badge's new value so an effect can land it, but whether any
- * effect is left to land it is an AUTHORING decision that changes in the workbench, without the cue
- * knowing: pull the carrying layer off `ruby-gem-apply` and the gem hold is still placed with nothing to
- * release it, so the number just stops updating (owner report — a gem apply that needed a second click).
- *
- * A caller that checks this instead withholds nothing, which hands the change to `Card`'s intrinsic roll —
- * so the badge still rolls, on no authoring at all, rather than freezing. Muted layers don't count, since
- * `playableLayers` is what actually plays; a def that doesn't exist doesn't carry.
- */
-export function defCarriesNumber(id: string): boolean {
-  const def = getDef(id);
-  if (def === undefined) return false;
-  return def.layers.some((l) => l.muted !== true && l.primitive === 'react' && l.params?.carries === true);
-}
-
-/**
  * Record a def that was just written to disk, so the library reflects it immediately.
  *
  * Required, not an optimisation: see `savedThisSession` above — the eager glob cannot see a file created after

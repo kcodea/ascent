@@ -48,10 +48,9 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { RUBY_LANDED_DEF, rubyLandSchedule, rubyLandHolds } from './choreo/channels/rubyLanded';
+import { rubyLandSchedule, rubyLandHolds } from './choreo/channels/rubyLanded';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
-import { defCarriesNumber } from './fx/fxDefs';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -861,11 +860,11 @@ export function Recruit() {
    * Anything unusable (no board entry, no Ruby buff yet, a zero count) simply does not hold: the badge shows
    * the truth immediately, which is exactly today's behaviour and the safe direction.
    *
-   * And it only withholds at all if the def STILL CARRIES THE NUMBER. Whether an effect delivers the change
-   * is an authoring decision that moves in the workbench: pull the `carries` layer off `ruby-gem-apply` and
-   * this hold would be placed with nothing left to release it, freezing the badge until an unrelated
-   * re-render swept it (owner report — a gem apply that only updated on the next click). Declining to hold
-   * hands the change to `Card`'s intrinsic roll instead, so the number still rolls with no authoring at all.
+   * No authored layer is required to release this hold. `fx/statHold.ts`'s shared rAF ticker drives every
+   * hold whose origin is not `effect`, so a `cue` hold delivers itself on schedule whether or not a `react`
+   * layer is armed for `ruby-gem-apply` — unlike the `effect`-origin holds `score.ts` places, which really
+   * do need their layer to fire. If a carrying `react` layer IS armed later, it places an `effect` hold,
+   * which outranks `cue`, so the authored timing still wins over the automatic floor.
    *
    * Each RECIPIENT is withheld until its own gem, not until the reducer tick. `rubyLandHolds` groups the
    * same `rubyLandSchedule` the fire effect below reads back into one entry per uid, so the number and the
@@ -878,7 +877,6 @@ export function Recruit() {
   useLayoutEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
-    if (!defCarriesNumber(RUBY_LANDED_DEF)) return;
     const lands = run.rubyLandedFx ?? [];
     const buffOf = (uid: string): CardBuff | undefined =>
       run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');

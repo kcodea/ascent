@@ -437,6 +437,25 @@ describe('the shared ticker', () => {
     expect(anyStatHeld()).toBe(false);
   });
 
+  /** A `cue` hold has no player of its own — unlike `effect`, nothing ever calls `revealStat` for it, so
+   *  the ticker is the ONLY thing that can carry it from placed to delivered. Two production call sites
+   *  now bet on that: the ruby cascade (`Recruit.tsx` ~884) and the fodder tendril (`Recruit.tsx` ~3032),
+   *  both of which withhold at `origin: 'cue'` with no authored layer required to release them. This
+   *  mirrors the `intrinsic` walk-the-reveal case above but on the origin those call sites actually use,
+   *  so a future change that special-cased `cue` out of the ticker's path would fail here instead of only
+   *  in the harness. */
+  it('drives a cue hold to completion on its own — the automatic floor has no player behind it', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 300, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 100);   // before startAt
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // untouched
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300 + 200);   // startAt + the full roll
+    stepHolds();
+    expect(heldFor('a')).toBeNull();   // delivered and released, with no react layer anywhere
+    expect(anyStatHeld()).toBe(false);
+  });
+
   /** An effect layer drives its own reveal off the player's clock; two clocks on one counter stutter.
    *
    *  The jump is 1000ms (well past the 200ms roll) rather than something past `HOLD_TTL_MS` (1200ms): past

@@ -38,6 +38,17 @@ The five buckets below are ordered by when we intend to act, not by size:
   pinned by no test, so it would regress silently; and the harness is a manual pre-merge gate rather than CI,
   so the next change to `stepHolds` or the rank table gets none of its protection.
 
+  The COMBAT half is planned and ready to execute:
+  [`superpowers/plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md)
+  (5 tasks). It deletes combat's bespoke `statHold`/`statFlash` Maps and `Recruit → Unit → Card` props in
+  favour of the shared store: combat's `Card` gets a `uid`, pre-buff holds become `effect`-origin `holdStat`
+  calls, and the strike-time release drives a roll (`driveRoll`) that the badge pop follows. Two owner feel
+  calls baked in (2026-08-05): combat buffs ROLL like the shop rather than snapping, and the health badge
+  pops on damage too. One mechanism refinement over the spec: combat uses `effect` origin, not `startAt` —
+  the strike time is measured post-paint and the hold is installed pre-paint, so they can't be one value, and
+  an `effect` hold is exactly the "the replay owns the clock" contract. Merge gated on a per-frame browser
+  assertion that no badge shows a wrong number mid-fight.
+
   What remains is the COMBAT half, deliberately unplanned until the shop half landed: the hold is installed by
   a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two
   post-paint callbacks keyed on a `strikeMs` computed only there, so `startAt` forces those into one decision —

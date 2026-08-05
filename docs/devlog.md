@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-05 — Plan: combat stat unification (plan only, no code)
+
+Implementation plan for the combat half of the choreography work:
+[`superpowers/plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md).
+Five tasks that delete combat's second, bespoke stat-withholding system — the `statHold`/`statFlash` `useState`
+Maps in `useCombatReplay`, threaded `Recruit → Unit → Card` and released by post-paint strike timers — and
+route it through the same `fx/statHold.ts` store the shop uses.
+
+**A mechanism refinement over the spec, found by reading `useCombatReplay.ts` closely.** The spec proposed
+combat holds carry `startAt: <strike beat>`. They can't: the strike time is measured POST-paint (from DOM
+geometry in `fireBuffCasts`) while the hold is installed PRE-paint to avoid the up-down-up flash the owner
+filmed in July. The clean shape is `origin: 'effect'` — the ticker already leaves those alone, and combat's
+existing release timers are their driver, which is exactly the contract an authored `react` layer has via
+`claimStat`. Combat reuses machinery this branch already built and needs no `startAt`.
+
+**Two owner feel calls (2026-08-05):** combat buffs ROLL on strike, counting up over `rollMs` like the shop,
+rather than the hold-then-snap they do today; and the health badge pops on damage too (already true — the pop
+has no uid gate — so the only new pop is on buffs once `.statflash` retires).
+
+Merge is gated on a per-frame browser assertion that no combat badge ever prints a number the minion did not
+have, with negative controls — because `useCombatReplay`/`Unit`/`Card` have no DOM test harness and combat is
+the most tuned surface in the game. Deferred until now on purpose: the shop half had to land first so the plan
+could be written against the shared ticker's real behaviour rather than a prediction of it.
+
 ## 2026-08-05 — The cascade actually reaches the badge: the gate goes, the maths generalises, four review findings close
 
 The entry below landed the scheduling mechanism and proved it in a browser — but only with a diagnostic

@@ -1,6 +1,23 @@
 # ASCENT — development log
 
 
+
+## 2026-08-05 (card-art tuning pass)
+
+### content(ui): the owner's card-art framing — 11 cards
+
+The first real tuning session with the finished 🖌️ Card Art overlay. Re-framed Manasaber, Oathshield Orin,
+Candleback, Pouchpincher and Clerk from their earlier values, and added Wrangler; Embermouth, Apples, Chipwick,
+Pimm and Packstrider carry over unchanged. All pure framing (x/y/zoom) — the one colour experiment from the
+previous pass was dropped before it shipped.
+
+Note `dm_clerk` now carries explicit `hue: 0` / `sat: 1` / `contrast: 1`. Those are identity values written
+because the sliders were touched and returned; harmless, but an explicit entry does PIN that field against a
+later frame-family retune, which is the documented difference between "no entry" and "an entry of zeroes".
+
+**Verified:** valid JSON, 11 entries; `typecheck` clean, `lint` 0 errors, **3970 tests** / 248 files,
+`build:web` green.
+
 ## 2026-08-05 (drag the artwork itself)
 
 ### feat(dev): Card Art gets a direct-manipulation overlay — drag, wheel-zoom, ✗/✓

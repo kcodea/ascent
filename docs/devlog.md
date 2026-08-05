@@ -1,5 +1,91 @@
 # ASCENT — development log
 
+## 2026-08-04 — The Shout family begins: FACTORIES-first dispatch is the switch's death sentence
+
+The structural move: `replayCombatBattlecry` now dispatches **FACTORIES-first** — an onPlay effect with a
+FACTORIES entry resolves LIVE in combat through it, and only then does the legacy inline switch get a look.
+Every Shout body migrated to the arena registers in FACTORIES and its inline branch is deleted; when the
+switch is empty it dies, and `COMBAT_REPLAYABLE_BATTLECRIES` dies with it (until then the set must grow in
+step per migration — it is what stops settle from double-applying a live-resolved Shout).
+
+First pair through the new path, both duals unified: `battlecrySummon` (Alleycat/Shaper) and
+`battlecryBuffTribe` — floor → 47. The terrain, mapped: 12 inline branches remain in the switch, and 32
+onPlay ids have no combat handling at all (the defer class — several of which can now resolve live for free
+on existing verbs: grant-a-card, random-spell, Rubies, Ales).
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Body 45: the Lantern Echo really casts in the shop; the ECHO FAMILY IS DONE
+
+`deathrattleCastTribeAttack` (the Soulsman-class Echo that casts Lantern of Souls) gains its ARENA-BORN shop
+half — floor → 45. The shop ritual is the honest one: `castTribeAttackSpell` casts the ACTUAL `lanternofsouls`
+card through the full shop pipeline, so the permanent Undead aura lands via the spell's own factory (its
+params staying the single source of truth) and every per-spell watcher — Guel, Spirit Pup, the rune meters —
+sees a real cast, because it is one. Combat keeps its legacy ritual (count the cast, rest-of-fight aura with
+spell power folded, narrate); the shop-permanent vs combat-fight-long asymmetry is each half's PRE-EXISTING
+behaviour, preserved and stated rather than invented.
+
+**The Echo family is COMPLETE.** Every `onDeath` effect in content is now either a shared arena body (45 of
+them) or classified: `deathrattleDestroyKiller` (correctly inert in a shop — no killer exists) and
+`onFriendDeathSummon` (a watcher, not a payload) — both documented, neither a gap. Funeral on Loan, Ossuary
+Rite, Deathsayer, Rune of the Reliquary and Gravetwin now reach EVERY Echo in the game.
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Bodies 43+44: Blaster hits YOUR board (ruling); Nanon joins Shepherd
+
+- **Blaster** (`deathrattleDamageAll`, shop half ARENA-BORN by ruling — "Blaster should still deal dmg to your
+  board if borrowed and played"): the new `damageAll` verb is both-sides in combat and YOUR BOARD in the shop
+  (there is no enemy), with a body taken to 0 dying there too — removed, its own Echo firing, the same cascade
+  combat runs. One knock-on made explicit by an existing test: **Crypt Broker's "trigger its Echo now" means
+  the whole Echo, damage included** — the seeded test conjures Blaster, and the 3-health Broker now dies to
+  its own find. The test was updated to that truth rather than softened.
+- **Nanon** (`deathrattleSummonOverflowBuff`, ARENA-BORN shop half): Legion Shepherd's class — summons what
+  fits (fixed count), converts each overflow into the tribe buff, counting landings by board size.
+
+Floor → **44**. Remaining single-half Echoes: `deathrattleDestroyKiller` (correctly inert in a shop — no
+killer exists), `deathrattleCastTribeAttack` (Lantern of Souls — needs the cast-counting + permanent-aura
+shop ritual, one careful slice), `onFriendDeathSummon` (a watcher, not a payload — inert as an Echo trigger
+unless ruled otherwise). Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Funeral on Loan live-testing fixes: the borrowed body occupies its drop slot
+
+Owner found both by playing (the audit the sweep exists to make unnecessary — these were on the un-migrated
+remainder):
+
+- **A borrowed minion now OCCUPIES ITS DROP SLOT while its Echo fires**, then leaves — never staying. The old
+  flow consumed the card from hand and fired the Echo bodiless, so every POSITIONAL Echo was meaningless: a
+  borrowed Dawnclaw beside a Shout found no neighbours ("does not trigger the adjacent shouts"), and Legion
+  Shepherd's overflow had no real board to count against. The reducer splices the card in at `toIndex`, fires,
+  and removes it by uid (the Echo may have summoned bodies around it and shifted the index). A ghost slot also
+  makes overflow semantics honest: the Shepherd takes up room while it dies, exactly as it would in combat.
+- **Legion Shepherd migrated (arena body 42, shop half ARENA-BORN)** — it had no shop half at all, so a
+  borrowed Shepherd summoned nothing. One combat nuance surfaced by its own full-board test: the summon's
+  RETURN is not a reliable landed-signal (combat can defer a body onto the immediate-attack queue), so the
+  shared body counts landings by board size — the same trick the legacy half used, now stated.
+
+Two regression tests pin the reports verbatim: the 6-board Shepherd converts all four Imps into +8/+8 (and on
+a roomy board actually lands three), and a borrowed Dawnclaw dropped between two Dwarves re-fires the
+Captain's Shout. Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — The Echo family sweep begins: the first ARENA-BORN halves
+
+Bodies 40+41, and a milestone: these are the first effects to GAIN a phase rather than merely deduplicate one.
+
+- **`deathrattleGrantRebornAll`** was combat-only — a shop-fired trigger (Funeral on Loan, Ossuary Rite, a
+  Gravetwin copy) silently did nothing. The shared body works in the shop natively, no ruling needed: the
+  sentence is phase-blind. Its combat narration rides two new verbs (`nameOf`, `narrate` — an `sc` log line
+  in combat, a no-op in the shop).
+- **`deathrattleGainRandomMinion`** was SHOP-only — it had no combat half at all. A combat-fired trigger now
+  grants through the settle-time hand channel with the replay's toHand flight. Its tribe scoping needed
+  `activeTribes()` (a new `CombatContext.activeTribesFor` accessor reading the side's captured tribes).
+
+Only 6 single-half Echoes remain in content — the dual sweep had already covered the rest of the family. The
+remaining 6 are the genuinely combat-mechanical ones (damage-all, destroy-the-killer, the overflow pair,
+on-friend-death, cast-in-combat), which need the `combat?` probe group — the next slice.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 37–39: the last three rulings land; STEP 3 IS COMPLETE
 
 All three deferred divergences ruled and migrated — **floor → 39 of 42**, and every dual that CAN share a

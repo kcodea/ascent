@@ -1943,6 +1943,8 @@ export interface CombatContext {
   /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
    *  recruit engine's `state.runeMatriarch` wrapper. */
   matriarchRepsFor(side: Side): number;
+  /** This side's active tribes (the run's generation pool filter), for tier/tribe-scoped random grants. */
+  activeTribesFor(side: Side): string[];
   /** Bane's Existence widen for this side, if the quest is armed (owner ruling 2026-08-04). */
   baneDemonWidenFor(side: Side): { attack: number; health: number } | undefined;
   /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */

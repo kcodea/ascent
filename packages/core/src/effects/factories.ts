@@ -224,6 +224,22 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     stampKarwindFlash: () => {}, // combat FX ride the buff events
     stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => e.on !== 'onDeath'); },
+    nameOf: (t) => (t as Minion).name,
+    narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
+    activeTribes: () => ctx.activeTribesFor(self.side),
+    castTribeAttackSpell: (tribe, amount) => {
+      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
+      const sp = ctx.spellPowerFor(self.side);
+      const a = amount + sp.attack;
+      const h = sp.health;
+      ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+    },
+    damageAll: (amount) => {
+      for (const sideKey of ['player', 'enemy'] as Side[]) {
+        for (const m of [...ctx.living(sideKey)]) ctx.damage(m, amount);
+      }
+    },
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -321,14 +337,16 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay') continue;
     const p = eff.params ?? {};
-    if (eff.do === 'battlecrySummon') {
-      const token = ctx.getCard(str(p.tokenId));
-      if (token) for (let i = 0; i < num(p.count, 1) * g; i++) ctx.summon(m.side, token, m.uid);
-    } else if (eff.do === 'battlecryBuffTribe') {
-      const tribe = str(p.tribe), a = num(p.attack) * g, h = num(p.health) * g;
-      const includeSelf = p.includeSelf !== false;
-      for (const t of ctx.living(m.side)) if ((includeSelf || t !== m) && tribeOf(t, tribe)) ctx.buff(t, a, h, m.uid);
-    } else if (eff.do === 'battlecryBuffUndeadAttack') {
+    // ── SHOUT FAMILY dispatch (the switch's replacement): a FACTORIES entry resolves LIVE. Every Shout body
+    // migrated to the arena registers here and its inline branch below is deleted; when the switch below is
+    // empty, it dies — and COMBAT_REPLAYABLE_BATTLECRIES with it. Keep that set in step per migration: it is
+    // what stops settle from applying a live-resolved Shout a second time.
+    const live = FACTORIES[eff.do as EffectFactoryId];
+    if (live) {
+      live(ctx, m, p, { minion: m, side: m.side });
+      continue;
+    }
+    if (eff.do === 'battlecryBuffUndeadAttack') {
       // Deathswarmer's buff is an AURA ("your Undead +Attack WHEREVER they are"), so it must be PERMANENT
       // even when Ryme re-fires it in combat — not just this fight. Buff the live Undead now (visible in the
       // replay + affects this combat) AND carry the aura back via grantUndeadBuyAtk, exactly as the recruit
@@ -468,24 +486,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Nanon — Deathrattle: summon `count` tokens; every one that can't fit the full board (a `summonOverflow`)
    *  instead buffs your minions of `tribe` by +atk/+hp EACH. Golden doubles the *buff* (the summon count is
    *  fixed — a full board converts more bodies into a bigger Mech-wide pump). The gift lasts the combat. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN (Legion Shepherd's class).
   deathrattleSummonOverflowBuff: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const card = ctx.getCard(str(params.tokenId));
-    const total = num(params.count, 6); // fixed — golden scales the overflow buff, not the summon count
-    let overflowed = 0;
-    for (let i = 0; i < total; i++) {
-      const before = ctx.living(self.side).length;
-      ctx.summon(self.side, card, self.uid); // emits `summonOverflow` when the board is already full
-      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
-    }
-    if (overflowed === 0) return;
-    const tribe = str(params.tribe) as Tribe | '';
-    const a = num(params.attack, 2) * mul(self) * overflowed; // +2/+2 per overflow (golden +4/+4)
-    const h = num(params.health, 2) * mul(self) * overflowed;
-    for (const m of ctx.living(self.side)) {
-      if (!tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleSummonOverflowBuff(combatArena(ctx, self), params);
   },
+
 
   /** Sporebat — Deathrattle: grant N random tavern-tier spells to your hand after combat (golden 2). The
    *  tier-bounded pick happens at settle (where the tavern tier is known); combat just banks the count. */
@@ -689,12 +695,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
    *  Snapshots each side's living list first so cascading deaths don't disturb the sweep. */
+  // ── SHOUT FAMILY (arena-backed; dispatched by replayCombatBattlecry's FACTORIES-first pass) ──
+  battlecrySummon: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecrySummon(combatArena(ctx, self), params);
+  },
+  battlecryBuffTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffTribe(combatArena(ctx, self), params);
+  },
+
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN by ruling (a borrowed Blaster
+  // damages YOUR board).
   deathrattleDamageAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const amount = num(params.amount, 3) * mul(self);
-    for (const side of ['player', 'enemy'] as Side[]) {
-      for (const m of [...ctx.living(side)]) ctx.damage(m, amount);
-    }
+    ARENA_EFFECTS.deathrattleDamageAll(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Jenkins & Fi): destroy the minion that dealt the killing blow (`killer` on the onDeath
@@ -2236,52 +2249,29 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Anubis (Tier 7) — Deathrattle: grant Rise to EVERY other living friendly minion that doesn't already
    *  have it. `deathrattleGrantReborn` picks ONE candidate per rep; this is the board-wide version. */
+  // ARENA-BORN (Echo family): this had NO combat half at all — a combat-fired trigger now grants via the
+  // settle-time hand channel, with the replay's toHand flight.
+  deathrattleGainRandomMinion: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleGainRandomMinion(combatArena(ctx, self), params);
+  },
+
+  // ARENA-MIGRATED (Echo family): one body; the shop half now EXISTS (it was combat-only).
   deathrattleGrantRebornAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe);
-    for (const m of ctx.living(self.side)) {
-      if (m === self || m.rebornAvailable || m.keywords.includes('R')) continue;
-      if (tribe) {
-        const def = ctx.getCard(m.cardId);
-        if (m.tribe !== tribe && m.tribe2 !== tribe && !def?.universalTribe) continue;
-      }
-      m.keywords = [...m.keywords, 'R'];
-      m.rebornAvailable = true;
-      // A `keyword` event, not just narration — that's what makes the Rise PILL appear on the unit. Every
-      // other Rise grant (Mumi, the Avenge grant) emits one; this logged `sc` text only, so the grant landed
-      // in sim state but was invisible on the board, and the owner reported "none of my minions got Rise"
-      // (2026-07-21). The narration stays for the combat log.
-      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} grants ${m.name} Rise` });
-    }
+    ARENA_EFFECTS.deathrattleGrantRebornAll(combatArena(ctx, self), params);
   },
+
 
   /** Anubis (Tier 7) — Deathrattle: cast Lantern of Souls (your `tribe` get +Attack everywhere, permanently).
    *  The Deathrattle mirror of Watcher's `rallyCastTribeAttack`: same spell-power folding, same permanent
    *  grant channel, same "counts as a real spell cast". Golden casts it twice. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN (it really casts the spell).
   deathrattleCastTribeAttack: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = (str(params.tribe) || 'undead') as Tribe;
-    const sp = ctx.spellPowerFor(self.side);
-    const a = num(params.amount, 3) + sp.attack;
-    const h = sp.health;
-    for (let i = 0; i < mul(self); i++) {
-      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
-      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
-      // Narrate the cast. The buffs alone read as "some numbers moved"; the owner couldn't tell Lantern of
-      // Souls had fired at all (2026-07-21). Names the spell and its live value, spell power folded in.
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
-      for (const m of ctx.living(self.side)) {
-        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-      }
-      // PERMANENT, like every other Lantern cast (owner 2026-07-27: "all lantern casts should be permanent
-      // stats; Watcher uses the right utility"). `addTribeAura` above only lasts the fight, so Anubis's
-      // Deathrattle Lantern evaporated at settle while the Watcher's Rally cast persisted — the same spell
-      // behaving differently depending on which card cast it. `grantUndeadAura` is the run-wide Lantern
-      // channel that carries back.
-      if (tribe === 'undead') ctx.grantUndeadAura(a, h, self.side);
-    }
+    ARENA_EFFECTS.deathrattleCastTribeAttack(combatArena(ctx, self), params);
   },
+
 
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
@@ -2597,22 +2587,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  the Imp Aura channel — which advances the aura (so Imps summoned LATER this combat inherit it) and rides
    *  the `playerImpBuffGain` carry-back into run state (so Imps in the shop and on the board get it too, and
    *  keep it). The living Imps already on the field are buffed directly, since the aura only reaches new bodies. */
+  // ARENA-MIGRATED (Echo family): one body; the shop half is ARENA-BORN. `grantImpAura` buffs every
+  // imp-flagged body rather than only impscrap literals — a deliberate widening ("your Imps" means Imps).
   deathrattleImpsOverflowGrant: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const imp = ctx.getCard('impscrap');
-    if (!imp) return;
-    const total = num(params.count, 4); // fixed — golden scales the per-overflow grant, not the body count
-    let overflowed = 0;
-    for (let i = 0; i < total; i++) {
-      const before = ctx.living(self.side).length;
-      ctx.summon(self.side, imp, self.uid);
-      if (ctx.living(self.side).length === before) overflowed++; // didn't land → it overflowed
-    }
-    if (overflowed === 0) return;
-    const a = num(params.attack, 2) * mul(self) * overflowed;
-    const h = num(params.health, 2) * mul(self) * overflowed;
-    for (const m of ctx.living(self.side)) if (m.cardId === 'impscrap') ctx.buff(m, a, h, self.uid);
-    ctx.grantImpBuff(a, h, self.side);
+    ARENA_EFFECTS.deathrattleImpsOverflowGrant(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Endless Overseer (owner rework 2026-07-27): Start of Combat, graft an Echo onto your RIGHT-most

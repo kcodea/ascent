@@ -155,6 +155,22 @@ export interface EffectArena {
   /** Stamp Karwind's pulse FX on a body — shop-side bookkeeping (`karwindFlash`); a combat no-op (combat FX
    *  ride the buff events). */
   stampKarwindFlash(t: ArenaBody): void;
+  /** A display name for a body (combat: the live minion's; shop: the card def's). */
+  nameOf(t: ArenaBody): string;
+  /** Narrate a beat into the combat log (`sc` text). A shop no-op — the shop has FX, not narration. */
+  narrate(text: string): void;
+  /** The run's active tribes — the generation-pool filter for tier/tribe-scoped random grants. */
+  activeTribes(): string[];
+  /** Deal `amount` to every living body — combat: BOTH sides; shop: YOUR board (there is no enemy), and a
+   *  body taken to 0 dies there too — removed, its own Echo firing (owner ruling 2026-08-04: "Blaster should
+   *  still deal dmg to your board if borrowed and played"). */
+  damageAll(amount: number): void;
+  /** Cast the named tribe-aura spell as a REAL cast — it counts for every per-spell watcher. Whole-ritual per
+   *  phase: the shop casts the actual card through its full pipeline (`castSpell` — permanent aura + cast
+   *  bookkeeping); combat counts the cast, applies the rest-of-fight tribe aura with spell power folded in,
+   *  and narrates (the pre-existing phase asymmetry — shop permanent, combat fight-long — is each half's
+   *  legacy behaviour, preserved, not invented here). */
+  castTribeAttackSpell(tribe: string, amount: number, spellId: string): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -647,6 +663,119 @@ export const ARENA_EFFECTS = {
       const adj = neighbours.has(f.uid);
       arena.buff(f, adj ? adjA : a, adj ? adjH : h);
       arena.stampKarwindFlash(f);
+    }
+  },
+
+  /** Echo: give ALL your minions (of `tribe`, if set) RISE. First body born from the ECHO FAMILY SWEEP — it
+   *  was combat-only, so a shop-fired trigger (Funeral on Loan et al.) silently did nothing. Now it works in
+   *  both phases with no ruling needed: the sentence is phase-blind. */
+  deathrattleGrantRebornAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    for (const f of arena.friends()) {
+      if (f.uid === arena.self.uid || arena.hasReborn(f)) continue;
+      if (tribe && !arena.isTribe(f, tribe)) continue;
+      arena.grantReborn(f);
+      arena.narrate(`${arena.nameOf(arena.self)} grants ${arena.nameOf(f)} Rise`);
+    }
+  },
+
+  /** Rune of the Summit's grant (and kin): get `count` random minions of EXACTLY `tier` from your active
+   *  tribes + neutral. Was shop-only; a combat-fired grant now lands via the replay's toHand flight. */
+  deathrattleGainRandomMinion(arena: EffectArena, params: Record<string, unknown>): void {
+    const tier = typeof params.tier === 'number' ? params.tier : 5;
+    const tribes = arena.activeTribes();
+    arena.grantRandomFromPool(
+      (c) => {
+        const d = c as { tier?: number; tribe?: string };
+        return d.tier === tier && (d.tribe === 'neutral' || tribes.includes(d.tribe ?? ''));
+      },
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Legion Shepherd — Echo: summon `count` Imps (count FIXED — golden scales the grant, not the bodies);
+   *  every Imp that can't fit instead improves your Imps EVERYWHERE, permanently, by +a/+h per overflow.
+   *  ARENA-BORN shop half (owner report 2026-08-04: a borrowed Shepherd summoned nothing and never overflowed
+   *  — it had no shop half at all). */
+  deathrattleImpsOverflowGrant(arena: EffectArena, params: Record<string, unknown>): void {
+    const total = typeof params.count === 'number' ? params.count : 4;
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      // Count landings by BOARD SIZE, not the summon's return — combat's summon can defer a body onto the
+      // immediate-attack queue and return nothing for a summon that WILL land (the legacy half counted
+      // `living()` length for exactly this reason; caught by the full-board overflow test).
+      const before = arena.friends().length;
+      arena.summonToken('impscrap');
+      if (arena.friends().length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g * overflowed,
+      (typeof params.health === 'number' ? params.health : 2) * g * overflowed);
+  },
+
+  /** Blaster — Echo: deal `amount` to EVERY minion (golden doubles). In the shop that means your own board —
+   *  a borrowed Blaster is a live grenade, by ruling. */
+  deathrattleDamageAll(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.damageAll((typeof params.amount === 'number' ? params.amount : 3) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Nanon — Echo: summon `count` tokens (count FIXED); every one that can't fit instead buffs your `tribe`
+   *  minions +a/+h EACH (golden doubles the buff). ARENA-BORN shop half — same class as Legion Shepherd. */
+  deathrattleSummonOverflowBuff(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const total = typeof params.count === 'number' ? params.count : 6;
+    let overflowed = 0;
+    for (let i = 0; i < total; i++) {
+      const before = arena.friends().length;
+      arena.summonToken(id);
+      if (arena.friends().length === before) overflowed++; // didn't land → it overflowed
+    }
+    if (overflowed === 0) return;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g * overflowed;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g * overflowed;
+    for (const f of arena.friends()) {
+      if (!tribe || arena.isTribe(f, tribe)) arena.buff(f, a, h);
+    }
+  },
+
+  /** Soulsman's kin — Echo: cast Lantern of Souls (golden casts twice). ARENA-BORN shop half: a shop-fired
+   *  trigger now really casts the spell — the permanent Undead aura lands, and Guel / Spirit Pup / the rune
+   *  meters all see a cast, because it IS one. */
+  deathrattleCastTribeAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'undead';
+    const amount = typeof params.amount === 'number' ? params.amount : 3;
+    for (let i = 0; i < (arena.self.golden ? 2 : 1); i++) {
+      arena.castTribeAttackSpell(tribe, amount, 'lanternofsouls');
+    }
+  },
+
+  // ────────────────────────────────── THE SHOUT FAMILY ──────────────────────────────────
+  // Every body added here + registered in FACTORIES shrinks replayCombatBattlecry's legacy switch, which now
+  // dispatches FACTORIES-FIRST. When the switch is empty it dies, and COMBAT_REPLAYABLE_BATTLECRIES with it.
+
+  /** Shout: summon `count` copies of a token (golden doubles — Alleycat 1 → 2, Shaper 2 → 4). */
+  battlecrySummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    for (let i = 0; i < count; i++) arena.summonToken(id);
+  },
+
+  /** Shout: your `tribe` minions gain +atk/+hp (golden doubles; `includeSelf: false` for "other"). */
+  battlecryBuffTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    const includeSelf = params.includeSelf !== false;
+    for (const f of arena.friends()) {
+      if (!arena.isTribe(f, tribe)) continue;
+      if (!includeSelf && f.uid === arena.self.uid) continue;
+      arena.buff(f, a, h);
     }
   },
 } as const;

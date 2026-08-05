@@ -150,6 +150,27 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       }
     },
     stripEchoes: (t) => { (t as BoardCard).echoStripped = true; },
+    nameOf: (t) => CARD_INDEX[t.cardId]?.name ?? t.cardId,
+    narrate: () => {}, // the shop has FX, not narration
+    activeTribes: () => state.tribes,
+    castTribeAttackSpell: (_tribe, _amount, spellId) => {
+      // The shop casts the ACTUAL card through its full pipeline: `spellGrantTribeAttack` applies the
+      // permanent aura (tribe + amount come from the spell's own params — the single source of truth), and
+      // `noteSpellCast` runs every per-spell watcher. The Echo's own params are the combat half's concern.
+      const def = CARD_INDEX[spellId];
+      if (def) castSpell(state, def);
+    },
+    damageAll: (amount) => {
+      // The shop has no enemy: YOUR board takes it (owner ruling 2026-08-04). A body taken to 0 dies here
+      // too — removed, its own Echo firing, the same cascade combat runs.
+      for (const c of [...state.board]) c.health -= amount;
+      const dead = state.board.filter((c) => c.health <= 0);
+      for (const d of dead) {
+        const idx = state.board.indexOf(d);
+        if (idx >= 0) state.board.splice(idx, 1);
+      }
+      for (const d of dead) fireRecruitDeathrattles(makeContext(state), d);
+    },
     stampKarwindFlash: (t) => {
       const flash = (state.karwindFlash ??= []);
       if (!flash.includes(t.uid)) flash.push(t.uid);
@@ -1974,24 +1995,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const attack = num(params.attack) * gold(self);
-    const health = num(params.health) * gold(self);
-    const includeSelf = params.includeSelf !== false;
-    for (const card of ctx.state.board) {
-      if (!isTribe(card, tribe as Tribe)) continue;
-      if (!includeSelf && card === self) continue;
-      addBuff(card, nameOf(self), attack, health);
-    }
+    ARENA_EFFECTS.battlecryBuffTribe(shopArena(ctx.state, self), params);
   },
 
   /** Alleycur: Battlecry summon `count` copies of a token beside self. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecrySummon: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.tokenId)];
-    if (!token) return;
-    const count = num(params.count, 1) * gold(self); // golden doubles the count (Alleycat 1 → 2, Shaper 2 → 4)
-    for (let i = 0; i < count; i++) ctx.summon(token, self.uid);
+    ARENA_EFFECTS.battlecrySummon(shopArena(ctx.state, self), params);
   },
 
   /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is
@@ -2348,12 +2360,30 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Lab Experiment (Tier 7) — the RECRUIT half of its Echo: conjure `count` random MINIONS of `tier` to
    *  hand (minions only — unlike `endOfTurnGrantRandomTierCard`, which also draws spells). Golden doubles. */
+  // ARENA-MIGRATED (Echo family): one body in arena.ts serves both phases.
   deathrattleGainRandomMinion: (ctx, self, params) => {
-    const tier = num(params.tier, 5);
-    const pool = poolOf(ctx.state).buyable.filter(
-      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
-    );
-    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGainRandomMinion(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): this had NO shop half at all — Funeral on Loan / Ossuary Rite / a Gravetwin
+  // copy silently did nothing. The shared body works here natively.
+  deathrattleGrantRebornAll: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantRebornAll(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family, owner report 2026-08-04): a borrowed Legion Shepherd summoned nothing.
+  deathrattleImpsOverflowGrant: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleImpsOverflowGrant(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family, owner ruling): a borrowed Blaster damages YOUR board.
+  deathrattleDamageAll: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleDamageAll(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
+  deathrattleSummonOverflowBuff: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleSummonOverflowBuff(shopArena(ctx.state, self), params);
+  },
+  // ARENA-BORN (Echo family): the Lantern Echo really casts the spell in the shop.
+  deathrattleCastTribeAttack: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleCastTribeAttack(shopArena(ctx.state, self), params);
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard

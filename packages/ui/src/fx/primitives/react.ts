@@ -38,7 +38,7 @@ import {
   type FxOrder, type FxPart, type FxReach,
 } from '../reactTargets';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
-import { releaseStat, revealStat } from '../statHold';
+import { claimStat, releaseStat, revealStat } from '../statHold';
 
 
 const SPECS = {
@@ -205,6 +205,12 @@ class ReactInstance implements FxInstance<ReactParams> {
         this.beats.push({ anim, at: land.at, duration: p.hold });
       }
       if (p.carries) {
+        // CLAIM before scheduling, because from here on this layer is the only clock allowed on that
+        // counter. A cue's hold is self-delivering — `statHold`'s shared ticker walks it — so without this
+        // the ticker and this player both drive the same reveal, the faster one wins every frame, and a
+        // ticker that reaches the end first deletes the hold out from under the release below. An authored
+        // roll longer than the ticker's default never got to play. See `claimStat`.
+        claimStat(land.uid);
         this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, spinMs: p.roll, reel: p.reel, done: false });
       }
       // A spin that outlasts the motion still has to finish, or `isComplete` retires the player mid-roll and

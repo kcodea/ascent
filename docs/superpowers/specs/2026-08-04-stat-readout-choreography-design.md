@@ -145,6 +145,14 @@ behaviour). Lower never overwrites higher, so `Card`'s intrinsic hold landing fi
 effects child-first) still cannot stomp the cue's. This turns the special case patched on 2026-08-04 into a
 general rule.
 
+Replacement covers a better-informed placer that computes the delta itself. It does **not** cover the `react`
+layer, which never computes a delta — it only *drives* one the cue already withheld, and placing a second
+hold there would restart `revealed` and tick the badge backwards on the handover. So the layer **claims** the
+live hold instead: `claimStat(uid)` promotes it in place to `effect`, leaving delta, schedule and expiry
+alone. That promotion is the entire mechanism by which the ticker stands down and authored timing wins.
+Without it both clocks drive one counter, the faster one wins every frame, and whichever reaches the end
+first deletes the hold out from under the other.
+
 ### One ticker, not one per card
 
 ```js
@@ -276,7 +284,8 @@ called on the recruit ↔ combat transitions and on run reset **before** combat 
 | Fallback delivery point with no `react` layer | one constant per cue | **No** — code constant |
 
 Any effect wanting its own timing gets it by adding a `react` layer with `carries`; under decision 1 that
-overrides the automatic floor entirely.
+overrides the automatic floor entirely. The override is not implicit in the rank — the layer has to `claimStat`
+the cue's live hold as it spawns, or the ticker keeps driving the same counter alongside it.
 
 **Known limit:** the cascade *rhythm* belongs to the cue, not the def, because one `playDef` fire targets one
 minion — the def cannot know it is the fourth gem in a sweep. Making that per-effect would mean moving
@@ -311,6 +320,8 @@ The buff tendril from the combat migration is a fourth adopter in the same shape
 - rank precedence: replace / accumulate / ignore across `intrinsic` < `cue` < `effect`
 - the ticker starts on the first hold and stops when the map empties
 - `effect`-origin holds are never advanced by the ticker
+- a CLAIMED hold is skipped by the ticker, does not tick backwards on the handover, and still expires on its
+  own — promotion must not defeat failing open
 
 **Cue level**
 - the hold's `startAt` and the fire's scheduled time derive from the *same* `Land` — the drift guard

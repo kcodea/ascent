@@ -681,7 +681,7 @@ Add the constant beside `RUBY_LANDED_DEF`'s import usage, near the top-level con
 /** How far into a gem's own effect its number lands. `land.at` is when the effect STARTS; the dust takes a
  *  moment to look like it seated, and the number should arrive with the seating rather than the launch.
  *  Per-cue rather than per-def: a def that wants the number tied to a specific beat of its own motion says
- *  so with a `react` layer, which outranks this entirely. */
+ *  so with a `react` layer, which claims the hold (`claimStat`) and takes the clock over entirely. */
 const RUBY_DELIVER_OFFSET_MS = 120;
 ```
 
@@ -983,8 +983,14 @@ schedule at all.
 That gate was added earlier the same day to fix a real bug — a cue held with nothing to release it, so the
 badge froze until an unrelated re-render. **Task 2 removed the reason for it.** The store's ticker now drives
 every hold that is not `effect`-owned, so a `cue` hold is self-delivering. And if a carrying `react` layer is
-ever re-added, it holds at `effect` rank and outranks the cue anyway. Keeping the gate defeats spec decision
-1 — the automatic floor that is supposed to need no authoring.
+ever re-added, it CLAIMS the cue's live hold as it spawns (`claimStat` promotes it to `effect`), which takes
+the ticker off that counter. Keeping the gate defeats spec decision 1 — the automatic floor that is supposed
+to need no authoring.
+
+*(Corrected in the final fix wave: this section originally claimed the layer "holds at `effect` rank and
+outranks the cue anyway". It did not — `react.ts` never called `holdStat`, so no production path ever
+produced `effect` rank, and an armed layer raced the ticker on one counter. `claimStat` is what makes the
+claim true.)*
 
 **Files:**
 - Modify: `packages/ui/src/Recruit.tsx` (the ruby hold `useLayoutEffect`)
@@ -1003,8 +1009,8 @@ Delete this line from the hold effect:
 The block comment above that effect contains a paragraph beginning "And it only withholds at all if the def
 STILL CARRIES THE NUMBER." It is now false. Replace that paragraph with an explanation of why the gate is no
 longer needed: the store's ticker delivers a `cue` hold on its own, so withholding without an authored layer
-is safe; and an authored `react` layer outranks `cue`, so arming one still takes the timing over. Keep the
-codebase's WHY-not-what voice.
+is safe; and an authored `react` layer claims that hold on spawn, so arming one still takes the timing over.
+Keep the codebase's WHY-not-what voice.
 
 - [ ] **Step 3: Delete `defCarriesNumber` if nothing else uses it**
 

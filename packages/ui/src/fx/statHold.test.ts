@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, heldFor, holdOrigin, holdStat,
+  DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, claimStat, heldFor, holdOrigin, holdStat,
   releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, stepHolds, subscribeStatHolds,
 } from './statHold';
 
@@ -102,6 +102,64 @@ describe('origin rank — who owns a change when several paths see it', () => {
 
   it('reports no origin for a unit with nothing held', () => {
     expect(holdOrigin('nobody')).toBeNull();
+  });
+});
+
+/**
+ * THE HANDOVER. A `cue` hold is self-delivering: the shared ticker walks it, which is what gives every stat
+ * change an automatic floor with nothing authored. The moment a `react` layer with `carries` starts driving
+ * the same uid there are two clocks on one counter — the reveal is monotonic, so the one that is further
+ * ahead wins each frame, and the ticker reaching the end DELETES the hold, after which the authored
+ * player's `revealStat`/`releaseStat` land on nothing and its timing is silently thrown away.
+ *
+ * `claimStat` is the only way a production path reaches `effect` rank from a cue's hold. Before it existed,
+ * `react.ts` imported only `releaseStat`/`revealStat` and the "an authored layer outranks the cue" story in
+ * three doc comments described a mechanism with no code behind it.
+ */
+describe('claiming — handing a live hold to the layer that will drive it', () => {
+  it('makes the shared ticker stand down, so only the claimer drives the counter', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 0, rollMs: 200 });
+    claimStat('a');
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 1000);   // long past the roll, inside the TTL
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });    // untouched — the claimer owns it now
+    expect(holdOrigin('a')).toBe('effect');
+  });
+
+  it('does not tick the counter backwards when it takes over mid-roll', () => {
+    // The reason this promotes in place instead of re-placing at `effect` rank: a fresh hold would reset
+    // `revealed` to 0 and the badge would jump back to the pre-buff number on the handover.
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 0, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // half walked by the ticker
+    claimStat('a');
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // the handover shows nothing new
+  });
+
+  it('is safe on a uid with nothing held', () => {
+    expect(() => claimStat('nobody')).not.toThrow();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  it('does not resurrect an expired hold', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'cue' });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    claimStat('a');
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('still expires on its own if the claimer never delivers — promotion must not defeat failing OPEN', async () => {
+    // A def torn down before its peak, a `carries` layer whose moment never arrives: the claim says "I own
+    // this clock", not "this hold is now permanent".
+    vi.useFakeTimers();
+    holdStat('a', { attack: 3, health: 0 }, { origin: 'cue', ttlMs: 50 });
+    claimStat('a');
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(60);
+    expect(anyStatHeld()).toBe(false);
   });
 });
 
@@ -401,6 +459,40 @@ describe('a delivery schedule', () => {
     holdStat('a', { attack: 2, health: 0 }, { startAt: 400, rollMs: 400 });
     vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
     expect(heldFor('a')).toBeNull();
+  });
+
+  /**
+   * The case the test above CANNOT make: its 400 + 400 + 200 lifetime is under the 1200ms floor, so what
+   * kills that hold is the flat TTL, not its own schedule. Nothing proved a SCHEDULE-driven lifetime ever
+   * ends — and both enforcement points (`heldFor`'s sweep and the self-firing `setTimeout`) read the same
+   * `lifetimeMs`, so there is no second guard to catch it if that number stopped being bounded. A hold that
+   * never expires is a badge stuck on a stale number with nothing left to move it, which is the exact
+   * failure the TTL exists for.
+   *
+   * 2000 + 500 + 200 grace = 2700, well clear of the floor, so only the schedule can explain the death.
+   */
+  it('a SCHEDULED hold still dies on its own deadline, not just at the flat floor', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 2699);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });   // its own deadline has not arrived yet
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 2701);
+    expect(heldFor('a')).toBeNull();                           // …and it does arrive
+  });
+
+  it('a scheduled hold releases ITSELF at its own deadline, with nobody reading it', async () => {
+    // The sweep above is `heldFor` noticing on read. This is the other enforcement point: the timer armed
+    // at placement, which is what rescues a badge on a shop nothing is re-rendering.
+    vi.useFakeTimers();
+    let notified = 0;
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    const stop = subscribeStatHolds(() => { notified++; });
+    await vi.advanceTimersByTimeAsync(2699);
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(anyStatHeld()).toBe(false);
+    expect(notified).toBe(1);   // and the badge was told
+    stop();
   });
 });
 

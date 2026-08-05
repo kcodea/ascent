@@ -40,7 +40,8 @@ export interface StatDelta {
  *   exists so a stat change is never silent because an effect was never authored for it.
  * `cue` — a cue that computed a stagger (`Land[]`) and can say when this particular minion's number is due.
  * `effect` — a `react` layer with "Carries the number" ticked. Knows the moment AND owns a clock, so the
- *   store's ticker leaves it alone entirely.
+ *   store's ticker leaves it alone entirely. Reached two ways: placed outright (`score.ts`), or promoted
+ *   from a live lower-ranked hold by `claimStat` when a layer takes an existing cue's number over.
  *
  * Higher replaces lower outright, because they describe the SAME change and the better-informed one should
  * deliver it. Equal accumulates — two of those really are two changes. Lower never overwrites higher, which
@@ -232,6 +233,35 @@ export function holdOrigin(uid: string): HoldOrigin | null {
   return h.origin;
 }
 
+/**
+ * Hand a live hold's clock over to the effect that is about to drive it. No-op when nothing is held.
+ *
+ * `stepHolds` drives every hold whose origin is not `effect`, which is what makes a `cue` hold self-
+ * delivering with no authoring anywhere. The moment a `react` layer with `carries` starts driving the same
+ * uid there would be TWO clocks on one counter: `revealQuiet` is monotonic, so whichever is further ahead
+ * wins each frame, and the ticker reaching `p >= 1` first DELETES the hold — every later `revealStat` /
+ * `releaseStat` from the authored player then no-ops against nothing, and an authored roll longer than
+ * `DEFAULT_ROLL_MS` is silently discarded. Promoting the origin is what makes the ticker stand down.
+ *
+ * Deliberately NOT a fresh `holdStat` at `effect` rank: that restarts `revealed` and re-arms the expiry, so
+ * a hold the ticker had already walked part-way would tick BACKWARDS on the handover. Only the owner
+ * changes here. The delta, the schedule and the expiry all survive — the expiry especially, because a layer
+ * that claims a number and then never delivers it (a def torn down mid-play, a `carries` layer whose peak
+ * never arrives) must still fail OPEN.
+ *
+ * KNOWN CEILING: a layer can only claim from the moment it SPAWNS, which is its own `at` in the def. Arm a
+ * carrying layer late enough that the cue's roll has already run to completion and there is nothing left to
+ * claim — the automatic floor has delivered, the hold is gone, and this is a no-op. That degrades to the
+ * pre-`claimStat` behaviour for that authoring; it never prints a wrong number, because the reveal is
+ * monotonic and a delivered hold simply does not exist. Closing it properly means the PLAYER knowing at fire
+ * time that some layer carries the number, which is a def-level fact this primitive cannot see.
+ */
+export function claimStat(uid: string): void {
+  const h = holds.get(uid);
+  if (h === undefined || h.until <= now()) return;
+  h.origin = 'effect';
+}
+
 /** A live hold's delivery schedule, or `null`. For tests and for the ticker. */
 export function scheduleFor(uid: string): { startAt: number; rollMs: number } | null {
   const h = holds.get(uid);
@@ -281,9 +311,16 @@ function revealQuiet(uid: string, progress: number): boolean {
  * so a completed spin leaves no entry behind.
  */
 export function revealStat(uid: string, progress: number, reel = 0): void {
+  // The reel is stamped only when the reveal actually ADVANCES, and that ordering is load-bearing rather
+  // than tidy: a call the monotonic check rejects is a call from a clock that is behind, and letting it set
+  // the amplitude anyway lets a stale driver's reel ride a reveal it did not produce. `heldFor` adds the
+  // wobble on top of the withheld remainder, so an oversized reel against an early `revealed` can push the
+  // withheld amount past the whole delta — and `Card` only floors the printed value at 0, so the badge
+  // would print BELOW the number the minion had before the buff.
+  if (!revealQuiet(uid, progress)) return;
   const h = holds.get(uid);
   if (h !== undefined) h.reel = Math.max(0, reel);
-  if (revealQuiet(uid, progress)) emit();
+  emit();
 }
 
 let raf = 0;

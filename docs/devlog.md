@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-04 — Insurance Policy is a legal dud (owner ruling); Ward golden parity confirmed
+
+Two rulings from the discernment list:
+- **Insurance Policy always casts** — *"you should be able to play it, it just gives 0 gold if you did not
+  lose."* The fizzle audit's refusal is reversed: the `spellGoldIfLostLast` rule is removed from
+  `spellFizzle.ts`, and the audit sweep gains a `LEGAL_DUDS` exclusion table (id → the ruling), so a ruled
+  informed dud is recorded rather than re-flagged.
+- **Ward grant golden parity** (shop grants twice, matching combat) — confirmed good.
+- Also confirmed: **no targeted Shout may target itself** (Appetite Agent, Runic Beetle, the whole class).
+  Already the enforced behaviour where `targetTribe` is set; sweeping the NON-tribe-gated targeted Shouts for
+  the same guarantee is queued for the sweep.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 8+9: Rise and Ward grants go random-in-both under the standing ruling
 
 `deathrattleGrantReborn` (Mumi) and `deathrattleGrantShield` migrate — floor → 9. Both were Trickster-class

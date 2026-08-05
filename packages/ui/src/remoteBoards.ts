@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -290,7 +290,10 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
 // / never-throws contract; dormant until the `run_telemetry` table is migrated (see schema.sql).
 
 /** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
-export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: string; patch: string }): Promise<void> {
+export async function uploadRunTelemetry(
+  t: RunTelemetry,
+  meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown },
+): Promise<void> {
   const c = client();
   if (!c || !currentUserId()) return;
   const base = {
@@ -312,7 +315,15 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
       ...base,
       discover_offered_cards: t.discoverOfferedCards, discover_bought_cards: t.discoverBoughtCards,
     };
-    const res = await c.from('run_telemetry').insert([{ ...withSplit, buy_events: t.buyEvents ?? [] }]);
+    const withBuys = { ...withSplit, buy_events: t.buyEvents ?? [] };
+    // The derivation columns sit at the TOP of the fallback ladder: on a DB that hasn't run the
+    // 2026-08-05 migration this insert fails and we drop straight back to the row that has always
+    // worked, so a stale backend costs the new analytics and nothing else.
+    const withDerived = meta.derived
+      ? { ...withBuys, derived: meta.derived, replay: meta.replay ?? null, content_revision: meta.derived.contentRevision }
+      : withBuys;
+    const res0 = meta.derived ? await c.from('run_telemetry').insert([withDerived]) : { error: true };
+    const res = res0?.error ? await c.from('run_telemetry').insert([withBuys]) : res0;
     if (res?.error) {
       const res2 = await c.from('run_telemetry').insert([withSplit]);
       // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so

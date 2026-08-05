@@ -239,8 +239,14 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-### Effect Arena — every trigger fires in shop AND combat (SIMPLIFIED, ready to start)
-Full plan in [`effect-arena-spec.md`](effect-arena-spec.md); **starting when the weekly resets.** The owner's
+### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
+steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared
+arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
+`COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a
+carry-back channel resolves live (two new channels added: `mintRubies`, `gainBeastExtra`); the remaining
+defer class is pure tavern work (consume/gild/shop-enchant/run-charge arms — no combat meaning). **Left:**
+Rally / End of Turn / Start of Combat family sweeps, then step 4 cross-phase dispatchers. The owner's
 goal verbatim: *"all keywords to function in combat and shop… I do not want to have to hand select these
 methods and then wire the methods to every shout."* The load-bearing case is the DISRUPTOR class — Funeral on
 Loan / Dawnclaw today, Rally/EoT/SoC disruptors and brand-new mechanics next — which must reach every effect

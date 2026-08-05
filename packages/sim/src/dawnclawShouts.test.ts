@@ -92,10 +92,12 @@ describe('the rest of the audited combat Shouts', () => {
     }
   });
 
-  it('the run-wide aura Shouts stay deferred — they have no carry-back channel', () => {
-    // Guards the deliberate exclusions, so a later "why isn't this one in the set?" doesn't quietly add them:
-    // both enchant a CARD TYPE for the rest of the run, and buffing the live board would double at settle.
-    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffFodder')).toBe(false);
+  it('battlecryBuffMagnetics stays deferred — it has no carry-back channel (BuffFodder graduated)', () => {
+    // Guards the deliberate exclusion, so a later "why isn't this one in the set?" doesn't quietly add it:
+    // it enchants the Magnetic card type for the rest of the run (`magneticBuyAtk/Hp`) with no combat
+    // carry-back, so a live fire would be lost. BuffFodder USED to sit here for the same reason — it
+    // graduated 2026-08-04 onto the `grantFodderBuff` channel Bane already uses.
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffFodder')).toBe(true);
     expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffMagnetics')).toBe(false);
   });
 });

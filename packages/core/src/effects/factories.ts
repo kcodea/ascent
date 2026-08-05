@@ -657,6 +657,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantBonusGold(n, self.side);
     if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn` });
   },
+  battlecryBuffFodder: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffFodder(combatArena(ctx, self), params);
+  },
+  getRubies: (ctx, self, params) => {
+    ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  addFodderNextShops: (ctx, self, params) => {
+    // Soulfeeder — `count` Fodder into each of the next `shops` shops, through Pit Supplier's schedule
+    // channel (settle merges index-for-index into the run's fodderSchedule).
+    const count = num(params.count, 1) * mul(self);
+    const shops = num(params.shops, 2);
+    if (count > 0 && shops > 0) ctx.scheduleFodder(Array.from({ length: shops }, () => count), self.side);
+  },
   // ── PHASE-SPLIT BY RULING (Discover in combat = a random pool card, 2026-08-04): the interactive 1-of-3
   //    panel never opens mid-combat, so these combat halves grant randomly; the shop halves stay interactive.
   battlecryDiscoverSpell: (ctx, self) => {

@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: Soulfeeder / Godfodder / getRubies go live; defer class down to ~18 ids (floor 57)
+
+Three more Shouts leave the defer class:
+
+- **`battlecryBuffFodder`** (The Godfodder, option A) became shared arena body 57 on the `grantFodderAura`
+  verb — combat carries back through `grantFodderBuff`, the channel Bane already uses. The dawnclawShouts
+  exclusion guard updated: BuffFodder graduated; `battlecryBuffMagnetics` remains the pinned exclusion (its
+  `magneticBuyAtk/Hp` enchant has no combat carry-back yet).
+- **`getRubies`** — the second "get N Rubies" id, straight onto the new `ctx.mintRubies` channel.
+- **`addFodderNextShops`** (Soulfeeder) — live through Pit Supplier's `scheduleFodder` channel (`count`
+  Fodder into each of the next `shops` shops; settle merges index-for-index into `fodderSchedule`).
+
+Soulfeeder was THE canonical economy-defer example in three tests; the new canonical example is **Nimbus**
+(`battlecryDoubleNextSpell` — banks a shop cast charge, genuinely shop-only). Discovered en route: Living
+Grimoire can't serve as the example because `battlecryArmGrimoire` is in `SILENT_ONPLAY` — Ryme deliberately
+never triggers it (its arm isn't a printed "Battlecry"). run.test now also pins that stale pre-change
+Soulfeeder/Hoarder deferral entries apply NOTHING at settle while a genuine Nimbus deferral still replays.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
 ## 2026-08-04 — Effect Arena: 8 economy Shouts resolve LIVE via carry-back channels (floor 56)
 
 The "defer to settle" class shrinks: every economy Shout whose result already had a carry-back channel now

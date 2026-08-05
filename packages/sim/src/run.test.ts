@@ -1228,20 +1228,22 @@ describe('run loop (@game/sim)', () => {
     expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
   });
 
-  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Soulfeeder + Hoarder)', () => {
+  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Nimbus)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat', hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
-        // Economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) — plus a Hoarder entry a
-        // pre-2026-08-04 combat could have recorded (its Shout now resolves LIVE via grantBonusGold, so the
-        // settle replay must SKIP it — the live carry-back is the single source of truth, never doubled).
-        playerDeferredBattlecries: [{ cardId: 'feed', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
+        // One genuine economy deferral (Nimbus banks an extra cast for the next shop spell) — plus stale
+        // Soulfeeder / Hoarder entries a pre-2026-08-04 combat could have recorded. Those ids resolve LIVE via
+        // carry-back channels now, so the settle replay must SKIP them (the carry-back is the single source of
+        // truth, never doubled).
+        playerDeferredBattlecries: [{ cardId: 'nimbus', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
-    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
-    // Soulfeeder schedules Fodder for the next shop: 1 (non-golden) + 2 (golden) = 3 in that shop.
-    expect(s.fodderSchedule).toEqual([3]);
-    // The stale Hoarder entry is skipped — its id is combat-replayable now, so settle applies NOTHING for it.
+    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so nothing else mutates the run yet
+    // The Nimbus deferral replayed through its recruit factory: one extra cast banked.
+    expect(s.nextSpellExtraCasts).toBe(1);
+    // The stale live-id entries applied NOTHING at settle.
+    expect(s.fodderSchedule ?? []).toEqual([]);
     expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(0);
   });
 

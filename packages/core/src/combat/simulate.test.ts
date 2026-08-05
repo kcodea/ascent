@@ -1732,16 +1732,24 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
-  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Soulfeeder, Hoarder) — not the combat ones", () => {
+  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Nimbus) — not the combat ones", () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
-    // Soulfeeder = addTavernFodder (economy) — can't touch the tavern in pure combat, so it's recorded on
-    // playerDeferredBattlecries for the run loop to replay at settle (and the golden state rides along).
+    // Nimbus = battlecryDoubleNextSpell (banks a shop spell-cast charge) — genuinely shop-only, so it's
+    // recorded on playerDeferredBattlecries for the run loop to replay at settle (the golden state rides along).
+    // (Living Grimoire would NOT work here: battlecryArmGrimoire is in SILENT_ONPLAY — not a "Battlecry".)
+    const nim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100 }], omen, 1);
+    expect(nim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: false }]);
+    const goldNim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldNim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: true }]);
+    // Soulfeeder used to be THE defer example — it now schedules its Fodder LIVE through `scheduleFodder`
+    // (settle merges the array into fodderSchedule), so nothing defers for it either.
     const feed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100 }], omen, 1);
-    expect(feed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: false }]);
+    expect(feed.playerFodderSchedule).toEqual([1]);
+    expect(feed.playerDeferredBattlecries).toBeUndefined();
     const goldFeed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100, golden: true }], omen, 1);
-    expect(goldFeed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: true }]);
-    // Hoarder = battlecryBonusGoldNextTurn — used to defer; since 2026-08-04 it resolves LIVE through the
-    // `grantBonusGold` carry-back (settle adds it to bonusEmbersNextTurn), so nothing defers.
+    expect(goldFeed.playerFodderSchedule).toEqual([2]);
+    // Hoarder = battlecryBonusGoldNextTurn — resolves LIVE through the `grantBonusGold` carry-back
+    // (settle adds it to bonusEmbersNextTurn), so nothing defers.
     const hoard = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'hoarder', attack: 0, health: 100 }], omen, 1);
     expect(hoard.playerBonusGold).toBe(1);
     expect(hoard.playerDeferredBattlecries).toBeUndefined();

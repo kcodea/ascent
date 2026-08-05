@@ -886,4 +886,13 @@ export const ARENA_EFFECTS = {
       (typeof params.attack === 'number' ? params.attack : 0) * g,
       (typeof params.health === 'number' ? params.health : 0) * g);
   },
+
+  /** The Godfodder (option A) — Shout: your Fodder gain +atk/+hp run-wide, permanently (golden doubles) —
+   *  the same whole-ritual Fodder enchant Bane stacks (`grantFodderAura`). */
+  battlecryBuffFodder(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantFodderAura(
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
+  },
 } as const;

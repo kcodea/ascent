@@ -2939,8 +2939,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** The Godfodder (Choose One, option A) — Battlecry: give your Fodder +atk/+hp run-wide (persistent, the
    *  same run-wide Fodder enchant as Ritualist / Bane). Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffFodder: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    ARENA_EFFECTS.battlecryBuffFodder(shopArena(ctx.state, self), params);
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*

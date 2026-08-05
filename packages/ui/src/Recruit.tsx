@@ -3980,7 +3980,7 @@ export function Recruit() {
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         <div className="row">
           {fighting ? (
-            replay.frame.enemy.map((u) => (
+            replay.visibleFrame.enemy.map((u) => (
               <Unit
                 key={u.uid}
                 u={u}
@@ -4035,7 +4035,7 @@ export function Recruit() {
         <AlignmentHud />
         <div className="row warband">
           {inCombat ? (
-            replay.frame.player.map((u) => (
+            replay.visibleFrame.player.map((u) => (
               <Unit
                 key={u.uid}
                 u={u}

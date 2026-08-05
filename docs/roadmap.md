@@ -51,6 +51,20 @@ The five buckets below are ordered by when we intend to act, not by size:
   floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
   whether it should be portalled too, or leave it.
 
+- **Re-watch Echohorn's Rally on a gilded proc, and decide what `rally-link` is for.** Two rounds of owner
+  notes shipped 2026-08-05 — the retune (pulse-then-link, beat 50→120, longer ring hold) and `summonHold`
+  (the sparkle now delivers the cubs instead of trailing them) — and NEITHER has been watched together in a
+  live fight. Best single test: a gilded Echohorn into a Manasaber, which exercises the double proc, the
+  120ms beat and one litter per sparkle at once. `speed`/`fade` on the shockwave layer are the dials if it
+  still isn't holding long enough. Separately: `rally-link` is now an authored def with nothing bound to it
+  — either author it onto specific ralliers (Deathsayer and Broodlord are the obvious candidates) or delete
+  it, but don't leave it looking wired.
+
+- **`summonHold` is wired to Rally only.** Any other effect that delivers a summon has the same early-cub
+  problem — the frame commits the unit when its moment becomes current, whatever procced it. The module is
+  generic (hold a uid, release a uid); what is Rally-specific is `boundRalliesIn`, which decides WHICH units
+  to withhold. A second adopter wants its own resolver alongside it, not a change to the module.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.

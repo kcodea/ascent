@@ -44,13 +44,19 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Echohorn's Rally now detonates on the minion it procs, and hands over what it summoned.** Echohorn's
+  token pulses, then a shard burst over a triple shockwave fires at the ally whose Echo it triggers — and the
+  minions that Echo summons now appear *with* the burst instead of ahead of it. Once per proc, so a gilded
+  Echohorn shows two bursts and delivers one litter each. Fixing this uncovered that Rally effects had never
+  been able to play at all: a Rally is absorbed into its attacker's swing, so the binding that was supposed
+  to drive it could never be reached.
+
 - **The Effect Arena's Shout family is done** — every Shout now fires in combat when a disruptor (Ryme,
   Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared
   body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry
   back to the run at settle. Only pure tavern work (consume/gild/shop enchants) still waits for the shop.
 - **A Card Art tuner** — double-click any card in dev to reframe its illustration: nudge, zoom, and
   hue/saturation/contrast, saved per card to a real committed file.
-
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing
   something on top of it. It can spread to neighbours or the whole board (rippling outward, sweeping across

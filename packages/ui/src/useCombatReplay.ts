@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
@@ -15,7 +15,8 @@ import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
-import { runMomentCues } from './choreo/score';
+import { rallyDeliveredUids, runMomentCues } from './choreo/score';
+import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -465,7 +466,13 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
 }
 
 export interface CombatReplay {
+  /** The TRUTH board at the current beat. Use this for anything that counts or measures (the loss-damage
+   *  survivor tally) — it includes units an effect is still withholding. */
   frame: { player: UnitFrame[]; enemy: UnitFrame[] };
+  /** The board as it should be DRAWN: `frame` minus anything `fx/summonHold.ts` is holding back so an
+   *  effect can deliver it. Identical to `frame` (by identity) whenever nothing is held, which is every
+   *  fight without a bound Rally. Render from this; never count from it. */
+  visibleFrame: { player: UnitFrame[]; enemy: UnitFrame[] };
   anims: Record<string, string>;
   lungeUid: string | null;
   projectiles: { id: number; x: number; y: number; dx: number; dy: number; kind?: string }[];
@@ -794,6 +801,10 @@ export function useCombatReplay(
     setHandGrant(null);
     setStatHold(new Map());
     setStatFlash(new Map());
+    // …and drop any withheld summon with them. A hold surviving a seek or a fresh fight would hide a live
+    // minion until its TTL, which is the one direction this feature must never fail in. The layout effect
+    // that installs holds clears first as well; this covers the resets that precede it.
+    releaseAllSummons();
   }, []);
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
@@ -1502,6 +1513,40 @@ export function useCombatReplay(
     // to kill.
   }, [active, beatIdx, seekNonce, beats, events, frame]);
 
+  // ── Summon HOLDS, installed in the same pre-paint window and for the same reason ───────────────────────
+  //
+  // A Rally's summon is committed to the frame the instant its moment becomes current, which puts the cub on
+  // the board ahead of the effect that procced it (owner report 2026-08-05, Echohorn Rallying a Manasaber:
+  // "the cubs come out immediately, before the timing of the effect"). `fx/summonHold.ts` withholds them from
+  // the RENDERED board and the `rallyFx` cue releases each proc's litter as its own sparkle lands.
+  //
+  // A LAYOUT effect for the identical reason the buff holds above are one: `runMomentCues` runs post-paint,
+  // so holding there would paint the cub, remove it, then bring it back — that artifact, one layer over.
+  //
+  // Cleared wholesale first, so a hold whose release timer was lost (a skip, a seek, a mid-flight speed
+  // change) can never outlive its beat and strand a live minion off the board. The module's TTL is the
+  // backstop for a replay that stops re-rendering entirely; this is the ordinary path.
+  useLayoutEffect(() => {
+    releaseAllSummons();
+    if (!active || beatIdx === 0) return;
+    const beat = beats[beatIdx - 1];
+    if (!beat) return;
+    for (const uid of rallyDeliveredUids(beat, { events, cardIds })) holdSummon(uid);
+  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
+
+  // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate
+  // from `frame` rather than filtered in place because `frame` is the TRUTH — the loss-damage tally counts
+  // survivors off it, and a withheld cub is a live minion that simply hasn't been revealed yet.
+  const summonHeldV = useSyncExternalStore(subscribeSummonHolds, summonHoldVersion, summonHoldVersion);
+  const visibleFrame = useMemo(() => {
+    // `summonHeldV` is the dep that matters (a release must re-render); referenced so it isn't dropped as
+    // unused. The `anySummonHeld` fast path means every fight without a bound Rally returns `frame` BY
+    // IDENTITY, so this costs one property read per beat and allocates nothing.
+    void summonHeldV;
+    if (!anySummonHeld()) return frame;
+    return { player: frame.player.filter((u) => !isSummonHeld(u.uid)), enemy: frame.enemy.filter((u) => !isSummonHeld(u.uid)) };
+  }, [frame, summonHeldV]);
+
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
   const enemyDeaths = useMemo(() => {
@@ -1652,7 +1697,7 @@ export function useCombatReplay(
   );
 
   return {
-    frame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     statHoldFor: (uid: string) => statHold.get(uid),

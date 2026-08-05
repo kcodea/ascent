@@ -1584,7 +1584,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }

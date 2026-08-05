@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-04 — Buffs drawer: Ruby power ticks up LIVE in combat (owner report)
+
+Owner report: the Dawnclaw -> Deepvein Tender cascade now animates in real time and applies mechanically,
+but the Ruby power row in the Buffs drawer sat frozen until settle. The drawer already had a live per-beat
+delta for Spell power / max Gold / the tribe auras — Ruby power was the one row still marked "no live
+combat delta" (its own comment said adding one was a separate change; this is that change).
+
+- The "+a/+h Ruby Power" sc telegraph is now stamped with its side in the sim: unlike Spell Power (a
+  player-only channel that never emits for enemies), BOTH sides gain Ruby Power (an enemy Crownvein's
+  Rally), and the drawer must not count the enemy's gain into your row. Additive optional field on the sc
+  event; old replays simply don't tick (as before).
+- combatBuffDelta parses the telegraph (player side only) into new rubyAttack/rubyHealth fields;
+  gatherRunBuffs folds them into the Ruby power row exactly as Spell power folds its delta; Recruit.tsx's
+  combat bridge passes them through. At settle the delta clears and the row reads the carried-back run
+  value — no double-count, same lifecycle as every other live row.
+- Tests: the BuffsFrame suite grows to 11 — the Dawnclaw/Deepvein live tick at its exact beat, the enemy
+  gain never counting, and the row lighting up from nothing mid-combat.
+
+Verified: typecheck / lint (7-warning baseline) / 3902 tests / harness determinism / build:web all green;
+drawer render path confirmed live in the dev preview (the replay clock itself cannot be eyeballed there —
+rAF-throttled pane, see yesterday's note).
+
 ## 2026-08-04 — Pin: mid-combat triggers play LIVE (effect + choreography) — the Dawnclaw/Deepvein case
 
 Owner report: a Dawnclaw next to a Deepvein Tender — the Ruby buff didn't land until combat resolved and no

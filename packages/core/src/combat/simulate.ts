@@ -644,7 +644,9 @@ export function simulate(
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain, and so the
       // UI has something to hang the Ruby Power FX on at the moment the Echo/Avenge fires rather than at settle.
       // Same channel + text shape as `grantSpellPower` above, so the replay parses both the same way.
-      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Ruby Power` });
+      // `side` rides the event: BOTH sides can gain Ruby Power (unlike Spell Power, which is player-only),
+      // and the Buffs drawer's live delta must not count an enemy Crownvein's gain into YOUR row.
+      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, side, text: `+${attack}/+${health} Ruby Power` });
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.

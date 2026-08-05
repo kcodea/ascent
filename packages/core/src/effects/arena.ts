@@ -43,6 +43,9 @@ export interface EffectArena {
    *  (a broken shield can be re-granted mid-fight), the shop reads the `DS` keyword. */
   hasShield(t: ArenaBody): boolean;
   grantShield(t: ArenaBody): void;
+  /** Buff a body. The SOURCE label is the adapter's job — combat attributes by uid (the event log's format),
+   *  the shop by display name (the inspect-breakdown's format) — so one body serves both ledgers unchanged. */
+  buff(t: ArenaBody, attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -65,5 +68,15 @@ export const ARENA_EFFECTS = {
       arena.grantShield(target);
       n--;
     }
+  },
+
+  /** Deathrattle: buff ALL friends +atk/+hp (golden doubles). `friends()` already encodes each phase's own
+   *  membership rule (combat: the living — a dead self is naturally absent; shop: the whole board, self
+   *  included), so the body states the sentence once and the adapters keep their legacy semantics exactly. */
+  deathrattleBuffAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
+    const h = (typeof params.health === 'number' ? params.health : 1) * g;
+    for (const f of arena.friends()) arena.buff(f, a, h);
   },
 } as const;

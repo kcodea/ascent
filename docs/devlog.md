@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena Step 2: the buff verb, a second migration, and the ratchet
+
+Same branch as Step 1, building on the green spike.
+
+- **`buff` joins the arena vocabulary.** The SOURCE label is the adapter's job — combat attributes by uid
+  (the event log's format), the shop by display name (the inspect-breakdown's format) — so one body serves
+  both ledgers without unifying them, exactly as the spec predicted.
+- **`deathrattleBuffAll` migrated** — the second shared body, and the first with no RNG. Both legacy halves
+  deleted. The membership nuance is preserved BY the adapters rather than restated: `friends()` is the living
+  in combat (a dead self naturally absent) and the whole board in the shop (self included), which is exactly
+  what each legacy loop iterated.
+- **The ratchet is in** (`effectArena.test.ts`): the migrated count may only rise (`MIGRATED_FLOOR`, raised
+  per migration and never lowered), and every shared body must be reachable from BOTH phases — a combat
+  wrapper in `FACTORIES` and a shop wrapper in `recruit.ts` (checked against source, with the
+  instrument-alive guard the tallyCoverage lesson demands). No phase registry, no allowlist — the owner's
+  simplification, enforced by reachability instead of labels.
+
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness determinism ✓.
+
+**Step 3 is next**: the family sweep, starting with the remaining 40 duals (Ruby family first).
+
 ## 2026-08-04 — Effect Arena Step 1: the RNG spike is GREEN
 
 The gate on the whole plan (docs/effect-arena-spec.md), and it passed on the strictest evidence available.

@@ -59,6 +59,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     friends: () => state.board,
     hasShield: (t) => t.keywords.includes('DS'),
     grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
+    buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
     rng: () => cursorRng,
   };
 }
@@ -3099,10 +3100,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Deathrattle: give every board minion +atk/+hp (Sporeling — golden doubles). Out-of-combat resolution
    *  (a Consumed Sporeling still feeds the board). */
+  // ── ARENA-MIGRATED (Step 2): one body in arena.ts serves both phases.
   deathrattleBuffAll: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
+    ARENA_EFFECTS.deathrattleBuffAll(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */

@@ -28,6 +28,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     friends: () => [...bodies],
     hasShield: (t: ArenaBody) => shielded.has(t.uid),
     grantShield: (t: ArenaBody) => { shielded.add(t.uid); granted.push(t.uid); },
+    buff: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -84,5 +85,33 @@ describe('the shop adapter', () => {
       return s.board.map((c) => c.keywords.join(',')).join('|') + '@' + s.rngCursor;
     });
     expect(runs[0]).toBe(runs[1]);
+  });
+});
+
+/**
+ * THE RATCHET (Step 2) — migration may only move FORWARD.
+ *
+ * No phase registry, no allowlist (owner call 2026-08-04): the arena's own reachability is the invariant.
+ * Every shared body must be dispatchable from BOTH phases, and the migrated count may never fall. Raise the
+ * floor as effects migrate; lowering it is the one edit this test exists to make loud.
+ */
+describe('the arena ratchet', () => {
+  const MIGRATED_FLOOR = 2; // deathrattleGrantWardRandom, deathrattleBuffAll — raise as Step 3 lands
+
+  it('the migrated count may only rise', () => {
+    expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);
+  });
+
+  it('every arena body is reachable from BOTH phases', async () => {
+    const { FACTORIES } = await import('@game/core');
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const recruitSrc = readFileSync(fileURLToPath(new URL('./recruit.ts', import.meta.url)), 'utf8');
+    expect(recruitSrc.length, 'recruit.ts moved — the sweep is reading nothing').toBeGreaterThan(1000);
+    for (const id of Object.keys(ARENA_EFFECTS)) {
+      expect((FACTORIES as Record<string, unknown>)[id], `${id} has no combat wrapper`).toBeTruthy();
+      expect(recruitSrc.includes(`
+  ${id}: (`), `${id} has no shop wrapper`).toBe(true);
+    }
   });
 });

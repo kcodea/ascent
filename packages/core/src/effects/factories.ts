@@ -142,6 +142,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     friends: () => ctx.living(self.side),
     hasShield: (t) => (t as Minion).divineShield === true,
     grantShield: (t) => grantShield(ctx, t as Minion),
+    buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
     rng: () => ctx.rng,
   };
 }
@@ -854,11 +855,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Sporeling): give ALL living friends +atk/+hp (golden doubles). On a true death the dying
    *  body is already excluded from living(); when Battlecry-proc'd while alive (below) it buffs itself too. */
+  // ── ARENA-MIGRATED (Step 2): one body in arena.ts serves both phases.
   deathrattleBuffAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
-    for (const f of ctx.living(self.side)) ctx.buff(f, a, h, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAll(combatArena(ctx, self), params);
   },
 
   /** Sporeling — every Battlecry fired on this side (Ryme's combat replay emits `battlecryTriggered`) procs

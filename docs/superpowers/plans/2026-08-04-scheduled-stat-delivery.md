@@ -183,6 +183,21 @@ git commit -m "feat(fx): a hold carries when to deliver it, and the TTL respects
 
 ## Task 2: One shared ticker replaces the per-card loop
 
+> **CORRECTION (found during execution, 2026-08-04).** The five ticker tests below were wrong as written and
+> were fixed during implementation:
+>
+> 1. Four of them (`reveals nothing before startAt`, `walks the reveal…`, `releases when the roll completes`,
+>    `emits once per step…`) omit `origin`, so they take `holdStat`'s default — which is `'authored'`, the one
+>    origin `stepHolds` deliberately SKIPS. As written they contradicted the fifth test and no correct
+>    implementation could pass them. Each needs an explicit `{ origin: 'intrinsic', … }`, matching what
+>    `Card` actually places.
+> 2. `never advances an authored-origin hold` mocked time forward 5000ms, past the 1200ms TTL floor — so the
+>    hold would have been swept by the expiry rather than skipped by the ticker, passing for the wrong
+>    reason. Use 1000ms, inside the floor.
+>
+> Step 6's browser check also cannot run here: `verify.mjs` is Task 7's deliverable and does not exist yet.
+> Substitute a live fail-open check against the dev server, or defer the visual confirmation to Task 7.
+
 **Files:**
 - Modify: `packages/ui/src/fx/statHold.ts`
 - Modify: `packages/ui/src/Card.tsx:497-537` (the intrinsic `useLayoutEffect` and the unmount effect below it)

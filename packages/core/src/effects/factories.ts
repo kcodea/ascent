@@ -175,6 +175,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     improveReps: () => ctx.improveRepsFor(self.side),
     matriarchReps: () => ctx.matriarchRepsFor(self.side),
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
+    logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     grantUndeadAttackAura: (a) => {
       for (const m of ctx.living(self.side)) {
         if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
@@ -1595,11 +1596,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (Taragosa's Growth — or a Ruby, under Rune of the Spellstone) advances the Improve PERMANENTLY. The
    *  accrual rides `summonBonus`, which `playerSummonBonus` already carries back to the run card, so the
    *  printed value climbs for good — exactly like a recruit-phase cast. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastImproveSummon: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
-    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * ctx.improveRepsFor(self.side);
-    ctx.log({ type: 'improve', target: self.uid, amount: num(params.step, 1) * ctx.improveRepsFor(self.side) });
+    ARENA_EFFECTS.onSpellCastImproveSummon(combatArena(ctx, self), params);
   },
 
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.

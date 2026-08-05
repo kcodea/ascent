@@ -119,6 +119,8 @@ export interface EffectArena {
   matriarchReps(): number;
   /** Announce a spellProgress tick (the live countdown). A combat log event; a shop no-op. */
   logSpellProgress(amount: number): void;
+  /** Announce an Improve tick (the improve pop). A combat log event; a shop no-op. */
+  logImprove(amount: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -436,5 +438,13 @@ export const ARENA_EFFECTS = {
     for (let i = 0; i < want && pool.length > 0; i++) {
       arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
     }
+  },
+
+  /** Thunderous Sovereign's improve half: each Shop spell accrues `step` into this instance's `summonBonus`
+   *  (× Rune of Mastery), which its Start-of-Combat grant spends. */
+  onSpellCastImproveSummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const amount = (typeof params.step === 'number' ? params.step : 1) * arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + amount;
+    arena.logImprove(amount);
   },
 } as const;

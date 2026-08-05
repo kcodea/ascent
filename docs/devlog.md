@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 25+26 (Guel + the improve tick); the sweep's deferred list
+
+`spellCastBuffOthers` (Archmagus Guel — the per-instance improve tally, the /4 step, distinct random picks)
+and `onSpellCastImproveSummon` (Thunderous Sovereign's improve half, with the new `logImprove` verb) migrate.
+**Floor → 26 of 42.**
+
+The bulk sweep (owner directive: "go through every case you can and defer the rest") has now classified the
+remaining duals. DEFERRED, each with its reason:
+
+- `summonBuffSelfTribe` — DOCUMENTED divergence: combat grows (base 1 + spells) additively; the shop
+  multiplies base 3 × (1 + spells). Materially different scaling; needs an owner ruling.
+- `onGainAttackBuffImproving` (Hunter) — divergent formulas: combat steps ×(1 + floor(fires/every)); the shop
+  adds the accrual to base. Needs a ruling.
+- `deathrattleSummon` — the shop half is MISSING combat's `fixed` / `goldenTokens` params (a golden Imp King's
+  shop Echo would summon 4 plain tokens where combat summons 2; Manasaber's gilded-cubs golden likewise).
+  Almost certainly "unify to combat's reading" (the params follow the printed golden texts), but the combat
+  half is also entangled with the attack-on-summon deferral queue — one careful session, not a bulk pass.
+- `spellCastTransform` — INTENTIONALLY phase-split, not drift: the shop swaps the form; combat only ticks and
+  logs, with the swap deferred to settle (no mid-combat identity change, by design). Skipped, not deferred.
+- Still queued (mechanical, not yet read): `echoSummonCopyNoEcho`, `echoSummonInheritAttackAndCharge`,
+  `deathrattleGrantCardToHand`/`GrantSpell`/`GrantRandomSpell` (the conjure-verb family), `combatGrantAle`,
+  `deathrattleGrantMagnetic`, `deathrattleReplayAdjacentBattlecry`, `battlecryTriggeredOwnDeathrattle`.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 21–24: the spellCast/summon buff wave; one divergence deferred
 
 `onSpellCastBuffRandomTribe`, `onSpellCastBuffOnePerTribe`, `summonBuffTribeAsym` and `spellCastImproveSelf`

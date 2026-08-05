@@ -111,6 +111,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     improveReps: () => improveReps(state),
     matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
+    logImprove: () => {},
 
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
@@ -1918,8 +1919,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
    *  Stored at BASE magnitude (golden is applied when the buff lands) and scaled by `improveReps` for Rune of
    *  Mastery, matching every other "improve this". */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastImproveSummon: (ctx, self, params) => {
-    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+    ARENA_EFFECTS.onSpellCastImproveSummon(shopArena(ctx.state, self), params);
   },
 
   /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue

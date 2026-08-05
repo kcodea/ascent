@@ -1,4 +1,5 @@
 import type { Rng } from '../rng';
+import { ALE_IDS } from '../types';
 
 /**
  * ── EFFECT ARENA (Step 1 spike — see docs/effect-arena-spec.md) ────────────────────────────────────────
@@ -123,6 +124,12 @@ export interface EffectArena {
   logImprove(amount: number): void;
   /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
   spellsThisTurn(): number;
+  /** Grant `count` random cards matching `pred` from the run's PINNED pool to the player's hand. Each phase's
+   *  whole legacy ritual: combat picks one-per-grant off its threaded rng and rides `grantToHand` (the card
+   *  flies to hand in the replay); the shop conjures via `conjureToHand` (cursor picks + run-buff bake +
+   *  hand cap). `pred` sees the CardDef; write the FULL legacy filter in the body — clauses a phase's pool
+   *  already excludes are harmless no-ops there. */
+  grantRandomFromPool(pred: (card: { id: string; keywords: readonly string[]; token?: boolean; spell?: boolean }) => boolean, count: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -493,5 +500,18 @@ export const ARENA_EFFECTS = {
     const golden = !!params.goldenTokens && arena.self.golden === true;
     const kw = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
     for (let i = 0; i < total; i++) arena.summonToken(id, { keyword: kw, golden });
+  },
+
+  /** Echo: get a random Attachment (Magnetic minion) — golden grants two. */
+  deathrattleGrantMagnetic(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.grantRandomFromPool((c) => c.keywords.includes('M') && !c.token && !c.spell, arena.self.golden ? 2 : 1);
+  },
+
+  /** Get `count` random Dwarven Ales (golden doubles). A set without the Ales grants nothing rather than
+   *  injecting unreachable cards. The attacker/rally guards stay with dispatch in the combat wrapper. */
+  combatGrantAle(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantRandomFromPool(
+      (c) => ALE_IDS.includes(c.id),
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
   },
 } as const;

@@ -177,6 +177,11 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
+    grantRandomFromPool: (pred, count) => {
+      const pool = ctx.poolCards(self.side).filter(pred);
+      if (pool.length === 0) return;
+      for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+    },
     grantUndeadAttackAura: (a) => {
       for (const m of ctx.living(self.side)) {
         if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
@@ -796,17 +801,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * `guard` names the check: `attacker` (Slaughter/on-kill), `rally` (this minion swung), or `self` (its own
    * death). Without the guard these fire on every ally's kill or swing, which is the classic bug in this family.
    */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts; the attacker/rally guards stay with dispatch.
   combatGrantAle: (ctx, self, params, payload) => {
     const guard = str(params.guard) || 'self';
     const p = payload as { attacker?: Minion; minion?: Minion } | undefined;
     if (guard === 'attacker' && p?.attacker !== self) return;
     if ((guard === 'rally' || guard === 'self') && p?.minion !== self) return;
     if (self.dead && guard !== 'self') return;
-    const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));
-    if (ales.length === 0) return; // a set without the Ales grants nothing rather than injecting unreachable cards
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      ctx.grantToHand(ctx.rng.pick(ales).id, self.side, self.uid);
-    }
+    ARENA_EFFECTS.combatGrantAle(combatArena(ctx, self), params);
   },
 
 
@@ -1099,11 +1101,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  minion pool (tokens/spells excluded) rather than a fixed id. Each pick is independent, so a golden's
    *  two grants can differ. Emits the same `toHand` event so the replay flies it to the hand; golden → 2.
    *  (Today the pool is Cling Drone / Money Bot / Heckbinder.) */
-  deathrattleGrantMagnetic: (ctx, self, _params, payload) => {
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleGrantMagnetic: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
-    if (pool.length === 0) return;
-    for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+    ARENA_EFFECTS.deathrattleGrantMagnetic(combatArena(ctx, self), params);
   },
 
   /** Rally — when *this* minion attacks, buff friendly minions (+atk/+hp). With no extra params it buffs

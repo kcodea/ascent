@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 30+31: the pool-grant family (Attachments + Ales)
+
+`deathrattleGrantMagnetic` and `combatGrantAle` migrate on the new `grantRandomFromPool(pred, count)` verb —
+floor → 31 of 42. Whole-ritual per phase: combat picks one-per-grant off its threaded rng and rides
+`grantToHand` (the card flies to hand in the replay); the shop conjures via `conjureToHand` (cursor picks,
+run-buff bake, hand cap). The predicate carries the FULL legacy filter — clauses a phase's pool already
+excludes are harmless no-ops there. The shop pool is buyable + spells combined, since Ales are spells and
+Attachments are minions; the predicate decides. The Ale attacker/rally guards stay with dispatch.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 27–29: the three ruled divergences land
 
 All three items on the discernment list resolved by owner ruling and migrated in one pass — floor → 29 of 42.

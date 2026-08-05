@@ -114,6 +114,12 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
     spellsThisTurn: () => state.spellsThisTurn,
+    grantRandomFromPool: (pred, count) => {
+      // The FULL pool (buyable + spells): Ales are spells, Attachments are minions — the predicate decides.
+      const pool = [...poolOf(state).buyable, ...poolOf(state).spells].filter(pred);
+      if (pool.length === 0) return;
+      conjureToHand(state, pool, count);
+    },
 
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
@@ -1710,8 +1716,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight
    *  delegation — the guard params only matter in combat, where the payload says who died. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   combatGrantAle: (ctx, self, params) => {
-    RECRUIT_FACTORIES.grantRandomAle?.(ctx, self, params, { minion: self });
+    ARENA_EFFECTS.combatGrantAle(shopArena(ctx.state, self), params);
   },
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
@@ -3530,8 +3537,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
-  deathrattleGrantMagnetic: (ctx, self) => {
-    conjureToHand(ctx.state, poolOf(ctx.state).buyable.filter((c) => c.keywords.includes('M')), gold(self));
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleGrantMagnetic: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantMagnetic(shopArena(ctx.state, self), params);
   },
 
   /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */

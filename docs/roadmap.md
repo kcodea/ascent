@@ -629,12 +629,6 @@ SoC badge beats shipped (#541). Remaining, in impact order:
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.
 
-### Card Art: drag-on-the-artwork overlay (the tuner's Stage 2)
-The 🖌️ Card Art tuner does per-card framing/zoom/colour via sliders, double-click selects a card, and Save
-writes a git-tracked file. Still missing from the owner's original brief: entering a transform mode on the card
-itself — drag the art to reposition, handles to resize, a red ✗ / green ✓ to cancel or commit. The values are
-already translate-shaped percentages, so a drag maps to them directly.
-
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
 Scales / Scale) now descend onto their targets. Still open:

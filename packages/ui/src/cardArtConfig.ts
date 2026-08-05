@@ -171,6 +171,47 @@ export function selectCard(cardId: string): void {
   bump();
 }
 
+/* ── THE EDIT SESSION ─────────────────────────────────────────────────────────────────────────────────────
+   Double-clicking a card opens a transform session ON that card: drag its art to reposition, wheel to zoom,
+   then ✓ to keep or ✗ to put it back.
+
+   `before` is the card's entry as it was when the session opened — `undefined` when the card had none, which
+   is a DIFFERENT state from "an entry of all zeroes" and has to round-trip as such: cancelling out of a card
+   that had never been tuned must leave it untuned, not leave behind a no-op entry that pins it against later
+   family retunes. The edits are written live (so you see them on every surface at once), and Cancel restores
+   this snapshot. */
+let editing: string | null = null;
+let before: CardArt | undefined;
+
+export function editingCardArt(): string | null {
+  return editing;
+}
+
+/** Open a transform session, snapshotting what the card looks like now so ✗ can restore it. */
+export function beginEditCardArt(cardId: string): void {
+  if (!import.meta.env.DEV) return;
+  const cur = getCardArt(cardId);
+  before = cur ? { ...cur } : undefined;
+  editing = cardId;
+  selected = cardId;              // the panel's sliders follow the card you are dragging
+  bump();
+}
+
+/** ✓ — keep the live values and close. They are already written; this only ends the session. */
+export function commitEditCardArt(): void {
+  editing = null;
+  before = undefined;
+  bump();
+}
+
+/** ✗ — put the card back exactly as it was, including back to having no entry at all. */
+export function cancelEditCardArt(): void {
+  if (editing) setCardArt(editing, before ?? null);
+  editing = null;
+  before = undefined;
+  bump();
+}
+
 /** The selected card's values, IDENTITY-FILLED so every slider has a position to sit at. An absent field
  *  means "inherit the frame family", which a slider cannot express — it opens at the family's own value. */
 export function readSelected(): Required<CardArt> & { card: string } {

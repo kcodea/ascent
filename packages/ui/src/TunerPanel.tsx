@@ -305,7 +305,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     aria-label={c.label}
                     onChange={(e) => { spec.writeColor?.(c.key, e.target.value); rerender(); }}
                   >
-                    {(c.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                    {(c.options ?? []).map((o) => <option key={o} value={o}>{c.optionLabels?.[o] ?? o}</option>)}
                   </select>
                   <span className="sfxmix-val" />
                 </div>

@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **A Card Art tuner** — double-click any card in dev to reframe its illustration: nudge, zoom, and
+  hue/saturation/contrast, saved per card.
+
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing
   something on top of it. It can spread to neighbours or the whole board (rippling outward, sweeping across

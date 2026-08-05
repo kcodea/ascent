@@ -439,6 +439,54 @@ keeps `useSyncExternalStore` from looping. `rubiedLandsIn` now carries the summe
 it — losing it would silently make every hold a no-op. Full gate: typecheck (pkgs + web), lint (0 errors),
 3837 tests, `build:web`.
 
+## 2026-08-04 (per-card art framing)
+
+### feat(dev): a Card Art tuner — per-card framing, zoom and colour
+
+**Owner brief:** a live in-game tuner to reframe a card's illustration (size, position, hue/saturation/
+contrast), edited and saved per card, with the result either emitted as code or saved for real. Asked for a
+feasibility read first, explicitly wary of a rabbit hole.
+
+**It turned out to be far smaller than either of us assumed**, because the mechanism already existed:
+`--artY` and `--artZoom` are plain CSS vars declared on `.card.compact.stdframe` / `.spellframe`, and the
+🖼️ Card Frames tuner has been driving them per frame FAMILY all along. A per-CARD override is therefore the
+same var set inline on one card, where it wins on specificity. **A card with no entry renders byte-identically
+to before** — the override simply isn't emitted. No new render path, no CSS restructuring, no cost to the
+other 500 cards.
+
+**What shipped**
+
+- `cardArtConfig.ts` — the per-card store keyed by cardId, DEV-only localStorage while tuning, a `SHIPPED` map
+  for committed values, and an exporter that emits the session as source to paste back.
+- `CardArtTuner.tsx` — reuses the schema-driven `TunerPanel` rather than growing bespoke UI. The card picker is
+  a `select`; `read`/`write` point at the config module's *selected card* instead of a global object.
+- **Double-click a card to select it**, armed only while the panel is open. `onDoubleClick`, never `onClick` —
+  a single click is already play-and-drag on the board.
+- `tunerSchema` gains **`optionLabels`**, so a select can show a card's printed NAME while its value stays the
+  cardId (names aren't unique; ids are what overrides key on).
+
+**Two decisions worth recording**
+
+*Everything is a percentage or a multiplier, never a pixel.* The same illustration renders across shop, hand,
+board, combat and Compendium at very different sizes. Pixel offsets would look right where they were tuned and
+wrong everywhere else — discovered only after tuning a hundred cards.
+
+*The `filter` is emitted ONLY when a colour value is non-identity.* A filter forces its own compositing layer,
+so an unconditional declaration would make every card on screen pay for a feature almost none of them use.
+
+**The one real bug, and why it happened.** Horizontal did nothing at first. It was driven by
+`object-position`, which can only slide an image within the slack `object-fit` leaves over — and the oval frame
+uses `object-fit: contain` against illustrations taller than the window, so they fit by WIDTH: vertical slack
+(Vertical worked), zero horizontal slack (Horizontal could not move). Both axes are now a `translate`, which
+has no such constraint — and which is also exactly what a drag gesture will produce for the hand tool.
+
+**Verified:** `typecheck` clean (pkgs + web), `lint` 0 errors, **3843 tests** / 237 files, `build:web` green.
+The DEV storage key appears **0 times** in the whole production bundle while `--artX`/`--ca-tx` ships, so the
+writer is genuinely stripped and only the render hook survives.
+
+**Not built:** dragging on the artwork itself with a ✓/✗ overlay. The selection already lives in the config
+module and the values are already translate-shaped, so that is an additive next step rather than a rewrite.
+
 ## 2026-08-04 — Stall pressure REMOVED; a ghost is only for the bottom three
 
 **Stall pressure is gone** (owner: *"this was never something I wanted in the game at all. Players should only

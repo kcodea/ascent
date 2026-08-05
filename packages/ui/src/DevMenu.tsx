@@ -10,6 +10,7 @@ import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
+import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
@@ -99,6 +100,7 @@ const GROUPS: Group[] = [
       { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
       { key: 'cardtext', icon: '🔤', label: 'Card Text', C: CardTextTuner, hint: 'Where the rules-text box sits on a card' },
       { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
+      { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Drawer', C: BuffDrawerTuner, hint: 'The run-buffs panel' },

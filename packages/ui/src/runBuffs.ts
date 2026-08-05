@@ -18,6 +18,11 @@ export interface BuffRow {
 export interface CombatBuffDelta {
   spellAttack: number;
   spellHealth: number;
+  /** Ruby Power gained so far this fight (Deepvein Tender re-fired by a Dawnclaw/Ryme Echo, Veinbreaker's
+   *  Avenge…) — parsed from the side-stamped "+a/+h Ruby Power" telegraph, PLAYER side only (enemies gain
+   *  Ruby Power too, and theirs must not tick your row). */
+  rubyAttack: number;
+  rubyHealth: number;
   gold: number;
   /** Per-row run-aura gains landed so far this fight, keyed by the Buffs-panel row ('imp' / 'fodder' /
    *  'undead' / 'beast' / 'attachment'). Carried on `tribeAura` events (with amounts), so the rows tick up
@@ -26,11 +31,14 @@ export interface CombatBuffDelta {
 }
 
 const SPELL_POWER_RE = /^\+(\d+)\/\+(\d+) Spell Power$/;
+const RUBY_POWER_RE = /^\+(\d+)\/\+(\d+) Ruby Power$/;
 
 /** Sum the live-trackable combat buff gains over `events[0, upto)` (the events the replay has played so far). */
 export function combatBuffDelta(events: readonly CombatEvent[], upto: number): CombatBuffDelta {
   let spellAttack = 0;
   let spellHealth = 0;
+  let rubyAttack = 0;
+  let rubyHealth = 0;
   let gold = 0;
   const auras: Record<string, { attack: number; health: number }> = {};
   const n = Math.min(upto, events.length);
@@ -42,6 +50,13 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
         spellAttack += Number(m[1]);
         spellHealth += Number(m[2]);
       }
+      // Ruby Power is stamped with `side` because BOTH sides can gain it (an enemy Crownvein's Rally) —
+      // only the player's ticks the drawer. Spell Power needs no check: the sim never emits it for an enemy.
+      const rb = RUBY_POWER_RE.exec(e.text);
+      if (rb && e.side === 'player') {
+        rubyAttack += Number(rb[1]);
+        rubyHealth += Number(rb[2]);
+      }
     } else if (e.type === 'maxGold' && e.side === 'player') {
       gold += e.amount;
     } else if (e.type === 'tribeAura' && e.side === 'player' && e.aura) {
@@ -50,7 +65,7 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
       a.health += e.health ?? 0;
     }
   }
-  return { spellAttack, spellHealth, gold, auras };
+  return { spellAttack, spellHealth, rubyAttack, rubyHealth, gold, auras };
 }
 
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */
@@ -79,11 +94,12 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Ruby you play from now on carries it. It was missing from this window entirely (owner report 2026-08-04),
   // so a board built on the Ruby engine had its single most important scaler invisible.
   //
-  // Run value only — no live combat delta. Combat CAN raise it (`rubyBonusGain` → `playerRubyBonusGain`), but
-  // that gain rides no event this panel can read, so the row ticks at settle rather than mid-fight. Every row
-  // here behaved that way until its own delta was wired; adding one for Rubies is a separate change.
-  const rbA = run.rubyBonus?.attack ?? 0;
-  const rbH = run.rubyBonus?.health ?? 0;
+  // In combat, add the gains telegraphed so far this fight ("+a/+h Ruby Power", player side) so the row
+  // ticks up AT the beat — a Dawnclaw Echo re-firing Deepvein Tender used to animate live while this row sat
+  // frozen until settle (owner report 2026-08-04); mechanically the gain applied at once, only the drawer
+  // lagged. The sc is side-stamped because enemies gain Ruby Power too (Crownvein) and theirs must not count.
+  const rbA = (run.rubyBonus?.attack ?? 0) + (combat?.rubyAttack ?? 0);
+  const rbH = (run.rubyBonus?.health ?? 0) + (combat?.rubyHealth ?? 0);
   if (rbA > 0 || rbH > 0) rows.push({ key: 'ruby', label: 'Ruby power', value: `+${rbA}/+${rbH}` });
 
   // Permanent Undead buff everywhere: the "+Attack wherever they are" creation bonus (Deathswarmer / Forsaken

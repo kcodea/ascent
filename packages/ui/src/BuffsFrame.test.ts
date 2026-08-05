@@ -68,7 +68,7 @@ describe('gatherRunBuffs', () => {
   it('folds the live combat delta into the spell-power + Max Gold rows', () => {
     const run: RunState = { ...createRun(1), spellBonus: { attack: 0, health: 2 }, soulsmanGold: 1 };
     const byKey = Object.fromEntries(
-      gatherRunBuffs(run, { spellAttack: 1, spellHealth: 5, gold: 2, auras: {} }).map((r) => [r.key, r.value]),
+      gatherRunBuffs(run, { spellAttack: 1, spellHealth: 5, rubyAttack: 0, rubyHealth: 0, gold: 2, auras: {} }).map((r) => [r.key, r.value]),
     );
     expect(byKey.spell).toBe('+1/+7'); // base 0/2 + combat 1/5
     expect(byKey.gold).toBe('+3'); // base 1 + combat 2
@@ -76,7 +76,7 @@ describe('gatherRunBuffs', () => {
 
   it('surfaces a spell-power row from the combat delta alone (zero base)', () => {
     const byKey = Object.fromEntries(
-      gatherRunBuffs(createRun(1), { spellAttack: 0, spellHealth: 4, gold: 0, auras: {} }).map((r) => [r.key, r.value]),
+      gatherRunBuffs(createRun(1), { spellAttack: 0, spellHealth: 4, rubyAttack: 0, rubyHealth: 0, gold: 0, auras: {} }).map((r) => [r.key, r.value]),
     );
     expect(byKey.spell).toBe('+0/+4'); // a Bladesmith firing mid-combat lights the row up from nothing
   });
@@ -91,13 +91,36 @@ describe('combatBuffDelta', () => {
       { type: 'sc', source: 'b', text: '+1/+0 Spell Power' },
       { type: 'maxGold', target: 's', side: 'player', amount: 1 },
     ];
-    expect(combatBuffDelta(events, 0)).toEqual({ spellAttack: 0, spellHealth: 0, gold: 0, auras: {} }); // nothing played
-    expect(combatBuffDelta(events, 3)).toEqual({ spellAttack: 0, spellHealth: 3, gold: 1, auras: {} }); // first sc + first gold
-    expect(combatBuffDelta(events, events.length)).toEqual({ spellAttack: 1, spellHealth: 3, gold: 2, auras: {} }); // all
+    expect(combatBuffDelta(events, 0)).toEqual({ spellAttack: 0, spellHealth: 0, rubyAttack: 0, rubyHealth: 0, gold: 0, auras: {} }); // nothing played
+    expect(combatBuffDelta(events, 3)).toEqual({ spellAttack: 0, spellHealth: 3, rubyAttack: 0, rubyHealth: 0, gold: 1, auras: {} }); // first sc + first gold
+    expect(combatBuffDelta(events, events.length)).toEqual({ spellAttack: 1, spellHealth: 3, rubyAttack: 0, rubyHealth: 0, gold: 2, auras: {} }); // all
   });
 
   it('ignores enemy-side max-Gold procs (only your economy counts)', () => {
     const events: CombatEvent[] = [{ type: 'maxGold', target: 'e', side: 'enemy', amount: 5 }];
     expect(combatBuffDelta(events, 1).gold).toBe(0);
+  });
+
+  it('sums PLAYER Ruby Power telegraphs up to the played beat — the Dawnclaw/Deepvein live tick (owner report 2026-08-04)', () => {
+    const events: CombatEvent[] = [
+      { type: 'sc', source: 'm1', text: "Dawnclaw triggers Deepvein Tender's Battlecry" }, // narration — ignored
+      { type: 'sc', source: 'm0', side: 'player', text: '+0/+1 Ruby Power' },
+      { type: 'sc', source: 'e2', side: 'enemy', text: '+2/+2 Ruby Power' }, // an enemy Crownvein — NOT yours
+      { type: 'sc', source: 'm0', side: 'player', text: '+1/+0 Ruby Power' },
+    ];
+    expect(combatBuffDelta(events, 1)).toMatchObject({ rubyAttack: 0, rubyHealth: 0 }); // narration alone ticks nothing
+    expect(combatBuffDelta(events, 2)).toMatchObject({ rubyAttack: 0, rubyHealth: 1 }); // Deepvein's gain, AT its beat
+    expect(combatBuffDelta(events, 3)).toMatchObject({ rubyAttack: 0, rubyHealth: 1 }); // the enemy gain never counts
+    expect(combatBuffDelta(events, events.length)).toMatchObject({ rubyAttack: 1, rubyHealth: 1 });
+  });
+
+  it('the Ruby power row ticks up live in combat (run value + the played delta)', () => {
+    const run = { rubyBonus: { attack: 0, health: 1 }, board: [] } as unknown as Parameters<typeof gatherRunBuffs>[0];
+    const rows = gatherRunBuffs(run, { spellAttack: 0, spellHealth: 0, rubyAttack: 0, rubyHealth: 1, gold: 0, auras: {} });
+    expect(rows.find((r) => r.key === 'ruby')?.value).toBe('+0/+2');
+    // …and a mid-combat gain lights the row up from nothing, just like Spell power does.
+    const fresh = { board: [] } as unknown as Parameters<typeof gatherRunBuffs>[0];
+    const lit = gatherRunBuffs(fresh, { spellAttack: 0, spellHealth: 0, rubyAttack: 1, rubyHealth: 1, gold: 0, auras: {} });
+    expect(lit.find((r) => r.key === 'ruby')?.value).toBe('+1/+1');
   });
 });

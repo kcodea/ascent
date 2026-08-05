@@ -239,25 +239,25 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-### Effect Arena — one implementation per effect, both phases (SCOPED, ready to start)
-Full ticket breakdown in [`effect-arena-spec.md`](effect-arena-spec.md); **starting when the weekly resets.**
-Every few sessions a card turns out to do nothing in one phase — Lastlight from a Funeral on Loan, Geode
-Guardian's Echo, Imp Overseer under Ryme, Frenzied Excavator beside Dawnclaw. One defect, ~59 live instances,
-and an unbounded supply of future ones, because nothing in the build knows an effect is missing a phase.
+### Effect Arena — every trigger fires in shop AND combat (SIMPLIFIED, ready to start)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md); **starting when the weekly resets.** The owner's
+goal verbatim: *"all keywords to function in combat and shop… I do not want to have to hand select these
+methods and then wire the methods to every shout."* The load-bearing case is the DISRUPTOR class — Funeral on
+Loan / Dawnclaw today, Rally/EoT/SoC disruptors and brand-new mechanics next — which must reach every effect
+without per-card wiring.
 
-NOT the ~240 missing halves — that industrialises the drift bug the 42 dual-implemented ids already have. An
-`EffectArena` each effect is written against ONCE, with `CombatArena`/`ShopArena` adapters and phase-specific
-verbs behind capability probes.
+Simplified 2026-08-04 after owner pushback: **no declaration registry, no allowlist.** One `EffectArena`
+interface each effect is written against ONCE; `CombatArena`/`ShopArena` adapters; runtime probes make the
+exceptions self-handling (needs-shop-in-combat defers to settle automatically, needs-combat-in-shop no-ops).
+A ratchet test (unmigrated count may only fall) replaces all labelling.
 
-**Tickets:** 0 declaration test (1d, standalone value) → 1 RNG spike (1d, GATES the rest) → 2 interface +
-adapters (2d) → 3 migrate the 42 duals (3–4d) → 4 cross-phase dispatch (3–4d, the unlock: Start of Combat /
-Rally / Avenge in the shop) → 5 long tail, opportunistic forever.
+**Steps:** 1 RNG spike (1d, GATES everything) → 2 arena + adapters (2d) → 3 migrate by TRIGGER FAMILY
+(the 42 duals first, then Echo → Shout → Rally/EoT/SoC; ~2–3 weeks PR-batched, each family becomes fully
+disruptable as it lands) → 4 per-family cross-phase dispatchers, each shipped with one real consumer card.
 
-**Start with Ticket 0 then Ticket 1; do not begin Ticket 2 until the spike's replay check is green.** The
-deep scoping found both headline risks OVERSTATED — the two phases already share one RNG generator, and the
-buff models differ only in bookkeeping, not semantics. What stays hard: the `core` cannot import `RunState`
-boundary (the ~160 shop-only factories eventually change package, and `recruit.ts` is a declared collision
-chokepoint), and per-effect permanence semantics becoming an explicit argument.
+Watch for: the `core`-cannot-import-`RunState` boundary (the ~160 shop factories migrate out of `recruit.ts`,
+a declared collision chokepoint — serialise with Mike), and permanence becoming an explicit per-effect
+argument during migration.
 
 ### Henchmen — the roster + real presentation (system shipped 2026-08-03)
 The mechanic is wired end-to-end (hero link, win/loss cost decay, once-per-run recruit, placeholder chip in

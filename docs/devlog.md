@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena simplified: no registries, migrate by trigger family
+
+Owner pushback on the scoped plan, and it was right: *"I feel like we're building the scope out further than
+it needs… I just want all keywords to function in combat and shop… I do not want to have to hand select these
+methods and then wire the methods to every shout."*
+
+The spec is rewritten around that. What changed:
+
+- **Ticket 0 (the declaration registry) and the allowlist are GONE.** They existed to manage a world where
+  effects are allowed to be one-sided; under "everything works in both phases" that machinery is upside down.
+  Replaced by the arena's own runtime probes — an effect that needs the shop mid-combat defers to settle
+  automatically (the framework's one rule, not a per-effect decision); an effect that needs combat in the
+  shop no-ops. A RATCHET test (the unmigrated count may only fall) replaces all labelling.
+- **The framing is now the DISRUPTOR class** — Funeral on Loan / Ossuary Rite / Gravetwin (Echoes in shop),
+  Dawnclaw / Ryme / Myra (Shouts in combat) — because that is what the owner is scaling: Rally/EoT/SoC
+  disruptors and future mechanics, all born callable from either phase, no per-card wiring ever.
+- **Migration is ordered by TRIGGER FAMILY**, not left opportunistic: the 42 duals first (the drift class),
+  then Echo (completes the Funeral-on-Loan class permanently), then Shout (retires
+  `COMBAT_REPLAYABLE_BATTLECRIES`, patched three times this week), then Rally/EoT/SoC as groundwork for the
+  next disruptors. Each family becomes fully disruptable AS IT LANDS. Honest estimate for the full sweep:
+  2–3 weeks of PR-batched mechanical work, never blocking anything.
+- **Dispatchers ship per family, each with one real consumer card** — capability, not behaviour change.
+
+Unchanged: the RNG spike still gates everything (same generator both sides, but draw order/count must not
+move — pinned replays and `servedBoards` break otherwise), the `core`/`RunState` package boundary is still
+the hard part, and permanence still becomes an explicit per-effect argument during migration.
+
+Docs only — no engine change.
+
 ## 2026-08-04 — Ruby power in the Buffs window; the golden tribe aura printed double what it gave
 
 **"Thunderous Sovereign's buff is wrong — it must be splitting the stats amongst all dragons."** It was never

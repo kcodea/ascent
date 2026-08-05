@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  HOLD_TTL_MS, anyStatHeld, heldFor, holdStat, releaseAllStats, releaseStat, statHoldKey,
+  HOLD_TTL_MS, anyStatHeld, heldFor, holdOrigin, holdStat, releaseAllStats, releaseStat, statHoldKey,
   revealStat, subscribeStatHolds,
 } from './statHold';
 
@@ -34,6 +34,111 @@ describe('holding a stat change', () => {
     holdStat('a', { attack: 0, health: 0 });
     expect(heldFor('a')).toBeNull();
     expect(anyStatHeld()).toBe(false);
+  });
+});
+
+/**
+ * THE GATE between the intrinsic badge roll and an authored effect.
+ *
+ * Both watch the same stat change. `Card`'s intrinsic roll fires off the value moving, and an authored cue
+ * (`Recruit`'s gem hold, `score.ts`, `playDef`) holds the same delta for the same commit — and because React
+ * flushes layout effects CHILD FIRST, the card's intrinsic hold always lands before the parent's authored one.
+ * Left to accumulate, a +1/+1 gem withholds +2/+2 and the badge prints a number the unit never had.
+ *
+ * So origin decides who owns the change: authored REPLACES intrinsic (same change, better clock), and
+ * intrinsic never lands on top of authored. Two authored holds still accumulate — those are genuinely two
+ * effects, which is the case the accumulate tests above cover.
+ */
+describe('origin — who owns a change when two paths see it', () => {
+  it('an authored hold REPLACES an intrinsic one instead of stacking a second copy', () => {
+    holdStat('a', { attack: 1, health: 1 }, { origin: 'intrinsic' });
+    holdStat('a', { attack: 1, health: 1 }, { origin: 'authored' });
+    expect(heldFor('a')).toEqual({ attack: 1, health: 1 });
+    expect(holdOrigin('a')).toBe('authored');
+  });
+
+  it('replaces even when the intrinsic roll already showed part of the change', () => {
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic' });
+    revealStat('a', 0.5);
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'authored' });
+    // The whole change again, from the top — not 4 plus the 2 still owed.
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  });
+
+  it('an intrinsic hold does NOT land on top of an authored one', () => {
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'authored' });
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'intrinsic' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 2 });
+    expect(holdOrigin('a')).toBe('authored');
+  });
+
+  it('defaults to authored, so every existing caller keeps accumulating', () => {
+    holdStat('a', { attack: 1, health: 0 });
+    expect(holdOrigin('a')).toBe('authored');
+    holdStat('a', { attack: 1, health: 0 });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('two intrinsic holds still accumulate — two separate changes, not one seen twice', () => {
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'intrinsic' });
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'intrinsic' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('reports no origin for a unit with nothing held', () => {
+    expect(holdOrigin('nobody')).toBeNull();
+  });
+
+  /**
+   * The header promises "a hold nobody claims must not be permanent". Until now that was enforced only by
+   * `heldFor` sweeping on READ — and nothing re-reads a badge on a shop that isn't being touched, so a hold
+   * whose effect never released it froze the number until some unrelated re-render happened to sweep it.
+   *
+   * Reachable for real: pull the `carries` layer off a def in the workbench and the cue still holds, but
+   * nothing is left to deliver. The owner's report was a gem apply that didn't update until they clicked
+   * again. So expiry NOTIFIES on its own now, rather than waiting to be asked.
+   */
+  it('an unclaimed hold releases ITSELF at the TTL, and tells subscribers', async () => {
+    vi.useFakeTimers();
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    holdStat('a', { attack: 3, health: 3 }, { ttlMs: 50 });
+    expect(notified).toBe(1);          // the hold itself
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(60);
+    expect(anyStatHeld()).toBe(false); // gone WITHOUT anyone reading it
+    expect(notified).toBe(2);          // and the badge was told to re-render
+    stop();
+  });
+
+  it('a hold released on time does not also fire its expiry', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 3, health: 0 }, { ttlMs: 50 });
+    releaseStat('a');
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    await vi.advanceTimersByTimeAsync(60);
+    expect(notified).toBe(0);          // no stray emit for a hold that is already gone
+    stop();
+  });
+
+  it('a re-hold restarts the clock rather than inheriting the old deadline', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(80);
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(40);   // past the FIRST deadline, inside the second
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(70);
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  it('an EXPIRED authored hold does not block a later intrinsic one', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'authored' });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    holdStat('a', { attack: 3, health: 0 }, { origin: 'intrinsic' });
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+    expect(holdOrigin('a')).toBe('intrinsic');
   });
 });
 

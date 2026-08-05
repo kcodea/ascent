@@ -48,9 +48,10 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
+import { RUBY_BEAT_MS, RUBY_GAP_MS, RUBY_LANDED_DEF } from './choreo/channels/rubyLanded';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
+import { defCarriesNumber } from './fx/fxDefs';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -853,10 +854,17 @@ export function Recruit() {
    *
    * Anything unusable (no board entry, no Ruby buff yet, a zero count) simply does not hold: the badge shows
    * the truth immediately, which is exactly today's behaviour and the safe direction.
+   *
+   * And it only withholds at all if the def STILL CARRIES THE NUMBER. Whether an effect delivers the change
+   * is an authoring decision that moves in the workbench: pull the `carries` layer off `ruby-gem-apply` and
+   * this hold would be placed with nothing left to release it, freezing the badge until an unrelated
+   * re-render swept it (owner report — a gem apply that only updated on the next click). Declining to hold
+   * hands the change to `Card`'s intrinsic roll instead, so the number still rolls with no authoring at all.
    */
   useLayoutEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
+    if (!defCarriesNumber(RUBY_LANDED_DEF)) return;
     for (const land of run.rubyLandedFx ?? []) {
       const buff = run.board.find((c) => c.uid === land.uid)?.buffs?.find((b) => b.source === 'Ruby');
       if (!buff || buff.count <= 0) continue;
@@ -890,7 +898,7 @@ export function Recruit() {
           // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
           // `uids` names the minion the gem landed on. Without it a `react` layer has no subject and plays
           // on nobody — this SHOP path was the one that had no uid to give (owner report, 2026-08-04).
-          playDef('ruby-gem-apply', { source: p, target: p }, { uids: { source: land.uid, target: land.uid } }); // literal — see RUBY_LANDED_DEF
+          playDef('ruby-gem-apply', { source: p, target: p }, { uids: { source: land.uid, target: land.uid } }); // literal, not the constant — see RUBY_LANDED_DEF
           sfx.gemApply(); // one play per gem, matching the cascade the eye sees
         };
         // The traversal arithmetic lives in `scheduleLands` (see `fx/land.ts`); this site only says what a
@@ -2641,16 +2649,13 @@ export function Recruit() {
       for (const ev of run.fodderEaten ?? []) eatUids.add(ev.eaterUid);
       for (const ev of run.shopEaten ?? []) eatUids.add(ev.eaterUid); // shop consumes suppress the pop the same way
     }
-    // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
-    const gained: { uid: string; attack: number; health: number }[] = [];
+    // Only WHICH cards gained is needed now, not by how much: the exact delta used to feed the +X/+X float,
+    // and the badge carries that itself since the float was cut (see below).
     for (const c of [...run.board, ...run.hand]) {
       const cur = { a: c.attack, h: c.health };
       next.set(c.uid, cur);
       const p = prev.get(c.uid);
-      if (!inCombat && p && cur.a + cur.h > p.a + p.h && !eatUids.has(c.uid)) {
-        newly.push(c.uid);
-        gained.push({ uid: c.uid, attack: cur.a - p.a, health: cur.h - p.h });
-      }
+      if (!inCombat && p && cur.a + cur.h > p.a + p.h && !eatUids.has(c.uid)) newly.push(c.uid);
     }
     // Tavern offers can be buffed too (the hero power can Fortify a shop minion) —
     // track their effective stats (base + the stored offer buff) so they flash as well.
@@ -2672,35 +2677,26 @@ export function Recruit() {
     }
     if (newly.length === 0) return;
     // The new source→target FX (tendril/descend) already lands on any target captured in `recruitBuffFx` this
-    // action — skip the green burst-ring for those so it doesn't double up with the FX; the +X/+X float below
-    // still shows on every buffed card regardless.
+    // action — skip the green burst-ring for those so it doesn't double up with the FX.
     const fxTargets = new Set(run.recruitBuffFx.map((e) => e.targetUid));
     // WELD (owner 2026-07-18): an Attachment fusing on gets its OWN cue — the converging ring + wiggle — so
-    // the generic stat-gain cues (the green burst AND the "+X/+Y" float) are suppressed for the minions this
-    // weld just landed on. Self-contained seq check: only the render carrying a FRESH weld stamp suppresses,
-    // so a LATER buff on the same minion still bursts/floats normally.
+    // the generic green burst is suppressed for the minions this weld just landed on. Self-contained seq
+    // check: only the render carrying a FRESH weld stamp suppresses, so a LATER buff on the same minion
+    // bursts normally.
     const freshWeld = run.weldFxSeq !== undefined && run.weldFxSeq !== weldStatSeqRef.current;
     weldStatSeqRef.current = run.weldFxSeq;
     const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
     const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
     if (burstable.length > 0) setBuffedUids((s) => new Set([...s, ...burstable]));
-    // Float the +X/+X over the buffed board/hand minions (like combat). Keyed so a repeat buff remounts.
-    const floatable = gained.filter((g) => !weldedNow.has(g.uid));
-    if (floatable.length > 0) {
-      const keyed = floatable.map((g) => ({ ...g, key: ++statFloatKey.current }));
-      setStatFloats((m) => {
-        const n = { ...m };
-        for (const g of keyed) n[g.uid] = { attack: g.attack, health: g.health, key: g.key };
-        return n;
-      });
-      window.setTimeout(() => {
-        setStatFloats((m) => {
-          const n = { ...m };
-          for (const g of keyed) if (n[g.uid]?.key === g.key) delete n[g.uid];
-          return n;
-        });
-      }, 1500);
-    }
+    // CUT (owner, 2026-08-04): the recruit-phase "+X/+X" float is gone, for the same reason the COMBAT one
+    // went in `choreo/channels/float.ts` — the stat badge now carries its own change, withholding the new
+    // number and rolling to it (`fx/statHold.ts`, and `Card`'s intrinsic roll for buffs nobody authored).
+    // A float saying "+2/+2" beside a badge counting 4→6 is two things asking for the eye, in the same
+    // place, at the same moment, saying the same thing.
+    //
+    // The GREEN BURST above stays: "this minion was buffed" is a different read from "the number is now 6",
+    // and it is what draws the eye to the card whose badge is about to move. The combat log still narrates
+    // every buff in full, so the record is intact — this removes a redundant readout, not information.
     // Self-clearing timer — deliberately NOT cancelled in cleanup. If it were, a buff quickly followed
     // by another board change (a buy/play, or the phase flip into combat) would cancel the clear and
     // leave the card stuck green. Letting each timer fire guarantees every flash ends on its own.

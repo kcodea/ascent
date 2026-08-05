@@ -1,5 +1,78 @@
 # ASCENT — development log
 
+## 2026-08-04 — The badge carries every stat change: intrinsic roll, the authored gate, and a badge pop
+
+The roll now fires on ANY stat change in the shop with no authoring at all, yields correctly to an authored
+effect, and the badge pops as the number lands. Five defects fixed on the way, three of them found by driving
+a real browser rather than by reading.
+
+**The intrinsic roll, and the two gates it needed.** `Card` watches its own printed value and withholds any
+change nobody authored, so a stat change is never silent because someone forgot a layer. Two gates make that
+safe. It needs a `uid`, which is what keeps it out of combat — only the recruit surfaces pass one (`Unit`
+renders its `Card` without one, and the static surfaces — EndScreen, Leaderboard, Career, MinionBook — pass
+none either, so a recap board never animates). And it yields to authored effects via a new `origin` on the
+hold.
+
+**That second gate was a live bug, not a precaution.** React flushes layout effects CHILD FIRST, so the
+card's intrinsic hold always landed before `Recruit`'s gem hold for the same commit, and the two ACCUMULATED
+— a +1/+1 gem withheld +2/+2 and the badge printed a number the minion never had. `holdStat` now takes an
+origin: authored REPLACES intrinsic (same change, better clock), intrinsic never lands on top of authored,
+same-origin still accumulates. The rAF loop stands down when it sees itself superseded, so two clocks never
+drive one counter.
+
+**The reel is gone (owner call).** It printed impossible values: a 1/3 buffed to 9/12 measured
+`1/3 → -2/0 → -3/-1` before climbing. A negative stat isn't a spinning counter, it's a broken badge, and this
+is the number players buy and position from. The intrinsic roll is now an honest odometer — only values
+between the old number and the new one. The `reel` dial is untouched and still available to an authored
+`react` layer. A print-time `Math.max(0, …)` floor stays as a backstop, since an authored layer's amplitude
+is hand-set and nothing stops a dial being turned past what a minion has room for.
+
+**A stranded hold could never resolve.** rAF stops dead when the tab is backgrounded, and the TTL is swept ON
+READ — a shop nobody is touching re-renders nobody. Measured in the live app: the store said 7/9 while the
+badge sat on 2/4, indefinitely. Two fixes: a per-card timer failsafe (timers still fire while hidden), and
+`holdStat` now arms a real expiry that releases AND emits, so the module's "an unclaimed hold must not be
+permanent" promise is enforced rather than merely documented.
+
+**A def that no longer carries the number must not withhold one.** Pulling the `react` layers off
+`ruby-gem-apply` in the workbench left `Recruit` placing a hold with nothing to release it — the owner's
+report was a gem apply that didn't update until they clicked again. New `defCarriesNumber(id)` asks whether a
+def still has a live `react` layer with `carries` ticked; when it doesn't, the cue withholds nothing and the
+change falls through to the intrinsic roll, so the badge still rolls on no authoring at all.
+
+**Recruit's `+X/+X` float is cut**, mirroring the combat cut in `choreo/channels/float.ts` — the badge now
+carries its own change, and a float saying "+2/+2" beside a badge counting 4→6 is two things asking for the
+eye in the same place at the same moment. The GREEN BURST stays: "this minion was buffed" is a different read
+from "the number is now 6". The fodder-eat float deliberately survives for now — it is choreographed to the
+tendril's arrival, and cutting it before the badge can be scheduled to that beat would remove the payoff
+rather than de-duplicate it (see the choreography design).
+
+**The badge pop.** With no reel, a +1 has nothing to step through, so motion moved to the GLYPH instead of
+the value. It pops the whole badge — plate and number — because `.statflash` (combat's existing badge pop) is
+only ever set by `Unit`, so the shop had no equivalent and a gem landed with nothing marking it. Two
+subtleties, both browser-measured: the comparison happens at the PAINT boundary via one rAF, because placing
+a hold re-renders synchronously and the value goes 1 → 2 → 1 before the browser paints (popping per commit
+fired on a number nobody saw, giving a +1 two bounces ~230ms apart); and the pop skips any badge carrying
+`.statflash`, since a script animation composites on top of a CSS one and both would multiply to ~2×.
+
+**Verified by driving Chrome over CDP** against the dev server, sampling the badge every frame — the in-app
+pane and the extension tab both refuse to composite, so rAF never runs there and nothing could be confirmed.
+Traces: `1/3 → 9/12` steps through 14 distinct values and lands exactly, 0 negative frames; a +1/+1 holds
+~250ms then flips with one clean pop peaking 1.315 and settling to exactly 1.0; the gate prints 15/18 against
+a true 21/24 with an authored delta of 6 (double-held would be 9/12); a gem apply with the react layers
+removed rolls 2/2 → 3/3 → 4/4 with no second click; and with a synthetic carrying layer re-added it delivers
+at 762ms on the def's own clock rather than the intrinsic 420ms. Gates: typecheck ✓, lint ✓ (1 pre-existing),
+3893 tests ✓ (12 new in `statHold.test.ts`).
+
+**One self-inflicted break worth recording:** swapping the `playDef('ruby-gem-apply', …)` literal for a
+constant failed `directCalls.test.ts`, which pins a static scan of def usage — the literal is deliberate so
+the scanner can read it, which is what the `// literal — see RUBY_LANDED_DEF` comment was for. Restored, and
+the existing `RUBY_LANDED_DEF` in `choreo/channels/rubyLanded.ts` is now imported rather than duplicated.
+
+**Still open:** a report that the self-buff effect fires when placing units, reliably on goldens. Not
+reproduced across three probes — a plain placement, a hand triple, and a board triple all fire no `cardbuff`,
+`spellbuff`, `sbsparks` or `statflash`, and a board triple gives the golden a NEW uid (`b4`+`b5` → `b7`) so
+its card mounts fresh and never rolls. Needs the card or hero involved.
+
 ## 2026-08-04 — Design: stat readout choreography (spec only, no code)
 
 Design doc for making the stat badge follow an effect's choreography instead of the reducer's tick:

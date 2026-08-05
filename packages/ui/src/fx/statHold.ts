@@ -33,7 +33,20 @@ export interface StatDelta {
   health: number;
 }
 
+/**
+ * WHO put a hold here — which decides what happens when the other one sees the same change.
+ *
+ * `authored` is an effect that was written to deliver this number: a cue's gem hold, a `react` layer with
+ * `carries` ticked, the combat score. It knows the moment and has its own clock.
+ *
+ * `intrinsic` is `Card`'s fallback roll, which fires off the value simply MOVING, with nothing authored. It
+ * exists so a stat change is never silent, and it must always yield to an authored effect — see `holdStat`.
+ */
+export type HoldOrigin = 'authored' | 'intrinsic';
+
 interface Hold extends StatDelta {
+  /** See `HoldOrigin`. Decides accumulate-vs-replace when a second hold lands on a live one. */
+  origin: HoldOrigin;
   /**
    * How much of the withheld change has been REVEALED, 0..1. 0 shows the old number, 1 shows the new one,
    * and anything between is the counter mid-roll.
@@ -70,6 +83,25 @@ export const HOLD_TTL_MS = 1200;
 
 const holds = new Map<string, Hold>();
 const listeners = new Set<() => void>();
+/**
+ * uid → the timer that force-delivers an unclaimed hold.
+ *
+ * The TTL used to be enforced only by `heldFor` sweeping on READ, which quietly wasn't enough: a badge
+ * nobody is re-rendering never reads, so a hold whose effect never released it sat on the old number until
+ * some unrelated render happened along. That is reachable by authoring alone — take the `carries` layer off
+ * a def and the cue still holds with nothing left to deliver (owner report: a gem apply that didn't update
+ * until they clicked again). An expiry that has to be ASKED isn't an expiry, so it fires on its own clock.
+ */
+const expiries = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Drop any pending expiry for a uid. Safe when none is armed. */
+function disarm(uid: string): void {
+  const t = expiries.get(uid);
+  if (t !== undefined) {
+    clearTimeout(t);
+    expiries.delete(uid);
+  }
+}
 
 /** Bumped on every change so `useSyncExternalStore` has a cheap, stable snapshot to compare. Returning the
  *  Map itself would be a new reference only when we mutate it in place — which we do — so a counter is both
@@ -96,19 +128,42 @@ export function statHoldVersion(): number {
  * Deltas ACCUMULATE: two gems landing in one moment withhold both, so the badge steps once per release
  * rather than jumping the whole way on the first. A zero delta is not stored — nothing to withhold is not
  * the same as a hold of nothing, and storing it would make `heldFor` report a hold that changes no digit.
+ *
+ * ── except when the two holds are the SAME change seen twice ─────────────────────────────────────────
+ * `Card`'s intrinsic roll fires off the value moving; an authored cue holds the same delta for the same
+ * commit. React flushes layout effects CHILD FIRST, so the card's intrinsic hold reliably lands before the
+ * parent's authored one, and accumulating them would withhold +2/+2 for a +1/+1 gem — a badge printing a
+ * number the unit never had, which is the exact failure this module exists to prevent.
+ *
+ * So `origin` breaks the tie: an authored hold REPLACES a live intrinsic one (same change, and the authored
+ * clock is the one the player was meant to see), and an intrinsic hold never lands on top of an authored
+ * one. Same-origin holds accumulate as before, because two of those really are two changes.
  */
-export function holdStat(uid: string, delta: Partial<StatDelta>, ttlMs = HOLD_TTL_MS): void {
+export function holdStat(
+  uid: string,
+  delta: Partial<StatDelta>,
+  opts: { ttlMs?: number; origin?: HoldOrigin } = {},
+): void {
+  const { ttlMs = HOLD_TTL_MS, origin = 'authored' } = opts;
   const attack = delta.attack ?? 0;
   const health = delta.health ?? 0;
   if (attack === 0 && health === 0) return;
   const prev = holds.get(uid);
   const live = prev !== undefined && prev.until > now();
+  // The authored effect already owns this change; the intrinsic fallback exists only for changes nobody
+  // authored, so here it stands down entirely rather than stacking a second copy.
+  if (live && prev.origin === 'authored' && origin === 'intrinsic') return;
+  // The mirror image: the authored effect supersedes the fallback outright, so its delta lands whole and
+  // its roll starts from the top instead of inheriting a fraction the intrinsic loop had already shown.
+  const supersedes = live && prev.origin === 'intrinsic' && origin === 'authored';
   // Carry the UNREVEALED remainder, not the whole previous delta. A hold half-way through its roll has
   // already shown half its change; adding the full old delta back would put the badge further behind than
   // it ever was — printing a number the unit never had. (Caught by test, not by eye.)
-  const owedAttack = live ? Math.round(prev.attack * (1 - prev.revealed)) : 0;
-  const owedHealth = live ? Math.round(prev.health * (1 - prev.revealed)) : 0;
+  const carry = live && !supersedes;
+  const owedAttack = carry ? Math.round(prev.attack * (1 - prev.revealed)) : 0;
+  const owedHealth = carry ? Math.round(prev.health * (1 - prev.revealed)) : 0;
   holds.set(uid, {
+    origin,
     attack: owedAttack + attack,
     health: owedHealth + health,
     // The reveal restarts against the new total: keeping the old fraction would silently reveal part of a
@@ -117,17 +172,46 @@ export function holdStat(uid: string, delta: Partial<StatDelta>, ttlMs = HOLD_TT
     reel: 0,
     until: now() + ttlMs,
   });
+  // Restart the clock, never inherit the old deadline: a fresh hold is a fresh change, and letting it die
+  // on the previous one's timer would cut a just-started roll short.
+  disarm(uid);
+  expiries.set(uid, setTimeout(() => {
+    expiries.delete(uid);
+    // Fail OPEN. Whatever was going to claim this never did, so show the truth — and NOTIFY, because a
+    // silent sweep leaves the badge rendering the withheld number until something else re-renders it.
+    if (holds.delete(uid)) emit();
+  }, ttlMs));
   emit();
+}
+
+/**
+ * Who owns the live hold on a unit, or `null` when nothing is held.
+ *
+ * `Card`'s intrinsic roll polls this to notice it has been SUPERSEDED: once an authored effect takes the
+ * change over, the intrinsic rAF loop must stop driving `revealStat` or two clocks fight over one counter
+ * and the digits stutter. Expired holds read as absent, exactly as in `heldFor`.
+ */
+export function holdOrigin(uid: string): HoldOrigin | null {
+  const h = holds.get(uid);
+  if (h === undefined) return null;
+  if (h.until <= now()) {
+    holds.delete(uid);
+    return null;
+  }
+  return h.origin;
 }
 
 /** Show it: drop the whole hold for a unit. Safe to call when nothing is held. */
 export function releaseStat(uid: string): void {
+  disarm(uid);
   if (holds.delete(uid)) emit();
 }
 
 /** Drop every hold. For a scene change (combat ends, a run is abandoned) where the units are gone and any
  *  surviving hold would apply to whatever reuses the uid. */
 export function releaseAllStats(): void {
+  for (const t of expiries.values()) clearTimeout(t);
+  expiries.clear();
   if (holds.size === 0) return;
   holds.clear();
   emit();

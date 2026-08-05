@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  HOLD_TTL_MS, anyStatHeld, heldFor, holdOrigin, holdStat, releaseAllStats, releaseStat, statHoldKey,
-  revealStat, subscribeStatHolds,
+  DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, heldFor, holdOrigin, holdStat,
+  releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, subscribeStatHolds,
 } from './statHold';
 
 afterEach(() => {
@@ -360,5 +360,39 @@ describe('the reel', () => {
     holdStat('a', { attack: 3, health: 0 });
     revealStat('a', 0.5, -9);
     expect(heldFor('a')?.attack).toBe(2); // the plain odometer value at halfway
+  });
+});
+
+describe('a delivery schedule', () => {
+  it('defaults to delivering immediately, with the standard roll', () => {
+    holdStat('a', { attack: 2, health: 0 });
+    expect(scheduleFor('a')).toEqual({ startAt: 0, rollMs: DEFAULT_ROLL_MS });
+  });
+
+  it('records a startAt as an offset from now', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 300, rollMs: 500 });
+    expect(scheduleFor('a')).toEqual({ startAt: 300, rollMs: 500 });
+  });
+
+  /**
+   * The TTL is what force-delivers a hold nobody claimed. A flat 1200ms would fire BEFORE the tail of a
+   * long cascade was due — the failsafe undoing the feature it is protecting.
+   */
+  it('extends the TTL to cover a scheduled delivery', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1500);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });   // still alive past the old flat TTL
+  });
+
+  it('keeps the 1200ms floor for an unscheduled hold, so a react layer still has room to claim it', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 0, rollMs: 0 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1000);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('does expire once the schedule plus grace has passed', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 400, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    expect(heldFor('a')).toBeNull();
   });
 });

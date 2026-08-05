@@ -69,6 +69,11 @@ interface Hold extends StatDelta {
    * is never approximate.
    */
   reel: number;
+  /** Milliseconds after the hold was placed at which delivery BEGINS. 0 = immediately.
+   *  This is what makes a cascade a cascade: the seventh minion's number is withheld until its own gem. */
+  startAt: number;
+  /** How long the reveal takes once it starts. Ignored for `effect` holds — their player owns the clock. */
+  rollMs: number;
   /** `performance.now()` past which this hold is ignored. See the header: an unclaimed hold must not be
    *  permanent, so every hold expires on its own. */
   until: number;
@@ -80,6 +85,13 @@ interface Hold extends StatDelta {
  * the truth — a slightly early reveal, never a wrong number.
  */
 export const HOLD_TTL_MS = 1200;
+
+/** The roll a hold gets when its placer doesn't specify one. */
+export const DEFAULT_ROLL_MS = 420;
+
+/** Slack past a scheduled delivery before the TTL force-delivers it. Long enough that a frame or two of
+ *  jank never truncates a roll, short enough that a stranded hold clears before anyone reads the badge. */
+export const HOLD_GRACE_MS = 200;
 
 const holds = new Map<string, Hold>();
 const listeners = new Set<() => void>();
@@ -142,9 +154,9 @@ export function statHoldVersion(): number {
 export function holdStat(
   uid: string,
   delta: Partial<StatDelta>,
-  opts: { ttlMs?: number; origin?: HoldOrigin } = {},
+  opts: { ttlMs?: number; origin?: HoldOrigin; startAt?: number; rollMs?: number } = {},
 ): void {
-  const { ttlMs = HOLD_TTL_MS, origin = 'authored' } = opts;
+  const { ttlMs, origin = 'authored', startAt = 0, rollMs = DEFAULT_ROLL_MS } = opts;
   const attack = delta.attack ?? 0;
   const health = delta.health ?? 0;
   if (attack === 0 && health === 0) return;
@@ -162,6 +174,10 @@ export function holdStat(
   const carry = live && !supersedes;
   const owedAttack = carry ? Math.round(prev.attack * (1 - prev.revealed)) : 0;
   const owedHealth = carry ? Math.round(prev.health * (1 - prev.revealed)) : 0;
+  // The TTL has to outlast the SCHEDULE, or the failsafe force-delivers the tail of a long cascade before
+  // its own gem arrives — the exact desync this feature exists to remove, reintroduced by the safety net.
+  // `HOLD_TTL_MS` stays the floor: an unscheduled authored hold still needs room for a react layer to peak.
+  const lifetimeMs = ttlMs ?? Math.max(HOLD_TTL_MS, startAt + rollMs + HOLD_GRACE_MS);
   holds.set(uid, {
     origin,
     attack: owedAttack + attack,
@@ -170,7 +186,9 @@ export function holdStat(
     // change nobody animated.
     revealed: 0,
     reel: 0,
-    until: now() + ttlMs,
+    startAt,
+    rollMs,
+    until: now() + lifetimeMs,
   });
   // Restart the clock, never inherit the old deadline: a fresh hold is a fresh change, and letting it die
   // on the previous one's timer would cut a just-started roll short.
@@ -180,7 +198,7 @@ export function holdStat(
     // Fail OPEN. Whatever was going to claim this never did, so show the truth — and NOTIFY, because a
     // silent sweep leaves the badge rendering the withheld number until something else re-renders it.
     if (holds.delete(uid)) emit();
-  }, ttlMs));
+  }, lifetimeMs));
   emit();
 }
 
@@ -199,6 +217,13 @@ export function holdOrigin(uid: string): HoldOrigin | null {
     return null;
   }
   return h.origin;
+}
+
+/** A live hold's delivery schedule, or `null`. For tests and for the ticker. */
+export function scheduleFor(uid: string): { startAt: number; rollMs: number } | null {
+  const h = holds.get(uid);
+  if (h === undefined || h.until <= now()) return null;
+  return { startAt: h.startAt, rollMs: h.rollMs };
 }
 
 /** Show it: drop the whole hold for a unit. Safe to call when nothing is held. */

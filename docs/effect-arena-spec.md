@@ -82,6 +82,13 @@ applied at runtime:
 So "every keyword functions in both phases" is the DEFAULT, exceptions handle themselves, and the phrase
 "wire this effect for combat" stops being a sentence anyone writes.
 
+**Ruling — Discover in combat (owner, 2026-08-04):** a Discover effect triggered mid-combat yields a RANDOM
+card from its pool (tier-respecting), delivered to hand with the toHand animation during the fight. This is
+the intended interaction, not a degradation: the interactive 1-of-3 panel never opens mid-combat, because the
+fight is a pure function computed before the replay renders, and lobby seats resolve headlessly with no one
+present to click. (A queue-the-real-pick-for-settle alternative was considered and declined.) Do not
+re-litigate this per card — it is the rule for the whole Discover family under any disruptor.
+
 **What this buys at scale** — the owner's actual criterion:
 
 - A NEW disruptor card ("trigger your board's Start of Combats now", "re-fire your leftmost Rally") is a

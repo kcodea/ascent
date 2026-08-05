@@ -119,6 +119,17 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
     grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
+    grantMagneticAura: (a, h) => {
+      for (const card of [...state.board, ...state.hand]) {
+        if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+      }
+      state.magneticBuyAtk = (state.magneticBuyAtk ?? 0) + a;
+      state.magneticBuyHp = (state.magneticBuyHp ?? 0) + h;
+    },
+    grantBeastExtra: (hunt, ritual) => {
+      if (hunt) state.beastHuntExtra = (state.beastHuntExtra ?? 0) + hunt;
+      if (ritual) state.beastRitualExtra = (state.beastRitualExtra ?? 0) + ritual;
+    },
     tribesOf: (t) => {
       const def = CARD_INDEX[t.cardId];
       return [def?.tribe, def?.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');
@@ -1915,13 +1926,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
    *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Rallies only. Golden
    *  grants 2 instead of 1, per the owner's Gilded text ("trigger 2 additional times"). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantBeastHunt: (ctx, self, params) => {
-    ctx.state.beastHuntExtra = (ctx.state.beastHuntExtra ?? 0) + num(params.extra, 1) * gold(self);
+    ARENA_EFFECTS.battlecryGrantBeastHunt(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Elderhorn "Ritual": your BEAST Echoes trigger `extra` more times, permanently. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantBeastRitual: (ctx, self, params) => {
-    ctx.state.beastRitualExtra = (ctx.state.beastRitualExtra ?? 0) + num(params.extra, 1) * gold(self);
+    ARENA_EFFECTS.battlecryGrantBeastRitual(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Groveweaver (summon half): a Beast you summon gets +atk/+hp, at the CURRENT magnitude (base +
@@ -4303,14 +4316,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
    *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's
    *  Beast aura, but with a Health half. Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffMagnetics: (ctx, self, params) => {
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
-      if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
-    }
-    ctx.state.magneticBuyAtk = (ctx.state.magneticBuyAtk ?? 0) + a;
-    ctx.state.magneticBuyHp = (ctx.state.magneticBuyHp ?? 0) + h;
+    ARENA_EFFECTS.battlecryBuffMagnetics(shopArena(ctx.state, self), params);
   },
 
   /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide

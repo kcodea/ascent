@@ -117,6 +117,10 @@ export function simulate(
   const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = { // Elderhorn refired in combat —
+    player: { hunt: 0, ritual: 0 }, // both sides read live for the rest of the fight; player half carries back
+    enemy: { hunt: 0, ritual: 0 },
+  };
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const magneticBuffGain = { attack: 0, health: 0 }; // permanent Attachment enchant from this combat (Chorus Engine)
@@ -757,6 +761,14 @@ export function simulate(
       fodderBuffGain.health += health;
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'fodder' });
     },
+    gainBeastExtra: (hunt, ritual, side, sourceUid) => {
+      beastExtraGain[side].hunt += hunt;
+      beastExtraGain[side].ritual += ritual;
+      if (sourceUid && (hunt !== 0 || ritual !== 0)) {
+        const what = hunt !== 0 ? 'Rallies' : 'Echoes';
+        emit({ type: 'sc', source: sourceUid, text: `your Beast ${what} trigger +${hunt || ritual} more` });
+      }
+    },
     grantUndeadBuyAtk: (amount, side) => {
       // Advance the granting SIDE's live Undead buy-aura so Undead summoned / Reborn LATER this fight inherit it
       // (applyAuras re-adds it to every from-base body). Karthus / Forsaken Weaver route through here — on the
@@ -1209,7 +1221,8 @@ export function simulate(
     bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     if (isTribeOf(minion, 'beast', cards)) {
-      bonus += minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0;
+      bonus += (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
+        + beastExtraGain[minion.side].ritual; // a mid-fight Elderhorn re-fire counts from now on
     }
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
@@ -1612,6 +1625,7 @@ export function simulate(
       // card multipliers (Drakko/Uron) that `extraTriggerFires` reads.
       const huntExtra = isTribeOf(attacker, 'beast', cards)
         ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+          + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
         : 0;
       const rallyExtra = attacker.keywords.includes('RL')
         ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
@@ -2582,6 +2596,7 @@ export function simulate(
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
     playerRubyMints: rubyMintCount > 0 ? rubyMintCount : undefined,
+    playerBeastExtraGain: (beastExtraGain.player.hunt > 0 || beastExtraGain.player.ritual > 0) ? { ...beastExtraGain.player } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,

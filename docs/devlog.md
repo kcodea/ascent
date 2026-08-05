@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: the aura Shouts finish graduating — BuffMagnetics + the Elderhorn pair (floor 60)
+
+The last three channel-blocked Shouts go live; the defer class is now PURE tavern work.
+
+- **`battlecryBuffMagnetics`** (Scrap Herald) — shared body 58 on a new `grantMagneticAura` verb. The combat
+  half turned out to need NO new channel: Chorus Engine's `grantMagneticBuff` carry-back already exists and
+  its settle block does the exact ritual (stack `magneticBuyAtk/Hp` + buff every current board/hand
+  Magnetic). Combat buffs the living M-keyword bodies for the fight and rides that channel for permanence.
+  (First cut added a duplicate channel; typecheck caught the collision and the existing one won.)
+- **`battlecryGrantBeastHunt` / `battlecryGrantBeastRitual`** (Elderhorn's Choose One) — bodies 59+60 on a
+  new `grantBeastExtra` verb backed by a NEW `gainBeastExtra` channel: both sides accumulate (the extra
+  fires read live for the REST of the fight — the Ritual/Hunt fold into the echo-bonus and rally-extra reads
+  in simulate.ts, so a mid-fight re-fire boosts this combat), an sc telegraph names the gain, and the player
+  half carries back via `CombatResult.playerBeastExtraGain` into `beastHuntExtra`/`beastRitualExtra`.
+- The dawnclawShouts exclusion guard now pins the finished boundary: every run-wide aura Shout is
+  combat-replayable; `battlecryConsumeShopRandom` pins the tavern class that stays deferred by design.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
 ## 2026-08-04 — Effect Arena: Soulfeeder / Godfodder / getRubies go live; defer class down to ~18 ids (floor 57)
 
 Three more Shouts leave the defer class:

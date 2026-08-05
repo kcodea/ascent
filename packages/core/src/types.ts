@@ -1882,6 +1882,9 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Elderhorn refired in combat: extra fires for BEAST triggers (`hunt` → Rally/Slaughter, `ritual` → Echo).
+   *  Reads live for the REST of this fight too; settle stacks the player half into the run. */
+  playerBeastExtraGain?: { hunt: number; ritual: number };
   /** Permanent Undead AURA gained this combat (Watcher casting Lantern of Souls: +Attack/+Health to your
    *  Undead everywhere). Added to `undeadAttackBonus`/`undeadHealthBonus` in settleCombat — the same channel a
    *  shop-cast Lantern uses. Absent if 0/0. */
@@ -2066,6 +2069,10 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Elderhorn's extra BEAST trigger fires. BOTH sides accumulate (the value reads live for the rest of the
+   *  fight — an enemy Elderhorn's Ritual must grow its own later Echoes too); only the player half carries
+   *  back via `CombatResult.playerBeastExtraGain`. */
+  gainBeastExtra(hunt: number, ritual: number, side: Side, sourceUid?: string): void;
   /** Watcher (casting Lantern of Souls): permanently raise the run-wide Undead aura by +attack/+health
    *  (player only) — the Lantern channel (`undeadAttackBonus`/`undeadHealthBonus`). Live for this fight's
    *  later summons + carried back via CombatResult.playerUndeadAuraGain. */

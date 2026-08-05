@@ -174,6 +174,13 @@ export interface EffectArena {
   /** Grant an arbitrary keyword (combat also arms the live flags — DS → divineShield, R → rebornAvailable —
    *  and logs the keyword event so the pill appears; the shop appends to the card's keywords). */
   grantKeywordTo(t: ArenaBody, kw: string): void;
+  /** Scrap Herald's whole ritual: buff every current Magnetic (combat: living M-keyword bodies; shop: board
+   *  + hand) AND stack the run's `magneticBuyAtk/Hp` so future Magnetics carry it (combat carries back —
+   *  settle stacks + buffs the run's Magnetics). */
+  grantMagneticAura(attack: number, health: number): void;
+  /** Elderhorn's extra BEAST trigger fires (`hunt` → Rally/Slaughter, `ritual` → Echo), permanent. In combat
+   *  the gain also reads live for the rest of the fight. */
+  grantBeastExtra(hunt: number, ritual: number): void;
   /** Permanently raise run-wide spell power (combat: the carry-back channel; shop: `spellBonus`). */
   grantSpellPower(attack: number, health: number): void;
   /** The card's printed `targetTribe` restriction, if any (a card-definition read). */
@@ -894,5 +901,25 @@ export const ARENA_EFFECTS = {
     arena.grantFodderAura(
       (typeof params.attack === 'number' ? params.attack : 1) * g,
       (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Scrap Herald — Shout: your Magnetics ("Attachments") gain +atk/+hp WHEREVER they are, permanently
+   *  (golden doubles) — the Magnetic sibling of the Undead attack aura, with a Health half. */
+  battlecryBuffMagnetics(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantMagneticAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 2) * g);
+  },
+
+  /** Elderhorn "Hunt" — Shout: your Beast Rallies/Slaughters trigger `extra` more times, permanently
+   *  (golden doubles). */
+  battlecryGrantBeastHunt(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantBeastExtra((typeof params.extra === 'number' ? params.extra : 1) * (arena.self.golden ? 2 : 1), 0);
+  },
+
+  /** Elderhorn "Ritual" — Shout: your Beast Echoes trigger `extra` more times, permanently (golden doubles). */
+  battlecryGrantBeastRitual(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantBeastExtra(0, (typeof params.extra === 'number' ? params.extra : 1) * (arena.self.golden ? 2 : 1));
   },
 } as const;

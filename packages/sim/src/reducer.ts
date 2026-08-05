@@ -2520,6 +2520,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
     }
   }
+  // Elderhorn refired in combat: extra BEAST trigger fires, stacked into the run exactly as its shop half does.
+  if (result.playerBeastExtraGain) {
+    if (result.playerBeastExtraGain.hunt) s.beastHuntExtra = (s.beastHuntExtra ?? 0) + result.playerBeastExtraGain.hunt;
+    if (result.playerBeastExtraGain.ritual) s.beastRitualExtra = (s.beastRitualExtra ?? 0) + result.playerBeastExtraGain.ritual;
+  }
   // Watcher's Lantern of Souls (combat): raise the run-wide Undead aura (+Attack/+Health everywhere) — the
   // same `undeadAttackBonus`/`undeadHealthBonus` channel a shop-cast Lantern uses, so it shows and behaves
   // identically on the run board.

@@ -92,12 +92,13 @@ describe('the rest of the audited combat Shouts', () => {
     }
   });
 
-  it('battlecryBuffMagnetics stays deferred — it has no carry-back channel (BuffFodder graduated)', () => {
-    // Guards the deliberate exclusion, so a later "why isn't this one in the set?" doesn't quietly add it:
-    // it enchants the Magnetic card type for the rest of the run (`magneticBuyAtk/Hp`) with no combat
-    // carry-back, so a live fire would be lost. BuffFodder USED to sit here for the same reason — it
-    // graduated 2026-08-04 onto the `grantFodderBuff` channel Bane already uses.
+  it('the aura Shouts have ALL graduated onto carry-back channels; tavern Shouts stay deferred', () => {
+    // The run-wide enchant Shouts each got a channel (BuffFodder → grantFodderBuff, BuffMagnetics →
+    // grantMagneticBuff, the Elderhorn pair → gainBeastExtra) and now resolve live. The remaining defer
+    // class is TAVERN work — no combat meaning at all; pin one so the boundary stays deliberate.
     expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffFodder')).toBe(true);
-    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffMagnetics')).toBe(false);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffMagnetics')).toBe(true);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryGrantBeastHunt')).toBe(true);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryConsumeShopRandom'), 'tavern work stays deferred').toBe(false);
   });
 });

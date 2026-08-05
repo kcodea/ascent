@@ -202,6 +202,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       }
       ctx.grantUndeadBuyAtk(a, self.side);
     },
+    grantMagneticAura: (a, h) => {
+      for (const m of ctx.living(self.side)) {
+        if (m.keywords.includes('M')) ctx.buff(m, a, h, self.uid);
+      }
+      ctx.grantMagneticBuff(a, h, self.side); // run-permanent half (settle stacks + buffs run board/hand)
+    },
+    grantBeastExtra: (hunt, ritual) => ctx.gainBeastExtra(hunt, ritual, self.side, self.uid),
     grantCardTypeBuff: (cardId, a, h) => {
       ctx.grantCardBuff(cardId, a, h, self.side); // carry-back: run board / hand / future copies
       for (const m of ctx.living(self.side)) if (m.cardId === cardId) ctx.buff(m, a, h, self.uid);
@@ -659,6 +666,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   battlecryBuffFodder: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffFodder(combatArena(ctx, self), params);
+  },
+  battlecryBuffMagnetics: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffMagnetics(combatArena(ctx, self), params);
+  },
+  battlecryGrantBeastHunt: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryGrantBeastHunt(combatArena(ctx, self), params);
+  },
+  battlecryGrantBeastRitual: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryGrantBeastRitual(combatArena(ctx, self), params);
   },
   getRubies: (ctx, self, params) => {
     ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);

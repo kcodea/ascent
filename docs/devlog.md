@@ -155,6 +155,16 @@ a live fight.
 Follow-ups: `rally-link` is now an authored def with nothing bound to it — either author it onto specific
 ralliers or delete it, but don't leave it looking wired. And the yellow pulse still fires once per SWING while
 the sparkle fires once per PROC, which is correct but worth watching on a gilded Echohorn.
+## 2026-08-04 — Rune of the Brokerage joins the archive (with its subject)
+
+The archive grew a RUNE side (owner ask): `ARCHIVED_RUNES` in `content/src/runes.ts`, mirroring
+`cards/archive.ts` — an archived rune is in NEITHER forge stock (never offered) but stays in `RUNE_INDEX`,
+so a saved run that owns it keeps its badge, text and reward machinery. Rune of the Brokerage moved in
+alongside Ruby Broker (archived earlier today) — its text names a card that no longer exists in any set.
+The Brokerage's cap-lift machinery test still passes (machinery stays; only availability is gone), and a
+new pin asserts never-offered / still-resolvable.
+
+Verified: full gates green (3927 tests). (PR #876.)
 ## 2026-08-04 — The MINION ARCHIVE + five cards archived out of Set 2
 
 New mechanism (owner ask): `packages/content/src/cards/archive.ts` — cards REMOVED from play but not from

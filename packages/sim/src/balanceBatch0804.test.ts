@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, poolFor, SETS } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES, poolFor, SETS } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import { createRun, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
@@ -190,5 +190,10 @@ describe('the MINION ARCHIVE (owner 2026-08-04)', () => {
 
   it('…but every one still resolves through CARD_INDEX (saved runs / pinned boards / replays)', () => {
     for (const id of ARCHIVED) expect(CARD_INDEX[id], `${id} fell out of the index`).toBeTruthy();
+  });
+
+  it('Rune of the Brokerage is archived with its subject — offered never, owned still works', () => {
+    expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_brokerage'), 'in a forge stock').toBe(false);
+    expect(RUNE_INDEX['rune_brokerage'], 'fell out of the index — owned badges would break').toBeTruthy();
   });
 });

@@ -105,7 +105,8 @@ describe('the five runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
       ['Rune of Resonance', 1, false], ['Rune of Investment', 3, false], // Investment 1 → 3 (owner balance 2026-08-04)
-      ['Rune of the Open Market', 2, true], ['Rune of Runic Exchange', 2, true], ['Rune of the Brokerage', 2, true],
+      ['Rune of the Open Market', 2, true], ['Rune of Runic Exchange', 2, true],
+      // Rune of the Brokerage moved to the RUNE ARCHIVE 2026-08-04 (with Ruby Broker) — asserted below.
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -116,7 +117,7 @@ describe('the five runes ship as specced', () => {
   });
 
   it('all five are set-2 scoped — each names a set-2 mechanic', () => {
-    for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of the Open Market', 'Rune of Runic Exchange', 'Rune of the Brokerage']) {
+    for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of the Open Market', 'Rune of Runic Exchange']) {
       expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(['set2']);
     }
   });

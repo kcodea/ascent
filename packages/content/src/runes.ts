@@ -1031,16 +1031,6 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Ales
   },
   {
-    id: 'rune_brokerage',
-    name: 'Rune of the Brokerage',
-    cost: 2,
-    epic: true,
-    text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
-    previewCards: ['k_rubybroker'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeBrokerage' },
-    sets: ['set2'], // Rubies
-  },
-  {
     id: 'rune_cinder_ledger',
     name: 'Rune of the Cinder Ledger',
     cost: 3,
@@ -1201,17 +1191,36 @@ export const EPIC_RUNES: RuneDef[] = [
   },
 ];
 
-/** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the
- *  owned-rune badges / card lookups resolve any rune the run has picked up. */
+/**
+ * THE RUNE ARCHIVE (owner 2026-08-04) — the rune counterpart of `cards/archive.ts`: removed from play, not
+ * from code. An archived rune is in NEITHER forge stock, so it can never be offered — but it stays in
+ * `RUNE_INDEX`, so a saved run that already owns it keeps its badge, text and reward machinery.
+ * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
+ */
+export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    id: 'rune_brokerage',
+    name: 'Rune of the Brokerage',
+    cost: 2,
+    epic: true,
+    text: 'Your **Ruby Brokers** can be triggered **endlessly**.',
+    previewCards: ['k_rubybroker'], // its subject is in the MINION archive — the pair retire together
+    reward: { kind: 'runeBrokerage' },
+    sets: ['set2'], // Rubies
+  },
+];
+
+/** Lookup across BOTH runesets AND the archive — the forge stocks share one id space with the archived
+ *  runes, so the owned-rune badges / card lookups resolve any rune a run has ever picked up. */
 export const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries(
-  [...RUNES, ...EPIC_RUNES].map((r) => [r.id, r]),
+  [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].map((r) => [r.id, r]),
 );
 
 /** Zod-validate every rune in BOTH sets (shape + reward palette), and reject DUPLICATE ids or names.
  *  Throws on a malformed rune. The duplicate check exists because a second identical Rune of the High King
  *  actually shipped (2026-07-31): `RUNE_INDEX` silently collapses duplicate ids, the Runeforge stocked the
  *  rune twice, and the Compendium's duplicate React keys smeared extra copies across the gallery. */
-export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES]): void {
+export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES]): void {
   const ids = new Set<string>();
   // Names are unique PER SET, not globally: the Menagerie deliberately exists twice under one name — a set-1
   // and a set-2 twin with disjoint `sets`, so no single run can ever be offered both. A rune with no `sets`

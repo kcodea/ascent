@@ -103,26 +103,13 @@ describe('rubyLandSchedule', () => {
   });
 });
 
+/**
+ * The grouping, counting and round-once arithmetic now live in `landHolds` (`fx/land.ts`, see its test
+ * file for the Task 5 Critical regression). What's left to prove here is only `rubyLandHolds`'s OWN job:
+ * that it hands `landHolds` the right per-gem share for Ruby's semantics, and the right `null`s.
+ */
 describe('rubyLandHolds', () => {
-  /** Fix-round-1 regression: rounding the per-gem average SEPARATELY for each gem in a stack, then
-   *  accumulating those holds, overstates the total. A buff of 3 attack across 2 gems is 1.5 per gem —
-   *  `Math.round(1.5)` is 2, so two per-gem holds would sum to 4 against a true delta of 3, printing a
-   *  number the minion never had. Rounding ONCE over the whole recipient makes this impossible. */
-  it('rounds ONCE over the whole recipient, not once per gem in a stack', () => {
-    const buff = { attack: 3, health: 2, count: 2 };
-    const out = rubyLandHolds([{ uid: 'a', count: 2 }], () => buff);
-    expect(out).toEqual([{ uid: 'a', attack: 3, health: 2, at: 0 }]);
-  });
-
-  it('collapses a stack to ONE hold, timed to the FIRST gem — holdStat replaces rather than adds a second startAt on the same uid', () => {
-    const buff = { attack: 4, health: 4, count: 2 };
-    const out = rubyLandHolds([{ uid: 'a', count: 2 }, { uid: 'b', count: 1 }], () => buff);
-    expect(out.map((h) => h.uid)).toEqual(['a', 'b']);
-    expect(out[0]!.at).toBe(0); // 'a's first gem, not its second (which lands at RUBY_BEAT_MS)
-    expect(out[1]!.at).toBe(RUBY_GAP_MS); // 'b' is the second recipient in the cascade
-  });
-
-  it('derives the per-gem share from the SAME buff a card actually carries, scaled by this event\'s own count', () => {
+  it('passes the per-gem share (buff total / buff count) through to landHolds, scaled by THIS event\'s own count', () => {
     // Total buff is all-time (count 5), but this particular land only reports 2 of them — the per-gem
     // average times THIS event's count, not the buff's lifetime count.
     const buff = { attack: 10, health: 5, count: 5 };

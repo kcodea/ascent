@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  scheduleLands, cascade, volley, waves, beatExceedsGap, scheduleDuration, type Recipient,
+  scheduleLands, cascade, volley, waves, beatExceedsGap, scheduleDuration, landHolds, type Recipient, type Land,
 } from './land';
 
 /**
@@ -121,5 +121,42 @@ describe('scheduleDuration', () => {
 
   it('is 0 for an empty schedule', () => {
     expect(scheduleDuration([])).toBe(0);
+  });
+});
+
+describe('landHolds', () => {
+  /** One land per member, matching what `scheduleLands` actually produces for a 2-stack. */
+  const land = (uid: string, at: number): Land => ({ uid, group: 0, member: 0, at });
+
+  /** Task 5's Critical regression, generalised off the Ruby cue: a per-gem share of 1.5 landing twice must
+   *  withhold exactly 3, never 4. This is the case a per-land-rounding implementation gets wrong — rounding
+   *  `1.5` to `2` on each of the two lands and summing overstates the true delta by one. Multiplying the
+   *  share by the recipient's count (2) BEFORE the single `Math.round` call is what keeps this at 3. */
+  it('rounds ONCE over the whole recipient, not once per land in a stack', () => {
+    const lands = [land('a', 0), land('a', 50)];
+    const out = landHolds(lands, () => ({ attack: 1.5, health: 1 }));
+    expect(out).toEqual([{ uid: 'a', attack: 3, health: 2, at: 0 }]);
+  });
+
+  it('collapses a stack to ONE hold, timed to the FIRST land — a caller must never rely on a per-land stagger', () => {
+    const lands = [land('a', 0), land('a', 50), land('b', 100)];
+    const out = landHolds(lands, () => ({ attack: 2, health: 2 }));
+    expect(out.map((h) => h.uid)).toEqual(['a', 'b']);
+    expect(out[0]!.at).toBe(0); // 'a's first land, not its second
+    expect(out[1]!.at).toBe(100);
+  });
+
+  it('multiplies the per-gem share by THIS event\'s count for that uid, not any external total', () => {
+    const lands = [land('a', 0), land('a', 50)];
+    const out = landHolds(lands, () => ({ attack: 2, health: 1 }));
+    expect(out).toEqual([{ uid: 'a', attack: 4, health: 2, at: 0 }]); // 2*2, 1*2
+  });
+
+  it('skips a uid whose perGemFor returns null — nothing safe to withhold', () => {
+    expect(landHolds([land('a', 0)], () => null)).toEqual([]);
+  });
+
+  it('returns nothing for no lands', () => {
+    expect(landHolds([], () => null)).toEqual([]);
   });
 });

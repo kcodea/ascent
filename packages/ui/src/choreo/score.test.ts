@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import { compileMoments, type Moment } from './compile';
-import { RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { getLungeConfig } from '../lungeConfig';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, type Channel } from './score';
 import { momentKind, type MomentKind } from './kinds';
@@ -726,16 +727,49 @@ describe('rallyFx channel', () => {
 
   beforeEach(() => { mockPlayDef.mockClear(); mockAnchors.mockClear(); mockCanPlayDefs.mockReturnValue(true); });
 
+  /** The sparkle waits for the attacker's yellow Rally pulse, which the lunge fires at the top of the
+   *  wind-up. Derived from the LIVE wind-up rather than hardcoded, so retuning the lunge moves both. */
+  const LEAD = (): number => rallyLeadMs(getLungeConfig().windupDur);
+
   // THE case. A real log, compiled the real way, so the absorption is exercised rather than assumed.
   it('plays the rallier CARD def at the ally it procced, inside the absorbed wind-up', () => {
+    vi.useFakeTimers();
     const events = [attack('ech', 'foe'), rally('ech', 'ally'), { type: 'dmg', target: 'foe', amount: 3, remainingHp: 0 } as CombatEvent];
     const [windup] = compileMoments(events);
     expect(windup?.kind).toBe('attackExchange'); // the absorption itself — if this ever changes, so must the channel
     const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
     runMomentCues(windup!, c);
+    vi.advanceTimersByTime(LEAD());
     expect(mockAnchors).toHaveBeenCalledWith('ech', 'ally');
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     expect(mockPlayDef).toHaveBeenCalledWith(SPARKLE, { target: { x: 5, y: 7 } }, { uids: { source: 'ech', target: 'ally' }, index: 0 });
+    vi.useRealTimers();
+  });
+
+  /**
+   * THE SEQUENCING (owner call 2026-08-04): *"the rally token should pulse, then the target link goes off
+   * after."* Both used to land together — the lunge pulses at the top of the wind-up and this cue fired at
+   * the moment's start — so the beat read as one event instead of as cause and effect.
+   */
+  it('holds the sparkle until the attacker pulse has read', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally')];
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ech', 'b2_echohorn')));
+    vi.advanceTimersByTime(LEAD() - 1);
+    expect(mockPlayDef).not.toHaveBeenCalled();              // still inside the wind-up's Rally hold
+    vi.advanceTimersByTime(2);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  /** …but ONLY on an exchange, which is the only kind that has a wind-up to wait for. A standalone rally
+   *  moment has no pulse to follow and must not sit doing nothing for half a second. */
+  it('does not wait on a rally-kind moment, which has no wind-up', () => {
+    vi.useFakeTimers();
+    const events = [rally('ech', 'ally')];
+    runMomentCues(moment('rally', events), baseCtx(events, withCard('ech', 'b2_echohorn')));
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);            // immediate, no lead
+    vi.useRealTimers();
   });
 
   /** "Any instance of it triggering" — a gilded Echohorn loops twice, and both procs get their own play,
@@ -745,7 +779,8 @@ describe('rallyFx channel', () => {
     const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
     const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
     runMomentCues(compileMoments(events)[0]!, c);
-    expect(mockPlayDef).toHaveBeenCalledTimes(1);           // the first lands immediately…
+    vi.advanceTimersByTime(LEAD());
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);           // the first lands after the pulse…
     vi.advanceTimersByTime(RALLY_BEAT_MS - 1);
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(2);
@@ -760,6 +795,7 @@ describe('rallyFx channel', () => {
     const events = [attack('ech', 'foe'), rally('ech', 'ally1'), rally('ech2', 'ally2')];
     const c = baseCtx(events, { cardIds: new Map([['ech', 'b2_echohorn'], ['ech2', 'b2_echohorn']]) });
     runMomentCues(compileMoments(events)[0]!, c);
+    vi.advanceTimersByTime(LEAD());
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(RALLY_BEAT_MS);                  // a beat is NOT enough — these are separate pairs
     expect(mockPlayDef).toHaveBeenCalledTimes(1);

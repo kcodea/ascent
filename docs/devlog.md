@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-05 — Rally FX retune: pulse first, then the link
+
+The owner watched the previous entry's channel live and called three changes. All three are tuning, not
+structure — the channel itself is unchanged.
+
+**The sequencing.** *"The rally token should pulse, then the target link goes off after."* Both were landing
+together: the lunge fires `onRallyPulse` at the top of the wind-up while the cue fired at the moment's start,
+so the beat read as one event rather than as cause and effect. The cascade now takes a `lead` of
+`windupDur + RALLY_PULSE_READ_MS` (740ms at the default 0.54s wind-up), which puts the sparkle ~200ms into
+the 440ms Rally hold the lunge already opens for exactly this purpose, leaving ~240ms before contact.
+
+Computed from the LIVE `getLungeConfig()` per moment rather than frozen into the static score table, so a
+wind-up retuned in the lunge tuner carries the sparkle with it instead of leaving it drifting off the pulse.
+Applied only on `attackExchange`: a standalone rally moment has no pulse to wait for and must not sit doing
+nothing for half a second. `RALLY_PULSE_READ_MS` is deliberately NOT imported from engine.ts's
+`RALLY_PAUSE_MS` — engine imports `score.ts`, so that dependency would close a cycle.
+
+**The beat, 50 → 120ms.** At 50 a gilded Echohorn's two procs read as one thicker detonation instead of two.
+This forced `RALLY_GAP_MS` 100 → 240 with it: the gap walks between distinct rallier→ally pairs and the beat
+repeats within one, and the 2:1 ratio is what carries the count (`beatExceedsGap`, fx/land.ts). At beat 120
+against the old gap of 100 that invariant was inverted. Two ralliers swinging in one exchange is rare, so the
+wider gap costs almost nothing.
+
+**The hold.** What cut the effect short was the RING, not the duration: a shockwave self-completes on
+`shockwaveOneShotDurationSec(rings, speed, ringDelay)`, which at `speed: 4.7` was ~423ms regardless of the
+def's 900ms. So `speed` 4.7 → 2.6 (~764ms), `fade` 1.3 → 0.95 so the extra time reads instead of ghosting
+out, and `duration` 900 → 1500 so nothing else truncates. The shard burst is untouched — an explicit `life`
+already outlives `def.duration` (fx/def.ts), and at 1900 it was never the layer being clipped.
+
+Also added the DEV log this channel was missing (`[fx] rally <src>→<tgt> → '<def>' ×<count>`), mirroring the
+`fxDef` fan-out's. Every miss in this path is silent, which is what kept the original defect invisible.
+
+Verified: typecheck (pkgs + web), `build:web`, 3890 tests — the timing tests derive the lead from the live
+lunge config rather than hardcoding it, so retuning the wind-up doesn't silently invalidate them. The
+retuned LOOK has not been eyeballed yet (see roadmap).
+
 ## 2026-08-04 — Echohorn's Rally lands on the minion it procs (and the `rally` binding was never reachable)
 
 Owner: *"echohorn-target-sparkle should occur when Echohorn's Rally triggers — any instance of it triggering."*

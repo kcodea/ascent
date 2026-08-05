@@ -59,14 +59,46 @@ export function ralliesFiredIn(moment: Moment, events: CombatEvent[]): RallyFire
 }
 
 /**
- * Between distinct rallier→ally PAIRS in a cascade — the `gap`. Matched to the Ruby cue's 100ms (see
- * `RUBY_GAP_MS`), which is the owner-tuned separation for "these are different recipients" at this board scale.
- * More than one pair in a single moment needs a board carrying two ralliers that swing in the same exchange, so
- * this is the rarer of the two numbers; the `beat` below is the one that does the visible work.
+ * Between distinct rallier→ally PAIRS in a cascade — the `gap`.
+ *
+ * 240, which is NOT the Ruby cue's 100: it is derived from the `beat` below rather than chosen, because the
+ * 2:1 ratio is what carries the count (docs/fx-vocabulary.md, and `beatExceedsGap` in fx/land.ts reports the
+ * violation). The owner raised the beat to 120 on 2026-08-04 after watching a gilded Echohorn, so the gap had
+ * to move with it — at the old 100 the beat would have EXCEEDED the gap and a cascade of 2-stacks would read
+ * as one long cascade of unrelated hits.
+ *
+ * More than one pair in a single moment needs a board carrying two ralliers that swing in the same exchange,
+ * so this is the rarer of the two numbers; the `beat` is the one that does the visible work.
  */
-export const RALLY_GAP_MS = 100;
+export const RALLY_GAP_MS = 240;
 
-/** Between repeats WITHIN one pair — the `beat`. Must stay clearly shorter than `gap` or the count is lost
- *  (docs/fx-vocabulary.md); the same 2:1 ratio the Ruby cascade uses. This is what makes a gilded Echohorn's
- *  double proc read as TWO detonations on that ally rather than one brighter one. */
-export const RALLY_BEAT_MS = 50;
+/** Between repeats WITHIN one pair — the `beat`. Owner-set 120 (2026-08-04, up from 50): at 50 a gilded
+ *  Echohorn's two procs read as one thicker detonation rather than two, which is exactly the count this
+ *  spacing exists to preserve. Must stay clearly shorter than `gap` — see the note there. */
+export const RALLY_BEAT_MS = 120;
+
+/**
+ * How long the attacker's yellow Rally pulse gets to read BEFORE the sparkle fires at the ally.
+ *
+ * The owner's sequencing call (2026-08-04): *"the rally token should pulse, then the target link goes off
+ * after."* Without it both land together — the lunge fires `onRallyPulse` at the top of the wind-up and this
+ * cue fired at the moment's start — so the beat read as one event rather than as cause and effect.
+ *
+ * 200ms sits inside the wind-up's 440ms Rally hold (`RALLY_PAUSE_MS` in engine.ts), which is the window the
+ * lunge deliberately opens so a Rally can be read before the strike. That leaves ~240ms of hold after the
+ * sparkle starts and before contact, so the whole exchange still reads as one beat. Deliberately NOT imported
+ * from engine.ts: engine imports `score.ts`, so the dependency would close a cycle — if that 440 is ever
+ * retuned, this number wants a look.
+ */
+export const RALLY_PULSE_READ_MS = 200;
+
+/**
+ * When the first sparkle lands, measured from the moment's start.
+ *
+ * Takes the wind-up duration as an ARGUMENT rather than reading `lungeConfig` itself, so this module stays
+ * pure and testable (the repo has no jsdom) — and so the value tracks the LIVE wind-up, which is tunable at
+ * runtime, instead of being frozen into the static score table at module load.
+ */
+export function rallyLeadMs(windupDurSec: number): number {
+  return windupDurSec * 1000 + RALLY_PULSE_READ_MS;
+}

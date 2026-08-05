@@ -6,7 +6,8 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
-import { ralliesFiredIn, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { ralliesFiredIn, rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { getLungeConfig } from '../lungeConfig';
 import { cascade, scheduleLands } from '../fx/land';
 import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
@@ -402,12 +403,28 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         .map((r) => ({ ...r, binding: bindingFor(ctx.cardIds?.get(r.source) ?? null, 'rally') }))
         .filter((r): r is typeof r & { binding: NonNullable<typeof r.binding> } => r.binding !== null);
       if (!fired.length) continue;
+      // DEV-only, and modelled on the `fxDef` fan-out's log for the same reason it exists there: every miss in
+      // this path is SILENT — the effect simply doesn't appear, which is indistinguishable from "the binding
+      // isn't wired". This row is the one that says a Rally was seen, whose it was, and HOW MANY procs it
+      // carried, which is the number the cascade's `beat` exists to make visible.
+      if (import.meta.env.DEV) {
+        for (const r of fired) {
+          console.info(`[fx] rally ${r.source}→${r.target} → '${r.binding.def}' ×${r.count}`);
+        }
+      }
       at(cue, () => {
         // The same CASCADE-of-N-STACKS shape the Ruby sweep uses, for the same reason: `gap` walks between
         // distinct rallier→ally pairs, `beat` repeats within one so a gilded double-proc reads as two.
         // `land.group` indexes `fired` because `cascade` emits exactly one group per entry, in order.
+        //
+        // `lead` is the sequencing the owner asked for: the attacker's yellow Rally pulse fires at the top of
+        // the wind-up, and the sparkle follows it rather than landing on top of it (see `RALLY_PULSE_READ_MS`).
+        // Only on `attackExchange` — that is the only kind that HAS a wind-up to wait for, and a standalone
+        // rally moment would otherwise sit doing nothing for half a second. Read live (not frozen into the
+        // score table) so a retuned wind-up carries the sparkle with it.
         for (const land of scheduleLands(cascade(fired.map((r) => ({ uid: r.target, count: r.count }))), {
           gap: RALLY_GAP_MS, beat: RALLY_BEAT_MS, speed: ctx.combatSpeed,
+          lead: moment.kind === 'attackExchange' ? rallyLeadMs(getLungeConfig().windupDur) : 0,
         })) {
           const r = fired[land.group];
           if (!r) continue;

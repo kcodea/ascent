@@ -51,13 +51,14 @@ The five buckets below are ordered by when we intend to act, not by size:
   floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
   whether it should be portalled too, or leave it.
 
-- **Eyeball Echohorn's Rally sparkle on a real fight, then decide what `rally-link` is for.** The `rallyFx`
-  channel shipped 2026-08-04 and made per-rallier Rally FX reachable for the first time (see the devlog for
-  why the `rally` binding had never fired). `echohorn-target-sparkle` is bound to `b2_echohorn` alone and the
-  wiring is unit-tested against a real compiled event log, but it has not been watched in a live combat —
-  in particular a GILDED Echohorn, whose double proc is the case the cascade `beat` exists for. `rally-link`
-  is now an authored def with nothing bound to it: either author it onto specific ralliers (Deathsayer and
-  Broodlord are the obvious candidates) or delete it, but don't leave it looking wired.
+- **Re-watch Echohorn's Rally sparkle after the retune, and decide what `rally-link` is for.** The owner
+  watched the first cut live on 2026-08-04 and called three changes (pulse-then-link sequencing, beat 50→120,
+  a longer ring hold); those shipped 2026-08-05 but the RETUNED look has not been eyeballed — the gilded
+  double proc at the new 120ms beat is the specific thing to watch, since that spacing is the whole reason
+  the count is legible. `speed` and `fade` on the shockwave layer are the dials if it still isn't holding
+  long enough. Separately: `rally-link` is now an authored def with nothing bound to it — either author it
+  onto specific ralliers (Deathsayer and Broodlord are the obvious candidates) or delete it, but don't leave
+  it looking wired.
 
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "echohorn-target-sparkle",
-  "duration": 900,
+  "duration": 1500,
   "layers": [
     {
       "primitive": "burst",
@@ -88,9 +88,9 @@
       "at": 0,
       "params": {
         "rings": 3,
-        "speed": 4.7,
+        "speed": 2.6,
         "thickness": 0.03,
-        "fade": 1.3,
+        "fade": 0.95,
         "radius": 195,
         "squash": 0.56,
         "ringDelay": 0.16,

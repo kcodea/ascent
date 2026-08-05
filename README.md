@@ -44,10 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **Echohorn's Rally now detonates on the minion it procs.** A shard burst over a triple shockwave fires at
-  the ally whose Echo it triggers, once per proc — so a gilded Echohorn, which fires twice, shows two. Fixing
-  this uncovered that Rally effects had never been able to play at all: a Rally is absorbed into its
-  attacker's swing, so the binding that was supposed to drive it could never be reached.
+- **Echohorn's Rally now detonates on the minion it procs.** Echohorn's token pulses, then a shard burst over
+  a triple shockwave fires at the ally whose Echo it triggers — once per proc, so a gilded Echohorn, which
+  fires twice, shows two. Fixing this uncovered that Rally effects had never been able to play at all: a
+  Rally is absorbed into its attacker's swing, so the binding that was supposed to drive it could never be
+  reached.
 
 - **The Effect Arena's Shout family is done** — every Shout now fires in combat when a disruptor (Ryme,
   Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared

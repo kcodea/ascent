@@ -143,6 +143,15 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     hasShield: (t) => (t as Minion).divineShield === true,
     grantShield: (t) => grantShield(ctx, t as Minion),
     buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
+    buffPermanent: (t, a, h) => {
+      const m = t as Minion;
+      ctx.buff(m, a, h, self.uid);
+      // ctx.buff already accrues permaGain for an Engraved recipient; record it for everyone else — the
+      // gift is permanent regardless of the recipient's keywords.
+      if (!m.keywords.includes('EG')) {
+        m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
+      }
+    },
     grantRubyPower: (a, h) => ctx.gainRubyBonus(a, h, self.side, self.uid),
     rubyTallyOf: (t) => {
       const m = t as Minion;
@@ -1666,32 +1675,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  gifts carry back to the run board. The magnitude improves by another +atk/+hp for every `improveEvery`
    *  overflows this Monk has seen (its running tally rides in `summonBonus`, the generic per-instance
    *  accrual carried across combats — the recruit half shares it). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Flowing Monk).
   overflowBuffRandom: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side?: Side }).side !== self.side) return;
-    const every = Math.max(1, num(params.improveEvery, 5));
-    const step = Math.floor(self.summonBonus / every);
-    // `overflowBonus` is the flat top-up a TRIPLE created (golden = sum of the two highest copies' grants).
-    const flat = self.overflowBonus ?? 0;
-    const a = num(params.attack, 2) * (1 + step) * mul(self) + flat;
-    const h = num(params.health, 2) * (1 + step) * mul(self) + flat;
-    const pickable = ctx.living(self.side);
-    for (let i = 0; i < num(params.count, 2) && pickable.length > 0; i++) {
-      const recipient = ctx.rng.pick(pickable);
-      pickable.splice(pickable.indexOf(recipient), 1);
-      ctx.buff(recipient, a, h, self.uid);
-      // ctx.buff already accrues permaGain for an Engraved recipient; record it here for everyone else
-      // (Flowing Monk's gift is permanent regardless of the recipient's keywords).
-      if (!recipient.keywords.includes('EG')) {
-        recipient.permaGain = { attack: (recipient.permaGain?.attack ?? 0) + a, health: (recipient.permaGain?.health ?? 0) + h };
-      }
-    }
-    // Log the tally increment as an `improve` (amount = +1 to the accrual, matching Kennelmaster's
-    // semantics) — the replay folds it into the unit's summonBonus so the card's live text climbs in-fight.
-    // Rune of Mastery doubles the Improve tick.
-    const overflowInc = ctx.improveRepsFor(self.side);
-    self.summonBonus += overflowInc;
-    ctx.log({ type: 'improve', target: self.uid, amount: overflowInc });
+    ARENA_EFFECTS.overflowBuffRandom(combatArena(ctx, self), params);
   },
+
 
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */
   avengeBuff: (ctx, self, params, payload) => {

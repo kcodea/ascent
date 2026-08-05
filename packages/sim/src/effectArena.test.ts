@@ -29,6 +29,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     hasShield: (t: ArenaBody) => shielded.has(t.uid),
     grantShield: (t: ArenaBody) => { shielded.add(t.uid); granted.push(t.uid); },
     buff: () => {},
+    buffPermanent: () => {},
     grantRubyPower: () => {},
     rubyTallyOf: () => ({ attack: 0, health: 0 }),
     summonToken: () => undefined,
@@ -124,7 +125,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 35; // +GrantSpell/GrantCardToHand/GrantRandomSpell + Anvilshade Smith
+  const MIGRATED_FLOOR = 36; // +overflowBuffRandom (Flowing Monk)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

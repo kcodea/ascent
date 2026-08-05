@@ -56,10 +56,11 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
   return {
     phase: 'shop',
     self,
-    friends: () => state.board,
+    friends: () => [...state.board], // a COPY — bodies may splice their pool without touching the board
     hasShield: (t) => t.keywords.includes('DS'),
     grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
     buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
+    buffPermanent: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h), // a shop buff IS permanent
     rubyTallyOf: (t) => {
       const ruby = (t as BoardCard).buffs?.find((b) => b.source === 'Ruby');
       return { attack: ruby?.attack ?? 0, health: ruby?.health ?? 0 };
@@ -2379,16 +2380,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  minions +atk/+hp (recruit buffs are inherently permanent). The magnitude improves by another +atk/+hp
    *  per `improveEvery` overflows — the tally rides in `summonBonus` (the per-instance accrual shared with
    *  the combat half via the carry-back), so both halves grow the same counter. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Flowing Monk).
   overflowBuffRandom: (ctx, self, params) => {
-    const every = Math.max(1, num(params.improveEvery, 5));
-    const step = Math.floor((self.summonBonus ?? 0) / every);
-    // `overflowBonus` is the flat top-up a TRIPLE created (golden = sum of the two highest copies' grants).
-    const flat = self.overflowBonus ?? 0;
-    const a = num(params.attack, 2) * (1 + step) * gold(self) + flat;
-    const h = num(params.health, 2) * (1 + step) * gold(self) + flat;
-    const picks = pickRandom(ctx.state, [...ctx.state.board], num(params.count, 2));
-    for (const m of picks) addBuff(m, nameOf(self), a, h);
-    self.summonBonus = (self.summonBonus ?? 0) + improveReps(ctx.state); // the Improve tick — ×2 under Mastery
+    ARENA_EFFECTS.overflowBuffRandom(shopArena(ctx.state, self), params);
   },
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */

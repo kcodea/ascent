@@ -122,6 +122,9 @@ export interface EffectArena {
   logSpellProgress(amount: number): void;
   /** Announce an Improve tick (the improve pop). A combat log event; a shop no-op. */
   logImprove(amount: number): void;
+  /** Buff a body PERMANENTLY. A shop buff is permanent by nature (plain `buff`); in combat the gain is also
+   *  recorded into the carry-back (`permaGain`) regardless of Engrave — Flowing Monk's gift keeps. */
+  buffPermanent(t: ArenaBody, attack: number, health: number): void;
   /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
   spellsThisTurn(): number;
   /** Grant `count` copies of a NAMED card to hand. Combat rides `grantToHand` (announced + flown in the
@@ -556,5 +559,27 @@ export const ARENA_EFFECTS = {
       if (!made) break; // board full
       if (arena.self.attack > made.attack) made.attack = arena.self.attack;
     }
+  },
+
+  /** Flowing Monk — when a summon can't fit the full board: PERMANENTLY buff `count` random friends by
+   *  base × (1 + floor(overflows/improveEvery)) × golden, plus the triple's flat top-up. Then the overflow
+   *  itself accrues (× Rune of Mastery) and announces, so the live text climbs. Distinct targets. */
+  overflowBuffRandom(arena: EffectArena, params: Record<string, unknown>): void {
+    const every = Math.max(1, typeof params.improveEvery === 'number' ? params.improveEvery : 5);
+    const step = Math.floor((arena.self.summonBonus ?? 0) / every);
+    const flat = (arena.self as { overflowBonus?: number }).overflowBonus ?? 0;
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * (1 + step) * g + flat;
+    const h = (typeof params.health === 'number' ? params.health : 2) * (1 + step) * g + flat;
+    // COPY before splicing: `friends()` may hand back the phase's live board array, and splicing that
+    // would remove minions from the actual board (caught by Monk's own regression test).
+    const pool = [...arena.friends()];
+    const rng = arena.rng();
+    for (let i = 0; i < (typeof params.count === 'number' ? params.count : 2) && pool.length > 0; i++) {
+      arena.buffPermanent(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+    const tick = arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + tick;
+    arena.logImprove(tick);
   },
 } as const;

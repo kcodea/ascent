@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena body 36 (Flowing Monk) closes the mechanical sweep; the final classification
+
+`overflowBuffRandom` migrates on the new `buffPermanent` verb (a shop buff IS permanent; combat also records
+the gain into `permaGain` regardless of Engrave — the Monk's gift keeps). Floor → **36 of 42**, and the
+MECHANICAL sweep is COMPLETE: every dual that could be unified without a ruling now has one body.
+
+One real bug caught by an existing test and fixed: the Monk body spliced its pick-pool, and the shop adapter's
+`friends()` handed back the LIVE board array — so buffed minions were being removed from the board. The body
+copies first, and the shop adapter now returns a copy so no future body can repeat it. (The combat adapter's
+`living()` result was already a fresh array, which is why nothing had caught it earlier.)
+
+**The remaining 6 of 42, classified:**
+- NEEDS A RULING — `echoSummonCopyNoEcho` (Ex-Galloper): the combat copy inherits the body's buffed stats +
+  keywords; the shop copy is a PLAIN base card. Should a shop-fired copy inherit too?
+- NEEDS A RULING — `onBattlecryBuffFodder` (Godfodder/Contract Imp): the shop half also applies Bane's
+  Existence's Demon-widen (`baneBuffsDemons`); the combat half doesn't. Should the quest widen fire in combat?
+- NEEDS A RULING — `onBattlecryBuffTribeAdjacentMore` (Karwind): golden = 2× MAGNITUDE in combat vs 2×
+  APPLICATIONS at base in the shop. Equal totals, different pulse counts (and the shop half carries the
+  karwindFlash FX bookkeeping). Pick one convention.
+- SKIPPED BY DESIGN — `spellCastTransform` (the shop swaps the form; combat defers the swap to settle),
+  `deathrattleReplayAdjacentBattlecry` and `battlecryTriggeredOwnDeathrattle` (these ARE the disruptors:
+  their bodies are "call the phase's dispatcher", and the dispatchers are the phase machinery itself — they
+  unify when Step 4's cross-phase dispatchers land, not before).
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 32–35: the hand-grant family and Anvilshade Smith
 
 Four more — floor → 35 of 42. `deathrattleGrantSpell`, `deathrattleGrantCardToHand` and

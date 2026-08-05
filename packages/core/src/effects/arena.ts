@@ -86,6 +86,14 @@ export interface EffectArena {
    *  legacy ritual: the shop's `buffImpsRunWide` (board + hand + the persistent aura); combat buffs the
    *  living Imps AND carries the aura back via `grantImpBuff` — so the body only states the amounts. */
   grantImpAura(attack: number, health: number): void;
+  /** The current Imp aura (combat: the side's live aura; shop: `RunState.impBuff`). */
+  impAura(): { attack: number; health: number };
+  /** Echoes (Deathrattles) triggered so far — combat: the side's run-wide base + this fight's; shop: the
+   *  run tally. Grim scales off this. */
+  deathrattleTally(): number;
+  /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
+   *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
+  addTribeAura(tribe: string, attack: number, health: number): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -261,5 +269,29 @@ export const ARENA_EFFECTS = {
     arena.buff(arena.self,
       (typeof params.attack === 'number' ? params.attack : 1) * g,
       (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Chef Raag — Echo: buff your whole board by the run's Imp aura, FLOORED at +1/+1 (owner 2026-07-21: with
+   *  no aura built up it still pays a baseline). Golden doubles. */
+  deathrattleBuffAllByImpAura(arena: EffectArena, _params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const imp = arena.impAura();
+    const a = Math.max(1, imp.attack) * g;
+    const h = Math.max(1, imp.health) * g;
+    for (const f of arena.friends()) arena.buff(f, a, h);
+  },
+
+  /** Grim — Echo: your minions of `tribe` gain +N/+N where N = Echoes triggered × `per` (golden doubles),
+   *  plus a rest-of-combat aura so later summons inherit it (a shop no-op by design). */
+  deathrattleBuffTribeByTally(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'any';
+    const amount = arena.deathrattleTally()
+      * (typeof params.per === 'number' ? params.per : 1)
+      * (arena.self.golden ? 2 : 1);
+    if (amount <= 0) return;
+    arena.addTribeAura(tribe, amount, amount);
+    for (const f of arena.friends()) {
+      if (f.uid !== arena.self.uid && (tribe === 'any' || arena.isTribe(f, tribe))) arena.buff(f, amount, amount);
+    }
   },
 } as const;

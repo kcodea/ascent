@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 15+16: Chef Raag and Grim
+
+`deathrattleBuffAllByImpAura` (the +1/+1 floor now lives in ONE place) and `deathrattleBuffTribeByTally`
+migrate — floor → 16. Grim brought three verbs: `impAura`, `deathrattleTally` (per-side in combat, so an
+ENEMY Grim still scales off the opponent's tally via the adapter), and `addTribeAura` — a deliberate shop
+NO-OP, since there is no rest-of-combat in a shop and the legacy shop half never registered one. One
+behavioural harmonisation: combat now shares the shop's `amount <= 0` skip, so a zero-tally Grim no longer
+emits empty 0/0 buff events into the replay. Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 13+14: Imp Overseer's Echo and Herald of the Divide
 
 `deathrattleBuffImps` and `onBattlecryBuffSelf` migrate — floor → 14. The Imp one is the interesting shape:

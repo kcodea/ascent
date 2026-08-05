@@ -98,6 +98,10 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     grantMaxGold: (amount) => { state.maxEmbers += amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
+    impAura: () => state.impBuff ?? { attack: 0, health: 0 },
+    deathrattleTally: () => state.deathrattlesTriggered ?? 0,
+    addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
+
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
@@ -1658,11 +1662,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Chef Raag (Echo): buff your whole board by the run's Imp aura, floored at +1/+1 — the same floor the
    *  combat half applies, so the card reads the same in either phase. */
-  deathrattleBuffAllByImpAura: (ctx, self) => {
-    const imp = ctx.state.impBuff ?? { attack: 0, health: 0 };
-    const a = Math.max(1, imp.attack) * gold(self);
-    const h = Math.max(1, imp.health) * gold(self);
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleBuffAllByImpAura: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleBuffAllByImpAura(shopArena(ctx.state, self), params);
   },
 
   /** Errand Fiend / Legion pieces (Echo): summon Imps, optionally keyworded and buffed as they land. */
@@ -3146,13 +3148,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Grim (recruit half) — give your `tribe` (Beasts) +N/+N where N = the run's Deathrattle tally × `per`
    *  (golden doubles `per`), baked into the board. Out of combat there's no aura — just the current tally. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffTribeByTally: (ctx, self, params) => {
-    const tribe = str(params.tribe) as Tribe | 'any';
-    const amount = (ctx.state.deathrattlesTriggered ?? 0) * num(params.per, 1) * gold(self);
-    if (amount <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) addBuff(c, nameOf(self), amount, amount);
-    }
+    ARENA_EFFECTS.deathrattleBuffTribeByTally(shopArena(ctx.state, self), params);
   },
 
   /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */

@@ -164,6 +164,9 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
+    impAura: () => ctx.impAura(self.side),
+    deathrattleTally: () => ctx.deathrattleTally(self.side),
+    addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
     grantImpAura: (a, h) => {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
       ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
@@ -524,14 +527,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  run-wide base + this combat's player Deathrattles, snapshotted now — Grim's own death is counted).
    *  Registers a rest-of-combat aura at that magnitude, then buffs the friends already on the board.
    *  Golden doubles `per`. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (per-side tally via the adapter).
   deathrattleBuffTribeByTally: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const tribe = str(params.tribe) as Tribe | 'any';
-    const amount = ctx.deathrattleTally(self.side) * num(params.per, 1) * mul(self); // per-side: enemy Grim uses the OPPONENT's tally
-    ctx.addTribeAura(self.side, tribe, amount, amount, self.uid);
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, amount, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffTribeByTally(combatArena(ctx, self), params);
   },
 
   /** On kill (Gnasher): buff self by +atk/+hp. Pairs with Engraved so the gain is permanent. The onKill
@@ -1034,14 +1033,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Chef Raag): give every living friendly minion +A/+H equal to your live Imp Aura this fight
    *  (golden doubles). Fires on death. */
-  deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (the +1/+1 floor lives there).
+  deathrattleBuffAllByImpAura: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const imp = ctx.impAura(self.side);
-    // FLOORED at +1/+1 (owner 2026-07-21): with no Imp Aura built up yet it still pays a baseline rather than
-    // nothing. `impAuraGrant` mirrors this exactly for the card text — keep the two in step.
-    const a = Math.max(1, imp.attack) * mul(self);
-    const h = Math.max(1, imp.health) * mul(self);
-    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAllByImpAura(combatArena(ctx, self), params);
   },
 
   /** Rally (The Godfodder): on each of its own attacks, permanently buff your Fodder +atk/+hp (golden ×2) —

@@ -42,6 +42,9 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     isCelestial: () => false,
     isImp: () => false,
     grantImpAura: () => {},
+    impAura: () => ({ attack: 0, health: 0 }),
+    deathrattleTally: () => 0,
+    addTribeAura: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -109,7 +112,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 14; // +deathrattleBuffImps, onBattlecryBuffSelf
+  const MIGRATED_FLOOR = 16; // +deathrattleBuffAllByImpAura (Chef Raag), deathrattleBuffTribeByTally (Grim)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

@@ -2,38 +2,191 @@
   "version": 1,
   "id": "landing-dust",
   "label": "Landing dust",
-  "tags": ["dust", "board", "tactile"],
-  "duration": 1000,
+  "tags": [
+    "dust",
+    "board",
+    "tactile"
+  ],
+  "duration": 1500,
   "layers": [
     {
-      "primitive": "burst",
-      "name": "footprint billow",
+      "primitive": "smoke",
       "anchor": "target",
       "at": 0,
-      "life": 1000,
+      "life": 560,
+      "muted": true,
       "params": {
-        "count": 22,
+        "rate": 185,
+        "life": 730,
         "spread": 1,
-        "speed": 110,
-        "speedVar": 0.55,
-        "drag": 0.78,
-        "gravity": 130,
-        "life": 820,
-        "emitShape": "ring",
-        "emitRadius": 78,
+        "speed": 25,
+        "speedVar": 0.5,
+        "gravity": 150,
+        "spin": 12,
+        "spinVar": 0.7,
+        "orientToVelocity": false,
+        "turbulence": 25,
+        "turbScale": 0.03,
+        "emitShape": "disc",
+        "emitRadius": 26,
+        "inheritVel": 0,
         "shape": "circle",
-        "size": 18,
-        "sizeVar": 0.5,
-        "sizeCurve": [[0, 0.35], [1, 1.6]],
-        "alphaCurve": [[0, 0.34], [1, 0.2]],
-        "coreBias": 0.35,
+        "size": 161,
+        "sizeVar": 0.45,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.55
+          ],
+          [
+            1,
+            1.35
+          ]
+        ],
+        "coreBias": 0.28,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.35
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
         "bands": 3,
         "plateau": 0.3,
-        "glow": 0,
-        "erode": 0.3,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "fadeIn": 0.22,
+        "palette": [
+          3287594,
+          5592415,
+          8947866,
+          12105928
+        ],
         "blendMode": "normal",
-        "palette": [4866100, 9075294, 13218959, 14931643]
+        "glow": 0,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.35,
+        "gain": 1
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "count": 40,
+        "interval": 100,
+        "spread": 1,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 25,
+        "speedVar": 0.43,
+        "drag": 0.8,
+        "gravity": -20,
+        "life": 1160,
+        "orientToVelocity": false,
+        "turbulence": 345,
+        "turbScale": 0.043,
+        "emitShape": "disc",
+        "emitRadius": 144,
+        "inheritVel": 0.71,
+        "shape": "circle",
+        "size": 155,
+        "sizeVar": 0.35,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.07428162300093932
+          ],
+          [
+            0.15943364184554185,
+            1.1155747957681654
+          ],
+          [
+            0.7943544081602116,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "coreBias": 0.39,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.005722636515993917
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4141609659087291
+          ],
+          [
+            0.46483875369477423,
+            0.11793089350687169
+          ],
+          [
+            0.6818367031014332,
+            0.001234717155268683
+          ],
+          [
+            0.998,
+            0
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "fade": 4,
+        "bands": 3,
+        "plateau": 0.21,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          9141108,
+          8024428,
+          8548968,
+          7759968
+        ],
+        "blendMode": "normal",
+        "glow": 0,
+        "noiseScale": 3.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.43,
+        "gain": 0.36
       }
     }
-  ]
+  ],
+  "slot": "under"
 }

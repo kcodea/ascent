@@ -1,5 +1,63 @@
 # ASCENT — development log
 
+## 2026-08-05 — The cascade actually reaches the badge: the gate goes, the maths generalises, four review findings close
+
+The entry below landed the scheduling mechanism and proved it in a browser — but only with a diagnostic
+`react` layer armed. Against the real shipped `ruby-gem-apply.json` the harness FAILED, spread 0, every
+number landing together. This closes that, generalises the arithmetic out of the Ruby channel, and fixes what
+a whole-branch review found afterwards.
+
+**`defCarriesNumber` is gone, and with it the reason the feature did nothing.** That gate was added the day
+before to fix a real bug: a cue withheld a number, no layer released it, and the badge froze until an
+unrelated re-render swept it. Correct then. The shared ticker made it wrong — every hold that is not
+`effect`-owned is now self-delivering, so gating the withhold on a def's authoring only prevented the cue from
+ever publishing its schedule. Harness against unmodified content: **spread 311ms**, four badges at
+286/380/508/597. Negative control with `startAt` stripped: spread 0, FAIL. The function had exactly one
+caller and is deleted.
+
+**The round-once rule moved somewhere generic.** `landHolds` in `fx/land.ts` groups scheduled lands by
+recipient, takes the FIRST land's time, and multiplies the per-gem share by the recipient's count **before**
+rounding — the discipline whose absence printed a badge one below its own pre-buff value earlier in this
+work. The caller supplies a possibly-fractional per-gem share and its own semantics; the arithmetic that had
+the bug lives in one tested place. `rubyLandHolds` is now a wrapper holding only Ruby meaning. `fx/land.ts`
+still has zero imports.
+
+**Four findings from the whole-branch review, none of which the per-task reviews could see:**
+
+- **The authored override never existed.** `fx/primitives/react.ts` imports `releaseStat`/`revealStat` and
+  never called `holdStat`, so a `react` layer could not create an `effect` hold — `origin: 'effect'` appeared
+  only in tests. Everything claiming an armed layer "outranks the cue" was false, in the code comments, the
+  spec and the plan. With a layer armed, the ticker and the def player drove one counter; a `roll` longer
+  than 420ms was outrun and the ticker DELETED the hold, discarding the authored timing. New `claimStat(uid)`
+  promotes a live hold to `effect` and the react primitive calls it when it commits to driving. Measured both
+  ways with a temporary 800ms carrying layer: **811ms** to settle with the claim, **502ms** without (the
+  ticker's `120 + 420` winning). Known ceiling, documented rather than hidden: a layer can only claim from
+  the moment it spawns, so one armed later than the cue's roll finishes still cannot — fail-open, and closing
+  it needs the def-level knowledge deliberately removed above.
+- **The fodder hold sat outside the commit that raised the value.** It was placed from a passive effect, and
+  from the End-of-Turn beat ten lines before `setEotAnimStats` — hold on the sync external-store lane, value
+  on the default lane, so any commit carrying one without the other printed below pre-buff. Its `tryShow`
+  retry could also place a fresh full-delta hold up to 650ms late, after the intrinsic roll had completed and
+  deleted, snapping the badge backwards for about a second. Gains now come from a pure `fx/fodderGains.ts`
+  and every path holds in the commit that raises.
+- **`releaseAllStats` was only wired to the phase flip**, inside `actionSfx`, which `newRun`,
+  `startSceneBuilder`, `pickHero`, `clearRun` and `continueRun` all bypass — while its comment claimed to
+  solve the uid-reuse-across-runs case it did not cover. Now `dropBoardFx`, called from all of them.
+- **Nothing proved a scheduled hold ever expires.** The existing test used a lifetime under the 1200ms floor,
+  so it exercised the flat TTL. Two new tests at `startAt 2000 / rollMs 500` cover both enforcement points —
+  the read sweep and the self-firing timer — and pin the deadline from both sides.
+
+Also: `revealStat` stamped `reel` before the monotonic check, harmless under one driver and not under two;
+and the harness asserted stagger but never the invariant — it recorded when a badge first CHANGED, never what
+it printed, so it would have passed a badge flashing `-1`. It now tracks per-uid min/max against a
+pre-change baseline. Negative control with the hold inflated by +3: `invariantHeld: false`, where the old
+harness passed.
+
+**Verified** — typecheck ✓, 3930 tests ✓, lint ✓ (7 pre-existing), harness PASS at spread 299ms with
+`invariantHeld: true` against byte-unmodified content. **Still open:** combat is untouched and is the
+follow-up plan — `Unit` renders `Card` without a `uid`, so no hold reaches a combat badge and `score.ts`'s
+`holdStat` remains inert.
+
 ## 2026-08-05 — Scheduled stat delivery lands for the shop; `releaseAllStats` finally gets called
 
 The seven-task plan ([`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))

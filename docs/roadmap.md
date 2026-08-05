@@ -23,15 +23,20 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 - **Stat readout choreography — the combat unification.** The SHOP half has SHIPPED
   (2026-08-05, [`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md),
-  all 7 tasks): `startAt`/`rollMs` on the hold, the `intrinsic < cue < effect` rank, one shared ticker in
-  `statHold` replacing the per-card rAF, `rubyLandSchedule` shared by the hold and the fire effect, both shop
-  cue sites (Ruby cascade, fodder tendril) adopted, the last `+X/+X` float cut, and `releaseAllStats` +
-  `clearAllSpellBuffs` finally wired to the phase-change edge in `store.ts` rather than sitting uncalled.
-  Browser-proven with a committed harness (`docs/superpowers/harness/cascade-verify.mjs`) plus a negative
-  control that fails when `startAt` is stripped — the mechanism is verified sound. (Currently DARK in the
-  shipped Ruby-gem effect specifically: the owner pulled `ruby-gem-apply`'s `react` layers in tuning
-  (`f219d122`), so that one cue falls through to the intrinsic roll by choice; re-arming it is a one-field
-  workbench edit whenever that call changes, not a code follow-up.)
+  9 tasks plus a fix wave): `startAt`/`rollMs` on the hold, the `intrinsic < cue < effect` rank, one shared
+  ticker in `statHold` replacing the per-card rAF, `rubyLandSchedule` shared by the hold and the fire effect,
+  both shop cue sites (Ruby cascade, fodder tendril) adopted, the last `+X/+X` float cut, `claimStat` so a
+  carrying `react` layer takes the clock instead of racing the ticker, the round-once rule generalised into
+  `fx/land.ts`'s `landHolds`, and `dropBoardFx` wired to every run swap rather than sitting uncalled.
+  Browser-proven with a committed harness (`docs/superpowers/harness/cascade-verify.mjs`) that now asserts
+  the invariant as well as the stagger, plus negative controls for both — it is LIVE on the shipped
+  `ruby-gem-apply` with no `react` layer armed, which is what dropping `defCarriesNumber` bought.
+
+  Three follow-ups recorded rather than closed: a carrying layer can only claim from the moment it SPAWNS,
+  so one armed with an `at` past the cue's roll completion still cannot (fail-open; closing it needs the
+  def-level `carries` knowledge deliberately removed); `revealStat`'s rejected-call ordering is correct but
+  pinned by no test, so it would regress silently; and the harness is a manual pre-merge gate rather than CI,
+  so the next change to `stepHolds` or the rank table gets none of its protection.
 
   What remains is the COMBAT half, deliberately unplanned until the shop half landed: the hold is installed by
   a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two

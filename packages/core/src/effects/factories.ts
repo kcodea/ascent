@@ -1,4 +1,5 @@
 import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import { ARENA_EFFECTS, type EffectArena } from './arena';
 import {ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -131,6 +132,22 @@ interface MinionPayload {
 }
 
 /** Grant a Divine Shield to a living minion (Mechs). Idempotent; logs a `shieldUp`. */
+/** The combat-side `EffectArena` adapter (Step 1 spike). Bodies pass through UNWRAPPED — `Minion` satisfies
+ *  `ArenaBody` structurally — and the verbs close over the `CombatContext`, so an arena effect emits the same
+ *  events (`shieldUp` etc.) as the legacy body it replaced. `rng()` hands over the fight's threaded stream. */
+function combatArena(ctx: CombatContext, self: Minion): EffectArena {
+  return {
+    phase: 'combat',
+    self,
+    friends: () => ctx.living(self.side),
+    hasShield: (t) => (t as Minion).divineShield === true,
+    grantShield: (t) => grantShield(ctx, t as Minion),
+    buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
+    grantRubyPower: (a, h) => ctx.gainRubyBonus(a, h, self.side, self.uid),
+    rng: () => ctx.rng,
+  };
+}
+
 function grantShield(ctx: CombatContext, m: Minion): void {
   if (m.dead || m.health <= 0 || m.divineShield) return;
   m.divineShield = true;
@@ -839,11 +856,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Deathrattle (Sporeling): give ALL living friends +atk/+hp (golden doubles). On a true death the dying
    *  body is already excluded from living(); when Battlecry-proc'd while alive (below) it buffs itself too. */
+  // ── ARENA-MIGRATED (Step 2): one body in arena.ts serves both phases.
   deathrattleBuffAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
-    for (const f of ctx.living(self.side)) ctx.buff(f, a, h, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAll(combatArena(ctx, self), params);
   },
 
   /** Sporeling — every Battlecry fired on this side (Ryme's combat replay emits `battlecryTriggered`) procs
@@ -1386,9 +1402,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rubyStatMultiplier: () => {},
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+    ARENA_EFFECTS.deathrattleRubyStatGain(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Resonance Idol, the COMBAT half: a Ruby played on this bounces the same stats to BOTH adjacent
@@ -2063,16 +2080,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
    *  Golden picks a target twice (independently). */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGiveHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const hp = self.maxHealth;
-    if (hp <= 0) return;
-    // Give `count` random other friends this minion's Health (golden doubles the number of grants).
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
-      const targets = ctx.living(self.side).filter((m) => m !== self);
-      if (targets.length === 0) break;
-      ctx.buff(ctx.rng.pick(targets), 0, hp, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleGiveHealth(combatArena(ctx, self), params);
   },
 
   /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn (read from
@@ -2119,10 +2130,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Sergeant — Deathrattle: give all living friendly minions +Health equal to `params.health` × golden,
    *  plus any `hpGrantBonus` accumulated by the Sergeant gaining Attack during this combat. */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffAllHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const hp = num(params.health, 2) * mul(self) + (self.hpGrantBonus ?? 0);
-    for (const m of ctx.living(self.side)) ctx.buff(m, 0, hp, self.uid);
+    ARENA_EFFECTS.deathrattleBuffAllHealth(combatArena(ctx, self), params);
   },
 
   /** Sergeant — when THIS minion's Attack rises in combat (onGainAttack), improve the Deathrattle's
@@ -2983,16 +2994,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  on a wide board the random pick would do that often. Falls back to the full living set only if everyone is
    *  already shielded (where it's a no-op anyway). Picks are DISTINCT: `count` is a number of minions, not a
    *  number of rolls, so the same body can't soak both. */
+  // ── ARENA-MIGRATED (Step 1 spike): the body lives ONCE in arena.ts; this wrapper only guards the
+  //    dispatch payload and hands over the combat adapter. The legacy body is deleted, not deprecated.
   deathrattleGrantWardRandom: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const pool = ctx.living(self.side).filter((m) => m !== self && !m.divineShield);
-    let n = num(params.count, 2) * mul(self);
-    while (n > 0 && pool.length > 0) {
-      const target = ctx.rng.pick(pool);
-      pool.splice(pool.indexOf(target), 1); // distinct targets
-      grantShield(ctx, target);
-      n--;
-    }
+    ARENA_EFFECTS.deathrattleGrantWardRandom(combatArena(ctx, self), params);
   },
 
 

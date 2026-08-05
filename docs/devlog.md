@@ -1,5 +1,90 @@
 # ASCENT — development log
 
+## 2026-08-04 — Ruby family begins: deathrattleRubyStatGain is the fifth arena body
+
+First Ruby-family migration, and the first arena verb that touches RUN-WIDE state rather than a body:
+`grantRubyPower(a, h)`. The adapters own their ledgers — combat routes through its carry-back channel
+(`ctx.gainRubyBonus`), the shop raises `rubyBonus` and keeps hand Rubies current (the `rubyStatGain` core
+WITHOUT its golden multiplier, since the shared body already applies golden — the double-count trap the
+delegate-to-rubyStatGain shape would have walked into). Both legacy halves deleted; floor → 5. Gates:
+typecheck ✓, 3,898 tests ✓, `build:web` ✓, harness ✓.
+
+## 2026-08-04 — Trickster's Echo: random in BOTH phases (owner ruling), fourth body migrates
+
+The sweep's first DIVERGENT dual, resolved by ruling rather than migration mechanics.
+`deathrattleGiveHealth` (Trickster) behaved differently by phase on purpose: combat gave its Health to a
+RANDOM friend per grant; the shop gave it to the highest-Attack carry — a workaround from before the cursor
+RNG existed ("out of combat there's no RNG"), long stale. Owner: **"random = random in both shop and in
+combat."** The carry pick is retired; the shop Echo now rolls on the run's cursor like everything else.
+
+One body serves both phases: `maxHealth ?? health` (combat carries a separate max; the shop's printed health
+IS its max — `maxHealth` joins `ArenaBody` as optional), `count × golden` grants (the shop half also gains the
+`count` param it previously ignored; identical for all existing content), targets may repeat across grants
+(the legacy combat behaviour — the pool is re-drawn per grant, not spliced). Ratchet floor → 4.
+
+This is the pattern for the rest of the divergent duals the sweep will surface: log the divergence, get a
+one-line ruling, migrate to the ruled behaviour. Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓,
+`build:web` ✓, harness ✓.
+
+## 2026-08-04 — Effect Arena Step 3 begins: Sergeant's Echo migrates
+
+Third shared body: `deathrattleBuffAllHealth` (Sergeant). Both legacy halves deleted; the ratchet floor rises
+to 3. First body to read a PER-INSTANCE accrual — `hpGrantBonus` joins `ArenaBody` as an optional field, which
+both phases' minion types already carry structurally, so neither adapter changed. The shop half's `hp <= 0`
+guard is kept in the shared body (unreachable in content, harmless in combat). Gates: typecheck ✓, lint ✓
+(7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness ✓.
+
+## 2026-08-04 — Effect Arena Step 2: the buff verb, a second migration, and the ratchet
+
+Same branch as Step 1, building on the green spike.
+
+- **`buff` joins the arena vocabulary.** The SOURCE label is the adapter's job — combat attributes by uid
+  (the event log's format), the shop by display name (the inspect-breakdown's format) — so one body serves
+  both ledgers without unifying them, exactly as the spec predicted.
+- **`deathrattleBuffAll` migrated** — the second shared body, and the first with no RNG. Both legacy halves
+  deleted. The membership nuance is preserved BY the adapters rather than restated: `friends()` is the living
+  in combat (a dead self naturally absent) and the whole board in the shop (self included), which is exactly
+  what each legacy loop iterated.
+- **The ratchet is in** (`effectArena.test.ts`): the migrated count may only rise (`MIGRATED_FLOOR`, raised
+  per migration and never lowered), and every shared body must be reachable from BOTH phases — a combat
+  wrapper in `FACTORIES` and a shop wrapper in `recruit.ts` (checked against source, with the
+  instrument-alive guard the tallyCoverage lesson demands). No phase registry, no allowlist — the owner's
+  simplification, enforced by reachability instead of labels.
+
+Gates: typecheck ✓, lint ✓ (7 pre-existing), 3,898 tests ✓, `build:web` ✓, harness determinism ✓.
+
+**Step 3 is next**: the family sweep, starting with the remaining 40 duals (Ruby family first).
+
+## 2026-08-04 — Effect Arena Step 1: the RNG spike is GREEN
+
+The gate on the whole plan (docs/effect-arena-spec.md), and it passed on the strictest evidence available.
+
+**What was built:** `packages/core/src/effects/arena.ts` — the first cut of `EffectArena` (`friends` /
+`hasShield` / `grantShield` / `rng`, deliberately spike-sized) plus `ARENA_EFFECTS`, the shared-body registry.
+`deathrattleGrantWardRandom` (Lastlight, an effect that actually ROLLS) is written once there; both legacy
+bodies are DELETED and replaced with one-line wrappers handing over an adapter — `combatArena` in
+`factories.ts` (threads the fight's live `Rng`, emits the same `shieldUp` events), `shopArena` in `recruit.ts`
+(wraps `state.rngCursor` with per-call write-back; mulberry32's state round-trips exactly, so per-call
+reconstruction is the same stream as one long-lived instance).
+
+**The proof, per the spec's three criteria:**
+1. A 40-seed hash probe over BOTH phases (full combat event logs + result; shop board mutations + final
+   cursor), captured BEFORE the migration and re-run after — **byte-identical hashes**
+   (`62f73919…`, `8702a866…`). Not a single draw moved.
+2. Full suite green with ZERO golden updates (3,896).
+3. `npm run harness` determinism ✓.
+
+Why it worked first try: both legacy halves already drew identically — one `int(len)` per grant on a
+shrinking board-ordered pool (`rng.pick` + splice ≡ `int` + splice). The spike confirms the spec's claim that
+the RNG risk was carriage, not algorithm.
+
+The throwaway probe is deleted; `effectArena.test.ts` (5) is the committed guard — the body is phase-blind
+(same stream ⇒ same picks under any adapter), golden doubles and the pool bounds, the combat path emits
+`shieldUp`, and the shop path grants + ADVANCES the cursor (a non-advancing cursor would replay differently on
+restore, the exact class the write-back contract prevents).
+
+**Step 2 is unblocked** — grow the interface (buff/summon/announce + defer/no-op probes), migrate
+`deathrattleBuffAll`, add the ratchet test.
 ## 2026-08-04 — Effect Arena simplified: no registries, migrate by trigger family
 
 Owner pushback on the scoped plan, and it was right: *"I feel like we're building the scope out further than

@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, type EffectArena, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -40,6 +40,38 @@ type RecruitFn = (
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
+
+/** The shop-side `EffectArena` adapter (Step 1 spike). `BoardCard` satisfies `ArenaBody` structurally and
+ *  passes through unwrapped. `rng()` wraps the run's cursor with per-call write-back: mulberry32's state
+ *  round-trips exactly, so create→draw→store per call is the SAME stream as one long-lived instance — the
+ *  legacy bodies' draw sequences are preserved bit-for-bit (the Step-1 hash probe is the proof). */
+function shopArena(state: RunState, self: BoardCard): EffectArena {
+  const cursorRng: Rng = {
+    next: () => { const r = makeRng(state.rngCursor); const v = r.next(); state.rngCursor = r.state(); return v; },
+    int: (maxExclusive) => { const r = makeRng(state.rngCursor); const v = r.int(maxExclusive); state.rngCursor = r.state(); return v; },
+    pick: (xs) => xs[cursorRng.int(xs.length)] as never,
+    fork: () => makeRng((cursorRng.next() * 4294967296) >>> 0),
+    state: () => state.rngCursor,
+  };
+  return {
+    phase: 'shop',
+    self,
+    friends: () => state.board,
+    hasShield: (t) => t.keywords.includes('DS'),
+    grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
+    buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
+    grantRubyPower: (a, h) => {
+      // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
+      // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
+      const b = state.rubyBonus ?? { attack: 0, health: 0 };
+      state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+      for (const card of state.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+      }
+    },
+    rng: () => cursorRng,
+  };
+}
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
 // `c` is optional: an UNTARGETED spell cast (Safety Deposit Box) routes through the cast-effect dispatch
@@ -1286,17 +1318,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  has always existed; this one was MISSING, so a Funeral-on-Loan Lastlight destroyed in the shop fired an
    *  Echo that did nothing (owner report 2026-08-03). Mirrors the combat factory's shape: distinct picks,
    *  preferring bodies that don't already have Ward. Deterministic (run rngCursor). */
+  // ── ARENA-MIGRATED (Step 1 spike): the body lives ONCE in @game/core's arena.ts. The legacy body — the
+  //    shop half of the same sentence — is deleted, not deprecated.
   deathrattleGrantWardRandom: (ctx, self, params) => {
-    const state = ctx.state;
-    const unshielded = state.board.filter((c) => c.uid !== self.uid && !c.keywords.includes('DS'));
-    let n = num(params.count, 2) * gold(self);
-    const rng = makeRng(state.rngCursor);
-    while (n > 0 && unshielded.length > 0) {
-      const target = unshielded.splice(rng.int(unshielded.length), 1)[0]!;
-      target.keywords = [...target.keywords, 'DS'];
-      n--;
-    }
-    state.rngCursor = rng.state();
+    ARENA_EFFECTS.deathrattleGrantWardRandom(shopArena(ctx.state, self), params);
   },
 
   onBattlecryBuffSelf: (ctx, self, params) => {
@@ -1718,8 +1743,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  report 2026-08-03). Delegates to `rubyStatGain` so the two stay identical by construction rather than by
    *  someone remembering to keep them in step. The Ruby-power flourish needs no wiring: the reducer derives it
    *  from the `rubyBonus` delta, so it fires the moment this does. */
-  deathrattleRubyStatGain: (ctx, self, params, payload) => {
-    RECRUIT_FACTORIES.rubyStatGain?.(ctx, self, params, payload);
+  // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
+  deathrattleRubyStatGain: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleRubyStatGain(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Geode Guardian (Echo, RECRUIT half): summon `count` Gemheart Golems with Taunt and play `rubies`
@@ -3084,10 +3110,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Deathrattle: give every board minion +atk/+hp (Sporeling — golden doubles). Out-of-combat resolution
    *  (a Consumed Sporeling still feeds the board). */
+  // ── ARENA-MIGRATED (Step 2): one body in arena.ts serves both phases.
   deathrattleBuffAll: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
+    ARENA_EFFECTS.deathrattleBuffAll(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
@@ -3148,22 +3173,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Sergeant (recruit half) — give every board minion +Health (base × golden + its combat-accrued hpGrantBonus). */
+  // ── ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffAllHealth: (ctx, self, params) => {
-    const hp = num(params.health, 2) * gold(self) + (self.hpGrantBonus ?? 0);
-    if (hp <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, hp);
+    ARENA_EFFECTS.deathrattleBuffAllHealth(shopArena(ctx.state, self), params);
   },
 
   /** Trickster (recruit half) — give the carry (highest-Attack friend) this minion's Health; golden picks twice. */
-  deathrattleGiveHealth: (ctx, self) => {
-    const hp = self.health;
-    if (hp <= 0) return;
-    for (let i = 0; i < gold(self); i++) {
-      const friends = ctx.state.board.filter((c) => c !== self);
-      if (friends.length === 0) break;
-      const t = friends.reduce((a, b) => (b.attack > a.attack ? b : a));
-      addBuff(t, nameOf(self), 0, hp);
-    }
+  // ── ARENA-MIGRATED (Step 3): one body; RANDOM in both phases (owner ruling 2026-08-04 — the old
+  //    highest-Attack carry pick predated the cursor RNG and is retired).
+  deathrattleGiveHealth: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGiveHealth(shopArena(ctx.state, self), params);
   },
 
   /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */

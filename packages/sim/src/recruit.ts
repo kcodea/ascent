@@ -89,6 +89,12 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
+    gainRubyStats: (t, a, h) => addBuff(t as BoardCard, 'Ruby', a, h), // NO fireOnRubyPlayed - the no-rebounce guard
+    neighboursOf: (t) => {
+      const idx = state.board.findIndex((c) => c.uid === t.uid);
+      if (idx < 0) return [];
+      return [state.board[idx - 1], state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+    },
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1301,30 +1307,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Resonance Idol: when a Ruby is played on THIS minion, bounce the same buff to BOTH adjacent
    *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
+  // ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    const rubyAttack = payload.rubyAttack ?? 0;
-    const rubyHealth = payload.rubyHealth ?? 0;
-    const board = ctx.state.board;
-    const idx = board.indexOf(self);
-    if (idx < 0) return;
-    const reps = self.golden ? num(params.goldenReps, 2) : 1;
-    // `random: N` bounces to N RANDOM other friends instead of the two neighbours (Resonance Idol, owner
-    // rework 2026-07-27) — position no longer gates the payoff. Seeded, and picks are DISTINCT so one body
-    // can't soak both bounces.
-    const randomN = num(params.random, 0);
-    if (randomN > 0) {
-      const pool = board.filter((c) => c !== self);
-      const rng = makeRng(ctx.state.rngCursor);
-      for (let i = 0; i < randomN && pool.length > 0; i++) {
-        const t = pool.splice(rng.int(pool.length), 1)[0]!;
-        for (let r = 0; r < reps; r++) addBuff(t, 'Ruby', rubyAttack, rubyHealth);
-      }
-      ctx.state.rngCursor = rng.state();
-      return;
-    }
-    for (const adj of [board[idx - 1], board[idx + 1]]) {
-      if (adj) for (let r = 0; r < reps; r++) addBuff(adj, 'Ruby', rubyAttack, rubyHealth);
-    }
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0 });
   },
 
   /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the

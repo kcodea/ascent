@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-04 — Resonance Idol: the sweep finds its first SILENT drift; tenth arena body
+
+`rubyPlayedBounce` migrates, and unification FIXED a real divergence rather than just deduplicating: the
+2026-07-27 rework ("`random: N` bounces to N distinct random friends — position no longer gates the payoff")
+had only ever landed in the SHOP half. Combat ignored the param entirely and kept bouncing to the two
+neighbours, so the same card behaved differently by phase and nothing on any surface said so. This is the
+exact defect class the arena exists for, found by the sweep as predicted.
+
+One body now implements the reworked design everywhere. Two new verbs: `gainRubyStats` (ruby stats WITHOUT
+the onRubyPlayed notification — the load-bearing no-rebounce guard, so two Idols can never ping a Ruby
+forever) and `neighboursOf` (combat: `livingNeighbours`; shop: board-index ±1). The Ruby amounts ride the
+params (merged from the dispatch payload by the wrappers). Floor → 10.
+
+No test moved — the drift was silent precisely BECAUSE nothing covered the combat path under `random`.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Insurance Policy is a legal dud (owner ruling); Ward golden parity confirmed
 
 Two rulings from the discernment list:

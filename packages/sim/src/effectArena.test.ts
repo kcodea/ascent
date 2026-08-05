@@ -36,6 +36,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     hasReborn: () => false,
     grantReborn: () => {},
     isTribe: () => true,
+    gainRubyStats: () => {},
+    neighboursOf: () => [],
     rng: () => rng,
   };
   return { arena, granted };
@@ -103,7 +105,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 9; // +deathrattleGrantReborn, deathrattleGrantShield (random both, standing ruling)
+  const MIGRATED_FLOOR = 10; // +rubyPlayedBounce (drift FIXED: combat now honours the random-N rework)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

@@ -156,6 +156,8 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, false, false, ov);
     },
     playRubiesOn: (t, per) => playRubyOn(ctx, self, t as Minion, per),
+    gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
+    neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
     hasReborn: (t) => (t as Minion).rebornAvailable === true || t.keywords.includes('R'),
     grantReborn: (t) => {
       const m = t as Minion;
@@ -1415,15 +1417,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *
    *  Bounces via `applyRubyStats`, NOT `playRubyOn`, so the bounced Ruby does not itself count as "a Ruby played
    *  on" the neighbour — two adjacent Idols would otherwise bounce forever. Same reasoning as the recruit half. */
+  // ARENA-MIGRATED (Step 3, Ruby family). This unification FIXED drift: the 2026-07-27 random-N rework had
+  // only ever landed in the shop half, so combat still bounced to neighbours while the shop went random.
   rubyPlayedBounce: (ctx, self, params, payload) => {
     const { rubyAttack, rubyHealth } = payload as { rubyAttack?: number; rubyHealth?: number };
-    const a = rubyAttack ?? 0;
-    const h = rubyHealth ?? 0;
-    if (a <= 0 && h <= 0) return;
-    const reps = self.golden ? num(params.goldenReps, 2) : 1;
-    for (const adj of livingNeighbours(ctx, self)) {
-      for (let r = 0; r < reps; r++) applyRubyStats(ctx, self, adj, a, h);
-    }
+    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth });
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */

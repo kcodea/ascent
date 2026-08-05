@@ -70,6 +70,11 @@ export interface EffectArena {
   grantReborn(t: ArenaBody): void;
   /** Does `t` belong to `tribe`? Adapters fold in tribe2 + universalTribe, each phase's own way. */
   isTribe(t: ArenaBody, tribe: string): boolean;
+  /** Ruby STATS without the onRubyPlayed notification — the bounce primitive. The missing notification is
+   *  the load-bearing no-rebounce guard: two adjacent Resonance Idols must not ping a Ruby forever. */
+  gainRubyStats(t: ArenaBody, attack: number, health: number): void;
+  /** The nearest living neighbours (left, right) of a body. */
+  neighboursOf(t: ArenaBody): ArenaBody[];
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -181,6 +186,35 @@ export const ARENA_EFFECTS = {
       const pool = arena.friends().filter((m) => m.uid !== arena.self.uid && !arena.hasShield(m));
       if (pool.length === 0) return;
       arena.grantShield(pool[rng.int(pool.length)]!);
+    }
+  },
+
+  /** Resonance Idol — a Ruby played on this bounces the same stats onward (golden: `goldenReps` per target).
+   *  `random: N` (the 2026-07-27 rework — position no longer gates the payoff) bounces to N DISTINCT random
+   *  friends; without it, to the two neighbours. The bounce uses `gainRubyStats` (no watcher notification) so
+   *  a bounce can never re-trigger a bounce.
+   *
+   *  UNIFICATION FIXED REAL DRIFT: the rework only ever landed in the shop half — combat ignored `random` and
+   *  kept bouncing to neighbours, so the same card behaved differently by phase. One body now implements the
+   *  reworked design everywhere. The Ruby amounts arrive via params (`rubyAttack`/`rubyHealth`, merged from
+   *  the dispatch payload by the wrappers). */
+  rubyPlayedBounce(arena: EffectArena, params: Record<string, unknown>): void {
+    const a = typeof params.rubyAttack === 'number' ? params.rubyAttack : 0;
+    const h = typeof params.rubyHealth === 'number' ? params.rubyHealth : 0;
+    if (a <= 0 && h <= 0) return;
+    const reps = arena.self.golden ? (typeof params.goldenReps === 'number' ? params.goldenReps : 2) : 1;
+    const randomN = typeof params.random === 'number' ? params.random : 0;
+    if (randomN > 0) {
+      const rng = arena.rng();
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+      for (let i = 0; i < randomN && pool.length > 0; i++) {
+        const t = pool.splice(rng.int(pool.length), 1)[0]!;
+        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h);
+      }
+      return;
+    }
+    for (const adj of arena.neighboursOf(arena.self)) {
+      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h);
     }
   },
 } as const;

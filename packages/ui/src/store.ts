@@ -14,6 +14,8 @@ export interface CombatQuestDelta {
   slaughterByTribe: Partial<Record<Tribe, number>>;
 }
 import { sfx } from './sfx';
+import { releaseAllStats } from './fx/statHold';
+import { clearAllSpellBuffs } from './spellBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
@@ -123,6 +125,14 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
     case 'discover': sfx.buy(); break;
     case 'faceOmen': sfx.combatStart(); break;
     default: break;
+  }
+  // A hold must never outlive the scene that placed it. uids are reused across runs, so a survivor
+  // withholds someone else's number — and `heldFor` sweeps on read, so nothing would notice. Caught while
+  // scoping the combat unification: `releaseAllStats` has existed, documented for exactly this, and been
+  // called by nothing but its own tests. Survivable only while the store served a single surface.
+  if (prev.phase !== next.phase) {
+    releaseAllStats();
+    clearAllSpellBuffs();
   }
   // A Discover choice just OPENED (any action that set run.discover — playing a Discover spell, a golden's
   // reward, etc.): play the discover cue, on top of the triggering action's own sound.

@@ -1,5 +1,86 @@
 # ASCENT — development log
 
+## 2026-08-05 — Scheduled stat delivery lands for the shop; `releaseAllStats` finally gets called
+
+The seven-task plan ([`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))
+is done. A badge's stat change now carries three separate facts instead of one conflated event: the DELTA
+(whoever caused it), WHEN it lands (a cue's schedule, or nothing — meaning now), and HOW it lands (the shared
+ticker's roll, unless an authored `react` layer overrides it). Splitting those apart is what makes a cascade
+possible: an Excavator dropping four gems across the board can now deliver each minion's number on its OWN
+gem's arrival instead of all four landing on the reducer's tick, which is the one thing that visibly proves an
+effect isn't just decoration.
+
+**The shared ticker.** `statHold` used to run one rAF loop per `Card` mounted, each polling its own hold.
+That doesn't scale to "N holds, each with its own delivery time" — a per-card loop has no way to know when a
+DIFFERENT card's hold is due, so nothing could stagger. One ticker now owns every live hold, walks `scheduleFor(uid)`
+against the player's own clock, and calls `revealStat` at each hold's `startAt`. `Card`'s old per-instance rAF
+and its failsafe timer are gone; the module is the single clock the whole board reads from, which is also what
+makes combat-speed changes and scrubbing carry a mid-roll cascade for free instead of needing a second wiring.
+
+**`origin` becomes a three-way rank, not a boolean.** `intrinsic < cue < effect`: the badge's own "any stat
+change rolls, no authoring required" floor never overrides an authored cue, an authored cue never overrides a
+live effect mid-delivery, and same-rank holds still accumulate (two shop buffs landing in one commit sum
+rather than clobber). This is what makes "decline to hold, fall through to the intrinsic roll" a safe default
+rather than a special case — every one of these three tasks that skips arming a schedule was already covered
+by the rank that shipped two days ago, not by anything new.
+
+**Two cue sites adopted the schedule.** The shop Ruby cascade (`rubyLandSchedule`, one `scheduleLands` call
+now shared by both the hold and the fire effect, so the badge and the gem detonation cannot compute two
+schedules that merely agree today) and the fodder-eat tendril (`holdStat(uid, ..., { origin: 'cue', startAt:
+CRUMBLE_MS + icfg.travelMs })`, placed at commit time so the eater's digits change exactly when the tendril
+arrives). The tendril adoption also cut the LAST `+X/+X` float left in the game — recruit's generic float went
+with the intrinsic roll two days ago, combat's lives in `choreo/channels/float.ts` and was never a float, and
+this was the one place a float and a badge were still both racing to tell the player the same number.
+`statFloats`/`setStatFloats`/`statFloatKey` and `Card`'s `buffFloat` prop are deleted; grep confirmed nothing
+else produced them.
+
+**`releaseAllStats` and `clearAllSpellBuffs` are now called in production.** Both have existed since the
+scheduling work began, documented for exactly this — "drop every hold when the scene that placed it is gone" —
+and called by nothing but their own tests. Survivable only while the store served a single surface; the moment
+combat starts reading from the same module, a hold that outlives its scene withholds a NUMBER THAT BELONGS TO
+WHOEVER NEXT REUSES THAT UID, since uids are reused across runs and `heldFor` sweeps expired holds silently on
+read rather than announcing the leak. Wired into `store.ts`'s post-dispatch cue dispatcher, the same function
+that already diffs `prev`/`next` run state for sound cues: on any `prev.phase !== next.phase` edge, both get
+called. This was flagged as a prerequisite in the original design doc and stayed unaddressed through six tasks
+of building the delivery mechanism itself — closing it here, before combat's half of this plan starts reading
+the same store, is the point of doing it now rather than discovering it mid-fight.
+
+**Proven in a browser, not just in tests — and the negative control matters more than the pass.**
+A committed harness (`docs/superpowers/harness/cascade-verify.mjs`, driven headless over CDP against the real
+dev server) buys and plays four minions, fires a synthetic board-wide Ruby cascade exactly like a Frenzied
+Excavator would, and samples every badge's `.value` on every animation frame to find when each one actually
+changes. Two things had to be fixed in the harness itself before it measured anything real: `buy` splices the
+purchased offer out of `run.shop`, so re-reading `shop[0]` after the first purchase (the original sketch)
+handed later iterations an already-emptied slot with no `cardId`; and the starting shop's three offers aren't
+guaranteed distinct, so reusing one card id three times fired the triple-merge and silently left fewer than
+four board minions to cascade across. Fixed by rolling until four distinct card ids have been seen and driving
+each purchase off one of them.
+
+With a `react` layer armed to carry the number (verified with a temporary layer, then reverted — see below),
+the harness passes cleanly: `landedAt` of `{b8: 155, b9: 285, b10: 435, b11: 478}`, a 323ms spread across four
+recipients at the `RUBY_GAP_MS = 100` cascade rate. The negative control matters more than that pass: with
+`startAt` stripped from the shop's `holdStat` call (`{ origin: 'cue' }` instead of `{ origin: 'cue', startAt:
+hold.at + RUBY_DELIVER_OFFSET_MS }`), the SAME harness against the SAME armed content prints `landedAt` of
+`{b8: 115, b9: 115, b10: 115, b11: 115}` — spread 0, exit code 1, `FAIL`. A harness that passes whether or not
+the feature it's testing is wired up is worse than no harness; this one only passes when the schedule is
+actually driving delivery, which is the thing this whole plan built. Both edits — the diagnostic layer and the
+negative-control line — were reverted after use; `git diff` against `Recruit.tsx` and `ruby-gem-apply.json` is
+clean.
+
+**One finding worth stating loudly rather than smoothing over.** Run against the ACTUAL committed
+`ruby-gem-apply.json` — no diagnostic layer — the harness prints `FAIL` (spread 0, all four badges land on the
+same frame). This is not a regression from this plan: commit `f219d122` (owner tuning, same branch, the day
+before this task) deliberately removed both `react` layers from that def, with a commit message that
+independently re-derives the exact same measurement this task's harness produced — "verified delivering at
+762ms on the def's own clock rather than the intrinsic 420ms" — and chose the intrinsic roll instead. The
+scheduling MECHANISM this plan built is correct and proven; the shop's shipped Ruby-gem effect currently opts
+out of using it, by explicit owner decision already baked into this branch's history. Re-arming
+`ruby-gem-apply.json` is a one-field workbench edit (`carries: true` on a `react` layer) whenever that call
+changes, not a code change — nothing in this plan is blocked on it.
+
+Gates: `npx tsc -b` clean, `npx vitest run` at the existing baseline (3912 passing, no new failures), `npx
+eslint .` at the pre-existing 7 warnings tree-wide (no new ones).
+
 ## 2026-08-04 — Plan: scheduled stat delivery, the shop half (plan only, no code)
 
 Implementation plan for the shop half of the choreography design:

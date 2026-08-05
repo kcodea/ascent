@@ -21,24 +21,28 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Stat readout choreography — implement the approved design.** Split into two plans. The SHOP half is
-  planned and ready to execute:
-  [`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md)
-  (7 tasks: schedule fields → origin rank → shared ticker → the `rubyLandSchedule` helper → shop cascade →
-  fodder tendril + the last `+X/+X` float → `releaseAllStats` + browser proof with a negative control). The
-  COMBAT half is deliberately unplanned until the shop half lands: the hold is installed by a wholesale
-  per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two post-paint
-  callbacks keyed on a `strikeMs` computed only there, so `startAt` forces those into one decision — a
-  restructure of the beat pipeline, not a field addition. Design doc for both:
+- **Stat readout choreography — the combat unification.** The SHOP half has SHIPPED
+  (2026-08-05, [`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md),
+  all 7 tasks): `startAt`/`rollMs` on the hold, the `intrinsic < cue < effect` rank, one shared ticker in
+  `statHold` replacing the per-card rAF, `rubyLandSchedule` shared by the hold and the fire effect, both shop
+  cue sites (Ruby cascade, fodder tendril) adopted, the last `+X/+X` float cut, and `releaseAllStats` +
+  `clearAllSpellBuffs` finally wired to the phase-change edge in `store.ts` rather than sitting uncalled.
+  Browser-proven with a committed harness (`docs/superpowers/harness/cascade-verify.mjs`) plus a negative
+  control that fails when `startAt` is stripped — the mechanism is verified sound. (Currently DARK in the
+  shipped Ruby-gem effect specifically: the owner pulled `ruby-gem-apply`'s `react` layers in tuning
+  (`f219d122`), so that one cue falls through to the intrinsic roll by choice; re-arming it is a one-field
+  workbench edit whenever that call changes, not a code follow-up.)
+
+  What remains is the COMBAT half, deliberately unplanned until the shop half landed: the hold is installed by
+  a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two
+  post-paint callbacks keyed on a `strikeMs` computed only there, so `startAt` forces those into one decision —
+  a restructure of the beat pipeline, not a field addition — on top of the absolute-to-delta conversion, the
+  wholesale-rebuild semantics the accumulating store lacks, `.statflash`'s retirement, and `autoRoll` on
+  `Card`. Design doc:
   [`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
-  Makes *when a number lands* a first-class property of a stat change, so a cascade's numbers follow the
-  cascade instead of all landing on the reducer tick. Four parts: `startAt`/`rollMs` + an origin RANK on the
-  hold; one shared ticker in `statHold` replacing the per-card rAF; combat's bespoke `statHold`/`statFlash`
-  props deleted in favour of the module store (which also makes `score.ts`'s long-dead `holdStat` live); and
-  three cue sites publishing the `Land` schedule they already compute. `statflash` is RETIRED into the badge
-  pop as part of this, not left running alongside it. **Prerequisite:** `releaseAllStats` is never called in
-  production today — it must be wired to the recruit ↔ combat transitions before combat reads the store.
-  Merge is gated on a per-frame combat assertion that no badge ever shows a wrong number mid-fight.
+  Write the combat plan against the shared ticker's real (now browser-verified) behaviour rather than a
+  prediction of it. Merge is gated on a per-frame combat assertion that no badge ever shows a wrong number
+  mid-fight.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

@@ -96,6 +96,13 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
+    grantKeywordTo: (t, kw) => { const c = t as BoardCard; c.keywords = [...c.keywords, kw as Keyword]; },
+    grantSpellPower: (a, h) => {
+      state.spellBonus ??= { attack: 0, health: 0 };
+      state.spellBonus.attack += a;
+      state.spellBonus.health += h;
+    },
+    targetTribe: () => CARD_INDEX[self.cardId]?.targetTribe,
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
     gainRubyStats: (t, a, h) => addBuff(t as BoardCard, 'Ruby', a, h), // NO fireOnRubyPlayed - the no-rebounce guard
     neighboursOf: (t) => {
@@ -112,6 +119,17 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
     grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
+    grantMagneticAura: (a, h) => {
+      for (const card of [...state.board, ...state.hand]) {
+        if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+      }
+      state.magneticBuyAtk = (state.magneticBuyAtk ?? 0) + a;
+      state.magneticBuyHp = (state.magneticBuyHp ?? 0) + h;
+    },
+    grantBeastExtra: (hunt, ritual) => {
+      if (hunt) state.beastHuntExtra = (state.beastHuntExtra ?? 0) + hunt;
+      if (ritual) state.beastRitualExtra = (state.beastRitualExtra ?? 0) + ritual;
+    },
     tribesOf: (t) => {
       const def = CARD_INDEX[t.cardId];
       return [def?.tribe, def?.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');
@@ -195,18 +213,6 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const gold = (c?: BoardCard): number => (c?.golden ? 2 : 1);
 /** A card's display name (the buff-source label in the inspect breakdown). */
 const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? card.cardId;
-
-/** Pick up to `n` distinct items from `arr`, advancing the run's seeded RNG cursor — for recruit-phase
- *  "random target" effects (Guel, Monk). Deterministic given the cursor, so replays/sims stay exact. */
-function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
-  if (arr.length <= n) return [...arr];
-  const rng = makeRng(state.rngCursor);
-  const pool = [...arr];
-  const out: T[] = [];
-  for (let i = 0; i < n && pool.length > 0; i++) out.push(pool.splice(rng.int(pool.length), 1)[0]!);
-  state.rngCursor = rng.state();
-  return out;
-}
 
 /**
  * Apply a recruit-phase stat buff to a card AND record its source for the inspect-panel breakdown
@@ -1468,30 +1474,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Frenzied Excavator (Shout): play `rubies` Rubies on EVERY friendly minion (× golden).
    *  A Ruby is base 1/1 plus the run's `rubyBonus`, the same value `playRubyOn` uses in combat — and it lands
    *  under the `Ruby` source so Deepdelve Paragon and a future transfer spell can still recognise it. */
+  // ARENA-MIGRATED (Shout family): one body — N SEPARATE Rubies, N watcher fires, both phases.
   battlecryPlayRubiesAll: (ctx, self, params) => {
-    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
-    const per = num(params.rubies, 1) * gold(self);
-    const a = 1 + rb.attack;
-    const h = 1 + rb.health;
-    if (per <= 0 || (a <= 0 && h <= 0)) return;
-    // N SEPARATE Rubies, not one Ruby of N× magnitude. The stats are identical either way (per × (1+rb) is
-    // the same total), but the trigger count is not, and "play 2 Rubies" has to mean two: a gilded Excavator
-    // pays a Ruby Broker twice, bounces a Resonance Idol twice, and the board can show two gems.
-    //
-    // `fireOnRubyPlayed` tells the target its own `onRubyPlayed` effects fired and moves its `rubiesOnThisTurn`
-    // counter. `main` added that call here independently (owner report 2026-08-02, via Alchemist Brisbane —
-    // three card-played paths landed the stats and nothing else, so a Ruby-engine board read them as no-ops);
-    // this keeps it and makes it fire once PER RUBY rather than once per card.
-    //
-    // `spellPlayRubiesAll` (Ruby Excavation) already looped — the two implementations of the same sentence had
-    // drifted apart, and only one matched its printed text.
-    for (const c of [...ctx.state.board]) {
-      for (let r = 0; r < per; r++) {
-        addBuff(c, 'Ruby', a, h);
-        fireOnRubyPlayed(ctx.state, c, a, h);
-      }
-    }
+    ARENA_EFFECTS.battlecryPlayRubiesAll(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
    *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
@@ -1624,24 +1611,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
    *  is why it can't reuse `battlecryBuffTribeImproving` (symmetric, and includes self). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribeOthersAttack: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * gold(self);
-    if (a <= 0) return;
-    for (const c of ctx.state.board) {
-      if (c.uid === self.uid) continue;
-      if (tribe && !isTribe(c, tribe as never)) continue;
-      addBuff(c, nameOf(self), a, 0);
-    }
+    ARENA_EFFECTS.battlecryBuffTribeOthersAttack(shopArena(ctx.state, self), params);
   },
 
   /** Oathshield Orin (Shout): gain a keyword. Golden re-grants the same keyword — a keyword doesn't stack, so
    *  the gild is deliberately no stronger here (matches the owner's identical golden text). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGainKeyword: (ctx, self, params) => {
-    const kw = str(params.keyword) as Keyword;
-    if (!kw) return;
-    const me = ctx.state.board.find((c) => c.uid === self.uid);
-    if (me && !me.keywords.includes(kw)) me.keywords = [...me.keywords, kw];
+    ARENA_EFFECTS.battlecryGainKeyword(shopArena(ctx.state, self), params);
   },
 
 
@@ -1947,13 +1926,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
    *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Rallies only. Golden
    *  grants 2 instead of 1, per the owner's Gilded text ("trigger 2 additional times"). */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantBeastHunt: (ctx, self, params) => {
-    ctx.state.beastHuntExtra = (ctx.state.beastHuntExtra ?? 0) + num(params.extra, 1) * gold(self);
+    ARENA_EFFECTS.battlecryGrantBeastHunt(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Elderhorn "Ritual": your BEAST Echoes trigger `extra` more times, permanently. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantBeastRitual: (ctx, self, params) => {
-    ctx.state.beastRitualExtra = (ctx.state.beastRitualExtra ?? 0) + num(params.extra, 1) * gold(self);
+    ARENA_EFFECTS.battlecryGrantBeastRitual(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Groveweaver (summon half): a Beast you summon gets +atk/+hp, at the CURRENT magnitude (base +
@@ -1990,8 +1971,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
    *  via the shared imp enchant (`impBuff`). Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffImps: (ctx, self, params) => {
-    buffImpsRunWide(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+    ARENA_EFFECTS.battlecryBuffImps(shopArena(ctx.state, self), params);
   },
 
   /** Dragon Battlecries: buff your (optionally other) minions of `tribe`. */
@@ -2012,20 +1994,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  lacks a granted keyword (never wasting it). A `targetTribe` on the card restricts the auto-pick to
    *  that tribe too (Toxin Tender → friendly Undead only; dual-types count) — so a re-fire can't grant
    *  Venomous off-tribe, and it simply no-ops when no eligible friend exists. */
+  // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryGrantKeyword: (ctx, self, params, payload) => {
-    const kws = Array.isArray(params.keywords) ? (params.keywords as Keyword[]) : [];
-    if (kws.length === 0) return;
-    let target = payload.target;
-    if (!target) {
-      const restrict = CARD_INDEX[self.cardId]?.targetTribe; // Toxin Tender → 'undead'; undefined = any
-      const lacks = (c: BoardCard): boolean => kws.some((k) => !c.keywords.includes(k));
-      const ok = (c: BoardCard): boolean => lacks(c) && (!restrict || isTribe(c, restrict));
-      const others = ctx.state.board.filter((c) => c !== self && ok(c));
-      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
-      if (pool.length === 0) return; // no eligible friend (or everyone already has it)
-      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    }
-    for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
+    ARENA_EFFECTS.battlecryGrantKeyword(shopArena(ctx.state, self), { ...params, target: payload.target });
   },
 
   /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
@@ -2033,20 +2004,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
    *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
    *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+  // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryBuffTarget: (ctx, self, params, payload) => {
-    const attack = num(params.attack) * gold(self);
-    const health = num(params.health) * gold(self);
-    if (attack <= 0 && health <= 0) return;
-    let target = payload.target;
-    if (!target) {
-      const restrict = CARD_INDEX[self.cardId]?.targetTribe;
-      const ok = (c: BoardCard): boolean => !restrict || isTribe(c, restrict);
-      const others = ctx.state.board.filter((c) => c !== self && ok(c));
-      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
-      if (pool.length === 0) return; // no eligible friend
-      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
-    }
-    addBuff(target, nameOf(self), attack, health);
+    ARENA_EFFECTS.battlecryBuffTarget(shopArena(ctx.state, self), { ...params, target: payload.target });
   },
 
   /** Buddy Buddy / Haven Drake: Battlecry — add `count` random minions to your hand (golden doubles
@@ -2132,10 +2092,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Cinderwing Matron — Battlecry: permanently raise the run-wide SPELL POWER by +atk/+hp (Cinderwing
    *  grants +0/+1 → spells give +1 more Health from now on). Golden doubles. Folds into spellAttackBonus
    *  / spellHealthBonus, so every future stat spell + its display picks it up. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffSpellPower: (ctx, self, params) => {
-    ctx.state.spellBonus ??= { attack: 0, health: 0 };
-    ctx.state.spellBonus.attack += num(params.attack) * gold(self);
-    ctx.state.spellBonus.health += num(params.health) * gold(self);
+    ARENA_EFFECTS.battlecryBuffSpellPower(shopArena(ctx.state, self), params);
   },
 
   /** Karwind: whenever a Battlecry resolves, buff your minions of `tribe` (+atk/+hp). Golden 2×.
@@ -2766,12 +2725,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Coppercoat Spellsword (Choose One Shout): permanently raise run-wide SPELL POWER by +atk/+hp.
    *  The two options are the same factory with different params (one all-Attack, one all-Health), which is why
    *  this takes both rather than being two factories. Golden doubles, matching the printed Gilded text. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryGrantSpellPowerRun: (ctx, self, params) => {
-    const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
-    ctx.state.spellBonus = {
-      attack: cur.attack + num(params.attack, 0) * gold(self),
-      health: cur.health + num(params.health, 0) * gold(self),
-    };
+    ARENA_EFFECTS.battlecryGrantSpellPowerRun(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Bellringer Voss (End of Turn): every `every` turns, conjure a PLAIN copy of the board minion to
@@ -2996,8 +2952,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** The Godfodder (Choose One, option A) — Battlecry: give your Fodder +atk/+hp run-wide (persistent, the
    *  same run-wide Fodder enchant as Ritualist / Bane). Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffFodder: (ctx, self, params) => {
-    buffFodderRunWide(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+    ARENA_EFFECTS.battlecryBuffFodder(shopArena(ctx.state, self), params);
   },
 
   /** Bane — whenever a Battlecry resolves on your board, give the Fodder card type a *persistent*
@@ -4320,12 +4277,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Deathswarmer — Battlecry: give your Undead +N Attack wherever they are (board + hand), and stack the
    *  bonus into undeadBuyAtk so future undead buys carry it too. Golden doubles N. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffUndeadAttack: (ctx, self, params) => {
-    const amount = num(params.amount, 1) * gold(self);
-    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
-      if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
-    }
-    ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+    ARENA_EFFECTS.battlecryBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
 
   /** Squirl Scout — Battlecry: your Beasts get +amount Attack "wherever they are". Buffs every current Beast
@@ -4362,14 +4316,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
    *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's
    *  Beast aura, but with a Health half. Golden doubles. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffMagnetics: (ctx, self, params) => {
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
-      if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
-    }
-    ctx.state.magneticBuyAtk = (ctx.state.magneticBuyAtk ?? 0) + a;
-    ctx.state.magneticBuyHp = (ctx.state.magneticBuyHp ?? 0) + h;
+    ARENA_EFFECTS.battlecryBuffMagnetics(shopArena(ctx.state, self), params);
   },
 
   /** Koron — every `every` Gold you spend (the per-instance gold meter), permanently buff your Fodder run-wide

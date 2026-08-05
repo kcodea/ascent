@@ -2378,6 +2378,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.rubyBonus = { attack: b.attack + g.attack, health: b.health + g.health };
     for (const card of s.hand) if (CARD_INDEX[card.cardId]?.ruby) { card.attack += g.attack; card.health += g.health; }
   }
+  // A combat-refired "get N Rubies" Shout: the REAL mint (rubyBonus baked in — the bonus gain above lands
+  // first deliberately — Candle Conduit fired, hand cap respected), not a plain hand grant.
+  if (result.playerRubyMints) mintRubies(s, result.playerRubyMints);
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
   // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin
@@ -2516,6 +2519,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const c of [...s.board, ...s.hand]) {
       if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
     }
+  }
+  // Elderhorn refired in combat: extra BEAST trigger fires, stacked into the run exactly as its shop half does.
+  if (result.playerBeastExtraGain) {
+    if (result.playerBeastExtraGain.hunt) s.beastHuntExtra = (s.beastHuntExtra ?? 0) + result.playerBeastExtraGain.hunt;
+    if (result.playerBeastExtraGain.ritual) s.beastRitualExtra = (s.beastRitualExtra ?? 0) + result.playerBeastExtraGain.ritual;
   }
   // Watcher's Lantern of Souls (combat): raise the run-wide Undead aura (+Attack/+Health everywhere) — the
   // same `undeadAttackBonus`/`undeadHealthBonus` channel a shop-cast Lantern uses, so it shows and behaves

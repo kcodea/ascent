@@ -36,6 +36,11 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     playRubiesOn: () => {},
     hasReborn: () => false,
     grantReborn: () => {},
+    grantKeywordTo: () => {},
+    grantSpellPower: () => {},
+    grantMagneticAura: () => {},
+    grantBeastExtra: () => {},
+    targetTribe: () => undefined,
     isTribe: () => true,
     gainRubyStats: () => {},
     neighboursOf: () => [],
@@ -135,7 +140,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 47; // SHOUT FAMILY begins: +battlecrySummon, battlecryBuffTribe; generic dispatch in
+  const MIGRATED_FLOOR = 60; // +BuffMagnetics + the Elderhorn pair (new magneticBuy / beastExtra channels)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

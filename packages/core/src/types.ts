@@ -1835,6 +1835,8 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Rubies a combat-refired "get N Rubies" Shout minted; settle runs the run's real `mintRubies`. */
+  playerRubyMints?: number;
   /** Set 2 — Demon Horse: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
    *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
@@ -1880,6 +1882,9 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Elderhorn refired in combat: extra fires for BEAST triggers (`hunt` → Rally/Slaughter, `ritual` → Echo).
+   *  Reads live for the REST of this fight too; settle stacks the player half into the run. */
+  playerBeastExtraGain?: { hunt: number; ritual: number };
   /** Permanent Undead AURA gained this combat (Watcher casting Lantern of Souls: +Attack/+Health to your
    *  Undead everywhere). Added to `undeadAttackBonus`/`undeadHealthBonus` in settleCombat — the same channel a
    *  shop-cast Lantern uses. Absent if 0/0. */
@@ -2007,6 +2012,10 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — a combat-refired "get N Rubies" Shout: the replay sees each Ruby fly to hand (`toHand`), and
+   *  settle mints them through the run's REAL `mintRubies` — rubyBonus baked in, Candle Conduit fired, hand
+   *  cap respected. Player-only (enemies have no hand). Carried back via `CombatResult.playerRubyMints`. */
+  mintRubies(count: number, side: Side, sourceUid?: string): void;
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
    *  settle and the player sees nothing happen (owner report 2026-07-31). */
@@ -2045,7 +2054,7 @@ export interface CombatContext {
    *  Battlecry re-fired in combat (Ryme → Sea Urchin). Player-only. Picks the actual minion(s) now from the
    *  buyable pool (≤ tavern tier, active tribes, tribe-filtered, excluding `exclude`) and routes each through
    *  `grantToHand`, so the real card animates in. `sourceUid` is the granting minion. */
-  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string): void;
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
@@ -2060,6 +2069,10 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Elderhorn's extra BEAST trigger fires. BOTH sides accumulate (the value reads live for the rest of the
+   *  fight — an enemy Elderhorn's Ritual must grow its own later Echoes too); only the player half carries
+   *  back via `CombatResult.playerBeastExtraGain`. */
+  gainBeastExtra(hunt: number, ritual: number, side: Side, sourceUid?: string): void;
   /** Watcher (casting Lantern of Souls): permanently raise the run-wide Undead aura by +attack/+health
    *  (player only) — the Lantern channel (`undeadAttackBonus`/`undeadHealthBonus`). Live for this fight's
    *  later summons + carried back via CombatResult.playerUndeadAuraGain. */

@@ -171,6 +171,20 @@ export interface EffectArena {
    *  and narrates (the pre-existing phase asymmetry — shop permanent, combat fight-long — is each half's
    *  legacy behaviour, preserved, not invented here). */
   castTribeAttackSpell(tribe: string, amount: number, spellId: string): void;
+  /** Grant an arbitrary keyword (combat also arms the live flags — DS → divineShield, R → rebornAvailable —
+   *  and logs the keyword event so the pill appears; the shop appends to the card's keywords). */
+  grantKeywordTo(t: ArenaBody, kw: string): void;
+  /** Scrap Herald's whole ritual: buff every current Magnetic (combat: living M-keyword bodies; shop: board
+   *  + hand) AND stack the run's `magneticBuyAtk/Hp` so future Magnetics carry it (combat carries back —
+   *  settle stacks + buffs the run's Magnetics). */
+  grantMagneticAura(attack: number, health: number): void;
+  /** Elderhorn's extra BEAST trigger fires (`hunt` → Rally/Slaughter, `ritual` → Echo), permanent. In combat
+   *  the gain also reads live for the rest of the fight. */
+  grantBeastExtra(hunt: number, ritual: number): void;
+  /** Permanently raise run-wide spell power (combat: the carry-back channel; shop: `spellBonus`). */
+  grantSpellPower(attack: number, health: number): void;
+  /** The card's printed `targetTribe` restriction, if any (a card-definition read). */
+  targetTribe(): string | undefined;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -777,5 +791,135 @@ export const ARENA_EFFECTS = {
       if (!includeSelf && f.uid === arena.self.uid) continue;
       arena.buff(f, a, h);
     }
+  },
+
+  /** Imp Overseer's Shout: your Imps gain +atk/+hp, run-wide and permanent (golden doubles). */
+  battlecryBuffImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantImpAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 2) * g);
+  },
+
+  /** Deathswarmer's Shout: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */
+  battlecryBuffUndeadAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantUndeadAttackAura((typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Warhorn Captain's Shout: your OTHER `tribe` minions gain +Attack (golden doubles). */
+  battlecryBuffTribeOthersAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * (arena.self.golden ? 2 : 1);
+    if (a <= 0) return;
+    for (const f of arena.friends()) {
+      if (f.uid === arena.self.uid) continue;
+      if (tribe && !arena.isTribe(f, tribe)) continue;
+      arena.buff(f, a, 0);
+    }
+  },
+
+  /** Frenzied Excavator's Shout: play `rubies` Rubies on ALL your minions (golden doubles). N SEPARATE
+   *  Rubies, not one of N× magnitude — "play 2 Rubies has to mean two" (the shop half's documented design:
+   *  a gilded Excavator pays a Ruby Broker twice and bounces an Idol twice). Unification FIXES the combat
+   *  half to that per-Ruby trigger count — it used to fold `per` into one notification. */
+  battlecryPlayRubiesAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const per = (typeof params.rubies === 'number' ? params.rubies : 1) * (arena.self.golden ? 2 : 1);
+    if (per <= 0) return;
+    for (const f of arena.friends()) {
+      for (let r = 0; r < per; r++) arena.playRubiesOn(f, 1);
+    }
+  },
+
+  /** Targeted stat Shout (Brood Whelp / Baby Gastrid's kin): buff the chosen friend — or, unchosen (a
+   *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`,
+   *  falling back to self. The chosen target rides `params.target`, merged by the shop wrapper. */
+  battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a <= 0 && h <= 0) return;
+    let target = params.target as ArenaBody | undefined;
+    if (!target) {
+      const restrict = arena.targetTribe();
+      const ok = (f: ArenaBody): boolean => !restrict || arena.isTribe(f, restrict);
+      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
+      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      if (pool.length === 0) return;
+      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+    }
+    arena.buff(target, a, h);
+  },
+
+  /** Targeted keyword Shout (Toxin Tender / Plaguebringer): grant keyword(s) to the chosen friend — or
+   *  auto-pick the highest-Attack friend that still LACKS one (never wasting it), honouring `targetTribe`.
+   *  Unification FIXED drift: combat's auto-pick ignored both the lacks-check and the tribe restriction. */
+  battlecryGrantKeyword(arena: EffectArena, params: Record<string, unknown>): void {
+    const kws = Array.isArray(params.keywords) ? (params.keywords as string[]) : [];
+    if (kws.length === 0) return;
+    let target = params.target as ArenaBody | undefined;
+    if (!target) {
+      const restrict = arena.targetTribe();
+      const lacks = (f: ArenaBody): boolean => kws.some((k) => !f.keywords.includes(k));
+      const ok = (f: ArenaBody): boolean => lacks(f) && (!restrict || arena.isTribe(f, restrict));
+      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
+      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      if (pool.length === 0) return;
+      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+    }
+    for (const k of kws) {
+      if (!target.keywords.includes(k)) arena.grantKeywordTo(target, k);
+    }
+  },
+
+  /** Oathshield Orin's Shout: THIS minion gains a keyword (golden re-grants the same one — no stronger). */
+  battlecryGainKeyword(arena: EffectArena, params: Record<string, unknown>): void {
+    const kw = typeof params.keyword === 'string' ? params.keyword : '';
+    if (kw && !arena.self.keywords.includes(kw)) arena.grantKeywordTo(arena.self, kw);
+  },
+
+  /** Cinderwing Matron's Shout: permanently raise run-wide spell power (golden doubles). */
+  battlecryBuffSpellPower(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantSpellPower(
+      (typeof params.attack === 'number' ? params.attack : 0) * g,
+      (typeof params.health === 'number' ? params.health : 0) * g);
+  },
+
+  /** Foam Reader's kin — Shout: permanently raise the run's spell power (golden doubles). The run-channel
+   *  twin of `battlecryBuffSpellPower`; kept as its own id because content names them separately. */
+  battlecryGrantSpellPowerRun(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantSpellPower(
+      (typeof params.attack === 'number' ? params.attack : 0) * g,
+      (typeof params.health === 'number' ? params.health : 0) * g);
+  },
+
+  /** The Godfodder (option A) — Shout: your Fodder gain +atk/+hp run-wide, permanently (golden doubles) —
+   *  the same whole-ritual Fodder enchant Bane stacks (`grantFodderAura`). */
+  battlecryBuffFodder(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantFodderAura(
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Scrap Herald — Shout: your Magnetics ("Attachments") gain +atk/+hp WHEREVER they are, permanently
+   *  (golden doubles) — the Magnetic sibling of the Undead attack aura, with a Health half. */
+  battlecryBuffMagnetics(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    arena.grantMagneticAura(
+      (typeof params.attack === 'number' ? params.attack : 2) * g,
+      (typeof params.health === 'number' ? params.health : 2) * g);
+  },
+
+  /** Elderhorn "Hunt" — Shout: your Beast Rallies/Slaughters trigger `extra` more times, permanently
+   *  (golden doubles). */
+  battlecryGrantBeastHunt(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantBeastExtra((typeof params.extra === 'number' ? params.extra : 1) * (arena.self.golden ? 2 : 1), 0);
+  },
+
+  /** Elderhorn "Ritual" — Shout: your Beast Echoes trigger `extra` more times, permanently (golden doubles). */
+  battlecryGrantBeastRitual(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantBeastExtra(0, (typeof params.extra === 'number' ? params.extra : 1) * (arena.self.golden ? 2 : 1));
   },
 } as const;

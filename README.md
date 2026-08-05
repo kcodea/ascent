@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The Effect Arena's Shout family is done** — every Shout now fires in combat when a disruptor (Ryme,
+  Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared
+  body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry
+  back to the run at settle. Only pure tavern work (consume/gild/shop enchants) still waits for the shop.
 - **A Card Art tuner** — double-click any card in dev to reframe its illustration: nudge, zoom, and
   hue/saturation/contrast, saved per card.
 

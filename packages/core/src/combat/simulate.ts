@@ -108,6 +108,7 @@ export function simulate(
   // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
+  let rubyMintCount = 0; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
@@ -116,6 +117,10 @@ export function simulate(
   const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = { // Elderhorn refired in combat —
+    player: { hunt: 0, ritual: 0 }, // both sides read live for the rest of the fight; player half carries back
+    enemy: { hunt: 0, ritual: 0 },
+  };
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const magneticBuffGain = { attack: 0, health: 0 }; // permanent Attachment enchant from this combat (Chorus Engine)
@@ -623,6 +628,13 @@ export function simulate(
       // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
+    mintRubies: (count, side, sourceUid) => {
+      if (side !== 'player' || count <= 0) return; // enemies have no hand
+      rubyMintCount += count;
+      // The replay sees each Ruby fly to hand on the trigger beat; the actual mint happens at settle through
+      // the run's real `mintRubies` (rubyBonus baked in, Candle Conduit fired, hand cap respected).
+      for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+    },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker / Crownvein) — BOTH sides accumulate, because the value is read live mid-fight
       // (see `rubyBonusFor`): an enemy Crownvein's Rally must grow the enemy's own later Ruby plays too.
@@ -682,7 +694,7 @@ export function simulate(
         emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
-    grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
+    grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier) => {
       if (side !== 'player') return; // enemies have no hand
       // Wayfinder's `tribe: 'uncontrolled'` is a SENTINEL, not a real tribe — "a minion from a tribe you don't
       // control". Resolve it here to the active tribes absent from your board, mirroring `uncontrolledTribes`
@@ -710,7 +722,7 @@ export function simulate(
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
       const pool = ctx.poolCards('player').filter(
         (c) =>
-          !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
+          !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= playerState.tier) && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
           inTribe(c),
       );
@@ -748,6 +760,14 @@ export function simulate(
       fodderBuffGain.attack += attack;
       fodderBuffGain.health += health;
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'fodder' });
+    },
+    gainBeastExtra: (hunt, ritual, side, sourceUid) => {
+      beastExtraGain[side].hunt += hunt;
+      beastExtraGain[side].ritual += ritual;
+      if (sourceUid && (hunt !== 0 || ritual !== 0)) {
+        const what = hunt !== 0 ? 'Rallies' : 'Echoes';
+        emit({ type: 'sc', source: sourceUid, text: `your Beast ${what} trigger +${hunt || ritual} more` });
+      }
     },
     grantUndeadBuyAtk: (amount, side) => {
       // Advance the granting SIDE's live Undead buy-aura so Undead summoned / Reborn LATER this fight inherit it
@@ -1201,7 +1221,8 @@ export function simulate(
     bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     if (isTribeOf(minion, 'beast', cards)) {
-      bonus += minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0;
+      bonus += (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
+        + beastExtraGain[minion.side].ritual; // a mid-fight Elderhorn re-fire counts from now on
     }
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
@@ -1604,6 +1625,7 @@ export function simulate(
       // card multipliers (Drakko/Uron) that `extraTriggerFires` reads.
       const huntExtra = isTribeOf(attacker, 'beast', cards)
         ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+          + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
         : 0;
       const rallyExtra = attacker.keywords.includes('RL')
         ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
@@ -2573,6 +2595,8 @@ export function simulate(
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
+    playerRubyMints: rubyMintCount > 0 ? rubyMintCount : undefined,
+    playerBeastExtraGain: (beastExtraGain.player.hunt > 0 || beastExtraGain.player.ritual > 0) ? { ...beastExtraGain.player } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,

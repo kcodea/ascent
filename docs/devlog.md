@@ -1,5 +1,118 @@
 # ASCENT — development log
 
+## 2026-08-04 — Effect Arena: the aura Shouts finish graduating — BuffMagnetics + the Elderhorn pair (floor 60)
+
+The last three channel-blocked Shouts go live; the defer class is now PURE tavern work.
+
+- **`battlecryBuffMagnetics`** (Scrap Herald) — shared body 58 on a new `grantMagneticAura` verb. The combat
+  half turned out to need NO new channel: Chorus Engine's `grantMagneticBuff` carry-back already exists and
+  its settle block does the exact ritual (stack `magneticBuyAtk/Hp` + buff every current board/hand
+  Magnetic). Combat buffs the living M-keyword bodies for the fight and rides that channel for permanence.
+  (First cut added a duplicate channel; typecheck caught the collision and the existing one won.)
+- **`battlecryGrantBeastHunt` / `battlecryGrantBeastRitual`** (Elderhorn's Choose One) — bodies 59+60 on a
+  new `grantBeastExtra` verb backed by a NEW `gainBeastExtra` channel: both sides accumulate (the extra
+  fires read live for the REST of the fight — the Ritual/Hunt fold into the echo-bonus and rally-extra reads
+  in simulate.ts, so a mid-fight re-fire boosts this combat), an sc telegraph names the gain, and the player
+  half carries back via `CombatResult.playerBeastExtraGain` into `beastHuntExtra`/`beastRitualExtra`.
+- The dawnclawShouts exclusion guard now pins the finished boundary: every run-wide aura Shout is
+  combat-replayable; `battlecryConsumeShopRandom` pins the tavern class that stays deferred by design.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
+## 2026-08-04 — Effect Arena: Soulfeeder / Godfodder / getRubies go live; defer class down to ~18 ids (floor 57)
+
+Three more Shouts leave the defer class:
+
+- **`battlecryBuffFodder`** (The Godfodder, option A) became shared arena body 57 on the `grantFodderAura`
+  verb — combat carries back through `grantFodderBuff`, the channel Bane already uses. The dawnclawShouts
+  exclusion guard updated: BuffFodder graduated; `battlecryBuffMagnetics` remains the pinned exclusion (its
+  `magneticBuyAtk/Hp` enchant has no combat carry-back yet).
+- **`getRubies`** — the second "get N Rubies" id, straight onto the new `ctx.mintRubies` channel.
+- **`addFodderNextShops`** (Soulfeeder) — live through Pit Supplier's `scheduleFodder` channel (`count`
+  Fodder into each of the next `shops` shops; settle merges index-for-index into `fodderSchedule`).
+
+Soulfeeder was THE canonical economy-defer example in three tests; the new canonical example is **Nimbus**
+(`battlecryDoubleNextSpell` — banks a shop cast charge, genuinely shop-only). Discovered en route: Living
+Grimoire can't serve as the example because `battlecryArmGrimoire` is in `SILENT_ONPLAY` — Ryme deliberately
+never triggers it (its arm isn't a printed "Battlecry"). run.test now also pins that stale pre-change
+Soulfeeder/Hoarder deferral entries apply NOTHING at settle while a genuine Nimbus deferral still replays.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
+## 2026-08-04 — Effect Arena: 8 economy Shouts resolve LIVE via carry-back channels (floor 56)
+
+The "defer to settle" class shrinks: every economy Shout whose result already had a carry-back channel now
+resolves live in combat — the replay shows the grant on the trigger beat, and settle just applies the carried
+value. New FACTORIES entries (shop halves keep their own rituals; the carry-back reproduces them at settle):
+
+- `battlecryGrantMinion`, `battlecryGrantRandomSpell`, `grantRandomAle` (the Rune of Last Call recipe —
+  pool-scoped Ales) → `grantToHand` / `grantRandomSpell`.
+- `battlecryGainRandomMinion` → `grantRandomMinion`, which gained an optional `fixedTier` argument so the
+  exact-tier finders (Recruiter's tier 1, the tier-7 card's tier 6) pin their pick in combat exactly as the
+  shop half does — a live combat re-fire used to be impossible, and a naive one would have granted ≤ tavern
+  tier.
+- `battlecryGetRubies` → NEW `ctx.mintRubies(count, side)` channel + `CombatResult.playerRubyMints`: the
+  replay sees each Ruby fly to hand (`toHand` events), settle mints through the run's REAL `mintRubies` —
+  rubyBonus baked in (the rubyBonusGain settle block lands first, deliberately), Candle Conduit fired, hand
+  cap respected.
+- `rubyStatGain` → `gainRubyBonus` (narrates "+a/+h Ruby Power", reads live for later Ruby plays this fight,
+  and settle also grows every Ruby still in hand — the shop half's other job).
+- `battlecryGainGoldNextTurn` (Paymaster Pimm) + `battlecryBonusGoldNextTurn` (Hoarder) → `grantBonusGold`
+  (settles into `bonusEmbersNextTurn`), each with an sc telegraph ("+N Gold next turn").
+- `battlecryGrantSpellPowerRun` became shared arena body 56 (the run-channel twin of `battlecryBuffSpellPower`).
+
+Because `COMBAT_REPLAYABLE_BATTLECRIES` is derived, settle automatically skips these ids in a deferred card's
+replay — pinned by an updated run.test: a stale pre-change Hoarder deferral entry applies NOTHING (the live
+carry-back is the single source of truth, never doubled). The three defer-pinning tests updated to the
+live-grant truth; Soulfeeder (`addTavernFodder`) stays the genuine-economy defer example.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
+## 2026-08-04 — Effect Arena: THE SWITCH IS DEAD — replayCombatBattlecry is FACTORIES-only (floor 55)
+
+The final Shout-family pass. `replayCombatBattlecry`'s legacy inline switch is **deleted**: the loop is now
+FACTORIES-first dispatch + economy defer, nothing else. What moved:
+
+- **Four new shared arena bodies** (floor 51 → 55): `battlecryBuffTarget` (targeted stat Shout; chosen target
+  rides `params.target`, auto-pick = highest-Attack other honouring `targetTribe`, fallback self),
+  `battlecryGrantKeyword` (targeted keyword Shout; auto-pick adds the lacks-filter so it never wastes the
+  grant), `battlecryGainKeyword` (Oathshield Orin self-keyword), `battlecryBuffSpellPower` (Cinderwing Matron
+  — combat channel `ctx.grantSpellPower` carry-back, shop channel `state.spellBonus`). New arena verbs:
+  `grantKeywordTo` (combat arms `divineShield`/`rebornAvailable` + logs the keyword event; shop appends),
+  `grantSpellPower`, `targetTribe()`.
+- **Drift FIXED by unification**: combat's `battlecryGrantKeyword` auto-pick ignored both the lacks-check and
+  the `targetTribe` restriction the shop half honoured — a Ryme-refired Toxin Tender could dump Toxic onto a
+  non-Undead that already had it. One body now, the richer shop reading.
+- **Phase-split FACTORIES entries by ruling**: `battlecryDiscoverSpell`/`battlecryDiscoverMinion` combat
+  halves grant randomly from the pool (the interactive 1-of-3 panel never opens mid-combat — Discover ruling
+  2026-08-04); shop halves stay interactive. `battlecryGrantSpell` now grants **LIVE** in combat through
+  `ctx.grantToHand` — the toHand event fires on the trigger beat and `playerHandGrants` carries it back, so
+  the settle deferral AND the hand-authored announce hack are both gone (the two Field Mechanic tests updated
+  to the live-grant truth: granted exactly once, nothing deferred).
+- **`COMBAT_REPLAYABLE_BATTLECRIES` is now DERIVED** — `new Set(Object.keys(FACTORIES))`, declared after
+  FACTORIES. It is definitionally the dispatch lookup, so it can never drift from the dispatcher again.
+- Dead code swept: `pickRandom` in recruit.ts (its callers migrated to arena rng), the `ALE_IDS` import in
+  factories.ts. Lint back at the 7-warning baseline.
+
+Verified: typecheck ✓, lint 7-warning baseline ✓, 3900 tests / 244 files ✓, harness determinism ✓,
+build:web ✓. (PR #871.)
+
+## 2026-08-04 — Shout bodies 48–51: four inline branches deleted; the Excavator trigger-count drift fixed
+
+`battlecryBuffImps`, `battlecryBuffUndeadAttack`, `battlecryBuffTribeOthersAttack` and
+`battlecryPlayRubiesAll` migrate onto existing verbs — floor → 51, four more inline branches gone from
+`replayCombatBattlecry`'s shrinking switch.
+
+The Excavator one fixed the sweep's FOURTH silent drift: "play 2 Rubies has to mean two" is the shop half's
+documented design (a gilded Excavator pays a Ruby Broker twice, bounces an Idol twice) — but combat folded
+`per` into ONE application with ONE onRubyPlayed notification, so mid-fight trigger counts under-fired. The
+shared body plays N separate Rubies with N watcher fires in both phases.
+
+Gates: typecheck ✓, 3,900 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — The Shout family begins: FACTORIES-first dispatch is the switch's death sentence
 
 The structural move: `replayCombatBattlecry` now dispatches **FACTORIES-first** — an onPlay effect with a

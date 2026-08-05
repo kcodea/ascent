@@ -1,5 +1,164 @@
 # ASCENT — development log
 
+## 2026-08-04 — Arena bodies 37–39: the last three rulings land; STEP 3 IS COMPLETE
+
+All three deferred divergences ruled and migrated — **floor → 39 of 42**, and every dual that CAN share a
+body now does. The remaining 3 are skipped by design (spellCastTransform's settle-time swap; the two replay
+effects that ARE the dispatchers, which unify at Step 4).
+
+- **Ex-Galloper** (`echoSummonCopyNoEcho`): the copy INHERITS the buffed body — stats and keywords — in both
+  phases (ruling; the shop used to summon a plain base card). The no-chain guard came along: combat strips the
+  copy's `onDeath` effects; a `BoardCard` has no per-instance effects list, so the shop marks the copy
+  (`echoStripped`) and `fireRecruitDeathrattles` skips marked bodies. Two chain-guard tests (Ex-Galloper
+  cannot chain; Living Treasure's copy does not resummon) caught my first cut DROPPING that guard — the
+  index-slice replacement ate an unseen tail — and both pass against the restored logic.
+- **Bane** (`onBattlecryBuffFodder`): Bane's Existence's Demon-widen now fires IN COMBAT too (ruling). That
+  needed real plumbing: `baneDemonWiden` rides `QuestCombatMods` → the reducer passes `s.baneBuffsDemons` →
+  `CombatContext.baneDemonWidenFor(side)` → the adapter's whole-ritual `applyBaneDemonWiden` (shop: board +
+  hand Demons; combat: living Demons buffed permanently via the carry-back — hand copies pick the enchant up
+  as run-wide state). Bane's self-flash FX survived as `stampKarwindFlash` on self + enchanted Fodder, caught
+  by its own test when the first cut dropped it.
+- **Karwind** (`onBattlecryBuffTribeAdjacentMore`): golden = **2× magnitude in both phases** (ruling); the
+  shop's twice-at-base pulse is retired. The `karwindFlash` FX bookkeeping rides the new `stampKarwindFlash`
+  verb (a combat no-op — its FX ride the buff events).
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena body 36 (Flowing Monk) closes the mechanical sweep; the final classification
+
+`overflowBuffRandom` migrates on the new `buffPermanent` verb (a shop buff IS permanent; combat also records
+the gain into `permaGain` regardless of Engrave — the Monk's gift keeps). Floor → **36 of 42**, and the
+MECHANICAL sweep is COMPLETE: every dual that could be unified without a ruling now has one body.
+
+One real bug caught by an existing test and fixed: the Monk body spliced its pick-pool, and the shop adapter's
+`friends()` handed back the LIVE board array — so buffed minions were being removed from the board. The body
+copies first, and the shop adapter now returns a copy so no future body can repeat it. (The combat adapter's
+`living()` result was already a fresh array, which is why nothing had caught it earlier.)
+
+**The remaining 6 of 42, classified:**
+- NEEDS A RULING — `echoSummonCopyNoEcho` (Ex-Galloper): the combat copy inherits the body's buffed stats +
+  keywords; the shop copy is a PLAIN base card. Should a shop-fired copy inherit too?
+- NEEDS A RULING — `onBattlecryBuffFodder` (Godfodder/Contract Imp): the shop half also applies Bane's
+  Existence's Demon-widen (`baneBuffsDemons`); the combat half doesn't. Should the quest widen fire in combat?
+- NEEDS A RULING — `onBattlecryBuffTribeAdjacentMore` (Karwind): golden = 2× MAGNITUDE in combat vs 2×
+  APPLICATIONS at base in the shop. Equal totals, different pulse counts (and the shop half carries the
+  karwindFlash FX bookkeeping). Pick one convention.
+- SKIPPED BY DESIGN — `spellCastTransform` (the shop swaps the form; combat defers the swap to settle),
+  `deathrattleReplayAdjacentBattlecry` and `battlecryTriggeredOwnDeathrattle` (these ARE the disruptors:
+  their bodies are "call the phase's dispatcher", and the dispatchers are the phase machinery itself — they
+  unify when Step 4's cross-phase dispatchers land, not before).
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 32–35: the hand-grant family and Anvilshade Smith
+
+Four more — floor → 35 of 42. `deathrattleGrantSpell`, `deathrattleGrantCardToHand` and
+`deathrattleGrantRandomSpell` ride two new verbs (`grantNamedCard`, `grantRandomSpells`): combat rides
+`grantToHand` / the settle-time `grantRandomSpell` channel (the card flies to hand in the replay), the shop
+conjures with the run-buff bake and hand cap. One asymmetry stated rather than hidden: `exactTier` is only
+expressible in the shop (combat's settle channel picks ≤ tavern tier, its legacy) — noted in the verb's doc.
+
+**Anvilshade Smith** (`echoSummonInheritAttackAndCharge`) forced `summonToken` to its final shape:
+`charge` (combat arg-6 immediate-attack queue; a shop no-op) and `rubyLabel` — Gemheart's shop labelling
+(above-base share = Ruby buff + watcher notify) is now OPT-IN, because the Smith's inherited Attack is the
+body's value, not a buff entry, and labelling it Ruby would have been wrong. Gemheart's body passes
+`rubyLabel: true`; everyone else gets direct stats.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 30+31: the pool-grant family (Attachments + Ales)
+
+`deathrattleGrantMagnetic` and `combatGrantAle` migrate on the new `grantRandomFromPool(pred, count)` verb —
+floor → 31 of 42. Whole-ritual per phase: combat picks one-per-grant off its threaded rng and rides
+`grantToHand` (the card flies to hand in the replay); the shop conjures via `conjureToHand` (cursor picks,
+run-buff bake, hand cap). The predicate carries the FULL legacy filter — clauses a phase's pool already
+excludes are harmless no-ops there. The shop pool is buyable + spells combined, since Ales are spells and
+Attachments are minions; the predicate decides. The Ale attacker/rally guards stay with dispatch.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 27–29: the three ruled divergences land
+
+All three items on the discernment list resolved by owner ruling and migrated in one pass — floor → 29 of 42.
+
+- **Spirit Worgen** (`summonBuffSelfTribe` — the card the divergence belonged to, identified on request): the
+  SHOP formula is the card, and its printed text agrees — "+3/+3, improves by +3/+3 per Shop spell" IS
+  base × (1 + spells). Combat's additive (base + spells) with base-1 defaults is retired.
+- **Hunter** (`onGainAttackBuffImproving`): the SHOP formula — every fire grants (base + accrual) then grows
+  the accrual by base — replaces combat's stepped ×(1 + floor(fires/every)); the `every` param is retired
+  with it. TWO COMBAT TESTS pinned the old stepped behaviour and were updated to the ruling (grants now run
+  +1/+1, +2/+2, +3/+3… per fire); the improve-event tick is preserved via `logImprove` so the live text still
+  climbs mid-fight. Re-entrancy guards (two Hunters must not ping-pong) stay in the wrappers.
+- **`deathrattleSummon`** unified to the combat reading (owner confirm): the shop gains the `fixed` and
+  `goldenTokens` params it was silently missing — a golden Imp King's shop Echo now summons 2 tokens (not 4),
+  and gilded-token summoners (Manasaber) gild in the shop too (`summonToken` grew a `golden` opt: combat rides
+  the summon flag, the shop doubles base stats + sets the flag).
+
+New verb: `spellsThisTurn` (per-side in combat via the captured value). Gates: typecheck ✓, 3,898 tests ✓
+(two updated to rulings, none skipped), harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 25+26 (Guel + the improve tick); the sweep's deferred list
+
+`spellCastBuffOthers` (Archmagus Guel — the per-instance improve tally, the /4 step, distinct random picks)
+and `onSpellCastImproveSummon` (Thunderous Sovereign's improve half, with the new `logImprove` verb) migrate.
+**Floor → 26 of 42.**
+
+The bulk sweep (owner directive: "go through every case you can and defer the rest") has now classified the
+remaining duals. DEFERRED, each with its reason:
+
+- `summonBuffSelfTribe` — DOCUMENTED divergence: combat grows (base 1 + spells) additively; the shop
+  multiplies base 3 × (1 + spells). Materially different scaling; needs an owner ruling.
+- `onGainAttackBuffImproving` (Hunter) — divergent formulas: combat steps ×(1 + floor(fires/every)); the shop
+  adds the accrual to base. Needs a ruling.
+- `deathrattleSummon` — the shop half is MISSING combat's `fixed` / `goldenTokens` params (a golden Imp King's
+  shop Echo would summon 4 plain tokens where combat summons 2; Manasaber's gilded-cubs golden likewise).
+  Almost certainly "unify to combat's reading" (the params follow the printed golden texts), but the combat
+  half is also entangled with the attack-on-summon deferral queue — one careful session, not a bulk pass.
+- `spellCastTransform` — INTENTIONALLY phase-split, not drift: the shop swaps the form; combat only ticks and
+  logs, with the swap deferred to settle (no mid-combat identity change, by design). Skipped, not deferred.
+- Still queued (mechanical, not yet read): `echoSummonCopyNoEcho`, `echoSummonInheritAttackAndCharge`,
+  `deathrattleGrantCardToHand`/`GrantSpell`/`GrantRandomSpell` (the conjure-verb family), `combatGrantAle`,
+  `deathrattleGrantMagnetic`, `deathrattleReplayAdjacentBattlecry`, `battlecryTriggeredOwnDeathrattle`.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 21–24: the spellCast/summon buff wave; one divergence deferred
+
+`onSpellCastBuffRandomTribe`, `onSpellCastBuffOnePerTribe`, `summonBuffTribeAsym` and `spellCastImproveSelf`
+migrate in one pass — floor → 24 of 42. New vocabulary: `tribesOf`/`isUniversalTribe` (Fatecarver's
+one-per-type walk, Paragon takes its own slot), `improveReps` (Rune of Mastery), `matriarchReps` (the shop
+returns 1 — the legacy shop halves never applied Matriarch, preserved until ruled), `logSpellProgress`
+(combat log event, shop no-op), and per-instance fields `chosenOption`/`spellProgress`/`summonBonus` on
+`ArenaBody`. Payload-carried actors (the summon ARRIVER) ride params, the same channel as the Idol's Ruby
+amounts. Choose One gates stay with dispatch in the wrappers.
+
+**Deferred to the owner:** `summonBuffSelfTribe` — a DOCUMENTED pre-existing divergence (the combat half's own
+comment flags it): combat grows (base + spells) ADDITIVELY with base 1/1; the shop multiplies
+base×(1+spells) with base 3/3. Materially different scaling; needs a ruling, not a guess.
+
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
+## 2026-08-04 — Arena bodies 19+20: the spellCast family begins
+
+`spellCastBuffAll` and `spellCastBuffUndeadAttack` migrate — floor → 20, and the sweep is at the halfway
+mark's edge (20 of 42). `grantUndeadAttackAura` is the third whole-ritual aura verb (combat: live-buff the
+board's Undead + `grantUndeadBuyAtk` carry-back; shop: `buffUndeadAttackEverywhere`), joining the Imp and
+card-type ones — the aura pattern is now settled vocabulary. Gates: typecheck ✓, 3,898 tests ✓, harness ✓,
+`build:web` ✓.
+
+## 2026-08-04 — Arena bodies 17+18: card-type enchants and Imp summons; a second silent drift fixed
+
+`deathrattleBuffCardTypeRunWide` and `summonImps` migrate — floor → 18.
+
+The Imp one is the sweep's SECOND silent drift: golden `summonImps` doubled the per-Imp buff in combat but
+NOT in the shop. **Errand Fiend's goldenText prints "+2/+4"** — the combat half honoured the printed contract,
+the shop half silently under-delivered (+1/+2 per Imp on a golden). Unification fixes the shop to the printed
+text; no ruling needed, the card already said the answer.
+
+`grantCardTypeBuff` follows the whole-ritual pattern: combat = carry-back channel + live-buffing on-board
+copies; shop = `buffCardTypeRunWide` (which covers board + hand itself — the body must not re-loop, or shop
+copies double-buff). The own-swing Rally guard on `summonImps` stays in the combat wrapper, with dispatch.
+Gates: typecheck ✓, 3,898 tests ✓, harness ✓, `build:web` ✓.
+
 ## 2026-08-04 — Arena bodies 15+16: Chef Raag and Grim
 
 `deathrattleBuffAllByImpAura` (the +1/+1 floor now lives in ONE place) and `deathrattleBuffTribeByTally`

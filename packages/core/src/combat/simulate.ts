@@ -771,6 +771,7 @@ export function simulate(
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
+    baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     mammothHealthFor: (side) => !!modsFor(side).runeMammoth,
   };
 

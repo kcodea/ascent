@@ -1194,6 +1194,9 @@ export interface QuestCombatMods {
   runeMammoth?: boolean;
   /** Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too. */
   runeWarpath?: boolean;
+  /** Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner
+   *  ruling — the widen fires on combat-triggered Battlecries too. */
+  baneDemonWiden?: { attack: number; health: number };
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
@@ -1940,6 +1943,8 @@ export interface CombatContext {
   /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
    *  recruit engine's `state.runeMatriarch` wrapper. */
   matriarchRepsFor(side: Side): number;
+  /** Bane's Existence widen for this side, if the quest is armed (owner ruling 2026-08-04). */
+  baneDemonWidenFor(side: Side): { attack: number; health: number } | undefined;
   /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */
   mammothHealthFor(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */

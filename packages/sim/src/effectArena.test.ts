@@ -29,6 +29,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     hasShield: (t: ArenaBody) => shielded.has(t.uid),
     grantShield: (t: ArenaBody) => { shielded.add(t.uid); granted.push(t.uid); },
     buff: () => {},
+    buffPermanent: () => {},
     grantRubyPower: () => {},
     rubyTallyOf: () => ({ attack: 0, health: 0 }),
     summonToken: () => undefined,
@@ -41,10 +42,27 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     grantMaxGold: () => {},
     isCelestial: () => false,
     isImp: () => false,
+    isFodder: () => false,
     grantImpAura: () => {},
+    grantFodderAura: () => {},
+    applyBaneDemonWiden: () => {},
+    stampKarwindFlash: () => {},
+    stripEchoes: () => {},
     impAura: () => ({ attack: 0, health: 0 }),
     deathrattleTally: () => 0,
     addTribeAura: () => {},
+    grantCardTypeBuff: () => {},
+    grantUndeadAttackAura: () => {},
+    tribesOf: () => [],
+    isUniversalTribe: () => false,
+    improveReps: () => 1,
+    matriarchReps: () => 1,
+    logSpellProgress: () => {},
+    logImprove: () => {},
+    spellsThisTurn: () => 0,
+    grantRandomFromPool: () => {},
+    grantNamedCard: () => {},
+    grantRandomSpells: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -112,7 +130,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 16; // +deathrattleBuffAllByImpAura (Chef Raag), deathrattleBuffTribeByTally (Grim)
+  const MIGRATED_FLOOR = 39; // +Ex-Galloper, Bane, Karwind - the three ruled divergences
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

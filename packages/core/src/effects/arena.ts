@@ -1,4 +1,5 @@
 import type { Rng } from '../rng';
+import { ALE_IDS } from '../types';
 
 /**
  * ── EFFECT ARENA (Step 1 spike — see docs/effect-arena-spec.md) ────────────────────────────────────────
@@ -33,6 +34,12 @@ export interface ArenaBody {
   hpGrantBonus?: number;
   /** Combat carries a separate max; the shop's printed health IS its max. Bodies read `maxHealth ?? health`. */
   maxHealth?: number;
+  /** Choose One: which branch this instance became (display + gating). */
+  chosenOption?: number;
+  /** The per-instance improve tally several cards share (Guel / Spirit Pup / Groveweaver / Kennelmaster). */
+  spellProgress?: number;
+  /** The per-instance summon-accrual tally (Pack Leader / Mama Bear / the asym buffers). */
+  summonBonus?: number;
 }
 
 export interface EffectArena {
@@ -60,7 +67,7 @@ export interface EffectArena {
   /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
    *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
    *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
-  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string }): ArenaBody | undefined;
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; keywords?: readonly string[]; golden?: boolean; charge?: boolean; rubyLabel?: boolean }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -82,6 +89,8 @@ export interface EffectArena {
   isCelestial(t: ArenaBody): boolean;
   /** Is this body an Imp? */
   isImp(t: ArenaBody): boolean;
+  /** Is this body Fodder (the FD keyword on its printed card)? */
+  isFodder(t: ArenaBody): boolean;
   /** Raise the RUN-WIDE Imp aura (+atk/+hp on every Imp, present and future). Each adapter runs its whole
    *  legacy ritual: the shop's `buffImpsRunWide` (board + hand + the persistent aura); combat buffs the
    *  living Imps AND carries the aura back via `grantImpBuff` — so the body only states the amounts. */
@@ -94,6 +103,58 @@ export interface EffectArena {
   /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
    *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
   addTribeAura(tribe: string, attack: number, health: number): void;
+  /** Permanently buff a CARD TYPE run-wide (every copy: board, hand, future). Each adapter runs its whole
+   *  legacy ritual — combat: the carry-back channel PLUS live-buffing copies on the board this fight; shop:
+   *  `buffCardTypeRunWide` (which already covers board + hand itself — the body must NOT re-loop). */
+  grantCardTypeBuff(cardId: string, attack: number, health: number): void;
+  /** Permanently raise the Undead ATTACK aura, everywhere (board + hand + future copies). Whole-ritual per
+   *  adapter: combat live-buffs the Undead on board AND carries back via `grantUndeadBuyAtk`; the shop runs
+   *  `buffUndeadAttackEverywhere`. The body only states the amount. */
+  grantUndeadAttackAura(attack: number): void;
+  /** The REAL tribes of a body (non-neutral, both slots). */
+  tribesOf(t: ArenaBody): string[];
+  /** Paragon's all-type flag. */
+  isUniversalTribe(t: ArenaBody): boolean;
+  /** Rune of Mastery reps — how many times an Improve tick applies (2 under the rune, else 1). */
+  improveReps(): number;
+  /** Rune of the Matriarch reps (2 with the rune, else 1). The shop adapter returns 1 — the legacy shop
+   *  halves never applied Matriarch, and that behaviour is preserved until ruled otherwise. */
+  matriarchReps(): number;
+  /** Announce a spellProgress tick (the live countdown). A combat log event; a shop no-op. */
+  logSpellProgress(amount: number): void;
+  /** Announce an Improve tick (the improve pop). A combat log event; a shop no-op. */
+  logImprove(amount: number): void;
+  /** Buff a body PERMANENTLY. A shop buff is permanent by nature (plain `buff`); in combat the gain is also
+   *  recorded into the carry-back (`permaGain`) regardless of Engrave — Flowing Monk's gift keeps. */
+  buffPermanent(t: ArenaBody, attack: number, health: number): void;
+  /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
+  spellsThisTurn(): number;
+  /** Grant `count` copies of a NAMED card to hand. Combat rides `grantToHand` (announced + flown in the
+   *  replay); the shop conjures (run-buff bake + hand cap). */
+  grantNamedCard(cardId: string, count: number): void;
+  /** Grant `count` random Shop spells. Each phase's legacy pick: combat's `grantRandomSpell` channel resolves
+   *  at settle (≤ tavern tier; `exactTier` is not expressible there and keeps its legacy shop-only meaning);
+   *  the shop conjures from the pinned pool's spells. */
+  grantRandomSpells(count: number, exactTier?: number): void;
+  /** Grant `count` random cards matching `pred` from the run's PINNED pool to the player's hand. Each phase's
+   *  whole legacy ritual: combat picks one-per-grant off its threaded rng and rides `grantToHand` (the card
+   *  flies to hand in the replay); the shop conjures via `conjureToHand` (cursor picks + run-buff bake +
+   *  hand cap). `pred` sees the CardDef; write the FULL legacy filter in the body — clauses a phase's pool
+   *  already excludes are harmless no-ops there. */
+  grantRandomFromPool(pred: (card: { id: string; keywords: readonly string[]; token?: boolean; spell?: boolean }) => boolean, count: number): void;
+  /** Raise the run-wide FODDER enchant (the Fodder card type, everywhere). Whole-ritual per adapter. */
+  grantFodderAura(attack: number, health: number): void;
+  /** Bane's Existence's Demon-widen, as one ritual: the shop buffs every Demon you have (board + hand); combat
+   *  permanently buffs the living Demons (the carry-back keeps it — hand copies are unreachable mid-fight and
+   *  pick the enchant up as printed run-wide state). No-op when the quest isn't armed. */
+  applyBaneDemonWiden(): void;
+  /** Remove a body's Echo (onDeath) effects — the no-chain guard for "summon a copy WITHOUT the Echo".
+   *  Combat filters the instance's live effects list; a shop copy carries no per-instance effect list, so the
+   *  adapter marks the card (`echoStripped`) and the shop's Echo dispatch skips marked bodies. */
+  stripEchoes(t: ArenaBody): void;
+  /** Stamp Karwind's pulse FX on a body — shop-side bookkeeping (`karwindFlash`); a combat no-op (combat FX
+   *  ride the buff events). */
+  stampKarwindFlash(t: ArenaBody): void;
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
@@ -168,7 +229,7 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
-    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g });
+    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true });
   },
 
   /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
@@ -292,6 +353,300 @@ export const ARENA_EFFECTS = {
     arena.addTribeAura(tribe, amount, amount);
     for (const f of arena.friends()) {
       if (f.uid !== arena.self.uid && (tribe === 'any' || arena.isTribe(f, tribe))) arena.buff(f, amount, amount);
+    }
+  },
+
+  /** Echo: permanently buff every copy of a card type, run-wide (golden doubles). `cardId` defaults to
+   *  the dying minion's own type. */
+  deathrattleBuffCardTypeRunWide(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const cardId = typeof params.cardId === 'string' && params.cardId ? params.cardId : arena.self.cardId;
+    arena.grantCardTypeBuff(cardId,
+      (typeof params.attack === 'number' ? params.attack : 1) * g,
+      (typeof params.health === 'number' ? params.health : 1) * g);
+  },
+
+  /** Errand Fiend / Imp Wrangler — summon `count` Imps (golden doubles), each optionally keyworded and
+   *  buffed as it lands. GOLDEN DOUBLES THE PER-IMP BUFF TOO — Errand Fiend's goldenText prints "+2/+4",
+   *  which the combat half honoured and the shop half silently didn't (drift fixed by unification). */
+  summonImps(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const kw = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    const count = (typeof params.count === 'number' ? params.count : 1) * g;
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken('impscrap', kw ? { keyword: kw } : undefined);
+      if (!made) break; // board full
+      if (a > 0 || h > 0) arena.buff(made, a, h);
+    }
+  },
+
+  /** Whenever you cast a Shop spell: your minions gain +atk/+hp (golden doubles). */
+  spellCastBuffAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a === 0 && h === 0) return;
+    for (const f of arena.friends()) arena.buff(f, a, h);
+  },
+
+  /** Deathswarmer's spell-cast twin: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */
+  spellCastBuffUndeadAttack(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantUndeadAttackAura((typeof params.attack === 'number' ? params.attack : 2) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Runebloom / Runekeg — whenever you cast a Shop spell: give `count` random minions of `tribe` +atk/+hp
+   *  (golden doubles; `excludeSelf` for "other"). Runebloom repeats under Rune of the Matriarch — combat's
+   *  legacy behaviour, carried by the adapter's `matriarchReps` (the shop returns 1, as it always did). */
+  onSpellCastBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 3) * g;
+    const h = (typeof params.health === 'number' ? params.health : 3) * g;
+    if (a <= 0 && h <= 0) return;
+    const reps = arena.self.cardId === 'b2_runebloom' ? arena.matriarchReps() : 1;
+    const rng = arena.rng();
+    for (let r = 0; r < reps; r++) {
+      const pool = arena.friends().filter((m) =>
+        (!tribe || arena.isTribe(m, tribe)) && !(params.excludeSelf && m.uid === arena.self.uid));
+      if (pool.length === 0) return;
+      const want = Math.min(typeof params.count === 'number' ? params.count : 3, pool.length);
+      for (let i = 0; i < want; i++) arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+  },
+
+  /** Fatecarver — each Shop spell buffs ONE minion of each type, walking the board in order (seating steers
+   *  who benefits). A Paragon takes its own slot, not every tribe's. Golden doubles. */
+  onSpellCastBuffOnePerTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    if (a <= 0 && h <= 0) return;
+    const seen = new Set<string>();
+    for (const f of arena.friends()) {
+      if (arena.isUniversalTribe(f)) { arena.buff(f, a, h); continue; }
+      const tribes = arena.tribesOf(f);
+      if (tribes.length === 0) continue;
+      if (tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      arena.buff(f, a, h);
+    }
+  },
+
+  /** The asym on-summon buffer: when a friend of `tribe` is played/summoned beside this, buff THE ARRIVER by
+   *  (base + this instance's `summonBonus`) × golden. The arriver rides `params.arriver` (merged by the
+   *  wrappers from the dispatch payload). */
+  summonBuffTribeAsym(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    if (!arriver || arriver.uid === arena.self.uid) return;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    if (tribe && !arena.isTribe(arriver, tribe)) return;
+    const g = arena.self.golden ? 2 : 1;
+    const bonus = arena.self.summonBonus ?? 0;
+    const a = ((typeof params.attack === 'number' ? params.attack : 2) + bonus) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 4) + bonus) * g;
+    if (a <= 0 && h <= 0) return;
+    arena.buff(arriver, a, h);
+  },
+
+  /** Spirit Pup's improve tick: each Shop spell advances this instance's `spellProgress` (× Rune of Mastery). */
+  spellCastImproveSelf(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.self.spellProgress = (arena.self.spellProgress ?? 0) + arena.improveReps();
+    arena.logSpellProgress(arena.self.spellProgress);
+  },
+
+  /** Archmagus Guel — each Shop spell: give `count` random OTHER friends +atk/+hp, improving +1/+1 per 4
+   *  spells cast while THIS instance is on the board (tick first, × Rune of Mastery; golden doubles the
+   *  grant). Distinct targets per cast. */
+  spellCastBuffOthers(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.self.spellProgress = (arena.self.spellProgress ?? 0) + arena.improveReps();
+    arena.logSpellProgress(arena.self.spellProgress);
+    const g = arena.self.golden ? 2 : 1;
+    const step = Math.floor(arena.self.spellProgress / 4);
+    const a = ((typeof params.attack === 'number' ? params.attack : 1) + step) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 1) + step) * g;
+    const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+    const rng = arena.rng();
+    const want = typeof params.count === 'number' ? params.count : 2;
+    for (let i = 0; i < want && pool.length > 0; i++) {
+      arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+  },
+
+  /** Thunderous Sovereign's improve half: each Shop spell accrues `step` into this instance's `summonBonus`
+   *  (× Rune of Mastery), which its Start-of-Combat grant spends. */
+  onSpellCastImproveSummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const amount = (typeof params.step === 'number' ? params.step : 1) * arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + amount;
+    arena.logImprove(amount);
+  },
+
+  /** Spirit Worgen — when a Beast/Dragon is played beside it, gain base × (1 + spells this turn) × golden.
+   *  THE SHOP FORMULA IS THE CARD (owner ruling 2026-08-04 + the printed text: "+3/+3, improves by +3/+3 per
+   *  Shop spell" IS base×(1+spells)); the combat half's additive (base + spells) is retired. The arriver
+   *  rides `params.arriver`; the body only checks its tribes. */
+  summonBuffSelfTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    if (!arriver || arriver.uid === arena.self.uid) return;
+    const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
+    if (!tribes.some((t) => arena.isTribe(arriver, t))) return;
+    const spells = arena.spellsThisTurn() * arena.improveReps();
+    const g = arena.self.golden ? 2 : 1;
+    arena.buff(arena.self,
+      (typeof params.attack === 'number' ? params.attack : 3) * g * (1 + spells),
+      (typeof params.health === 'number' ? params.health : 3) * g * (1 + spells));
+  },
+
+  /** Hunter — when THIS minion's Attack rises: buff your OTHER minions by (base + accrual) × golden, then
+   *  grow the accrual by base (× Rune of Mastery). THE SHOP FORMULA IS THE CARD (owner ruling 2026-08-04);
+   *  combat's stepped ×(1 + floor(fires/every)) is retired, and `every` with it. Re-entrancy guards (our own
+   *  +Attack grant must not re-fire this) stay in the wrappers. */
+  onGainAttackBuffImproving(arena: EffectArena, params: Record<string, unknown>): void {
+    const base = typeof params.attack === 'number' ? params.attack : 1;
+    const m = (base + (arena.self.summonBonus ?? 0)) * (arena.self.golden ? 2 : 1);
+    if (m > 0) {
+      for (const f of arena.friends()) if (f.uid !== arena.self.uid) arena.buff(f, m, m);
+    }
+    const tick = base * arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + tick;
+    arena.logImprove(tick); // the live-text countdown ticks mid-fight
+  },
+
+  /** Echo: summon `count` copies of a token (golden doubles the count UNLESS `fixed`; `goldenTokens` gilds
+   *  the tokens instead — Manasaber's cubs; optional `keyword` rides the summon snapshot). UNIFIED TO THE
+   *  COMBAT READING (owner confirm 2026-08-04): the shop half was missing `fixed`/`goldenTokens`, so a golden
+   *  Imp King's shop Echo summoned 4 plain tokens where the card means 2. */
+  deathrattleSummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const total = (typeof params.count === 'number' ? params.count : 1)
+      * (params.fixed ? 1 : arena.self.golden ? 2 : 1);
+    const golden = !!params.goldenTokens && arena.self.golden === true;
+    const kw = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
+    for (let i = 0; i < total; i++) arena.summonToken(id, { keyword: kw, golden });
+  },
+
+  /** Echo: get a random Attachment (Magnetic minion) — golden grants two. */
+  deathrattleGrantMagnetic(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.grantRandomFromPool((c) => c.keywords.includes('M') && !c.token && !c.spell, arena.self.golden ? 2 : 1);
+  },
+
+  /** Get `count` random Dwarven Ales (golden doubles). A set without the Ales grants nothing rather than
+   *  injecting unreachable cards. The attacker/rally guards stay with dispatch in the combat wrapper. */
+  combatGrantAle(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantRandomFromPool(
+      (c) => ALE_IDS.includes(c.id),
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Big Huggies — Echo: put a named spell in hand (golden grants two). */
+  deathrattleGrantSpell(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.cardId === 'string' ? params.cardId : '';
+    if (!id) return;
+    arena.grantNamedCard(id, arena.self.golden ? 2 : 1);
+  },
+
+  /** Echo: put `count` copies of a named card in hand (golden doubles). */
+  deathrattleGrantCardToHand(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.cardId === 'string' ? params.cardId : '';
+    if (!id) return;
+    arena.grantNamedCard(id, (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Echo: get `count` random Shop spells (golden doubles). `exactTier` pins the tier where the phase can
+   *  express it (the shop); combat's settle-time channel keeps its legacy ≤-tavern-tier pick. */
+  deathrattleGrantRandomSpell(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.grantRandomSpells(
+      (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1),
+      typeof params.exactTier === 'number' ? params.exactTier : undefined);
+  },
+
+  /** Anvilshade Smith — Echo: summon `count` tokens that INHERIT this body's Attack when higher than their
+   *  printed floor (buffing the Smith buffs what its death produces), swinging immediately in combat (the
+   *  charge is meaningless in a shop and the adapter ignores it there). Golden doubles the count. */
+  echoSummonInheritAttackAndCharge(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.token === 'string' ? params.token : '';
+    if (!id) return;
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(id, { charge: true });
+      if (!made) break; // board full
+      if (arena.self.attack > made.attack) made.attack = arena.self.attack;
+    }
+  },
+
+  /** Flowing Monk — when a summon can't fit the full board: PERMANENTLY buff `count` random friends by
+   *  base × (1 + floor(overflows/improveEvery)) × golden, plus the triple's flat top-up. Then the overflow
+   *  itself accrues (× Rune of Mastery) and announces, so the live text climbs. Distinct targets. */
+  overflowBuffRandom(arena: EffectArena, params: Record<string, unknown>): void {
+    const every = Math.max(1, typeof params.improveEvery === 'number' ? params.improveEvery : 5);
+    const step = Math.floor((arena.self.summonBonus ?? 0) / every);
+    const flat = (arena.self as { overflowBonus?: number }).overflowBonus ?? 0;
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * (1 + step) * g + flat;
+    const h = (typeof params.health === 'number' ? params.health : 2) * (1 + step) * g + flat;
+    // COPY before splicing: `friends()` may hand back the phase's live board array, and splicing that
+    // would remove minions from the actual board (caught by Monk's own regression test).
+    const pool = [...arena.friends()];
+    const rng = arena.rng();
+    for (let i = 0; i < (typeof params.count === 'number' ? params.count : 2) && pool.length > 0; i++) {
+      arena.buffPermanent(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
+    }
+    const tick = arena.improveReps();
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + tick;
+    arena.logImprove(tick);
+  },
+
+  /** Ex-Galloper — Echo: summon a copy of itself WITHOUT the Echo re-triggering. THE COPY INHERITS the body
+   *  it was — buffed stats and keywords — in BOTH phases (owner ruling 2026-08-04; the shop used to summon a
+   *  plain base card). Golden doubles the count. */
+  echoSummonCopyNoEcho(arena: EffectArena, params: Record<string, unknown>): void {
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    const hp = Math.max(1, arena.self.maxHealth ?? arena.self.health);
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(arena.self.cardId, {
+        attack: arena.self.attack, health: hp, keywords: [...arena.self.keywords],
+      });
+      if (!made) break; // board full
+      arena.stripEchoes(made); // the copy must not summon another on ITS death, and so on to the board cap
+    }
+  },
+
+  /** Bane — whenever a Battlecry fires on your side: enchant your Imps (+ Fodder when `fodder`) run-wide,
+   *  and apply Bane's Existence's Demon-widen — IN COMBAT TOO (owner ruling 2026-08-04; it was shop-only). */
+  onBattlecryBuffFodder(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
+    const h = (typeof params.health === 'number' ? params.health : 1) * g;
+    if (params.fodder) arena.grantFodderAura(a, h);
+    arena.grantImpAura(a, h);
+    arena.applyBaneDemonWiden();
+    // Flash Bane itself (+ any Fodder it enchanted) so the proc is visible even with no Imp out — the enchant
+    // is run-wide, to the card TYPE. A shop FX stamp; combat's adapter no-ops (its FX ride the buff events).
+    arena.stampKarwindFlash(arena.self);
+    if (params.fodder) for (const f of arena.friends()) if (arena.isFodder(f)) arena.stampKarwindFlash(f);
+  },
+
+  /** Karwind — each Shout: your `tribe` gains +a/+h, except this minion's two NEIGHBOURS, who take the bigger
+   *  adjacent grant INSTEAD. GOLDEN = 2× MAGNITUDE in both phases (owner ruling 2026-08-04; the shop used to
+   *  pulse twice at base — equal totals, but one convention now). Karwind is its own tribe and never its own
+   *  neighbour, so it takes the base grant. */
+  onBattlecryBuffTribeAdjacentMore(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    const adjA = (typeof params.adjAttack === 'number' ? params.adjAttack : 4) * g;
+    const adjH = (typeof params.adjHealth === 'number' ? params.adjHealth : 4) * g;
+    const friends = arena.friends();
+    const i = friends.findIndex((f) => f.uid === arena.self.uid);
+    const neighbours = new Set((i < 0 ? [] : [friends[i - 1], friends[i + 1]]).filter(Boolean).map((f) => f!.uid));
+    for (const f of friends) {
+      if (tribe && tribe !== 'any' && !arena.isTribe(f, tribe)) continue;
+      const adj = neighbours.has(f.uid);
+      arena.buff(f, adj ? adjA : a, adj ? adjH : h);
+      arena.stampKarwindFlash(f);
     }
   },
 } as const;

@@ -56,10 +56,11 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
   return {
     phase: 'shop',
     self,
-    friends: () => state.board,
+    friends: () => [...state.board], // a COPY — bodies may splice their pool without touching the board
     hasShield: (t) => t.keywords.includes('DS'),
     grantShield: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'DS']; },
     buff: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
+    buffPermanent: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h), // a shop buff IS permanent
     rubyTallyOf: (t) => {
       const ruby = (t as BoardCard).buffs?.find((b) => b.source === 'Ruby');
       return { attack: ruby?.attack ?? 0, health: ruby?.health ?? 0 };
@@ -73,11 +74,18 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const made = made0 ?? state.board[state.board.length - 1];
       if (!made) return undefined;
       if (opts?.keyword && !made.keywords.includes(opts.keyword as Keyword)) made.keywords = [...made.keywords, opts.keyword as Keyword];
-      // Explicit stats: label the above-base share as a RUBY buff and notify watchers — the legacy shop
-      // bookkeeping, so a Resonance Idol still bounces and the inspect breakdown attributes correctly.
+      if (opts?.keywords) for (const k of opts.keywords) { if (!made.keywords.includes(k as Keyword)) made.keywords = [...made.keywords, k as Keyword]; }
+      if (opts?.golden && !made.golden) { made.golden = true; made.attack *= 2; made.health *= 2; } // gilded token: doubled base + the flag
+      // Explicit stats. `rubyLabel` (Gemheart): the above-base share is a RUBY buff + watcher notify — the
+      // legacy shop bookkeeping, so a Resonance Idol bounces and the breakdown attributes. Otherwise the
+      // stats apply DIRECTLY (the Smith's inherited Attack is the body's value, not a buff entry).
       if (opts?.attack !== undefined && opts.health !== undefined) {
-        const ea = opts.attack - made.attack, eh = opts.health - made.health;
-        if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+        if (opts.rubyLabel) {
+          const ea = opts.attack - made.attack, eh = opts.health - made.health;
+          if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+        } else {
+          made.attack = opts.attack; made.health = opts.health;
+        }
       }
       return made;
     },
@@ -98,11 +106,54 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     grantMaxGold: (amount) => { state.maxEmbers += amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
+    isFodder: (t) => !!CARD_INDEX[t.cardId]?.keywords.includes('FD'),
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
+    grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
+    grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
+    tribesOf: (t) => {
+      const def = CARD_INDEX[t.cardId];
+      return [def?.tribe, def?.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');
+    },
+    isUniversalTribe: (t) => !!CARD_INDEX[t.cardId]?.universalTribe,
+    improveReps: () => improveReps(state),
+    matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
+    logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
+    logImprove: () => {},
+    spellsThisTurn: () => state.spellsThisTurn,
+    grantNamedCard: (cardId, count) => {
+      const def = CARD_INDEX[cardId];
+      if (def) conjureToHand(state, [def], count);
+    },
+    grantRandomSpells: (count, exactTier) => {
+      const ok = exactTier != null
+        ? (c: CardDef) => c.tier === exactTier
+        : (c: CardDef) => c.tier <= state.tier;
+      conjureToHand(state, poolOf(state).spells.filter(ok), count);
+    },
+    grantRandomFromPool: (pred, count) => {
+      // The FULL pool (buyable + spells): Ales are spells, Attachments are minions — the predicate decides.
+      const pool = [...poolOf(state).buyable, ...poolOf(state).spells].filter(pred);
+      if (pool.length === 0) return;
+      conjureToHand(state, pool, count);
+    },
+
 
     grantImpAura: (a, h) => buffImpsRunWide(state, a, h, nameOf(self)),
+    grantFodderAura: (a, h) => buffFodderRunWide(state, a, h, nameOf(self)),
+    applyBaneDemonWiden: () => {
+      const dem = state.baneBuffsDemons;
+      if (!dem || (dem.attack === 0 && dem.health === 0)) return;
+      for (const c of [...state.board, ...state.hand]) {
+        if (isTribe(c, 'demon')) addBuff(c, `${nameOf(self)} (Demons)`, dem.attack, dem.health);
+      }
+    },
+    stripEchoes: (t) => { (t as BoardCard).echoStripped = true; },
+    stampKarwindFlash: (t) => {
+      const flash = (state.karwindFlash ??= []);
+      if (!flash.includes(t.uid)) flash.push(t.uid);
+    },
     grantRubyPower: (a, h) => {
       // The rubyStatGain core WITHOUT its golden multiplier (the body already applied it): raise the run's
       // Ruby power and keep Rubies already in hand current — the legacy shop bookkeeping, verbatim.
@@ -1179,6 +1230,9 @@ function fireOnRubyGained(state: RunState): void {
  * count this death — matching combat, where the death increments the tally before the rattle runs.
  */
 function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effectsOverride?: EffectDef[]): void {
+  // Ex-Galloper's copy is summoned "WITHOUT the Echo" — the no-chain guard. A BoardCard has no per-instance
+  // effects list to strip, so the copy is marked and skipped here (the shop mirror of combat's effects filter).
+  if (minion.echoStripped) return;
   // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
   // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
   const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
@@ -1642,10 +1696,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // that only make sense mid-fight (damage, destroy-the-killer, granting Rise) stay combat-only by design.
 
   /** Big Huggies / Scalefeather (Echo): put a named card in hand. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params) => {
-    const def = CARD_INDEX[str(params.cardId)];
-    if (!def) return;
-    conjureToHand(ctx.state, [def], gold(self));
+    ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
   },
 
   /** Bone Taxer (Echo): raise MAX Gold for the run. */
@@ -1668,33 +1721,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Errand Fiend / Legion pieces (Echo): summon Imps, optionally keyworded and buffed as they land. */
+  // ARENA-MIGRATED (Step 3): one body. Drift fixed: the shop now honours the printed goldenText ("+2/+4")
+  // by doubling the per-Imp buff for golden, as combat always did.
   summonImps: (ctx, self, params) => {
-    const imp = CARD_INDEX['impscrap'];
-    if (!imp) return;
-    const kw = str(params.keyword);
-    const a = num(params.attack, 0), h = num(params.health, 0);
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      const body = ctx.summon(imp, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
-      if (!made) break;
-      if (kw && !made.keywords.includes(kw as Keyword)) made.keywords = [...made.keywords, kw as Keyword];
-      if (a > 0 || h > 0) addBuff(made, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.summonImps(shopArena(ctx.state, self), params);
   },
 
   /** Ex-Galloper (Echo): summon a copy of itself WITHOUT the Echo. In the shop the copy is a plain body of the
    *  same card — the recruit board has no per-instance effect list to strip, so the Echo simply doesn't
    *  re-trigger from a summoned token the way it can't in combat either. */
+  // ARENA-MIGRATED (Step 3): one body; the shop copy now INHERITS buffed stats + keywords (owner ruling
+  // 2026-08-04 — it used to summon a plain base card).
   echoSummonCopyNoEcho: (ctx, self, params) => {
-    const card = CARD_INDEX[self.cardId];
-    if (!card) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      ctx.summon(card, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-    }
+    ARENA_EFFECTS.echoSummonCopyNoEcho(shopArena(ctx.state, self), params);
   },
 
   /** Gemheart (Echo): summon a Shard carrying the Rubies that were on this body. */
@@ -1706,24 +1745,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight
    *  delegation — the guard params only matter in combat, where the payload says who died. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   combatGrantAle: (ctx, self, params) => {
-    RECRUIT_FACTORIES.grantRandomAle?.(ctx, self, params, { minion: self });
+    ARENA_EFFECTS.combatGrantAle(shopArena(ctx.state, self), params);
   },
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
    *  swing immediately — meaningless in a shop, so only the summon half applies here. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (the charge no-ops here — there is
+  // no attack queue in a shop).
   echoSummonInheritAttackAndCharge: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.token)];
-    if (!token) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const before = ctx.state.board.length;
-      const body = ctx.summon(token, self.uid);
-      if (ctx.state.board.length === before) break; // board full
-      const made = body ?? ctx.state.board[ctx.state.board.length - 1];
-      // The token's printed Attack is a FLOOR, not the value — it takes the Smith's if that is higher, so
-      // buffing the Smith buffs what its death produces (same rule as the combat half).
-      if (made && self.attack > made.attack) made.attack = self.attack;
-    }
+    ARENA_EFFECTS.echoSummonInheritAttackAndCharge(shopArena(ctx.state, self), params);
   },
 
   /** Ryme / Dawnclaw (Echo): re-fire both neighbours' Shouts. In the shop every Shout is simply its recruit
@@ -1908,22 +1940,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  symmetric grant, and it does NOT self-improve here — the improvement rides spell casts instead
    *  (`onSpellCastImproveSummon`), which is what the card says. Golden doubles the whole magnitude at grant
    *  time so base and step each double exactly once. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts; the arriver rides params.
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
     if (minion === self) return;
-    const tribe = str(params.tribe);
-    if (tribe && !isTribe(minion, tribe as Tribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    const a = (num(params.attack, 2) + bonus) * gold(self);
-    const h = (num(params.health, 4) + bonus) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    addBuff(minion, nameOf(self), a, h);
+    ARENA_EFFECTS.summonBuffTribeAsym(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
    *  Stored at BASE magnitude (golden is applied when the buff lands) and scaled by `improveReps` for Rune of
    *  Mastery, matching every other "improve this". */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastImproveSummon: (ctx, self, params) => {
-    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+    ARENA_EFFECTS.onSpellCastImproveSummon(shopArena(ctx.state, self), params);
   },
 
   /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue
@@ -2126,14 +2154,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Hunter (recruit half, scaling aura) — when this gains Attack in the shop, give every OTHER friendly
    *  minion the current per-proc +N/+N, then improve this by the base +N/+N (per-instance, via `summonBonus`).
    *  Excludes self + a re-entry guard so a Hunter buffing another Hunter can't loop. Golden doubles the grant. */
+  // ARENA-MIGRATED (Step 3): one body; this shop formula WON the divergence (owner ruling 2026-08-04).
   onGainAttackBuffImproving: (ctx, self, params) => {
     if (recruitHuntGuard.has(self)) return;
     recruitHuntGuard.add(self);
     try {
-      const base = num(params.attack, 1);
-      const m = (base + (self.summonBonus ?? 0)) * gold(self);
-      if (m > 0) for (const c of ctx.state.board) if (c !== self) addBuff(c, nameOf(self), m, m);
-      self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
+      ARENA_EFFECTS.onGainAttackBuffImproving(shopArena(ctx.state, self), params);
     } finally {
       recruitHuntGuard.delete(self);
     }
@@ -2299,16 +2325,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Spirit Worgen: when a friendly minion of one of `tribes` is summoned (played or token-summoned),
    *  gain +X/+X where X = base × (1 + spells cast THIS turn) — so each spell cast this turn improves the
    *  per-summon gain by another full `base`. Golden doubles `base`. Self-targeting; ignores its own arrival. */
+  // ARENA-MIGRATED (Step 3): one body; this shop formula WON the divergence (owner ruling 2026-08-04).
   summonBuffSelfTribe: (ctx, self, params, { minion }) => {
     if (minion === self) return;
-    const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
-    const def = CARD_INDEX[minion.cardId];
-    if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
-    // Rune of Mastery: the per-spell Improve contribution counts twice (the base per-play grant is unchanged).
-    const spells = ctx.state.spellsThisTurn * improveReps(ctx.state);
-    const x = num(params.attack, 3) * gold(self) * (1 + spells);
-    const y = num(params.health, 3) * gold(self) * (1 + spells);
-    addBuff(self, nameOf(self), x, y);
+    ARENA_EFFECTS.summonBuffSelfTribe(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
@@ -2356,43 +2376,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Archmagus Guel: after a tavern spell is cast, give `count` *other* friendly minions +atk/+hp.
    *  Targets are random (seeded by the run cursor) so the buffs spread rather than snowball one carry. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Guel).
   spellCastBuffOthers: (ctx, self, params) => {
-    const others = ctx.state.board.filter((c) => c !== self);
-    const picks = pickRandom(ctx.state, others, num(params.count, 2));
-    // Scales PER-INSTANCE (owner ruling 2026-07-05: Guel doesn't improve unless he's on board): the grant
-    // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
-    // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
-    // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
-    // Rune of Mastery: each cast's Improve tick applies twice (the countdown + step derive from this tally).
-    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
-    const step = Math.floor(self.spellProgress / 4);
-    const a = (num(params.attack, 1) + step) * gold(self);
-    const h = (num(params.health, 1) + step) * gold(self);
-    for (const m of picks) addBuff(m, nameOf(self), a, h);
+    ARENA_EFFECTS.spellCastBuffOthers(shopArena(ctx.state, self), params);
   },
+
 
   /** Runescale Drake (recruit half): each tavern spell cast while THIS instance is on the board ticks its
    *  per-instance `spellProgress` by 1 (non-retroactive — a freshly bought copy starts at 0). The Start-of-
    *  Combat half reads that tally to size its Dragon buff; combat casts tick it at settle (see resolveCombat). */
-  spellCastImproveSelf: (ctx, self) => {
-    // Rune of Mastery: each cast's Improve tick applies twice (the SoC Dragon grant derives from this tally).
-    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  spellCastImproveSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.spellCastImproveSelf(shopArena(ctx.state, self), params);
   },
 
   /** Flowing Monk (recruit half): when a summon can't fit the full board, Engrave `count` random friendly
    *  minions +atk/+hp (recruit buffs are inherently permanent). The magnitude improves by another +atk/+hp
    *  per `improveEvery` overflows — the tally rides in `summonBonus` (the per-instance accrual shared with
    *  the combat half via the carry-back), so both halves grow the same counter. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (Flowing Monk).
   overflowBuffRandom: (ctx, self, params) => {
-    const every = Math.max(1, num(params.improveEvery, 5));
-    const step = Math.floor((self.summonBonus ?? 0) / every);
-    // `overflowBonus` is the flat top-up a TRIPLE created (golden = sum of the two highest copies' grants).
-    const flat = self.overflowBonus ?? 0;
-    const a = num(params.attack, 2) * (1 + step) * gold(self) + flat;
-    const h = num(params.health, 2) * (1 + step) * gold(self) + flat;
-    const picks = pickRandom(ctx.state, [...ctx.state.board], num(params.count, 2));
-    for (const m of picks) addBuff(m, nameOf(self), a, h);
-    self.summonBonus = (self.summonBonus ?? 0) + improveReps(ctx.state); // the Improve tick — ×2 under Mastery
+    ARENA_EFFECTS.overflowBuffRandom(shopArena(ctx.state, self), params);
   },
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
@@ -2651,27 +2655,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Most of Karwind's procs happen HERE, not in combat: Shouts fire when you play minions in the shop. The
    *  combat twin of the same name covers a Shout re-fired mid-fight. */
+  // ARENA-MIGRATED (Step 3): one body; golden = 2x MAGNITUDE now (owner ruling 2026-08-04 — the
+  // twice-at-base pulse is retired; equal totals, one convention).
   onBattlecryBuffTribeAdjacentMore: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack, 2);
-    const h = num(params.health, 2);
-    const adjA = num(params.adjAttack, 4);
-    const adjH = num(params.adjHealth, 4);
-    const board = ctx.state.board;
-    const i = board.indexOf(self);
-    const neighbours = new Set(i < 0 ? [] : [board[i - 1], board[i + 1]].filter(Boolean));
-    const flash = (ctx.state.karwindFlash ??= []);
-    // Golden applies the pulse twice at base magnitude, matching `onBattlecryBuffTribe`.
-    for (let n = 0; n < gold(self); n++) {
-      for (const c of board) {
-        // Includes Karwind itself (it's a Dragon, and the pre-rework card buffed it) — never as a neighbour.
-        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
-        const adj = neighbours.has(c);
-        addBuff(c, nameOf(self), adj ? adjA : a, adj ? adjH : h);
-        if (!flash.includes(c.uid)) flash.push(c.uid);
-      }
-    }
+    ARENA_EFFECTS.onBattlecryBuffTribeAdjacentMore(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Bathing Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
    *  every turn — Attack on its first turn, Health on the next, and so on (owner spec 2026-07-25).
@@ -2706,11 +2695,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Scalechanter: every SHOP spell you cast gives your whole board +atk. The `spellCast` event is
    *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording
    *  needs no explicit Ruby check. Golden doubles the grant. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffAll: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 0) * gold(self);
-    if (a === 0 && h === 0) return;
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
+    ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Commander Warpath (Shout): get a random Dragon that HAS a Shout.
@@ -2987,29 +2974,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  +atk/+hp run-wide (same mechanism as Ritualist's End-of-Turn enchant). Golden doubles. Fires once
    *  per Battlecry *fire* (so a Drakko-doubled Battlecry procs it twice — `fireBattlecryTriggered`
    *  notifies per fire). Multiple Banes each react, so they stack additively. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onBattlecryBuffFodder: (ctx, self, params) => {
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    // `fodder` is OPT-IN (owner 2026-08-03: Bane buffs Imps only now). Left as a param rather than deleted
-    // so the Fodder half stays available to anything that wants both.
-    if (params.fodder) buffFodderRunWide(ctx.state, a, h, nameOf(self));
-    buffImpsRunWide(ctx.state, a, h, nameOf(self));
-    // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
-    const dem = ctx.state.baneBuffsDemons;
-    if (dem && (dem.attack !== 0 || dem.health !== 0)) {
-      for (const c of [...ctx.state.board, ...ctx.state.hand]) {
-        if (isTribe(c, 'demon')) addBuff(c, `${nameOf(self)} (Demons)`, dem.attack, dem.health);
-      }
-    }
-    // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
-    // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
-    // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.
-    const flash = (ctx.state.karwindFlash ??= []);
-    if (!flash.includes(self.uid)) flash.push(self.uid);
-    for (const c of ctx.state.board) {
-      if (CARD_INDEX[c.cardId]?.keywords.includes('FD') && !flash.includes(c.uid)) flash.push(c.uid);
-    }
+    ARENA_EFFECTS.onBattlecryBuffFodder(shopArena(ctx.state, self), params);
   },
+
 
   /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
    *  `deathrattleBuffAll` bakes +1/+1, golden +2/+2, into every board minion) and counts toward the run's
@@ -3090,14 +3059,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   //     of combat there's no RNG, so "random" picks become the highest-Attack carry. ---
 
   /** Deathrattle: summon `count` copies of a token. */
+  // ARENA-MIGRATED (Step 3): one body, unified to the combat reading (owner confirm) — the shop gains the
+  // fixed / goldenTokens params it was silently missing (golden Imp King: 2 tokens, not 4).
   deathrattleSummon: (ctx, self, params) => {
-    const token = CARD_INDEX[str(params.tokenId)];
-    if (!token) return;
-    const kw = str(params.keyword) as Keyword | ''; // optional: grant each summoned token a keyword (Broodmother → Taunt)
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
-      const m = ctx.summon(token, self.uid);
-      if (kw && m && !m.keywords.includes(kw)) m.keywords.push(kw);
-    }
+    ARENA_EFFECTS.deathrattleSummon(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: give every board minion +atk/+hp (Sporeling — golden doubles). Out-of-combat resolution
@@ -3167,10 +3132,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantCardToHand: (ctx, self, params) => {
-    const def = CARD_INDEX[str(params.cardId)];
-    if (!def) return;
-    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGrantCardToHand(shopArena(ctx.state, self), params);
   },
 
   /** Hoard Whelp — End of Turn: conjure a random Tier-`tier` card (a spell OR a minion) to hand; golden grants 2.
@@ -3186,12 +3150,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantRandomSpell: (ctx, self, params) => {
-    // `exactTier` pins the spell to a specific tier; else any spell up to the tavern tier.
-    const ok = params.exactTier != null
-      ? (c: CardDef) => c.tier === num(params.exactTier)
-      : (c: CardDef) => c.tier <= ctx.state.tier;
-    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter(ok), num(params.count, 1) * gold(self));
+    ARENA_EFFECTS.deathrattleGrantRandomSpell(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Hoard Chronicler (Shout): add `count` random Tavern spells to hand (golden doubles). The Shout
@@ -3401,26 +3362,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * steer who benefits by arranging the line. A universal-tribe minion counts as its own slot rather than
    * soaking every tribe's buff, matching `onRallyBuffOnePerTribe`.
    */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts. The Choose One gate stays with dispatch (a persistent
+  // branch cannot live in chooseOne[].effects - it would fire once at pick time and never again).
   onSpellCastBuffOnePerTribe: (ctx, self, params) => {
-    // Gated on the Choose One pick. `applyChooseOne` fires a branch's effects ONCE as a battlecry, so a
-    // PERSISTENT branch cannot live in `chooseOne[].effects` — it would fire at pick time and never again. Both
-    // halves are printed effects on the card instead, each checking which branch this body became.
     if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    if (a <= 0 && h <= 0) return;
-    const seen = new Set<string>();
-    for (const c of ctx.state.board) {
-      const def = CARD_INDEX[c.cardId];
-      if (!def) continue;
-      if (def.universalTribe) { addBuff(c, nameOf(self), a, h); continue; } // its own slot, not every tribe's
-      const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-      if (tribes.length === 0) continue;
-      if (tribes.every((t) => seen.has(t))) continue; // every type it covers already got its buff
-      for (const t of tribes) seen.add(t);
-      addBuff(c, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.onSpellCastBuffOnePerTribe(shopArena(ctx.state, self), params);
   },
+
 
   /** Copycat (rune gift — owner spec 2026-08-02): an EXACT copy of the target friendly minion into hand.
    *  A spread of the live BoardCard — stats, keywords, gilding, enchants and every per-instance accrual
@@ -3436,20 +3384,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.hand.push(clone);
   },
 
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    // `excludeSelf` (Runekeg): "other Dwarves" — the caster never buffs itself.
-    const pool = ctx.state.board.filter((c) => (!tribe || isTribe(c, tribe as never)) && !(params.excludeSelf && c === self));
-    if (pool.length === 0) return;
-    const rng = makeRng(ctx.state.rngCursor);
-    const targets = [...pool];
-    const picks: BoardCard[] = [];
-    const want = Math.min(num(params.count, 3), targets.length);
-    for (let i = 0; i < want; i++) picks.push(targets.splice(rng.int(targets.length), 1)[0]!);
-    ctx.state.rngCursor = rng.state();
-    const a = num(params.attack, 3) * gold(self), h = num(params.health, 3) * gold(self);
-    for (const c of picks) addBuff(c, nameOf(self), a, h);
+    ARENA_EFFECTS.onSpellCastBuffRandomTribe(shopArena(ctx.state, self), params);
   },
+
 
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
    *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).
@@ -3575,14 +3514,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
-  deathrattleGrantMagnetic: (ctx, self) => {
-    conjureToHand(ctx.state, poolOf(ctx.state).buyable.filter((c) => c.keywords.includes('M')), gold(self));
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  deathrattleGrantMagnetic: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGrantMagnetic(shopArena(ctx.state, self), params);
   },
 
   /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffCardTypeRunWide: (ctx, self, params) => {
-    const cardId = str(params.cardId) || self.cardId;
-    buffCardTypeRunWide(ctx.state, cardId, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), CARD_INDEX[cardId]?.name ?? cardId);
+    ARENA_EFFECTS.deathrattleBuffCardTypeRunWide(shopArena(ctx.state, self), params);
   },
 
   /** (recruit half) — permanently buff your Imps run-wide (board + hand + future copies). */
@@ -4448,8 +4388,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
    *  (board + hand), and stack the bonus into undeadBuyAtk for future undead buys. Golden doubles N. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   spellCastBuffUndeadAttack: (ctx, self, params) => {
-    buffUndeadAttackEverywhere(ctx.state, num(params.attack, 2) * gold(self), nameOf(self));
+    ARENA_EFFECTS.spellCastBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
 };
 

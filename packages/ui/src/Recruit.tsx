@@ -53,7 +53,7 @@ import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { AlignmentHud } from './AlignmentHud';
+import { AlignmentArcs } from './AlignmentArcs';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -4030,9 +4030,9 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        {/* CELESTIAL alignment strip — sits directly under the warband line; renders only when a Celestial
-            is on the board (see AlignmentHud). */}
-        <AlignmentHud />
+        {/* CELESTIAL alignment ARCS — a luminous crescent beneath each Celestial, drawn into the under-card
+            Pixi slot (see AlignmentArcs). Renders nothing at all without a Celestial on the board. */}
+        <AlignmentArcs />
         <div className="row warband">
           {inCombat ? (
             replay.visibleFrame.player.map((u) => (

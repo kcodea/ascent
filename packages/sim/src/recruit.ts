@@ -36,10 +36,16 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
+
+/** Celestial by TRIBE (set 3 onward) or by the legacy `celestial` flag (the 2026-08-03 test units). */
+const isCelestialCard = (c: BoardCard): boolean => {
+  const d = CARD_INDEX[c.cardId];
+  return !!d && (d.tribe === 'celestial' || d.celestial === true);
+};
 
 /** The shop-side `EffectArena` adapter (Step 1 spike). `BoardCard` satisfies `ArenaBody` structurally and
  *  passes through unwrapped. `rng()` wraps the run's cursor with per-call write-back: mulberry32's state
@@ -423,7 +429,9 @@ export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBarteri
   // Trail Forager: base 3 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
   // as it accrues, in `sellBonus`).
   if (card.cardId === 'trailforager') return Math.max(barter, 3 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0));
-  return Math.max(barter, CONFIG.sellValue);
+  //  is a GENERAL per-instance accrual (Trail Forager above, Starpath Vendor's Dawn Orbit) — read
+  // here so any card that grows its own sell value is honoured without another branch.
+  return Math.max(barter, CONFIG.sellValue + (card.sellBonus ?? 0));
 }
 
 /**
@@ -2994,6 +3002,127 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       state.board.push(pick);
       fireSummonBuffs(state, pick);
     }
+  },
+
+  // ── CELESTIALS (set 3) ───────────────────────────────────────────────────────────────────────────────
+  // Every Orbit half below is align-gated in the CARD DATA (`align: 'dawn' | 'dusk'`), never here — an
+  // Eclipsed body then runs both halves for free, which is the whole point of the alignment rule.
+
+  /** Orbiting Familiar: buff a RANDOM friendly minion — deliberately not the arriver (that is
+   *  `orbitBuffArriver`), so the Familiar spreads value across the board instead of paying the newcomer. */
+  orbitBuffRandomFriend: (ctx, self, params) => {
+    const state = ctx.state;
+    if (state.board.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const pick = state.board[rng.int(state.board.length)]!;
+    state.rngCursor = rng.state();
+    addBuff(pick, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
+  },
+
+  /** Starpath Vendor (Dawn): THIS minion becomes worth more to sell, up to a cap. Per-instance (the Vendor
+   *  is what you eventually cash in), so two Vendors each build their own. */
+  orbitSellValue: (ctx, self, params) => {
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    const cap = num(params.cap, 3);
+    me.sellBonus = Math.min(cap, (me.sellBonus ?? 0) + num(params.amount, 1) * gold(self));
+  },
+
+  /** Constellation Tender: buff your Celestials on ONE side of the sky. `params.side` names which — read
+   *  live, so re-arranging the board re-aims it. Eclipsed bodies count as both sides and so are always hit. */
+  orbitBuffAlignedCelestials: (ctx, self, params) => {
+    const state = ctx.state;
+    const side = str(params.side) === 'dusk' ? 'dusk' : 'dawn';
+    for (const c of state.board) {
+      if (!isCelestialCard(c)) continue;
+      const al = alignmentOf(state.board, c.uid);
+      if (al !== side && al !== 'eclipse') continue;
+      addBuff(c, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
+    }
+  },
+
+  /** Equinox Channeler: feed your WEAKEST body on one axis. Ties break left-most, so the pick is
+   *  deterministic and the player can steer it by arranging. */
+  orbitBuffLowest: (ctx, self, params) => {
+    const state = ctx.state;
+    if (state.board.length === 0) return;
+    const byHealth = str(params.stat) === 'health';
+    const target = state.board.reduce((lo, c) => ((byHealth ? c.health < lo.health : c.attack < lo.attack) ? c : lo), state.board[0]!);
+    const amt = num(params.amount, 4) * gold(self);
+    addBuff(target, nameOf(self), byHealth ? 0 : amt, byHealth ? amt : 0);
+  },
+
+  /** Star Cartographer: improve your Shop spells — the same run-wide spell-power channel every other
+   *  "improve your spells" card uses, so the Buffs drawer already shows it. */
+  orbitGrantSpellPower: (ctx, self, params) => {
+    const b = ctx.state.spellBonus ?? { attack: 0, health: 0 };
+    ctx.state.spellBonus = {
+      attack: b.attack + num(params.attack) * gold(self),
+      health: b.health + num(params.health) * gold(self),
+    };
+  },
+
+  /** Worldseed Gardener: cast a named spell for free. Routes through the real `castSpell`, so the cast
+   *  counts for every per-spell watcher and a Discover spell (Sprout) opens its prompt exactly as normal. */
+  orbitCastSpell: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.spellId)];
+    if (!def) return;
+    for (let i = 0; i < gold(self); i++) castSpell(ctx.state, def);
+  },
+
+  /** Spellwheel Savant (Dawn): a copy of the turn's FIRST Shop spell. `firstSpellThisTurnId` is the same
+   *  memory Rune of Recollection reads, so "first this turn" means one thing across the game. */
+  orbitCopyFirstSpell: (ctx, self, _params) => {
+    const id = ctx.state.firstSpellThisTurnId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (def) conjureToHand(ctx.state, [def], gold(self));
+  },
+
+  /** Astral Shopkeeper: after every N Orbits ANYWHERE on your board, fatten the right-most Shop offer.
+   *  Counts on `orbitTick` like the "Orbit (N)" cadence, but driven by the board-wide watcher. */
+  onOrbitBuffShopRightmost: (ctx, self, params) => {
+    const state = ctx.state;
+    const me = state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    const every = Math.max(1, num(params.every, 3));
+    me.orbitTick = (me.orbitTick ?? 0) + 1;
+    if (me.orbitTick < every) return;
+    me.orbitTick = 0;
+    const offer = [...state.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (offer) addOfferBuff(offer, nameOf(self), num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self));
+  },
+
+  /** Worldline Weaver: every Orbit anywhere pays your whole board. */
+  onOrbitBuffAll: (ctx, self, params) => {
+    for (const c of ctx.state.board) {
+      addBuff(c, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
+    }
+  },
+
+  /** Orrery: every OTHER Orbit fattens the Shop (`others: true` is enforced by the dispatcher). */
+  onOrbitBuffShop: (ctx, self, params) => {
+    for (const offer of ctx.state.shop) {
+      const d = CARD_INDEX[offer.cardId];
+      if (!d || d.spell || d.ruby) continue;
+      addOfferBuff(offer, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+    }
+  },
+
+  /** Horizon Collector: take the arriver's BONUS stats (everything it had above its printed base) — the
+   *  minion keeps its own; this is a copy, not a theft. */
+  orbitGainArriverBonus: (ctx, self, params, { minion }) => {
+    const base = CARD_INDEX[minion.cardId];
+    if (!base) return;
+    const bonusA = Math.max(0, minion.attack - base.attack);
+    const bonusH = Math.max(0, minion.health - base.health);
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (me && (bonusA > 0 || bonusH > 0)) addBuff(me, nameOf(self), bonusA * gold(self), bonusH * gold(self));
+    // The aligned halves also pass one axis along to the far end of the board.
+    const side = str(params.side);
+    if (!side) return;
+    const others = ctx.state.board.filter((c) => c.uid !== self.uid && isCelestialCard(c));
+    const target = side === 'dusk' ? others[others.length - 1] : others[0];
+    if (target) addBuff(target, nameOf(self), side === 'dusk' ? 0 : bonusA, side === 'dusk' ? bonusH : 0);
   },
 
   /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
@@ -6254,6 +6383,50 @@ export function noteAlignSpark(state: RunState, align: 'dawn' | 'dusk' | 'eclips
   state.alignSpark = { seq: (state.alignSpark?.seq ?? 0) + 1, sides: [...new Set([...cur, ...sides])] };
 }
 
+/**
+ * How many times an Orbit on `watcher` fires for one arrival — the CELESTIAL trigger multiplier.
+ *
+ * Base 1, plus one per source that says "your Orbits trigger an additional time":
+ *  - **Binary Star** — ADJACENT only, so it pays the neighbours it sits between, not the whole board.
+ *  - **Astraeus, Totality** — board-wide, and only while Astraeus itself is Eclipsed.
+ *
+ * Read at fire time (not cached) so rearranging the board re-prices it immediately, exactly like alignment.
+ */
+function orbitFires(state: RunState, watcher: BoardCard): number {
+  let extra = 0;
+  const wi = state.board.findIndex((c) => c.uid === watcher.uid);
+  state.board.forEach((c, i) => {
+    const def = CARD_INDEX[c.cardId];
+    if (!def || c.uid === watcher.uid) return;
+    if (def.orbitExtraAdjacent && Math.abs(i - wi) === 1) extra += 1;              // Binary Star
+    if (def.orbitExtraBoard && alignmentOf(state.board, c.uid) === 'eclipse') extra += 1; // Astraeus
+  });
+  return 1 + extra;
+}
+
+/**
+ * Notify every board-wide ORBIT WATCHER that an Orbit just fired.
+ *
+ * Distinct from the `orbit` trigger itself: `orbit` is "a card landed NEXT TO ME", while these cards react to
+ * ANY Orbit resolving anywhere on the board ("Whenever an Orbit triggers…", "After 3 of your Orbits
+ * trigger…"). Keeping them apart is what lets Orrery say "whenever ANOTHER Orbit triggers" — `source` is the
+ * minion whose Orbit fired, so a watcher can exclude itself.
+ */
+function notifyOrbitFired(state: RunState, source: BoardCard, played: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const c of [...state.board]) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'orbitFired') continue;
+      if (effect.params?.others && c.uid === source.uid) continue; // "another Orbit" — never your own
+      if (!alignAllows(effect, alignmentOf(state.board, c.uid))) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: played, source }));
+    }
+  }
+}
+
 export function fireOrbit(state: RunState, played: BoardCard): void {
   const idx = state.board.findIndex((c) => c.uid === played.uid);
   if (idx < 0) return; // the play didn't land on the board (overflow) — nothing to orbit
@@ -6267,10 +6440,22 @@ export function fireOrbit(state: RunState, played: BoardCard): void {
       if (effect.on !== 'orbit') continue;
       if (!alignAllows(effect, nbAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) {
+      if (!fn) continue;
+      // "Orbit (N)" — the cadence notation. The tick is PER INSTANCE and counts every qualifying arrival,
+      // paying out on each Nth one; a card with no `every` fires on all of them, as Orbits always did.
+      // Ticked once per arrival even when the multiplier below fires the payout several times, so Binary
+      // Star accelerates the PAYOUT, not the countdown.
+      const every = Math.max(1, num(effect.params?.every, 1));
+      if (every > 1) {
+        nb.orbitTick = (nb.orbitTick ?? 0) + 1;
+        if (nb.orbitTick < every) continue;
+        nb.orbitTick = 0;
+      }
+      for (let n = 0; n < orbitFires(state, nb); n++) {
         captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, { minion: played }));
         // A GATED half sparks its own side; an ungated Orbit sparks the watcher's live side (it fired there).
         noteAlignSpark(state, effect.align ?? nbAlign);
+        notifyOrbitFired(state, nb, played);
       }
     }
   }

@@ -70,6 +70,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',
   battlecryGrantSpell: 'spellId',
+  orbitCastSpell: 'spellId',                    // Worldseed Gardener -> Sprout / Growth
   // Added 2026-08-03 after an audit found six factories that NAME a card in their params but were absent
   // here, so the card they promise never appeared on hover. Commander Warpath ("get a Brood Whelp") was the
   // reported case; the sweep in `refPreview.test.ts` found the rest and now guards against a seventh.

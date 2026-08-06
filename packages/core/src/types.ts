@@ -5,7 +5,7 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -101,6 +101,10 @@ export type GameEvent =
    *  2026-08-03 — from hand only; not a summoned token, not a reorder that slides someone next to you).
    *  The arriving minion rides in the payload as `minion`; the orbiting watcher is `self`. */
   | 'orbit'
+  /** CELESTIAL: fires when ANY Orbit on your board resolves — the board-wide watcher ("Whenever an Orbit
+   *  triggers…"). `params.others: true` excludes the watcher's own Orbit (Orrery's "another Orbit"). The
+   *  arriving minion rides as `minion`; the minion whose Orbit fired rides as `source`. */
+  | 'orbitFired'
   | 'onSummon'
   | 'onDeath'
   | 'onAttack'
@@ -237,6 +241,18 @@ export type EffectFactoryId =
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
+  | 'orbitBuffRandomFriend' // Orbiting Familiar: buff a RANDOM friendly minion (not the arriver)
+  | 'orbitSellValue' // Starpath Vendor (Dawn): this minion gains sell value, capped
+  | 'orbitBuffAlignedCelestials' // Constellation Tender: buff your DAWN or DUSK Celestials
+  | 'orbitBuffLowest' // Equinox Channeler: buff your lowest-Attack / lowest-Health minion
+  | 'orbitGrantSpellPower' // Star Cartographer: improve your Shop spells
+  | 'orbitCastSpell' // Worldseed Gardener: cast a named spell on the cadence
+  | 'orbitCopyFirstSpell' // Spellwheel Savant (Dawn): copy the turn's first Shop spell
+  | 'onOrbitBuffShopRightmost' // Astral Shopkeeper: after N orbits anywhere, buff the right-most Shop offer
+  | 'onOrbitBuffAll' // Worldline Weaver: whenever an Orbit triggers, buff your whole board
+  | 'onOrbitBuffShop' // Orrery: whenever ANOTHER Orbit triggers, buff the Shop
+  | 'scGainKeyword' // Twilight Sentinel: Start of Combat — gain a keyword (align-gated halves)
+  | 'orbitGainArriverBonus' // Horizon Collector: take the arriver's bonus stats (+ pass one axis along)
   | 'orbitBuffSelf' // Celestial ORBIT: this minion grows when something lands next to it
   | 'scBuffSelf' // Celestial — Daybreak Acolyte: Start of Combat, this minion gains stats (align-gated halves)
   | 'rallyBuffCelestials' // Celestial — Equinox Duelist (Dawn Rally): buff your Celestials
@@ -576,6 +592,10 @@ export interface CardDef {
   /** CELESTIAL — this card's text changes with its board ALIGNMENT (Dawn / Dusk / Eclipse). Drives the
    *  alignment HUD: the strip appears once any Celestial is on the board. See `Alignment`. */
   celestial?: boolean;
+  /** Binary Star: Orbits on the minions ADJACENT to this one trigger an additional time. */
+  orbitExtraAdjacent?: boolean;
+  /** Astraeus, Totality: while THIS is Eclipsed, every Orbit on your board triggers an additional time. */
+  orbitExtraBoard?: boolean;
   /** HENCHMAN — a hero-bound recruit (owner spec 2026-08-03). A minion like any other, but never offered
    *  in shops: it is reachable only through the hero that names it (`HeroDef.henchman` in @game/sim), at a
    *  Gold cost that falls each round (win −3 / loss −2). Global-registry doctrine, same as tokens. */

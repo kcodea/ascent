@@ -5,7 +5,7 @@ import { z } from 'zod';
  * type in `@game/core` is the canonical compile-time shape; this schema guards
  * the *data* at load and is kept in lockstep with it.
  */
-export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf']);
+export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf', 'celestial']);
 
 export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
@@ -40,6 +40,7 @@ export const GameEventSchema = z.enum([
   'spellBought',
   'shopRefreshed',
   'orbit', // Celestial ORBIT — a card was played from hand adjacent to this minion
+  'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -136,7 +137,19 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
   'spellCastDemonConsumesShop', // Baal — every N spells, a friendly Demon eats a Shop minion
-  'orbitBuffArriver', // Celestial Orbit — buff the arriving minion
+  'orbitBuffArriver',
+  'orbitBuffRandomFriend',
+  'orbitSellValue',
+  'orbitBuffAlignedCelestials',
+  'orbitBuffLowest',
+  'orbitGrantSpellPower',
+  'orbitCastSpell',
+  'orbitCopyFirstSpell',
+  'onOrbitBuffShopRightmost',
+  'onOrbitBuffAll',
+  'onOrbitBuffShop',
+  'scGainKeyword',
+  'orbitGainArriverBonus', // Celestial Orbit — buff the arriving minion
   'orbitBuffSelf', //    Celestial Orbit — buff this minion
   'scBuffSelf', //       Celestial — SC self-gain (align-gated halves)
   'rallyBuffCelestials', //     Celestial — Rally: buff your Celestials
@@ -459,6 +472,8 @@ export const CardDefSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),
   targetTribe: TribeSchema.optional(),
+  orbitExtraAdjacent: z.boolean().optional(),
+  orbitExtraBoard: z.boolean().optional(),
   targetMaxTier: z.number().int().positive().optional(),
   targetNoGolden: z.boolean().optional(),
   targetNotSelf: z.boolean().optional(),

@@ -3,6 +3,41 @@
 
 
 
+## 2026-08-06 — Chicken Brawl's Charging Soldier now actually charges (a shadowed duplicate CardDef)
+
+Owner report: Chicken Brawl's Echo token doesn't attack immediately. It never did — and the reason is a
+content bug, not a combat one.
+
+`dw_soldier` was defined TWICE. Anvilshade Smith's original token lives in `cards/set2/dwarves.ts`
+(`SET2_DWARF_TOKENS`); when Chicken Brawl was added on 2026-08-04 a second `dw_soldier` was authored in
+`cards/set2/tokens.ts`, a 3/2 carrying `attackOnSummon: true`. `ALL_CARDS` de-dupes by id keeping the FIRST
+occurrence, and a set's own cards are concatenated ahead of the token lists — so the new definition was
+silently discarded and the game kept summoning Anvilshade's flag-less 3/1. Anvilshade's own soldier still
+charged because its factory (`echoSummonInheritAttackAndCharge`) forces the strike via `attackNow`; Chicken
+Brawl summons through plain `deathrattleSummon`, which has no such lever and relies entirely on the token's
+flag. With the flag gone, its soldier just joined the back of the attack rotation.
+
+The fix is one token, not two: the duplicate is deleted and `attackOnSummon: true` moves onto the canonical
+`dw_soldier` in dwarves.ts (which also gains the token text it never had). Stats stay 3/1 — that is the body
+the game has always actually summoned, so this ships the charge and nothing else; the dead duplicate's 3/2 is
+a balance change the owner can make separately if they want it.
+
+Test debt this exposed, both now paid:
+- The Chicken Brawl test passed for the wrong reason. It asserted "the soldier attacks at SOME point after
+  it arrives", which a normal turn in the rotation satisfies. It now pins the real property — the first
+  attack event after the summon must be the soldier's own — on a board built so the two differ (the Brawl
+  dies to retaliation from its own swing, so the rotation would otherwise hand the next attack to the enemy).
+- A new content guard fails on any id defined in two different card lists by distinct objects (sets sharing
+  one card object stays legal, which is how a shared card is meant to work). A scan across every list found
+  `dw_soldier` was the only collision.
+- Anvilshade now reaches a token that carries the flag AND passes `attackNow`; a test pins that this belt-
+  and-braces still yields exactly one swing, not two.
+
+Verified: typecheck / lint (7-warning baseline) / 4004 tests (2 new, 1 tightened) / harness determinism /
+build:web; and live in the running app — `CARD_INDEX['dw_soldier']` now resolves to a single 3/1 with
+`attackOnSummon: true`, and a simulate() through the app's own module graph shows the soldier's swing as the
+first attack after it lands.
+
 ## 2026-08-06 — Hero armor rebalance: 19 heroes get individually-dialled starting Armor
 
 The owner's per-hero armor pass, applied verbatim. This replaces the coarse tiers left by the 2026-07-21

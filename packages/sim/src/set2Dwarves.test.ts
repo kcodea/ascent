@@ -240,6 +240,18 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(s[0]!.attack).toBe(3);
   });
 
+  it('…and it swings exactly ONCE on arrival, not twice', () => {
+    // The charge is now baked onto the `dw_soldier` token (`attackOnSummon`) so Chicken Brawl's plain
+    // `deathrattleSummon` also gets it. Anvilshade reaches the same token through a factory that ALSO forces
+    // the strike via `attackNow` — both feed one deferred queue entry, so the belt-and-braces must not
+    // produce two swings.
+    const r = fight([mine('dw_anvilshade', 9, 1)], [foe(20, 20)]);
+    const sum = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'dw_soldier');
+    const uid = (r.events[sum] as { minion: { uid: string } }).minion.uid;
+    const swings = r.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uid);
+    expect(swings.length, 'the Soldier attacked twice on arrival').toBe(1);
+  });
+
   it('Exgalloper copies the BODY, not the corpse, and cannot chain', () => {
     // At the moment an Echo fires the parent's health is 0, so a literal copy arrives already dead. And exactly
     // one copy: one that kept its own Echo would summon another on death, up to the board cap.

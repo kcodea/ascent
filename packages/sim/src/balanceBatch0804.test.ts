@@ -80,15 +80,22 @@ describe("Rope Wrangler — Echo summons a random minion from your hand (consume
 });
 
 describe('Chicken Brawl — Echo: a Charging Soldier that attacks immediately', () => {
-  it('summons the soldier and it swings out of turn', () => {
+  it('summons the soldier and it swings out of turn, before anyone else acts', () => {
+    // The Brawl dies to RETALIATION from its own swing, so the soldier arrives on the player's turn and the
+    // rotation would hand the next attack to the enemy. That makes this board the one that can tell an
+    // immediate strike apart from a normal one: the soldier's swing must be the very NEXT attack.
+    //
+    // The looser "attacked at some point after arriving" assertion this replaces passed for the wrong reason
+    // and hid a real bug for two days — the soldier had no charge at all and was simply taking its ordinary
+    // turn (owner report 2026-08-06; root cause was a shadowed duplicate `dw_soldier` CardDef).
     const r = simulate(
       [bm('dw_chickenbrawl', 3, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 2 }));
     const sum = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'dw_soldier');
     expect(sum, 'the soldier spawned').toBeGreaterThanOrEqual(0);
     const uid = (r.events[sum] as { minion: { uid: string } }).minion.uid;
-    expect(r.events.some((e, i) => i > sum && e.type === 'attack' && (e as { attacker: string }).attacker === uid),
-      'it attacked immediately after arriving').toBe(true);
+    const nextAttack = r.events.slice(sum).find((e) => e.type === 'attack') as { attacker: string } | undefined;
+    expect(nextAttack?.attacker, 'the first attack after it lands is its own').toBe(uid);
   });
 });
 

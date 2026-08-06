@@ -16,6 +16,13 @@
  *      at the next beat (a snap), so a withheld delta never lived long enough to meet a later damage frame.
  *      Own scenario (Packstrider x2, see below) because the properties-1-3 scenario never puts a buff and a
  *      later damage on the SAME uid.
+ *   5. SPEED-TRACKING (Option A's whole reason to exist, previously unproven): a combat buff's roll RE-SCALES
+ *      when combat speed changes MID-ROLL, because `driveRoll` reads its speed GETTER every frame instead of
+ *      capturing a value once at call time (see `combatBuffRoll.ts`'s own comment on `driveRoll`). Proven by
+ *      COMPARISON, not a clock: the same self-buff fight (Packstrider x2, reusing Property 4's scenario) is
+ *      run twice — constant 1x, and a live bump to 3x the instant the roll visibly starts — and the bumped
+ *      run's count-up duration must land meaningfully shorter than the baseline's. See "PROPERTY 5's
+ *      scenario" below.
  *
  * ── the scenario ─────────────────────────────────────────────────────────────────────────────────────────
  * Board: Supporter (`supporter`, dragon, tier 2, "Rally: give 2 friendly Dragons +1/+2" on `onAttack`) +
@@ -59,6 +66,21 @@
  *
  * Property 3 needs no clock either: damage's delta on the chosen event is >= 2 too, so "instant" = zero
  * intermediate values observed for that transition, full stop.
+ *
+ * ── PROPERTY 5's scenario (speed-tracking, validated first as a throwaway probe) ───────────────────────────
+ * Reuses Property 4's exact board and seed (two Packstriders, `BUFF_DAMAGE_SEED`) rather than a new one:
+ * Control D's own comment already established that this fight's self-buff roll fully settles ~300ms BEFORE
+ * the counter-damage becomes visible at ANY combat speed tried, which is exactly the property this needs —
+ * the roll must be free to run its natural course, un-interrupted by `cancelRollForUid`, in both the
+ * constant-1x and bumped-to-3x runs, or a mid-roll damage interrupt would confound the timing comparison.
+ * `runBuffDamageFight` grows an optional third `bumpTo` argument (default `null`, i.e. a no-op) rather than a
+ * duplicate fight function: passing it live-bumps `combatSpeed` the instant ANY sampled badge's `atk` climbs
+ * above its first-seen value (the same generic, uid-agnostic "a roll started" detector a throwaway harness at
+ * `speed-probe.mjs` used to validate this property BEFORE it was folded in here — that standalone run against
+ * unmodified product code measured baseline 216ms vs bumped 67ms, ratio 0.31, comfortably under the 0.6
+ * threshold used below). The two existing call sites (Property 4's own run, Control D's run) both omit the
+ * third argument, so `bumpTo` stays `null` and their behavior is byte-for-byte unchanged — this is additive,
+ * not a rewrite of the shared fight function.
  *
  * ── NEGATIVE CONTROLS (Step 3 of the task) ───────────────────────────────────────────────────────────────
  * Each property is broken on purpose, on a FRESH page, and reverted in a `finally`, exactly like
@@ -263,9 +285,14 @@ async function runFight(page, seed) {
  * separate function rather than parameterizing `runFight`'s cards, so the properties-1-3 scenario (and its
  * three existing negative controls, which call `runFight` directly) stays byte-for-byte untouched by this
  * addition.
+ *
+ * `bumpTo` (Property 5, additive): when non-null, live-bumps `combatSpeed` to it via `useGame.setState` the
+ * instant ANY sampled badge's `atk` climbs above its first-seen value — a generic, uid-agnostic "a roll just
+ * started" detector (see the header's "PROPERTY 5's scenario" note). Defaults to `null`, a no-op, so Property
+ * 4's own call and Control D's call (both omit the argument) are unaffected.
  */
-async function runBuffDamageFight(page, seed) {
-  return page.evaluate(async (seed) => {
+async function runBuffDamageFight(page, seed, bumpTo = null) {
+  return page.evaluate(async ({ seed, bumpTo }) => {
     const G = () => window.useGame.getState();
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -291,6 +318,10 @@ async function runBuffDamageFight(page, seed) {
     if (!lc) return { ok: false, reason: 'no lastCombat after faceOmen' };
 
     const samples = new Map();
+    // Property 5 only: first-seen atk per uid, and a one-shot bump the instant any uid's atk climbs above it
+    // (i.e. the moment a roll visibly starts). No-ops entirely when `bumpTo` is null.
+    const firstAtk = new Map();
+    let bumped = false, bumpT = null, bumpUid = null;
     const readAll = () => {
       const els = document.querySelectorAll('[data-zone="tavern"] .card[data-uid], [data-zone="warband"] .card[data-uid]');
       const now = Math.round(performance.now() - t0);
@@ -302,6 +333,13 @@ async function runBuffDamageFight(page, seed) {
         const hp = hpEl ? Number(hpEl.textContent) : NaN;
         if (!samples.has(uid)) samples.set(uid, []);
         samples.get(uid).push({ t: now, atk, hp });
+        if (bumpTo != null && Number.isFinite(atk)) {
+          if (!firstAtk.has(uid)) firstAtk.set(uid, atk);
+          else if (!bumped && atk > firstAtk.get(uid)) {
+            bumped = true; bumpT = now; bumpUid = uid;
+            window.useGame.setState({ combatSpeed: bumpTo });
+          }
+        }
       }
     };
     let running = true;
@@ -317,8 +355,10 @@ async function runBuffDamageFight(page, seed) {
       events: lc.events,
       initial: lc.initial,
       samples: Object.fromEntries(samples),
+      bumpT,
+      bumpUid,
     };
-  }, seed);
+  }, { seed, bumpTo });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -577,6 +617,56 @@ report('PROPERTY 4 — BUFF-THEN-DAMAGE: a unit damaged mid-roll never prints be
 ]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// PROPERTY 5 — SPEED-TRACKING (Option A's whole reason to exist). Reuses Property 4's board/seed/run (bdRun,
+// bdPick, bdUid — all computed above with `bumpTo` omitted, i.e. constant 1x) as the baseline, then runs the
+// SAME fight again with a live mid-roll bump to 3x, and compares the buffed uid's ATTACK count-up duration
+// across the two runs. See the header's "PROPERTY 5's scenario" note for why this board is safe to reuse
+// (the roll settles well before the counter-damage that Property 4 exists to test lands, in both runs).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+console.log('\n══ PROPERTY 5 — speed-tracking (constant 1x vs live bump to 3x mid-roll) ══');
+
+const bdAtkPre = trueValueBefore(bdRun.initial, bdRun.events, bdUid, bdPick.buffIdx, 'attack');
+const bdAtkPost = bdAtkPre + bdPick.buffEvent.attack;
+const baselineAtkSeries = seriesFor(bdRun.samples, bdUid, 'atk');
+const baselineAtkAnalysis = analyzeTransition(baselineAtkSeries, bdAtkPre, bdAtkPost);
+const baselineDur = baselineAtkAnalysis.settled && baselineAtkAnalysis.moveStart !== null
+  ? baselineAtkAnalysis.landed - baselineAtkAnalysis.moveStart
+  : null;
+
+const bumpedRun = await withFreshPage((page) => runBuffDamageFight(page, BUFF_DAMAGE_SEED, 3));
+let bumpedDur = null, p5Ratio = null, p5Lines = [];
+if (!bumpedRun.ok) {
+  p5Lines = ['bumped-speed fight did not resolve'];
+} else {
+  const bumpedPick = pickSelfBuffThenDamage(bumpedRun.initial, bumpedRun.events);
+  if (!bumpedPick) {
+    p5Lines = ['bumped-speed run did not reproduce the same self-buff-then-damage shape'];
+  } else {
+    const bUid = bumpedPick.buffEvent.target;
+    const bAtkPre = trueValueBefore(bumpedRun.initial, bumpedRun.events, bUid, bumpedPick.buffIdx, 'attack');
+    const bAtkPost = bAtkPre + bumpedPick.buffEvent.attack;
+    const bumpedSeries = seriesFor(bumpedRun.samples, bUid, 'atk');
+    const bumpedAnalysis = analyzeTransition(bumpedSeries, bAtkPre, bAtkPost);
+    bumpedDur = bumpedAnalysis.settled && bumpedAnalysis.moveStart !== null
+      ? bumpedAnalysis.landed - bumpedAnalysis.moveStart
+      : null;
+    p5Lines = [
+      `baseline (constant 1x) roll: target ${bdUid}, attack ${bdAtkPre} -> ${bdAtkPost}, moveStart=${baselineAtkAnalysis.moveStart}ms, landed=${baselineAtkAnalysis.landed}ms, duration=${baselineDur}ms`,
+      `bumped (live 3x mid-roll) roll: target ${bUid}, attack ${bAtkPre} -> ${bAtkPost}, bumped at t=${bumpedRun.bumpT}ms (uid ${bumpedRun.bumpUid}), moveStart=${bumpedAnalysis.moveStart}ms, landed=${bumpedAnalysis.landed}ms, duration=${bumpedDur}ms`,
+    ];
+    if (baselineDur !== null && bumpedDur !== null) {
+      p5Ratio = bumpedDur / baselineDur;
+      p5Lines.push(`ratio bumped/baseline: ${p5Ratio.toFixed(2)} (must be < 0.6 — same threshold speed-probe.mjs validated this against)`);
+    }
+  }
+}
+// No fixed-ms assertion — a meaningfully shorter bumped-run duration, relative to this run's OWN baseline, is
+// what proves the roll re-scaled live rather than a captured-at-call-time speed ignoring the bump.
+const p5Tracks = p5Ratio !== null && p5Ratio < 0.6;
+report('PROPERTY 5 — SPEED-TRACKING: a mid-roll combatSpeed bump re-scales the roll (count-up shortens)', p5Tracks, p5Lines);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // NEGATIVE CONTROLS — break each property in turn, confirm the harness catches it, revert.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -760,6 +850,51 @@ async function withPatch(file, find, replace, fn) {
       : 'fight did not resolve, or the scenario did not reproduce, under the control',
   ]);
   report('useCombatReplay.ts reverted after Control D (git diff empty)', clean);
+}
+
+// Control E — SPEED-TRACKING: capture `speedGetter()` ONCE at `driveRoll`'s call time instead of reading it
+// live every frame — the exact live-read `combatBuffRoll.ts`'s own comment on `driveRoll` calls out as the
+// thing that lets a mid-roll speed change re-scale the remaining roll. With this patch, a `combatSpeed` bump
+// that lands mid-roll has no effect: the roll keeps ticking at whatever speed was live when it STARTED
+// (1x, since the bump only fires once the roll is already visibly under way), so the bumped run's duration
+// should land close to the baseline's (ratio near 1.0), not meaningfully shorter (< 0.6).
+{
+  const result = await withPatch(
+    ROLL_TS,
+    `  let raf = 0;
+  const tick = (): void => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    progress = advanceRollProgress(progress, now - last, rollMs, speedGetter());`,
+    `  let raf = 0;
+  const capturedSpeed = speedGetter(); // NEGATIVE CONTROL (combat-invariant.mjs): captured once at call time instead of read live every frame
+  const tick = (): void => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    progress = advanceRollProgress(progress, now - last, rollMs, capturedSpeed);`,
+    async () => {
+      const run = await withFreshPage((page) => runBuffDamageFight(page, BUFF_DAMAGE_SEED, 3));
+      if (!run.ok) return { ok: false };
+      const pick = pickSelfBuffThenDamage(run.initial, run.events);
+      if (!pick) return { ok: false };
+      const uid = pick.buffEvent.target;
+      const pre = trueValueBefore(run.initial, run.events, uid, pick.buffIdx, 'attack');
+      const post = pre + pick.buffEvent.attack;
+      const series = seriesFor(run.samples, uid, 'atk');
+      const analysis = analyzeTransition(series, pre, post);
+      const dur = analysis.settled && analysis.moveStart !== null ? analysis.landed - analysis.moveStart : null;
+      return { ok: true, dur };
+    },
+  );
+  const clean = gitDiffEmpty(ROLL_TS);
+  const controlRatio = result.ok && result.dur !== null && baselineDur !== null ? result.dur / baselineDur : null;
+  // CAUGHT means Property 5's own pass condition (ratio < 0.6) now FAILS to hold under the patch — the bump
+  // no longer shortens the roll. Mirrors Control B/C's comparative style: no fixed-ms value asserted.
+  const caught = controlRatio !== null && !(controlRatio < 0.6);
+  report("Control E (speed-tracking): capturing speed once at call time is CAUGHT — a mid-roll bump no longer shortens the roll (ratio stays near 1.0, not < 0.6)", caught, [
+    `baseline (constant 1x, unpatched) duration: ${baselineDur}ms`,
+    `control (bumped to 3x mid-roll, speed captured once) duration: ${result.ok ? result.dur : 'n/a'}ms`,
+    `ratio: ${controlRatio !== null ? controlRatio.toFixed(2) : 'n/a'} (Property 5 requires < 0.6 to PASS; this control must NOT meet that bar)`,
+  ]);
+  report('combatBuffRoll.ts reverted after Control E (git diff empty)', clean);
 }
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASS' : `${failures} CHECK(S) FAILED`}`);

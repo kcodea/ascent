@@ -15,11 +15,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * The fix splits the write: UPDATE the mutable columns WITHOUT rating (leaving it equal to itself, which the
  * policy permits), and INSERT — which may set rating — only when no row exists yet.
  *
+ * THEN THE LEADERBOARD FROZE AGAIN — at the rating this time (owner report 2026-08-06). The write-once policy
+ * deferred rating movement to a "C3 Edge Function" that was never built, so NO path could move a stored
+ * rating at all. The third leg of the shape: after a successful UPDATE, rating travels through the
+ * `submit_own_rating` RPC (a security-definer function scoped to the caller's own row — schema.sql
+ * 2026-08-06), never through the row statement.
+ *
  * These tests drive a fake Supabase client, so they pin the SHAPE of the calls: what a real Postgres would
  * accept or reject is the thing under test, and it is decided entirely by which columns we send.
  */
 
-interface Call { table: string; op: 'update' | 'insert' | 'upsert'; payload: Record<string, unknown> }
+interface Call { table: string; op: 'update' | 'insert' | 'upsert' | 'rpc'; payload: Record<string, unknown> }
 
 const calls: Call[] = [];
 let existingRows: Array<{ user_id: string }> = [];
@@ -31,6 +37,10 @@ vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'test-key');
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      calls.push({ table: fn, op: 'rpc', payload: args });
+      return { data: null, error: null };
+    },
     from: (table: string) => ({
       update: (payload: Record<string, unknown>) => {
         calls.push({ table, op: 'update', payload });
@@ -70,6 +80,21 @@ describe('writing a player profile', () => {
     existingRows = [{ user_id: 'u-1' }];
     await (await load())(profile);
     expect(calls.filter((c) => c.op === 'insert')).toHaveLength(0);
+  });
+
+  it('moves the rating through the submit_own_rating RPC on the update path — the only door the policy leaves open', async () => {
+    existingRows = [{ user_id: 'u-1' }];
+    await (await load())(profile);
+    const rpc = calls.find((c) => c.op === 'rpc');
+    expect(rpc, 'without this call the MMR leaderboard is frozen forever').toBeTruthy();
+    expect(rpc!.table).toBe('submit_own_rating');
+    expect(rpc!.payload).toEqual({ new_rating: 548 });
+  });
+
+  it('the insert path needs no RPC — the first insert may carry rating itself', async () => {
+    existingRows = [];
+    await (await load())(profile);
+    expect(calls.filter((c) => c.op === 'rpc')).toHaveLength(0);
   });
 
   it('inserts (with rating) when there is no row yet — an UPDATE matching nothing is a 0-row success', async () => {

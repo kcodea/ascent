@@ -3,6 +3,37 @@
 
 
 
+## 2026-08-06 — The MMR leaderboard was frozen by design: the rating write path never existed
+
+Owner report: the MMR leaderboard is not updating. It could not — since the C1 accounts migration
+(2026-08-04) there has been NO path that could move a stored rating.
+
+The C1 `update own profile` policy makes `rating` write-once from the client: it is set on the profile row's
+FIRST insert, and every later row UPDATE must carry it unchanged (that guard is real — it is what stops a
+client editing ratings). The design comment deferred movement to "C3, an Edge Function with the service role
+as the only writer" — which was never built. So `uploadPlayerProfile` dutifully updated games/name/hero and
+never touched rating, ratings stayed at first-insert values forever, and the recent MMR reset made it
+obvious: the reset wrote every row's rating to 0, and the policy pinned them there.
+
+The fix is the interim C3, one narrow door instead of a widened policy:
+- **`submit_own_rating(int)`** — a `security definer` SQL function (schema.sql, 2026-08-06) that may update
+  exactly one thing: the CALLER'S own row's rating. Execute granted to `authenticated` only. The profiles
+  UPDATE policy stays locked — rating still cannot ride a row update, yours or anyone else's. What the RPC
+  concedes is that the value is client-computed, which was equally true of the first insert the old design
+  trusted; a server-authoritative rating recomputed from lobby results remains the real C3 if ever wanted.
+- `uploadPlayerProfile` calls the RPC after a successful mutable-columns UPDATE (the insert path still
+  carries rating itself). Fire-and-forget: on a DB that has not run the migration the RPC 404s and the
+  best-effort catch swallows it — the leaderboard simply stays as it is until the SQL is applied.
+- `playerProfileWrite.test.ts` grows the third leg: rating NEVER rides the row update, ALWAYS rides the RPC
+  on the update path, and the first insert needs no RPC.
+
+Owner must run the new schema.sql section (the `submit_own_rating` function + grants) in Supabase for the fix
+to take effect. Note on the reset: every player's LOCAL profile still holds its pre-reset rating, and the
+next lobby finish re-submits it — so the ladder repopulates at pre-reset values, not from 0. A true from-zero
+ladder would also need each client's local profile cleared.
+
+Verified: typecheck / lint (7-warning baseline) / 4004 tests (2 new) / build:web.
+
 ## 2026-08-06 — Snapshot fidelity audit: eight run-level scalers were not travelling with served boards
 
 Owner report, part two: "I played a board that I know for a fact the gems were +16/+16 and the Rune of

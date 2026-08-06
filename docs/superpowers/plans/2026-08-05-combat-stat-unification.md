@@ -266,3 +266,53 @@ git commit -m "docs(fx): combat stat unification shipped"
 - **The wholesale-rebuild → per-uid conversion is where a stranded hold hides.** Today's install replaces the entire Map each beat, which structurally cannot leak. The per-uid `combatHeldRef` release (Task 2 Step 4) reproduces that, but it is hand-maintained; the harness (Task 4) is what proves no uid leaks across a beat, a skip, or a re-seek. If Task 4 cannot reach a re-seek/skip scenario, say so and test it by hand.
 - **`combatSpeed` changing mid-roll.** The shop roll is wall-clock and does not adapt mid-roll; combat's `driveRoll` takes `speed` at start. A speed toggle mid-buff-roll would not re-scale. The old snap had no such window; a roll does. Judge in Task 4 whether this is visible; if so, `driveRoll` can read `combatSpeedRef` each frame.
 - **Decision C means every damage tick pops the badge.** Already true today (the pop has no uid gate), so this is not new — but Task 4 should confirm a busy board does not read as too much motion now that buffs pop too.
+
+---
+
+## Task 6: drive the combat buff-roll on the beat clock (Option A)
+
+**Why this exists.** Task 4's merge-gate harness proved combat buffs SNAP, not roll (owner decision B was for a roll). Root cause, controller-verified: the strike `setTimeout` that starts `driveRoll` (`useCombatReplay.ts:827`, `:859`) is pushed to the per-beat `timers` array that the cue effect's cleanup clears when the beat advances. The beat advances at lunge CONTACT (`runAttackExchangeCues`' `advance()`, welded to connection), which races the strike timer — measured winning by 5.3ms in one fight, losing by 44ms in another. When contact wins, the strike timer is cancelled, `driveRoll` never starts, and the hold is delivered by the next beat's release path as a snap. The invariant is never violated (the number only ever moves pre→post), so this is a missed animation, not a wrong number — but it is a real failure of decision B.
+
+**The fix (Option A, chosen over the cheaper Option B because B ignores mid-roll combat-speed changes):** make the roll (a) survive the beat advance and (b) track the live combat speed each frame, so it rides combat's own clock rather than a wall-clock timer the beat teardown can cancel.
+
+**Files:**
+- Modify: `packages/ui/src/fx/combatBuffRoll.ts` (`driveRoll` + its pure helper)
+- Modify: `packages/ui/src/fx/combatBuffRoll.test.ts`
+- Modify: `packages/ui/src/useCombatReplay.ts` (how the strike schedules and owns the roll; teardown/re-seek cancellation)
+
+**Interfaces:**
+- `driveRoll(uid, rollMs, speedGetter: () => number): () => void` — speed becomes a GETTER read each frame, not a number captured at call time, so a mid-roll speed change re-scales the remaining roll. Returns a cancel.
+- A combat-lifetime roll registry in `useCombatReplay`: in-flight roll cancels tracked in a ref, cancelled on combat teardown (the existing phase-out path) and on re-seek (`seekNonce`), but NOT on ordinary beat advance.
+
+- [ ] **Step 1: Make `driveRoll` speed-aware, test the integral**
+
+Change `driveRoll` to integrate elapsed real time scaled by `speedGetter()` each frame rather than dividing a fixed `rollMs` by a speed captured once. Extract the per-frame progress accumulation into a pure helper (`advanceRollProgress(prevProgress, dtMs, rollMs, speed) => nextProgress`, clamped [0,1]) and unit-test it: a speed that doubles partway reaches p=1 sooner than a constant speed; p never exceeds 1; a dt of 0 does not advance. The rAF loop stays untested (no DOM), same as the existing `driveRoll`.
+
+- [ ] **Step 2: Schedule the strike so the beat advance cannot cancel it**
+
+The strike delay (waiting `strikeMs`/`pulseHoldMs` before the roll begins) must no longer live in the per-beat `timers` array cleared on the cue effect's cleanup. Move it into the combat-lifetime registry: a strike timer + the resulting roll cancel are stored in a ref that survives beat advances. Read `useCombatReplay.ts` to find the existing combat-teardown path (the phase-out / `resetTo` / final cleanup) and cancel the registry there, and also on `seekNonce` change (a re-seek re-stages the fight). The ordinary per-beat cleanup must leave the registry alone.
+
+Preserve every existing guarantee: a roll still starts at the strike moment; a re-seek still cancels in-flight rolls so a re-staged fight does not double-drive; combat end still clears everything (belt-and-braces with `dropBoardFx`'s `releaseAllStats`).
+
+- [ ] **Step 3: Both release sites pass the speed getter**
+
+`fireBuffCasts` and `fireSelfBuffs` call `driveRoll(uid, COMBAT_ROLL_MS, () => combatSpeedRef.current)` and register the cancel in the combat-lifetime registry instead of pushing the strike timer to `timers`.
+
+- [ ] **Step 4: THE GATE — re-run the combat-invariant harness**
+
+Run `docs/superpowers/harness/combat-invariant.mjs` against real unmodified combat (dev server :5205, scratchpad puppeteer). Required outcome, all three:
+- **Buff withheld then ROLLS** — now PASS: the buffed badge holds pre-buff until the strike, then shows INTERMEDIATE values on the way up (not a snap). This is the property that was failing; it must now pass for a decisive delta (>=2).
+- **Invariant** — still PASS: no badge ever prints outside [pre, post] across the whole fight.
+- **Damage instant** — still PASS.
+
+If the roll still snaps, the strike timer is still being cancelled somewhere — trace it, do not soften the harness. This step is the whole point of the task.
+
+- [ ] **Step 5: Negative control**
+
+Temporarily revert the registry change (put the strike timer back in the per-beat `timers` array) and confirm the harness's buff-roll property FAILS again (snaps). Revert. This proves the harness still discriminates and that the registry is what fixed it.
+
+- [ ] **Step 6: Gates and commit**
+
+`npx tsc -b`, `npx vitest run`, `npx eslint .` (7 pre-existing, no eighth). Commit. Do NOT update docs — Task 5 carries them.
+
+**Risk:** this touches combat's beat-cleanup timing, the single most tuned path in the game. The harness is the gate; if it cannot reach a mid-roll speed change to prove the speed-getter, say so and note it as browser-unverified rather than claiming it.

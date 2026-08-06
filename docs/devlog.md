@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-08-06 — One stat system: combat's bespoke hold is deleted, and combat buffs roll like the shop
+
+Combat had a SECOND, parallel implementation of the stat-withholding the shop uses — two `useState` Maps
+(`statHold`, `statFlash`) in `useCombatReplay`, threaded `Recruit → Unit → Card`, released by post-paint strike
+timers, with `.statflash` for the pop. That is all gone. Combat's `Card` now carries a `uid` and reads the
+same `fx/statHold.ts` store the shop does; there is one stat system in the game.
+
+**How it works now.** A combat buff installs an `effect`-origin hold at the pre-buff value (the store's ticker
+leaves `effect` holds alone — the replay owns their clock). At the strike, the replay drives a ROLL that counts
+the number up over ~420ms, and `Card`'s existing badge pop fires as the value moves. Damage stays instant: with
+`autoRoll={false}` the intrinsic roll never fires in combat, so a damaged badge updates immediately and pops.
+
+**A mechanism the spec got wrong, corrected here.** The spec proposed combat holds carry `startAt: <strike
+beat>`. They can't — the strike time is measured POST-paint (DOM geometry) while the hold is installed PRE-paint
+to avoid the up-down-up flash the owner filmed in July. `effect` origin is the right shape: the ticker skips it,
+the replay's timers drive it, exactly the contract `claimStat` gives an authored `react` layer. Combat needed no
+`startAt`.
+
+**Two owner feel calls (2026-08-05):** combat buffs roll like the shop rather than snapping; the health badge
+pops on damage too (already true — the pop has no uid gate).
+
+**Getting the roll to actually play took a real fight with combat's beat pipeline.** The first cut SNAPPED, not
+rolled: the strike timer that starts the roll lived in the per-beat cleanup array, and the beat advances at
+lunge CONTACT — a measured 5–44ms race that usually cancelled the roll before it began. Option A (chosen over a
+cheaper patch that would have ignored mid-roll speed changes) moved the roll into a combat-lifetime registry that
+survives the beat advance and is cancelled only on teardown or a re-seek, and made `driveRoll` integrate LIVE
+combat speed each frame. That surfaced two more stacked bugs: an install-effect release pass racing the pending
+strike, and the store's default 1200ms hold TTL being tighter than combat's own ~1740ms wind-up+travel+roll
+chain (fixed with an explicit per-call `ttlMs`, the shared store untouched).
+
+**And making the roll survive the beat advance opened a new invariant hole, caught by review.** Because the roll
+now reliably outlives the beat, a unit buffed and then DAMAGED within the roll window could print below its floor
+— the badge shows `live − withheld`, and the delta model never accounted for the live value dropping. Fixed by
+making damage INTERRUPT an in-flight roll: a damaged unit's hold releases and the badge snaps to its true
+post-damage value (damage is authoritative and instant, so this is the correct read anyway).
+
+**Verified** by a per-frame browser harness (`docs/superpowers/harness/combat-invariant.mjs`) that drives a real
+fight and asserts, every frame, that no badge prints outside its true trajectory — plus four negative controls
+that each inject a bug and confirm the harness catches it (an inflated delta, a wrong-origin hold, damage routed
+through a hold, and the removed damage-interrupt). Buff timeline against a real fight: held 2 → rolls → 4 →
+counter-damage → 1, every value inside the floor/ceiling. Gates: typecheck ✓, 3933 tests ✓, lint ✓ (7
+pre-existing). **Known limitation carried forward:** the harness's buff-then-damage scenario finishes its roll
+~300ms before damage lands for the test card, so the damage-interrupt is validated by a synthetic
+roll-inflation control rather than a naturally-reachable overlap for that card — it is correct-when-it-fires,
+fail-safe, and reachable for slower-windup cards or future tuning, but not proven reachable today.
+
 ## 2026-08-05 — Plan: combat stat unification (plan only, no code)
 
 Implementation plan for the combat half of the choreography work:

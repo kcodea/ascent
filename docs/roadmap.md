@@ -21,44 +21,26 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Stat readout choreography — the combat unification.** The SHOP half has SHIPPED
-  (2026-08-05, [`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md),
-  9 tasks plus a fix wave): `startAt`/`rollMs` on the hold, the `intrinsic < cue < effect` rank, one shared
-  ticker in `statHold` replacing the per-card rAF, `rubyLandSchedule` shared by the hold and the fire effect,
-  both shop cue sites (Ruby cascade, fodder tendril) adopted, the last `+X/+X` float cut, `claimStat` so a
-  carrying `react` layer takes the clock instead of racing the ticker, the round-once rule generalised into
-  `fx/land.ts`'s `landHolds`, and `dropBoardFx` wired to every run swap rather than sitting uncalled.
-  Browser-proven with a committed harness (`docs/superpowers/harness/cascade-verify.mjs`) that now asserts
-  the invariant as well as the stagger, plus negative controls for both — it is LIVE on the shipped
-  `ruby-gem-apply` with no `react` layer armed, which is what dropping `defCarriesNumber` bought.
-
-  Three follow-ups recorded rather than closed: a carrying layer can only claim from the moment it SPAWNS,
-  so one armed with an `at` past the cue's roll completion still cannot (fail-open; closing it needs the
-  def-level `carries` knowledge deliberately removed); `revealStat`'s rejected-call ordering is correct but
-  pinned by no test, so it would regress silently; and the harness is a manual pre-merge gate rather than CI,
-  so the next change to `stepHolds` or the rank table gets none of its protection.
-
-  The COMBAT half is planned and ready to execute:
-  [`superpowers/plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md)
-  (5 tasks). It deletes combat's bespoke `statHold`/`statFlash` Maps and `Recruit → Unit → Card` props in
-  favour of the shared store: combat's `Card` gets a `uid`, pre-buff holds become `effect`-origin `holdStat`
-  calls, and the strike-time release drives a roll (`driveRoll`) that the badge pop follows. Two owner feel
-  calls baked in (2026-08-05): combat buffs ROLL like the shop rather than snapping, and the health badge
-  pops on damage too. One mechanism refinement over the spec: combat uses `effect` origin, not `startAt` —
-  the strike time is measured post-paint and the hold is installed pre-paint, so they can't be one value, and
-  an `effect` hold is exactly the "the replay owns the clock" contract. Merge gated on a per-frame browser
-  assertion that no badge shows a wrong number mid-fight.
-
-  What remains is the COMBAT half, deliberately unplanned until the shop half landed: the hold is installed by
-  a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`) while the release lives in two
-  post-paint callbacks keyed on a `strikeMs` computed only there, so `startAt` forces those into one decision —
-  a restructure of the beat pipeline, not a field addition — on top of the absolute-to-delta conversion, the
-  wholesale-rebuild semantics the accumulating store lacks, `.statflash`'s retirement, and `autoRoll` on
-  `Card`. Design doc:
-  [`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
-  Write the combat plan against the shared ticker's real (now browser-verified) behaviour rather than a
-  prediction of it. Merge is gated on a per-frame combat assertion that no badge ever shows a wrong number
-  mid-fight.
+- **Stat readout choreography — hardening follow-ups (both halves SHIPPED).** The shop half
+  (2026-08-05, [`plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))
+  and the combat half (2026-08-06,
+  [`plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md))
+  both landed: one `fx/statHold.ts` store serves shop and combat, buffs roll and pop the same way in both, and
+  combat's bespoke `statHold`/`statFlash` system is deleted. Details in the devlog. What's left is small,
+  none blocking:
+  - The two browser harnesses (`cascade-verify.mjs`, `combat-invariant.mjs`) are manual pre-merge gates, not
+    CI — so the next change to `stepHolds`, the rank table, or combat's beat cleanup gets none of their
+    protection. Wiring them into CI is the highest-leverage of these.
+  - Combat's damage-interrupt (a hit releases an in-flight buff roll) is proven correct-when-it-fires but only
+    exercised by a synthetic roll-inflation control — the test card's roll finishes ~300ms before damage
+    lands, so no naturally-reachable overlap exists for it today. A slower-windup card would reach it; worth a
+    harness scenario on such a card if one exists.
+  - Combat's hold TTL is computed at placement speed while the roll tracks live speed, so a mid-roll SLOWDOWN
+    force-delivers early (fails open — true value, lost animation frames, never a wrong number). Closing it
+    needs a `statHold.ts` export that re-arms `until` without resetting the reveal.
+  - A carrying `react` layer can only `claimStat` from the moment it SPAWNS, so one armed with an `at` past
+    the cue's roll completion can't (fail-open); and `revealStat`'s rejected-call reel ordering is correct but
+    pinned by no test.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

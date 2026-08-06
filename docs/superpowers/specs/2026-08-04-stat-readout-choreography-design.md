@@ -214,6 +214,23 @@ optional fields; every existing call keeps working.
 
 ## Combat migration
 
+> **SHIPPED 2026-08-06 — how the implementation diverged from this section.** Two things below turned out
+> wrong once combat was read closely and are recorded here so the spec matches the code:
+>
+> 1. **Combat holds use `origin: 'effect'`, NOT `origin: 'cue'` with `startAt: <strike beat>`** (as the
+>    snippet later in this section shows). The strike time is measured POST-paint (DOM geometry in
+>    `fireBuffCasts`) while the hold is installed PRE-paint — they cannot be one value. An `effect` hold is
+>    skipped by the store's ticker, and combat's own replay timers drive it, which is exactly the
+>    "the replay owns the clock" contract. No `startAt` in combat.
+> 2. **Making the roll ride combat's clock was not a field addition — it was a beat-pipeline fight.** The
+>    roll had to survive the beat advance (a combat-lifetime registry, cancelled only on teardown/re-seek),
+>    track live combat speed per frame, carry an explicit `ttlMs` (combat's wind-up chain outruns the store's
+>    default TTL), and — because a surviving roll outlives the beat — have DAMAGE interrupt it, or a
+>    buffed-then-damaged unit prints below its floor. See the combat plan and the 2026-08-06 devlog entry.
+>
+> The rest of this section (the deletion list, `.statflash` retiring into the pop, `autoRoll`, decision 4)
+> shipped as written.
+
 Combat's `statHold` prop **is** this feature, built separately and earlier: while a buff tendril flies, show
 pre-buff stats; on the strike, release and flash. This deletes a second implementation rather than porting a
 foreign concept.

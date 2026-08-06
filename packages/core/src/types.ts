@@ -253,6 +253,9 @@ export type EffectFactoryId =
   | 'onOrbitBuffShop' // Orrery: whenever ANOTHER Orbit triggers, buff the Shop
   | 'scGainKeyword' // Twilight Sentinel: Start of Combat — gain a keyword (align-gated halves)
   | 'orbitGainArriverBonus' // Horizon Collector: take the arriver's bonus stats (+ pass one axis along)
+  | 'triggerAdjacentOrbits' // Astral Relay: fire the Orbits either side of this minion, with no arrival
+  | 'orbitBuffCelestialsPerBuffStack' // Celestial Crucible: pay per stack of Shop buffs on the arriver
+  | 'orbitDevourArriver' // Constellation Broker / Orrery: destroy the arriver, hand on its bonus stats
   | 'orbitBuffSelf' // Celestial ORBIT: this minion grows when something lands next to it
   | 'scBuffSelf' // Celestial — Daybreak Acolyte: Start of Combat, this minion gains stats (align-gated halves)
   | 'rallyBuffCelestials' // Celestial — Equinox Duelist (Dawn Rally): buff your Celestials

@@ -3,6 +3,46 @@
 
 
 
+## 2026-08-06 — Celestials, tranche 2: the Orbit TRIGGER, the two devourers, and the investment payoff
+
+Four more of the owner's 22-card roster, taking Set 3 from 12 to 16. What they needed was one new idea in the
+Orbit machinery — that an Orbit can fire without anything having arrived.
+
+- **Astral Relay** (T4 5/6) — Shout on the Dawn half, End of Turn on the Dusk half, both "trigger adjacent
+  Orbits". This is the tribe's Orbit BUTTON: every other Celestial waits for you to play a card beside it.
+- **Celestial Crucible** (T4 4/7) — Orbit: +1/+1 to your Celestials per STACK of Shop buffs on the arriver.
+  A "stack" is one buff application (`buffs[].count`, what the inspect breakdown already shows), so a +1/+1
+  and a +9/+9 are worth the same one stack. It pays for investment, not for tempo.
+- **Constellation Broker** (T5 5/8) — Orbit: destroy the arriver, hand its bonus stats to another Celestial.
+- **Orrery, World Devourer** (T7 8/8) — the passive half (every OTHER Orbit fattens the Shop) reuses the
+  `onOrbitBuffShop` factory built in anticipation; its own Orbit (3) is the Broker writ large, splitting the
+  parcel across every Celestial with the remainder to the left-most.
+
+Machinery, kept deliberately small:
+- `fireOrbit` splits into `fireOrbitAt(state, index, arriver?)`. With no arriver the payload carries
+  `noArriver`, and every effect that CONSUMES the arriver (Horizon Collector, Crucible, both devourers)
+  stands down while the rest — buffs, spell power, sell value, casts — fire normally. "Trigger this Orbit"
+  means the Orbit's text happens, not that a phantom minion appeared.
+- A depth guard (max 2) on triggered Orbits: a Relay can wake a Relay, and unbounded that is an infinite
+  mutual wake.
+- `orbitDevourArriver` covers both devourers (`mode: 'split'` for Orrery). The devoured body's ECHO FIRES
+  (owner ruling 2026-08-06) — this is a death, not a sale, which makes the Broker a deliberate Deathrattle
+  enabler rather than a delete button. It rides `fireRecruitDeathrattles`, the path a shop death already took.
+
+On the three cards still unbuilt for a rules reason — Comet Conductor (Rally), Astral Harbinger and Astral
+Spellcore (Start of Combat) — the owner's question was the right one: the EFFECT ARENA is exactly the
+mechanism for running one effect body in both phases, and it already has 60 of them with `phase:
+'combat' | 'shop'` and an established "no-op in the other phase" pattern. What is missing is not the idea but
+the work: the Orbit bodies are still shop-only `RECRUIT_FACTORIES`, the arena has no shop-economy verbs (sell
+value, Shop offers), and combat needs its own Orbit dispatcher reading LOCKED alignment. That is the parked
+Rally/SoC slice, now un-parked by these three cards, and it is its own PR.
+
+Also still open from the roster: Solar Amplifier (needs Orbit stat-attribution), Spellwheel Savant's Dusk
+half (needs "first stat-granting spell this turn" memory — its Dawn half already has a factory), and
+Astraeus (needs a both-halves alignment override).
+
+Verified: typecheck / lint (7-warning baseline) / 4010 tests (6 new) / harness determinism / build:web.
+
 ## 2026-08-06 — Chicken Brawl's Charging Soldier now actually charges (a shadowed duplicate CardDef)
 
 Owner report: Chicken Brawl's Echo token doesn't attack immediately. It never did — and the reason is a

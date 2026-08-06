@@ -231,4 +231,74 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     ],
     text: "**Orbit:** gain the played minion's **bonus stats**. **Dawn:** also give its **Attack** to your left-most other Celestial. **Dusk:** also give its **Health** to your right-most other Celestial.",
   },
+  {
+    // The tribe's own Orbit BUTTON: everything else waits for you to play a card next to it, the Relay makes
+    // the arrival optional. Its two halves are two different clocks — Dawn pays the moment it lands, Dusk pays
+    // every turn it survives — so where you seat it decides whether it is burst or engine.
+    id: 'c3_relay',
+    name: 'Astral Relay',
+    tribe: 'celestial',
+    tier: 4,
+    attack: 5,
+    health: 6,
+    keywords: [],
+    celestial: true,
+    effects: [
+      { on: 'onPlay', do: 'triggerAdjacentOrbits', align: 'dawn' },
+      { on: 'endOfTurn', do: 'triggerAdjacentOrbits', align: 'dusk' },
+    ],
+    text: '**Shout — Dawn:** trigger adjacent **Orbits**. **End of Turn — Dusk:** trigger adjacent **Orbits**.',
+    goldenText: '**Shout — Dawn:** trigger adjacent **Orbits** twice. **End of Turn — Dusk:** trigger adjacent **Orbits** twice.',
+  },
+  {
+    // Pays for INVESTMENT rather than for tempo: an unbuffed body is worth nothing to the Crucible, a minion
+    // you have poured three Rubies into is worth three. That makes it the tribe's reason to hold a card back
+    // and fatten it in the shop before dropping it next door.
+    id: 'c3_crucible',
+    name: 'Celestial Crucible',
+    tribe: 'celestial',
+    tier: 4,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    celestial: true,
+    effects: [{ on: 'orbit', do: 'orbitBuffCelestialsPerBuffStack', params: { attack: 1, health: 1 } }],
+    text: 'Orbit: give your **Celestials +1/+1** for each stack of **Shop buffs** on the played minion.',
+    goldenText: 'Orbit: give your **Celestials +2/+2** for each stack of **Shop buffs** on the played minion.',
+  },
+  {
+    // The tribe's sacrifice outlet: it eats what you drop next to it and hands the investment on. Because the
+    // devoured body's Echo FIRES (owner ruling 2026-08-06), the Broker is a deliberate Deathrattle enabler —
+    // feed it something whose death you WANTED, and you collect twice.
+    id: 'c3_broker',
+    name: 'Constellation Broker',
+    tribe: 'celestial',
+    tier: 5,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    celestial: true,
+    effects: [{ on: 'orbit', do: 'orbitDevourArriver' }],
+    text: 'Orbit: **destroy** the played minion and give its **bonus stats** to another friendly **Celestial**.',
+    goldenText: 'Orbit: **destroy** the played minion and give **double** its **bonus stats** to another friendly **Celestial**.',
+  },
+  {
+    // The tribe's capstone devourer. Its passive half pays the whole SHOP for everyone else's Orbits, and its
+    // own Orbit (3) is the Broker writ large — the parcel is split across every Celestial you own rather than
+    // handed to one, so it rewards the wide board the rest of the tribe has been building toward.
+    id: 'c3_orrery',
+    name: 'Orrery, World Devourer',
+    tribe: 'celestial',
+    tier: 7,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    celestial: true,
+    effects: [
+      { on: 'orbitFired', do: 'onOrbitBuffShop', params: { others: true, attack: 1, health: 1 } },
+      { on: 'orbit', do: 'orbitDevourArriver', params: { every: 3, mode: 'split' } },
+    ],
+    text: 'Whenever **another Orbit** triggers, give minions in the current Shop **+1/+1**. **Orbit (3):** **destroy** the played minion and split its **bonus stats** among your **Celestials**.',
+    goldenText: 'Whenever **another Orbit** triggers, give minions in the current Shop **+2/+2**. **Orbit (3):** **destroy** the played minion and split **double** its **bonus stats** among your **Celestials**.',
+  },
 ];

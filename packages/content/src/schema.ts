@@ -150,6 +150,9 @@ export const EffectFactoryIdSchema = z.enum([
   'onOrbitBuffShop',
   'scGainKeyword',
   'orbitGainArriverBonus', // Celestial Orbit — buff the arriving minion
+  'triggerAdjacentOrbits', // Celestial — trigger the Orbits either side of this minion
+  'orbitBuffCelestialsPerBuffStack', // Celestial Orbit — scale off the arriver's Shop-buff stacks
+  'orbitDevourArriver', // Celestial Orbit — destroy the arriver and hand on its bonus stats
   'orbitBuffSelf', //    Celestial Orbit — buff this minion
   'scBuffSelf', //       Celestial — SC self-gain (align-gated halves)
   'rallyBuffCelestials', //     Celestial — Rally: buff your Celestials

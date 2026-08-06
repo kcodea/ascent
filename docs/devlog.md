@@ -3,6 +3,21 @@
 
 
 
+## 2026-08-06 — Hero armor rebalance: 19 heroes get individually-dialled starting Armor
+
+The owner's per-hero armor pass, applied verbatim. This replaces the coarse tiers left by the 2026-07-21
+"+5 across the board" pass with individual dials — the spread is now 2-20 (was 13-24). The big movers:
+Robin 13 -> 2 (Spoils banks so much Gold the armor was free real estate), Brackus 20 -> 11, Disco Dan
+20 -> 14, Indy 20 -> 14, Gildmaster 20 -> 14; going the other way, Lord of the Risen 13 -> 16, Darah
+17 -> 18, Guardian 13 -> 15, Runesmith 13 -> 15, Re-Pete 14 -> 15. Coran and Drakko were named in the
+sheet at their current values (unchanged). Heroes not on the sheet (Warden, Myra, Djinni, Cassen, Chaos,
+Chronos, Tiff, Jensen) keep their values.
+
+Data-only: each hero's `armor` in `packages/sim/src/heroes.ts`; the two tests pinning the old dials
+(run.test.ts armor-carry, runes.test.ts Runeguard) updated to the new values in the same commit.
+
+Verified: typecheck / lint (7-warning baseline) / 4002 tests / harness determinism / build:web.
+
 ## 2026-08-06 — The Celestial ALIGNMENT ARC ships: a luminous crescent ATTACHED to each minion
 
 Each Celestial now wears a narrow luminous crescent beneath its frame — Dawn amber, Eclipse pink, Dusk

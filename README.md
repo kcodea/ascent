@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of Duplication actually duplicates** — it was a silent no-op on 41 of 72 Epic runes; amounts now accumulate, boolean runes fire per copy, White Wolf grants a second pup, and non-stacking runes say so on a forge pill.
+
 - **Spells wear a new bronze arch frame** — the art is clipped to the arch, the old purple tint is gone,
   and ~1.9MB of retired frame art left the bundle.
 

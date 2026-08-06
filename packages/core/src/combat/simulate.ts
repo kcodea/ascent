@@ -2293,8 +2293,14 @@ export function simulate(
       const m = modsFor(side);
       if (!mask(m, side)) return;
       fireTrigger(flag, side); // pulse the rune's badge when its Avenge fires
-      fire(side);
-      if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
+      // COPIES (Rune of Duplication, owner report 2026-08-06): a boolean flag can't say "twice", so the
+      // copy count says it here. Two Rune of the Procession = two fires. `?? 1` keeps every single-copy run
+      // byte-identical, and Rune of Fury multiplies the whole thing exactly as it always did.
+      const copies = Math.max(1, m.flagCopies?.[flag] ?? 1);
+      for (let c = 0; c < copies; c++) {
+        fire(side);
+        if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
+      }
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.

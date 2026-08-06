@@ -911,7 +911,10 @@ export function teachMagePup(state: RunState, spellId: string): void {
     (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
     0,
   );
-  const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
+  // Each White Wolf copy adds one teach, like an extra Mentor (owner ruling 2026-08-06). `=== true` keeps a
+  // legacy save (which stored a boolean) worth exactly the one teach it always was.
+  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
+  const cap = boardCap + wolves;
   const used = state.moonhowlTeachesThisTurn ?? 0;
   if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
   if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land

@@ -386,6 +386,43 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Rune of Duplication was a no-op on 41 of 72 Epic runes
+
+Owner report: "i got rune of duplication, and then rune of the procession, so i had 2 of them, but only 1 of
+them was triggering." An audit measured every Epic rune duplicated vs single and found **41 of 72 changed
+nothing**.
+
+**The cause was not a missing call.** Duplication genuinely re-runs `applyQuestReward` for the copied rune —
+that part always worked. The problem is the reward SHAPES: accumulating rewards (`+=`, a push, a queued
+Discover, a per-instance meter) double up, but a reward that ASSIGNS — a boolean, or a whole object — writes
+the same value over itself. `questFlags.runeProcession = true` twice is still `true`, so the player saw two
+badges and one effect. Measured before: 2 fires with one copy, 2 fires with two, `questCombatMods`
+byte-identical.
+
+Fixed to the owner's rulings:
+- **Amount-carrying combat flags ACCUMULATE** ("my gut says yes") — two Finality = 14 Imps, two Living
+  Echoes = 6 Heralds, two Gemstorm = 4 Rubies per Kobold. Deliberately NOT Assembly Line: its amount is an
+  Avenge THRESHOLD, and accumulating it would make the rune fire *less* often — a cadence is not a magnitude.
+- **Boolean combat flags carry a copy count.** A boolean cannot say "twice", so `flagCopies` records how many
+  copies are held and the DISPATCHER fires that many times. One line in `runeAvenge` covers Procession (the
+  reported case) plus Broodpit, Spearline, Appraisal, Counterpoint, Hunting Bell, Gemstorm, Soul Taxes and
+  the rest of the Avenge class at once. `?? 1` keeps every single-copy run byte-identical, and Rune of Fury
+  still multiplies the whole thing exactly as before.
+- **Rune of the White Wolf became a count** ("white wolf should give a second pup as if you had 2 mentors") —
+  each copy adds one Mage-Pup teach per turn, exactly like an extra Mentor. Legacy saves stored a boolean and
+  are read defensively as the single teach they always were.
+- **The rest stay honest instead of silent** (owner: "if the user has rune of duplication and a rune doesn't
+  stack, can we add a pill stating that on the rune?"). `runeStacks()` derives the answer FROM THE REWARD
+  rather than a hand-kept list — so a rune authored tomorrow is classified the moment it exists — and the
+  Runeforge shows a **"Does not stack"** pill on an Epic while Duplication is held. Twin Gilding genuinely
+  doing nothing is fine per the owner; what is not fine is charging for it silently.
+
+12 new tests pin the lot: the owner's Procession case firing twice through a real `simulate()`, the five
+amount flags doubling, Assembly Line's threshold NOT growing, White Wolf's second teach, and `runeStacks`'s
+classification (including that a `multi` stacks when either half does — Soul Taxes' granted minion doubles
+even though its flag is boolean).
+
+Verified: typecheck / lint (7-warning baseline) / 4040 tests / harness determinism / build:web.
 
 ## 2026-08-05 (new spell frame — the bronze arch)
 

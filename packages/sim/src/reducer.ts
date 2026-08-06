@@ -3260,29 +3260,41 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // `per` Beasts). Applied in the recruit onSummon path (see `applyDenMarker`); stacks with a real Den Mother.
       s.denMarker = { attack: r.attack, health: r.health, step: r.step, per: r.per, count: 0 };
       break;
-    case 'combatFlag':
+    case 'combatFlag': {
       // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt / Shared Circuit: arm the run-wide combat mod.
       s.questFlags ??= {};
-      if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
-      else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
-      else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
+      // DUPLICATION (owner ruling 2026-08-06). Applying the same combat flag twice used to write the same
+      // value over itself, so Rune of Duplication was a silent no-op on 23 Epic runes — the owner held two
+      // Rune of the Procession and saw one trigger. Two shapes, both handled here:
+      //  · AMOUNT-carrying flags ACCUMULATE (`+=`), so two Finality = 14 Imps, two Gemstorm = 4 Rubies.
+      //  · BOOLEAN flags can't express "more", so the copy count is recorded and the DISPATCHER fires that
+      //    many times (see `flagCopies` + `runeAvenge`).
+      const add = (prev: number | undefined, amount: number): number => (prev ?? 0) + amount;
+      s.flagCopies ??= {};
+      if (r.flag === 'oldHunt') s.questFlags.oldHunt = add(s.questFlags.oldHunt, r.amount ?? 0);
+      else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = add(s.sharedCircuitWard, r.amount ?? 0); // amount = Mechs warded at SoC
+      else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = add(s.pitWithoutEndImps, r.amount ?? 0); // amount = Imps on board wipe
       else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
       // The Burning Legion carries a USE COUNT rather than a boolean — an unbounded "Imps copy themselves"
       // fills the board on the first swing.
-      else if (r.flag === 'burningLegion') s.questFlags.burningLegion = r.amount ?? 3;
-      else if (r.flag === 'runeFinality') s.questFlags.runeFinality = r.amount ?? 7; // amount = Warded Imps summoned
-      else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
-      else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
-      else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = r.amount ?? 4; // amount = Gold banked
-      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 1;        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
-      else if (r.flag === 'runeRemains') s.questFlags.runeRemains = r.amount ?? 3;           // amount = Shop buff per 5 summons
-      else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
-      else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
-      else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = r.amount ?? 3; // amount = Heralds per combat
-      else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = r.amount ?? 1; // amount = Rubies per attack
-      else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = r.amount ?? 4;           // amount = the permanent board buff
+      else if (r.flag === 'burningLegion') s.questFlags.burningLegion = add(s.questFlags.burningLegion, r.amount ?? 3);
+      else if (r.flag === 'runeFinality') s.questFlags.runeFinality = add(s.questFlags.runeFinality, r.amount ?? 7); // amount = Warded Imps summoned
+      else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = add(s.questFlags.runeCinderLedger, r.amount ?? 6); // amount = the Imp improve
+      else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = add(s.questFlags.runeGemstorm, r.amount ?? 2); // amount = Rubies per Kobold
+      else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = add(s.questFlags.runeBloodAndCoin, r.amount ?? 4); // amount = Gold banked
+      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = add(s.questFlags.runeWildHunt, r.amount ?? 1);        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
+      else if (r.flag === 'runeRemains') s.questFlags.runeRemains = add(s.questFlags.runeRemains, r.amount ?? 3);           // amount = Shop buff per 5 summons
+      else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = add(s.questFlags.runeReinvestment, r.amount ?? 1); // amount = Shop buff per summon
+      else if (r.flag === 'runeBrood') s.questFlags.runeBrood = add(s.questFlags.runeBrood, r.amount ?? 3);               // amount = Imps per combat
+      else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = add(s.questFlags.runeLivingEchoes, r.amount ?? 3); // amount = Heralds per combat
+      else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
+      else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
       else s.questFlags[r.flag] = true;
+      // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
+      // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
+      s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
       break;
+    }
     case 'questGoldTribeBuff':
       s.questGoldTribeBuff = { tribe: r.tribe, per: r.per, attack: r.attack, health: r.health, tick: 0 };
       break;
@@ -3311,7 +3323,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeSpellstone = true;
       break;
     case 'runeWhiteWolf':
-      s.runeWhiteWolf = true;
+      // A COUNT, so a duplicated copy is a second Mentor's worth of teaching (owner ruling 2026-08-06).
+      // `=== true` covers a legacy save that stored the old boolean.
+      s.runeWhiteWolf = (typeof s.runeWhiteWolf === 'number' ? s.runeWhiteWolf : s.runeWhiteWolf === true ? 1 : 0) + 1;
       break;
     case 'runeProfitSharing':
       s.runeProfitSharing = { tribe: r.tribe, attack: r.attack, health: r.health };
@@ -3745,6 +3759,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
   return {
     beastAuraHp: s.beastBuyHp || undefined,
     beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
+    flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,

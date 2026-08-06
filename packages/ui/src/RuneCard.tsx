@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import type { QuestReward, RuneDef } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
@@ -47,12 +47,16 @@ function cardViewOf(id: string, golden = false): CardView | null {
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
  * grants a minion (Pillaging → a Pillager) floats a full preview of that card on hover, like QuestCard.
  */
-export function RuneCard({ rune, affordable, onBuy, cost }: {
+export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
   rune: RuneDef;
   affordable: boolean;
   onBuy: () => void;
   /** Live price when it differs from the printed one (the forge's pivot discount) — rendered green. */
   cost?: number;
+  /** Rune of Duplication is held, so this Epic will be copied on purchase. Runes whose reward cannot express
+   *  "more" (a boolean, a whole-object assignment) gain nothing from the copy — say so on the card rather
+   *  than letting the player spend the Duplication on a no-op (owner ask 2026-08-06). */
+  duplicating?: boolean;
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
@@ -101,6 +105,11 @@ export function RuneCard({ rune, affordable, onBuy, cost }: {
       </div>
       <div className="runecard-body">
         <div className="runecard-sect">
+          {duplicating && !runeStacks(rune) && (
+            <div className="runecard-nostack" title="Rune of Duplication will copy this, but a second copy of this rune has no additional effect.">
+              Does not stack
+            </div>
+          )}
           <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
         </div>
       </div>

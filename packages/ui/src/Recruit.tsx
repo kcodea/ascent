@@ -4731,7 +4731,7 @@ export function Recruit() {
                 // arrive cheaper — the buy path charges the same number.
                 const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
                 return (
-                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} duplicating={!!run.runeDuplication && !!run.runeforgeEpic} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
                 );
               })}
             </div>

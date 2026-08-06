@@ -439,6 +439,9 @@ interface ShopViewOpts {
   castMult?: number;
   tavernAtk?: number;
   tavernHp?: number;
+  /** Veinstorm's run-wide RUBY grant (`tavernRubyBonus`) — previewed like the tavern buff, itemized as "Ruby". */
+  tavernRubyAtk?: number;
+  tavernRubyHp?: number;
   /** Run-wide Deathrattles triggered this game — so a tavern Grim offer shows its live scaling buff. */
   deathrattlesTriggered?: number;
   /** More run-wide live-text inputs so EVERY scaling offer (Guel, Taragosa, Spirit Worgen, Soulsman, …)
@@ -549,12 +552,15 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const fodder = c.keywords.includes('FD');
   const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
+  // Veinstorm's run-wide Ruby grant — same rails and same Fodder exclusion as the tavern buy bonus.
+  const tavernRubyAtk = fodder ? 0 : opts.tavernRubyAtk ?? 0;
+  const tavernRubyHp = fodder ? 0 : opts.tavernRubyHp ?? 0;
   // Preview the run-wide buy auras a fresh minion inherits (Undead/Beast Attack, Magnetic +atk/+hp) so the
   // offer already reads the stats it'll buy in at — the reducer's buy path bakes exactly these.
-  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk
+  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + tavernRubyAtk
     + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0)
     + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0);
-  const addHp = (card.hp ?? 0) + cb.health + tavernHp
+  const addHp = (card.hp ?? 0) + cb.health + tavernHp + tavernRubyHp
     + (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0);
   // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
   // bakes the doubling in, mirrored here for display).
@@ -572,6 +578,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
   pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
   pushBuff('Tavern', tavernAtk, tavernHp);
+  pushBuff('Ruby', tavernRubyAtk, tavernRubyHp); // Veinstorm — itemized as Rubies, which is what it now is
   pushBuff('Tribe Bond',
     (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
@@ -1967,11 +1974,11 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, tavernRubyAtk: run.tavernRubyBonus?.atk, tavernRubyHp: run.tavernRubyBonus?.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernRubyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => {

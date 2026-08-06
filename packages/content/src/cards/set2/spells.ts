@@ -69,7 +69,7 @@ export const SET2_SPELLS: CardDef[] = [
     spell: true,
     cost: 1,
     effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
-    text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**).',
+    text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**), as **Rubies**.',
   },
   {
     // Ruby Transfer (owner add 2026-08-06) — consolidate a row's Rubies onto one body. `target: 'any'` so it

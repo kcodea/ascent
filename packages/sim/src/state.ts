@@ -581,6 +581,13 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** Veinstorm (Set 2) — the run-wide shop grant that is made of RUBIES, not of generic tavern stats. Same
+   *  shape and lifetime as `tavernBuyBonus` (permanent, folded into every present and future offer by
+   *  `offerBuyStats`), but the buy path bakes it in under the `Ruby` source so everything that reads "the
+   *  Rubies on this minion" — Gemheart Carver's Golem above all — actually sees it (owner 2026-08-06).
+   *  Kept as its OWN accumulator rather than reusing `tavernBuyBonus` so a Staff of Guel buff never
+   *  masquerades as a Ruby (and vice versa). */
+  tavernRubyBonus: { atk: number; hp: number };
   /** Rune of the Wild Hunt's accrued escalation — PERMANENT across combats (owner fix 2026-08-01). Seeds each
    *  fight's counter and is written back from `playerWildHuntGrown` at settle. Absent until the rune fires. */
   runeWildHuntGrown?: number;
@@ -1299,6 +1306,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     magneticBuyHp: 0,
     spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
+    tavernRubyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     cassenKills: 0,
     turnStartPower: 0,

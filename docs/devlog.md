@@ -456,6 +456,51 @@ even though its flag is boolean).
 
 Verified: typecheck / lint (7-warning baseline) / 4040 tests / harness determinism / build:web.
 
+## 2026-08-06 — Veinstorm grants RUBIES, not a tavern buff
+
+Owner spec: *"veinstorm should technically function as if that value of rubies was played on the minion.
+it's different than a tavern buff. the reason this is important is for things like gemheart carver. if i
+played veinstorms so that the shop has +10/+10 from veinstorm, a gemheart carver should then summon an
+11/11 gemstone golem."*
+
+**The defect.** Veinstorm's permanent shop grant was routed through `tavernBuyBonus` — the Staff of Guel
+channel — so a bought minion recorded it under the `Staff of Guel` buff source. Every reader of "the Rubies
+on this minion" goes through `rubyTallyOf`, which reads the `Ruby` buff entry (recruit) plus `rubyGain`
+(combat). A generic tavern buff is invisible to it, so a Gemheart Carver bought out of a +10/+10 Veinstorm
+shop summoned a 1/1 Golem instead of an 11/11.
+
+**The change.** Veinstorm now accumulates in its own run-level channel, `tavernRubyBonus`, with the same
+shape and lifetime as `tavernBuyBonus` (permanent; folded into present *and* future offers by
+`offerBuyStats`; the same Fodder exclusion) — but the buy path bakes it in under the `Ruby` source. The
+grant lands in exactly one channel, so nothing double-counts.
+
+- `packages/sim/src/state.ts` — new `tavernRubyBonus: { atk, hp }` on `RunState` + `createRun`. Old saves
+  heal automatically through the `{...createRun(), ...parsed}` merge.
+- `packages/sim/src/recruit.ts` — `spellBuffShopByRuby` writes `tavernRubyBonus`; `offerBuyStats` folds it
+  into every offer's previewed/consumed/sold value.
+- `packages/sim/src/reducer.ts` — the buy path applies it as `addBuff(bought, 'Ruby', …)`; the "grant N
+  stats to Shop minions" quest counts its rises too.
+- `packages/ui/src/Recruit.tsx` — shop offers preview the grant and itemize it as **Ruby** in the inspect.
+- `packages/ui/src/runBuffs.ts` — its own "Tavern buys · Rubies" row (it scales different payoffs from the
+  Staff bonus, so folding the two into one row would lie).
+- `packages/content/src/cards/set2/spells.ts` — card text now says the stats arrive **as Rubies**.
+
+**Knock-on decision (conservative, documented in the effect).** The grant does **not** fire
+`onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier, no Rune of the Spellstone /
+Ruby-cast tick. Three reasons: it lands on tavern OFFERS, and the existing "play a real Ruby on an offer"
+path (`addOfferBuff(offer, 'Ruby', …)`) doesn't notify watchers either; the run-level share bakes in at BUY
+time, when the body is going to hand rather than being played on your board; and a shop-wide grant firing
+one watcher per offer would make a 1-Gold spell the largest Ruby-count payoff in the game. The
+`gainRubyStats` arena hook is the established "Ruby stats, no watcher notify" precedent.
+
+**Verified.** Six new tests in `packages/sim/src/spellBatch.test.ts` pin the owner's exact scenario end to
+end — ten Veinstorms → `tavernRubyBonus {10,10}` with `tavernBuyBonus {0,0}`; a bought Gemheart Carver at
+15/13 carrying one `Ruby` buff of 10/10 and no `Staff of Guel` entry (breakdown sums to exactly 20, so the
+grant applied once); `offerBuyStats` matching the bought body; the Carver's Echo through `simulate` minting
+an **11/11** Gemheart Golem; the Rubies surviving buy → play onto the board; and the two knock-on pins (no
+Ruby-cast tally / landed cue, and a Resonance Idol bought from that shop not bouncing). Full suite 4034/4034,
+`typecheck`, `lint` (7 warnings — baseline), `harness` (determinism ✓), `build:web` all green.
+
 ## 2026-08-05 (new spell frame — the bronze arch)
 
 ### feat(ui): replace the spell frame with the bronze arch

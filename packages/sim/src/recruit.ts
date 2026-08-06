@@ -4019,12 +4019,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffShopByRuby: (ctx) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const a = 1 + rb.attack, h = 1 + rb.health;
-    // PERMANENT (owner 2026-07-24): routed through `tavernBuyBonus` — the run-level tavern buff Staff of Guel
-    // uses — rather than `addOfferBuff` on the current offers. `offerBuyStats` folds it into EVERY offer, so
-    // the current shop updates immediately AND every future shop inherits it. Buffing the offers directly made
-    // it a one-shot that a single reroll wiped.
-    ctx.state.tavernBuyBonus.atk += a;
-    ctx.state.tavernBuyBonus.hp += h;
+    // PERMANENT (owner 2026-07-24): a run-level accumulator rather than `addOfferBuff` on the current offers.
+    // `offerBuyStats` folds it into EVERY offer, so the current shop updates immediately AND every future shop
+    // inherits it. Buffing the offers directly made it a one-shot that a single reroll wiped.
+    //
+    // It is RUBIES, not a tavern buff (owner 2026-08-06): "veinstorm should technically function as if that
+    // value of rubies was played on the minion". So it accumulates in `tavernRubyBonus`, its own channel, and
+    // the buy path bakes it in as the `Ruby` buff entry — which is exactly what `rubyTallyOf` reads in both
+    // phases. That is what makes a Gemheart Carver bought out of a +10/+10 Veinstorm shop mint an 11/11 Golem
+    // (the token's own 1/1 + 10/10 of Rubies) instead of a 1/1. Routing it through `tavernBuyBonus` — the Staff
+    // of Guel channel — was the bug: a generic tavern buff is invisible to every "the Rubies on this minion"
+    // reader. Deliberately NOT both channels: a single grant must not be counted twice.
+    //
+    // Knock-ons (owner spec asked for the defensible reading, so: the conservative one). This does NOT fire
+    // `onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier, no Rune of the Spellstone
+    // cast tick. Three reasons: (1) the grant lands on TAVERN OFFERS, and the existing "play a real Ruby on an
+    // offer" path (`addOfferBuff(offer, 'Ruby', …)` in the reducer) doesn't fire watchers either — offers have
+    // no watchers to fire; (2) the run-level share is baked at BUY time, when the minion is going to hand, not
+    // "played on" anything on your board; (3) a shop-wide grant firing one watcher per offer would make a
+    // 1-Gold spell the single largest Ruby-count payoff in the game. The `gainRubyStats` arena hook is the
+    // established precedent for "Ruby stats, no watcher notify".
+    ctx.state.tavernRubyBonus.atk += a;
+    ctx.state.tavernRubyBonus.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
@@ -5736,8 +5752,12 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
-  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
+  // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
+  // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
+  const rubyA = fodder ? 0 : (state.tavernRubyBonus?.atk ?? 0);
+  const rubyH = fodder ? 0 : (state.tavernRubyBonus?.hp ?? 0);
+  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA + rubyA;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + rubyH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

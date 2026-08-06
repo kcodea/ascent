@@ -48,6 +48,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Rune of Duplication actually duplicates** — it was a silent no-op on 41 of 72 Epic runes; amounts now accumulate, boolean runes fire per copy, White Wolf grants a second pup, and non-stacking runes say so on a forge pill.
 
+- **Veinstorm grants Rubies** — its permanent shop grant now bakes into bought minions as *Rubies*, not a generic tavern buff, so a Gemheart Carver out of a +10/+10 Veinstorm shop summons an 11/11 Golem.
+
 - **Spells wear a new bronze arch frame** — the art is clipped to the arch, the old purple tint is gone,
   and ~1.9MB of retired frame art left the bundle.
 

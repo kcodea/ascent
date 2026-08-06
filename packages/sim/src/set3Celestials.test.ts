@@ -168,3 +168,108 @@ describe('Horizon Collector copies the arriver\'s bonus stats without stealing t
     expect([arriver.attack, arriver.health], 'the arriver keeps its own stats').toEqual([base.attack + 4, base.health + 6]);
   });
 });
+
+/** Bonus stats = everything a body carries above its PRINTED base. Computed from the card index rather than
+ *  hardcoded, so a balance change to a filler card can never quietly invalidate these expectations. */
+const bonusOf = (c: BoardCard): { a: number; h: number } => {
+  const base = CARD_INDEX[c.cardId]!;
+  return { a: Math.max(0, c.attack - base.attack), h: Math.max(0, c.health - base.health) };
+};
+
+describe('ASTRAL RELAY — an Orbit you trigger yourself, with nothing arriving', () => {
+  it('the Dawn Shout fires the neighbours\' Orbits a SECOND time on the way in', () => {
+    // The Relay is played at index 0 so it lands DAWN (left of centre on the resulting 2-board) and its Shout
+    // half applies. The Familiar it lands beside is then index 1 = DUSK, so each fire is +2 Health. Two fires
+    // are due: the arrival itself (a normal Orbit) and the Relay's triggered one.
+    let s = staged([card('fam', 'c3_familiar', 3, 1)], [card('r', 'c3_relay', 5, 6)]);
+    s = reduce(s, { type: 'play', uid: 'r', toIndex: 0 });
+    expect(alignmentOf(s.board, 'r'), 'the Relay landed on the Dawn half').toBe('dawn');
+    // The Familiar's Dusk half pays a RANDOM friend, so the board TOTAL is what pins the number of fires:
+    // two of them at +2 Health each — the arrival's own Orbit, and the one the Relay's Shout triggered.
+    expect(s.board.reduce((n, c) => n + c.health, 0), 'two fires of +2 Health').toBe(1 + 6 + 4);
+  });
+
+  it('a Relay seated on the DUSK half holds its Shout (the End of Turn half is the Dusk one)', () => {
+    let s = staged([card('fam', 'c3_familiar', 3, 1)], [card('r', 'c3_relay', 5, 6)]);
+    s = reduce(s, { type: 'play', uid: 'r', toIndex: 1 }); // lands right of centre → Dusk
+    expect(alignmentOf(s.board, 'r')).toBe('dusk');
+    // The Familiar is now left of centre — DAWN, so its half grants Attack — and only ONE fire is due: the
+    // Relay's Shout is Dawn-gated and the Relay is seated on the Dusk half, so it stays silent.
+    expect(s.board.reduce((n, c) => n + c.attack, 0), 'the arrival Orbit only').toBe(3 + 5 + 2);
+  });
+
+  it('a triggered Orbit stands down for anything that consumes the ARRIVER', () => {
+    // Horizon Collector takes the arriver's bonus stats. Triggered with nothing arriving it must collect
+    // nothing — in particular it must not read the stand-in body the payload carries.
+    let s = staged([card('col', 'c3_collector', 5, 12)], [card('r', 'c3_relay', 5, 6)]);
+    s = reduce(s, { type: 'play', uid: 'r', toIndex: 0 });
+    expect(s.board.find((c) => c.uid === 'col')!.attack, 'nothing to collect').toBe(5);
+  });
+});
+
+describe('CELESTIAL CRUCIBLE — paid per stack of Shop buffs on the arriver', () => {
+  it('an unbuffed arrival pays nothing', () => {
+    let s = staged([card('cru', 'c3_crucible', 4, 7)], [card('n', 'alley', 1, 1)]);
+    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
+    expect(s.board.find((c) => c.uid === 'cru')!.attack).toBe(4);
+  });
+
+  it('pays +1/+1 per STACK — two separate buffs on the arriver, not their size', () => {
+    // Deliberately lopsided amounts: what the Crucible reads is the COUNT of applications, so a +1/+1 and a
+    // +9/+9 are worth the same two stacks.
+    const buffed = { ...card('n', 'alley', 1, 1), buffs: [
+      { source: 'Ruby', attack: 1, health: 1, count: 1 },
+      { source: 'Growth', attack: 9, health: 9, count: 1 },
+    ] } as BoardCard;
+    let s = staged([card('cru', 'c3_crucible', 4, 7)], [buffed]);
+    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
+    expect(s.board.find((c) => c.uid === 'cru')!.attack, '+1 × 2 stacks').toBe(4 + 2);
+  });
+});
+
+describe('CONSTELLATION BROKER — devours the arrival and hands the investment on', () => {
+  it('destroys the played minion and passes its BONUS stats to another Celestial', () => {
+    // `stray` carries no Echo, so this isolates the transfer from the Echo behaviour tested below.
+    const fat = card('n', 'stray', 9, 9);
+    const bonus = bonusOf(fat);
+    expect(bonus.a, 'the fixture really is buffed above base').toBeGreaterThan(0);
+    let s = staged([card('bro', 'c3_broker', 5, 8), card('gard', 'c3_gardener', 4, 6)], [fat]);
+    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
+    expect(s.board.some((c) => c.uid === 'n'), 'the arrival was devoured').toBe(false);
+    // The Gardener is the only OTHER Celestial, so the whole parcel lands on it. Its own Orbit casts a spell
+    // rather than granting stats, so nothing else moves its Attack.
+    expect(s.board.find((c) => c.uid === 'gard')!.attack, 'inherited the bonus Attack').toBe(4 + bonus.a);
+  });
+
+  it('the devoured minion\'s ECHO fires — a death, not a sale (owner ruling 2026-08-06)', () => {
+    // `pack` carries an Echo. Devouring it must run that Echo, which is what makes the Broker a Deathrattle
+    // enabler rather than a delete button.
+    expect(CARD_INDEX['pack']!.effects.some((e) => e.on === 'onDeath'), 'fixture still has an Echo').toBe(true);
+    let s = staged([card('bro', 'c3_broker', 5, 8)], [card('n', 'pack', 3, 2)]);
+    const before = s.board.length;
+    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
+    expect(s.board.some((c) => c.uid === 'n'), 'devoured').toBe(false);
+    // Pack Leader's Echo summons bodies — their arrival is the proof the Echo ran at all.
+    expect(s.board.length, 'the Echo summoned into the freed space').toBeGreaterThan(before);
+  });
+});
+
+describe('ORRERY — the capstone devourer', () => {
+  it('devours only on its THIRD adjacent arrival, and splits the parcel across your Celestials', () => {
+    // Orbit (3). Every play below lands directly beside the Orrery so all three ticks land on it.
+    let s = staged(
+      [card('fam', 'c3_familiar', 3, 1), card('orr', 'c3_orrery', 8, 8)],
+      [card('n1', 'alley', 1, 1), card('n2', 'stray', 1, 1), card('n3', 'sandbag', 9, 1)],
+    );
+    s = reduce(s, { type: 'play', uid: 'n1', toIndex: 2 }); // tick 1
+    expect(s.board.some((c) => c.uid === 'n1'), 'survives the first tick').toBe(true);
+    s = reduce(s, { type: 'play', uid: 'n2', toIndex: 2 }); // tick 2 (lands between fam-side and Orrery)
+    expect(s.board.some((c) => c.uid === 'n2'), 'survives the second tick').toBe(true);
+    const parcel = bonusOf(card('n3', 'sandbag', 9, 1)).a;
+    const before = s.board.filter((c) => c.uid !== 'n3').reduce((n, c) => n + c.attack, 0);
+    s = reduce(s, { type: 'play', uid: 'n3', toIndex: 2 }); // tick 3 → devoured
+    expect(s.board.some((c) => c.uid === 'n3'), 'devoured on the third Orbit').toBe(false);
+    const after = s.board.reduce((n, c) => n + c.attack, 0);
+    expect(after - before, 'the whole parcel was shared out').toBeGreaterThanOrEqual(parcel);
+  });
+});

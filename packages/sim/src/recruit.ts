@@ -36,7 +36,8 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
+  *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -3110,7 +3111,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Horizon Collector: take the arriver's BONUS stats (everything it had above its printed base) — the
    *  minion keeps its own; this is a copy, not a theft. */
-  orbitGainArriverBonus: (ctx, self, params, { minion }) => {
+  orbitGainArriverBonus: (ctx, self, params, { minion, noArriver }) => {
+    if (noArriver) return; // a TRIGGERED Orbit has nothing to collect from
     const base = CARD_INDEX[minion.cardId];
     if (!base) return;
     const bonusA = Math.max(0, minion.attack - base.attack);
@@ -3123,6 +3125,64 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const others = ctx.state.board.filter((c) => c.uid !== self.uid && isCelestialCard(c));
     const target = side === 'dusk' ? others[others.length - 1] : others[0];
     if (target) addBuff(target, nameOf(self), side === 'dusk' ? 0 : bonusA, side === 'dusk' ? bonusH : 0);
+  },
+
+  /** Astral Relay: fire the Orbits either side of THIS minion without anything having been played.
+   *  The trigger is the card's own (a Shout on the Dawn half, End of Turn on the Dusk half); what it wakes
+   *  is the neighbours' Orbit text, exactly as an arrival would — minus anything that consumes the arriver,
+   *  which stands down (`noArriver`). */
+  triggerAdjacentOrbits: (ctx, self) => {
+    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    if (idx < 0) return;
+    for (let i = 0; i < gold(self); i++) fireOrbitAt(ctx.state, idx, undefined);
+  },
+
+  /** Celestial Crucible: pay per STACK of Shop buffs riding on the minion that just landed. A "stack" is one
+   *  buff application — `buffs[].count`, the same tally the inspect breakdown shows — so a minion carrying
+   *  three separate +1/+1s is worth three, and an unbuffed body is worth nothing. That makes the Crucible a
+   *  reward for playing something you have INVESTED in rather than for playing at all. */
+  orbitBuffCelestialsPerBuffStack: (ctx, self, params, { minion, noArriver }) => {
+    if (noArriver) return;
+    const stacks = (minion.buffs ?? []).reduce((n, b) => n + b.count, 0);
+    if (stacks <= 0) return;
+    const a = num(params.attack, 1) * stacks * gold(self);
+    const h = num(params.health, 1) * stacks * gold(self);
+    for (const c of ctx.state.board) {
+      if (isCelestialCard(c)) addBuff(c, nameOf(self), a, h);
+    }
+  },
+
+  /** Constellation Broker + Orrery: DEVOUR the minion that just landed — it leaves the board and its bonus
+   *  stats (everything above its printed base) are handed on. `mode: 'split'` shares them among your
+   *  Celestials (Orrery, remainder to the left-most); otherwise the whole parcel goes to one other Celestial.
+   *
+   *  The destroyed body's ECHO fires (owner ruling 2026-08-06) — this is a death, not a sale, which makes the
+   *  Broker a deliberate Deathrattle enabler rather than a way to quietly delete a card. It rides
+   *  `fireRecruitDeathrattles`, the same path a shop death already takes. */
+  orbitDevourArriver: (ctx, self, params, { minion, noArriver }) => {
+    if (noArriver) return;
+    const state = ctx.state;
+    const base = CARD_INDEX[minion.cardId];
+    const idx = state.board.findIndex((c) => c.uid === minion.uid);
+    if (!base || idx < 0 || minion.uid === self.uid) return; // never devour yourself
+    const bonusA = Math.max(0, minion.attack - base.attack);
+    const bonusH = Math.max(0, minion.health - base.health);
+    state.board.splice(idx, 1);
+    const heirs = state.board.filter((c) => c.uid !== minion.uid && isCelestialCard(c));
+    if (heirs.length > 0) {
+      if (str(params.mode) === 'split') {
+        // Even shares, remainder to the left-most — deterministic, so the player can arrange for it.
+        const each = { a: Math.floor(bonusA / heirs.length), h: Math.floor(bonusH / heirs.length) };
+        heirs.forEach((c, i) => addBuff(c, nameOf(self),
+          each.a + (i === 0 ? bonusA % heirs.length : 0),
+          each.h + (i === 0 ? bonusH % heirs.length : 0)));
+      } else {
+        // "another friendly Celestial" — the left-most other one, so it is arrangeable rather than random.
+        const heir = heirs.find((c) => c.uid !== self.uid) ?? heirs[0]!;
+        addBuff(heir, nameOf(self), bonusA, bonusH);
+      }
+    }
+    fireRecruitDeathrattles(makeContext(state), minion);
   },
 
   /** Sporeling (recruit half) — every Battlecry you trigger procs this minion's OWN Deathrattle (its
@@ -6427,9 +6487,39 @@ function notifyOrbitFired(state: RunState, source: BoardCard, played: BoardCard)
   }
 }
 
+/**
+ * Depth guard for TRIGGERED Orbits. Astral Relay wakes its neighbours' Orbits, and one of those neighbours
+ * may be another Relay — left unbounded that is an infinite mutual wake. Two levels is enough for a Relay to
+ * pay a Relay while keeping the chain finite and readable.
+ */
+let orbitDepth = 0;
+const ORBIT_MAX_DEPTH = 2;
+
 export function fireOrbit(state: RunState, played: BoardCard): void {
   const idx = state.board.findIndex((c) => c.uid === played.uid);
   if (idx < 0) return; // the play didn't land on the board (overflow) — nothing to orbit
+  fireOrbitAt(state, idx, played);
+}
+
+/**
+ * Wake the Orbit effects either side of board slot `idx`.
+ *
+ * `arriver` is the card that just landed there — or UNDEFINED when the Orbit was TRIGGERED by a card's own
+ * text (Astral Relay) rather than by a play. In that case `noArriver` rides the payload and every effect
+ * that consumes the arriver stands down, while the rest (buffs, spell power, sell value, casts) fire
+ * normally: "trigger this Orbit" means the Orbit's text happens, not that a phantom minion appeared.
+ */
+export function fireOrbitAt(state: RunState, idx: number, arriver: BoardCard | undefined): void {
+  if (orbitDepth >= ORBIT_MAX_DEPTH) return;
+  orbitDepth += 1;
+  try {
+    fireOrbitInner(state, idx, arriver);
+  } finally {
+    orbitDepth -= 1;
+  }
+}
+
+function fireOrbitInner(state: RunState, idx: number, arriver: BoardCard | undefined): void {
   const ctx = makeContext(state);
   for (const nb of [state.board[idx - 1], state.board[idx + 1]]) {
     if (!nb) continue;
@@ -6452,10 +6542,13 @@ export function fireOrbit(state: RunState, played: BoardCard): void {
         nb.orbitTick = 0;
       }
       for (let n = 0; n < orbitFires(state, nb); n++) {
-        captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, { minion: played }));
+        // With no arriver the payload still needs a body in `minion` (the type demands one); `noArriver` is
+        // what makes it unreadable — the watcher itself stands in, and nothing consumes it.
+        const payload = { minion: arriver ?? nb, ...(arriver ? {} : { noArriver: true as const }) };
+        captureBuffFx(state, nb, 'minion', () => fn(ctx, nb, effect.params ?? {}, payload));
         // A GATED half sparks its own side; an ungated Orbit sparks the watcher's live side (it fired there).
         noteAlignSpark(state, effect.align ?? nbAlign);
-        notifyOrbitFired(state, nb, played);
+        notifyOrbitFired(state, nb, arriver ?? nb);
       }
     }
   }

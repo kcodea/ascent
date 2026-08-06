@@ -19,7 +19,9 @@ describe('set 3 scaffold', () => {
     expect(p.buyable.every((c) => c.celestial), 'set 3 minions are all Celestials for now').toBe(true);
     expect(p.buyable.map((c) => c.id)).toEqual(
       ['c3_courier', 'c3_familiar', 'c3_vendor', 'c3_twilight', 'c3_cartographer', 'c3_tender',
-       'c3_shopkeeper', 'c3_gardener', 'c3_channeler', 'c3_binary', 'c3_weaver', 'c3_collector'],
+       'c3_shopkeeper', 'c3_gardener', 'c3_channeler', 'c3_binary', 'c3_weaver', 'c3_collector',
+       // The 2026-08-06 tranche: the Orbit-trigger, the two devourers and the investment payoff.
+       'c3_relay', 'c3_crucible', 'c3_broker', 'c3_orrery'],
     );
     // The archived test units are gone from the POOL but still resolvable by id (saved runs / replays).
     for (const id of ['c3_orbiter', 'c3_herald', 'c3_sentinel', 'c3_acolyte', 'c3_starweft', 'c3_equinox', 'c3_nym']) {

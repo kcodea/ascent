@@ -3,6 +3,37 @@
 
 
 
+## 2026-08-06 — Balance Report: the derived views land (the telemetry rebuild's last piece)
+
+The missing third phase of the 2026-08-05 telemetry rebuild — both earlier entries ended "Next: the in-app
+Balance Report views", and this is them. Three new sections in the report dropdown, all reading the
+`derived` jsonb payload each finished run banks (fetched independently of the flat report, so a
+pre-migration DB degrades to an explanatory empty state without touching the classic sections):
+
+- **Card Demand (derived)** — `cardDemand()` rendered at last: per-COPY offers and buys, the three
+  separately-named conversion rates (`copyConversion` with a Wilson 95% interval, `shopConversion`,
+  `runAcquisitionRate`), acquisitions as the visible sample size. Revision-pooled as designed: a row from a
+  card definition that has since changed is marked ⚠ and never merged with current-revision samples; rows
+  under the preliminary sample gate render dimmed rather than hidden. The header states the human-vs-bot
+  rule (human data answers DEMAND; per-card performance waits on the bot fleet's Ns).
+- **Gold Economy (derived)** — `goldCurve()`: average Gold per run reaching each wave, split by ledger
+  category (income / minions / spells / Rubies / rolls / tier-ups / hero power / runes / sells). The
+  reconciled ledger means no source can hide.
+- **Upgrade Timing (derived)** — `upgradeShape()`: per wave, tier-ups offered vs taken, take rate, average
+  cost, and the after-a-loss take rate with its own n — declines are rows too, which was the point of
+  recording them.
+
+The two aggregations are pure functions in `runDerive.ts` beside `cardDemand`, unit-tested (per-wave
+divisors count only runs that REACHED the wave; after-loss split verified). `fetchDerivedRuns` is the one
+new remote read, same best-effort/timeout contract as the rest of the seam.
+
+Verified LIVE against the real backend: all three views render actual data — 196 demand rows, 17 economy
+waves averaged over 16 derived runs, 13 upgrade waves — so the migration has been run and payloads are
+banking. Gates: typecheck / lint (7-warning baseline) / 4019 tests (2 new) / build:web.
+
+Still open on the telemetry arc: bot mass-generation at a pinned revision for per-card performance Ns, and
+labeling bot vs human rows once both exist.
+
 ## 2026-08-06 — Rune batch: 2 broken runes fixed, the Avenge tally class closed, 5 previews, 2 texts
 
 The rune half of today's audit pair (130 runes audited end-to-end: no dead runes, and after the Resonance

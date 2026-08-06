@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { aggregatePlayerReport, getHero, type PlayerReport, type PlayerReportRow, type ShopCurve } from '@game/sim';
+import { aggregatePlayerReport, cardDemand, getHero, goldCurve, upgradeShape, wilson, SAMPLE_GATES, type DerivedRun, type PlayerReport, type PlayerReportRow, type ShopCurve } from '@game/sim';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
+import { fetchDerivedRuns, fetchRunTelemetry, remoteEnabled } from './remoteBoards';
 import { buildCardCsv, type RunTelemetry } from '@game/sim';
+import { CARD_INDEX, cardRevisions } from '@game/content';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -40,7 +41,13 @@ const SECTIONS: Section[] = [
 ];
 /** The chart section is not a table — it renders the shop-leveling curve instead of rows. */
 const SHOP_CURVE = 'shopcurve' as const;
-type SectionKey = Section['key'] | typeof SHOP_CURVE;
+/** The DERIVED sections (2026-08-06) — read the runDerive streams (`derived` jsonb) rather than the flat
+ *  telemetry row: true per-copy demand with Wilson intervals, the Gold ledger curve, and upgrade behaviour.
+ *  Empty until the 2026-08-05 schema migration has been run and runs have banked derived payloads. */
+const DEMAND = 'demand' as const;
+const ECONOMY = 'economy' as const;
+const UPGRADES = 'upgrades' as const;
+type SectionKey = Section['key'] | typeof SHOP_CURVE | typeof DEMAND | typeof ECONOMY | typeof UPGRADES;
 
 const fmtPct = (n: number): string => (n < 0 ? '–' : `${n}%`);
 const fmtNum = (n: number | null): string => (n === null ? '–' : String(n));
@@ -169,6 +176,7 @@ export function BalancePanel() {
   const close = useGame((s) => s.closeBalance);
   const [report, setReport] = useState<PlayerReport | null>(null);
   const [rawRows, setRawRows] = useState<RunTelemetry[]>([]); // kept for the CSV export (per-card analytics)
+  const [derived, setDerived] = useState<DerivedRun[]>([]); // the runDerive payloads (demand/economy/upgrade views)
   const [loading, setLoading] = useState(false);
   const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
   // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
@@ -186,6 +194,9 @@ export function BalancePanel() {
       setReport(aggregatePlayerReport(rows));
       setLoading(false);
     });
+    // The derived streams load in parallel and independently: a pre-migration DB returns [] here while the
+    // flat report above still works, so the classic sections never wait on (or break with) the new ones.
+    void fetchDerivedRuns(200).then(setDerived);
   };
 
   // Export the per-card acquisition analytics (buy turns, win-rate impact, source split) as a CSV download —
@@ -219,8 +230,9 @@ export function BalancePanel() {
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
   const isCurve = sectionKey === SHOP_CURVE;
+  const isDerived = sectionKey === DEMAND || sectionKey === ECONOMY || sectionKey === UPGRADES;
   const section = SECTIONS.find((s) => s.key === sectionKey) ?? SECTIONS[0]!;
-  const rows = shown && !isCurve ? shown[section.key] : [];
+  const rows = shown && !isCurve && !isDerived ? shown[section.key] : [];
 
   return (
     <div className="balpage">
@@ -239,6 +251,9 @@ export function BalancePanel() {
                 <option key={s.key} value={s.key}>{s.label}{shown ? ` (${shown[s.key].length})` : ''}</option>
               ))}
               <option value={SHOP_CURVE}>Shop Curve</option>
+              <option value={DEMAND}>Card Demand (derived){derived.length ? ` (${derived.length} runs)` : ''}</option>
+              <option value={ECONOMY}>Gold Economy (derived)</option>
+              <option value={UPGRADES}>Upgrade Timing (derived)</option>
             </select>
             {/* HERO SLICE: re-aggregates the whole report for one hero (owner ask 2026-08-02). */}
             <select
@@ -271,6 +286,15 @@ export function BalancePanel() {
           <div className="balempty">Balance report unavailable — no backend configured.</div>
         ) : loading ? (
           <div className="balempty">Loading player data…</div>
+        ) : isDerived ? (
+          derived.length === 0 ? (
+            <div className="balempty">
+              No derived runs yet. These views read the <code>derived</code> payload each finished run uploads —
+              empty until the 2026-08-05 <code>run_telemetry</code> migration has been run and runs have banked since.
+            </div>
+          ) : sectionKey === DEMAND ? <DemandTable runs={derived} />
+            : sectionKey === ECONOMY ? <EconomyTable runs={derived} />
+            : <UpgradeTable runs={derived} />
         ) : shown && shown.totalRuns > 0 ? (
           isCurve ? <ShopCurveChart curve={shown.shopCurve} /> : <SortableTable key={`${section.key}:${heroFilter}`} section={section} rows={rows} />
         ) : heroFilter && report ? (
@@ -376,6 +400,116 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
             {byPlace ? 'Won / lost' : `By placement (${placedTotal})`}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ── DERIVED VIEWS (2026-08-06) — the runDerive streams rendered in-app ─────────────────────────────────── */
+
+const pct = (v: number | null): string => (v === null ? '–' : `${Math.round(v * 100)}%`);
+
+/** Per-card demand off the derived offers/acquisitions — the three separately-named conversion rates with a
+ *  Wilson interval on copy conversion, revision-pooled. Rows on a STALE revision (the card changed since)
+ *  are marked; rows under the preliminary sample gate render dimmed — visible, but flagged as noise. */
+function DemandTable({ runs }: { runs: DerivedRun[] }) {
+  const [sortKey, setSortKey] = useState<'copies' | 'conv' | 'acq' | 'name'>('copies');
+  const rows = useMemo(() => {
+    const revs = cardRevisions();
+    const all = cardDemand(runs).map((d) => ({ ...d, stale: revs[d.cardId] !== undefined && revs[d.cardId] !== d.rev }));
+    const val = (d: (typeof all)[number]): number | string =>
+      sortKey === 'name' ? (CARD_INDEX[d.cardId]?.name ?? d.cardId)
+        : sortKey === 'conv' ? (d.copyConversion ?? -1)
+          : sortKey === 'acq' ? d.acquisitions : d.copiesOffered;
+    return all.sort((a, b) => {
+      const va = val(a), vb = val(b);
+      return typeof va === 'string' ? String(va).localeCompare(String(vb)) : Number(vb) - Number(va);
+    });
+  }, [runs, sortKey]);
+  const H = ({ k, label }: { k: typeof sortKey; label: string }) => (
+    <span role="columnheader" className={`balsort${sortKey === k ? ' on' : ''}`} onClick={() => setSortKey(k)}>{label}</span>
+  );
+  return (
+    <div className="balsolo" style={{ ['--balcols' as string]: 8 }}>
+      <div className="balnote">
+        Demand = what players DO with offers (human data answers demand; per-card performance needs the bot
+        fleet's sample sizes). Dimmed rows are under the {SAMPLE_GATES.preliminary}-offer preliminary gate;
+        ⚠ marks a card whose definition changed since those samples (never pooled across revisions).
+      </div>
+      <div className="balgrid balgrid-solo" role="table">
+        <div className="balrow balrow-h" role="row">
+          <H k="name" label="Name" /><H k="copies" label="Copies Seen" /><span role="columnheader">Bought</span>
+          <H k="conv" label="Copy Conv" /><span role="columnheader">95% CI</span><span role="columnheader">Shop Conv</span>
+          <span role="columnheader">Run Acq</span><H k="acq" label="n (acq)" />
+        </div>
+        {rows.map((d) => {
+          const ci = wilson(d.copiesBought, d.copiesOffered);
+          const dim = d.copiesOffered < SAMPLE_GATES.preliminary;
+          return (
+            <div className={`balrow${dim ? ' baldim' : ''}`} role="row" key={`${d.cardId}@${d.rev}`}>
+              <span role="cell" className="balname">{CARD_INDEX[d.cardId]?.name ?? d.cardId}{d.stale ? ' ⚠' : ''}</span>
+              <span role="cell" className="balnum">{d.copiesOffered}</span>
+              <span role="cell" className="balnum">{d.copiesBought}</span>
+              <span role="cell" className="balnum">{pct(d.copyConversion)}</span>
+              <span role="cell" className="balnum">{ci ? `${Math.round(ci.lo * 100)}–${Math.round(ci.hi * 100)}%` : '–'}</span>
+              <span role="cell" className="balnum">{pct(d.shopConversion)}</span>
+              <span role="cell" className="balnum">{pct(d.runAcquisitionRate)}</span>
+              <span role="cell" className="balnum">{d.acquisitions}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** The Gold ledger curve: where a turn's economy actually goes, per wave, averaged over runs that reached it. */
+function EconomyTable({ runs }: { runs: DerivedRun[] }) {
+  const rows = useMemo(() => goldCurve(runs), [runs]);
+  const CATS = ['income', 'minion', 'spell', 'ruby', 'refresh', 'upgrade', 'heroPower', 'rune', 'sell'] as const;
+  const LABEL: Record<string, string> = { income: 'Income', minion: 'Minions', spell: 'Spells', ruby: 'Rubies', refresh: 'Rolls', upgrade: 'Tier Ups', heroPower: 'Hero Pwr', rune: 'Runes', sell: 'Sold' };
+  return (
+    <div className="balsolo" style={{ ['--balcols' as string]: CATS.length + 2 }}>
+      <div className="balnote">Average Gold per run reaching each wave — the reconciled ledger, so no source can hide. Spends shown as outlay.</div>
+      <div className="balgrid balgrid-solo" role="table">
+        <div className="balrow balrow-h" role="row">
+          <span role="columnheader">Wave</span>
+          {CATS.map((c) => <span key={c} role="columnheader">{LABEL[c]}</span>)}
+          <span role="columnheader">runs</span>
+        </div>
+        {rows.map((r) => (
+          <div className="balrow" role="row" key={r.wave}>
+            <span role="cell" className="balname">{r.wave}</span>
+            {CATS.map((c) => <span key={c} role="cell" className="balnum">{r.avg[c] || '–'}</span>)}
+            <span role="cell" className="balnum">{r.runs}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Upgrade behaviour per wave: availability vs takes, the price paid, and the after-a-loss split. */
+function UpgradeTable({ runs }: { runs: DerivedRun[] }) {
+  const rows = useMemo(() => upgradeShape(runs), [runs]);
+  return (
+    <div className="balsolo" style={{ ['--balcols' as string]: 6 }}>
+      <div className="balnote">Turns where a tier-up was affordable-or-visible, and what players did — declines are data too.</div>
+      <div className="balgrid balgrid-solo" role="table">
+        <div className="balrow balrow-h" role="row">
+          <span role="columnheader">Wave</span><span role="columnheader">Offered</span><span role="columnheader">Taken</span>
+          <span role="columnheader">Take %</span><span role="columnheader">Avg Cost</span><span role="columnheader">After-Loss Take % (n)</span>
+        </div>
+        {rows.map((r) => (
+          <div className="balrow" role="row" key={r.wave}>
+            <span role="cell" className="balname">{r.wave}</span>
+            <span role="cell" className="balnum">{r.offered}</span>
+            <span role="cell" className="balnum">{r.taken}</span>
+            <span role="cell" className="balnum">{pct(r.takeRate)}</span>
+            <span role="cell" className="balnum">{r.avgCost ?? '–'}</span>
+            <span role="cell" className="balnum">{r.afterLossN ? `${pct(r.afterLossTakeRate)} (${r.afterLossN})` : '–'}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

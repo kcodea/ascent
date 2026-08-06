@@ -3,6 +3,36 @@
 
 
 
+## 2026-08-06 — Rune batch: 2 broken runes fixed, the Avenge tally class closed, 5 previews, 2 texts
+
+The rune half of today's audit pair (130 runes audited end-to-end: no dead runes, and after the Resonance
+fix no remaining per-turn-reset bugs — 106 fully clean). This ships the 24 findings:
+
+- **Rune of Duplication** — copying an Epic pushes the same id into `ownedRunes` twice, and the badge row
+  keyed by id alone, so React mis-reconciled the two badges' pulses. Keyed by slot now.
+- **Rune of the Summit** — the badge counted x/2 against a fires-every-3rd-shop implementation, reading
+  "1/2" on the turn it actually fired. Counts x/3.
+- **The Avenge tally class** — all ten rune-granted Avenge effects (Broodpit, Spearline, Appraisal, Last
+  Call, Cinder Ledger, Hunting Bell, Gemstorm, Procession, Soul Taxes — Counterpoint exempted, Avenge (1)
+  is a 1/1 meter) plus Blood and Coin (per-4-deaths) and the Remains (per-5-summons) metered SILENTLY: a
+  minion's Avenge hangs its counter on the unit, a rune has no body. `runeCombatTally` hangs it on the
+  BADGE, fed by the replay's live quest delta — the same feed the unit counters ride, ticking in lockstep.
+  Why the class shipped silent: `tallyCoverage.test.ts`'s threshold regex cannot see "**Avenge (3):**". A
+  new sweep asserts every Avenge rune reports (and that the tally mirrors the printed number), so the class
+  cannot reopen.
+- **Five missing forge previews** — Gemcutting, Investment, Gemstorm, Redirection, Spellstone all name
+  Rubies with no hover card; `previewCards: ['ruby']` like their sibling Ruby runes.
+- **Two texts** — Living Echoes states its 3-per-combat cap (its sibling Brood always did); the Remains
+  says "permanently" (it lands on the run-wide shop channel — the same under-sell fixed on Reinvestment).
+- **Epic Forge no-op** — a Runeguard buying Rune of the Epic Forge got nothing (both write the same
+  single `epicForgeWave` slot). The additional forge now arrives as a deferred next-turn forge instead of
+  silently merging.
+- Stale-comment sweep: Wild Hunt's `?? 3` fallback trap → `?? 1`, Appraisal "Avenge 4" → 3, the Summit
+  "every 2nd" comments, the onWave "→ 9" → 8.
+
+Verified: typecheck / lint (7-warning baseline) / 4019 tests (2 new sweeps) / harness determinism /
+build:web.
+
 ## 2026-08-06 — Live-text batch: combat-granted previews go live + Orbit counters + three surface gaps
 
 The live-text half of today's audit pair (owner report: "combat granted spells do not show current values

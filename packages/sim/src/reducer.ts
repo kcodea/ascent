@@ -3274,7 +3274,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
       else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = r.amount ?? 4; // amount = Gold banked
-      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 3;        // amount = Health per Beast attack
+      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 1;        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
       else if (r.flag === 'runeRemains') s.questFlags.runeRemains = r.amount ?? 3;           // amount = Shop buff per 5 summons
       else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
       else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
@@ -3595,9 +3595,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'scheduleRuneforge':
       // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
-      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn —
+      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 8); otherwise it's next turn —
       // deferred so a mid-turn modal-close can't open it on the turn the quest completed (owner bug 2026-07-13).
-      if (r.onWave != null) s.epicForgeWave = r.onWave;
+      // The slot already booked (the Runeguard hero schedules its own wave-8 forge): the "ADDITIONAL" forge
+      // must not silently merge into the one they were already getting (audit find 2026-08-06) — it arrives
+      // as a deferred next-turn forge instead.
+      if (r.onWave != null && s.epicForgeWave != null) { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
+      else if (r.onWave != null) s.epicForgeWave = r.onWave;
       else if (r.forge === 'epic') { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
       else s.pendingBasicForge = { gold: r.gold, deferred: true };
       break;
@@ -3801,7 +3805,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 4 → 2 Taunt Imps (the '6' here was stale)
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
-    runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
+    runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 3 → spells +1/+1
     runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold
     runeFirstClaws: f?.runeFirstClaws, // Rune of First Claws: SoC leftmost+rightmost Beasts attack now
     runePackcraft: f?.runePackcraft, // Rune of Packcraft: combat summon → Beasts +1 Atk

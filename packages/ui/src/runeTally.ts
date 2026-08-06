@@ -44,9 +44,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {
     return `${Math.min(run.spellDripTick ?? 0, run.spellDripPer)}/${run.spellDripPer}g`;
   }
-  // Rune of the Summit counts SHOPS OPENED, and fires every second one.
+  // Rune of the Summit counts SHOPS OPENED, and fires every THIRD one (audit fix 2026-08-06: the badge
+  // counted x/2 against a fires-every-3rd implementation, so it read 1/2 on the turn it actually fired).
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
-    return `${run.runeSummitTick % 2}/2`;
+    return `${run.runeSummitTick % 3}/3`;
   }
   // Rune of Slaying banks KILLS ACROSS COMBATS (`runeSlayingKills`) and pays every 6 — the owner's report
   // 2026-08-04. A cross-combat meter with nothing on screen is the worst case of all: the payout arrives
@@ -64,6 +65,34 @@ export function runeTally(run: RunState, runeId: string): string | null {
 /** Rune of Slaying's threshold. Mirrors the `>= 6` in `settleCombat` — kept beside the readout so the two are
  *  edited together; the reducer owns the behaviour and this only reports it. */
 const SLAYING_PER = 6;
+
+/**
+ * COMBAT-LOCAL rune meters (audit 2026-08-06): the ten rune-granted Avenge effects — plus Blood and Coin
+ * (every 4 friendly deaths) and the Remains (every 5 summons) — metered silently. A minion's Avenge hangs
+ * its counter on the unit; a rune has no body, so its counter hangs on the BADGE, fed by the replay's live
+ * `CombatQuestDelta` (friendly deaths / combat summons this fight). Each mirrors its registration in
+ * `simulate.ts` — the sim owns the behaviour, this only reports it.
+ *
+ * Deliberately absent: Rune of Counterpoint (Avenge 1 — fires on every death, a 1/1 meter is noise),
+ * the Brood / Living Echoes (space-triggered, no player-facing count), Finality (a one-shot latch).
+ */
+const RUNE_DEATHS_PER: Record<string, number> = {
+  rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 3, rune_cinder_ledger: 3,
+  rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
+  rune_blood_and_coin: 4,
+};
+const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
+
+/** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
+ *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
+export function runeCombatTally(runeId: string, deaths: number, summons: number): string | null {
+  const cyc = (v: number, per: number): string => `${v <= 0 ? 0 : ((v - 1) % per) + 1}/${per}`;
+  const dp = RUNE_DEATHS_PER[runeId];
+  if (dp) return cyc(deaths, dp);
+  const sp = RUNE_SUMMONS_PER[runeId];
+  if (sp) return cyc(summons, sp);
+  return null;
+}
 
 /**
  * The live `x/N` tally for a COMPLETED quest whose reward is a recurring meter, or null when it has none.

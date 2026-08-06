@@ -598,12 +598,35 @@ export function engraveTallyText(cardId: string, permaGain: { attack: number; he
  * Returns null with no accrual (the printed base is accurate). Golden doubles the base (bonus is pre-doubled).
  */
 export function trailForagerText(cardId: string, golden: boolean, sellBonus: number): string | null {
-  if (cardId !== 'trailforager' || sellBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
-  if (!def) return null;
-  const value = 3 * (golden ? 2 : 1) + sellBonus;
+  if (!def || sellBonus <= 0) return null;
+  if (cardId === 'trailforager') {
+    const value = 3 * (golden ? 2 : 1) + sellBonus;
+    const src = golden ? (def.goldenText ?? def.text) : def.text;
+    return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
+  }
+  // Starpath Vendor (audit 2026-08-06): the same `sellBonus` accrual, capped — show the accrued value in
+  // place of the printed "+1", so "gain +1 sell value, up to +3" reads "{{+2}} sell value, up to +3" as it
+  // climbs. Gated on the effect rather than a new id so a future sell-value Orbit card is covered for free.
+  if (def.effects.some((e) => e.do === 'orbitSellValue')) {
+    const src = golden ? (def.goldenText ?? def.text) : def.text;
+    return src.replace(/\*\*\+\d+ sell value\*\*/, `{{+${sellBonus} sell value}}`);
+  }
+  return null;
+}
+
+/** Thundeer — its per-proc grant IMPROVES by `step` each fire (`onAllyTribeAttackBuffSelf`'s accrual rides
+ *  `summonBonus`). Audit find 2026-08-06: the text printed a permanent "+10/+10" while the real grant climbed.
+ *  Null until it has climbed, so the printed base stays authoritative; then the CURRENT grant, green. */
+export function thundeerText(cardId: string, summonBonus: number, golden: boolean): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onAllyTribeAttackBuffSelf');
+  if (!def || !eff) return null;
+  const base = ((eff.params as { attack?: number })?.attack ?? 10) * (golden ? 2 : 1);
+  const cur = base + summonBonus;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
+  return src.replace(/gain \*\*\+\d+\/\+\d+\*\*/, `gain {{+${cur}/+${cur}}}`);
 }
 
 /** Steward of Spells — name the ACTUAL spell it will copy at End of Turn (the run's most recent spell cast,
@@ -800,7 +823,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -838,6 +861,15 @@ export function stepProgress(
     // hide-at-0 gate always shows it. Keyed re-bump rides `current = toNext` (flips each turn).
     const toNext = every - (p.eotTick % every);
     return { current: toNext, total: every, label: `${toNext} Turn${toNext === 1 ? '' : 's'}` };
+  }
+  // CELESTIAL Orbit (N) / "after N Orbits" (audit 2026-08-06 — Star Cartographer, Worldseed Gardener,
+  // Orrery, Astral Shopkeeper shipped with a bare cadence and no counter). `orbitTick` is the per-instance
+  // meter the sim keeps (0..N-1, reset on payout), a SHOP-phase accrual: undefined in combat (nothing is
+  // played there), where we show no counter — same rule as the End-of-Turn cadences below.
+  const orbit = def.effects.find((e) => (e.on === 'orbit' || e.on === 'orbitFired') && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (orbit) {
+    if (p.orbitTick === undefined) return null;
+    return cyc(p.orbitTick, Math.max(1, n((orbit.params as { every?: number }).every, 3)));
   }
   // Avenge (Solaris, Soulsman, Bone Taxer, Brood Matron, …): the Avenge re-fires every N FRIENDLY deaths (the sim
   // gates on `count % threshold === 0`), so it's a cyclic 1..N counter driven by that side's running death tally.

@@ -3,6 +3,40 @@
 
 
 
+## 2026-08-06 — Live-text batch: combat-granted previews go live + Orbit counters + three surface gaps
+
+The live-text half of today's audit pair (owner report: "combat granted spells do not show current values
+until after combat"). The audit found the mechanism and this ships the fixes.
+
+- **`conjuredView` goes fully live** — the one-function fix. The hand-grant preview strip (cards flying in
+  during combat AND during the End-of-Turn beats) built its views from the STATIC card def: `spellLive` was
+  passed as `undefined`, so every spell-power-scaled grant (Growth, Spirit Fire, the Ales, Staff of Guel, …)
+  and every scaling granted minion flew in at base and snapped live only at settle. Rubies alone were fixed
+  in this path on 2026-08-04; this finishes the job — spells thread the live spell state, minions read the
+  full `liveCardText` chain like a shop offer of themselves.
+- **Orbit (N) gets its counter** — Star Cartographer, Worldseed Gardener, Orrery and Astral Shopkeeper
+  shipped with a bare cadence. `stepProgress` grows an orbit branch off the per-instance `orbitTick`
+  (shop-phase only, like the End-of-Turn cadences — combat shows nothing, Orbits can't fire there).
+- **Discover passes the FULL param set** (was 11 of 30 — Veinstorm, Patch Job, Gold Pouch, Kringle, Squirl
+  Scout, Steward, the Dragon copiers, Tribe Portal, Beyond the Summit and the rune notes all read base only
+  in Discover). Now built by the same `offerLiveTextParams` + a new shared `liveOptsFromRun` builder, plus
+  the overlay-only extras (rune notes, tier ceiling).
+- **The end screen's `liveBoardView` widens from 4 live fields to the full set**, mirroring Recruit's `live`
+  memo — the final warband now reads its accrued values.
+- **Lantern Light's last stale surface** (the shop spell slot never passed `tier`) — `ShopViewOpts` carries
+  the run tier now.
+- **Thundeer** prints its CURRENT escalating grant (was a permanent "+10/+10" while the real grant climbed);
+  **Starpath Vendor** shows its accrued sell value ("gain {{+2 sell value}}, up to +3"), gated on the effect
+  id so future sell-value Orbit cards are covered for free.
+
+Deferred, listed honestly (each needs its own param plumbing; all low-visibility): Packstrider's live Beast
+total, Gemgorge Fiend's umbrella countdown (+ its "spells" wording), Ironclad Requisition's live Dwarf
+count, Speed Demon's resolved 50%, and the two remaining combat-chain params (keeperFirstSpellName,
+soldProgress). On the Celestial ALIGNMENT text question (print only the active half?) — awaiting the owner's
+ruling; noted in the audit.
+
+Verified: typecheck / lint (7-warning baseline) / 4017 tests / build:web.
+
 ## 2026-08-06 — Rune of Resonance: fixed (a missing per-turn reset) + reworked (first 2 Rubies, 2/turn, paid on buy)
 
 Owner report: Resonance's first Ruby wasn't showing its x2. Root cause is a BUG CLASS, not a one-off:

@@ -1678,6 +1678,13 @@ export function useCombatReplay(
     // their order within the beat — releasing after placing always nets out at `frame`'s true value. Scans
     // every `dmg` event in the beat, not just this beat's own buff targets: the far more common case is a
     // buff from an EARLIER beat still rolling when a LATER, unrelated beat damages that same unit.
+    // `dmg`-only assumption: this scan and the negative-`buff` release pass above are jointly meant to cover
+    // EVERY way a held unit's live stat can fall — `dmg` here, a negative-amount `buff` there. That's exhaustive
+    // today only because `ascend` transforms are strict stat upgrades and `reborn` is always preceded by the
+    // death's own `dmg` event, so nothing else currently moves a stat downward. A future stat-reducing event
+    // type (a decay/wither tick, a stat-lowering transform) would slip both nets: neither pass would cancel the
+    // in-flight roll, so `live - held` could print below the unit's true floor until the ~2s `COMBAT_HOLD_TTL_MS`
+    // fail-open backstop expires. Extend this scan (and/or the release pass above) when such an event lands.
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (e?.type === 'dmg') cancelRollForUid(e.target);

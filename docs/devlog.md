@@ -3,6 +3,49 @@
 
 
 
+## 2026-08-06 — The Celestial ALIGNMENT ARC ships (Codex handoff): a luminous crescent per minion
+
+The Codex Pixi handoff, built and dialled: each Celestial wears a narrow luminous crescent beneath its frame
+— Dawn amber, Eclipse pale teal, Dusk deep navy — drawn into the under-card Pixi slot, replacing both the
+horizon strip AND the interim CSS pool-of-light. The shipped look is the owner's own dial-in (2026-08-06),
+verbatim: highlight off (it read as noise at this size), the bloom carrying the colour, and a near-black Dusk
+that only works because blending is PLAIN alpha — the handoff's additive blend clipped everything toward
+white on the light stone board and was dropped on the evidence.
+
+Architecture, per the handoff plus what the codebase demanded:
+- `alignmentArcSync.ts` — the reconciler, PURE and split from Pixi (pixi.js touches `document` at import, so
+  it cannot even load in the node test env). 8 tests pin the handoff's list: nodes created / reused across
+  syncs / destroyed on removal, geometry redrawn only on width change, tint+emphasis updated in place,
+  reorder moves nodes by uid rather than rebuilding.
+- `alignmentArcLayer.ts` — the thin Pixi adapter: three strokes per arc (blurred bloom / readable core / 1px
+  highlight), ONE shared BlurFilter for the whole board, colours from the configurable palette.
+- `AlignmentArcs.tsx` — the React seam: rects from a `getBoundingClientRect` sweep on board change + resize,
+  never per frame; a one-shot updater wakes the idling under-canvas after each changed sync, so the idle
+  board never holds a permanent update loop. Arcs stand down in combat until the locked-alignment read is
+  wired (better absent than wrong — deaths must not re-centre the displayed alignment).
+- The Alignment Glow tuner is replaced by an ALIGNMENT ARC tuner (width/depth/Y, bloom, line, colours,
+  emphasis). No CSS-var mirror to keep in step — the Pixi layer reads the config directly.
+
+The owner's field report ("they hate moving around… then if I click something else they reconfigure in
+place") was a measurement-timing bug: rects were taken ONE FRAME after the board changed, while the row was
+still mid-slide, pinning every arc to where its card WAS — and any later re-render fixed them, which is
+exactly the click behaviour observed. The sync now measures TWICE — once immediately (no full-beat lag) and
+once after the row's transitions settle (480ms) — still never per frame. The stray green line from the same
+report was a debugging probe left in from the previous session's WIP; every probe is now stripped and a grep
+for `console.` across the three files is clean.
+
+Honest debugging note for the record: the previous session concluded "sync-added graphics never render" after
+ruling out mount/z-order/blend/occlusion. The arcs in fact render fine in a real browser — the dev-preview
+pane's ~2fps rAF throttle (a known environment limit, see 2026-08-04) made every staged verification look
+like a rendering failure. The session's real contributions were the StrictMode layer-lifetime fix and the
+blend finding; the "unexplained" part was the observation tool.
+
+Left for follow-up slices: the drag preview (hypothetical alignment at the candidate gap, updating only when
+the gap index changes) and the combat locked-alignment read.
+
+Verified: typecheck / lint (7-warning baseline) / 4000 tests (8 new) / harness determinism / build:web; look
++ behaviour confirmed by the owner in their own browser.
+
 ## 2026-08-05 (card-art pass 2 — 27 more cards)
 
 ### content(ui): card-art framing for 27 more cards

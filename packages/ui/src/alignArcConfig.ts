@@ -37,21 +37,24 @@ export interface AlignArcConfig {
   duskColor: string;
 }
 
+// The owner's dialled look (2026-08-06), shipped verbatim. Notables: the 1px highlight is OFF (it read as
+// noise at this size), the bloom carries the colour (high glowAlpha over a soft core), and Dusk is a deep
+// navy rather than the handoff's violet — legible on the light stone where a bright violet washed out.
 const DEFAULTS: AlignArcConfig = {
   on: 1,
-  width: 82,
-  depth: 11,
-  y: -4,
-  glowStroke: 10,
-  blur: 8,
-  coreStroke: 3,
-  glowAlpha: 0.65,
-  coreAlpha: 0.9,
-  highlightAlpha: 0.55,
-  emphasis: 1.25,
-  dawnColor: '#ffb347',
+  width: 94,
+  depth: 30,
+  y: 24,
+  glowStroke: 13,
+  blur: 7,
+  coreStroke: 6,
+  glowAlpha: 0.92,
+  coreAlpha: 0.39,
+  highlightAlpha: 0,
+  emphasis: 1.55,
+  dawnColor: '#feb248',
   eclipseColor: '#bff5ee',
-  duskColor: '#9a6bff',
+  duskColor: '#000c66',
 };
 
 export const ALIGNARC_RANGES: Record<

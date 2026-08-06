@@ -79,12 +79,19 @@ export function AlignmentArcs() {
       if (layer.sync(markers)) present();
     };
 
-    // Let the row's slide/pop transitions settle before measuring.
+    // MEASURE TWICE. A play or reorder slides the whole row (the cards glide on a CSS transition), so a
+    // rect taken one frame after the board changes pins every arc to where its card WAS mid-slide — the
+    // owner's report: "they hate moving around… then if I click something else they reconfigure in place"
+    // (the click worked because any re-render re-ran this effect after the row had settled). The first
+    // measurement keeps the arcs from lagging a full beat behind; the second, after the row's transitions
+    // have finished, is the one that lands them. Still never per-frame.
     const raf = window.requestAnimationFrame(resync);
+    const settle = window.setTimeout(resync, 480);
     window.addEventListener('resize', resync);
     const offCfg = onAlignArcChange(() => { layer.refreshBlur(); resync(); });
     return () => {
       window.cancelAnimationFrame(raf);
+      window.clearTimeout(settle);
       window.removeEventListener('resize', resync);
       offCfg();
     };

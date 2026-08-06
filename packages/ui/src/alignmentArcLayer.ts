@@ -48,15 +48,17 @@ export class AlignmentArcLayer {
     // ONE filter for every glow stroke on the board — the handoff's explicit requirement, and the difference
     // between one blur pass and seven.
     this.glowLayer.filters = [new BlurFilter({ strength: cfg.blur, quality: 2 })];
-    // NB: additive blending is set on each GRAPHIC, not on these containers. In Pixi v8 a plain Container's
-    // blendMode only takes effect if it is promoted to a render group; setting it here silently rendered
-    // NOTHING (found live — the arcs were absent while an identical un-blended probe drew fine).
+    // No container-level blendMode: in Pixi v8 that requires promoting the container to a render group,
+    // and the per-graphic setting below is both sufficient and cheaper to reason about.
     this.container.addChild(this.glowLayer, this.coreLayer);
 
     this.ops = {
       create: () => {
         const node: ArcNode = { glow: new Graphics(), core: new Graphics(), highlight: new Graphics() };
-        for (const g of [node.glow, node.core, node.highlight]) g.blendMode = 'add';
+        // PLAIN alpha blending, on purpose. The handoff suggested additive, but the board art is LIGHT
+        // stone — additive clipped the arcs toward white and they vanished into it. The owner dialled the
+        // shipped look (2026-08-06) against normal blending, including a near-black Dusk that additive
+        // could never show at all.
         this.glowLayer.addChild(node.glow);
         this.coreLayer.addChild(node.core, node.highlight);
         return node;

@@ -3,6 +3,29 @@
 
 
 
+## 2026-08-06 — Rune of Gemstorm now PLAYS its Rubies (Deepdelve Paragon was not amplifying them)
+
+Owner report: Deepdelve Paragon wasn't doubling the Rubies the Rune of Gemstorm plays. It wasn't — and the
+Paragon was only the visible symptom.
+
+The rune's Avenge handler in `simulate.ts` hand-rolled a plain `ctx.buff` with Ruby-shaped stats instead of
+routing through `playRubyOn`, the one Ruby-play primitive. A hand-rolled buff carries the side's Ruby
+strength and nothing else; the primitive also folds in Deepdelve Paragon's multiplier, fires the target's
+`onRubyPlayed` listeners (Resonance Idol's bounce), counts the cast under Rune of the Spellstone, and writes
+the `rubyGain` ledger that Gemheart Carver's Echo and the Engrave carry-back read. All four were silently
+missing from Gemstorm's Rubies; the Paragon was just the one the owner could see.
+
+The fix deletes the hand-rolled path: `playRubyOn` is exported and the rune plays `n` Rubies on each Kobold
+through it, each Kobold standing as its own play's source (the rune has no body on the board; side and
+attribution are what the primitive actually reads). Consequence for the log: the rune's buffs are now
+RUBY-TAGGED events attributed to the receiving Kobold — so the UI plays the Ruby-landing cue for them —
+rather than generic buffs labelled 'Rune of Gemstorm'. The rune test that filtered on that label now filters
+on the ruby tag, and a new test pins the headline: with a Deepdelve Paragon standing by, the rune's Rubies
+land at exactly 2x.
+
+Verified: typecheck / lint (7-warning baseline) / 4003 tests (1 new, 1 updated) / harness determinism /
+build:web.
+
 ## 2026-08-06 — Celestials, tranche 2: the Orbit TRIGGER, the two devourers, and the investment payoff
 
 Four more of the owner's 22-card roster, taking Set 3 from 12 to 16. What they needed was one new idea in the

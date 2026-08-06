@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune batch** — Duplication + Summit fixed, all rune Avenge effects get live combat tallies on their badges, 5 missing forge previews, 2 text corrections, Epic Forge un-no-op'd for Runeguard.
+
 - **Live-text batch** — combat-granted card previews now show real-time values (spell power, Ruby strength), Orbit (N) cards get their counters, and Discover/end-screen/shop-slot surface gaps are closed.
 
 - **Rune of Resonance fixed + reworked** — the per-turn gate never reset (a bug class also hitting Gemscript); now first 2 Rubies double, 2 Rubies per turn, paid immediately on buy.

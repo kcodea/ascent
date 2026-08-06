@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 import type { RunState } from '@game/sim';
 import { questRewardText } from './questText';
-import { questTally, runeTally } from './runeTally';
+import { questTally, runeTally, runeCombatTally } from './runeTally';
 
 /**
  * EVERY RECURRING THRESHOLD SHOWS ITS PROGRESS.
@@ -35,8 +35,8 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
 const NOT_A_METER: Record<string, string> = {
   rune_motherlode: 'the 2 is how many minions a Ruby copies onto, not a count-up',
   rune_finality: 'the 7 is how many Imps arrive; the trigger is "your last minion dies"',
-  rune_blood_and_coin: 'combat-local — deaths reset every fight, so a shop counter would always read 0',
-  rune_remains: 'combat-local — the summon count resets every fight',
+  rune_blood_and_coin: 'combat-local — covered by runeCombatTally (the badge ticks during the replay)',
+  rune_remains: 'combat-local — covered by runeCombatTally',
   q_umbral_energy: 'a multiplier ("+2/+2 for every Shop spell cast"), not a threshold',
   q_blueprint_cache: 'a multiplier ("for every Attachment they have"), not a threshold',
   q_the_old_hunt: 'fires on every Beast attack — no threshold to be part-way toward',
@@ -142,5 +142,34 @@ describe('completed quests whose REWARD is a threshold show a tally', () => {
 
   it('a plain grant quest has no tally', () => {
     expect(questTally(armedRun(), 'q_forest_grove')).toBeNull();
+  });
+});
+
+describe('rune AVENGE / combat-local meters have a combat tally (audit 2026-08-06)', () => {
+  // The original THRESHOLD regex cannot see "**Avenge (3):**", which is how ten rune meters shipped with no
+  // counter at all. This sweep closes the class: every rune whose text carries an Avenge cadence (or a
+  // per-combat death/summon threshold) must either report through runeCombatTally or carry a documented
+  // exemption below.
+  const COMBAT_EXEMPT: Record<string, string> = {
+    rune_counterpoint: 'Avenge (1) — fires on every death; a 1/1 meter is noise',
+    rune_first_claws: 'Start of Combat, not a meter',
+    rune_forthcoming: 'Start of Combat, not a meter',
+  };
+  it('every Avenge rune reports a live x/N during combat', () => {
+    const avenge = [...RUNES, ...EPIC_RUNES].filter((r) => /Avenge \(\d+\)/.test(r.text));
+    expect(avenge.length, 'the sweep must actually see the Avenge runes').toBeGreaterThanOrEqual(9);
+    const missing = avenge
+      .filter((r) => !COMBAT_EXEMPT[r.id])
+      .filter((r) => runeCombatTally(r.id, 1, 1) === null)
+      .map((r) => r.id);
+    expect(missing, 'add the rune to RUNE_DEATHS_PER (or COMBAT_EXEMPT with the reason)').toEqual([]);
+  });
+  it('the tally mirrors the printed Avenge number', () => {
+    for (const r of [...RUNES, ...EPIC_RUNES]) {
+      const m = /Avenge \((\d+)\)/.exec(r.text);
+      if (!m || COMBAT_EXEMPT[r.id]) continue;
+      const per = Number(m[1]);
+      expect(runeCombatTally(r.id, per, 0), `${r.id} full meter`).toBe(`${per}/${per}`);
+    }
   });
 });

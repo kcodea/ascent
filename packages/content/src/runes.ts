@@ -212,6 +212,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Investment',
     cost: 3, // owner balance 2026-08-04
     text: 'Get **2 Rubies** when you **sell** a minion.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2'], // Rubies
   },
@@ -242,7 +243,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_remains',
     name: 'Rune of the Remains',
     cost: 3,
-    text: 'When you summon **5 minions** in combat, give minions in the **Shop +3/+3**.',
+    text: 'When you summon **5 minions** in combat, **permanently** give minions in the **Shop +3/+3**.',
     reward: { kind: 'combatFlag', flag: 'runeRemains', amount: 3 },
   },
   {
@@ -378,6 +379,7 @@ export const RUNES: RuneDef[] = [
     cost: 1, // 4 → 1 (owner 2026-08-02)
     // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
     text: 'Get **7 Rubies** that give **+3/+3**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'mintRubies', count: 7, attack: 3, health: 3 },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
@@ -1054,6 +1056,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 2,
     epic: true,
     text: '**Avenge (2):** play **2 Rubies** on each friendly **Kobold**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
     sets: ['set2'], // Rubies
   },
@@ -1072,6 +1075,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 4,
     epic: true,
     text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeRedirection' },
     sets: ['set2'], // Rubies
   },
@@ -1104,7 +1108,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Living Echoes',
     cost: 5,
     epic: true,
-    text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**.',
+    text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**. **3 times** per combat.',
     previewCards: ['b2_sunmane'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
     sets: ['set2'], // Sunmane Herald is a set-2 Beast
@@ -1170,6 +1174,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 6,
     epic: true,
     text: '**Rubies** you cast count as **Shop spells**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSpellstone' },
     sets: ['set2'], // Rubies
   },

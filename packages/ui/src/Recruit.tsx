@@ -40,7 +40,6 @@ import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
-import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
@@ -2880,23 +2879,10 @@ export function Recruit() {
     }
   }, [run.board, inCombat]);
 
-  // Gilded (golden) minion deploys → fire the self-buff pulse ON it — the moment a unit turns gold (played from
-  // hand, or formed by a triple on the board). The ref is seeded on first run / re-entry (inCombat) so existing
-  // golden minions never re-pulse just from (re)opening the shop; only a genuinely NEW golden uid fires.
-  const prevGoldUidsRef = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    const current = new Set(run.board.filter((c) => c.golden).map((c) => c.uid));
-    if (prevGoldUidsRef.current === null || inCombat) { prevGoldUidsRef.current = current; return; }
-    const prev = prevGoldUidsRef.current;
-    prevGoldUidsRef.current = current;
-    const fresh = run.board.filter((c) => c.golden && !prev.has(c.uid));
-    for (const c of fresh) {
-      const el = findEl(c.uid);
-      if (!el) continue;
-      const r = (el.querySelector<HTMLElement>('.archbox') ?? el).getBoundingClientRect();
-      pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, PULSE_PRESETS[pulsePreset(c.cardId, c.tribe)]);
-    }
-  }, [run.board, inCombat]);
+  // (Removed 2026-08-06, owner call: the golden-deploy self-buff PULSE. It fired `pixiFx.pulse` — the same
+  // "this unit was just empowered" flourish combat uses — on every new golden uid landing on the board, even
+  // though a deploy buffs nothing. It read as a phantom buff. It was invisible to the 2026-08-04 repro attempt
+  // because that probe checked DOM classes and this was a canvas draw. Golden deploys now land quietly.)
 
   // Shop-phase TRANSFORM flash: a board card whose cardId changed IN PLACE (uid stable) just transformed — Spirit
   // Pup → Spirit Worgen on its 10th spell (`spellCastTransform` keeps the uid, swaps cardId). Bloom the SAME ascend

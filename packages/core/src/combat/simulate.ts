@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES } from '../effects/factories';
+import { FACTORIES, playRubyOn } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -2338,15 +2338,17 @@ export function simulate(
     fireFreeRally(lead, side);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
-    // A Ruby is 1/1 plus the side's Ruby strength — `rubyBonusFor` is the same value the shop mints at, so a
-    // late-run Gemstorm pays full value rather than 1/1s.
+    // "PLAY 2 Rubies", so it goes through the real Ruby-play primitive — which folds in the side's Ruby
+    // strength (a late-run Gemstorm pays full value rather than 1/1s), Deepdelve Paragon's multiplier, the
+    // target's `onRubyPlayed` listeners, the Spellstone cast-count and the `rubyGain` ledger. The original
+    // hand-rolled `ctx.buff` here carried only the first of those, which is why the Paragon was silently not
+    // amplifying Gemstorm's Rubies (owner report 2026-08-06). Each Kobold is the play's own source: the rune
+    // has no body on the board, and the side/attribution are what the primitive actually reads.
     const n = modsFor(side).runeGemstorm ?? 2;
-    const bonus = ctx.rubyBonusFor(side) ?? { attack: 0, health: 0 };
-    const rb = { attack: 1 + bonus.attack, health: 1 + bonus.health };
     const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold'));
     if (kobolds.length === 0) return;
     nextStep();
-    for (const k of kobolds) for (let i = 0; i < n; i++) ctx.buff(k, rb.attack, rb.health, 'Rune of Gemstorm');
+    for (const k of kobolds) playRubyOn(ctx, k, k, n);
   });
   runeAvenge(4, 'runeProcession', (m) => !!m.runeProcession, (side) => {
     // Right-most LIVING body: doubling a corpse would read as the rune doing nothing.

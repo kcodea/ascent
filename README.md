@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Snapshot fidelity** — served boards now carry their owner's full combat context (Ruby strength, Wild Hunt growth, hand, card-type buffs, Elderhorn modes, tribes); a fidelity test diffs the round trip against the reducer's own builder so new scalers can't silently drop.
+
+- **Rune of Gemstorm fixed** — its Rubies now go through the real Ruby-play path, so Deepdelve Paragon doubles them (and Resonance Idol / Spellstone / Gemheart Carver see them too).
+
 - **Celestials tranche 2** — Astral Relay, Celestial Crucible, Constellation Broker and Orrery take Set 3 to 16 cards; Orbits can now be TRIGGERED with nothing arriving.
 
 - **Chicken Brawl's Charging Soldier charges again** — a duplicate `dw_soldier` CardDef was shadowing the one with the charge flag; one token now, plus a guard against shadowed duplicate ids.

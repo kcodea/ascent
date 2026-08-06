@@ -37,7 +37,11 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  *  turn every downstream stat into NaN. Set far past any reachable board strength so it never binds in play. */
 const RALLY_SPREAD_CAP = 1_000_000_000;
 
-function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
+/** Exported for the Rune of Gemstorm handler in simulate.ts — the ONE Ruby-play primitive. Anything that
+ *  "plays a Ruby" in combat must come through here: a hand-rolled `ctx.buff` with Ruby-shaped stats misses
+ *  the Deepdelve multiplier, the target's `onRubyPlayed` listeners, the Spellstone cast-count and the
+ *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
+export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon

@@ -104,6 +104,23 @@ export interface BoardSnapshot {
   /** The owner's assembled quest/rune COMBAT modifiers (the `questCombatMods` output) — so a served board
    *  reproduces its runes/quests at Start of Combat / on avenge / etc. Omitted when empty. */
   questMods?: QuestCombatMods;
+  /** Set 2 — the run's Ruby STRENGTH at capture (`rubyBonus`): the +X/+X its Rubies carry on top of 1/1.
+   *  Without it a served Rune of Gemstorm / Geode Guardian / Candle Conduit plays bare 1/1 Rubies — the
+   *  owner-reported hole (2026-08-06: "the gems were +16/+16 and the rune only buffed +2/+2"). */
+  rubyBonus?: { attack: number; health: number };
+  /** Rune of the Wild Hunt's permanent escalation — where the owner's rune had grown to by capture. */
+  wildHuntGrown?: number;
+  /** Cards bought on the capture turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
+  cardsBoughtThisTurn?: number;
+  /** Run-wide per-card-type buffs (buffCardTypeRunWide) — sizes the owner's tokens summoned MID-FIGHT. */
+  cardBuffs?: Record<string, { attack: number; health: number }>;
+  /** Spell ids in the owner's hand at capture, in hand order (Vault Curator copies the left-most). */
+  handSpellIds?: string[];
+  /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
+  handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
+  /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
+  beastHuntExtra?: number;
+  beastRitualExtra?: number;
   /** The owner's ACTIVE reward trophies at capture — completed quest ids + owned rune ids — so the opponent
    *  frame can show the same badges the player sees above their own frame. Only active rewards (a quest that's
    *  completed, a rune that's been bought). Omitted when empty; opponent-frame intel only, never read by combat. */
@@ -245,6 +262,12 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
   const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
   const runes = [...(s.ownedRunes ?? [])];
+  // The owner's HAND, split the same way the reducer splits it for the player side: spell ids in hand order
+  // (Vault Curator) and minions with live stats (Rope Wrangler / Water Dragon).
+  const handSpellIds = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId);
+  const handMinions = s.hand
+    .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
+    .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden }));
   // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
   const qmods = questCombatMods(s);
   const hasQmods = Object.keys(qmods).length > 0;
@@ -277,6 +300,14 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(hasQmods ? { questMods: qmods } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
+    ...(s.rubyBonus?.attack || s.rubyBonus?.health ? { rubyBonus: { attack: s.rubyBonus.attack, health: s.rubyBonus.health } } : {}),
+    ...(s.runeWildHuntGrown ? { wildHuntGrown: s.runeWildHuntGrown } : {}),
+    ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
+    ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),
+    ...(handSpellIds.length ? { handSpellIds } : {}),
+    ...(handMinions.length ? { handMinions } : {}),
+    ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
+    ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),
   };
 }
 

@@ -386,6 +386,42 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Shop perf slice 2: the FLIP was 90% of everything (owner's 240 Hz capture)
+
+The owner exported a real perf log and it settled the shop-sluggishness question outright. `layout:flip`
+was **4,511 ms of 5,010 ms measured — 90% of all work**, at ~9.2 ms per call (worst 15 ms) against a
+**4.17 ms** budget on their 240 Hz display, firing ~50×/second during a drag. In the worst second it burned
+500 ms of 1,000. Everything else was noise: `render:recruit` 1.0 ms/call, `drag:flushMove` 0.012 ms/call
+over 1,852 calls, `reduce:reposition` 0.3 ms, the view builders 0.1 ms.
+
+Two things the data settled that a code read had not:
+- **Idle shop frames are perfect.** Every bucket without a drag ran at 240 fps with ZERO long frames and
+  zero jank. The sluggishness is the drag, and it scales with card count — which is why it reads as a
+  late-game problem while this capture is only wave 5.
+- **The charge glyph is exonerated.** It was the audit's top shop suspect; the owner doubted it. The marks
+  added in slice 1 are empty and no cost is attributable to it anywhere in the log. The owner was right.
+  (Slice 1's own fixes are confirmed working AND confirmed small — they now measure at ~0.)
+
+The fix, both halves aimed at the 9.2 ms:
+- **Scope the capture to the row that can actually move.** Only one row re-lays-out during a drag: the
+  warband when its drop gap is open, the tavern when the shop's is. The effect captured and animated BOTH
+  rows every time — doubling the most expensive operation in the shop phase for a row that provably could
+  not have moved. Outside a drag the full selector stands. Switching selectors mid-drag is safe: `Flip.from`
+  ignores elements absent from the captured state, and an absent element is one that did not move.
+- **`Flip.getState(sel, { simple: true })`** — GSAP's documented fast path, skipping the rotation/scale/skew
+  accounting that costs a `getComputedStyle` read per element on top of the rect. These rows only translate
+  horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the whole drag, so there is no
+  rotation or scale for the full path to account for.
+
+`commitRects` follows the same scoped selector — a card in the row that could not move is simply absent, and
+the commit branch reads an absent uid as delta 0 ("did not move"), which is exactly right.
+
+No dial changed: the Flip tuner's `dragMs` / `commitMs` are untouched, so the intended motion is identical.
+This is drag FEEL, so the owner verifies it in their own browser and re-exports a perf log — the 4,511 ms /
+9.2-per-call baseline above is what the next capture is measured against.
+
+Verified: typecheck / lint (7-warning baseline) / 4028 tests / build:web.
+
 ## 2026-08-06 — Veinstorm persists across refreshes; the Gemheart Golem preview reads its owner's Rubies
 
 Two follow-ups after the owner confirmed the functionality works.

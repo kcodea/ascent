@@ -41,6 +41,32 @@ const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
  *  default — its own constant because a fight-paced roll is free to diverge if it ever needs its own tuning. */
 const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
 
+/**
+ * How long the install effect's pre-buff hold survives before the store's own fail-open forces it, in ms
+ * (before the combat-speed divide) — Task 6, found only by tracing the browser gate.
+ *
+ * `fx/statHold`'s default TTL (`HOLD_TTL_MS`, 1200ms) is sized for the SHOP's authored gem-apply timeline
+ * (900ms end to end, per that constant's own doc comment) and is a floor `holdStat` applies automatically —
+ * fine there, but combat's OWN delivery timeline routinely runs longer: the wind-up before a buff's tendril
+ * even launches (`LUNGE_DEFAULTS.windupDur`, 540ms owner-tuned) PLUS the tendril's own travel
+ * (`BUFF_PRESETS[...].travelMs`, up to 780ms for the slowest tribe) PLUS the roll itself (`COMBAT_ROLL_MS`,
+ * 420ms) is ~1740ms at 1x combat speed alone — already close to the 1200ms floor, and every one of those
+ * three legs gets divided by combat speed the same way this constant is below, so a deliberately slowed-down
+ * replay (0.5x, the slowest the in-combat slider allows) pushes the REAL wait past 3400ms.
+ *
+ * Before Task 6, this race was invisible: the strike timer almost always got CANCELLED outright by the beat
+ * advance (the bug Task 6 fixes), so `driveRoll` rarely survived long enough to run into the TTL at all. Once
+ * the strike timer survives, this second, previously-masked race surfaces — the store's fail-open fires
+ * BEFORE the strike lands, snapping the badge to the true value moments before the (still-pending) roll would
+ * have started, which then finds nothing left to reveal (a correct no-op against an already-gone hold, but
+ * the wrong OUTCOME — a snap instead of a roll). `fx/statHold.ts` is off-limits for this task (see the brief),
+ * so this passes an explicit `ttlMs` from the call site instead of touching the shared default: 2000ms at 1x
+ * — the ~1740ms worst-case chain above plus a margin for real-world jitter (dispatch overhead, a dropped
+ * frame) — comfortably clears the roll's own natural completion without weakening the TTL's actual job: an
+ * unclaimed hold (an off-screen target, a bug elsewhere) still fails open in a few seconds, not never.
+ */
+const COMBAT_HOLD_TTL_MS = 2000;
+
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
   uid: string;
@@ -686,9 +712,80 @@ export function useCombatReplay(
   const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
   const rallyNonceRef = useRef(0);
   // uids this instance currently holds in the module store (`fx/statHold`) — the install effect below
-  // releases exactly what THIS beat placed before placing the next, and the strike-time roll (`driveRoll`)
-  // drops a uid from this list once it takes over that uid's delivery. See that effect for the ordering.
+  // releases exactly what THIS beat placed before placing the next. A uid drops off this list the moment its
+  // strike is SCHEDULED (`scheduleRoll`, not when the strike actually fires — see that function's own note
+  // for why the distinction is load-bearing), because from that point its delivery belongs to the roll
+  // registry below, not to this beat's plain release-on-advance. See the install effect for the ordering.
   const combatHeldRef = useRef<string[]>([]);
+  // Task 6: every buff's strike-delay timer + the roll it hands off to, keyed by an incrementing id (not
+  // uid — a target can be re-buffed before its first roll lands, so a second registration must not stomp
+  // the first one's cancel). Lives for the WHOLE combat, unlike the per-beat `timers` arrays that
+  // `fireBuffCasts`/`fireSelfBuffs` used to schedule this same timer into below.
+  //
+  // That per-beat array is cleared by the cue/windup effects' cleanup on EVERY beat advance, and beat
+  // advance fires at lunge CONTACT (`runAttackExchangeCues`'s `advance()`), which routinely races the strike
+  // timer close enough to lose it outright — margins of 5.3ms and 44ms measured in real fights (Task 6
+  // brief). When contact wins, the strike timer is cancelled before it fires, `driveRoll` never starts, and
+  // the badge's hold is delivered by the NEXT beat's install-effect release instead — a snap, not a roll.
+  //
+  // This registry is reachable only from `scheduleRoll` (writes) and `cancelPendingRolls` (reads/clears),
+  // and `cancelPendingRolls` is called ONLY from `resetTo` below — never from the per-beat cue/windup
+  // cleanups. That is HALF the fix: the beat advance can no longer cancel the strike timer outright. The
+  // other half is `scheduleRoll` dropping the uid out of `combatHeldRef` at SCHEDULE time — otherwise the
+  // very same beat advance still snaps the badge from a DIFFERENT angle (the install effect's own plain
+  // release of `combatHeldRef` leftovers); see that function's comment for the browser trace that found it.
+  const rollRegistryRef = useRef<Map<number, { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null }>>(new Map());
+  const rollRegistryIdRef = useRef(0);
+
+  // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
+  // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
+  // with a LIVE speed getter (Task 6) — a mid-roll combat-speed change re-scales the remainder instead of
+  // the roll finishing on whatever speed happened to be live when the strike landed.
+  const scheduleRoll = useCallback((uid: string, ms: number): void => {
+    const id = ++rollRegistryIdRef.current;
+    const entry: { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null } =
+      { uid, strikeTimer: null, cancelRoll: null };
+    // Drop `uid` from `combatHeldRef` NOW, at SCHEDULE time — not when the strike actually fires. This is
+    // the second half of the Task 6 fix, found only by tracing the browser gate: cancelling the strike
+    // timer's cleanup (the registry above) stops the beat-advance race from cancelling the timer outright,
+    // but a SEPARATE beat-advance race was still snapping the badge anyway — the install effect below
+    // releases every uid still sitting in `combatHeldRef` at the TOP of every beat it runs (THE INVARIANT:
+    // "last beat's leftovers"). If the beat advances before this uid's strike fires (the same lunge-CONTACT
+    // race the registry exists for), the NEXT beat's install effect found `uid` still parked in
+    // `combatHeldRef` and released it outright — a snap — moments before the (still-pending) strike/roll
+    // ever got to run; `revealStat` against the now-gone hold was then correctly a no-op, so nothing about
+    // the roll itself was visibly wrong, it simply had nothing left to reveal. Removing `uid` here, the
+    // instant the strike is scheduled, tells the install effect this uid's delivery is the registry's job
+    // from now on (whether still counting down or already rolling) — mirroring `cancelPendingRolls`, which
+    // is the only OTHER thing allowed to resolve it early (on teardown/re-seek). A target that never reaches
+    // `scheduleRoll` at all (its element wasn't measurable when `fireBuffCasts`/`fireSelfBuffs` ran) is
+    // untouched by this and still falls through to `combatHeldRef`'s plain release, exactly as before.
+    combatHeldRef.current = combatHeldRef.current.filter((u) => u !== uid);
+    entry.strikeTimer = window.setTimeout(() => {
+      entry.strikeTimer = null;
+      entry.cancelRoll = driveRoll(uid, COMBAT_ROLL_MS, () => combatSpeedRef.current);
+    }, ms);
+    rollRegistryRef.current.set(id, entry);
+  }, []);
+
+  // Cancel every pending strike timer and every in-flight roll, and release each one's hold outright — see
+  // THE INVARIANT on the install effect below: a hold nothing will finish must not sit frozen mid-reveal.
+  // `releaseStat` is safe/cheap when nothing is held (the strike already fired and the roll already
+  // completed on its own), which covers most entries in the common case.
+  //
+  // Called ONLY from `resetTo` (a fresh combat replacing this instance, or an explicit seek) — belt-and-
+  // braces with `dropBoardFx`'s `releaseAllStats` (store.ts), which already clears every hold on the actual
+  // phase flip out of combat. This registry exists for the narrower case `releaseAllStats` doesn't cover:
+  // THIS instance's own in-flight rolls being superseded by a fresh combat or a re-seek, both of which the
+  // hook survives (it persists across fights) without ever leaving the combat phase.
+  const cancelPendingRolls = useCallback((): void => {
+    for (const entry of rollRegistryRef.current.values()) {
+      if (entry.strikeTimer !== null) window.clearTimeout(entry.strikeTimer);
+      entry.cancelRoll?.();
+      releaseStat(entry.uid);
+    }
+    rollRegistryRef.current.clear();
+  }, []);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
   const [critShake, setCritShake] = useState(0);   // bumped at a crit's contact → the punchier `.shaking-crit`
@@ -731,8 +828,15 @@ export function useCombatReplay(
    * rebuilds from `initial` on every call (see `computeFrame.purity.test.ts`) — but this transient state is
    * accumulated per beat and would otherwise carry stale floats, pulses and holds across the jump.
    *
-   * `useCallback` with no deps: every setter here is stable, so the identity never changes and callers can
-   * hold it without re-subscribing.
+   * `useCallback` with one dep (`cancelPendingRolls`, itself stable — see its own definition): every setter
+   * here is otherwise stable, so the identity still never changes and callers can hold it without
+   * re-subscribing.
+   *
+   * This is also THE teardown point for the combat-lifetime roll registry (Task 6): both callers below —
+   * the fresh-combat effect and `seekTo` — need every in-flight buff roll from the PREVIOUS beat/fight
+   * cancelled before the jump, or a roll started under the old fight/beat keeps driving `revealStat` against
+   * a uid a re-staged fight may reuse. Ordinary beat advance never calls `resetTo`, so a normal roll is
+   * untouched by this.
    */
   const resetTo = useCallback((index: number): void => {
     // FIRST, before the index is set. Killing a live lunge timeline makes GSAP re-render it and run the
@@ -743,6 +847,7 @@ export function useCombatReplay(
     // absolute set and land the seek one beat late. Killing first puts the functional update ahead of the
     // absolute one, so the absolute value wins.
     gsap.killTweensOf('[data-zone] .unit');
+    cancelPendingRolls(); // see the registry's own note: this is its only teardown call site
     setBeatIdx(index);
     setFloats([]);
     setDeathFloats([]);
@@ -764,7 +869,7 @@ export function useCombatReplay(
     setShaking(false);
     setCritShaking(false);
     setHandGrant(null);
-  }, []);
+  }, [cancelPendingRolls]);
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
   useEffect(() => {
@@ -784,9 +889,10 @@ export function useCombatReplay(
   // Fire a moment's buff-OTHER casts: a source→target tendril per cast (or a rain-down descend when the source is
   // a Deathrattle buffer), then roll each target's badge from its pre-buff value to the new one at the
   // strike/landing. Shared by the `buffWave` path (`onBuffCasts`) and the attack-wind-up path (on-attack / Rally
-  // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). `timers` collects the
-  // release timeouts so the caller's effect can clear them on teardown.
-  const fireBuffCasts = useCallback((casts: BuffCast[], timers: number[]): void => {
+  // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). The release timer is
+  // scheduled in the combat-lifetime roll registry (`scheduleRoll`, near `resetTo`) — NOT the caller's per-beat
+  // `timers` array — so an ordinary beat advance can't cancel it out from under the roll it starts.
+  const fireBuffCasts = useCallback((casts: BuffCast[]): void => {
     // target uid → the first landing cast's tendril flight time. A target can take several casts in one
     // moment, but they all release the SAME store hold together, so only the timing of the first is needed
     // — later casts on the same target no longer aggregate atk/hp here (the store already holds the beat's
@@ -822,23 +928,19 @@ export function useCombatReplay(
       // down, then up with the tendrils" the owner filmed (2026-07-25). This path now owns only the RELEASE
       // — and the release is a ROLL (Task 3), not a snap: `driveRoll` walks the store's hold from 0 to 1 on
       // the strike's own clock, and the badge pop fires off the value moving (`useBadgePop`), with nothing
-      // else to author here.
+      // else to author here. `scheduleRoll` is what actually starts that clock, on its own combat-lifetime
+      // timer (Task 6) rather than one the next beat's cleanup can cancel — see its own comment.
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
-      timers.push(window.setTimeout(() => {
-        driveRoll(target, COMBAT_ROLL_MS, combatSpeedRef.current);
-        // This uid now owns its own delivery clock — the next beat's install-effect release loop (below)
-        // must not yank the hold out from under the roll that was just started.
-        combatHeldRef.current = combatHeldRef.current.filter((u) => u !== target);
-      }, ms));
+      scheduleRoll(target, ms);
     }
-  }, [findEl, cardIds]);
+  }, [findEl, cardIds, scheduleRoll]);
 
   // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then after its own
   // hold time, roll its badge from the pre-buff value to the new one — the blast "causes" the tick. Shared by
   // the `buffWave` path (`onSelfBuffs`) and the attack-wind-up path (on-attack / on-ally-attack self-buffers
-  // absorbed into the exchange, which `groupBuffCasts` deliberately skips). `timers` collects the release
-  // timeouts so the caller's effect can clear them on teardown.
-  const fireSelfBuffs = useCallback((selfBuffs: SelfBuff[], timers: number[]): void => {
+  // absorbed into the exchange, which `groupBuffCasts` deliberately skips). Same combat-lifetime registry as
+  // `fireBuffCasts` above, via `scheduleRoll` — not the caller's per-beat `timers`.
+  const fireSelfBuffs = useCallback((selfBuffs: SelfBuff[]): void => {
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
     for (const s of selfBuffs) {
@@ -856,12 +958,9 @@ export function useCombatReplay(
       // Hold installed pre-paint by the layout effect below (see the note in `fireBuffCasts`); release only
       // — and the release is a roll now (Task 3): `driveRoll` walks the store's hold on the pulse's clock.
       const pulseHoldMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
-      timers.push(window.setTimeout(() => {
-        driveRoll(s.uid, COMBAT_ROLL_MS, combatSpeedRef.current);
-        combatHeldRef.current = combatHeldRef.current.filter((u) => u !== s.uid);
-      }, pulseHoldMs));
+      scheduleRoll(s.uid, pulseHoldMs);
     }
-  }, [findEl, cardIds]);
+  }, [findEl, cardIds, scheduleRoll]);
 
   // Track tab visibility (drives the pause-while-hidden gate on the beat clock).
   useEffect(() => {
@@ -1139,8 +1238,8 @@ export function useCombatReplay(
         }
       },
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
-      onBuffCasts: (casts) => fireBuffCasts(casts, timers),
-      onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs, timers),
+      onBuffCasts: (casts) => fireBuffCasts(casts),
+      onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),
       // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
       // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.
       onImprove: (uids) => {
@@ -1241,11 +1340,11 @@ export function useCombatReplay(
     }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));
-      // No module-store release needed here. A `driveRoll` whose setTimeout above got cancelled by this
-      // cleanup never removed its uid from `combatHeldRef` — so the install effect's own next pass (the same
-      // beatIdx/seekNonce change that tore this effect down) releases it at the top of its run, same as it
-      // always has. Repro this used to guard (Kennelmaster + a Deathrattle summoning several Beasts, only the
-      // first summon's hold releasing) is covered by that release-before-place ordering, not by anything here.
+      // The buff strike timer + the roll it hands off to are NOT in `timers` (Task 6) — `fireBuffCasts`/
+      // `fireSelfBuffs` schedule those in the combat-lifetime roll registry instead (`scheduleRoll`, near
+      // `resetTo`), which this ordinary per-beat cleanup deliberately does not touch. That's what makes a
+      // buff's roll survive the race against lunge CONTACT advancing the beat — see the registry's own
+      // comment for the measured margins that used to lose the timer to this exact cleanup.
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
@@ -1261,7 +1360,6 @@ export function useCombatReplay(
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
   useLayoutEffect(() => {
-    const windupTimers: number[] = []; // badge-flash timeouts for attack-wind-up tendrils (cleared on teardown)
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
       const el = findEl(uid);
@@ -1359,7 +1457,7 @@ export function useCombatReplay(
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
-            ? () => { fireBuffCasts(windupCasts, windupTimers); fireSelfBuffs(windupSelfBuffs, windupTimers); }
+            ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
             : undefined,
           onImpactAuras: breakWards,
           onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
@@ -1417,7 +1515,10 @@ export function useCombatReplay(
       }
     }
     setProjectiles(ps);
-    return () => { windupTimers.forEach((id) => window.clearTimeout(id)); };
+    // No cleanup needed: this effect no longer owns any teardown-able resource of its own. The wind-up
+    // buffs' strike timer + roll used to be tracked here (`windupTimers`, cleared on every beat advance) —
+    // that per-beat clearing was the Task 6 bug. They now live in the combat-lifetime roll registry (see
+    // `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this effect never reaches into.
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
   }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
@@ -1498,7 +1599,12 @@ export function useCombatReplay(
       // drives it — same contract an authored `react` layer gets from `carries`; combat's strike timers are
       // that layer's hand-rolled equivalent here. A hold nobody claims still fails OPEN on its own TTL
       // (`fx/statHold`), so a lost release (skip / speed change / unmount mid-beat) can't freeze a badge.
-      holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'effect' });
+      // `ttlMs` explicit (Task 6): the default TTL floor is too tight for combat's own wind-up+travel+roll
+      // chain — see `COMBAT_HOLD_TTL_MS`'s own comment for the browser-traced race this closes.
+      holdStat(d.uid, { attack: d.attack, health: d.health }, {
+        origin: 'effect',
+        ttlMs: COMBAT_HOLD_TTL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1),
+      });
       combatHeldRef.current.push(d.uid);
     }
     // `seekNonce`: this is the ONLY installer of these holds, and it's what makes a same-beat re-seek re-run

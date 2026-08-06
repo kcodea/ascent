@@ -49,17 +49,28 @@ export function combatBuffDeltas(
 }
 
 /**
- * Elapsed time → reveal progress, clamped to `[0,1]`. Pulled out of `driveRoll` so the clamp/divide
+ * One frame's worth of reveal progress: `prevProgress` plus this frame's `dtMs` scaled by the CURRENT
+ * `speed` and divided by `rollMs`, clamped to `[0,1]`. Pulled out of `driveRoll` so the accumulation
  * arithmetic is headlessly testable — `driveRoll` itself only adds a live `requestAnimationFrame` loop
  * around this, which needs a browser frame clock to prove anything beyond what this function already
  * covers (see Task 4, the per-frame browser gate).
  *
- * `durationMs <= 0` reveals instantly rather than dividing by zero — a zero-length roll is a valid "just
- * show it" request (mirrors `stepHolds`'s own `rollMs <= 0 ? 1` case in `fx/statHold.ts`).
+ * INCREMENTAL by design, not `elapsed / duration` against a duration fixed at call time: a combat-speed
+ * change mid-roll has to re-scale only the time REMAINING, and the only way to do that without snapshotting
+ * "how much was already shown" separately is to add each frame's own progress as it happens. `driveRoll`
+ * re-reads speed every frame via its getter; this function is what that live read actually buys.
+ *
+ * `rollMs <= 0` reveals instantly rather than dividing by zero — a zero-length roll is a valid "just show
+ * it" request (mirrors `stepHolds`'s own `rollMs <= 0 ? 1` case in `fx/statHold.ts`). A non-positive `dtMs`
+ * (the first frame after a pause, or a clock hiccup) contributes nothing rather than going backwards —
+ * still clamped, so a caller can't hand back a `prevProgress` outside `[0,1]` either.
  */
-export function rollElapsedToProgress(elapsedMs: number, durationMs: number): number {
-  if (durationMs <= 0) return 1;
-  return Math.max(0, Math.min(1, elapsedMs / durationMs));
+export function advanceRollProgress(prevProgress: number, dtMs: number, rollMs: number, speed: number): number {
+  if (rollMs <= 0) return 1;
+  const clampedPrev = Math.max(0, Math.min(1, prevProgress));
+  if (dtMs <= 0) return clampedPrev;
+  const s = speed > 0 ? speed : 1;
+  return Math.max(0, Math.min(1, clampedPrev + (dtMs * s) / rollMs));
 }
 
 /**
@@ -68,25 +79,31 @@ export function rollElapsedToProgress(elapsedMs: number, durationMs: number): nu
  * up on the strike the same way a shop gem or Ruby counts up on its cue — and the badge pop fires off the
  * value actually moving (`useBadgePop`), with nothing combat-specific to author.
  *
- * `speed` is the live combat-speed multiplier; dividing by it keeps the roll in lockstep with a sped-up or
- * slowed-down replay, matching every other combat timer in `useCombatReplay`. Guarded here (not by the
- * caller) so a caller can pass the raw speed ref straight through.
+ * `speedGetter` is read EVERY frame, not captured once at call time (Task 6) — a mid-roll combat-speed
+ * change (the in-combat slider) has to re-scale the roll that's already in flight, and a value captured at
+ * the top of this function would freeze the roll at whatever speed was live the instant the strike landed.
+ * Dividing by it keeps the roll in lockstep with a sped-up or slowed-down replay, matching every other
+ * combat timer in `useCombatReplay`. Guarded here (not by the caller) so a caller can pass the raw speed ref
+ * straight through.
  *
  * Returns a cancel function, but fire-and-forget is safe even without calling it: `revealStat` against a
  * uid with no live hold — already delivered, expired, or superseded by a fresh `holdStat` — is a no-op (see
  * `fx/statHold.ts`), so an abandoned roll can advance a counter that no longer exists and nothing prints.
  * That's the FAIL OPEN this system leans on: a lost release resolves to the true number on its own via the
- * store's TTL, never a stale or invented one.
+ * store's TTL, never a stale or invented one. (`useCombatReplay`'s combat-lifetime roll registry calls the
+ * returned cancel AND releases the hold outright on teardown/re-seek, so that fail-open path is a backstop,
+ * not the only guarantee — see the registry's own comment.)
  */
-export function driveRoll(uid: string, rollMs: number, speed: number): () => void {
-  const durationMs = rollMs / (speed > 0 ? speed : 1);
-  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+export function driveRoll(uid: string, rollMs: number, speedGetter: () => number): () => void {
+  let progress = 0;
+  let last = typeof performance !== 'undefined' ? performance.now() : Date.now();
   let raf = 0;
   const tick = (): void => {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const p = rollElapsedToProgress(now - start, durationMs);
-    revealStat(uid, p);
-    if (p < 1) raf = requestAnimationFrame(tick);
+    progress = advanceRollProgress(progress, now - last, rollMs, speedGetter());
+    last = now;
+    revealStat(uid, progress);
+    if (progress < 1) raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(tick);
   return () => { if (raf !== 0) cancelAnimationFrame(raf); };

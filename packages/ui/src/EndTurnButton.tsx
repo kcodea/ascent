@@ -46,6 +46,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
   const pressedRef = useRef(pressed);
   pressedRef.current = pressed;
   const burstRef = useRef(0); // timestamp of a pending strike burst — the rAF loop consumes it
+  const wakeRef = useRef<() => void>(() => {}); // re-arms the (idling) bolt loop — see the arc effect
   const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
   const [relighting, setRelighting] = useState(false); // the one-shot END-COMBAT shine is playing
 
@@ -76,6 +77,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       if (cfg.strikeRings > 0) pixiFx.impactPulse(cx, cy, 1, { radius: cfg.strikeRingRadius, life: cfg.strikeRingLife, rings: cfg.strikeRings });
     }
     burstRef.current = performance.now();
+    wakeRef.current(); // the bolt loop idles when nothing is live — wake it to consume the burst
     if (cfg.strikeFlash > 0) {
       setStriking(true);
       window.setTimeout(() => setStriking(false), cfg.strikeFlash + 60);
@@ -111,10 +113,18 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
     };
     let arcs: Arc[] = [];
     let raf = 0;
+    let idleTimer = 0;
+    let running = false;
     let lastSpawn = 0;
     let dirty = false; // the canvas has strokes on it — lets an idle frame skip the clearRect entirely
+    // IDLE CONTRACT (perf audit 2026-08-06): this loop used to re-arm its rAF unconditionally, so the shop
+    // paid a per-frame config read + body-class query + (usually) a canvas clear/stroke pass for the whole
+    // session — the one uncancelled rAF in the always-mounted UI, undoing pixiFx's own auto-idle. It now
+    // runs ONLY while arcs are alive; between spawns it sleeps on a timeout sized to the spawn cadence, and
+    // with spawning off (pressed — i.e. all of combat — or rate 0) it stops entirely. Wake sources: the
+    // spawn timeout, a strike burst (click), and the pressed-prop flip (the relight effect below).
     const loop = (now: number): void => {
-      raf = requestAnimationFrame(loop);
+      raf = 0;
       const cfg = getEndTurnConfig();
       const previewPressed = document.body.classList.contains('etb-pressed-preview'); // dev tuner's pressed preview
       const spawning = !pressedRef.current && !previewPressed && cfg.boltRate > 0 && cfg.boltAlpha > 0;
@@ -155,8 +165,17 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       }
       if (arcs.length === 0) {
         if (dirty) { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; }
+        running = false;
+        // Nothing on screen. If the crackle is on, sleep until the next bolt is due (a timeout, not a
+        // per-frame rAF); if it's off (pressed / rate 0), stop dead — wake() restarts us.
+        if (spawning) {
+          const wait = Math.max(16, 1000 / cfg.boltRate - (now - lastSpawn));
+          idleTimer = window.setTimeout(() => { idleTimer = 0; wake(); }, wait);
+        }
         return;
       }
+      raf = requestAnimationFrame(loop);
+      running = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       dirty = true;
       ctx.lineCap = 'round';
@@ -187,9 +206,25 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       }
       ctx.globalAlpha = 1;
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    const wake = (): void => {
+      if (running || raf) return;
+      running = true;
+      raf = requestAnimationFrame(loop);
+    };
+    wakeRef.current = wake;
+    wake();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (idleTimer) window.clearTimeout(idleTimer);
+      wakeRef.current = () => {};
+    };
   }, []);
+
+  // Relight: when the shop reopens (pressed flips false) the ambient crackle resumes — the loop stopped
+  // itself the moment the pressed gem's last arc faded, so it needs this nudge to start spawning again.
+  useEffect(() => {
+    if (!pressed) wakeRef.current();
+  }, [pressed]);
 
   return (
     <button

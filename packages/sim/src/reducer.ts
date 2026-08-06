@@ -591,9 +591,17 @@ function reduceCore(state: RunState, action: Action): RunState {
   // snapshots) that the reducer never mutates in place — it only ever REPLACES the reference (faceOmen).
   // So deep-clone everything ELSE and share lastCombat by reference, dropping ~80–90% of the per-dispatch
   // clone cost (otherwise every recruit click re-cloned the entire event graph for nothing).
-  const { lastCombat, ...rest } = state;
+  //
+  // `servedBoards` earns the same carve-out (perf audit 2026-08-06): it accumulates one full BoardSnapshot
+  // per wave and is only ever REPLACED wholesale (`{ ...old, [wave]: pick }` — the pinning pass and the
+  // faceOmen serve), never mutated in place. By late game it measured ~90% of what remained of the clone
+  // (0.23ms of 0.26ms at 17 pinned snapshots), paid on every buy/roll/sell/reposition for a structure no
+  // action touches. If a future action ever needs to EDIT a pinned snapshot, it must replace the whole
+  // record (as both existing writers already do) — mutating in place would leak across states.
+  const { lastCombat, servedBoards, ...rest } = state;
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
+  s.servedBoards = servedBoards;
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)

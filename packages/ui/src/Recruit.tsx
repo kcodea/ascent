@@ -65,6 +65,12 @@ gsap.registerPlugin(Flip);
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
 
+/** Fodder-keyword card ids — a constant of the card corpus, computed once so `cardBuffsLive` doesn't walk
+ *  the whole CARD_INDEX on every shop action (perf audit 2026-08-06). */
+const FODDER_CARD_IDS: readonly string[] = Object.values(CARD_INDEX)
+  .filter((d) => d.keywords.includes('FD'))
+  .map((d) => d.id);
+
 // The card-marker classes for a persistent aura — Ward (gold dome) and Reborn (blue wisps), both drawn by CSS
 // (Card.tsx `.ward` / `.reborn` stacks). Used to spot an aura-wearing card so its landing dust tucks behind it.
 // Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts, fired off the event log). (Taunt is
@@ -206,6 +212,11 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCo
   const [mounted, setMounted] = useState(lit);
   const [fading, setFading] = useState(false);
   useEffect(() => {
+    // Perf-log correlator (audit 2026-08-06): the glyph window is a HYPOTHESIS for shop sluggishness (its
+    // blend mode + per-frame mask writes disqualify compositor-only animation). These marks bracket the lit
+    // window in the frame timeline, so an exported slow session shows whether bad frames cluster inside it —
+    // measurement before surgery, per the perf doctrine.
+    perfMonitor.mark(lit ? 'chargeglyph:lit' : 'chargeglyph:out');
     if (lit) { setMounted(true); setFading(false); return; }
     if (!mounted) return;                 // already unmounted — nothing to fade
     setFading(true);                       // lit → unlit while on screen: begin the fade-out
@@ -1024,10 +1035,15 @@ export function Recruit() {
   // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
   // board change — see the battlecry effect for what cancelling them cost.
   const bcTimersRef = useRef<Map<string, number>>(new Map());
-  const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
+  // Lazily seeded (perf audit 2026-08-06): `useRef(expr)` evaluates its argument on EVERY render and throws
+  // it away after the first — two .map() arrays + two Sets per render, at drag frame rate. The null-guard
+  // runs the construction exactly once, with the same first-render seed.
+  const prevBoardUidsRef = useRef<Set<string> | null>(null);
+  prevBoardUidsRef.current ??= new Set(run.board.map((c) => c.uid));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
-  const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
+  const prevHandUidsRef = useRef<Set<string> | null>(null);
+  prevHandUidsRef.current ??= new Set(run.hand.map((c) => c.uid));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
@@ -1457,8 +1473,8 @@ export function Recruit() {
          otherwise materialise a second time there. `grantPlayedRef` is a cardId list, so the match is
          consumed one-per-card and stays correct when the same card is granted twice. */
   useLayoutEffect(() => {
-    const prevHand = prevHandUidsRef.current;
-    const prevBoard = prevBoardUidsRef.current;
+    const prevHand = prevHandUidsRef.current!; // seeded at render (the ??= above) — never null in effects
+    const prevBoard = prevBoardUidsRef.current!;
     const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
     const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
@@ -1830,15 +1846,20 @@ export function Recruit() {
   // passing the RAW map straight through — so a Fodder card whose only buff came from Heckbinder displayed
   // its base stats with no highlight (owner report). Rebuild the map through `cardBuff()` itself rather than
   // re-deriving the aura here, so the display can't drift from what the card is actually created with.
+  // Perf (audit 2026-08-06): the Fodder-card id list is a constant of the card corpus — computed once at
+  // module scope (see FODDER_CARD_IDS) instead of walking the whole CARD_INDEX (an Object.values allocation
+  // over every card in the game) inside this memo. And the memo keys on the two run fields it actually
+  // reads — cardBuffs (the enchant map) and board (what Heckbinder's live aura derives from) — not the whole
+  // `run`, which has a fresh identity after EVERY action and forced this to recompute on each buy/roll/sell.
   const cardBuffsLive = useMemo(() => {
     const out: Record<string, { attack: number; health: number }> = { ...(run.cardBuffs ?? {}) };
-    for (const def of Object.values(CARD_INDEX)) {
-      if (!def?.keywords.includes('FD')) continue;
-      const b = cardBuff(run, def.id);
-      if (b.attack !== 0 || b.health !== 0) out[def.id] = b;
+    for (const id of FODDER_CARD_IDS) {
+      const b = cardBuff(run, id);
+      if (b.attack !== 0 || b.health !== 0) out[id] = b;
     }
     return out;
-  }, [run]);
+    // (deps are exact: cardBuff(run, id) reads only state.cardBuffs + state.board — verified in recruit.ts)
+  }, [run.cardBuffs, run.board]);
 
   // Value-stability caches (perf, fix #1): the reducer `structuredClone`s the run every dispatch, so these
   // view memos rebuild fresh objects for EVERY card each action — defeating `Card`'s memo, so all cards
@@ -1906,7 +1927,9 @@ export function Recruit() {
     () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright],
+    // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
+    // audit find 2026-08-06: coverage was previously incidental via the board dep.
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -2790,7 +2813,7 @@ export function Recruit() {
       bcTimersRef.current.clear();
       return;
     }
-    const prev = prevBoardUidsRef.current;
+    const prev = prevBoardUidsRef.current!; // seeded at render (the ??= above) — never null in effects
     const fresh = run.board
       .filter((c) => {
         if (prev.has(c.uid)) return false;

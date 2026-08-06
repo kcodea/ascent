@@ -71,6 +71,23 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
     text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**).',
   },
+  {
+    // Ruby Transfer (owner add 2026-08-06) — consolidate a row's Rubies onto one body. `target: 'any'` so it
+    // works on a SHOP offer too, where it steals from the shop neighbours instead (owner spec) — that is the
+    // combo line: fatten a tavern minion off its neighbours, then buy it.
+    id: 'rubytransfer',
+    name: 'Ruby Transfer',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellStealAdjacentRubies' }],
+    text: 'Target a minion. It **steals all Ruby buffs** from adjacent minions.',
+  },
   // ── Ales (owner batch 2026-07-25; renamed from Work Orders 2026-07-26) ─────────────────────────────────────────────────────────────
   // A cycle of five cheap Tier-3 utility spells on one template: same tier, same cost, each paying a different
   // axis (economy / bodies / a spike / spread health / spread attack). SET 2 ONLY — they live in this file, so

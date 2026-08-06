@@ -386,6 +386,38 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — New spell: Ruby Transfer (T5, 1 Gold, Set 2) — consolidate a row's Rubies
+
+Owner spec: "Target a minion. It steals all Ruby buffs from adjacent minions" — and, importantly, "it can
+also target shop minions and should steal ruby buffs from adjacent shop minions in that instance."
+
+Both modes fall out of `target: 'any'` plus one detail of how offer-casting already works: `castSpellOnOffer`
+casts on a temp BoardCard that SHARES the offer's uid, so the factory identifies its row by looking that uid
+up — found in `shop` → steal from the shop neighbours; otherwise the board's. That makes the shop mode a real
+combo line rather than a special case: fatten a tavern minion off its neighbours, then buy it.
+
+"All Ruby buffs" is exact rather than approximate because a Ruby buff is a first-class NAMED entry
+(`buffs[].source === 'Ruby'`) on both card kinds. The spell moves precisely what Rubies put there and never
+touches a Growth, a tavern buff or an aura — and the stolen stats stay labelled `Ruby` on the thief, so
+Gemheart Carver and every other reader of "the Rubies on this minion" sees them.
+
+Deliberately NOT routed through `fireOnRubyPlayed`: nothing is being CAST, stats are changing hands. Firing
+it would let a Resonance Idol bounce a Ruby that was already played and would tick Deepdelve Paragon / the
+Spellstone cast count a second time for one Ruby — the same reasoning `gainRubyStats` documents for its own
+no-rebounce guard.
+
+Art wired from the owner's `RubyTransfer.png` through `npm run art:wire` (strict name match, 512px + webp
+sibling). The apply pass regenerates every webp in the repo as a side effect; only this card's two files were
+kept, the other ~1000 touched files reverted — a mass art re-encode is its own PR, not a rider on a new card.
+
+7 tests: both neighbours robbed on the board, non-adjacent minions untouched, a non-Ruby buff left alone, the
+no-adjacent-Rubies no-op, the shop mode with its buy-stat fold, the stolen Rubies surviving the purchase
+still labelled Ruby, and the spell/Ruby offers correctly skipped as donors. Plus the card-data pin (T5, 1
+Gold, `target: 'any'`) and registration in the set-2 spell allowlist.
+
+Verified: typecheck / lint (7-warning baseline) / 4047 tests / harness determinism / build:web; set scoping
+confirmed live (`poolFor('set2')` yes, `poolFor('set1')` no).
+
 ## 2026-08-06 — Rune of Duplication was a no-op on 41 of 72 Epic runes
 
 Owner report: "i got rune of duplication, and then rune of the procession, so i had 2 of them, but only 1 of

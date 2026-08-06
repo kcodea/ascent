@@ -4208,6 +4208,65 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Common Ground — cast with TWO friendly targets (the second is `self`; the first is stashed on
    *  `pendingTarget.spellFirstUid`): set BOTH minions to the rounded average of their combined Attack and
    *  Health. Applied as delta buffs so it folds through the inspect breakdown. No spell-power scaling. */
+  /**
+   * Ruby Transfer (owner add 2026-08-06) — the target STEALS every Ruby buff from its adjacent minions.
+   *
+   * Works in BOTH rows, which is the whole point of the card (owner: "it can also target shop minions and
+   * should steal ruby buffs from adjacent shop minions in that instance"). `castSpellOnOffer` casts on a
+   * temp BoardCard that shares the offer's uid, so the row is identified by looking that uid up: found in
+   * `shop` → steal from the SHOP neighbours; otherwise the board's. A Ruby buff is a first-class named entry
+   * (`buffs[].source === 'Ruby'`) on both card kinds, so "all Ruby buffs" is exact — it moves precisely what
+   * Rubies put there and never touches Growth, a tavern buff or an aura.
+   *
+   * Deliberately NOT routed through `fireOnRubyPlayed`: nothing is being CAST here, stats are changing hands.
+   * Firing it would let a Resonance Idol bounce a Ruby that was already played, and would tick Deepdelve
+   * Paragon / the Spellstone cast count a second time for one Ruby (matching `gainRubyStats`' documented
+   * no-rebounce reasoning). The stolen stats stay labelled 'Ruby' on the thief, so Gemheart Carver and every
+   * other reader of "the Rubies on this minion" sees them.
+   */
+  spellStealAdjacentRubies: (ctx, self) => {
+    const state = ctx.state;
+    const shopIdx = state.shop.findIndex((o) => o.uid === self.uid);
+    const inShop = shopIdx >= 0;
+    // Neighbours in the row the target actually sits in. A spell OFFER is not a minion, so the shop row
+    // skips them — stealing "from the spell slot" is meaningless and would silently do nothing anyway.
+    const donors: { rubyOf: () => { attack: number; health: number }; take: (a: number, h: number) => void }[] = [];
+    if (inShop) {
+      for (const i of [shopIdx - 1, shopIdx + 1]) {
+        const o = state.shop[i];
+        if (!o || CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby) continue;
+        donors.push({
+          rubyOf: () => { const e = o.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
+          take: (a, h) => addOfferBuff(o, 'Ruby', -a, -h),
+        });
+      }
+    } else {
+      const bi = state.board.findIndex((c) => c.uid === self.uid);
+      if (bi < 0) return;
+      for (const i of [bi - 1, bi + 1]) {
+        const c = state.board[i];
+        if (!c) continue;
+        donors.push({
+          rubyOf: () => { const e = c.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
+          take: (a, h) => addBuff(c, 'Ruby', -a, -h),
+        });
+      }
+    }
+    let gotA = 0;
+    let gotH = 0;
+    for (const d of donors) {
+      const { attack, health } = d.rubyOf();
+      if (attack <= 0 && health <= 0) continue;
+      d.take(attack, health); // the donor loses exactly what it had — negatives net the entry to zero
+      gotA += attack;
+      gotH += health;
+    }
+    if (gotA === 0 && gotH === 0) return;
+    // Land on the target as RUBY stats, so the thief reads as a Ruby-laden minion to everything downstream.
+    if (inShop) addOfferBuff(state.shop[shopIdx]!, 'Ruby', gotA, gotH);
+    addBuff(self, 'Ruby', gotA, gotH); // `self` IS the temp card in the shop case — keeps the fold-back honest
+  },
+
   spellAverageStats: (ctx, self) => {
     const first = ctx.state.board.find((c) => c.uid === ctx.state.pendingTarget?.spellFirstUid);
     if (!first || first.uid === self.uid) return;

@@ -53,11 +53,11 @@ const STD_KNOBS: Knob[] = [
 ];
 
 const SPELL_KNOBS: Knob[] = [
-  ...COMMON({ sh: 0.78, fill: 1.22, dy: -0.02, frameY: 0.02, tier: 0.67, artY: 48, artZoom: 1.02 }),
+  ...COMMON({ sh: 0.83, fill: 1.22, dy: -0.045, frameY: 0.02, tier: 0.67, artY: 48, artZoom: 1.01 }),
   { key: 'artRound', label: 'Window rounding', unit: '%', hint: 'How rounded the square art window’s corners are.', min: 0, max: 40, step: 1, def: 13, pct: true },
-  { key: 'artAR',    label: 'Window height',   unit: '×', hint: 'Height of the art window, as a fraction of its width — the oval frame has no equivalent.', min: 0.6, max: 1.4, step: 0.01, def: 1.06 },
-  { key: 'artW',     label: 'Window width',    unit: '×', hint: 'Width of the art window, as a fraction of the frame.', min: 0.6, max: 1.2, step: 0.01, def: 0.97 },
-  { key: 'fovl-a',   label: 'Tint strength',   unit: 'opacity', hint: 'Opacity of the colour overlay below. 0 leaves the frame art untinted.', min: 0, max: 1, step: 0.01, def: 0.94 },
+  { key: 'artAR',    label: 'Window height',   unit: '×', hint: 'Height of the art window, as a fraction of its width — the oval frame has no equivalent.', min: 0.6, max: 1.4, step: 0.01, def: 1.03 },
+  { key: 'artW',     label: 'Window width',    unit: '×', hint: 'Width of the art window, as a fraction of the frame.', min: 0.6, max: 1.2, step: 0.01, def: 0.89 },
+  { key: 'fovl-a',   label: 'Tint strength',   unit: 'opacity', hint: 'Opacity of the colour overlay below. 0 leaves the frame art untinted.', min: 0, max: 1, step: 0.01, def: 0 },
 ];
 
 /**
@@ -77,10 +77,10 @@ const SECTIONS = [
     tint: '#655449', blend: 'overlay',
   },
   {
-    id: 'spell', title: 'Spell frame · purple square', knobs: SPELL_KNOBS,
+    id: 'spell', title: 'Spell frame · bronze arch', knobs: SPELL_KNOBS,
     sel: '.card.compact.spellframe',
     selBumped: '.card.compact.spellframe.spellframe',
-    tint: '#66594d', blend: 'color',
+    tint: '#ffffff', blend: 'multiply',
   },
 ] as const;
 

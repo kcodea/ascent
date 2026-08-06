@@ -111,10 +111,28 @@ boundary leaked.
 > push early (origin is the only durable copy), keep branches tiny, take `main` in often, and split by ownership
 > seam so two sessions never edit the same file.
 
-- **`main` is always playable + protected.** Never commit straight to `main` — open a PR. Every merge has
-  passed CI (`.github/workflows/ci.yml`: typecheck + lint + test + build:web) and a quick review from the other
-  person. Squash-merge (one clean, revertable commit per feature). Branch protection requires a review that
-  can't be satisfied solo, so **Claude can't merge from the CLI — the owner merges.**
+- **`main` is always playable, and NOTHING ON THE SERVER ENFORCES THAT — the discipline is the only guard.**
+  Verified 2026-08-05: `main` has no classic branch protection (the API 404s) and the repo has no rulesets.
+  So a direct push to `main`, a force-push, or a merge of a red PR would all simply succeed. Treat the rules
+  below as hard anyway; they are what stands in for the protection nobody has configured.
+  - **Never commit or push straight to `main` — open a PR.** Squash-merge (one clean, revertable commit per
+    feature). Never force-push `main`.
+  - **CI is a signal, not a gate.** `.github/workflows/ci.yml` (typecheck + lint + test + build:web) runs on
+    the PR but is NOT a required check, so a red PR is merge-able. Read `gh pr checks` before merging and
+    don't merge on pending or failing.
+  - **Claude MAY merge from the CLI** once CI is green — an earlier version of this line claimed branch
+    protection made that impossible, which was never true (`gh pr merge --squash` merged #877 with no review
+    requested). Anything `gh` does is attributed to the authenticated owner, so "a review from the other
+    person" is a convention between the two of you, not something the repo can check. Ask first when the
+    change is risky; the safety here is judgement, not machinery.
+  - **`gh pr merge --delete-branch` can report failure AFTER a successful merge.** It merges server-side,
+    then tries to check `main` out locally — which fails when a worktree already holds it
+    (`fatal: 'main' is already used by worktree at …`). Confirm with `gh pr view <n> --json state,mergedAt`
+    before assuming the merge didn't land, and clean the branch up by hand.
+
+  *If you would rather this were machinery than discipline: a ruleset on `main` requiring a PR and the
+  `verify` check would close all of the above. Nobody has configured one — that is a decision, not an
+  oversight to be fixed silently.*
 - **GitHub Flow, short branches.** One feature/fix = one branch = one PR, lived in hours-to-~2-days. Branch off
   latest `main`; rebase on `origin/main` at the start of a session and before pushing. Name by risk: `feat/…`,
   `fix/…`, `chore/…`, `refactor/…`, `docs/…`.

@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
+import {
+  beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
+} from './cardArtConfig';
+import { CardArtEditor } from './CardArtEditor';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
@@ -203,10 +207,15 @@ const KW_ICON: Record<Keyword, string> = {
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
+  celestial: 'Celestial',
 };
 /** Each tribe's own footer glyph (handoff: the symbol matches the type — paw = Beast, etc.). */
 const TRIBE_ICON: Record<Tribe, string> = {
   beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil',
+  // PLACEHOLDER glyph: `star` already belongs to neutral, so Celestial borrows `clock` — it at least reads as
+  // the Dawn/Dusk cycle. A proper emblem (and the cardplate + tribe colour the other tribes got) is
+  // presentation work, not content work.
+  celestial: 'clock',
 };
 
 /** Render rules text to HTML: fold the player-facing keyword rename (Battlecry→Shout, …) in FIRST, then bold
@@ -352,8 +361,14 @@ export const Card = memo(function Card({
   lockLabel,
   plated,
   autoRoll = true,
+  align,
 }: {
   card: CardView;
+  /** CELESTIAL alignment — draws the luminous crescent beneath this minion (Dawn / Dusk / Eclipse). A CHILD
+   *  of the card on purpose (owner report 2026-08-06: the canvas version "hated being moved"): drags, row
+   *  slides and pop-ins are all inherited for free, and only the COLOUR is derived from board position.
+   *  Absent on every non-Celestial board, so an ordinary board renders nothing extra at all. */
+  align?: 'dawn' | 'dusk' | 'eclipse';
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
   uid?: string;
   onClick?: () => void;
@@ -525,6 +540,10 @@ export const Card = memo(function Card({
   const showText = forceFull || !compactCards;
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
+  /* Re-render when this card's art framing is dialled in the tuner. `useSyncExternalStore` rather than a
+     store subscription: this module must not pull in Zustand, and the counter never moves in production
+     (nothing there can write an override), so a shipped card subscribes to something permanently silent. */
+  useSyncExternalStore(subscribeCardArt, cardArtVersion, cardArtVersion);
   // Drop the `popin` class once the mount-pop has played. It must not linger: `.card.popin` carries the
   // `cardpop` animation, and when a board REORDER physically moves a card's DOM node the browser RE-TRIGGERS
   // that animation — so an untouched neighbour "popped" as if it were just played (most obvious on a Battlecry
@@ -596,6 +615,11 @@ export const Card = memo(function Card({
   const trigger = triggerPill(card.text);
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
+  // The rules HTML, memoized on the text it renders (perf audit 2026-08-06). Unmemoized, every Card render
+  // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
+  // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
+  // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
+  const rulesHtml = useMemo(() => descTemp(descUp(mdBold(shownText))), [shownText]);
   // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
   // (Battlecry / Deathrattle / …) if any, else its first keyword, else the tribe symbol.
   const mechIcon = trigger?.icon ?? (card.keywords[0] ? KW_ICON[card.keywords[0]] : TRIBE_ICON[card.tribe]);
@@ -671,12 +695,24 @@ export const Card = memo(function Card({
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
+        /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
+           `--artY`/`--artZoom` on specificity; a card with no override contributes nothing at all here. */
+        ...(cardArtVars(card.cardId) ?? {}),
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
         ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       onClick={onClick}
+      /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
+         so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
+         deliberately - a single click is already play/drag, and stealing it would break the board. */
+      onDoubleClick={card.cardId ? (e) => {
+        if (!isPickingCardArt()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        beginEditCardArt(card.cardId!);
+      } : undefined}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}
       onContextMenu={(e) => {
@@ -702,6 +738,9 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {/* CELESTIAL alignment crescent — FIRST child so it paints behind the card body, whose opaque frame
+          conceals the ring's upper half: what remains reads as an arc wrapping beneath the minion. */}
+      {align && <div className={`alignarc aa-${align}`} aria-hidden="true" />}
       {/* Backplate — the ornate card body behind everything, on hand + dragged-from-hand cards only. FIRST
           child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
           escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}
@@ -836,6 +875,11 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
+            clips, so buttons parented there could never sit outside the card. The drag maths still measures
+            `.art` (see CardArtEditor) because the stored offset is a % of the ART window, not the card. */}
+        {card.cardId && editingCardArt() === card.cardId && <CardArtEditor cardId={card.cardId} />}
+
         {/* WARD GLASS (Divine Shield) — the "engulf the frame" layer (owner-chosen approach B, 2026-07-21).
             The `.ward` dome above is trimmed to the ART window by design, so it can never reach the gold.
             This is a SECOND dome painted OVER the frame (z4 vs the frame's z3) and clipped to the frame's own
@@ -996,9 +1040,12 @@ export const Card = memo(function Card({
         )}
       </div>
       {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
-          click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
-          (display:none) on a resting compact tile. */}
-      <div className="drawer">
+          click inspect, or the always-on-text setting): name, rules text, tribe. Rendered ONLY when the
+          `showtext` class would display it (perf audit 2026-08-06): it used to render unconditionally and
+          sit at display:none on every resting compact tile, paying the name/desc/tribe DOM — including the
+          rules-HTML parse — for tiles that never showed it. `showText` is the same prop that drives the
+          class, so presence and visibility can't drift. */}
+      {showText && <div className="drawer">
         {/* BACKBOX — an authored dark shape behind the text panel, darkening the plate under it so the rules
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
@@ -1007,7 +1054,7 @@ export const Card = memo(function Card({
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: descTemp(descUp(mdBold(shownText))) }} />
+            <span dangerouslySetInnerHTML={{ __html: rulesHtml }} />
           </div>
         )}
         {!spellLike && !tribePlated && (
@@ -1026,7 +1073,7 @@ export const Card = memo(function Card({
             )}
           </div>
         )}
-      </div>
+      </div>}
       {/* One-shot buff proc: an expanding ring + sparks burst over the card when a
           recruit-phase buff lands (hero power, spell, summon buff). Painted on top. */}
       {buffed && (

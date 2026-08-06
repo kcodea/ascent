@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SETS, poolFor, activeSet } from './sets';
+import { CARD_INDEX } from './index';
 
 /**
  * Set 3 is registered but EMPTY (owner ask 2026-08-03) so it can be selected in the Scene Builder and filled
@@ -7,17 +8,26 @@ import { SETS, poolFor, activeSet } from './sets';
  */
 describe('set 3 scaffold', () => {
   it('holds the Celestial test units + the shared neutral spell toolkit', () => {
-    // Grew twice from the empty scaffold: the Celestial test units, then the owner's shared spell pool
-    // (2026-08-03, "they will be there no matter what"). Minions stay all-Celestial; the spell count pins
-    // the 58 DRAWABLE shared spells (the sheet's reward/gift rows — Copycat, Bloodlust, Implosion,
-    // Goldcrafter — are tokens, global by doctrine, and deliberately not set members).
+    // Grew three times from the empty scaffold: the Celestial test units, the owner's shared spell pool
+    // (2026-08-03, "they will be there no matter what"), and then the REAL Celestial tribe (owner roster
+    // 2026-08-05) — which replaced the seven test units, now in the MINION ARCHIVE. Minions stay
+    // all-Celestial; the spell count pins the 58 DRAWABLE shared spells (the sheet's reward/gift rows —
+    // Copycat, Bloodlust, Implosion, Goldcrafter — are tokens, global by doctrine, and not set members).
     expect(SETS.set3).toBeDefined();
     const p = poolFor('set3');
     expect(p.setId).toBe('set3');
     expect(p.buyable.every((c) => c.celestial), 'set 3 minions are all Celestials for now').toBe(true);
     expect(p.buyable.map((c) => c.id)).toEqual(
-      ['c3_orbiter', 'c3_herald', 'c3_sentinel', 'c3_acolyte', 'c3_starweft', 'c3_equinox', 'c3_nym'],
+      ['c3_courier', 'c3_familiar', 'c3_vendor', 'c3_twilight', 'c3_cartographer', 'c3_tender',
+       'c3_shopkeeper', 'c3_gardener', 'c3_channeler', 'c3_binary', 'c3_weaver', 'c3_collector',
+       // The 2026-08-06 tranche: the Orbit-trigger, the two devourers and the investment payoff.
+       'c3_relay', 'c3_crucible', 'c3_broker', 'c3_orrery'],
     );
+    // The archived test units are gone from the POOL but still resolvable by id (saved runs / replays).
+    for (const id of ['c3_orbiter', 'c3_herald', 'c3_sentinel', 'c3_acolyte', 'c3_starweft', 'c3_equinox', 'c3_nym']) {
+      expect(p.all.some((c) => c.id === id), id + ' should be archived, not in the set').toBe(false);
+      expect(CARD_INDEX[id], id + ' must still resolve').toBeTruthy();
+    }
     expect(p.spells.length).toBe(58);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift

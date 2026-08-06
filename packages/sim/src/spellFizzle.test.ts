@@ -49,9 +49,11 @@ describe('the named cases from the audit', () => {
     expect(kept(reduce(hurt, { type: 'play', uid: 'sp' }))).toBe(false);
   });
 
-  it('Insurance Policy fizzles unless you actually lost the last combat', () => {
+  it('Insurance Policy always casts — a non-loss pays 0 Gold, it does not fizzle (owner ruling 2026-08-04)', () => {
+    // The fizzle audit briefly refused it after a win; the owner reversed that: "you should be able to play
+    // it, it just gives 0 gold if you did not lose." A legal, informed dud — the card leaves your hand.
     const s: RunState = { ...createRun(5), board: [], shop: [], embers: 30, hand: [spell('insurancepolicy')] };
-    expect(kept(reduce(s, { type: 'play', uid: 'sp' })), 'no prior loss → refused').toBe(true);
+    expect(kept(reduce(s, { type: 'play', uid: 'sp' })), 'no prior loss → still castable').toBe(false);
     const lost: RunState = { ...s, lastCombat: { result: 'lose', events: [], playerDamage: 0, initial: { player: [], enemy: [] } } as never };
     expect(kept(reduce(lost, { type: 'play', uid: 'sp' }))).toBe(false);
   });
@@ -92,9 +94,14 @@ describe('the audit sweep, kept as a regression guard', () => {
     return JSON.stringify(o);
   };
 
+  // Spells RULED as legal duds — castable while accomplishing nothing, by owner decision, with the reason.
+  const LEGAL_DUDS: Record<string, string> = {
+    insurancepolicy: 'pays 0 Gold on a non-loss ("you should be able to play it" — owner 2026-08-04)',
+  };
+
   it('NO untargeted spell is consumed while accomplishing nothing', () => {
     const offenders: string[] = [];
-    for (const def of ALL_CARDS.filter((c) => c.spell && !c.ruby && !c.target && !c.chooseOne)) {
+    for (const def of ALL_CARDS.filter((c) => c.spell && !c.ruby && !c.target && !c.chooseOne && !LEGAL_DUDS[c.id])) {
       const base: RunState = { ...createRun(99), board: [], shop: [], embers: 30, hand: [spell(def.id)] };
       const before = sig(base);
       let after: RunState;

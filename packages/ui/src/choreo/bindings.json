@@ -8,7 +8,7 @@
     "keywordLost": { "def": "keyword-lost" },
     "questComplete": { "def": "quest-complete" },
     "questTrigger": { "def": "quest-trigger" },
-    "rally": { "def": "rally-link" },
+    "rally": null,
     "reveal": { "def": "stealth-break" },
     "scCast": { "def": "spell-cast" },
     "shieldGain": { "def": "ward-gained" },
@@ -17,6 +17,9 @@
     "venomSpent": { "def": "venom-spent" }
   },
   "cards": {
+    "b2_echohorn": {
+      "rally": { "def": "echohorn-target-sparkle" }
+    },
     "bloodbinder": {
       "scCast": { "def": "ruby-lance", "fanOut": "damaged" }
     }

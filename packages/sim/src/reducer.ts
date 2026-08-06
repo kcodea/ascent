@@ -591,9 +591,17 @@ function reduceCore(state: RunState, action: Action): RunState {
   // snapshots) that the reducer never mutates in place — it only ever REPLACES the reference (faceOmen).
   // So deep-clone everything ELSE and share lastCombat by reference, dropping ~80–90% of the per-dispatch
   // clone cost (otherwise every recruit click re-cloned the entire event graph for nothing).
-  const { lastCombat, ...rest } = state;
+  //
+  // `servedBoards` earns the same carve-out (perf audit 2026-08-06): it accumulates one full BoardSnapshot
+  // per wave and is only ever REPLACED wholesale (`{ ...old, [wave]: pick }` — the pinning pass and the
+  // faceOmen serve), never mutated in place. By late game it measured ~90% of what remained of the clone
+  // (0.23ms of 0.26ms at 17 pinned snapshots), paid on every buy/roll/sell/reposition for a structure no
+  // action touches. If a future action ever needs to EDIT a pinned snapshot, it must replace the whole
+  // record (as both existing writers already do) — mutating in place would leak across states.
+  const { lastCombat, servedBoards, ...rest } = state;
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
+  s.servedBoards = servedBoards;
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
@@ -763,12 +771,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       // the ORIGINAL `state`, so an increment on the draft is discarded with everything else, which is correct.
       applyCardsPlayed(s, 1);
 
-      // Funeral on Loan: a BORROWED minion never enters the board — playing it triggers its Echo (Deathrattle)
-      // out of combat, then it's destroyed (consumed from hand). No board slot needed; a non-Echo body just vanishes.
+      // Funeral on Loan: playing a BORROWED minion triggers its Echo out of combat, then it's destroyed.
+      //
+      // It OCCUPIES ITS DROP SLOT while the Echo fires (owner report 2026-08-04: a borrowed Dawnclaw dropped
+      // beside a Shout "does not trigger the adjacent shouts"). Positional Echoes need the body to actually
+      // BE somewhere — Dawnclaw's neighbours, Legion Shepherd's overflow counting against a real board — so
+      // the card is spliced in at `toIndex` for the duration of the trigger and removed after, never staying.
       if (card.borrowed) {
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
-        triggerBorrowedEcho(s, card);
+        const at = Math.max(0, Math.min(action.toIndex ?? s.board.length, s.board.length));
+        s.board.splice(at, 0, card);
+        try {
+          triggerBorrowedEcho(s, card);
+        } finally {
+          // Find it by uid — the Echo may have summoned bodies around it and shifted the index.
+          const gone = s.board.findIndex((c) => c.uid === card.uid);
+          if (gone >= 0) s.board.splice(gone, 1);
+        }
         return s;
       }
 
@@ -859,7 +879,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Ward if it is a Kobold"). The stat half lands on anyone; the keyword is the tribe payoff.
           const kw = def.rubyGrantKeyword;
           if (kw && isTribe(boardTarget, 'kobold') && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
-        } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
+        } else if (offer) {
+          for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop
+          // minion also casts on your left-most minion: a real Ruby landing (stat buff + the target's own
+          // on-Ruby watchers), mirroring the spell path's Distillation echo below.
+          const lead = s.runeDistillation ? s.board[0] : undefined;
+          if (lead) for (let n = 0; n < casts; n++) {
+            addBuff(lead, 'Ruby', card.attack, card.health);
+            fireOnRubyPlayed(s, lead, card.attack, card.health);
+          }
+        }
         else return state;
         s.hand.splice(i, 1);
         // A Ruby is a card played (owner ruling 2026-07-31: EVERYTHING you literally play or cast counts —
@@ -883,7 +913,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // 3-cast threshold fire early or late depending on the mix.
         const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
-        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
+        // ONE per play (not `casts`): this is the first-N-each-turn gate's meter, and counting resolved
+        // casts made the doubled first Ruby consume the whole window (2026-08-06, with the Resonance rework).
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
         advanceRuneThresholds(s, 'castRuby', casts); // Rune of the Cindergem
         consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
         // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
@@ -1882,6 +1914,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
+        handMinions: s.hand
+          .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
+          .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden })),
         // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
         beastHuntExtra: s.beastHuntExtra ?? 0,
         beastRitualExtra: s.beastRitualExtra ?? 0,
@@ -2366,6 +2402,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.rubyBonus = { attack: b.attack + g.attack, health: b.health + g.health };
     for (const card of s.hand) if (CARD_INDEX[card.cardId]?.ruby) { card.attack += g.attack; card.health += g.health; }
   }
+  // A combat-refired "get N Rubies" Shout: the REAL mint (rubyBonus baked in — the bonus gain above lands
+  // first deliberately — Candle Conduit fired, hand cap respected), not a plain hand grant.
+  if (result.playerRubyMints) mintRubies(s, result.playerRubyMints);
+  // Rope Wrangler's Echo summoned these OUT of the hand mid-fight — the card fought, so it is spent
+  // (win or lose, alive or dead; the survivors' fates settle like any other combat body).
+  if (result.playerHandSummoned) {
+    s.hand = s.hand.filter((c) => !result.playerHandSummoned!.includes(c.uid));
+  }
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
   // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin
@@ -2504,6 +2548,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const c of [...s.board, ...s.hand]) {
       if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
     }
+  }
+  // Elderhorn refired in combat: extra BEAST trigger fires, stacked into the run exactly as its shop half does.
+  if (result.playerBeastExtraGain) {
+    if (result.playerBeastExtraGain.hunt) s.beastHuntExtra = (s.beastHuntExtra ?? 0) + result.playerBeastExtraGain.hunt;
+    if (result.playerBeastExtraGain.ritual) s.beastRitualExtra = (s.beastRitualExtra ?? 0) + result.playerBeastExtraGain.ritual;
   }
   // Watcher's Lantern of Souls (combat): raise the run-wide Undead aura (+Attack/+Health everywhere) — the
   // same `undeadAttackBonus`/`undeadHealthBonus` channel a shop-cast Lantern uses, so it shows and behaves
@@ -2694,6 +2743,10 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
+  // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
+  s.rubyCastsThisTurn = 0;
+  s.gemscriptRubyUsed = false;
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -3221,7 +3274,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = r.amount ?? 6; // amount = the Imp improve
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = r.amount ?? 2; // amount = Rubies per Kobold
       else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = r.amount ?? 4; // amount = Gold banked
-      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 3;        // amount = Health per Beast attack
+      else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = r.amount ?? 1;        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
       else if (r.flag === 'runeRemains') s.questFlags.runeRemains = r.amount ?? 3;           // amount = Shop buff per 5 summons
       else if (r.flag === 'runeReinvestment') s.questFlags.runeReinvestment = r.amount ?? 1; // amount = Shop buff per summon
       else if (r.flag === 'runeBrood') s.questFlags.runeBrood = r.amount ?? 3;               // amount = Imps per combat
@@ -3242,8 +3295,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     }
     case 'rubyExtraCasts':
-      if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
-      else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      if (r.scope === 'firstEachTurn') {
+        s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
+        // The widest window wins when sources stack (Gem Circuit's 1 + Resonance's 2 → 2).
+        s.rubyFirstCastWindow = Math.max(s.rubyFirstCastWindow ?? 1, r.firstN ?? 1);
+      } else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
       break;
     case 'runeFacetwright':
       s.runeFacetwright = true;
@@ -3325,6 +3381,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.endOfTurnExtra = (s.endOfTurnExtra ?? 0) + 1;
       break;
     case 'recurringEndOfTurn':
+      // Ruby grants pay out ONCE IMMEDIATELY on top of the per-turn recurrence (owner ask 2026-08-06:
+      // "when you get the rune it should give you a gem immediately") — buying Resonance mid-turn should
+      // not feel like buying nothing until End of Turn. Scoped to the Ruby effects only: the other
+      // recurring effects (shop-eating Demons, Facetwright) are turn-structure rituals, not resources.
+      if (r.effect === 'grantRuby') mintRubies(s, 1);
+      if (r.effect === 'grantRuby2') mintRubies(s, 2);
       // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
       // `turns` bounds the recurrence (Quick Study); without it the effect lasts the run, as before.
       if (r.turns) (s.questRecurringLimited ??= []).push({ effect: r.effect, turnsLeft: r.turns });
@@ -3533,9 +3595,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'scheduleRuneforge':
       // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
-      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn —
+      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 8); otherwise it's next turn —
       // deferred so a mid-turn modal-close can't open it on the turn the quest completed (owner bug 2026-07-13).
-      if (r.onWave != null) s.epicForgeWave = r.onWave;
+      // The slot already booked (the Runeguard hero schedules its own wave-8 forge): the "ADDITIONAL" forge
+      // must not silently merge into the one they were already getting (audit find 2026-08-06) — it arrives
+      // as a deferred next-turn forge instead.
+      if (r.onWave != null && s.epicForgeWave != null) { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
+      else if (r.onWave != null) s.epicForgeWave = r.onWave;
       else if (r.forge === 'epic') { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
       else s.pendingBasicForge = { gold: r.gold, deferred: true };
       break;
@@ -3739,10 +3805,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 4 → 2 Taunt Imps (the '6' here was stale)
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
-    runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
+    runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 3 → spells +1/+1
     runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold
     runeFirstClaws: f?.runeFirstClaws, // Rune of First Claws: SoC leftmost+rightmost Beasts attack now
     runePackcraft: f?.runePackcraft, // Rune of Packcraft: combat summon → Beasts +1 Atk
+    baneDemonWiden: s.baneBuffsDemons, // Bane's Existence widen fires in combat too (owner ruling 2026-08-04)
     runeInheritance: f?.runeInheritance, // Rune of Inheritance: leftmost dies → rightmost gains its stats
     runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
     runeTwilight: f?.runeTwilight, // Rune of Twilight: your Start-of-Combat effects trigger an extra time

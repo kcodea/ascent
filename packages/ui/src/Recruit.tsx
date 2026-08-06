@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -55,7 +55,6 @@ import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { AlignmentHud } from './AlignmentHud';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -67,6 +66,12 @@ gsap.registerPlugin(Flip);
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
+
+/** Fodder-keyword card ids — a constant of the card corpus, computed once so `cardBuffsLive` doesn't walk
+ *  the whole CARD_INDEX on every shop action (perf audit 2026-08-06). */
+const FODDER_CARD_IDS: readonly string[] = Object.values(CARD_INDEX)
+  .filter((d) => d.keywords.includes('FD'))
+  .map((d) => d.id);
 
 // The card-marker classes for a persistent aura — Ward (gold dome) and Reborn (blue wisps), both drawn by CSS
 // (Card.tsx `.ward` / `.reborn` stacks). Used to spot an aura-wearing card so its landing dust tucks behind it.
@@ -222,6 +227,11 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCo
   const [mounted, setMounted] = useState(lit);
   const [fading, setFading] = useState(false);
   useEffect(() => {
+    // Perf-log correlator (audit 2026-08-06): the glyph window is a HYPOTHESIS for shop sluggishness (its
+    // blend mode + per-frame mask writes disqualify compositor-only animation). These marks bracket the lit
+    // window in the frame timeline, so an exported slow session shows whether bad frames cluster inside it —
+    // measurement before surgery, per the perf doctrine.
+    perfMonitor.mark(lit ? 'chargeglyph:lit' : 'chargeglyph:out');
     if (lit) { setMounted(true); setFading(false); return; }
     if (!mounted) return;                 // already unmounted — nothing to fade
     setFading(true);                       // lit → unlit while on screen: begin the fade-out
@@ -389,13 +399,22 @@ function tokenRefView(
 function conjuredView(cardId: string, run: RunState): CardView | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  // `run.rubyBonus` is load-bearing here: `tokenRefView`'s Ruby branch prints base 1/1 without it, so a Ruby
-  // granted DURING combat flew to hand reading 1/1 and then snapped to its real value at settle (owner report
-  // 2026-08-04). The hover path at the `refViewsByUid` call site always passed it; these preview paths didn't.
-  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, undefined, run.rubyBonus);
-  // Spells have no stats to aura — tokenRefView's view is already right for them.
+  // FULLY LIVE (owner report 2026-08-06: "combat granted spells do not show current values until after
+  // combat"). This builder used to pass `undefined` for the live spell state, so tokenRefView fell through
+  // to the STATIC def text — every spell-power-scaled grant (Growth, the Ales, Staff of Guel, …) and every
+  // scaling granted minion flew in at base and snapped live only at settle. Rubies alone were fixed this way
+  // on 2026-08-04 (`run.rubyBonus` below); this finishes the job for everything else.
+  const spellLive = {
+    a: spellAttackBonus(run), h: spellHealthBonus(run),
+    ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus,
+    goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
+  };
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus);
+  // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
   if (def.spell) return base;
-  return { ...base, ...conjuredStats(run, def) };
+  // A granted MINION reads like a shop offer of itself: the full live-text chain, not the printed base.
+  const lt = liveCardText(cardId, offerLiveTextParams(false, liveOptsFromRun(run)));
+  return { ...base, text: lt.text, ...conjuredStats(run, def) };
 }
 
 interface ShopViewOpts {
@@ -450,12 +469,36 @@ interface ShopViewOpts {
   rubyBonus?: { attack: number; health: number };
   /** Whether this run can actually reach Tier 7 — Beyond the Summit only promises it when true. */
   tier7Access?: boolean;
+  /** The run's tavern tier — Lantern Light's shop-slot text scales with it (audit 2026-08-06: the slot was
+   *  the ONE surface not passing it, so the spell read base there and live everywhere else). */
+  tier?: number;
+}
+
+/** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
+ *  player does NOT own yet (hand-grant fly-ins, Discover options). One builder so no surface can drop a
+ *  field again: the 2026-08-06 audit found the grant previews passing NOTHING (static def text until combat
+ *  settled — the owner's report) and Discover passing 11 of 30 params. */
+function liveOptsFromRun(run: RunState): ShopViewOpts {
+  return {
+    cardBuffs: run.cardBuffs, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered,
+    spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold,
+    impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn,
+    spellBonus: spellAttackBonus(run), spellBonusH: spellHealthBonus(run),
+    frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
+    goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
+    squirlScoutBuff: run.squirlScoutBuff,
+    lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
+    firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
+    lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
+    topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),
+    tier: run.tier,
+  };
 }
 
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
 function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
   return {
-    tier: 1, golden,
+    tier: o.tier ?? 1, golden,
     spellBonus: o.spellBonus ?? 0, spellBonusH: o.spellBonusH ?? o.spellBonus ?? 0, frontToBackBonus: o.frontToBackBonus ?? 0,
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
@@ -477,7 +520,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const cost = Math.max(0, base - (opts.spellCostMod ?? 0));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never }),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier }),
       cost, costChanged: cost < base, spell: true,
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
@@ -1088,10 +1131,15 @@ export function Recruit() {
   // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
   // board change — see the battlecry effect for what cancelling them cost.
   const bcTimersRef = useRef<Map<string, number>>(new Map());
-  const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
+  // Lazily seeded (perf audit 2026-08-06): `useRef(expr)` evaluates its argument on EVERY render and throws
+  // it away after the first — two .map() arrays + two Sets per render, at drag frame rate. The null-guard
+  // runs the construction exactly once, with the same first-render seed.
+  const prevBoardUidsRef = useRef<Set<string> | null>(null);
+  prevBoardUidsRef.current ??= new Set(run.board.map((c) => c.uid));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
-  const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
+  const prevHandUidsRef = useRef<Set<string> | null>(null);
+  prevHandUidsRef.current ??= new Set(run.hand.map((c) => c.uid));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
@@ -1301,13 +1349,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
   // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
   // object each beat, so we key on its contents, not its reference).
   const cbAuraSig = JSON.stringify(cbAuras);
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, cbAuraSig, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } : null);
+  }, [inCombat, run.combatSettled, cbA, cbH, cbRA, cbRH, cbGold, cbAuraSig, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just
@@ -1517,8 +1565,8 @@ export function Recruit() {
          otherwise materialise a second time there. `grantPlayedRef` is a cardId list, so the match is
          consumed one-per-card and stays correct when the same card is granted twice. */
   useLayoutEffect(() => {
-    const prevHand = prevHandUidsRef.current;
-    const prevBoard = prevBoardUidsRef.current;
+    const prevHand = prevHandUidsRef.current!; // seeded at render (the ??= above) — never null in effects
+    const prevBoard = prevBoardUidsRef.current!;
     const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
     const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
@@ -1890,15 +1938,20 @@ export function Recruit() {
   // passing the RAW map straight through — so a Fodder card whose only buff came from Heckbinder displayed
   // its base stats with no highlight (owner report). Rebuild the map through `cardBuff()` itself rather than
   // re-deriving the aura here, so the display can't drift from what the card is actually created with.
+  // Perf (audit 2026-08-06): the Fodder-card id list is a constant of the card corpus — computed once at
+  // module scope (see FODDER_CARD_IDS) instead of walking the whole CARD_INDEX (an Object.values allocation
+  // over every card in the game) inside this memo. And the memo keys on the two run fields it actually
+  // reads — cardBuffs (the enchant map) and board (what Heckbinder's live aura derives from) — not the whole
+  // `run`, which has a fresh identity after EVERY action and forced this to recompute on each buy/roll/sell.
   const cardBuffsLive = useMemo(() => {
     const out: Record<string, { attack: number; health: number }> = { ...(run.cardBuffs ?? {}) };
-    for (const def of Object.values(CARD_INDEX)) {
-      if (!def?.keywords.includes('FD')) continue;
-      const b = cardBuff(run, def.id);
-      if (b.attack !== 0 || b.health !== 0) out[def.id] = b;
+    for (const id of FODDER_CARD_IDS) {
+      const b = cardBuff(run, id);
+      if (b.attack !== 0 || b.health !== 0) out[id] = b;
     }
     return out;
-  }, [run]);
+    // (deps are exact: cardBuff(run, id) reads only state.cardBuffs + state.board — verified in recruit.ts)
+  }, [run.cardBuffs, run.board]);
 
   // Value-stability caches (perf, fix #1): the reducer `structuredClone`s the run every dispatch, so these
   // view memos rebuild fresh objects for EVERY card each action — defeating `Card`'s memo, so all cards
@@ -1966,7 +2019,9 @@ export function Recruit() {
     () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright],
+    // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
+    // audit find 2026-08-06: coverage was previously incidental via the board dep.
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -2839,7 +2894,7 @@ export function Recruit() {
       bcTimersRef.current.clear();
       return;
     }
-    const prev = prevBoardUidsRef.current;
+    const prev = prevBoardUidsRef.current!; // seeded at render (the ??= above) — never null in effects
     const fresh = run.board
       .filter((c) => {
         if (prev.has(c.uid)) return false;
@@ -3169,6 +3224,15 @@ export function Recruit() {
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
   // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
   const displayBoard = run.board;
+  // CELESTIAL alignment, one read per render, shared by every board card below. Gated on a Celestial being
+  // present so an ordinary board computes nothing. The arc itself is a CHILD of each card (see Card.tsx), so
+  // this only decides the COLOUR — position is the card's own business, which is what fixed "they hate being
+  // moved" (owner 2026-08-06). Recruit-phase only: alignment locks at combat start, and until the locked
+  // read is wired the arcs stand down in combat rather than showing a value deaths would falsify.
+  const boardAligns = useMemo(
+    () => (boardHasCelestial(displayBoard) ? alignmentsOf(displayBoard) : undefined),
+    [displayBoard],
+  );
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = run.shop;
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
@@ -4080,7 +4144,7 @@ export function Recruit() {
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         <div className="row">
           {fighting ? (
-            replay.frame.enemy.map((u) => (
+            replay.visibleFrame.enemy.map((u) => (
               <Unit
                 key={u.uid}
                 u={u}
@@ -4128,12 +4192,9 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        {/* CELESTIAL alignment strip — sits directly under the warband line; renders only when a Celestial
-            is on the board (see AlignmentHud). */}
-        <AlignmentHud />
         <div className="row warband">
           {inCombat ? (
-            replay.frame.player.map((u) => (
+            replay.visibleFrame.player.map((u) => (
               <Unit
                 key={u.uid}
                 u={u}
@@ -4152,6 +4213,7 @@ export function Recruit() {
                       slot holds the row width — no re-centre jerk on pickup. */}
                   <Card
                     uid={m.uid}
+                    align={boardAligns?.[i]}
                     slideDir={boardSlide(i)}
                     dimmed={isDragging(m.uid)}
                     card={boardViews.get(m.uid)!}
@@ -4563,11 +4625,14 @@ export function Recruit() {
                 const c = CARD_INDEX[id];
                 // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
                 // same live-text chain the shop + board use.
+                // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
+                // dozen scaling cards read base only in Discover). Built by the same builders as every other
+                // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
                 const lt = liveCardText(c.id, {
-                  tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
-                  spellsThisTurn: run.spellsThisTurn, spellsCast: run.spellsCast, deathrattlesTriggered: run.deathrattlesTriggered,
-                  clingEnchant: run.cardBuffs?.cling, fodderConsumed: run.fodderConsumedThisTurn,
-                  undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff,
+                  ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
+                  runeMammoth: !!run.questFlags?.runeMammoth,
+                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+                  maxTier: maxTierFor(run.rift),
                 });
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>

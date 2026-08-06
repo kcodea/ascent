@@ -2,6 +2,7 @@ export * from './types';
 export * from './rng';
 export * from './events';
 export * from './effects/factories';
+export * from './effects/arena';
 export * from './combat/minion';
 export * from './combat/side';
 export * from './combat/simulate';

@@ -240,6 +240,18 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(s[0]!.attack).toBe(3);
   });
 
+  it('…and it swings exactly ONCE on arrival, not twice', () => {
+    // The charge is now baked onto the `dw_soldier` token (`attackOnSummon`) so Chicken Brawl's plain
+    // `deathrattleSummon` also gets it. Anvilshade reaches the same token through a factory that ALSO forces
+    // the strike via `attackNow` — both feed one deferred queue entry, so the belt-and-braces must not
+    // produce two swings.
+    const r = fight([mine('dw_anvilshade', 9, 1)], [foe(20, 20)]);
+    const sum = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'dw_soldier');
+    const uid = (r.events[sum] as { minion: { uid: string } }).minion.uid;
+    const swings = r.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uid);
+    expect(swings.length, 'the Soldier attacked twice on arrival').toBe(1);
+  });
+
   it('Exgalloper copies the BODY, not the corpse, and cannot chain', () => {
     // At the moment an Echo fires the parent's health is 0, so a literal copy arrives already dead. And exactly
     // one copy: one that kept its own Echo would summon another on death, up to the board cap.
@@ -344,11 +356,14 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
-  it('the whole Dwarf roster is in set 2 — 20 minions + token + 4 rune minions', () => {
+  it('the whole Dwarf roster is in set 2 — 21 minions + 2 tokens + 4 rune minions', () => {
     // 24 → 25 on 2026-08-03: Baal (`dw_baal`) joined the FORGE-ONLY rune minions (Rune of Baal). Like Brill
     // and Mykel it is `token: true`, so it rides in the set's pool for resolution but can never be drawn.
+    // 24 → 26 on 2026-08-04: Chicken Brawl (`dw_chickenbrawl`) + its Charging Soldier token (`dw_soldier`).
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(25);
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(26);
+    expect(dwarfIds).toContain('dw_chickenbrawl');
+    expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');
   });
 });

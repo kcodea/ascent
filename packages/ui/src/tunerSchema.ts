@@ -147,6 +147,9 @@ export interface TunerControl<K extends string = string> {
    * are written through `writeText`, not `write`, because the value is not a number.
    */
   options?: readonly string[];
+  /** Display text per option value, when the value is an id rather than something readable (the Card Art
+   *  picker stores cardIds but must show the card's actual NAME). Absent => the value is shown as-is. */
+  optionLabels?: Readonly<Record<string, string>>;
 }
 
 /**

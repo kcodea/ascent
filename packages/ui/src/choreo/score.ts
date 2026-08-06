@@ -6,6 +6,10 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
+import { ralliesFiredIn, rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS, type RallyFired } from './channels/rallyFired';
+import { releaseSummons } from '../fx/summonHold';
+import { getLungeConfig } from '../lungeConfig';
+import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
 import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
@@ -24,7 +28,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -58,6 +62,12 @@ const BASE: Cue[] = [
   // an authored effect claims the units it covers synchronously, and the claim has to be standing before the
   // stock hit-burst reads it.
   { ch: 'fxDef', at: 'start', offset: 0 },
+  // `rallyFx` is on EVERY kind for the same reason `executeFx` is, and it is the more extreme case: a `rally`
+  // event is an `onAttack` trigger, so `absorbIntoWindup` folds it into the ATTACKER'S exchange and the `rally`
+  // KIND never occurs in a real fight. A binding reached through the primary event (the `fxDef` row above)
+  // therefore could not see a Rally at all — which is why `kinds.rally` sat authored and unplayed until
+  // 2026-08-04. This row scans the moment's own events instead. See `channels/rallyFired.ts`.
+  { ch: 'rallyFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -92,6 +102,9 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // carries an fxDef row at all. (The binding itself is in `bindings.json`.)
     { ch: 'fxDef', at: 'start', offset: 0 },
     { ch: 'rubyFx', at: 'start', offset: 0 },
+    // The kind a Rally actually arrives in — every Rally is an `onAttack` trigger, so `absorbIntoWindup` folds
+    // its event into this exchange. If `rallyFx` were on only one kind, this would be the one.
+    { ch: 'rallyFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -250,6 +263,38 @@ function momentUnits(primary: CombatEvent): { source: string | null; target: str
   return { source, target };
 }
 
+/**
+ * Every rally in `moment` that has a def bound to it, with the units each proc summoned.
+ *
+ * THE ONE resolver for that question, because two callers ask it about the same moment and must not be able
+ * to disagree: the layout effect in `useCombatReplay` WITHHOLDS these units pre-paint, and the `rallyFx` cue
+ * RELEASES them as each sparkle lands. A set the holder computed and the releaser didn't would strand a live
+ * minion off the board until its TTL — the one failure this whole path has to be immune to.
+ *
+ * `canPlayDefs()` is part of the answer rather than a caller's separate check, for exactly the same reason:
+ * headless, or before `ensureDefsReady()` resolves, the cue schedules nothing, so nothing must be held.
+ */
+export function boundRalliesIn(moment: Moment, ctx: Pick<CueContext, 'events' | 'cardIds'>): BoundRally[] {
+  if (!canPlayDefs()) return [];
+  const out: BoundRally[] = [];
+  for (const r of ralliesFiredIn(moment, ctx.events)) {
+    const binding = bindingFor(ctx.cardIds?.get(r.source) ?? null, 'rally');
+    if (binding) out.push({ ...r, binding });
+  }
+  return out;
+}
+
+/** A rally whose card has a def bound at the `rally` kind — `RallyFired` plus the resolved binding. */
+export interface BoundRally extends RallyFired {
+  binding: FxBinding;
+}
+
+/** Every unit a bound Rally is about to deliver in this moment, flattened — what the layout effect
+ *  withholds. Flat because the holder doesn't care which proc owns which unit; only the releaser does. */
+export function rallyDeliveredUids(moment: Moment, ctx: Pick<CueContext, 'events' | 'cardIds'>): string[] {
+  return boundRalliesIn(moment, ctx).flatMap((r) => r.delivered.flat());
+}
+
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
  *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
  *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
@@ -378,6 +423,63 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         }
       });
     }
+    // A RALLY fired inside this moment — the rallier's own authored flourish at the ally it procced. Unlike
+    // `fxDef` (one binding per moment, off the primary event) this resolves a binding PER RALLY EVENT, because
+    // a Rally is absorbed into its attacker's wind-up and so never owns the moment it lives in. See
+    // `channels/rallyFired.ts` for the whole argument. Guarded before `at()` exactly like `fxDef`/`rubyFx`.
+    else if (cue.ch === 'rallyFx') {
+      if (!canPlayDefs()) continue;
+      // Bindings resolve UP FRONT (in `boundRalliesIn`), and unbound ralliers are dropped there rather than
+      // inside the timer, so the cascade's `gap` walks only the pairs that actually play — an unbound rallier
+      // must not leave a hole in the rhythm. `fanOut` is deliberately ignored on this row: a Rally's fan-out IS
+      // its pair, and the two ends come from the event rather than from a scan the binding chooses.
+      const fired = boundRalliesIn(moment, ctx);
+      if (!fired.length) continue;
+      // DEV-only, and modelled on the `fxDef` fan-out's log for the same reason it exists there: every miss in
+      // this path is SILENT — the effect simply doesn't appear, which is indistinguishable from "the binding
+      // isn't wired". This row is the one that says a Rally was seen, whose it was, and HOW MANY procs it
+      // carried, which is the number the cascade's `beat` exists to make visible.
+      if (import.meta.env.DEV) {
+        for (const r of fired) {
+          const held = r.delivered.flat();
+          console.info(`[fx] rally ${r.source}→${r.target} → '${r.binding.def}' ×${r.count}${held.length ? ` (delivering ${held.join(', ')})` : ''}`);
+        }
+      }
+      at(cue, () => {
+        // The same CASCADE-of-N-STACKS shape the Ruby sweep uses, for the same reason: `gap` walks between
+        // distinct rallier→ally pairs, `beat` repeats within one so a gilded double-proc reads as two.
+        // `land.group` indexes `fired` because `cascade` emits exactly one group per entry, in order.
+        //
+        // `lead` is the sequencing the owner asked for: the attacker's yellow Rally pulse fires at the top of
+        // the wind-up, and the sparkle follows it rather than landing on top of it (see `RALLY_PULSE_READ_MS`).
+        // Only on `attackExchange` — that is the only kind that HAS a wind-up to wait for, and a standalone
+        // rally moment would otherwise sit doing nothing for half a second. Read live (not frozen into the
+        // score table) so a retuned wind-up carries the sparkle with it.
+        for (const land of scheduleLands(cascade(fired.map((r) => ({ uid: r.target, count: r.count }))), {
+          gap: RALLY_GAP_MS, beat: RALLY_BEAT_MS, speed: ctx.combatSpeed,
+          lead: moment.kind === 'attackExchange' ? rallyLeadMs(getLungeConfig().windupDur) : 0,
+        })) {
+          const r = fired[land.group];
+          if (!r) continue;
+          // THIS proc's litter — `land.member` is its index within the pair's stack, which is the same order
+          // `delivered` is built in. So a gilded Echohorn's first sparkle reveals the first pair of cubs and
+          // its second reveals the second, instead of both arriving on the first.
+          const litter = r.delivered[land.member] ?? [];
+          // Anchors resolve INSIDE the timer, like the Ruby sweep: either end can die mid-cascade (the ally's
+          // own Echo can kill it), and a dead unit should be skipped rather than played over an empty slot.
+          const fire = (): void => {
+            const rallyAnchors = anchorsForUnits(r.source, r.target);
+            if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group });
+            // Released whether or not the def could anchor. The hold is a PRESENTATION debt: if the effect
+            // can't play there is nothing left to deliver the unit, and leaving it withheld to time out would
+            // hide a live minion for the sake of an effect that never happened.
+            releaseSummons(litter);
+          };
+          if (land.at <= 0) fire();
+          else timers.push(setTimeout(fire, land.at));
+        }
+      });
+    }
     else if (cue.ch === 'summonFx') at(cue, () => {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'summon') uids.push(e.minion.uid); }
@@ -394,6 +496,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // first) and this allocates no closure and schedules no timer.
     else if (cue.ch === 'fxDef') {
       if (!canPlayDefs()) continue;
+      // The ONE-CHANNEL RULE (the same one the Ruby cue applies to the generic buff channels): a Rally is told
+      // by `rallyFx`, which scans every rally event in the moment and plays one per PROC at that proc's own
+      // pair. This row would play the `rally` binding a second time — once, at the primary event's pair — for
+      // any moment that happened to be classified `rally`. Standing down is what keeps the count honest.
+      if (moment.kind === 'rally') continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute

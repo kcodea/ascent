@@ -195,6 +195,9 @@ export interface BoardCard {
    *  round to round (owner 2026-07-27: "progress carries round to round") and keeps the remainder past each
    *  payout, so a partial tally is never thrown away. Per-instance; absent = 0. */
   soldProgress?: number;
+  /** Ex-Galloper's no-chain guard: a copy summoned "without the Echo". A BoardCard has no per-instance
+   *  effects list to strip, so the shop marks the copy and the Echo dispatch skips marked bodies. */
+  echoStripped?: boolean;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */
@@ -235,6 +238,10 @@ export interface BoardCard {
    *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
    *  than a running total. Absent = 0. */
   shoutTick?: number;
+  /** CELESTIAL "Orbit (N)": this instance's orbit counter. An Orbit effect carrying an `every` param fires
+   *  only on each Nth trigger — the same per-instance cadence shape as `shoutTick` / `buyTick`, so it
+   *  carries across combat exactly as those do. */
+  orbitTick?: number;
   /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
    *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
   ascendProgress?: number;
@@ -422,7 +429,12 @@ export interface RunState {
   /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;
+  /** Ruby PLAYS from hand this turn (one per play, however many times it multicasts) — the gate for the
+   *  first-N-each-turn extra cast. Reset at turn start (it wasn't until 2026-08-06, which made every
+   *  "first Ruby each turn" rune a first-Ruby-each-RUN rune — owner report on Resonance). */
   rubyCastsThisTurn?: number;
+  /** How many leading Ruby plays each turn get `rubyFirstExtraCasts` (default 1; Resonance sets 2). */
+  rubyFirstCastWindow?: number;
   /** Set 2 quests — run-level EXTRA Ruby casts, additive with Prismcaster's per-minion `rubyExtraCast`.
    *  `rubyExtraCasts` applies to every Ruby (Unstable Riches); `rubyFirstExtraCasts` only to the turn's first
    *  (Gem Circuit), gated on `rubyCastsThisTurn === 0` so reading the count stays side-effect free — the real
@@ -1012,7 +1024,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

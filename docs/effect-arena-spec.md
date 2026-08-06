@@ -1,156 +1,171 @@
-# Effect Arena — one implementation per effect, two phases
+# Effect Arena — every trigger fires in shop AND combat
 
-**Status:** proposed, not started. Scoped 2026-08-04 (owner ask: *"all effects should be wired to work in
-combat and shop as a baseline up front so that we stop running into issues where something was not built to
-operate in combat"*).
-
----
-
-## The problem, as it actually presents
-
-Every few sessions a card turns out to do nothing in one of the two phases, and it always reads as a
-one-off:
-
-- Lastlight played from Funeral on Loan didn't grant Ward (Echo fired in the shop, no recruit half).
-- Geode Guardian's Echo summoned nothing from a Funeral on Loan; Faultline Scrapper landed stats with no FX.
-- Imp Overseer re-fired by Ryme didn't grant the Imp aura in combat.
-- Brood Whelp's Shout, re-fired by Dawnclaw, narrated a trigger and applied its buff *after* the fight.
-- Frenzied Excavator, flanking Dawnclaw, played no Rubies at all.
-
-They are not one-offs. They are one defect with ~59 live instances and an unbounded supply of future ones,
-because **nothing in the build knows an effect is missing a phase.**
-
-## Measured today
-
-285 effect ids are referenced by content. **40 have both halves.** 83 are combat-only, 161 recruit-only.
-
-That split overstates the problem — most single-half effects are correctly single-half (`endOfTurnGetRubies`
-has no combat meaning and nothing will ever dispatch it there). The exposure that matters is per TRIGGER:
-which trigger families can fire in the phase their factory wasn't written for.
-
-| Trigger | Fires cross-phase today? | Via | Ids missing the other half |
-|---|---|---|---|
-| `onPlay` (Shout) | yes | Ryme, Dawnclaw | **45** |
-| `onDeath` (Echo) | yes | Funeral on Loan, Ossuary Rite, Rune of the Reliquary, Gravetwin, Deathsayer | **9** (was 19) |
-| `onSummon` | yes | summons happen in both | **5** |
-| `onGainAttack`, `summonOverflow` | yes | — | 2 |
-| `startOfCombat`, `onAttack`, `avenge`, `onKill`, `onDamaged` | **no — no shop dispatcher exists** | — | 67 |
-
-So there are three distinct problems wearing one coat:
-
-1. **Two implementations of one sentence drift apart.** The 40 both-halves ids are where the *correctness*
-   bugs live. `battlecryPlayRubiesAll` and `spellPlayRubiesAll` are the same sentence written twice; they
-   diverged, and only one matched its printed text. This is the worst class, because it is silent and the
-   card looks fine.
-2. **A missing half is silently inert.** ~59 live cases. The card is destroyed / the trigger narrates, and
-   nothing happens.
-3. **Five trigger families have no shop dispatcher.** This is the "currently impossible" half of the ask —
-   not a missing factory, a missing *event*. There is no way to write "trigger your board's Start of
-   Combats during the shop phase" today, at any price.
-
-## Why "just write the missing half for everything" is the wrong fix
-
-It means **~240 new functions**, each one a fresh instance of problem (1). It industrialises the exact defect
-we keep hitting. Most of them would also be dead code.
-
-The deeper obstacle is that the two sides are not merely duplicated — they are written in **two different
-styles against two different data models**:
-
-| | Combat | Shop |
-|---|---|---|
-| Context | `CombatContext`, 36 methods | `RecruitContext`, 2 fields |
-| Style | everything via the interface | factories mutate `ctx.state.*` directly |
-| Body | `Minion` (72 fields) — `dead`, `divineShield`, `permaGain`, `rubyGain` | `BoardCard` (51 fields) — source-attributed `buffs[]` |
-| Buff meaning | temporary unless carried back | permanent by definition |
-| RNG | forked `Rng` threaded through | `state.rngCursor` advanced in place |
-| Size | `core/src/effects/factories.ts` — 3,047 lines | `sim/src/recruit.ts` — 6,324 lines |
-
-You cannot "just add the missing half" when the halves do not speak the same language.
+**Status:** scoped, simplified, ready to start when the weekly lifts. **Owner's goal, verbatim (2026-08-04):**
+*"I just want all keywords to function in combat and shop. Shout/Echo/Rally/End of Turn/Start of Combat/etc
+should be ready to fire in combat if called, and in shop if called… I do not want to have to hand select these
+methods and then wire the methods to every shout."*
 
 ---
 
-## Proposal: `EffectArena`
+## Why this exists: the disruptor-card class
 
-**Write each effect ONCE, against an interface both phases can implement.**
+The cards that make this load-bearing are the ones that fire a trigger OUTSIDE its home phase:
 
-A factory body only ever reaches for a small number of verbs. Most are phase-neutral:
+- **Funeral on Loan / Ossuary Rite / Rune of the Reliquary / Gravetwin** — Echoes fired in the SHOP.
+- **Dawnclaw / Ryme / Myra's Pulse** — Shouts fired in COMBAT (or re-fired at all).
 
-```
-friends() · self · buff() · grantKeyword() · summon() · destroy()
-tribeOf() · isGolden() · rng() · getCard() · announce()
+Today that class mostly touches Shouts and Echoes, and every one of them has produced bug reports — Lastlight
+granting nothing, Geode Guardian summoning nothing, Frenzied Excavator playing no Rubies — because each
+disruptor only works where someone hand-wired the specific effects it might hit. The owner intends to EXPAND
+this class: disruptors for Rallies, End of Turns, Start of Combats, more Shout/Echo pieces, and mechanics that
+don't exist yet. Every future mechanic should be born callable from either phase.
+
+That is not achievable by hand-wiring, and the bug history proves it: we have fixed this class **one card at a
+time, at least six times**, and each fix raised the count of duplicated implementations that can silently
+drift apart (`battlecryPlayRubiesAll` vs `spellPlayRubiesAll` were the same sentence written twice; they
+diverged, and only one matched its printed text).
+
+## The root cause, precisely
+
+The reason a Shout doesn't fire in combat is NOT that the trigger refuses to call it. It is that each effect's
+BODY is hand-written against one phase's world — the combat version speaks `Minion` + events through a
+36-method `CombatContext`; the shop version mutates `RunState`/`BoardCard` directly. For ~240 of the 285
+effect ids in content, **the other phase's code simply does not exist.** There is no switch to flip.
+
+Measured on the tree at `ce935afc`: 285 effect ids used by content, **42 with both halves** (the drift class),
+the rest single-half. The both-halves count goes UP every time we hand-fix a disruptor bug — that is the
+treadmill this design ends.
+
+---
+
+## The design: one implementation, runtime probes, no registries
+
+**Each effect is written ONCE against an `EffectArena` interface. Two adapters implement it — `CombatArena`
+over the combat sim, `ShopArena` over the run state. Any trigger method, in either phase, calls the same
+single implementation.**
+
+```ts
+// packages/core/src/effects/arena.ts   (new)
+export interface EffectArena {
+  readonly phase: 'combat' | 'shop';
+  self: ArenaBody;
+  friends(): ArenaBody[];                    // living, in board order
+  buff(t: ArenaBody, atk: number, hp: number, source: string): void;
+  grantKeyword(t: ArenaBody, kw: Keyword): void;
+  summon(card: CardDef, near?: ArenaBody): ArenaBody | undefined;
+  destroy(t: ArenaBody): void;
+  getCard(id: string): CardDef | undefined;
+  rng(): Rng;
+  announce(ev: ArenaEvent): void;            // a log event in combat, a no-op in the shop
+
+  combat?: CombatOnlyVerbs;                  // damage, enemies, attack order, the killer
+  shop?: ShopOnlyVerbs;                      // gold, hand, shop offers, tier, run flags
+  /** Record this effect to re-run through the OTHER phase's adapter at the phase boundary (settle). */
+  defer(): void;
+}
 ```
 
-The rest are phase-specific and sit behind **capability probes**, not behind a second copy of the function:
+`ArenaBody` is the narrow view `Minion` (72 fields) and `BoardCard` (51) both already satisfy: `{ uid, cardId,
+tribe, tribe2, attack, health, keywords, golden }`. Neither type changes — the adapters wrap.
 
-- shop-only — gold, hand, shop offers, tavern tier, run flags
-- combat-only — damage, the enemy board, attack order, death
+**The probes replace all declaration machinery.** There is no phase registry, no allowlist, no per-effect
+labelling — earlier drafts had those and the owner correctly called them scope. The framework has ONE rule,
+applied at runtime:
 
-`CombatArena` implements the interface over `Minion[]`; `ShopArena` over `RunState.board`. An effect that
-genuinely needs a shop mid-fight **declares** it and defers — explicitly, in one place, instead of being
-silently absent.
+- An effect that reaches for a verb the current phase HAS just runs. (The default, and almost every effect.)
+- An effect that needs the shop mid-combat (`if (!arena.shop) return arena.defer()`) **defers to settle
+  automatically** — the exact behaviour today's economy Shouts already have, made a framework guarantee
+  instead of a per-effect decision.
+- An effect that needs combat in the shop (damage with no enemies, destroy-the-killer with no killer)
+  **no-ops** — there is genuinely nothing to do, and nothing to wire.
 
-### What this buys
+So "every keyword functions in both phases" is the DEFAULT, exceptions handle themselves, and the phrase
+"wire this effect for combat" stops being a sentence anyone writes.
 
-- Problem (1) disappears by construction: one sentence, one implementation.
-- Problem (2) becomes impossible for new content — an effect written against the arena works in both phases
-  the day it ships.
-- Problem (3) becomes a *dispatcher* question rather than 67 rewrites. "Fire your Start of Combats in the
-  shop" is then a card, not a project.
-- Permanence stops being an implicit consequence of which file the code lives in and becomes an explicit
-  argument. That is precisely the confusion re-litigated twice on Ruby buffs.
+**Ruling — Discover in combat (owner, 2026-08-04):** a Discover effect triggered mid-combat yields a RANDOM
+card from its pool (tier-respecting), delivered to hand with the toHand animation during the fight. This is
+the intended interaction, not a degradation: the interactive 1-of-3 panel never opens mid-combat, because the
+fight is a pure function computed before the replay renders, and lobby seats resolve headlessly with no one
+present to click. (A queue-the-real-pick-for-settle alternative was considered and declined.) Do not
+re-litigate this per card — it is the rule for the whole Discover family under any disruptor.
 
----
+**What this buys at scale** — the owner's actual criterion:
 
-## Phasing
-
-### Phase 0 — make the gap unmergeable (~1 day)
-
-A build-time test: every `(trigger, do)` pair reachable from content must carry an explicit declaration next
-to its factory — `both` / `combatOnly` / `shopOnly`, with a one-line reason for the narrow ones. Undeclared
-fails CI.
-
-This fixes nothing. It is still the highest-value day in the plan: **no new instance of this defect can ever
-ship**, and it replaces the estimates in this document with a true inventory. Worth doing whether or not the
-rest happens.
-
-### Phase 1 — the arena, proven on the drift-prone core (~3–5 days)
-
-Build `EffectArena` + both adapters. Migrate **only** the ~12 effects we have already had to fix twice (the
-Ruby family, the buff family) and **delete** the duplicate implementations. Kills problem (1) where it
-actually bites, and proves the abstraction against the hardest cases before committing to it.
-
-### Phase 2 — cross-phase dispatch (~3–5 days)
-
-A shop-side dispatcher able to fire any trigger family against `ShopArena`. This is the design-space unlock:
-Start of Combat in the shop, a shop-phase Rally, Echo-in-shop for free rather than one-off wiring.
-
-### Phase 3 — the long tail, opportunistically
-
-Migrate a factory when you are already touching its card. **Never big-bang.** There is no deadline on this
-phase and no requirement that it ever completes.
+- A NEW disruptor card ("trigger your board's Start of Combats now", "re-fire your leftmost Rally") is a
+  dispatcher call, not a per-effect wiring project. It reaches every existing effect on day one.
+- A NEW effect works under every existing disruptor on day one, in both phases, because it only exists once.
+- A NEW mechanic (post-set-3) inherits all of this by being written against the arena from birth.
+- The 42 dual implementations collapse to one each — the drift class is deleted, not managed.
 
 ---
 
-## Risks — read before committing
+# The build plan (simplified — no Ticket 0, no allowlist)
 
-- **Determinism is the real risk.** Recruit advances `state.rngCursor`; combat threads a forked `Rng`. The
-  arena must abstract RNG *without changing draw order*, or every golden test and every pinned replay breaks
-  at once. **Spike this for a day before starting Phase 1** — if it doesn't come back clean, the plan needs
-  rethinking, not pushing through.
-- **The buff models genuinely differ.** Recruit's `buffs[]` is source-attributed for the inspect-panel
-  breakdown; combat carries `permaGain` / `rubyGain` / temporary. A neutral `buff()` has to preserve both, and
-  that is the fiddly part of Phase 1.
-- **Package boundary churn.** `core` cannot import `RunState` (sim depends on core, not the reverse), so
-  effect bodies belong in core — meaning the ~160 shop-only factories now in `sim/src/recruit.ts` eventually
-  move packages. That is real churn on one of the two hottest files in the repo, and it argues hard for
-  Phase 3 staying opportunistic.
-- **`recruit.ts` is a declared collision chokepoint** (see CLAUDE.md). Any phase touching it needs the other
-  dev's sessions serialized around it.
+## Step 1 — the RNG spike (~1 day) · gates everything
 
-## Recommendation
+Both phases already use the SAME generator (`makeRng`, mulberry32); they differ only in how the stream is
+carried (recruit: a cursor on the run, written back after each draw, so it survives save/restore; combat: one
+threaded `Rng` instance, `fork()`ed for sub-streams). `arena.rng()` is therefore a small adapter — but a
+migrated effect that draws a different NUMBER of times, or in a different ORDER, shifts every downstream pick
+and breaks pinned replays, `servedBoards`, and the golden tests.
 
-Phase 0 now, regardless of the rest. Then the one-day RNG spike; if it is clean, Phases 1 and 2 are worth it
-and deliver the design space asked for. Phase 3 stays permanently opportunistic.
+**Deliverable:** migrate ONE effect that actually rolls (`overflowBuffRandom` or `deathrattleGrantWardRandom`)
+to a prototype arena and prove all three: `npm run harness` determinism passes; the full suite passes with NO
+golden updates; a replay exported before the change re-imports identically after it.
 
-The literal reading of the ask — write both halves for all 285 — is **not** recommended, for the reasons in
-"why that is the wrong fix" above.
+**If the replay check fails, stop.** Fallback: keep RNG out of the arena (effects take picks via a caller-owned
+callback) — uglier, but it preserves the streams exactly.
+
+## Step 2 — the arena + both adapters (~2 days) · needs Step 1
+
+Build the interface, both adapters, and the defer/no-op probe behaviour. Prove it on one trivial effect
+(`deathrattleBuffAll`) passing its existing tests through BOTH adapters. A ratchet test replaces the old
+declaration registry: it counts effects not yet on the arena and fails if the count ever goes UP — progress is
+visible, regression is impossible, and no one labels anything.
+
+## Step 3 — migrate by TRIGGER FAMILY · the bulk of the work, delivered as capability slices
+
+Migration is not optional under this goal — "all keywords function in both phases" is only true when the
+bodies exist once. But it batches naturally by family, and **each completed family makes that whole family
+disruptable in both phases**, which is the owner's capability, shipped incrementally:
+
+1. **The 42 duals first** (~3–4 days). They are the drift class — silently WRONG rather than missing — and
+   they're almost entirely buff-N-bodies and summon-a-token, the arena's neutral core. Each PR deletes the
+   duplicate it replaces; a PR that adds an arena version without deleting the old one has not done the job.
+2. **Echo family** — completes the Funeral on Loan / Ossuary Rite / Reliquary / Gravetwin class permanently.
+3. **Shout family** — completes Dawnclaw / Ryme / Myra permanently, and retires
+   `COMBAT_REPLAYABLE_BATTLECRIES` (the hand-kept set we have patched three times this week).
+4. **Rally, End of Turn, Start of Combat families** — pre-work for the disruptors the owner wants to add next.
+   These families are single-half TODAY (no dispatcher ever calls them cross-phase), so migrating them is
+   pure groundwork: cheap now, required before Step 4 pays out.
+5. **Everything else** as touched, tracked by the ratchet.
+
+Estimate honestly: the full sweep is the largest line item, on the order of 2–3 weeks of PR-batched mechanical
+work spread across sessions. Family slices mean it never blocks anything and pays out at every step.
+
+## Step 4 — cross-phase dispatchers (~3–4 days) · per family, after that family migrates
+
+The shop-side dispatcher that lets a card SAY "fire your Start of Combats now" / "trigger your leftmost Rally"
+— currently impossible at any price for five trigger families. Dispatchers are a capability, not a behaviour
+change: nothing fires cross-phase unless a card asks. Ship each with one real consumer card so it lands with a
+user, not as speculative machinery.
+
+---
+
+## What stays genuinely hard (unchanged, and worth knowing before starting)
+
+- **The package boundary.** `core` cannot import `RunState` (sim depends on core), so arena-form effect bodies
+  live in `core` — the ~160 shop-only factories migrate OUT of `sim/src/recruit.ts` (6,324 lines, a declared
+  collision chokepoint; see CLAUDE.md). Family batches must be serialised with the other dev's sessions.
+- **Permanence semantics.** Shop buffs are permanent by definition; combat buffs are temporary unless carried
+  back. Written once, an effect states which it means as an explicit argument — a genuine improvement (this is
+  the confusion re-litigated twice over Ruby permanence), but it is a real per-effect design decision during
+  migration, not a mechanical find-replace.
+- **The buff/RNG models are NOT hard** — earlier drafts overstated both. Same RNG generator both sides; the
+  buff models differ only in per-phase bookkeeping (recruit's source-attributed `buffs[]` vs combat's
+  events/`permaGain`), which each adapter keeps privately. No ledger unification needed.
+
+## First session when the weekly lifts
+
+1. **Step 1**, the RNG spike. Report the replay result.
+2. If green → **Step 2**. Do not start Step 2 on a dirty spike.

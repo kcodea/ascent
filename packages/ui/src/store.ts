@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
 import type { BoardMinion, Tribe } from '@game/core';
+/** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
+ *  `userId` is what the run history is fetched by, and `author` is display-only. */
+export interface CareerView {
+  userId: string;
+  author: string;
+  rating: number;
+  gamesPlayed: number;
+  favoriteHero?: string;
+}
+
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 
@@ -224,6 +234,9 @@ interface GameStore {
   replayActions: Action[];
   /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
   telemetryLog: TelemetryLog;
+  /** The live balance derivation for the run in progress (see `sim/runDerive.ts`). Fed on every dispatch,
+   *  persisted with the save, uploaded at run end. */
+  deriveState: DeriveState;
   /** LOBBY runs only: the per-wave boards captured AS THEY WERE PLAYED, rather than re-derived from the action
    *  log when the run ends. Replaying a lobby run re-simulates all seven opponent seats (~20 s of blocked main
    *  thread, measured), and the boards come out identical either way — so a lobby keeps them as it goes.
@@ -298,9 +311,13 @@ interface GameStore {
   showRankings: boolean;
   openRankings: () => void;
   closeRankings: () => void;
-  /** The Career overlay (your local match history + per-hero stats) is open. */
+  /** The Career overlay (match history + per-hero stats) is open. */
   showCareer: boolean;
-  openCareer: () => void;
+  /** WHOSE career is on screen. `null` = your own. Set when opening another player's from the leaderboard
+   *  (owner ask 2026-08-04) — carries the leaderboard row itself, because the numbers on the profile card
+   *  (rating, games) come from `profiles` and are NOT derivable from someone else's run history alone. */
+  careerOf: CareerView | null;
+  openCareer: (of?: CareerView) => void;
   closeCareer: () => void;
   /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
    *  findable this run. UI-only; reads the run's pool + active tribes. */
@@ -346,12 +363,12 @@ function loadCombatSpeed(): number {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
-interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState };
     const run = deserialize(o.run); // heals older-schema saves
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -367,10 +384,10 @@ function loadSave(): SavedGame | null {
       clearSave();
       return null;
     }
-    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry };
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive };
   } catch { return null; }
 }
-function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog): void {
+function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState): void {
   // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
@@ -381,7 +398,10 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
   try {
     // `telemetry` rides along for the same reason `boards` does: it is captured live, so a quit-and-resume
     // would otherwise finish the run having lost every buy made before the reload.
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}) }));
+    // `derive` rides along for the same reason `telemetry` does — a lobby run is OBSERVED LIVE (its replay
+    // is not guaranteed faithful), so a quit-and-resume would otherwise lose every offer and buy seen
+    // before the reload. Plain JSON by construction; see `DeriveState`.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}) }));
   } catch { /* ignore */ }
 }
 function clearSave(): void {
@@ -494,7 +514,12 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
-  clearRun: () => { clearSave(); dropBoardFx(); set({ savedRun: null, run: createRun(randomSeed()), replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog() }); },
+  clearRun: () => {
+    clearSave();
+    dropBoardFx();
+    const fresh = createRun(randomSeed());
+    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
+  },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
   flushSave: () => {
@@ -554,6 +579,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   replayActions: BOOT_SAVE?.actions ?? [],
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
+  deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) =>
@@ -588,6 +614,10 @@ export const useGame = create<GameStore>((set, get) => ({
       // runs on EVERY dispatched action, so it must not allocate (nothing subscribes to it either). Computed
       // HERE, above the run-end block, so the deferred upload closure below can capture it.
       const telemetryLog = recordTelemetryAction(s.telemetryLog, s.run, action, next);
+      // …and the richer derivation, from the SAME (before, action, after) triple. Mutates in place and
+      // returns the same object, exactly like the log above — this runs per dispatched action (a click),
+      // never per frame, so its cost is a handful of object touches at human cadence.
+      const deriveState = observeAction(s.deriveState, s.run, action, next);
       const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
         ? [...s.capturedBoards, snapshotBoard(next)]
         : s.capturedBoards;
@@ -695,7 +725,16 @@ export const useGame = create<GameStore>((set, get) => ({
               // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
               const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
               const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
-              void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+              // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
+              // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
+              // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
+              // is then a new function over runs already banked, not a migration plus a fresh data window.
+              const derived = finishDerive(deriveState, next, {
+                heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
+              });
+              void uploadRunTelemetry(telemetry, {
+                author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay,
+              });
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }
           // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
@@ -735,7 +774,7 @@ export const useGame = create<GameStore>((set, get) => ({
         // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
         // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
         else if (next.phase !== s.run.phase && !next.sandbox) {
-          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog));
+          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog, deriveState));
           savedRun = next;
         }
       }
@@ -749,6 +788,7 @@ export const useGame = create<GameStore>((set, get) => ({
         replayActions,
         capturedBoards,
         telemetryLog,
+        deriveState,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
@@ -816,8 +856,10 @@ export const useGame = create<GameStore>((set, get) => ({
   openRankings: () => set({ showRankings: true }),
   closeRankings: () => set({ showRankings: false }),
   showCareer: false,
-  openCareer: () => set({ showCareer: true }),
-  closeCareer: () => set({ showCareer: false }),
+  careerOf: null,
+  openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),
+  // Clear WHOSE career on close, so reopening your own from the title never inherits the last player viewed.
+  closeCareer: () => set({ showCareer: false, careerOf: null }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),

@@ -5,11 +5,11 @@ import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
-import { runeTally } from './runeTally';
+import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
-const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil' };
+const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil', celestial: 'clock' };
 
 
 /** Live combat progress for a quest objective during the replay, mirroring the reducer's `combatEventCount`.
@@ -56,13 +56,15 @@ export function QuestBadges() {
   return (
     <div className="questbadges">
       {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
-      {runes.map((id) => {
+      {runes.map((id, i) => {
         const rune = RUNE_INDEX[id]!;
         const art = runeArt(rune.id);
         return (
           // `data-eot-effect` anchors the quest-tendril FX: a recurring End-of-Turn reward that triggers a
           // unit draws its tendril from THIS node. Runes grant those too, so both node kinds carry it.
-          <div className="questbadge runebadge" key={id} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
+          // Keyed by SLOT, not id alone (audit fix 2026-08-06): Rune of Duplication legitimately puts the
+          // same rune id in `ownedRunes` twice, and duplicate keys mis-reconciled the two badges' pulses.
+          <div className="questbadge runebadge" key={`${id}#${i}`} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
@@ -73,10 +75,16 @@ export function QuestBadges() {
             </div>
             {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
                 in the same `x/N` language as the Avenge counters on units. Keyed on the text so every change
-                replays the compositor-only bump. Null for passive/one-shot runes, which show nothing. */}
-            {runeTally(run, rune.id) && (
-              <span key={runeTally(run, rune.id)!} className="qb-tally">{runeTally(run, rune.id)}</span>
-            )}
+                replays the compositor-only bump. Null for passive/one-shot runes, which show nothing.
+                One `runeTally` call per rune (perf audit 2026-08-06) — this JSX used to call it 5×. */}
+            {(() => {
+              // Shop meters first; during a replay the COMBAT-LOCAL meters (the rune Avenge class) tick off
+              // the live quest delta — the same feed the unit Avenge counters ride (audit 2026-08-06).
+              const tally = runeTally(run, rune.id)
+                ?? (combatQuestDelta ? runeCombatTally(rune.id, combatQuestDelta.friendlyDeath, combatQuestDelta.summonCombat) : null);
+              return tally && (
+              <span key={tally} className="qb-tally">{tally}</span>
+            ); })()}
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
@@ -88,7 +96,7 @@ export function QuestBadges() {
                 return rlive ? <span className="questbadge-tip-live">{rlive}</span> : null;
               })()}
               <span className="questbadge-tip-state">
-                Rune · active{runeTally(run, rune.id) ? ` · ${runeTally(run, rune.id)}` : ''}
+                {(() => { const tally = runeTally(run, rune.id); return `Rune · active${tally ? ` · ${tally}` : ''}`; })()}
               </span>
             </div>
           </div>
@@ -190,11 +198,20 @@ export function QuestBadges() {
             {stepTotal > 0 && (
               <span className="stepcounter questbadge-step" aria-label={`Quest progress ${stepCur} of ${stepTotal}`}>{stepCur}/{stepTotal}</span>
             )}
+            {/* A completed quest whose REWARD is an ongoing meter (Food for Gold's "every 7 Gold", Bane's
+                Presence's "every 3 Shouts") shows how close the next payout is — the same `x/N` the runes and
+                the Avenge counters use. Only when `stepTotal` is absent: that slot already holds a REPEATABLE
+                quest's objective progress, and two different numbers in one place is worse than neither.
+                Keyed on the text so each change replays the compositor-only bump. */}
+            {stepTotal === 0 && questTally(run, aq.questId) && (
+              <span key={questTally(run, aq.questId)!} className="qb-tally">{questTally(run, aq.questId)}</span>
+            )}
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>
               <span className="questbadge-tip-reward">{rewardTxt}{def.repeatable ? ' · Repeatable' : ''}</span>
               {liveTxt && <span className="questbadge-tip-state">{liveTxt}</span>}
               {chip && <span className="questbadge-tip-state">{ongoing ? 'Active' : 'Done'} · {chip}</span>}
+              {questTally(run, aq.questId) && <span className="questbadge-tip-state">Next in {questTally(run, aq.questId)}</span>}
             </div>
           </div>
         );

@@ -293,6 +293,62 @@ create index if not exists run_history_user on public.run_history (user_id, crea
 
 alter table public.run_history enable row level security;
 drop policy if exists "read own run_history"   on public.run_history;
+drop policy if exists "read run_history"       on public.run_history;
 drop policy if exists "insert own run_history" on public.run_history;
-create policy "read own run_history"   on public.run_history for select to authenticated using (auth.uid() = user_id);
+-- READS ARE PUBLIC (2026-08-04): clicking a player on the leaderboard opens their Career, which means reading
+-- run_history rows that are not yours. Writes stay owner-only — a client can still only insert its own runs.
+--
+-- This is a deliberate privacy decision, not an oversight: a career is a match history the leaderboard already
+-- advertises (name, rating, games, favourite hero), and the rows hold nothing beyond how the run went. If that
+-- ever stops being true, narrow this policy rather than the client — the client asking politely is not a
+-- security boundary.
+--
+-- ⚠️ UNTIL THIS IS RUN, the feature degrades to an EMPTY career for other players (the select returns no rows
+-- rather than erroring). Your own career is unaffected either way.
+create policy "read run_history"       on public.run_history for select to authenticated using (true);
 create policy "insert own run_history" on public.run_history for insert to authenticated with check (auth.uid() = user_id);
+
+-- ── 2026-08-05: REPLAY PERSISTENCE + derived balance streams ───────────────────────────────────────────────
+-- The Codex telemetry spec asked for eight event tables (offers, acquisitions, an economy ledger, upgrades,
+-- combat summaries, trigger details, board snapshots). We store ONE thing instead: the replay.
+--
+-- A run in this game is a pure function of (seed, hero, action log, content) — the reducer and `simulate()`
+-- are deterministic — so replaying the log reproduces every one of those streams losslessly (see
+-- `packages/sim/src/runDerive.ts`). That buys the property a table-per-event design cannot: a metric nobody
+-- thought of yet is a new FUNCTION, computed retroactively over runs already banked, instead of a migration
+-- plus a client release plus a fresh collection window. It is also ~1% of the bytes.
+--
+-- `content_revision` is the load-bearing companion (see `packages/content/src/revisions.ts`): a replay is
+-- only faithful against the content it was played on, so a derivation run against a later build must be able
+-- to tell that the ground moved. Never pool rows across different content revisions.
+--
+-- `derived` holds the streams computed AT RUN END (the client already has the log in memory), so the Balance
+-- Report can render without replaying hundreds of runs in the browser. It is a CACHE — the replay is the
+-- source of truth, and `derived` can be rebuilt from it at any time.
+alter table public.run_telemetry add column if not exists replay           jsonb;
+alter table public.run_telemetry add column if not exists content_revision text;
+alter table public.run_telemetry add column if not exists derived          jsonb;
+create index if not exists run_telemetry_content_rev on public.run_telemetry (content_revision);
+
+-- ── 2026-08-06: MMR WRITES — the rating RPC (the leaderboard was frozen) ───────────────────────────────────
+-- The C1 policy above makes `rating` write-once from the client: it is set on the profile row's FIRST insert
+-- and every later UPDATE must carry it unchanged. The plan was "until C3 moves it behind an Edge Function" —
+-- which was never built. Net effect: no path existed that could ever move a stored rating, so the MMR
+-- leaderboard froze at first-insert values (owner report 2026-08-06, surfaced by the MMR reset writing every
+-- row to 0 — where the policy then pinned them).
+--
+-- This function is the interim C3: a SECURITY DEFINER RPC that may update exactly ONE thing — the CALLER'S
+-- OWN rating. The profiles UPDATE policy stays locked (rating still cannot ride a row update, yours or anyone
+-- else's); what the RPC concedes is that the VALUE is client-computed, which was equally true of the first
+-- insert the old design trusted. A server-authoritative rating (recomputed from lobby results) remains the
+-- real C3 if it is ever wanted — this unblocks the leaderboard without widening any row policy.
+create or replace function public.submit_own_rating(new_rating int)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.profiles set rating = new_rating, updated_at = now() where user_id = auth.uid();
+$$;
+revoke all on function public.submit_own_rating(int) from public;
+grant execute on function public.submit_own_rating(int) to authenticated;

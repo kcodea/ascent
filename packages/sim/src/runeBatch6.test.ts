@@ -81,31 +81,55 @@ describe("Rune of Redirection — the Ruby lands twice", () => {
   });
 });
 
-describe("Rune of Gemstorm — Avenge (2): Rubies onto your Kobolds", () => {
+describe("Rune of Gemstorm — Avenge (2): PLAY Rubies onto your Kobolds", () => {
+  // The rune routes through the real Ruby-play primitive (`playRubyOn`) as of 2026-08-06 — it used to
+  // hand-roll a `ctx.buff` labelled 'Rune of Gemstorm', which skipped Deepdelve Paragon, `onRubyPlayed`
+  // and the `rubyGain` ledger (owner report: "paragon is not amplifying gems played from the rune").
+  // Its buffs are therefore RUBY-TAGGED events now, attributed to the receiving Kobold like any Ruby play.
+  const kobold = Object.values(CARD_INDEX).find((c) => c.tribe === 'kobold' && !c.token && !c.spell && c.effects.length === 0)
+    ?? Object.values(CARD_INDEX).find((c) => c.tribe === 'kobold' && !c.token && !c.spell)!;
+  const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
+  const gemBuffs = (board: BoardMinion[], mods: object, rubyBonus?: { attack: number; health: number }) =>
+    simulate(board, enemy, makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never, rubyBonus }), combatSide())
+      .events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true);
+
+  const plainBoard: BoardMinion[] = [
+    { cardId: kobold.id, attack: 1, health: 300 },
+    { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+    { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+  ];
+
   it("fires on Kobolds and scales with the run's Ruby strength", () => {
-    const kobold = Object.values(CARD_INDEX).find((c) => c.tribe === 'kobold' && !c.token && !c.spell)!;
-    const board: BoardMinion[] = [
+    expect(gemBuffs(plainBoard, {}).length, 'baseline should never fire').toBe(0);
+    const plain = gemBuffs(plainBoard, { runeGemstorm: 2 });
+    expect(plain.length, 'the rune never fired').toBeGreaterThan(0);
+    // A stronger run mints stronger Rubies — a flat 1/1 would ignore rubyBonus entirely.
+    expect(gemBuffs(plainBoard, { runeGemstorm: 2 }, { attack: 4, health: 4 })[0]!.attack).toBeGreaterThan(plain[0]!.attack);
+  });
+
+  it("Deepdelve Paragon DOUBLES the rune's Rubies (owner report 2026-08-06)", () => {
+    // Identical board with the Paragon standing behind the Kobold. Its marker (`rubyStatMultiplier`) makes
+    // every Ruby played on this side worth 2× — including the rune's, now that they are real Ruby plays.
+    const withParagon: BoardMinion[] = [
       { cardId: kobold.id, attack: 1, health: 300 },
+      { cardId: 'k_deepdelve', attack: 1, health: 300 },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
     ];
-    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
-    const gemBuffs = (mods: object, rubyBonus?: { attack: number; health: number }) =>
-      simulate(board, enemy, makeRng(5), CARD_INDEX,
-        combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never, rubyBonus }), combatSide())
-        .events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of Gemstorm');
-    expect(gemBuffs({}).length, 'baseline should never fire').toBe(0);
-    const plain = gemBuffs({ runeGemstorm: 2 });
-    expect(plain.length, 'the rune never fired').toBeGreaterThan(0);
-    // A stronger run mints stronger Rubies — a flat 1/1 would ignore rubyBonus entirely.
-    expect(gemBuffs({ runeGemstorm: 2 }, { attack: 4, health: 4 })[0]!.attack).toBeGreaterThan(plain[0]!.attack);
+    const plain = gemBuffs(plainBoard, { runeGemstorm: 2 });
+    const amplified = gemBuffs(withParagon, { runeGemstorm: 2 });
+    expect(plain.length, 'fixture: the rune fired without the Paragon').toBeGreaterThan(0);
+    expect(amplified.length, 'fixture: the rune fired with the Paragon').toBeGreaterThan(0);
+    expect(amplified[0]!.attack, 'the Paragon doubled the Ruby').toBe(plain[0]!.attack * 2);
+    expect(amplified[0]!.health).toBe(plain[0]!.health * 2);
   });
 });
 
 describe("the four runes ship as specced", () => {
   it("exist at the sheet costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Hunger', 2, false], ['Rune of Gemstorm', 2, true],
+      ['Rune of Hunger', 5, false], ['Rune of Gemstorm', 2, true], // Hunger 2 → 5 (owner balance 2026-08-04)
       ['Rune of the Shared Table', 3, true], ['Rune of Redirection', 4, true],
     ];
     for (const [name, cost, epic] of want) {

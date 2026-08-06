@@ -8,7 +8,7 @@ import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { careerStats, ordinal, runWon, type RunHistoryEntry } from './runHistory';
+import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
@@ -26,6 +26,7 @@ function cardViewOf(m: BoardMinion): CardView {
 
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
+  celestial: 'Celestial',
 };
 
 /** One row in the Insights rail — icon chip, label left, value right (mockup 2026-07-16). */
@@ -53,6 +54,7 @@ export function Career() {
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const profile = useGame((s) => s.profile);
+  const careerOf = useGame((s) => s.careerOf); // null = your own career
   const careerVersion = useGame((s) => s.careerVersion);
   // The career lives on the SERVER now (owner call 2026-08-03), so this is a fetch rather than a synchronous
   // localStorage read. `careerVersion` bumps after a finished run or a career reset, re-fetching so an open
@@ -63,9 +65,11 @@ export function Career() {
     if (!show) return;
     let live = true;
     setEntries(null);
-    void fetchRunHistory<RunHistoryEntry>().then((rows) => { if (live) setEntries(rows ?? []); });
+    // Viewing someone else reads THEIR rows by user_id. `careerOf` is in the deps so switching players from
+    // the leaderboard refetches rather than showing the previous player's runs under the new name.
+    void fetchRunHistory<RunHistoryEntry>(50, careerOf?.userId).then((rows) => { if (live) setEntries(rows ?? []); });
     return () => { live = false; };
-  }, [show, careerVersion]);
+  }, [show, careerVersion, careerOf?.userId]);
   const stats = useMemo(() => careerStats(entries ?? []), [entries]);
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
   if (!show) return null;
@@ -76,11 +80,24 @@ export function Career() {
     setOpen((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
   };
 
+  // ── WHOSE numbers ───────────────────────────────────────────────────────────────────────────────────
+  // Your own card reads the local `profile` (rating, Oath, highest). Another player's cannot: those live in
+  // THEIR profile row, and all we were handed is the leaderboard line. So rating/games come from that row, and
+  // "highest" is derived from their run history (`ratingAfter`) rather than invented — omitted when unknowable.
+  const viewing = careerOf;
+  const shownName = viewing ? viewing.author : (playerName || 'Unnamed Climber');
+  const shownRating = viewing ? viewing.rating : profile.rating;
+  const highestSeen = viewing
+    ? (entries ?? []).reduce((m, e) => Math.max(m, e.ratingAfter ?? 0), 0) || null
+    : profile.highestRating;
+
   const favHero = stats.perHero[0];
   const favHeroName = favHero ? getHero(favHero.heroId).name : '—';
   const favTribe = stats.topTribes[0] ? TRIBE_LABEL[stats.topTribes[0].tribe] : '—';
-  const avatarChar = (playerName.trim()[0] ?? '').toUpperCase();
-  const avatarImg = avatarSrc(playerAvatar);
+  const avatarChar = (shownName.trim()[0] ?? '').toUpperCase();
+  // Avatars are stored locally today, so another player's is unknown — their initial stands in rather than
+  // showing YOUR avatar over THEIR name, which would be actively misleading.
+  const avatarImg = viewing ? undefined : avatarSrc(playerAvatar);
 
   return (
     <div className="lbpage">
@@ -89,8 +106,8 @@ export function Career() {
         <div className="lbtitle">
           <Icon name="taunt" />
           <div>
-            <div className="esch disp">Career</div>
-            <div className="lbsub">Your record of climbs</div>
+            <div className="esch disp">{viewing ? `${viewing.author}'s Career` : 'Career'}</div>
+            <div className="lbsub">{viewing ? 'Their record of climbs' : 'Your record of climbs'}</div>
           </div>
         </div>
       </div>
@@ -99,8 +116,8 @@ export function Career() {
         {(entries ?? []).length === 0 ? (
           <>
             <div className="lbempty">
-              <div className="carempty-rating">Rating {profile.rating} · Oath {profile.currentLine}</div>
-              No runs yet — play a run to start your career.
+              <div className="carempty-rating">Rating {shownRating}{viewing ? '' : ` · Oath ${profile.currentLine}`}</div>
+              {viewing ? `No runs to show for ${viewing.author}.` : 'No runs yet — play a run to start your career.'}
             </div>
           </>
         ) : (
@@ -109,14 +126,28 @@ export function Career() {
               {/* LEFT — Profile + Insights + Hero record (one full-height panel) */}
               <aside className="carcard carprofilecard">
                 <div className="caravatar-wrap">
-                  <button className="caravatar pressable" onClick={openAvatarPicker} title="Change your avatar">
-                    {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
-                  </button>
-                  <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>
+                  {/* Read-only when viewing someone else: a plain div, not a button, so the avatar picker is
+                      unreachable rather than merely hidden. */}
+                  {viewing ? (
+                    <div className="caravatar">{avatarChar || <Icon name="anvil" />}</div>
+                  ) : (
+                    <button className="caravatar pressable" onClick={openAvatarPicker} title="Change your avatar">
+                      {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
+                    </button>
+                  )}
+                  {!viewing && <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>}
                 </div>
-                <div className="carpname">{playerName || 'Unnamed Climber'}</div>
-                <div className="carrank">Rating {profile.rating} · Oath {profile.currentLine}</div>
-                <div className="carranksub">Highest: Rating {profile.highestRating} · Oath {profile.highestLine}</div>
+                <div className="carpname">{shownName}</div>
+                {/* Oath is a LOCAL run-profile value — another player's is simply not in the leaderboard row, so
+                    it is omitted rather than shown as yours or faked as 0. Their games count comes from the row. */}
+                <div className="carrank">
+                  Rating {shownRating}{viewing ? ` · ${viewing.gamesPlayed} game${viewing.gamesPlayed === 1 ? '' : 's'}` : ` · Oath ${profile.currentLine}`}
+                </div>
+                <div className="carranksub">
+                  {viewing
+                    ? (highestSeen ? `Highest seen: Rating ${highestSeen}` : 'Highest: unknown')
+                    : `Highest: Rating ${profile.highestRating} · Oath ${profile.highestLine}`}
+                </div>
                 <div className="carprofmeta">
                   <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
                   <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
@@ -162,7 +193,8 @@ export function Career() {
                   <div className="carsec carsec-ico"><Icon name="crown" />Recent Match History</div>
                   {(entries ?? []).slice(0, 25).map((e, i) => {
                     const expanded = open.has(i);
-                    const wonRun = runWon(e);
+                    const verdict = runVerdict(e);
+                    const wonRun = verdict !== 'defeat'; // the SCORE reads green for a top-4 too
                     const delta = e.ratingDelta;
                     return (
                       <div className={`lbentry carmatch${expanded ? ' open' : ''}`} key={i}>
@@ -185,7 +217,7 @@ export function Career() {
                             {e.placement !== undefined && (
                               <span className={`carplace${e.placement === 1 ? ' first' : ''}`}>{ordinal(e.placement)}</span>
                             )}
-                            <span className={`carwl ${wonRun ? 'won' : 'lost'}`}>{wonRun ? 'Victory' : 'Defeat'}</span>
+                            <span className={`carwl ${VERDICT_CLASS[verdict]}`}>{VERDICT_LABEL[verdict]}</span>
                             {/* The MMR move, beside the verdict. `0` is a real, meaningful value (a lobby that
                                 rated you flat) so this tests for undefined rather than truthiness. */}
                             {delta !== undefined && (

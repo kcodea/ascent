@@ -129,4 +129,8 @@ export const SET2_TOKENS: CardDef[] = [
     token: true,
     text: 'A 4/1 Beast that attacks immediately when summoned.',
   },
+  // NB: Chicken Brawl's Charging Soldier is NOT declared here. It re-uses Anvilshade Smith's `dw_soldier`,
+  // which lives in `cards/set2/dwarves.ts` (SET2_DWARF_TOKENS). A second copy was authored here on 2026-08-04
+  // and was silently dead: ALL_CARDS de-dupes by id keeping the FIRST occurrence, and a set's own cards are
+  // concatenated ahead of the token lists — so the game only ever saw the dwarves.ts body.
 ];

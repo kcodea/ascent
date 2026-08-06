@@ -10,6 +10,7 @@ import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
+import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
@@ -37,7 +38,7 @@ import { FreezeTuner } from './FreezeTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
-import { AlignHudTuner } from './AlignHudTuner';
+import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
@@ -99,6 +100,7 @@ const GROUPS: Group[] = [
       { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
       { key: 'cardtext', icon: '🔤', label: 'Card Text', C: CardTextTuner, hint: 'Where the rules-text box sits on a card' },
       { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
+      { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Drawer', C: BuffDrawerTuner, hint: 'The run-buffs panel' },
@@ -123,7 +125,7 @@ const GROUPS: Group[] = [
       { key: 'drag', icon: '🎴', label: 'Drag Feel', C: DragTuner, hint: 'Weight, tilt and lag while dragging a card' },
       { key: 'flip', icon: '🔀', label: 'Reposition', C: FlipTuner, hint: 'The slide when cards make room or close a gap', alt: 'flip slide reorder' },
       { key: 'glow', icon: '🔆', label: 'Hover Glow', C: GlowTuner, hint: 'The bright rim when you hover or select a card' },
-      { key: 'alignhud', icon: '🌗', label: 'Alignment HUD', C: AlignHudTuner, hint: 'The Celestial Dawn/Dusk horizon strip under the warband' },
+      { key: 'alignarc', icon: '🌗', label: 'Alignment Arc', C: AlignArcTuner, hint: 'The Celestial Dawn/Dusk crescent beneath each minion' },
     ],
   },
   {

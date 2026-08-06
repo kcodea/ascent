@@ -26,12 +26,13 @@ describe('Dawnclaw re-fires a neighbour Shout', () => {
       .toBeGreaterThan(0);
   });
 
-  it('an ECONOMY Shout still defers to settle rather than doing nothing', () => {
+  it("a Gold-next-turn Shout resolves LIVE via the grantBonusGold carry-back (it used to defer)", () => {
     const r = simulate(
       [bm('dw_pimm', 1, 9999), bm('b2_dawnclaw', 1, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
-    expect(r.playerDeferredBattlecries, 'an economy Shout must be carried back to settle')
-      .toEqual(expect.arrayContaining([expect.objectContaining({ cardId: 'dw_pimm' })]));
+    expect(r.playerBonusGold, 'Pimm pays out through the live channel').toBeGreaterThanOrEqual(1);
+    expect(r.playerDeferredBattlecries ?? [], 'nothing left to defer')
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ cardId: 'dw_pimm' })]));
   });
 
   it('does nothing when the neighbour is already dead — not a bug, just no one to trigger', () => {
@@ -91,10 +92,13 @@ describe('the rest of the audited combat Shouts', () => {
     }
   });
 
-  it('the run-wide aura Shouts stay deferred — they have no carry-back channel', () => {
-    // Guards the deliberate exclusions, so a later "why isn't this one in the set?" doesn't quietly add them:
-    // both enchant a CARD TYPE for the rest of the run, and buffing the live board would double at settle.
-    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffFodder')).toBe(false);
-    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffMagnetics')).toBe(false);
+  it('the aura Shouts have ALL graduated onto carry-back channels; tavern Shouts stay deferred', () => {
+    // The run-wide enchant Shouts each got a channel (BuffFodder → grantFodderBuff, BuffMagnetics →
+    // grantMagneticBuff, the Elderhorn pair → gainBeastExtra) and now resolve live. The remaining defer
+    // class is TAVERN work — no combat meaning at all; pin one so the boundary stays deliberate.
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffFodder')).toBe(true);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryBuffMagnetics')).toBe(true);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryGrantBeastHunt')).toBe(true);
+    expect(COMBAT_REPLAYABLE_BATTLECRIES.has('battlecryConsumeShopRandom'), 'tavern work stays deferred').toBe(false);
   });
 });

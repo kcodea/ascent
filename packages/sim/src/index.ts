@@ -25,6 +25,7 @@ export * from './synthesize';
 export * from './balanceReport';
 export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from './bots';
 export * from './runTelemetry';
+export * from './runDerive';
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
 export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, modalOpen, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, implosionCasts, spellDisplayText, dominantBoardTribe, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus, type EotStepFx } from './recruit';

@@ -106,6 +106,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
       spellProgress: u.spellProgress, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
+      // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
     }) ?? undefined,
     // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).
     // Shop/recruit paths (instView) leave this undefined so the counter stays persistently visible.

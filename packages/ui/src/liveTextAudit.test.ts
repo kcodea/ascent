@@ -70,13 +70,13 @@ describe('live card text — every scaling card prints its CURRENT value', () =>
 
   it('Groveweaver specifically — the card that prompted the audit', () => {
     // The MECHANIC was fine all along: one spell raises the accrual and the next Beast really does land
-    // bigger. What was broken was the printed "+2/+2", which never moved — so the card looked like it wasn't
-    // improving. Numbers per the owner's 2026-07-25 change: base +2/+2, +2/+2 per spell.
+    // bigger. What was broken was the printed rate, which never moved — so the card looked like it wasn't
+    // improving. Numbers per the owner's 2026-08-04 balance: base +3/+3, +2/+2 per spell.
     const base = CARD_INDEX['b2_groveweaver']!.text;
-    expect(base, 'the printed base rate').toContain('+2/+2');
+    expect(base, 'the printed base rate').toContain('+3/+3');
     expect(cardText.asymSummonBuffText('b2_groveweaver', 0), 'no accrual → printed text is correct').toBeNull();
-    expect(cardText.asymSummonBuffText('b2_groveweaver', 2), 'after one spell').toContain('{{+4/+4}}');
-    expect(cardText.asymSummonBuffText('b2_groveweaver', 4), 'after two').toContain('{{+6/+6}}');
-    expect(cardText.asymSummonBuffText('b2_groveweaver', 2, true), 'golden doubles the live value').toContain('{{+8/+8}}');
+    expect(cardText.asymSummonBuffText('b2_groveweaver', 2), 'after one spell').toContain('{{+5/+5}}');
+    expect(cardText.asymSummonBuffText('b2_groveweaver', 4), 'after two').toContain('{{+7/+7}}');
+    expect(cardText.asymSummonBuffText('b2_groveweaver', 2, true), 'golden doubles the live value').toContain('{{+10/+10}}');
   });
 });

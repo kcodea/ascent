@@ -1,4 +1,5 @@
 import type { CardDef } from '@game/core';
+import { ARCHIVED_CARDS } from './cards/archive';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
@@ -27,6 +28,7 @@ export const ALL_CARDS: CardDef[] = [
   ...SET2_TOKENS,
   ...HENCHMEN,
   ...ENEMY,
+  ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
@@ -68,6 +70,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',
   battlecryGrantSpell: 'spellId',
+  orbitCastSpell: 'spellId',                    // Worldseed Gardener -> Sprout / Growth
   // Added 2026-08-03 after an audit found six factories that NAME a card in their params but were absent
   // here, so the card they promise never appeared on hover. Commander Warpath ("get a Brood Whelp") was the
   // reported case; the sweep in `refPreview.test.ts` found the rest and now guards against a seventh.
@@ -90,7 +93,8 @@ const CARD_REF_EFFECTS: Record<string, string> = {
  * listing it here fails the build.
  */
 const IMPLICIT_REF_EFFECTS: Record<string, readonly string[]> = {
-  summonImps: ['impscrap'],                      // Imp Wrangler, Errand Fiend
+  summonImps: ['impscrap'],                      // Imp Wrangler
+  rallySummonImpBuffImps: ['impscrap'],          // Errand Fiend (Rally rework 2026-08-04)
   deathrattleImpsOverflowGrant: ['impscrap'],    // Legion Shepherd
   onImpDeathSummonImp: ['impscrap'],
   onImpAttackSummonCopy: ['impscrap'],           // Malphas, Lord of Want
@@ -149,6 +153,7 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
 export { CardDefSchema, QuestDefSchema, RuneDefSchema } from './schema';
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
 export { RUNES, EPIC_RUNES, RUNE_INDEX, validateRunes } from './runes';
+export { cardRevisions, contentRevision, cardRevision, revisionOf } from './revisions';
 export { runeSynergies, type SynergyTag } from './runeSynergy';
 export { badgeIdForCombatFlag } from './questFlags';
 export { NEUTRAL } from './cards/set1/neutral';

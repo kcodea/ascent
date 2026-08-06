@@ -100,6 +100,7 @@ type Category = Tribe | 'spells' | 'rewards' | 'quests' | 'runes' | 'runeRewards
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
+  celestial: { label: 'Celestials', icon: 'clock' },
   dragon: { label: 'Dragons', icon: 'flame' },
   mech: { label: 'Mechs', icon: 'gear' },
   undead: { label: 'Undead', icon: 'skull' },

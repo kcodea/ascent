@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -290,7 +290,10 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
 // / never-throws contract; dormant until the `run_telemetry` table is migrated (see schema.sql).
 
 /** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
-export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: string; patch: string }): Promise<void> {
+export async function uploadRunTelemetry(
+  t: RunTelemetry,
+  meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown },
+): Promise<void> {
   const c = client();
   if (!c || !currentUserId()) return;
   const base = {
@@ -312,7 +315,15 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
       ...base,
       discover_offered_cards: t.discoverOfferedCards, discover_bought_cards: t.discoverBoughtCards,
     };
-    const res = await c.from('run_telemetry').insert([{ ...withSplit, buy_events: t.buyEvents ?? [] }]);
+    const withBuys = { ...withSplit, buy_events: t.buyEvents ?? [] };
+    // The derivation columns sit at the TOP of the fallback ladder: on a DB that hasn't run the
+    // 2026-08-05 migration this insert fails and we drop straight back to the row that has always
+    // worked, so a stale backend costs the new analytics and nothing else.
+    const withDerived = meta.derived
+      ? { ...withBuys, derived: meta.derived, replay: meta.replay ?? null, content_revision: meta.derived.contentRevision }
+      : withBuys;
+    const res0 = meta.derived ? await c.from('run_telemetry').insert([withDerived]) : { error: true };
+    const res = res0?.error ? await c.from('run_telemetry').insert([withBuys]) : res0;
     if (res?.error) {
       const res2 = await c.from('run_telemetry').insert([withSplit]);
       // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
@@ -334,6 +345,30 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
 
 /** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
  *  time-boxed; [] on any failure / no backend / un-migrated table. */
+/** Fetch recent runs' DERIVED payloads (the runDerive streams stored in the `derived` jsonb column) for the
+ *  Balance Report's derived views. Best-effort like everything here: [] on no backend / pre-migration DB
+ *  (the column doesn't exist until the 2026-08-05 schema.sql section is run) / timeout. */
+export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('run_telemetry').select('derived').not('derived', 'is', null)
+          .order('created_at', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as unknown as Array<{ derived: DerivedRun | null }>)
+      .map((r) => r.derived)
+      .filter((d): d is DerivedRun => !!d && Array.isArray((d as DerivedRun).offers));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   const c = client();
   if (!c) return [];
@@ -386,6 +421,9 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
 
 /** One ranked player, shaped for the leaderboard UI. */
 export interface PlayerRow {
+  /** `auth.users.id` — the key their run history is stored under. Needed to open ANOTHER player's Career from
+   *  the leaderboard; `author` is a mutable display name and must never be used to look anything up. */
+  userId: string;
   author: string;
   rating: number;
   gamesPlayed: number;
@@ -424,7 +462,15 @@ export async function uploadPlayerProfile(p: {
       favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
     };
     const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
-    if (!updated.error && updated.data && updated.data.length > 0) return;
+    if (!updated.error && updated.data && updated.data.length > 0) {
+      // RATING moves through its own RPC (`submit_own_rating`, schema.sql 2026-08-06) — the ONLY path the
+      // policy design leaves open. The "C3 Edge Function" the write-once policy deferred to was never built,
+      // so from the C1 migration until this call existed NOTHING could move a stored rating and the MMR
+      // leaderboard froze at first-insert values (owner report 2026-08-06). Fire-and-forget like the rest of
+      // this seam: on a DB that hasn't run the migration the RPC 404s and the catch above swallows it.
+      await c.rpc('submit_own_rating', { new_rating: p.rating });
+      return;
+    }
     await c.from('profiles').insert({ user_id: userId, rating: p.rating, ...mutable });
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
@@ -438,14 +484,14 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('profiles').select('author, rating, games_played, favorite_hero')
+      c.from('profiles').select('user_id, author, rating, games_played, favorite_hero')
         .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ author: string; rating: number; games_played: number; favorite_hero: string | null }>)
-      .map((r) => ({ author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+    return (result.data as Array<{ user_id: string; author: string; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ userId: r.user_id, author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
   } catch {
     return [];
   }
@@ -480,14 +526,22 @@ export async function uploadRunHistory(entry: {
 }
 
 /**
- * Fetch this player's career, newest first. Returns null (NOT []) when there is no identity or the request
- * fails — the caller must be able to tell "you have no runs yet" from "we couldn't ask", because writing a
- * profile's games-played from a failed read would clobber it with a zero.
+ * Fetch a career, newest first. Defaults to YOUR runs; pass `forUserId` to read another player's (opening a
+ * Career from the leaderboard).
+ *
+ * Returns null (NOT []) when there is no identity or the request fails — the caller must be able to tell "no
+ * runs yet" from "we couldn't ask", because writing a profile's games-played from a failed read would clobber
+ * it with a zero.
+ *
+ * NOTE: reading someone ELSE's rows needs the `run_history` select policy to allow it. Until that migration is
+ * run this returns [] for other players — an empty career, not an error — which is the correct degradation
+ * (the feature simply shows nothing rather than breaking the page).
  */
-export async function fetchRunHistory<T>(limit = 50): Promise<T[] | null> {
+export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promise<T[] | null> {
   const c = client();
-  const userId = currentUserId();
-  if (!c || !userId) return null;
+  const userId = forUserId ?? currentUserId();
+  // Your OWN fetch still requires a session; a foreign fetch only needs the id we were handed.
+  if (!c || !userId || (!forUserId && !currentUserId())) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([

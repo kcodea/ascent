@@ -5,7 +5,7 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -101,6 +101,10 @@ export type GameEvent =
    *  2026-08-03 — from hand only; not a summoned token, not a reorder that slides someone next to you).
    *  The arriving minion rides in the payload as `minion`; the orbiting watcher is `self`. */
   | 'orbit'
+  /** CELESTIAL: fires when ANY Orbit on your board resolves — the board-wide watcher ("Whenever an Orbit
+   *  triggers…"). `params.others: true` excludes the watcher's own Orbit (Orrery's "another Orbit"). The
+   *  arriving minion rides as `minion`; the minion whose Orbit fired rides as `source`. */
+  | 'orbitFired'
   | 'onSummon'
   | 'onDeath'
   | 'onAttack'
@@ -200,7 +204,9 @@ export type EffectFactoryId =
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
   | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
-  | 'summonImps' // Set 2 — Imp Wrangler / Errand Fiend: summon N Imps
+  | 'summonImps' // Set 2 — Imp Wrangler: summon N Imps
+  | 'rallySummonImpBuffImps' // Errand Fiend (2026-08-04): Rally — summon an Imp AND enchant your Imps +1/+1
+  | 'deathrattleSummonRandomHandMinion' // Rope Wrangler (2026-08-04): Echo — summon a random minion FROM YOUR HAND (consumed)
   | 'rallyImpsAttackNow' // Set 2 — Riot Caller (Rally): your N left-most Imps attack immediately
   | 'onTribePlayedConsumeShop' // Set 2 — Chipper: playing a Demon makes a friendly Demon eat a Shop minion
   | 'onImpDeathSummonImp' // Set 2 — Endless Overseer: your first N Imp deaths each summon an Imp
@@ -235,6 +241,21 @@ export type EffectFactoryId =
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
   | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
+  | 'orbitBuffRandomFriend' // Orbiting Familiar: buff a RANDOM friendly minion (not the arriver)
+  | 'orbitSellValue' // Starpath Vendor (Dawn): this minion gains sell value, capped
+  | 'orbitBuffAlignedCelestials' // Constellation Tender: buff your DAWN or DUSK Celestials
+  | 'orbitBuffLowest' // Equinox Channeler: buff your lowest-Attack / lowest-Health minion
+  | 'orbitGrantSpellPower' // Star Cartographer: improve your Shop spells
+  | 'orbitCastSpell' // Worldseed Gardener: cast a named spell on the cadence
+  | 'orbitCopyFirstSpell' // Spellwheel Savant (Dawn): copy the turn's first Shop spell
+  | 'onOrbitBuffShopRightmost' // Astral Shopkeeper: after N orbits anywhere, buff the right-most Shop offer
+  | 'onOrbitBuffAll' // Worldline Weaver: whenever an Orbit triggers, buff your whole board
+  | 'onOrbitBuffShop' // Orrery: whenever ANOTHER Orbit triggers, buff the Shop
+  | 'scGainKeyword' // Twilight Sentinel: Start of Combat — gain a keyword (align-gated halves)
+  | 'orbitGainArriverBonus' // Horizon Collector: take the arriver's bonus stats (+ pass one axis along)
+  | 'triggerAdjacentOrbits' // Astral Relay: fire the Orbits either side of this minion, with no arrival
+  | 'orbitBuffCelestialsPerBuffStack' // Celestial Crucible: pay per stack of Shop buffs on the arriver
+  | 'orbitDevourArriver' // Constellation Broker / Orrery: destroy the arriver, hand on its bonus stats
   | 'orbitBuffSelf' // Celestial ORBIT: this minion grows when something lands next to it
   | 'scBuffSelf' // Celestial — Daybreak Acolyte: Start of Combat, this minion gains stats (align-gated halves)
   | 'rallyBuffCelestials' // Celestial — Equinox Duelist (Dawn Rally): buff your Celestials
@@ -574,6 +595,10 @@ export interface CardDef {
   /** CELESTIAL — this card's text changes with its board ALIGNMENT (Dawn / Dusk / Eclipse). Drives the
    *  alignment HUD: the strip appears once any Celestial is on the board. See `Alignment`. */
   celestial?: boolean;
+  /** Binary Star: Orbits on the minions ADJACENT to this one trigger an additional time. */
+  orbitExtraAdjacent?: boolean;
+  /** Astraeus, Totality: while THIS is Eclipsed, every Orbit on your board triggers an additional time. */
+  orbitExtraBoard?: boolean;
   /** HENCHMAN — a hero-bound recruit (owner spec 2026-08-03). A minion like any other, but never offered
    *  in shops: it is reachable only through the hero that names it (`HeroDef.henchman` in @game/sim), at a
    *  Gold cost that falls each round (win −3 / loss −2). Global-registry doctrine, same as tokens. */
@@ -817,7 +842,8 @@ export type QuestReward =
   /** "Your Rubies cast an additional time" — run-level extra casts, additive with Prismcaster. `scope`
    *  `firstEachTurn` limits it to the turn's FIRST Ruby (Gem Circuit); `always` applies to every Ruby
    *  (Unstable Riches). */
-  | { kind: 'rubyExtraCasts'; amount: number; scope: 'always' | 'firstEachTurn' }
+  | { kind: 'rubyExtraCasts'; amount: number; scope: 'always' | 'firstEachTurn'; /** With `firstEachTurn`:
+   *  how many leading Ruby PLAYS each turn get the extra cast (default 1 — Gem Circuit; Resonance uses 2). */ firstN?: number }
   /** "Give Shop minions +X/+X" — one-shot, into the same `tavernBuyBonus` channel the Staff of Guel uses, so a
    *  quest and a card buffing the shop are the same mechanic. */
   | { kind: 'shopBuff'; attack: number; health: number }
@@ -895,7 +921,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -1194,6 +1220,9 @@ export interface QuestCombatMods {
   runeMammoth?: boolean;
   /** Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too. */
   runeWarpath?: boolean;
+  /** Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner
+   *  ruling — the widen fires on combat-triggered Battlecries too. */
+  baneDemonWiden?: { attack: number; health: number };
   /** Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit. */
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
@@ -1581,7 +1610,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }
@@ -1674,6 +1703,10 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
+   *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
+   *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
+  handMinions?: readonly { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
    *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
    *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */
@@ -1832,6 +1865,11 @@ export interface CombatResult {
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
+  /** Set 2 — Rubies a combat-refired "get N Rubies" Shout minted; settle runs the run's real `mintRubies`. */
+  playerRubyMints?: number;
+  /** Hand-card uids a combat effect SUMMONED out of the hand (Rope Wrangler's Echo) — settle removes them
+   *  from the run hand: the minion fought, so it is spent whether it lived or died. */
+  playerHandSummoned?: readonly string[];
   /** Set 2 — Demon Horse: a Rally that permanently buffs SHOP minions. A Rally fires in COMBAT, but the tavern
    *  buff is run state, so it can only reach the run through a carry-back like every other combat→run effect
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
@@ -1877,6 +1915,9 @@ export interface CombatResult {
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
+  /** Elderhorn refired in combat: extra fires for BEAST triggers (`hunt` → Rally/Slaughter, `ritual` → Echo).
+   *  Reads live for the REST of this fight too; settle stacks the player half into the run. */
+  playerBeastExtraGain?: { hunt: number; ritual: number };
   /** Permanent Undead AURA gained this combat (Watcher casting Lantern of Souls: +Attack/+Health to your
    *  Undead everywhere). Added to `undeadAttackBonus`/`undeadHealthBonus` in settleCombat — the same channel a
    *  shop-cast Lantern uses. Absent if 0/0. */
@@ -1940,6 +1981,10 @@ export interface CombatContext {
   /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
    *  recruit engine's `state.runeMatriarch` wrapper. */
   matriarchRepsFor(side: Side): number;
+  /** This side's active tribes (the run's generation pool filter), for tier/tribe-scoped random grants. */
+  activeTribesFor(side: Side): string[];
+  /** Bane's Existence widen for this side, if the quest is armed (owner ruling 2026-08-04). */
+  baneDemonWidenFor(side: Side): { attack: number; health: number } | undefined;
   /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */
   mammothHealthFor(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
@@ -2000,6 +2045,14 @@ export interface CombatContext {
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
    *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
   gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — a combat-refired "get N Rubies" Shout: the replay sees each Ruby fly to hand (`toHand`), and
+   *  settle mints them through the run's REAL `mintRubies` — rubyBonus baked in, Candle Conduit fired, hand
+   *  cap respected. Player-only (enemies have no hand). Carried back via `CombatResult.playerRubyMints`. */
+  mintRubies(count: number, side: Side, sourceUid?: string): void;
+  /** Rope Wrangler's Echo: draw one not-yet-taken MINION from this side's hand snapshot (uniform via the
+   *  combat rng), marking it consumed for this fight AND recording its uid for settle removal. Undefined when
+   *  the snapshot has no minion left (a spell-only or empty hand — clean no-op). */
+  takeRandomHandMinion(side: Side): { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean } | undefined;
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
    *  settle and the player sees nothing happen (owner report 2026-07-31). */
@@ -2038,7 +2091,7 @@ export interface CombatContext {
    *  Battlecry re-fired in combat (Ryme → Sea Urchin). Player-only. Picks the actual minion(s) now from the
    *  buyable pool (≤ tavern tier, active tribes, tribe-filtered, excluding `exclude`) and routes each through
    *  `grantToHand`, so the real card animates in. `sourceUid` is the granting minion. */
-  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string): void;
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
@@ -2053,6 +2106,10 @@ export interface CombatContext {
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;
+  /** Elderhorn's extra BEAST trigger fires. BOTH sides accumulate (the value reads live for the rest of the
+   *  fight — an enemy Elderhorn's Ritual must grow its own later Echoes too); only the player half carries
+   *  back via `CombatResult.playerBeastExtraGain`. */
+  gainBeastExtra(hunt: number, ritual: number, side: Side, sourceUid?: string): void;
   /** Watcher (casting Lantern of Souls): permanently raise the run-wide Undead aura by +attack/+health
    *  (player only) — the Lantern channel (`undeadAttackBonus`/`undeadHealthBonus`). Live for this fight's
    *  later summons + carried back via CombatResult.playerUndeadAuraGain. */

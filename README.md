@@ -44,6 +44,46 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance Report derived views** — Card Demand (Wilson intervals, revision-pooled), Gold Economy and Upgrade Timing now render in-app from the banked replay derivations.
+
+- **Rune batch** — Duplication + Summit fixed, all rune Avenge effects get live combat tallies on their badges, 5 missing forge previews, 2 text corrections, Epic Forge un-no-op'd for Runeguard.
+
+- **Live-text batch** — combat-granted card previews now show real-time values (spell power, Ruby strength), Orbit (N) cards get their counters, and Discover/end-screen/shop-slot surface gaps are closed.
+
+- **Rune of Resonance fixed + reworked** — the per-turn gate never reset (a bug class also hitting Gemscript); now first 2 Rubies double, 2 Rubies per turn, paid immediately on buy.
+
+- **Shop-phase perf slice 1** — seven per-action/per-frame costs cut (card-HTML memo, servedBoards clone carve-out, Set-indexed telemetry, idling End Turn loop); behaviour-identical, from the five-agent audit.
+
+- **MMR leaderboard unfrozen** — ratings now move through a narrow `submit_own_rating` RPC; since the accounts migration no write path had existed at all (requires running the new schema.sql section).
+
+- **Snapshot fidelity** — served boards now carry their owner's full combat context (Ruby strength, Wild Hunt growth, hand, card-type buffs, Elderhorn modes, tribes); a fidelity test diffs the round trip against the reducer's own builder so new scalers can't silently drop.
+
+- **Rune of Gemstorm fixed** — its Rubies now go through the real Ruby-play path, so Deepdelve Paragon doubles them (and Resonance Idol / Spellstone / Gemheart Carver see them too).
+
+- **Celestials tranche 2** — Astral Relay, Celestial Crucible, Constellation Broker and Orrery take Set 3 to 16 cards; Orbits can now be TRIGGERED with nothing arriving.
+
+- **Chicken Brawl's Charging Soldier charges again** — a duplicate `dw_soldier` CardDef was shadowing the one with the charge flag; one token now, plus a guard against shadowed duplicate ids.
+
+- **Hero armor rebalance** — 19 heroes get individually-dialled starting Armor (spread now 2-20; Robin drops to 2, Brackus to 11).
+
+- **Echohorn's Rally now detonates on the minion it procs, and hands over what it summoned.** Echohorn's
+  token pulses, then a shard burst over a triple shockwave fires at the ally whose Echo it triggers — and the
+  minions that Echo summons now appear *with* the burst instead of ahead of it. Once per proc, so a gilded
+  Echohorn shows two bursts and delivers one litter each. Fixing this uncovered that Rally effects had never
+  been able to play at all: a Rally is absorbed into its attacker's swing, so the binding that was supposed
+  to drive it could never be reached.
+- **A 16-item balance batch + fresh Set 2 art.** Tier/stat/cost tuning across five cards and five runes,
+  Water Dragon back to its spell-copy shape, Errand Fiend to a Rally Imp engine, Rope Wrangler's Echo now
+  summons (and spends) a random minion from your hand, Strange Revision works on Shop minions, Rubies count
+  for Rune of Distillation, reward cards (Goldcrafter, Triple Reward…) no longer count as spells or get
+  copied by spell-copy effects, and a new Dwarf — Chicken Brawl, whose Echo sends out a Charging Soldier
+  that attacks immediately. Plus ~150 re-wired Set 2 minion illustrations.
+- **The Effect Arena's Shout family is done** — every Shout now fires in combat when a disruptor (Ryme,
+  Dawnclaw, Funeral on Loan) re-triggers it: the legacy combat switch is deleted, 60 effects run one shared
+  body in both phases, and economy Shouts (card grants, Rubies, Gold, run enchants) resolve live and carry
+  back to the run at settle. Only pure tavern work (consume/gild/shop enchants) still waits for the shop.
+- **A Card Art tuner** — double-click any card in dev to grab its illustration and drag it into place,
+  wheel to zoom, ✗/✓ to discard or save. Plus hue/saturation/contrast, saved per card to a real file.
 - **Effects can now move the cards themselves.** A new `react` layer in the effects workshop animates the
   real card — the whole card, a stat badge, just the badge circle, or just the number — instead of drawing
   something on top of it. It can spread to neighbours or the whole board (rippling outward, sweeping across

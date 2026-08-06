@@ -5,7 +5,7 @@ import { z } from 'zod';
  * type in `@game/core` is the canonical compile-time shape; this schema guards
  * the *data* at load and is kept in lockstep with it.
  */
-export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf']);
+export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf', 'celestial']);
 
 export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
@@ -40,6 +40,7 @@ export const GameEventSchema = z.enum([
   'spellBought',
   'shopRefreshed',
   'orbit', // Celestial ORBIT — a card was played from hand adjacent to this minion
+  'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -101,6 +102,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnCopyNeighbour',
   'deathrattleSummonRandomTier',
   'summonImps',
+  'rallySummonImpBuffImps',
+  'deathrattleSummonRandomHandMinion',
   'rallyImpsAttackNow',
   'onTribePlayedConsumeShop',
   'avengeImproveSummonBuff',
@@ -134,7 +137,22 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
   'spellCastDemonConsumesShop', // Baal — every N spells, a friendly Demon eats a Shop minion
-  'orbitBuffArriver', // Celestial Orbit — buff the arriving minion
+  'orbitBuffArriver',
+  'orbitBuffRandomFriend',
+  'orbitSellValue',
+  'orbitBuffAlignedCelestials',
+  'orbitBuffLowest',
+  'orbitGrantSpellPower',
+  'orbitCastSpell',
+  'orbitCopyFirstSpell',
+  'onOrbitBuffShopRightmost',
+  'onOrbitBuffAll',
+  'onOrbitBuffShop',
+  'scGainKeyword',
+  'orbitGainArriverBonus', // Celestial Orbit — buff the arriving minion
+  'triggerAdjacentOrbits', // Celestial — trigger the Orbits either side of this minion
+  'orbitBuffCelestialsPerBuffStack', // Celestial Orbit — scale off the arriver's Shop-buff stacks
+  'orbitDevourArriver', // Celestial Orbit — destroy the arriver and hand on its bonus stats
   'orbitBuffSelf', //    Celestial Orbit — buff this minion
   'scBuffSelf', //       Celestial — SC self-gain (align-gated halves)
   'rallyBuffCelestials', //     Celestial — Rally: buff your Celestials
@@ -457,6 +475,8 @@ export const CardDefSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),
   targetTribe: TribeSchema.optional(),
+  orbitExtraAdjacent: z.boolean().optional(),
+  orbitExtraBoard: z.boolean().optional(),
   targetMaxTier: z.number().int().positive().optional(),
   targetNoGolden: z.boolean().optional(),
   targetNotSelf: z.boolean().optional(),
@@ -546,7 +566,7 @@ z.object({ kind: z.literal('tribeRallySlaughterExtra'), tribe: TribeSchema }).st
 z.object({ kind: z.literal('aleExtraCasts'), amount: z.number().int().positive().optional() }).strict(),
 z.object({ kind: z.literal('questGoldTribeBuff'), tribe: TribeSchema, per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('rubyStatGain'), attack: z.number().int(), health: z.number().int() }).strict(),
-z.object({ kind: z.literal('rubyExtraCasts'), amount: z.number().int().positive(), scope: z.enum(['always', 'firstEachTurn']) }).strict(),
+z.object({ kind: z.literal('rubyExtraCasts'), amount: z.number().int().positive(), scope: z.enum(['always', 'firstEachTurn']), firstN: z.number().int().positive().optional() }).strict(),
 z.object({ kind: z.literal('shopBuff'), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('shopBuffPerShouts'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('shopBuffOnRefresh'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
@@ -573,7 +593,7 @@ z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tr
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'demonEatsRightmostShop', 'grantFacetwright']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

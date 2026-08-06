@@ -1571,11 +1571,11 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
-  it("Ryme's trigger on Field Mechanic DEFERS its economy Battlecry to settle (it is not lost)", () => {
-    // The owner reported this as "it didn't proc". It does — just not during the fight. A Battlecry with no
-    // combat surface (adding a card to hand, gaining Gold) is recorded in `playerDeferredBattlecries` and
-    // re-fired through the real recruit factory at settle, which is where the Patch Job actually appears.
-    // Pinning it here so the deferral isn't mistaken for a dropped trigger again.
+  it("Ryme's trigger on Field Mechanic grants the Patch Job LIVE (no deferral — the switch is dead)", () => {
+    // History: the owner reported this as "it didn't proc"; the first fix DEFERRED the grant to settle and
+    // announced it with a hand-authored toHand log. Since battlecryGrantSpell became a live FACTORIES entry
+    // (2026-08-04) the named spell grants through the real combat channel — `grantToHand` emits the toHand
+    // event AND records `playerHandGrants`, the carry-back settle applies. Nothing defers, nothing is lost.
     const r = run(
       [
         { cardId: 'fieldmechanic', attack: 0, health: 100 },
@@ -1585,14 +1585,15 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.some((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text)), 'Ryme named it').toBe(true);
-    expect(r.playerDeferredBattlecries?.map((d) => d.cardId), 'and it is queued for settle, not dropped')
-      .toContain('fieldmechanic');
+    expect(r.playerHandGrants, 'granted live, carried back').toEqual(['patchjob']);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId) ?? [], 'nothing left to defer')
+      .not.toContain('fieldmechanic');
   });
 
   it("Ryme's trigger on Field Mechanic ANNOUNCES the Patch Job during the fight (owner report 2026-07-27)", () => {
-    // The deferral above is correct, but it left the replay silent: the card only appeared once combat was
-    // over, so its arrival FX played at the very end instead of on the Deathrattle beat. The economy branch
-    // now logs a `toHand` for a NAMED deferred grant so the replay can materialise it at the right moment.
+    // The original report: the card only appeared once combat was over, so its arrival FX played at the very
+    // end instead of on the Deathrattle beat. The live grant (through `grantToHand`) emits the toHand event
+    // at the moment of the trigger — the replay materialises it at the right beat, no hand-authored announce.
     const r = run(
       [
         { cardId: 'fieldmechanic', attack: 0, health: 100 },
@@ -1610,9 +1611,9 @@ describe('simulate (handoff A.3)', () => {
     const grantAt = r.events.findIndex((e) => e.type === 'toHand');
     expect(grantAt).toBeGreaterThan(death);
     expect(grantAt).toBeGreaterThanOrEqual(trigger);
-    // The announcement must NOT also grant it — the settle deferral stays the single source of truth.
-    expect(r.playerHandGrants, 'not double-granted').toBeUndefined();
-    expect(r.playerDeferredBattlecries?.map((d) => d.cardId)).toContain('fieldmechanic');
+    // Granted ONCE, through the live channel — no settle deferral to double it.
+    expect(r.playerHandGrants, 'granted live, exactly once').toEqual(['patchjob']);
+    expect(r.playerDeferredBattlecries?.map((d) => d.cardId) ?? []).not.toContain('fieldmechanic');
   });
 
   it('Ryme reaches PAST a corpse to the next living neighbour (owner report 2026-07-26)', () => {
@@ -1731,17 +1732,27 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
-  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Soulfeeder, Hoarder) — not the combat ones", () => {
+  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Nimbus) — not the combat ones", () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
-    // Soulfeeder = addTavernFodder (economy) — can't touch the tavern in pure combat, so it's recorded on
-    // playerDeferredBattlecries for the run loop to replay at settle (and the golden state rides along).
+    // Nimbus = battlecryDoubleNextSpell (banks a shop spell-cast charge) — genuinely shop-only, so it's
+    // recorded on playerDeferredBattlecries for the run loop to replay at settle (the golden state rides along).
+    // (Living Grimoire would NOT work here: battlecryArmGrimoire is in SILENT_ONPLAY — not a "Battlecry".)
+    const nim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100 }], omen, 1);
+    expect(nim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: false }]);
+    const goldNim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldNim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: true }]);
+    // Soulfeeder used to be THE defer example — it now schedules its Fodder LIVE through `scheduleFodder`
+    // (settle merges the array into fodderSchedule), so nothing defers for it either.
     const feed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100 }], omen, 1);
-    expect(feed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: false }]);
+    expect(feed.playerFodderSchedule).toEqual([1]);
+    expect(feed.playerDeferredBattlecries).toBeUndefined();
     const goldFeed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100, golden: true }], omen, 1);
-    expect(goldFeed.playerDeferredBattlecries).toEqual([{ cardId: 'feed', golden: true }]);
-    // Hoarder = battlecryBonusGoldNextTurn (economy) → also deferred.
+    expect(goldFeed.playerFodderSchedule).toEqual([2]);
+    // Hoarder = battlecryBonusGoldNextTurn — resolves LIVE through the `grantBonusGold` carry-back
+    // (settle adds it to bonusEmbersNextTurn), so nothing defers.
     const hoard = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'hoarder', attack: 0, health: 100 }], omen, 1);
-    expect(hoard.playerDeferredBattlecries).toEqual([{ cardId: 'hoarder', golden: false }]);
+    expect(hoard.playerBonusGold).toBe(1);
+    expect(hoard.playerDeferredBattlecries).toBeUndefined();
     // A combat-meaningful Battlecry (Sea Urchin's Discover) resolves IN the fight — never deferred.
     const urchin = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'seaurchin', attack: 0, health: 100 }], omen, 1);
     expect(urchin.playerDeferredBattlecries).toBeUndefined();
@@ -2451,7 +2462,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 5 fires (driven by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, growing +1/+1 per fire (owner ruling: the shop formula)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2461,15 +2472,14 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // Hunter's own grants, in order: it improves +1/+1 only every 5th fire (widened from every 3 in the
-    // 2026-07-21 balance pass), so the first five are +1/+1 and the sixth steps to +2/+2.
-    // Each fire emits one buff per OTHER living ally (2 here: Crypt Drake + the sandbag, nothing dies to the
-    // 0-Attack omen), so 5 fires = 10 grants of +1/+1 before the rate steps to +2/+2 on the 6th.
+    // OWNER RULING 2026-08-04 (the arena sweep's divergence list): the SHOP formula is the card — every fire
+    // grants (base + accrual) and then grows the accrual by base. So fire 1 = +1/+1, fire 2 = +2/+2,
+    // fire 3 = +3/+3… (the old combat-only every-5-fires step is retired, and `every` with it). Each fire
+    // emits one buff per OTHER living ally (2 here), so grants come in pairs of the same magnitude.
     const hunterUid = a.initial.player[0]!.uid;
     const grants = a.events.flatMap((e) => (e.type === 'buff' && e.source === hunterUid ? [e.attack] : []));
-    expect(grants.length).toBeGreaterThanOrEqual(11);
-    expect(grants.slice(0, 10)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
-    expect(grants[10]).toBe(2);
+    expect(grants.length).toBeGreaterThanOrEqual(6);
+    expect(grants.slice(0, 6)).toEqual([1, 1, 2, 2, 3, 3]);
   });
 
   it('Burial Imp: its Echo summons an Imp', () => {

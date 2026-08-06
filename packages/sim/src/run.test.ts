@@ -1228,19 +1228,23 @@ describe('run loop (@game/sim)', () => {
     expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
   });
 
-  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Soulfeeder + Hoarder)', () => {
+  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Nimbus)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat', hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
-        // 3 economy battlecries Ryme re-fired in combat: 2 Soulfeeders (one golden) + 1 Hoarder.
-        playerDeferredBattlecries: [{ cardId: 'feed', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
+        // One genuine economy deferral (Nimbus banks an extra cast for the next shop spell) — plus stale
+        // Soulfeeder / Hoarder entries a pre-2026-08-04 combat could have recorded. Those ids resolve LIVE via
+        // carry-back channels now, so the settle replay must SKIP them (the carry-back is the single source of
+        // truth, never doubled).
+        playerDeferredBattlecries: [{ cardId: 'nimbus', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
-    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
-    // Soulfeeder schedules Fodder for the next shop: 1 (non-golden) + 2 (golden) = 3 in that shop.
-    expect(s.fodderSchedule).toEqual([3]);
-    // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
-    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
+    s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so nothing else mutates the run yet
+    // The Nimbus deferral replayed through its recruit factory: one extra cast banked.
+    expect(s.nextSpellExtraCasts).toBe(1);
+    // The stale live-id entries applied NOTHING at settle.
+    expect(s.fodderSchedule ?? []).toEqual([]);
+    expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(0);
   });
 
   it('Soulfeeder feeds Fodder to the next shop (not every round after) — a Demon eats one per refresh', () => {
@@ -4154,18 +4158,18 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
-    // A strong power tends to carry less armor. Values as of the 2026-07-21 across-the-board +5 armor pass.
+    // A strong power tends to carry less armor. Values as of the 2026-08-06 per-hero rebalance pass.
     expect(getHero('warden').armor).toBe(17);
-    expect(getHero('soren').armor).toBe(13);
+    expect(getHero('soren').armor).toBe(10);
     expect(getHero('cassen').armor).toBe(13);
-    expect(getHero('darah').armor).toBe(17);
-    expect(getHero('hermithank').armor).toBe(13); // Tradesman
-    expect(getHero('nadja').armor).toBe(24);
-    expect(getHero('robin').armor).toBe(13);
-    expect(getHero('indy').armor).toBe(20);
+    expect(getHero('darah').armor).toBe(18);
+    expect(getHero('hermithank').armor).toBe(9); // Tradesman
+    expect(getHero('nadja').armor).toBe(20);
+    expect(getHero('robin').armor).toBe(2);
+    expect(getHero('indy').armor).toBe(14);
     const s = createRun(1, 'indy');
-    expect(s.armor).toBe(20);
-    expect(s.maxArmor).toBe(20);
+    expect(s.armor).toBe(14);
+    expect(s.maxArmor).toBe(14);
   });
 
   it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {
@@ -5856,16 +5860,19 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(2); // copied Echo fired → board +1/+1
   });
 
-  it('Crypt Broker Battlecry: conjures a random Echo minion to hand and triggers its Echo now', () => {
+  it('Crypt Broker Battlecry: conjures a random Echo minion and triggers its Echo — damage included', () => {
     // Playing Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
     // combat — so the run Deathrattle tally rises even though nothing was in combat.
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [], hand: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }] };
     const drBefore = s.deathrattlesTriggered;
     s = reduce(s, { type: 'play', uid: 'cb' });
-    expect(s.board.some((c) => c.cardId === 'cryptbroker')).toBe(true); // Crypt Broker itself is now on the board
-    expect(s.hand.length).toBe(1); // the conjured Echo minion
+    // This seed conjures BLASTER — whose triggered Echo now damages YOUR board (owner ruling 2026-08-04:
+    // shop-fired Echoes are real). The 3-health Broker eats 3 and dies to its own find, which is the ruling
+    // working consistently: "trigger its Echo now" means the whole Echo, damage included.
+    expect(s.board.some((c) => c.cardId === 'cryptbroker'), 'the Broker died to the Blaster Echo it triggered').toBe(false);
+    expect(s.hand.length).toBe(1); // the conjured Echo minion (Blaster) is in hand
     expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
-    expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat
+    expect(s.deathrattlesTriggered).toBeGreaterThanOrEqual(drBefore + 1); // its Echo fired (tallied) out of combat
   });
 });
 

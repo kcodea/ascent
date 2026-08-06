@@ -65,6 +65,20 @@ The five buckets below are ordered by when we intend to act, not by size:
   floats, deliberately left alone because the sprinkle reading *around* the pill is arguably correct. Decide
   whether it should be portalled too, or leave it.
 
+- **Re-watch Echohorn's Rally on a gilded proc, and decide what `rally-link` is for.** Two rounds of owner
+  notes shipped 2026-08-05 — the retune (pulse-then-link, beat 50→120, longer ring hold) and `summonHold`
+  (the sparkle now delivers the cubs instead of trailing them) — and NEITHER has been watched together in a
+  live fight. Best single test: a gilded Echohorn into a Manasaber, which exercises the double proc, the
+  120ms beat and one litter per sparkle at once. `speed`/`fade` on the shockwave layer are the dials if it
+  still isn't holding long enough. Separately: `rally-link` is now an authored def with nothing bound to it
+  — either author it onto specific ralliers (Deathsayer and Broodlord are the obvious candidates) or delete
+  it, but don't leave it looking wired.
+
+- **`summonHold` is wired to Rally only.** Any other effect that delivers a summon has the same early-cub
+  problem — the frame commits the unit when its moment becomes current, whatever procced it. The module is
+  generic (hold a uid, release a uid); what is Rally-specific is `boundRalliesIn`, which decides WHICH units
+  to withhold. A second adopter wants its own resolver alongside it, not a change to the module.
+
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
   Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
   onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.
@@ -253,20 +267,37 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-### Effect Arena — one implementation per effect, both phases (spec written 2026-08-04)
-Scoped in [`effect-arena-spec.md`](effect-arena-spec.md); **starting when the weekly resets.** Every few
-sessions a card turns out to do nothing in one phase — Lastlight from a Funeral on Loan, Geode Guardian's
-Echo, Imp Overseer under Ryme, Frenzied Excavator beside Dawnclaw. That is one defect with ~59 live instances
-and an unbounded supply of future ones, because nothing in the build knows an effect is missing a phase.
-Measured: 285 effect ids in content, only **40 with both halves**.
+### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
+steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared
+arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
+`COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a
+carry-back channel resolves live (two new channels added: `mintRubies`, `gainBeastExtra`); the remaining
+defer class is pure tavern work (consume/gild/shop-enchant/run-charge arms — no combat meaning).
 
-The plan is NOT to write the ~240 missing halves — that industrialises the drift bug the 40 both-halves ids
-already have (two implementations of "play N Rubies" had silently diverged). It is an `EffectArena` interface
-each effect is written against ONCE, with a `CombatArena` and a `ShopArena` adapter, phase-specific verbs
-behind capability probes. Phase 0 (a build-time declaration test, so no NEW instance can ship) is worth doing
-on its own. **Gate: a one-day RNG spike before Phase 1** — recruit advances `state.rngCursor`, combat threads
-a forked `Rng`, and abstracting that without changing draw order is the one thing that could sink the plan.
-Also unlocks what is currently impossible: firing Start of Combat / Rally / Avenge during the shop phase.
+**PARKED by owner ruling 2026-08-04** (*"we don't need to design any cards yet, I just wanted this
+future-proofed… and to make sure our shout/echo combat/shop triggering is clean, cause that happens a lot"*):
+the goal is met — Shout/Echo cross-phase triggering is clean and the arena pattern exists for anything new.
+The Rally / End of Turn / Start of Combat body migrations + step 4 dispatchers resume ON DEMAND, i.e. when a
+card/mechanic actually triggers one of those families cross-phase; migrate that family (or just the bodies
+involved) using the established motion at that moment, not speculatively. The owner's
+goal verbatim: *"all keywords to function in combat and shop… I do not want to have to hand select these
+methods and then wire the methods to every shout."* The load-bearing case is the DISRUPTOR class — Funeral on
+Loan / Dawnclaw today, Rally/EoT/SoC disruptors and brand-new mechanics next — which must reach every effect
+without per-card wiring.
+
+Simplified 2026-08-04 after owner pushback: **no declaration registry, no allowlist.** One `EffectArena`
+interface each effect is written against ONCE; `CombatArena`/`ShopArena` adapters; runtime probes make the
+exceptions self-handling (needs-shop-in-combat defers to settle automatically, needs-combat-in-shop no-ops).
+A ratchet test (unmigrated count may only fall) replaces all labelling.
+
+**Steps:** 1 RNG spike (1d, GATES everything) → 2 arena + adapters (2d) → 3 migrate by TRIGGER FAMILY
+(the 42 duals first, then Echo → Shout → Rally/EoT/SoC; ~2–3 weeks PR-batched, each family becomes fully
+disruptable as it lands) → 4 per-family cross-phase dispatchers, each shipped with one real consumer card.
+
+Watch for: the `core`-cannot-import-`RunState` boundary (the ~160 shop factories migrate out of `recruit.ts`,
+a declared collision chokepoint — serialise with Mike), and permanence becoming an explicit per-effect
+argument during migration.
 
 ### Henchmen — the roster + real presentation (system shipped 2026-08-03)
 The mechanic is wired end-to-end (hero link, win/loss cost decay, once-per-run recruit, placeholder chip in
@@ -832,6 +863,14 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 ## Public Release
 
 The hardening gate before ASCENT faces a public (non-friend-scale) audience.
+
+- **Decide whether `main` should actually be protected.** It is not, and apparently never has been: no
+  classic branch protection (the API 404s) and no rulesets — verified 2026-08-05, when a
+  `gh pr merge --squash` went straight through with no review, against a CLAUDE.md line asserting that was
+  impossible. The repo is already public, so a stray force-push or a merge of a red PR is a real exposure
+  rather than a hypothetical. A ruleset on `main` requiring a PR plus the `verify` check would close it in
+  about a minute. **Deliberately not configured unilaterally — repo settings are the owner's call**, and the
+  docs now describe the actual state either way (see CLAUDE.md, "`main` is always playable").
 
 - **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
   (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when

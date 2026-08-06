@@ -11,8 +11,8 @@ const EVENT_VERB: Partial<Record<QuestObjectiveEvent, string>> = { play: 'Play',
 const EVENT_NOUN: Partial<Record<QuestObjectiveEvent, string>> = { play: 'minions', sell: 'minions', roll: 'times', shout: 'Shouts' };
 
 /** Plural tribe noun for objective text ("Summon 4 Undead"). Undead is invariant. */
-const TRIBE_PLURAL: Record<Tribe, string> = { beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs', demon: 'Demons', neutral: 'minions', kobold: 'Kobolds', dwarf: 'Dwarves' };
-const TRIBE_SINGULAR: Record<Tribe, string> = { beast: 'Beast', dragon: 'Dragon', undead: 'Undead', mech: 'Mech', demon: 'Demon', neutral: 'minion', kobold: 'Kobold', dwarf: 'Dwarf' };
+const TRIBE_PLURAL: Record<Tribe, string> = { beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs', demon: 'Demons', neutral: 'minions', kobold: 'Kobolds', dwarf: 'Dwarves', celestial: 'Celestials' };
+const TRIBE_SINGULAR: Record<Tribe, string> = { beast: 'Beast', dragon: 'Dragon', undead: 'Undead', mech: 'Mech', demon: 'Demon', neutral: 'minion', kobold: 'Kobold', dwarf: 'Dwarf', celestial: 'Celestial' };
 /** Display name for a `grant.randomFilter` minion class ("a random Echo minion"). */
 const FILTER_NAME: Record<'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', string> = { shout: 'Shout', endOfTurn: 'End of Turn', echo: 'Echo', rally: 'Rally', attachment: 'Attachment' };
 /** Keyword → its Sunward display name (for "a Badgington with Flurry and Ward"). */
@@ -146,6 +146,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   grantAles: 'End of Turn: get 2 Dwarven Ales',
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
   grantRuby: 'End of Turn: get a Ruby',
+  grantRuby2: 'End of Turn: get 2 Rubies',
   grantFacetwright: "Start of every turn: get a Facetwright's Choice",
   demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
 };

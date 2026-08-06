@@ -33,5 +33,18 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     fodderConsumedAtk: snap.fodderConsumed?.attack ?? 0, // enemy Abhorrent Horror
     fodderConsumedHp: snap.fodderConsumed?.health ?? 0,
     questMods: snap.questMods ?? {}, // enemy runes/quests reproduced in combat
+    // The 2026-08-06 audit closed eight dropped scalers (owner report: a served Gemstorm played 1/1 Rubies
+    // because the board's +16/+16 rubyBonus never travelled). `snapshotFidelity.test.ts` now diffs this
+    // builder against the reducer's own player-side context, so a scaler added there without a snapshot
+    // field + a line here fails a test instead of silently weakening every served board.
+    rubyBonus: snap.rubyBonus ?? { attack: 0, health: 0 }, // enemy Ruby strength (Gemstorm / Geode / Conduit)
+    wildHuntGrown: snap.wildHuntGrown ?? 0, // enemy Rune of the Wild Hunt resumes where it grew to
+    cardsBoughtThisTurn: snap.cardsBoughtThisTurn ?? 0, // enemy Frenzied Excavator
+    cardBuffs: snap.cardBuffs ?? {}, // enemy run-wide card-type buffs (sizes mid-fight tokens)
+    handSpellIds: snap.handSpellIds ?? [], // enemy Vault Curator
+    handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
+    beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
+    beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)
+    tribes: snap.tribes ?? [], // captured since v1 but never threaded — tribe-scoped random grants read it
   });
 }

@@ -3,6 +3,40 @@
 
 
 
+## 2026-08-06 — Snapshot fidelity audit: eight run-level scalers were not travelling with served boards
+
+Owner report, part two: "I played a board that I know for a fact the gems were +16/+16 and the Rune of
+Gemstorm only buffed the Kobold +2/+2." Exactly right — the served board's `rubyBonus` never travelled, so
+its Gemstorm played two bare 1/1 Rubies. A full field-by-field audit of the snapshot pipeline (the reducer's
+player-side `CombatSideState` builder is the ground truth; `snapshotBoard` -> `sideFromSnapshot` is the round
+trip) found EIGHT dropped scalers:
+
+1. `rubyBonus` — the reported hole (Gemstorm / Geode Guardian / Candle Conduit / Frenzied Excavator Rubies)
+2. `wildHuntGrown` — a served Rune of the Wild Hunt restarted its escalation at 0
+3. `cardsBoughtThisTurn` — Frenzied Excavator's Start-of-Combat Ruby scaler read 0
+4. `cardBuffs` — run-wide card-type buffs; the owner's tokens summoned MID-FIGHT arrived unbuffed
+5. `handSpellIds` — a served Vault Curator copied nothing
+6. `handMinions` — a served Rope Wrangler / Water Dragon had no hand to reach into
+7. `beastHuntExtra` / 8. `beastRitualExtra` — Elderhorn's extra Beast triggers were lost
+   (+ `tribes`, captured since v1 but never threaded into the rebuilt side — tribe-scoped grants read it)
+
+All are now captured in `snapshotBoard` (omit-when-zero, so plain boards stay lean) and threaded in
+`sideFromSnapshot`. Back-compatible both ways: legacy snapshots read the new fields as 0 — their true value —
+and the Supabase pipeline stores the snapshot as whole jsonb with no allowlist, so nothing needed migrating.
+
+The structural half is `snapshotFidelity.test.ts`: it stages one RunState with every scaler at a distinctive
+value, pulls the player-side context out of the REDUCER'S OWN builder (via `faceOmen`'s stashed `oddsInput`),
+and diffs it key-by-key against the snapshot round trip. Iterating the builder's real key set is the point —
+a NEW scaler added to the reducer fails the test until it is captured + threaded (or added to the documented
+player-only exclusion list: `poolIds`, `pendingQuests`). This is how the class of bug dies, not just the
+instance.
+
+Follow-up for the owner: baked pool boards (`opponentPool.data.ts`) and previously-uploaded remote boards
+predate these fields and serve at 0 — re-run `npm run pool` / let fresh uploads accumulate to repopulate at
+full fidelity.
+
+Verified: typecheck / lint (7-warning baseline) / 4005 tests (2 new) / harness determinism / build:web.
+
 ## 2026-08-06 — Rune of Gemstorm now PLAYS its Rubies (Deepdelve Paragon was not amplifying them)
 
 Owner report: Deepdelve Paragon wasn't doubling the Rubies the Rune of Gemstorm plays. It wasn't — and the

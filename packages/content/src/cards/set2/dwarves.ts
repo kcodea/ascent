@@ -289,7 +289,7 @@ export const SET2_DWARVES: CardDef[] = [
   },
 ];
 
-/** Anvilshade Smith's token. */
+/** The Charging Soldier — the token BOTH Anvilshade Smith and Chicken Brawl summon. */
 export const SET2_DWARF_TOKENS: CardDef[] = [
   {
     id: 'dw_soldier',
@@ -300,8 +300,14 @@ export const SET2_DWARF_TOKENS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [],
+    // The charge lives on the TOKEN, not on the summoning effect. Anvilshade's factory
+    // (`echoSummonInheritAttackAndCharge`) also forces it via `attackNow`, which is the same single deferred
+    // strike — but Chicken Brawl summons through the plain `deathrattleSummon` factory, which has no such
+    // lever and relies entirely on this flag. It was missing until 2026-08-06, so Chicken Brawl's soldier
+    // just joined the back of the rotation instead of swinging (owner report).
+    attackOnSummon: true,
     token: true,
-    text: '',
+    text: 'A 3/1 Dwarf that attacks immediately when summoned.',
   },
 ];
 

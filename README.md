@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Chicken Brawl's Charging Soldier charges again** — a duplicate `dw_soldier` CardDef was shadowing the one with the charge flag; one token now, plus a guard against shadowed duplicate ids.
+
 - **Hero armor rebalance** — 19 heroes get individually-dialled starting Armor (spread now 2-20; Robin drops to 2, Brackus to 11).
 
 - **Echohorn's Rally now detonates on the minion it procs, and hands over what it summoned.** Echohorn's

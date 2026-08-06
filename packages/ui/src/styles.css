@@ -7124,3 +7124,30 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .cardart-edit-btn.cancel { left: -14%; background: #ef5f5f; color: #2a0c0c; }
 .cardart-edit-btn.ok { right: -14%; background: #55d15a; color: #10240f; }
 .cardart-edit-btn:hover { filter: brightness(1.12); }
+
+/* ── CELESTIAL ALIGNMENT ARC (owner look 2026-08-06) ─────────────────────────────────────────────────────
+   A luminous crescent beneath each Celestial: Dawn amber, Eclipse pink, Dusk periwinkle. A CHILD of the card
+   (not a separate canvas) so every movement — drags, row slides, pop-ins — is inherited for free; only the
+   colour comes from board position.
+
+   The whole look is three ring bands (feathered bloom / crisp core / white highlight) COMPOSED IN TS as
+   radial-gradient strings (`--aa-grad-*`, see alignArcConfig.ts), because the band math needs px→% stop
+   conversion the CSS can't do. No `filter: blur()` anywhere — softness is gradient stops — and nothing here
+   animates: alignment changes swap the class, and that's a one-shot repaint of one small element. */
+.alignarc {
+  position: absolute;
+  left: 50%;
+  /* The element's top edge sits ON the ellipse's centre line, so only the ring's lower half is visible —
+     the arc. `--aa-y` slides that origin relative to the card's bottom edge. */
+  top: calc(100% + var(--aa-y, 18px) - var(--aa-h, 45px));
+  width: var(--aa-w, 85%);
+  height: var(--aa-h, 45px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0; /* behind the card face; the frame conceals the ring's top */
+  opacity: var(--aa-op, 1);
+  background-repeat: no-repeat;
+}
+.alignarc.aa-dawn { background-image: var(--aa-grad-dawn, none); }
+.alignarc.aa-dusk { background-image: var(--aa-grad-dusk, none); }
+.alignarc.aa-eclipse { background-image: var(--aa-grad-eclipse, none); }

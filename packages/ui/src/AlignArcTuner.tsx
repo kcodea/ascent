@@ -9,8 +9,9 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * DEV tuner for the CELESTIAL ALIGNMENT ARC — the luminous crescent beneath each Celestial (Codex handoff,
  * 2026-08-05), replacing the horizon-strip tuner.
  *
- * Unlike the CSS tuners there are no `var(--…)` fallbacks to mirror: a PIXI layer reads these values
- * directly, so the config DEFAULTS are the whole contract. Shipping a look = paste the JSON in there.
+ * The arc is a card-child styled by `--aa-*` vars whose gradient strings are composed in alignArcConfig.ts,
+ * so shipping a look = paste the JSON into that file's DEFAULTS (the fallbacks in styles.css are geometry
+ * only — the gradients have no CSS mirror to drift from).
  *
  * You need a Celestial on the board to see anything — Scene Builder -> Set 3, and a 3-wide board shows all
  * three states at once (Dawn / Eclipse / Dusk), which is the arrangement to dial against.
@@ -24,7 +25,7 @@ const SPECS: Record<keyof AlignArcConfig, [string, TunerUnit | undefined, string
   depth:          ['Depth', 'px', 'How far the curve dips below its ends — the crescent shape.', 'Arc'],
   y:              ['Y position', 'px', "Distance from the card's bottom edge. Positive is down.", 'Arc'],
   glowStroke:     ['Glow stroke', 'px', 'The thick blurred stroke that makes the bloom.', 'Bloom'],
-  blur:           ['Blur strength', undefined, 'Shared by every arc — one filter for the whole board.', 'Bloom'],
+  blur:           ['Feather', 'px', 'Softness of the bloom band edges (gradient stops, not a filter).', 'Bloom'],
   glowAlpha:      ['Glow opacity', 'opacity', 'Strength of the bloom.', 'Bloom'],
   coreStroke:     ['Core stroke', 'px', 'The saturated, readable alignment line.', 'Line'],
   coreAlpha:      ['Core opacity', 'opacity', 'Strength of the readable line.', 'Line'],

@@ -3,48 +3,51 @@
 
 
 
-## 2026-08-06 — The Celestial ALIGNMENT ARC ships (Codex handoff): a luminous crescent per minion
+## 2026-08-06 — The Celestial ALIGNMENT ARC ships: a luminous crescent ATTACHED to each minion
 
-The Codex Pixi handoff, built and dialled: each Celestial wears a narrow luminous crescent beneath its frame
-— Dawn amber, Eclipse pale teal, Dusk deep navy — drawn into the under-card Pixi slot, replacing both the
-horizon strip AND the interim CSS pool-of-light. The shipped look is the owner's own dial-in (2026-08-06),
-verbatim: highlight off (it read as noise at this size), the bloom carrying the colour, and a near-black Dusk
-that only works because blending is PLAIN alpha — the handoff's additive blend clipped everything toward
-white on the light stone board and was dropped on the evidence.
+Each Celestial now wears a narrow luminous crescent beneath its frame — Dawn amber, Eclipse pink, Dusk
+periwinkle — replacing both the horizon strip and the interim CSS pool-of-light. The shipped look is the
+owner's own dial-in (2026-08-06, second pass), verbatim.
 
-Architecture, per the handoff plus what the codebase demanded:
-- `alignmentArcSync.ts` — the reconciler, PURE and split from Pixi (pixi.js touches `document` at import, so
-  it cannot even load in the node test env). 8 tests pin the handoff's list: nodes created / reused across
-  syncs / destroyed on removal, geometry redrawn only on width change, tint+emphasis updated in place,
-  reorder moves nodes by uid rather than rebuilding.
-- `alignmentArcLayer.ts` — the thin Pixi adapter: three strokes per arc (blurred bloom / readable core / 1px
-  highlight), ONE shared BlurFilter for the whole board, colours from the configurable palette.
-- `AlignmentArcs.tsx` — the React seam: rects from a `getBoundingClientRect` sweep on board change + resize,
-  never per frame; a one-shot updater wakes the idling under-canvas after each changed sync, so the idle
-  board never holds a permanent update loop. Arcs stand down in combat until the locked-alignment read is
-  wired (better absent than wrong — deaths must not re-centre the displayed alignment).
-- The Alignment Glow tuner is replaced by an ALIGNMENT ARC tuner (width/depth/Y, bloom, line, colours,
-  emphasis). No CSS-var mirror to keep in step — the Pixi layer reads the config directly.
+This landed in TWO architectures inside one PR, and the pivot is the story. The first cut was the Codex
+handoff's Pixi layer: arcs drawn on the under-card canvas, positioned by `getBoundingClientRect` sweeps on
+board change. It looked right standing still and could never look right in motion — the owner's field
+reports ("they hate moving around… they still hate being moved") were structural, not a timing bug to patch:
+a drag, a row slide, a pop-in all move the DOM card AFTER the canvas measured it, so the canvas only ever
+knows where cards WERE. Measuring twice (rAF + settle) narrowed the window and the window still existed.
+The owner named the fix: "the lines should maybe be attached to the minions and shift color based on their
+position" — and that is exactly the shipped design:
 
-The owner's field report ("they hate moving around… then if I click something else they reconfigure in
-place") was a measurement-timing bug: rects were taken ONE FRAME after the board changed, while the row was
-still mid-slide, pinning every arc to where its card WAS — and any later re-render fixed them, which is
-exactly the click behaviour observed. The sync now measures TWICE — once immediately (no full-beat lag) and
-once after the row's transitions settle (480ms) — still never per frame. The stray green line from the same
-report was a debugging probe left in from the previous session's WIP; every probe is now stripped and a grep
-for `console.` across the three files is clean.
+- The arc is a CHILD OF THE CARD (`.alignarc`, first child of `Card`, behind the opaque frame that conceals
+  the ring's upper half). Every movement — drags, FLIP slides, pop-ins — is inherited for free; there is no
+  measurement, no canvas, no reconciler. Only the COLOUR derives from board position: `Recruit` computes
+  `alignmentsOf(board)` once per render (gated on `boardHasCelestial`, so an ordinary board computes and
+  renders nothing) and passes `align` per card; a re-centre is a class swap — a one-shot repaint of one
+  small element, nothing animates.
+- What Pixi bought (a real BlurFilter bloom) is reproduced with three stacked radial-gradient ring bands on
+  one ellipse — feathered bloom / crisp core / white highlight — composed as strings in `alignArcConfig.ts`
+  (the band math needs px→% stop conversion) and reflected onto `--aa-grad-*` vars; the CSS is a dumb
+  `background-image: var(…)`. No `filter: blur()` anywhere — softness is gradient stops — which is also
+  cheaper than the shared BlurFilter it replaces.
+- The Alignment Arc tuner survives unchanged in shape: the dials keep their Pixi-era names and localStorage
+  key on purpose, so the owner's saved configs carry over (`blur` now feathers the bloom band's edges).
+- Deleted with the pivot: `alignmentArcLayer.ts`, `alignmentArcSync.ts` (+ its 8 reconciler tests),
+  `AlignmentArcs.tsx`. The under-card Pixi slot itself stays — other effects use it.
+- Recruit-phase only for now: alignment locks at combat start, and until the locked read is wired the arcs
+  stand down in combat rather than showing a value deaths would falsify.
 
-Honest debugging note for the record: the previous session concluded "sync-added graphics never render" after
-ruling out mount/z-order/blend/occlusion. The arcs in fact render fine in a real browser — the dev-preview
-pane's ~2fps rAF throttle (a known environment limit, see 2026-08-04) made every staged verification look
-like a rendering failure. The session's real contributions were the StrictMode layer-lifetime fix and the
-blend finding; the "unexplained" part was the observation tool.
+Also from the field reports: the stray green line was a debugging probe left in from the previous session's
+WIP (stripped, `console.` grep clean). And an honest note for the record: that session concluded
+"sync-added graphics never render" after ruling out mount/z-order/blend/occlusion — the arcs in fact
+rendered fine in a real browser; the dev-preview pane's ~2fps rAF throttle (known limit, see 2026-08-04)
+made every staged verification look like a rendering failure.
 
-Left for follow-up slices: the drag preview (hypothetical alignment at the candidate gap, updating only when
-the gap index changes) and the combat locked-alignment read.
+Left for follow-up slices: the drag preview (hypothetical alignment at the candidate gap — the `emphasis`
+dial is reserved for it) and the combat locked-alignment read.
 
-Verified: typecheck / lint (7-warning baseline) / 4000 tests (8 new) / harness determinism / build:web; look
-+ behaviour confirmed by the owner in their own browser.
+Verified: typecheck / lint (7-warning baseline) / 4002 tests / harness determinism / build:web; live DOM
+check — five staged Celestials each render an attached arc with correct colours, and a real `reposition`
+dispatch moved a card with its arc attached, colour flipping dawn→dusk as the centre shifted.
 
 ## 2026-08-05 (card-art pass 2 — 27 more cards)
 

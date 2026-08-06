@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -53,7 +53,6 @@ import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { AlignmentArcs } from './AlignmentArcs';
 import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -3074,6 +3073,15 @@ export function Recruit() {
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
   // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
   const displayBoard = run.board;
+  // CELESTIAL alignment, one read per render, shared by every board card below. Gated on a Celestial being
+  // present so an ordinary board computes nothing. The arc itself is a CHILD of each card (see Card.tsx), so
+  // this only decides the COLOUR — position is the card's own business, which is what fixed "they hate being
+  // moved" (owner 2026-08-06). Recruit-phase only: alignment locks at combat start, and until the locked
+  // read is wired the arcs stand down in combat rather than showing a value deaths would falsify.
+  const boardAligns = useMemo(
+    () => (boardHasCelestial(displayBoard) ? alignmentsOf(displayBoard) : undefined),
+    [displayBoard],
+  );
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = run.shop;
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
@@ -4030,9 +4038,6 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        {/* CELESTIAL alignment ARCS — a luminous crescent beneath each Celestial, drawn into the under-card
-            Pixi slot (see AlignmentArcs). Renders nothing at all without a Celestial on the board. */}
-        <AlignmentArcs />
         <div className="row warband">
           {inCombat ? (
             replay.visibleFrame.player.map((u) => (
@@ -4056,6 +4061,7 @@ export function Recruit() {
                       slot holds the row width — no re-centre jerk on pickup. */}
                   <Card
                     uid={m.uid}
+                    align={boardAligns?.[i]}
                     slideDir={boardSlide(i)}
                     dimmed={isDragging(m.uid)}
                     card={boardViews.get(m.uid)!}

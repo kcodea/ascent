@@ -591,6 +591,8 @@ export function simulate(
       // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
       if (side === 'player') bumpDeathrattles(1);
     },
+    // The one Echo-multiplier read, shared with the Rally-proc factories (see the CombatContext doc).
+    echoExtras: (minion) => playerEchoExtras(minion),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a

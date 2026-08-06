@@ -2037,6 +2037,15 @@ export interface CombatContext {
   /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
    *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
   countDeathrattle?(side: Side): void;
+  /** How many EXTRA times `minion`'s Echo fires, from every Echo multiplier that side has — Sylus / Uron
+   *  (card-data driven), Elderhorn's Beast Ritual, Funeral Engine's `echoExtraAlways`, Grave Contract's
+   *  first-Echo bonus. THE canonical read: `simulate` uses it for real deaths, and the Rally-proc factories
+   *  (Echohorn, Deathsayer) now use the same one instead of their own partial views — Echohorn consulted NO
+   *  multiplier at all (Sylus contributed exactly zero through it) and Deathsayer hardcoded a `cardId ===
+   *  'sylus'` scan that silently dropped Zyff / Funeral Engine / Elderhorn / Grave Contract.
+   *  NOTE: this CONSUMES the once-per-combat first-Echo bonus, which is correct — a proc'd Echo is an Echo
+   *  firing — so call it once per proc batch, not speculatively. */
+  echoExtras?(minion: Minion): number;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;

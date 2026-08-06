@@ -384,13 +384,22 @@ function tokenRefView(
 function conjuredView(cardId: string, run: RunState): CardView | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  // `run.rubyBonus` is load-bearing here: `tokenRefView`'s Ruby branch prints base 1/1 without it, so a Ruby
-  // granted DURING combat flew to hand reading 1/1 and then snapped to its real value at settle (owner report
-  // 2026-08-04). The hover path at the `refViewsByUid` call site always passed it; these preview paths didn't.
-  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, undefined, run.rubyBonus);
-  // Spells have no stats to aura — tokenRefView's view is already right for them.
+  // FULLY LIVE (owner report 2026-08-06: "combat granted spells do not show current values until after
+  // combat"). This builder used to pass `undefined` for the live spell state, so tokenRefView fell through
+  // to the STATIC def text — every spell-power-scaled grant (Growth, the Ales, Staff of Guel, …) and every
+  // scaling granted minion flew in at base and snapped live only at settle. Rubies alone were fixed this way
+  // on 2026-08-04 (`run.rubyBonus` below); this finishes the job for everything else.
+  const spellLive = {
+    a: spellAttackBonus(run), h: spellHealthBonus(run),
+    ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus,
+    goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
+  };
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus);
+  // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
   if (def.spell) return base;
-  return { ...base, ...conjuredStats(run, def) };
+  // A granted MINION reads like a shop offer of itself: the full live-text chain, not the printed base.
+  const lt = liveCardText(cardId, offerLiveTextParams(false, liveOptsFromRun(run)));
+  return { ...base, text: lt.text, ...conjuredStats(run, def) };
 }
 
 interface ShopViewOpts {
@@ -445,12 +454,36 @@ interface ShopViewOpts {
   rubyBonus?: { attack: number; health: number };
   /** Whether this run can actually reach Tier 7 — Beyond the Summit only promises it when true. */
   tier7Access?: boolean;
+  /** The run's tavern tier — Lantern Light's shop-slot text scales with it (audit 2026-08-06: the slot was
+   *  the ONE surface not passing it, so the spell read base there and live everywhere else). */
+  tier?: number;
+}
+
+/** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
+ *  player does NOT own yet (hand-grant fly-ins, Discover options). One builder so no surface can drop a
+ *  field again: the 2026-08-06 audit found the grant previews passing NOTHING (static def text until combat
+ *  settled — the owner's report) and Discover passing 11 of 30 params. */
+function liveOptsFromRun(run: RunState): ShopViewOpts {
+  return {
+    cardBuffs: run.cardBuffs, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered,
+    spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold,
+    impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn,
+    spellBonus: spellAttackBonus(run), spellBonusH: spellHealthBonus(run),
+    frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
+    goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
+    squirlScoutBuff: run.squirlScoutBuff,
+    lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
+    firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
+    lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
+    topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),
+    tier: run.tier,
+  };
 }
 
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
 function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
   return {
-    tier: 1, golden,
+    tier: o.tier ?? 1, golden,
     spellBonus: o.spellBonus ?? 0, spellBonusH: o.spellBonusH ?? o.spellBonus ?? 0, frontToBackBonus: o.frontToBackBonus ?? 0,
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
@@ -472,7 +505,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const cost = Math.max(0, base - (opts.spellCostMod ?? 0));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never }),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier }),
       cost, costChanged: cost < base, spell: true,
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
@@ -4498,11 +4531,14 @@ export function Recruit() {
                 const c = CARD_INDEX[id];
                 // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
                 // same live-text chain the shop + board use.
+                // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
+                // dozen scaling cards read base only in Discover). Built by the same builders as every other
+                // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
                 const lt = liveCardText(c.id, {
-                  tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
-                  spellsThisTurn: run.spellsThisTurn, spellsCast: run.spellsCast, deathrattlesTriggered: run.deathrattlesTriggered,
-                  clingEnchant: run.cardBuffs?.cling, fodderConsumed: run.fodderConsumedThisTurn,
-                  undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff,
+                  ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
+                  runeMammoth: !!run.questFlags?.runeMammoth,
+                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+                  maxTier: maxTierFor(run.rift),
                 });
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Live-text batch** — combat-granted card previews now show real-time values (spell power, Ruby strength), Orbit (N) cards get their counters, and Discover/end-screen/shop-slot surface gaps are closed.
+
 - **Rune of Resonance fixed + reworked** — the per-turn gate never reset (a bug class also hitting Gemscript); now first 2 Rubies double, 2 Rubies per turn, paid immediately on buy.
 
 - **Shop-phase perf slice 1** — seven per-action/per-frame costs cut (card-HTML memo, servedBoards clone carve-out, Set-indexed telemetry, idling End Turn loop); behaviour-identical, from the five-agent audit.

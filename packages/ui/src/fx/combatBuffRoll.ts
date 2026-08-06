@@ -93,8 +93,13 @@ export function advanceRollProgress(prevProgress: number, dtMs: number, rollMs: 
  * store's TTL, never a stale or invented one. (`useCombatReplay`'s combat-lifetime roll registry calls the
  * returned cancel AND releases the hold outright on teardown/re-seek, so that fail-open path is a backstop,
  * not the only guarantee — see the registry's own comment.)
+ *
+ * `onComplete`, if given, fires once — the moment `progress` naturally reaches 1, before the last frame's
+ * `revealStat`. Optional and additive (fix round 1, Finding 4): `useCombatReplay`'s registry uses it to prune
+ * its own entry for a roll that finished on its own, so completed rolls don't sit in that map for the rest of
+ * the fight. Nothing else needs it — callers that don't pass it see identical behavior to before.
  */
-export function driveRoll(uid: string, rollMs: number, speedGetter: () => number): () => void {
+export function driveRoll(uid: string, rollMs: number, speedGetter: () => number, onComplete?: () => void): () => void {
   let progress = 0;
   let last = typeof performance !== 'undefined' ? performance.now() : Date.now();
   let raf = 0;
@@ -104,6 +109,7 @@ export function driveRoll(uid: string, rollMs: number, speedGetter: () => number
     last = now;
     revealStat(uid, progress);
     if (progress < 1) raf = requestAnimationFrame(tick);
+    else onComplete?.();
   };
   raf = requestAnimationFrame(tick);
   return () => { if (raf !== 0) cancelAnimationFrame(raf); };

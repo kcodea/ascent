@@ -10,6 +10,12 @@
  *   2. BUFF = withheld then ROLLED: a buffed ally's badge holds its pre-buff number until the strike, then
  *      counts up through genuine intermediate values (not a snap at the reducer beat).
  *   3. DAMAGE = instant: a damaged unit's health updates with no withhold — no intermediate values, ever.
+ *   4. BUFF-THEN-DAMAGE (added Task 6 fix round 1, adversarial review): a unit buffed and then damaged WHILE
+ *      its roll is still mid-reveal never prints below its true floor. Making the roll survive the beat
+ *      boundary (properties 1-3 above) is exactly what exposed this — pre-fix, the roll was always cancelled
+ *      at the next beat (a snap), so a withheld delta never lived long enough to meet a later damage frame.
+ *      Own scenario (Packstrider x2, see below) because the properties-1-3 scenario never puts a buff and a
+ *      later damage on the SAME uid.
  *
  * ── the scenario ─────────────────────────────────────────────────────────────────────────────────────────
  * Board: Supporter (`supporter`, dragon, tier 2, "Rally: give 2 friendly Dragons +1/+2" on `onAttack`) +
@@ -85,6 +91,17 @@
  * fluke of this one fight — a second, longer multi-round scenario (Supporter + two Haven Drakes vs a bigger
  * procedural board) showed the identical race with only a ~44ms margin, resolved the other way. See the
  * task-4 report for the full timing trace.
+ *
+ * ── PROPERTY 4's scenario (Task 6 fix round 1) ──────────────────────────────────────────────────────────
+ * Two copies of Packstrider (`b2_packstrider`, beast, tier 1, "Rally: gain +1/+1 for every Beast you control"
+ * on `onAttack` — a SELF buff, `packages/content/src/cards/set2/beasts.ts`). With two Packstriders on the
+ * board the front one's Rally is a decisive +2/+2 self-buff (routed through `fireSelfBuffs`/`driveRoll`, the
+ * on-attack wind-up path — confirmed via `groupSelfBuffs` in `choreo/channels/buffSelf.ts`, which keeps only
+ * `buff` events where `source === target`). `faceOmen` serves a real procedural enemy; at the pinned seed
+ * that enemy hits back for a decisive 3 damage in the SAME beat as the self-buff — the exact "buffed then
+ * damaged before the roll finishes" shape properties 1-3's scenario cannot produce (its buff and its damage
+ * land on two DIFFERENT uids). `BUFF_DAMAGE_SEED` picks this shape the same way `PRIMARY_SEED` does for the
+ * scenario above — see that constant's own comment if it ever needs re-picking.
  */
 import puppeteer from 'puppeteer-core';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -102,7 +119,28 @@ const BUFF_PRESETS_TS = `${REPO}/packages/ui/src/buffPresets.ts`;
 // (dragon, the buff's target) vs whatever procedural threat this pinned seed serves. Found by scanning a
 // few seeds during development for one that (a) gives Supporter a live ally-buff target and (b) deals real
 // (>=2) damage in the same beat, so both decisive properties are provable in one fight.
-const PRIMARY_SEED = 424242;
+//
+// Was 424242 (Task 4's original pick); re-pointed to 3 during Task 6's fix round after the content pool
+// drifted out from under it — 424242 now always resolves to a trivial 1/1 "Cheap Date" (`k_pouchpincher`)
+// opponent REGARDLESS of seed on a fresh account profile (confirmed: seeds 4, 10, 424242, 999999 all produced
+// a byte-identical fight on a fresh puppeteer profile — almost certainly a round-1 difficulty/pool change
+// landed in one of the many feature commits between Task 4's checkpoint and now), which no longer deals a
+// decisive (>=2 actual health-loss) hit back, so `pickDmgEvent` below finds nothing and the harness STOPs
+// before evaluating any property. Seed 3 (still the default wave) reproduces the same fight SHAPE Task 4's
+// own report used: Supporter's Rally buffs Bard +1/+2, one-shots a weak enemy, the enemy's own counter-hit
+// deals a decisive 3 damage back to Supporter. If this seed goes stale again the same way, re-scan a small
+// range of seeds at the default wave for one whose event log has both a `buff` (source != target) and a
+// `dmg` event whose ACTUAL health loss (pre - remainingHp) is >= 2 — `pickBuffEvent`/`pickDmgEvent` below are
+// exactly that check, so any seed passing PRIMARY's first `report(...)` call works.
+const PRIMARY_SEED = 3;
+
+// Property 4's scenario (Task 6 fix round 1): two Packstriders, picked by scanning a small seed range for
+// one where the front Packstrider's self-buff (Rally, decisive +2/+2) AND a later decisive (>=2 actual loss)
+// counter-hit both land on the SAME uid in the SAME beat — see the header's "PROPERTY 4's scenario" note. If
+// this ever goes stale the same way `PRIMARY_SEED` did, re-scan: any seed whose event log has a `buff` with
+// `source === target` (delta health >= 2) followed by a LATER `dmg` on that same target (actual loss >= 2)
+// works — `pickSelfBuffThenDamage` below is exactly that check.
+const BUFF_DAMAGE_SEED = 3;
 
 // Read tunables from SOURCE rather than hardcoding them (shapes-verify.mjs's own technique) — both are used
 // only to size comparison margins / report context, never asserted as a required absolute delay.
@@ -205,6 +243,72 @@ async function runFight(page, seed) {
 
     // This exact fight (Supporter one-shots the procedural threat) fully resolves its one beat within ~2.2s;
     // 6s is generous headroom without waiting for the "click Continue" gate combat leaves `phase` parked on.
+    await sleep(6000);
+    running = false;
+
+    return {
+      ok: true,
+      events: lc.events,
+      initial: lc.initial,
+      samples: Object.fromEntries(samples),
+    };
+  }, seed);
+}
+
+/**
+ * Property 4's scenario (Task 6 fix round 1): two Packstriders (`b2_packstrider`, beast, Rally = a SELF
+ * buff on `onAttack`) vs whatever procedural threat `seed` serves — see the header's "PROPERTY 4's scenario"
+ * note for why this needs its own board (properties 1-3's Supporter/Bard board never buffs and damages the
+ * SAME uid). Structurally identical to `runFight` above (same sampling, same return shape) — kept as a
+ * separate function rather than parameterizing `runFight`'s cards, so the properties-1-3 scenario (and its
+ * three existing negative controls, which call `runFight` directly) stays byte-for-byte untouched by this
+ * addition.
+ */
+async function runBuffDamageFight(page, seed) {
+  return page.evaluate(async (seed) => {
+    const G = () => window.useGame.getState();
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    G().startSceneBuilder();
+    window.useGame.setState((s) => ({ run: { ...s.run, seed } }));
+    window.useGame.setState({ combatSpeed: 1 });
+
+    async function playCard(uid, cardId) {
+      window.useGame.setState((s) => ({ run: { ...s.run, shop: [{ uid, cardId }] } }));
+      await sleep(80);
+      G().dispatch({ type: 'buy', uid });
+      await sleep(80);
+      const h = G().run.hand;
+      G().dispatch({ type: 'play', uid: h[h.length - 1].uid });
+      await sleep(150);
+    }
+    await playCard('ps0', 'b2_packstrider');
+    await playCard('ps1', 'b2_packstrider');
+
+    const t0 = performance.now();
+    G().dispatch({ type: 'faceOmen' });
+    const lc = G().run.lastCombat;
+    if (!lc) return { ok: false, reason: 'no lastCombat after faceOmen' };
+
+    const samples = new Map();
+    const readAll = () => {
+      const els = document.querySelectorAll('[data-zone="tavern"] .card[data-uid], [data-zone="warband"] .card[data-uid]');
+      const now = Math.round(performance.now() - t0);
+      for (const el of els) {
+        const uid = el.getAttribute('data-uid');
+        const atkEl = el.querySelector('.badge.atk .value');
+        const hpEl = el.querySelector('.badge.hp .value');
+        const atk = atkEl ? Number(atkEl.textContent) : NaN;
+        const hp = hpEl ? Number(hpEl.textContent) : NaN;
+        if (!samples.has(uid)) samples.set(uid, []);
+        samples.get(uid).push({ t: now, atk, hp });
+      }
+    };
+    let running = true;
+    const tick = () => { readAll(); if (running) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+
+    // Same shape as `runFight`'s own fight — a single decisive exchange resolves well inside 6s.
     await sleep(6000);
     running = false;
 
@@ -324,6 +428,28 @@ function pickDmgEvent(initial, events) {
   return null;
 }
 
+/**
+ * Property 4's pick (Task 6 fix round 1): a self-buff (`source === target`, decisive — |health delta| >= 2)
+ * followed by a LATER `dmg` event on that SAME uid whose ACTUAL health loss is also decisive (>= 2, same
+ * ambiguity-avoidance as `pickDmgEvent` above). This is the exact shape that exposes a below-floor print if
+ * the buff's hold isn't interrupted by the damage — see `cancelRollForUid`'s comment in `useCombatReplay.ts`.
+ */
+function pickSelfBuffThenDamage(initial, events) {
+  for (let i = 0; i < events.length; i++) {
+    const b = events[i];
+    if (b.type !== 'buff' || b.source !== b.target || Math.abs(b.health) < 2) continue;
+    for (let j = i + 1; j < events.length; j++) {
+      const d = events[j];
+      if (d.type !== 'dmg' || d.target !== b.target) continue;
+      const pre = trueValueBefore(initial, events, d.target, j, 'health');
+      if (pre !== undefined && Math.abs(pre - d.remainingHp) >= 2) {
+        return { buffIdx: i, buffEvent: b, dmgIdx: j, dmgEvent: d };
+      }
+    }
+  }
+  return null;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // RUN — primary (unmodified product code)
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -407,6 +533,50 @@ report('PROPERTY 3 — DAMAGE: updates instantly, no withhold (zero intermediate
 ]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// PROPERTY 4 — BUFF-THEN-DAMAGE (Task 6 fix round 1, adversarial review). Own fresh fight, own board (see
+// the header's "PROPERTY 4's scenario" note): properties 1-3's Supporter/Bard board never buffs and damages
+// the same uid, so it can't exercise this.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+console.log('\n══ PROPERTY 4 — buff-then-damage overlap (own scenario: Packstrider x2) ══');
+
+const bdRun = await withFreshPage((page) => runBuffDamageFight(page, BUFF_DAMAGE_SEED));
+if (!bdRun.ok) {
+  report('Property 4 fight resolved', false, [bdRun.reason]);
+  console.log(`\n${failures} CHECK(S) FAILED`);
+  process.exit(1);
+}
+const bdPick = pickSelfBuffThenDamage(bdRun.initial, bdRun.events);
+report('Property 4 scenario produced a decisive self-buff followed by a decisive same-uid damage event', !!bdPick, [
+  bdPick ? `buff event: ${JSON.stringify(bdPick.buffEvent)}` : 'no matching buff-then-damage pair found',
+  bdPick ? `dmg event: ${JSON.stringify(bdPick.dmgEvent)}` : '',
+  `full event log: ${JSON.stringify(bdRun.events)}`,
+]);
+if (!bdPick) {
+  console.log('\nProperty 4 scenario did not produce the events this harness needs — STOPPING (not tuning the assertion away).');
+  process.exit(1);
+}
+
+// The true floor/ceiling for the buffed-then-damaged uid, across its WHOLE trajectory (initial -> buff ->
+// damage -> …) — same technique as Property 1's per-uid bounds, just reported on its own so this specific
+// exchange's timeline is legible without hunting through Property 1's combined violation list.
+const bdTraj = buildTrajectories(bdRun.initial, bdRun.events);
+const bdUid = bdPick.buffEvent.target;
+const bdBounds = boundsOf(bdTraj.get(bdUid).health);
+const bdSeries = seriesFor(bdRun.samples, bdUid, 'hp');
+const bdViolations = bdSeries.filter((s) => s.v < bdBounds.lo || s.v > bdBounds.hi);
+const bdBuffPre = trueValueBefore(bdRun.initial, bdRun.events, bdUid, bdPick.buffIdx, 'health');
+const bdBuffPost = bdBuffPre + bdPick.buffEvent.health;
+const bdDmgPost = bdPick.dmgEvent.remainingHp;
+report('PROPERTY 4 — BUFF-THEN-DAMAGE: a unit damaged mid-roll never prints below its true floor', bdViolations.length === 0, [
+  `target ${bdUid}: health ${bdBuffPre} -> ${bdBuffPost} (self-buff, delta ${bdPick.buffEvent.health}) -> ${bdDmgPost} (damage, possibly while the roll is still in flight)`,
+  `true floor/ceiling across the whole exchange: [${bdBounds.lo},${bdBounds.hi}]`,
+  `printed sequence (distinct values, in time order): ${JSON.stringify([...new Set(bdSeries.map((s) => s.v))])}`,
+  bdViolations.length ? `violations (below floor / above ceiling): ${JSON.stringify(bdViolations.slice(0, 10))}` : 'no violations across the whole sampled fight',
+  `${bdSeries.length} live samples`,
+]);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // NEGATIVE CONTROLS — break each property in turn, confirm the harness catches it, revert.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -454,8 +624,11 @@ async function withPatch(file, find, replace, fn) {
 {
   const result = await withPatch(
     REPLAY_TS,
-    "holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'effect' });",
-    "holdStat(d.uid, { attack: d.attack, health: d.health }, { origin: 'intrinsic' }); // NEGATIVE CONTROL (combat-invariant.mjs): downgraded from 'effect'",
+    // Task 6's fix round wrapped this call onto multiple lines (to add an explicit `ttlMs`), so the anchor
+    // matches just the `origin` line rather than the whole call — narrower, and also more robust to the next
+    // reformat of a call that will keep growing options over time.
+    "        origin: 'effect',",
+    "        origin: 'intrinsic', // NEGATIVE CONTROL (combat-invariant.mjs): downgraded from 'effect'",
     async () => {
       const run = await withFreshPage((page) => runFight(page, PRIMARY_SEED));
       if (!run.ok) return { ok: false };
@@ -485,6 +658,16 @@ async function withPatch(file, find, replace, fn) {
 }
 
 // Control C — DAMAGE instant: route damage through the same withhold-and-roll machinery buffs use.
+//
+// NESTED with a SECOND patch, removing `cancelRollForUid`'s call site (same anchor Control D uses): Task 6's
+// fix round 1 added a damage-interrupt pass that releases ANY hold on a uid the instant it takes damage in
+// the same beat — deliberately unconditional (see `cancelRollForUid`'s own comment: damage is authoritative
+// regardless of how a hold got there). That is also exactly what this control's synthetic damage-hold IS —
+// so left unpatched, the interrupt pass immediately undoes Control C's injected bug in the SAME beat it's
+// placed, and the control would pass trivially (no delay) whether or not `combatBuffDeltas` actually has the
+// bug, proving nothing. Removing the interrupt for this control's run isolates the ORIGINAL question Control
+// C exists to answer — does a dmg-derived hold, if nothing else in combat released it, come back late — from
+// the NEW, independent safety net Fix Round 1 added on top.
 {
   const result = await withPatch(
     ROLL_TS,
@@ -495,18 +678,23 @@ async function withPatch(file, find, replace, fn) {
       continue;
     }
     if (!e || e.type !== 'buff') continue;`,
-    async () => {
-      const run = await withFreshPage((page) => runFight(page, PRIMARY_SEED));
-      if (!run.ok) return { ok: false };
-      const pick = pickDmgEvent(run.initial, run.events);
-      if (!pick) return { ok: false };
-      const pre = trueValueBefore(run.initial, run.events, pick.event.target, pick.idx, 'health');
-      const post = pick.event.remainingHp;
-      const series = seriesFor(run.samples, pick.event.target, 'hp');
-      return { ok: true, analysis: analyzeTransition(series, pre, post) };
-    },
+    () => withPatch(
+      REPLAY_TS,
+      "if (e?.type === 'dmg') cancelRollForUid(e.target);",
+      "if (e?.type === 'dmg') { /* NEGATIVE CONTROL (combat-invariant.mjs): cancelRollForUid call removed, so Control C's synthetic damage-hold isn't rescued by the Fix Round 1 interrupt */ }",
+      async () => {
+        const run = await withFreshPage((page) => runFight(page, PRIMARY_SEED));
+        if (!run.ok) return { ok: false };
+        const pick = pickDmgEvent(run.initial, run.events);
+        if (!pick) return { ok: false };
+        const pre = trueValueBefore(run.initial, run.events, pick.event.target, pick.idx, 'health');
+        const post = pick.event.remainingHp;
+        const series = seriesFor(run.samples, pick.event.target, 'hp');
+        return { ok: true, analysis: analyzeTransition(series, pre, post) };
+      },
+    ),
   );
-  const clean = gitDiffEmpty(ROLL_TS);
+  const clean = gitDiffEmpty(ROLL_TS) && gitDiffEmpty(REPLAY_TS);
   // Nothing in combat schedules an explicit release for a plain dmg-derived hold (no `fireBuffCasts` tendril
   // targets it) — so unlike the buff case, this doesn't come back as a rolled reveal, it comes back as the
   // store's own TTL fail-open (`HOLD_TTL_MS`, read from source) delivering it late. So the catch signal is
@@ -523,6 +711,55 @@ async function withPatch(file, find, replace, fn) {
     result.ok ? `control's own intermediate values (expected none — nothing drives a roll for this hold, it just fails open late via HOLD_TTL_MS=${HOLD_TTL_MS}ms): ${JSON.stringify(result.analysis.intermediateValues)}` : 'fight did not resolve under the control',
   ]);
   report('combatBuffRoll.ts reverted after Control C (git diff empty)', clean);
+}
+
+// Control D — BUFF-THEN-DAMAGE interrupt (Task 6 fix round 1): neutralize `cancelRollForUid`'s call site in
+// the install effect's damage-scan pass, so a live buff roll no longer gets interrupted when its unit takes
+// damage. Confirms Property 4's below-floor bug is REAL and CAUGHT (not a harness artifact): with the
+// interrupt removed, the withheld buff delta keeps subtracting from the post-damage live stat, printing
+// below the true floor — the exact failure mode the coordinator's adversarial review found.
+//
+// NESTED with a SECOND patch, inflating `COMBAT_ROLL_MS` 20x: measured directly (a dedicated timing probe,
+// not guessed), Packstrider's OWN self-buff roll naturally finishes ~300ms BEFORE its counter-damage becomes
+// visible in EVERY seed tried (the wind-up-to-strike delay and the beat-clock's own pacing to the damage
+// beat are both choreography-CONFIG-driven, not seed-randomized, so this margin is structural to this exact
+// card, not a matter of picking a luckier seed) — meaning the interrupt has nothing to interrupt in the
+// UNPATCHED-duration case, and Control D would pass trivially (find zero violations) whether or not the
+// interrupt code even exists, proving nothing. Inflating the roll's duration ONLY for this control run
+// removes that confound: it guarantees the roll is GENUINELY still in flight when damage lands, isolating
+// "is the interrupt what's protecting the floor" as the one variable under test — which is the same
+// UNMODIFIED product code Property 4's own primary run already proved correct at the REAL 420ms duration.
+{
+  const result = await withPatch(
+    REPLAY_TS,
+    "if (e?.type === 'dmg') cancelRollForUid(e.target);",
+    "if (e?.type === 'dmg') { /* NEGATIVE CONTROL (combat-invariant.mjs): cancelRollForUid call removed */ }",
+    () => withPatch(
+      REPLAY_TS,
+      'const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;',
+      'const COMBAT_ROLL_MS = DEFAULT_ROLL_MS * 20; // NEGATIVE CONTROL (combat-invariant.mjs): inflated so the roll is guaranteed still in flight when damage lands',
+      async () => {
+        const run = await withFreshPage((page) => runBuffDamageFight(page, BUFF_DAMAGE_SEED));
+        if (!run.ok) return { ok: false };
+        const pick = pickSelfBuffThenDamage(run.initial, run.events);
+        if (!pick) return { ok: false };
+        const traj = buildTrajectories(run.initial, run.events);
+        const uid = pick.buffEvent.target;
+        const bounds = boundsOf(traj.get(uid).health);
+        const series = seriesFor(run.samples, uid, 'hp');
+        const violations = series.filter((s) => s.v < bounds.lo || s.v > bounds.hi);
+        return { ok: true, violations, bounds };
+      },
+    ),
+  );
+  const clean = gitDiffEmpty(REPLAY_TS);
+  const caught = result.ok && result.violations.length > 0;
+  report('Control D (buff-then-damage interrupt): removing the interrupt is CAUGHT as a below-floor print', caught, [
+    result.ok
+      ? `true floor/ceiling: [${result.bounds.lo},${result.bounds.hi}], violations found: ${result.violations.length} (sample: ${JSON.stringify(result.violations.slice(0, 5))})`
+      : 'fight did not resolve, or the scenario did not reproduce, under the control',
+  ]);
+  report('useCombatReplay.ts reverted after Control D (git diff empty)', clean);
 }
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASS' : `${failures} CHECK(S) FAILED`}`);

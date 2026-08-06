@@ -64,6 +64,21 @@ const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
  * — the ~1740ms worst-case chain above plus a margin for real-world jitter (dispatch overhead, a dropped
  * frame) — comfortably clears the roll's own natural completion without weakening the TTL's actual job: an
  * unclaimed hold (an off-screen target, a bug elsewhere) still fails open in a few seconds, not never.
+ *
+ * KNOWN ASYMMETRY (fix round 1, Finding 2, deliberately left open): `ttlMs` is computed ONCE, off the speed
+ * live at PLACEMENT time, and baked into `holdStat`'s `until` (`fx/statHold.ts`) — a fixed wall-clock deadline.
+ * `driveRoll`'s roll, by contrast, re-reads speed every frame (the whole point of the speed-GETTER change
+ * above). A slider drag that SLOWS DOWN combat mid-roll lengthens the roll in real time but does not move
+ * `until` — so a slowdown severe/late enough can make the TTL force-deliver before the (now slower) roll
+ * finishes, printing the true value a little early instead of the last stretch of the animation. This is
+ * still FAIL OPEN — the value shown is the correct true one, just earlier than the roll would have arrived on
+ * its own — so it is not an invariant break, only a lost few frames of animation in an edge case (an active
+ * mid-roll slowdown, not just a slow *replay*: this constant's own 1/speed division already covers a combat
+ * that STARTS slow). Left as a documented gap rather than fixed: closing it properly means re-arming a live
+ * hold's `until` without resetting `revealed` (what `holdStat` does) or its schedule (what `claimStat` does
+ * without touching TTL) — no existing `fx/statHold.ts` export does that, and that file is off-limits for this
+ * task. A same-file workaround (a second, ttlMs-scaling timer chasing the live speed) would just be this exact
+ * asymmetry moved one level up, not resolved.
  */
 const COMBAT_HOLD_TTL_MS = 2000;
 
@@ -763,7 +778,12 @@ export function useCombatReplay(
     combatHeldRef.current = combatHeldRef.current.filter((u) => u !== uid);
     entry.strikeTimer = window.setTimeout(() => {
       entry.strikeTimer = null;
-      entry.cancelRoll = driveRoll(uid, COMBAT_ROLL_MS, () => combatSpeedRef.current);
+      // `onComplete` prunes this entry the moment the roll finishes on its own (fix round 1, Finding 4) — so
+      // a combat with many buffs doesn't accumulate a completed-roll entry per buff for the rest of the
+      // fight. Bounded either way (cleared in full by `cancelPendingRolls`/`cancelRollForUid`), just tidier.
+      entry.cancelRoll = driveRoll(uid, COMBAT_ROLL_MS, () => combatSpeedRef.current, () => {
+        rollRegistryRef.current.delete(id);
+      });
     }, ms);
     rollRegistryRef.current.set(id, entry);
   }, []);
@@ -785,6 +805,49 @@ export function useCombatReplay(
       releaseStat(entry.uid);
     }
     rollRegistryRef.current.clear();
+  }, []);
+
+  /**
+   * Fix round 1 (adversarial review): damage is instant and AUTHORITATIVE, so it must interrupt a mid-reveal
+   * buff roll on the same uid, not coexist with one.
+   *
+   * `Card.tsx` prints `live - held` — a live stat straight off `frame` (already reflecting every event up to
+   * and including this beat, damage included) minus whatever delta is still withheld. That self-corrects
+   * across a further BUFF or TRADE (the install effect below always releases-before-places, so a fresh delta
+   * replaces the stale one), but NOT across the live stat DROPPING while a hold from an EARLIER buff is still
+   * mid-roll: the withheld amount keeps subtracting from a number that has since fallen, and if the drop is
+   * big enough the print goes BELOW the unit's true floor — a number it never had. Worked case: a 3/4
+   * self-buffs +0/+2 (hold placed, `held.health=2`, badge correctly holds pre-buff 4, live climbs to 6);
+   * before the roll finishes, the SAME unit takes 3 counter-damage (live drops to 3); `live - held` prints
+   * `3 - 2 = 1`, but the true floor across the whole exchange is 3 (4 -> 6 -> 3, damage never took it below
+   * 3). This is NEW as of the beat-advance fix above: pre-fix, the roll was always cancelled at the beat
+   * boundary (a snap), so a stale delta never survived long enough to meet a later damage frame.
+   *
+   * Cancels every registry entry for `uid` (pending strike timer AND/OR live roll — whichever phase it's in)
+   * and releases the store hold outright, same shape as `cancelPendingRolls` but scoped to one uid instead of
+   * the whole combat. Safe/cheap when nothing is live for `uid` (the common case — most damage lands on a
+   * unit with no buff in flight). Called from the install effect below for every `dmg` event's target in the
+   * beat just committed, so "you got hit" always wins over "you're still owed a roll": the badge snaps
+   * straight to the true, already-damaged number instead of continuing to count up from a floor that no
+   * longer applies. A unit buffed and damaged in the very same beat gets the same treatment — the hold this
+   * beat's own buff pass just placed is interrupted immediately after, so the beat still nets out at
+   * `frame`'s true value (both events already folded into it) rather than animating a roll whose start point
+   * (`live - delta`) may not actually be a value the unit ever had, given the sim's real intra-beat event
+   * order.
+   */
+  const cancelRollForUid = useCallback((uid: string): void => {
+    for (const [id, entry] of rollRegistryRef.current) {
+      if (entry.uid !== uid) continue;
+      if (entry.strikeTimer !== null) window.clearTimeout(entry.strikeTimer);
+      entry.cancelRoll?.();
+      rollRegistryRef.current.delete(id);
+    }
+    // `combatHeldRef` too: a hold this beat's OWN buff pass just pushed there (below) hasn't reached
+    // `scheduleRoll` yet (that happens later, from the FX effect, once the strike/pulse actually fires) — so
+    // it wouldn't be caught by the registry loop above. Drop it here too, or the (buff-beat) install effect's
+    // NEXT pass would try to release it a second time against an already-gone hold (harmless, but stale).
+    combatHeldRef.current = combatHeldRef.current.filter((u) => u !== uid);
+    releaseStat(uid); // safe/cheap no-op if nothing was actually held — covers the common undamaged-buff case
   }, []);
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
@@ -1607,13 +1670,25 @@ export function useCombatReplay(
       });
       combatHeldRef.current.push(d.uid);
     }
+    // Fix round 1: damage in THIS beat interrupts any live buff roll on its target — see
+    // `cancelRollForUid`'s own comment for the worked case (a below-floor print) this closes. Deliberately
+    // AFTER the buff-place pass above, not before: a unit buffed AND damaged in the SAME beat (a self-buff-
+    // on-attack immediately met by counter-damage, both landing in one attack-exchange beat) would otherwise
+    // have its just-placed hold survive this pass, and `frame` already reflects both events regardless of
+    // their order within the beat — releasing after placing always nets out at `frame`'s true value. Scans
+    // every `dmg` event in the beat, not just this beat's own buff targets: the far more common case is a
+    // buff from an EARLIER beat still rolling when a LATER, unrelated beat damages that same unit.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type === 'dmg') cancelRollForUid(e.target);
+    }
     // `seekNonce`: this is the ONLY installer of these holds, and it's what makes a same-beat re-seek re-run
     // this effect at all (`beatIdx` alone wouldn't change). `frame` can't stand in — it is memoised on
     // `processedEnd`/`beatStart`, both derived from `beatIdx`, so it too is unchanged by a same-index
     // re-seek. Without `seekNonce` the badge shows the POST-buff number for the whole replayed beat instead
     // of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this effect
     // exists to kill.
-  }, [active, beatIdx, seekNonce, beats, events, frame]);
+  }, [active, beatIdx, seekNonce, beats, events, frame, cancelRollForUid]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.

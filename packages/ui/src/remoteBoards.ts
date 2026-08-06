@@ -345,6 +345,30 @@ export async function uploadRunTelemetry(
 
 /** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
  *  time-boxed; [] on any failure / no backend / un-migrated table. */
+/** Fetch recent runs' DERIVED payloads (the runDerive streams stored in the `derived` jsonb column) for the
+ *  Balance Report's derived views. Best-effort like everything here: [] on no backend / pre-migration DB
+ *  (the column doesn't exist until the 2026-08-05 schema.sql section is run) / timeout. */
+export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('run_telemetry').select('derived').not('derived', 'is', null)
+          .order('created_at', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as unknown as Array<{ derived: DerivedRun | null }>)
+      .map((r) => r.derived)
+      .filter((d): d is DerivedRun => !!d && Array.isArray((d as DerivedRun).offers));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   const c = client();
   if (!c) return [];

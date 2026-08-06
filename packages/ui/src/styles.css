@@ -4954,6 +4954,10 @@ svg { width: 18px; height: 18px; }
 .balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: default; }
 .balrun { margin-left: 6px; background: var(--acc); color: #1a1206; border-color: var(--acc); padding: 7px 18px; }
 .baldim { color: rgba(255, 255, 255, 0.45); font-weight: 600; font-size: 12px; }
+/* Derived-view explainer line above a report table (Balance Report, 2026-08-06). Static text, no effects. */
+.balnote { margin: 0 auto 14px; max-width: 900px; text-align: center; color: rgba(255, 255, 255, 0.55); font-size: 13px; line-height: 1.45; }
+.balrow.baldim span { opacity: 0.45; }
+.balsort.on { color: #ffd76a; }
 .balprogress { position: relative; height: 16px; margin: 4px 30px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.12); overflow: hidden; flex: none; }
 .balprogfill { position: absolute; inset: 0; transform-origin: left; background: var(--acc); transition: transform 0.1s linear; }
 .balprogtxt { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 11px; color: #fff; mix-blend-mode: difference; }

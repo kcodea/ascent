@@ -3,7 +3,7 @@ import { CARD_INDEX, contentRevision, cardRevision, revisionOf } from '@game/con
 import { createRun, type Action, type RunState } from './state';
 import { reduce } from './reducer';
 import { BOTS } from './bots';
-import { beginDerive, cardDemand, deriveRun, finishDerive, observeAction, wilson, type DerivedRun } from './runDerive';
+import { beginDerive, cardDemand, deriveRun, finishDerive, observeAction, wilson, type DerivedRun, goldCurve, upgradeShape } from './runDerive';
 
 /**
  * The derivation is exercised against REAL PLAY, not a fixture: a bot plays full runs, we keep its action
@@ -263,5 +263,35 @@ describe('the two feeds are ONE implementation', () => {
     const st = beginDerive(s);
     const revived = JSON.parse(JSON.stringify(st));
     expect(revived).toEqual(st);
+  });
+});
+
+describe('the Balance Report curve aggregations (2026-08-06)', () => {
+  const run = (gold: DerivedRun['gold'], upgrades: DerivedRun['upgrades']): DerivedRun =>
+    ({ offers: [], acquisitions: [], gold, upgrades, combats: [], boards: [], heroId: 'warden', seed: 1, contentRevision: 'r' } as unknown as DerivedRun);
+
+  it('goldCurve averages per run REACHING the wave, spends shown as outlay', () => {
+    const a = run([
+      { wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 },
+      { wave: 2, amount: -1, category: 'refresh', goldAfter: 3, maxGoldAfter: 4 },
+    ], []);
+    const b = run([{ wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 }], []);
+    const rows = goldCurve([a, b]);
+    expect(rows[0]!.wave).toBe(1);
+    expect(rows[0]!.runs).toBe(2);
+    expect(rows[0]!.avg.minion, 'spend negated to outlay, averaged over 2 runs').toBe(3);
+    expect(rows[1]!.runs, 'only one run reached wave 2 — the divisor must not count the other').toBe(1);
+    expect(rows[1]!.avg.refresh).toBe(1);
+  });
+
+  it('upgradeShape reports take rate + the after-loss split', () => {
+    const u = (wave: number, taken: boolean, prevResult?: 'win' | 'loss'): DerivedRun['upgrades'][number] =>
+      ({ wave, fromTier: 1, toTier: 2, cost: 5, taken, goldBefore: 6, goldAfter: taken ? 1 : 6, resolve: 30, prevResult, boardSize: 3, boardAttack: 9, boardHealth: 9, cardsBoughtThisTurn: 1 });
+    const rows = upgradeShape([run([], [u(3, true, 'loss'), u(3, false, 'loss')]), run([], [u(3, true, 'win')])]);
+    expect(rows[0]!.offered).toBe(3);
+    expect(rows[0]!.takeRate).toBeCloseTo(2 / 3, 3);
+    expect(rows[0]!.avgCost).toBe(5);
+    expect(rows[0]!.afterLossN).toBe(2);
+    expect(rows[0]!.afterLossTakeRate).toBeCloseTo(0.5, 3);
   });
 });

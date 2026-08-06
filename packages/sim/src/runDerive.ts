@@ -609,6 +609,70 @@ export function cardDemand(runs: DerivedRun[]): CardDemand[] {
 
 /** A Wilson score interval — the honest error bar for a rate at small N (a plain ± sqrt(p(1-p)/n) is
  *  nonsense at the sample sizes a friend-scale player base produces). `z` defaults to 95%. */
+/** Per-wave Gold flow, averaged across runs: how much a turn's economy goes to each category. The Balance
+ *  Report's economy curve — "where does Gold actually go on turn N". Spends are negated so the table reads
+ *  as positive outlay; `income` stays positive. `runs` = how many runs REACHED that wave (the divisor). */
+export interface GoldWaveRow {
+  wave: number;
+  runs: number;
+  /** Mean Gold moved per run that reached this wave, by category (spend categories as positive outlay). */
+  avg: Record<GoldEvent['category'], number>;
+}
+export function goldCurve(all: DerivedRun[]): GoldWaveRow[] {
+  const CATS: GoldEvent['category'][] = ['minion', 'spell', 'ruby', 'refresh', 'upgrade', 'heroPower', 'rune', 'henchman', 'sell', 'income', 'other'];
+  const byWave = new Map<number, { runs: Set<number>; sums: Record<string, number> }>();
+  all.forEach((run, ri) => {
+    for (const g of run.gold) {
+      let w = byWave.get(g.wave);
+      if (!w) { w = { runs: new Set(), sums: Object.fromEntries(CATS.map((c) => [c, 0])) }; byWave.set(g.wave, w); }
+      w.runs.add(ri);
+      // Spends are negative in the ledger; show outlay as positive so the table reads naturally.
+      w.sums[g.category] += g.category === 'income' || g.category === 'sell' ? g.amount : -g.amount;
+    }
+  });
+  return [...byWave.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([wave, w]) => ({
+      wave, runs: w.runs.size,
+      avg: Object.fromEntries(CATS.map((c) => [c, w.runs.size ? +(w.sums[c]! / w.runs.size).toFixed(1) : 0])) as Record<GoldEvent['category'], number>,
+    }));
+}
+
+/** Per-wave upgrade behaviour: how often the tier-up was TAKEN when available, at what cost, and whether a
+ *  loss the round before made players tier up more or less — the aggressive-upgrade-meta questions. */
+export interface UpgradeWaveRow {
+  wave: number;
+  offered: number;
+  taken: number;
+  takeRate: number | null;
+  avgCost: number | null;
+  /** Take rate specifically after a LOSS the previous round (null until sampled). */
+  afterLossTakeRate: number | null;
+  afterLossN: number;
+}
+export function upgradeShape(all: DerivedRun[]): UpgradeWaveRow[] {
+  const byWave = new Map<number, { offered: number; taken: number; costSum: number; lossN: number; lossTaken: number }>();
+  for (const run of all) {
+    for (const u of run.upgrades) {
+      let w = byWave.get(u.wave);
+      if (!w) { w = { offered: 0, taken: 0, costSum: 0, lossN: 0, lossTaken: 0 }; byWave.set(u.wave, w); }
+      w.offered += 1;
+      w.costSum += u.cost;
+      if (u.taken) w.taken += 1;
+      if (u.prevResult === 'loss') { w.lossN += 1; if (u.taken) w.lossTaken += 1; }
+    }
+  }
+  return [...byWave.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([wave, w]) => ({
+      wave, offered: w.offered, taken: w.taken,
+      takeRate: w.offered ? +(w.taken / w.offered).toFixed(3) : null,
+      avgCost: w.offered ? +(w.costSum / w.offered).toFixed(1) : null,
+      afterLossTakeRate: w.lossN ? +(w.lossTaken / w.lossN).toFixed(3) : null,
+      afterLossN: w.lossN,
+    }));
+}
+
 export function wilson(successes: number, total: number, z = 1.96): { lo: number; hi: number } | null {
   if (total <= 0) return null;
   const p = successes / total;

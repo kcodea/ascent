@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance Report derived views** — Card Demand (Wilson intervals, revision-pooled), Gold Economy and Upgrade Timing now render in-app from the banked replay derivations.
+
 - **Rune batch** — Duplication + Summit fixed, all rune Avenge effects get live combat tallies on their badges, 5 missing forge previews, 2 text corrections, Epic Forge un-no-op'd for Runeguard.
 
 - **Live-text batch** — combat-granted card previews now show real-time values (spell power, Ruby strength), Orbit (N) cards get their counters, and Discover/end-screen/shop-slot surface gaps are closed.

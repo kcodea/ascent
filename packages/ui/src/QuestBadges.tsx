@@ -73,10 +73,11 @@ export function QuestBadges() {
             </div>
             {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
                 in the same `x/N` language as the Avenge counters on units. Keyed on the text so every change
-                replays the compositor-only bump. Null for passive/one-shot runes, which show nothing. */}
-            {runeTally(run, rune.id) && (
-              <span key={runeTally(run, rune.id)!} className="qb-tally">{runeTally(run, rune.id)}</span>
-            )}
+                replays the compositor-only bump. Null for passive/one-shot runes, which show nothing.
+                One `runeTally` call per rune (perf audit 2026-08-06) — this JSX used to call it 5×. */}
+            {(() => { const tally = runeTally(run, rune.id); return tally && (
+              <span key={tally} className="qb-tally">{tally}</span>
+            ); })()}
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
@@ -88,7 +89,7 @@ export function QuestBadges() {
                 return rlive ? <span className="questbadge-tip-live">{rlive}</span> : null;
               })()}
               <span className="questbadge-tip-state">
-                Rune · active{runeTally(run, rune.id) ? ` · ${runeTally(run, rune.id)}` : ''}
+                {(() => { const tally = runeTally(run, rune.id); return `Rune · active${tally ? ` · ${tally}` : ''}`; })()}
               </span>
             </div>
           </div>

@@ -3,6 +3,49 @@
 
 
 
+## 2026-08-06 — Shop-phase perf, slice 1: seven per-action/per-frame costs cut (audit follow-up)
+
+First implementation slice out of the five-agent performance audit, scoped to the owner's stated #1
+priority — IN-TURN shop responsiveness, which degrades late-game as actions-per-turn and accumulated run
+state grow. Everything here is behaviour-identical: no pixels, no rules.
+
+- **Card rules HTML memoized + the text drawer render-gated** (`Card.tsx`). Every Card render re-ran
+  renameTerms' 23 regexes + the bold/marker passes and handed React a FRESH string — a
+  dangerouslySetInnerHTML re-parse — on all ~22 on-screen cards whenever a shared prop flipped (drag
+  start/end, hero arm), inside the same frame as the drag FLIP. Now `useMemo` on the shown text; and the
+  `.drawer` subtree only renders when the `showtext` class would display it (it used to sit at display:none
+  on every resting compact tile, paying its DOM + parse for nothing). Live-verified: compact board = 0
+  drawers, full-text mode = all drawers with correct vocabulary-renamed HTML.
+- **`servedBoards` joins `lastCombat` in the reducer's clone carve-out** (`reducer.ts`). It accumulates one
+  BoardSnapshot per wave and is only ever REPLACED wholesale, never mutated — audit measured it at ~90% of
+  the remaining late-game per-dispatch `structuredClone` (0.23 of 0.26ms at 17 pins), paid on every
+  buy/roll/sell/reposition. Safe by the same argument as lastCombat; `opponentBoard()` already deep-clones
+  minions before combat can mutate them ("protects the static pool").
+- **`cardBuffsLive` stops walking the whole CARD_INDEX per action** (`Recruit.tsx`): the Fodder id list is a
+  module constant now, and the memo keys on the two fields `cardBuff()` actually reads (cardBuffs + board)
+  instead of the whole `run`, whose identity changes every action. Also made `live`'s dep on `cardBuffsLive`
+  explicit — coverage was previously incidental via the board dep (audit find).
+- **`seenShopUids` membership is a Set index** (`runTelemetry.ts`): the array `.includes` per shop slot per
+  dispatch was O(actions × offers) — hundreds of string compares per click in a roll-heavy late turn. The
+  save-file shape is unchanged (the array stays; a WeakMap-keyed Set indexes it, rebuilt once on resume).
+- **The End Turn button's rAF now idles** (`EndTurnButton.tsx`): it was the one uncancelled per-frame loop in
+  the always-mounted UI — config read + body-class query + canvas stroke pass every frame of the whole
+  session, including all of combat. It now runs only while arcs are alive, sleeps on a spawn-cadence timeout
+  between bolts, and stops dead while pressed (= all of combat); woken by the spawn timer, the strike burst,
+  and the relight.
+- **Lazy-seeded prev-uid refs** (`Recruit.tsx`): `useRef(new Set(board.map(…)))` evaluated its argument every
+  render — two arrays + two Sets per render at drag frame rate, pure GC feed. Null-guard seeding now.
+- **`QuestBadges` calls `runeTally` once per rune** (was 5× in one JSX block).
+
+Instrumentation added instead of surgery where the audit was hypothesis, not measurement: the charge glyph
+(the audit's top shop suspect; the owner doubts it matters) now brackets its lit window with
+`chargeglyph:lit/out` marks in the perf timeline — an exported slow session will show whether bad frames
+cluster inside the window, and the glyph gets touched only if they do. Per-action reducer timing
+(`reduce:<type>`) already existed and stays the anchor metric.
+
+Verified: typecheck / lint (7-warning baseline) / 4017 tests / harness determinism / build:web; live DOM —
+shop renders identically, drawer presence tracks the showtext class exactly, rules HTML correct.
+
 ## 2026-08-06 — The MMR leaderboard was frozen by design: the rating write path never existed
 
 Owner report: the MMR leaderboard is not updating. It could not — since the C1 accounts migration

@@ -515,6 +515,11 @@ export interface TelemetryLog {
   seenShopUids: string[];
 }
 
+/** Per-log Set index over `seenShopUids` — see the note in `recordTelemetryAction`. WeakMap-keyed on the
+ *  log object itself, so a resumed (deserialized) log rebuilds its index on first use and a discarded log
+ *  frees it with no bookkeeping. The `size !== length` guard re-syncs if anything else ever grows the array. */
+const SEEN_UID_INDEX = new WeakMap<TelemetryLog, Set<string>>();
+
 export const emptyTelemetryLog = (): TelemetryLog => ({
   offeredCards: [], boughtCards: [], discoverOfferedCards: [], discoverBoughtCards: [], buyEvents: [], seenShopUids: [],
 });
@@ -526,14 +531,27 @@ export const emptyTelemetryLog = (): TelemetryLog => ({
  * in step, which is why they live in the same file.
  */
 export function recordTelemetryAction(log: TelemetryLog, before: RunState, action: Action, after: RunState): TelemetryLog {
+  // Perf (audit 2026-08-06): `seenShopUids` stays an ARRAY on the log (the save-file shape is unchanged and
+  // old saves load as-is), but membership is checked against a Set index cached per log object. The array
+  // `.includes` it replaces was O(actions × offers) — every dispatch scanned every uid ever seen, per shop
+  // slot, which by a roll-heavy late turn was hundreds of string compares per click. The WeakMap survives a
+  // resume (the Set is rebuilt once from the deserialized array) and can't leak (the log object is its key).
   const seen = log.seenShopUids;
+  let seenIdx = SEEN_UID_INDEX.get(log);
+  if (!seenIdx || seenIdx.size !== seen.length) { seenIdx = new Set(seen); SEEN_UID_INDEX.set(log, seenIdx); }
+  const note = (uid: string, cardId: string): void => {
+    if (seenIdx.has(uid)) return;
+    seenIdx.add(uid);
+    seen.push(uid);
+    log.offeredCards.push(cardId);
+  };
   // Shop sightings: each fresh offer instance (by uid) counts once, however many turns it lingers. The
   // right-hand SPELL slot is an offer too.
   for (const c of before.shop ?? []) {
-    if (c.uid && c.cardId && !seen.includes(c.uid)) { seen.push(c.uid); log.offeredCards.push(c.cardId); }
+    if (c.uid && c.cardId) note(c.uid, c.cardId);
   }
   const slot = before.spell;
-  if (slot?.uid && slot.cardId && !seen.includes(slot.uid)) { seen.push(slot.uid); log.offeredCards.push(slot.cardId); }
+  if (slot?.uid && slot.cardId) note(slot.uid, slot.cardId);
 
   if (after === before) return log; // rejected action — nothing was acquired
   if (action.type === 'buy') {

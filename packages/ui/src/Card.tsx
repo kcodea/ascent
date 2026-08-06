@@ -502,6 +502,11 @@ export const Card = memo(function Card({
   const trigger = triggerPill(card.text);
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
+  // The rules HTML, memoized on the text it renders (perf audit 2026-08-06). Unmemoized, every Card render
+  // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
+  // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
+  // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
+  const rulesHtml = useMemo(() => descTemp(descUp(mdBold(shownText))), [shownText]);
   // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
   // (Battlecry / Deathrattle / …) if any, else its first keyword, else the tribe symbol.
   const mechIcon = trigger?.icon ?? (card.keywords[0] ? KW_ICON[card.keywords[0]] : TRIBE_ICON[card.tribe]);
@@ -927,9 +932,12 @@ export const Card = memo(function Card({
         )}
       </div>
       {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
-          click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
-          (display:none) on a resting compact tile. */}
-      <div className="drawer">
+          click inspect, or the always-on-text setting): name, rules text, tribe. Rendered ONLY when the
+          `showtext` class would display it (perf audit 2026-08-06): it used to render unconditionally and
+          sit at display:none on every resting compact tile, paying the name/desc/tribe DOM — including the
+          rules-HTML parse — for tiles that never showed it. `showText` is the same prop that drives the
+          class, so presence and visibility can't drift. */}
+      {showText && <div className="drawer">
         {/* BACKBOX — an authored dark shape behind the text panel, darkening the plate under it so the rules
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
@@ -938,7 +946,7 @@ export const Card = memo(function Card({
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: descTemp(descUp(mdBold(shownText))) }} />
+            <span dangerouslySetInnerHTML={{ __html: rulesHtml }} />
           </div>
         )}
         {!spellLike && !tribePlated && (
@@ -957,7 +965,7 @@ export const Card = memo(function Card({
             )}
           </div>
         )}
-      </div>
+      </div>}
       {/* One-shot buff proc: an expanding ring + sparks burst over the card when a
           recruit-phase buff lands (hero power, spell, summon buff). Painted on top. */}
       {buffed && (

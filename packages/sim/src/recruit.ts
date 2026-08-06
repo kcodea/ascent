@@ -749,7 +749,9 @@ export function rubyCastCount(state: RunState): number {
   // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
   // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
   extra += state.rubyExtraCasts ?? 0;
-  if ((state.rubyCastsThisTurn ?? 0) === 0) extra += state.rubyFirstExtraCasts ?? 0;
+  // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
+  // eat the second slot of Resonance's 2-Ruby window), reset each turn.
+  if ((state.rubyCastsThisTurn ?? 0) < (state.rubyFirstCastWindow ?? 1)) extra += state.rubyFirstExtraCasts ?? 0;
   return (1 + extra) * grimoireMultActive(state);
 }
 
@@ -6188,6 +6190,10 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
     step(() => mintRubies(state, 1));
+  } else if (effect === 'grantRuby2') {
+    // Rune of Resonance (rework 2026-08-06): 2 Rubies per turn. Its own effect id — the recurring effects
+    // are string ids by design, so a count param has nowhere to ride.
+    step(() => mintRubies(state, 2));
   } else if (effect === 'copyFirstSpell') {
     // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
     // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.

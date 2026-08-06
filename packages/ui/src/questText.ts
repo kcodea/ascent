@@ -146,6 +146,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   grantAles: 'End of Turn: get 2 Dwarven Ales',
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
   grantRuby: 'End of Turn: get a Ruby',
+  grantRuby2: 'End of Turn: get 2 Rubies',
   grantFacetwright: "Start of every turn: get a Facetwright's Choice",
   demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
 };

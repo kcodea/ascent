@@ -3,6 +3,30 @@
 
 
 
+## 2026-08-06 — Rune of Resonance: fixed (a missing per-turn reset) + reworked (first 2 Rubies, 2/turn, paid on buy)
+
+Owner report: Resonance's first Ruby wasn't showing its x2. Root cause is a BUG CLASS, not a one-off:
+`rubyCastsThisTurn` — the gate for "first Ruby each turn casts extra" — was incremented on every Ruby cast
+and read by `rubyCastCount`, but NEVER RESET at the turn boundary. So "first each turn" meant "first each
+RUN": any Ruby cast before buying the rune spent the bonus forever. `gemscriptRubyUsed` (Rune of Gemscript's
+first-Ruby spell-power bump) had the identical missing reset. Both now clear in the reducer's turn-boundary
+block, next to Spell Thesis's flag — the pattern they should have copied. (A systematic per-turn-flag sweep
+across all runes is running as part of today's rune audit.)
+
+The rework (owner spec):
+- **Your first 2 Rubies played from hand each turn cast an extra time.** The reward grows `firstN` (default
+  1, so Gem Circuit is untouched); the widest window wins when sources stack, bonuses add. The gate counts
+  Ruby PLAYS, not resolved casts — a doubled first Ruby must not eat the second window slot (pinned by test).
+- **Get 2 Rubies every turn** — a new `grantRuby2` recurring effect id.
+- **Buying it pays immediately** — the recurringEndOfTurn Ruby effects fire once on purchase (scoped to the
+  Ruby effects only; the other recurring effects are turn-structure rituals, not resources).
+
+The x2 badge needs no separate fix: it previews via the same `rubyCastCount` the reducer casts with, so
+fixing the gate fixed the badge.
+
+Verified: typecheck / lint (7-warning baseline) / 4024 tests (7 new — window, play-vs-cast metering,
+per-turn reset, immediate payout, EoT grant, stacking, Gemscript reset) / harness determinism / build:web.
+
 ## 2026-08-06 — Shop-phase perf, slice 1: seven per-action/per-frame costs cut (audit follow-up)
 
 First implementation slice out of the five-agent performance audit, scoped to the owner's stated #1

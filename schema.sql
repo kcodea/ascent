@@ -329,3 +329,26 @@ alter table public.run_telemetry add column if not exists replay           jsonb
 alter table public.run_telemetry add column if not exists content_revision text;
 alter table public.run_telemetry add column if not exists derived          jsonb;
 create index if not exists run_telemetry_content_rev on public.run_telemetry (content_revision);
+
+-- ── 2026-08-06: MMR WRITES — the rating RPC (the leaderboard was frozen) ───────────────────────────────────
+-- The C1 policy above makes `rating` write-once from the client: it is set on the profile row's FIRST insert
+-- and every later UPDATE must carry it unchanged. The plan was "until C3 moves it behind an Edge Function" —
+-- which was never built. Net effect: no path existed that could ever move a stored rating, so the MMR
+-- leaderboard froze at first-insert values (owner report 2026-08-06, surfaced by the MMR reset writing every
+-- row to 0 — where the policy then pinned them).
+--
+-- This function is the interim C3: a SECURITY DEFINER RPC that may update exactly ONE thing — the CALLER'S
+-- OWN rating. The profiles UPDATE policy stays locked (rating still cannot ride a row update, yours or anyone
+-- else's); what the RPC concedes is that the VALUE is client-computed, which was equally true of the first
+-- insert the old design trusted. A server-authoritative rating (recomputed from lobby results) remains the
+-- real C3 if it is ever wanted — this unblocks the leaderboard without widening any row policy.
+create or replace function public.submit_own_rating(new_rating int)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.profiles set rating = new_rating, updated_at = now() where user_id = auth.uid();
+$$;
+revoke all on function public.submit_own_rating(int) from public;
+grant execute on function public.submit_own_rating(int) to authenticated;

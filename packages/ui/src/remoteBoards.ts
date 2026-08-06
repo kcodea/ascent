@@ -438,7 +438,15 @@ export async function uploadPlayerProfile(p: {
       favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
     };
     const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
-    if (!updated.error && updated.data && updated.data.length > 0) return;
+    if (!updated.error && updated.data && updated.data.length > 0) {
+      // RATING moves through its own RPC (`submit_own_rating`, schema.sql 2026-08-06) — the ONLY path the
+      // policy design leaves open. The "C3 Edge Function" the write-once policy deferred to was never built,
+      // so from the C1 migration until this call existed NOTHING could move a stored rating and the MMR
+      // leaderboard froze at first-insert values (owner report 2026-08-06). Fire-and-forget like the rest of
+      // this seam: on a DB that hasn't run the migration the RPC 404s and the catch above swallows it.
+      await c.rpc('submit_own_rating', { new_rating: p.rating });
+      return;
+    }
     await c.from('profiles').insert({ user_id: userId, rating: p.rating, ...mutable });
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */

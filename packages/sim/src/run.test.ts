@@ -4158,18 +4158,18 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
-    // A strong power tends to carry less armor. Values as of the 2026-07-21 across-the-board +5 armor pass.
+    // A strong power tends to carry less armor. Values as of the 2026-08-06 per-hero rebalance pass.
     expect(getHero('warden').armor).toBe(17);
-    expect(getHero('soren').armor).toBe(13);
+    expect(getHero('soren').armor).toBe(10);
     expect(getHero('cassen').armor).toBe(13);
-    expect(getHero('darah').armor).toBe(17);
-    expect(getHero('hermithank').armor).toBe(13); // Tradesman
-    expect(getHero('nadja').armor).toBe(24);
-    expect(getHero('robin').armor).toBe(13);
-    expect(getHero('indy').armor).toBe(20);
+    expect(getHero('darah').armor).toBe(18);
+    expect(getHero('hermithank').armor).toBe(9); // Tradesman
+    expect(getHero('nadja').armor).toBe(20);
+    expect(getHero('robin').armor).toBe(2);
+    expect(getHero('indy').armor).toBe(14);
     const s = createRun(1, 'indy');
-    expect(s.armor).toBe(20);
-    expect(s.maxArmor).toBe(20);
+    expect(s.armor).toBe(14);
+    expect(s.maxArmor).toBe(14);
   });
 
   it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {

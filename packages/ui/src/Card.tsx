@@ -300,8 +300,14 @@ export const Card = memo(function Card({
   locked,
   lockLabel,
   plated,
+  align,
 }: {
   card: CardView;
+  /** CELESTIAL alignment — draws the luminous crescent beneath this minion (Dawn / Dusk / Eclipse). A CHILD
+   *  of the card on purpose (owner report 2026-08-06: the canvas version "hated being moved"): drags, row
+   *  slides and pop-ins are all inherited for free, and only the COLOUR is derived from board position.
+   *  Absent on every non-Celestial board, so an ordinary board renders nothing extra at all. */
+  align?: 'dawn' | 'dusk' | 'eclipse';
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
   uid?: string;
   onClick?: () => void;
@@ -614,6 +620,9 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {/* CELESTIAL alignment crescent — FIRST child so it paints behind the card body, whose opaque frame
+          conceals the ring's upper half: what remains reads as an arc wrapping beneath the minion. */}
+      {align && <div className={`alignarc aa-${align}`} aria-hidden="true" />}
       {/* Backplate — the ornate card body behind everything, on hand + dragged-from-hand cards only. FIRST
           child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
           escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}

@@ -913,7 +913,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // 3-cast threshold fire early or late depending on the mix.
         const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
-        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
+        // ONE per play (not `casts`): this is the first-N-each-turn gate's meter, and counting resolved
+        // casts made the doubled first Ruby consume the whole window (2026-08-06, with the Resonance rework).
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
         advanceRuneThresholds(s, 'castRuby', casts); // Rune of the Cindergem
         consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
         // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
@@ -2741,6 +2743,10 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
+  // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
+  s.rubyCastsThisTurn = 0;
+  s.gemscriptRubyUsed = false;
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -3289,8 +3295,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     }
     case 'rubyExtraCasts':
-      if (r.scope === 'firstEachTurn') s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
-      else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
+      if (r.scope === 'firstEachTurn') {
+        s.rubyFirstExtraCasts = (s.rubyFirstExtraCasts ?? 0) + r.amount;
+        // The widest window wins when sources stack (Gem Circuit's 1 + Resonance's 2 → 2).
+        s.rubyFirstCastWindow = Math.max(s.rubyFirstCastWindow ?? 1, r.firstN ?? 1);
+      } else s.rubyExtraCasts = (s.rubyExtraCasts ?? 0) + r.amount;
       break;
     case 'runeFacetwright':
       s.runeFacetwright = true;
@@ -3372,6 +3381,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.endOfTurnExtra = (s.endOfTurnExtra ?? 0) + 1;
       break;
     case 'recurringEndOfTurn':
+      // Ruby grants pay out ONCE IMMEDIATELY on top of the per-turn recurrence (owner ask 2026-08-06:
+      // "when you get the rune it should give you a gem immediately") — buying Resonance mid-turn should
+      // not feel like buying nothing until End of Turn. Scoped to the Ruby effects only: the other
+      // recurring effects (shop-eating Demons, Facetwright) are turn-structure rituals, not resources.
+      if (r.effect === 'grantRuby') mintRubies(s, 1);
+      if (r.effect === 'grantRuby2') mintRubies(s, 2);
       // Echoing Roar / The Hoard Wakes: a recurring End-of-Turn effect fired every turn for the rest of the run.
       // `turns` bounds the recurrence (Quick Study); without it the effect lasts the run, as before.
       if (r.turns) (s.questRecurringLimited ??= []).push({ effect: r.effect, turnsLeft: r.turns });

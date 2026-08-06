@@ -429,7 +429,12 @@ export interface RunState {
   /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;
+  /** Ruby PLAYS from hand this turn (one per play, however many times it multicasts) — the gate for the
+   *  first-N-each-turn extra cast. Reset at turn start (it wasn't until 2026-08-06, which made every
+   *  "first Ruby each turn" rune a first-Ruby-each-RUN rune — owner report on Resonance). */
   rubyCastsThisTurn?: number;
+  /** How many leading Ruby plays each turn get `rubyFirstExtraCasts` (default 1; Resonance sets 2). */
+  rubyFirstCastWindow?: number;
   /** Set 2 quests — run-level EXTRA Ruby casts, additive with Prismcaster's per-minion `rubyExtraCast`.
    *  `rubyExtraCasts` applies to every Ruby (Unstable Riches); `rubyFirstExtraCasts` only to the turn's first
    *  (Gem Circuit), gated on `rubyCastsThisTurn === 0` so reading the count stays side-effect free — the real
@@ -1019,7 +1024,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

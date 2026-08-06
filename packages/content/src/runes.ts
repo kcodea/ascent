@@ -197,13 +197,14 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeHatchery' },
   },
   {
-    // Two halves, both existing primitives: the per-turn Ruby multicast and an End-of-Turn Ruby.
+    // Reworked 2026-08-06 (owner): first TWO Rubies each turn double, 2 Rubies per turn, and buying it pays
+    // the first 2 Rubies immediately (the recurringEndOfTurn Ruby effects fire once on purchase).
     id: 'rune_resonance',
     name: 'Rune of Resonance',
     cost: 1,
-    text: 'Your **first Ruby** played from hand each turn casts an **extra time**. Get a **Ruby** every turn.',
+    text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
-    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn' }, { kind: 'recurringEndOfTurn', effect: 'grantRuby' }] },
+    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn', firstN: 2 }, { kind: 'recurringEndOfTurn', effect: 'grantRuby2' }] },
     sets: ['set2'], // Rubies
   },
   {

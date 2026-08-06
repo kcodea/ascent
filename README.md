@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of Resonance fixed + reworked** — the per-turn gate never reset (a bug class also hitting Gemscript); now first 2 Rubies double, 2 Rubies per turn, paid immediately on buy.
+
 - **Shop-phase perf slice 1** — seven per-action/per-frame costs cut (card-HTML memo, servedBoards clone carve-out, Set-indexed telemetry, idling End Turn loop); behaviour-identical, from the five-agent audit.
 
 - **MMR leaderboard unfrozen** — ratings now move through a narrow `submit_own_rating` RPC; since the accounts migration no write path had existed at all (requires running the new schema.sql section).

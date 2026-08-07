@@ -3,7 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, dominantBoardTribe, hasTier7Access, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, alternatingBuffText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
+  abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
@@ -136,7 +136,6 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
-            alternatingBuffText(c.id, p.eotTick ?? 0, p.golden) ?? // Matriarch: name the stat it is giving THIS turn
             cadenceProgressText(c.id, p.eotTick ?? 0, p.golden) ??
             escalatingCastText(c.id, p.golden, p.eotTick ?? 0, p.spellBonus, p.spellBonusH) ??
             c.text;

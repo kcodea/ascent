@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-07 — Owner balance batch: 12 card/rune changes, and the alternating mode retires
+
+Tier/stat/magnitude tuning off the owner's 2026-08-07 sheet. Voicekeeper T5 5/9 → T4 4/6; Moonhowl Mentor
+T6 → T5; Paragon T6 → T5 with its per-Rally grant +3/+3 → +4/+4; Crownvein Vanguard T6 5/8 → T5 4/7;
+Mountainbond plays 2 Rubies per 5 cards instead of 1; Moonlit Scavenger is renamed **Scavvers** (id
+unchanged, so saved runs and pool boards still resolve). Runes: Infernal Ink 4 → 3, Kindling 5 → 4, the
+Trophy 5 → 3, Refrain 6 → 3 *and* 20% → 25%, Summoning +1/+1 → +2/+2, the Cindergem +2/+2 → +4/+4.
+
+**Void Curator's two halves come apart.** It paid one magnitude to both its Shop Spells and its Imps;
+the owner wants Imps at +3/+1 while Spells stay +1/+1. `endOfTurnBuffSpellsAndImps` gains optional
+`impAttack`/`impHealth` params **defaulting to the spell numbers**, so every existing caller is untouched.
+
+**Rune of the Remains is archived, not deleted.** `ARCHIVED_RUNES` (the rune counterpart of the card
+archive) already existed for exactly this: it leaves both forge stocks so it can never be offered again,
+but stays in `RUNE_INDEX` with its `runeRemains` combat flag intact, so a saved or replayed run that
+already owns it keeps its badge, text and payout. Deleting the def outright would have broken those runs.
+
+**Bathing Matriarch loses the alternating mode** — it now pays a flat +1/+1 on every Shout trigger, using
+Karwind's own `onBattlecryBuffTribe`. It was the ONLY user of the alternating machinery, so
+`onBattlecryBuffTribeAlternating`, `endOfTurnAlternateMode` and the `alternatingBuffText` live-text helper
+are removed with it rather than left as dead code. `eotTick` stays — Frontdrake, Money Maker and
+Vineweaver read it too.
+
+**Karwind was started and deliberately pulled back out.** The reworked shape (+3/+3 flat, 20% chance to
+double) is easy in the recruit phase, but removing its adjacency clause changes its COMBAT behaviour, and
+the new roll interacts with combat determinism — six combat tests encode the old adjacency spec and need
+real rework, not a number swap. Its floating "2x" crit text is also unbuilt (it needs the Pixi `CritFx`
+text path, which is presentation-owned). It ships in its own PR rather than half-landed here.
+
+**Verified:** `npm run typecheck` clean, `npm run lint` at the 7-warning/0-error baseline, 4116 tests pass,
+`npm run build:web` succeeds.
+
 ## 2026-08-07 — Balance Report: card and rune names stop truncating
 
 The Balance Report's solo table gave Name a `minmax(7rem, 1.4fr)` track, and `.balname` ellipsised whatever

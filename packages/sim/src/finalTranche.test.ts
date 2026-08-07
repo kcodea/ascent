@@ -96,7 +96,7 @@ describe('Paragon — the all-type minion', () => {
       [{ cardId: 'sandbag', attack: 0, health: 9999 }], makeRng(5), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const grants = (r.events.filter((e) => e.type === 'buff') as { target: string; source?: string; attack: number }[])
-      .filter((b) => b.source === 'm0' && b.attack === 3);
+      .filter((b) => b.source === 'm0' && b.attack === 4); // +3/+3 -> +4/+4 (owner 2026-08-07)
     expect(grants.length, 'Paragon granted nothing').toBeGreaterThan(0);
     const firstWave = grants.slice(0, 3).map((g) => g.target);
     expect(new Set(firstWave).size, 'a recipient was buffed twice in one Rally').toBe(3);
@@ -111,7 +111,7 @@ describe('Paragon — the all-type minion', () => {
       [{ cardId: 'sandbag', attack: 0, health: 9999 }], makeRng(7), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const grants = (r.events.filter((e) => e.type === 'buff') as { target: string; source?: string; attack: number }[])
-      .filter((b) => b.source === 'm0' && b.attack === 3);
+      .filter((b) => b.source === 'm0' && b.attack === 4); // +3/+3 -> +4/+4 (owner 2026-08-07)
     const firstWave = grants.slice(0, 3).map((g) => g.target);
     const dragons = ['m1', 'm2', 'm3'];
     expect(firstWave.filter((t) => dragons.includes(t)).length, 'more than one Dragon was picked').toBe(1);

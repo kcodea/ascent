@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES } from '@game/content';
 
 /**
  * Rune batch 8 — the two Shop carry-backs. Both key off friendly summons counted at the single placement
@@ -47,17 +47,21 @@ describe("Rune of Reinvestment — one combined buff at settle", () => {
 });
 
 describe("the two runes ship as specced", () => {
+  // The Remains was ARCHIVED 2026-08-07 (owner) — out of both forge stocks, so it is deliberately absent from
+  // the offerable lists `byName` searches. Its machinery is unchanged and still under test above, because a
+  // saved run that already owns it keeps paying out; only the offer is gone.
   it("exist at the sheet costs, both basic", () => {
-    for (const [name, cost] of [['Rune of the Remains', 3], ['Rune of Reinvestment', 5]] as [string, number][]) {
+    for (const [name, cost] of [['Rune of Reinvestment', 5]] as [string, number][]) {
       const r = byName(name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost, `${name} cost`).toBe(cost);
       expect(!!r!.epic, `${name} should be basic`).toBe(false);
     }
+    expect(byName('Rune of the Remains'), 'the Remains is archived — never offerable').toBeUndefined();
+    expect(RUNE_INDEX['rune_remains'], 'but still resolvable for saved runs').toBeDefined();
   });
 
-  it("neither is set-scoped — summoning and the Shop exist in both sets", () => {
-    expect(byName('Rune of the Remains')!.sets).toBeUndefined();
+  it("Reinvestment is not set-scoped — summoning and the Shop exist in both sets", () => {
     expect(byName('Rune of Reinvestment')!.sets).toBeUndefined();
   });
 });

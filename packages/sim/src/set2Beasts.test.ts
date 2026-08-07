@@ -580,42 +580,6 @@ describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02, third pass: +
   });
 });
 
-describe('set 2 — Bathing Matriarch alternates each turn (owner spec 2026-07-25)', () => {
-  const play = (s: RunState, uid: string) => reduce(s, { type: 'play', uid });
-  const setup = (eotTick?: number): RunState => ({
-    ...createRun(1), phase: 'recruit', embers: 60,
-    board: [{ uid: 'M', cardId: 'd2_matriarch', tribe: 'dragon', attack: 2, health: 7, keywords: [], golden: false, ...(eotTick === undefined ? {} : { eotTick }) }],
-    hand: [{ uid: 'sh', cardId: 'd2_chronicler', tribe: 'dragon', attack: 3, health: 5, keywords: [], golden: false }],
-  } as RunState);
-
-  it('a FRESH Matriarch starts on Attack', () => {
-    const after = play(setup(), 'sh');
-    const m = after.board.find((c) => c.uid === 'M')!;
-    expect([m.attack - 2, m.health - 7], 'Attack only on its first turn').toEqual([2, 0]);
-  });
-
-  it('the next turn it gives Health instead', () => {
-    const after = play(setup(1), 'sh'); // one turn elapsed
-    const m = after.board.find((c) => c.uid === 'M')!;
-    expect([m.attack - 2, m.health - 7], 'Health only on the second turn').toEqual([0, 2]);
-  });
-
-  it('and flips back on the turn after that', () => {
-    const after = play(setup(2), 'sh');
-    const m = after.board.find((c) => c.uid === 'M')!;
-    expect([m.attack - 2, m.health - 7]).toEqual([2, 0]);
-  });
-
-  it('the phase is PER-INSTANCE, so a Matriarch bought later still starts on Attack', () => {
-    // The reason this isn't global wave parity: a card bought on an even turn would otherwise open on Health,
-    // contradicting "starts on Attack".
-    const s = setup();
-    s.wave = 8;
-    const m = play(s, 'sh').board.find((c) => c.uid === 'M')!;
-    expect(m.attack - 2).toBe(2);
-  });
-});
-
 describe('set 2 — Groveweaver (owner report 2026-07-25)', () => {
   it('buffs a Beast summoned IN COMBAT, not just in the shop', () => {
     // The missing half: `summonBuffTribeAsym` lived only in the recruit table, so Groveweaver paid for shop

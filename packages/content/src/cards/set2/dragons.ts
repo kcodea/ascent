@@ -157,9 +157,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_voicekeeper',
     name: 'Voicekeeper',
     tribe: 'dragon',
-    tier: 5,
-    attack: 5,
-    health: 9,
+    tier: 4,
+    attack: 4,
+    health: 6,
     keywords: [],
     effects: [{ on: 'minionSold', do: 'onMinionSoldCopyFirstOfTribe', params: { tribe: 'dragon', count: 1 } }],
     text: 'Get a **plain copy** of the first Dragon you sell each turn.',
@@ -289,14 +289,13 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 2,
     health: 7,
     keywords: [],
+    // Owner rework 2026-08-07: the alternating Attack/Health mode is GONE — it now pays a flat +1/+1 on every
+    // Shout trigger, the same shape as Karwind one tier up. `onBattlecryBuffTribe` is Karwind's own factory.
     effects: [
-      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribeAlternating', params: { tribe: 'dragon', amount: 2 } },
-      { on: 'endOfTurn', do: 'endOfTurnAlternateMode' },
+      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 1 } },
     ],
-    // The printed stat is filled in live by `alternatingBuffText` — an alternating card must never print a
-    // stat it isn't currently giving, so this base text is only the fallback shape.
-    text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**. This alternates every turn.',
-    goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**. This alternates every turn.',
+    text: 'Whenever a **Shout** triggers, give your Dragons **+1/+1**.',
+    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+1/+1** twice.',
   },
   {
     // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus

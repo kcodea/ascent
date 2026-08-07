@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, alternatingBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -223,27 +223,6 @@ describe('cardText helpers', () => {
     // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.
     expect(summonBuffText('trophystalker', 5)).toContain('{{+10/+10}}'); // (5 + 5) × 1
     expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
-  });
-});
-
-describe('alternatingBuffText — Bathing Matriarch', () => {
-  it('names the stat it is giving THIS turn, and what is coming next', () => {
-    const t0 = alternatingBuffText('d2_matriarch', 0)!;
-    expect(t0, 'first turn: Attack').toContain('{{+2 Attack}}');
-    expect(t0, 'and the flip is spelled out').toContain('{{+2 Health next turn.}}');
-    const t1 = alternatingBuffText('d2_matriarch', 1)!;
-    expect(t1).toContain('{{+2 Health}}');
-    expect(t1).toContain('{{+2 Attack next turn.}}');
-    // Never leaves the stale printed stat behind — the whole point of the helper.
-    expect(t1).not.toMatch(/\*\*\+\d+ Attack\*\*/);
-  });
-
-  it('golden doubles the printed magnitude', () => {
-    expect(alternatingBuffText('d2_matriarch', 0, true)).toContain('{{+4 Attack}}');
-  });
-
-  it('returns null for a card that does not alternate', () => {
-    expect(alternatingBuffText('karwind', 0)).toBeNull();
   });
 });
 

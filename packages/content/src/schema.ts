@@ -124,8 +124,6 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuffSpellsAndImps',
   'onConsumeGoldFlat',
   'endOfTurnNeighboursConsumeShop',
-  'onBattlecryBuffTribeAlternating',
-  'endOfTurnAlternateMode',
   'onBattlecryBuffTribeAdjacentMore',
   'onSummonTribeBuffThenDouble',
   'onSummonTribeBuffImproveSelf',

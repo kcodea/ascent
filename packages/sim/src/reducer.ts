@@ -1143,7 +1143,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
         }
       }
-      // Rune of Refrain (reworked 2026-07-21): each Shout (Battlecry) minion you play has a 20% chance to
+      // Rune of Refrain (reworked 2026-07-21, 20% -> 25% owner 2026-08-07): each Shout (Battlecry) minion you play has a 25% chance to
       // return to your hand right after — the actual instance, buffs/golden intact, its Shout already fired,
       // so replaying it fires again. (Was: the 3rd Shout each turn returned that turn's first.) The roll is
       // drawn off the run cursor so a reloaded/replayed run resolves it identically. No-op if the hand is full.
@@ -1154,7 +1154,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (s.shoutsThisTurn === 1) s.firstShoutUid = card.uid;
           if (s.runeRefrain) {
             const rrng = makeRng(s.rngCursor);
-            const returns = rrng.int(100) < 20;
+            const returns = rrng.int(100) < 25;
             s.rngCursor = rrng.state();
             if (returns && s.hand.length < handCap(s)) {
               const idx = s.board.findIndex((c) => c.uid === card.uid);

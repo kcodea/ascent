@@ -283,9 +283,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 5, count: 1 } }],
-    text: 'After you play **5 cards**, play a **Ruby** on your minions.',
-    goldenText: 'After you play **5 cards**, play **2 Rubies** on your minions.',
+    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 5, count: 2 } }],
+    text: 'After you play **5 cards**, play **2 Rubies** on your minions.',
+    goldenText: 'After you play **5 cards**, play **4 Rubies** on your minions.',
   },
 ];
 

@@ -194,28 +194,6 @@ export function ascendProgressText(cardId: string, ascendProgress: number): stri
  * instead of a count. Returns null for non-cadence cards so callers fall back to the printed text.
  */
 /**
- * Bathing Matriarch alternates WHICH stat it pumps every turn (Attack on its first turn, then Health, …). The
- * card-text rule is absolute here: a card that alternates must never print the stat it isn't currently giving,
- * so this rewrites "+N Attack" to the live stat AND appends what's coming next turn.
- *
- * The phase mirrors `alternateModeOf` in the sim (even tick = Attack). Both read `eotTick`, so a change to the
- * cadence can't leave the text and the effect disagreeing.
- */
-export function alternatingBuffText(cardId: string, eotTick: number, golden = false): string | null {
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'onBattlecryBuffTribeAlternating');
-  if (!def || !eff) return null;
-  const amount = Number((eff.params as { amount?: number })?.amount ?? 2) * (golden ? 2 : 1);
-  const health = (eotTick % 2) !== 0;
-  const now = health ? 'Health' : 'Attack';
-  const next = health ? 'Attack' : 'Health';
-  const base = golden ? (def.goldenText ?? def.text) : def.text;
-  return base
-    .replace(/\*\*\+\d+ Attack\*\*/, `{{+${amount} ${now}}}`)
-    .replace(/This alternates every turn\./, `{{+${amount} ${next} next turn.}}`);
-}
-
-/**
  * Groveweaver's summon grant GROWS with every spell cast while it's on board (`summonBonus`), but its printed
  * "+2/+4" never moved — so the card advertised its base rate forever (owner report 2026-07-25). Fold the live
  * value in, the same way `summonBuffText` does for the Start-of-Combat auras.

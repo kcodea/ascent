@@ -118,9 +118,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_crownvein',
     name: 'Crownvein Vanguard',
     tribe: 'kobold',
-    tier: 6,
-    attack: 5,
-    health: 8,
+    tier: 5,
+    attack: 4,
+    health: 7,
     keywords: ['RL'],
     // Owner ruling 2026-07-29 (found by `npm run text:audit`): the Ruby-play half is CUT. The card is the stat
     // gain only — the extra clause was strictly more than the roster says, so the game was ahead of the sheet

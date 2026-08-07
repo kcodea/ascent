@@ -88,7 +88,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summoning',
     name: 'Rune of Summoning',
     cost: 5,
-    text: 'Whenever you cast a Shop spell, improve your **Imps** by **+1/+1** wherever they are.',
+    text: 'Whenever you cast a Shop spell, improve your **Imps** by **+2/+2** wherever they are.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
   },
@@ -153,7 +153,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_infernal_ink',
     name: 'Rune of Infernal Ink',
-    cost: 4,
+    cost: 3, // owner balance 2026-08-07
     text: 'Every **3 Shop spells** you cast, give minions in the **Shop +3/+3**.',
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 3, buff: { target: 'shop', attack: 3, health: 3 } },
   },
@@ -161,9 +161,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_cindergem',
     name: 'Rune of the Cindergem',
     cost: 4,
-    text: 'Every **3 Rubies** you cast, improve your **Imps by +2/+2**.',
+    text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 2, health: 2 } },
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 4, health: 4 } },
     sets: ['set2'], // Rubies
   },
   {
@@ -238,13 +238,6 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Every **4 friendly deaths** in combat, gain **4 Gold** next turn.',
     reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 4 },
-  },
-  {
-    id: 'rune_remains',
-    name: 'Rune of the Remains',
-    cost: 3,
-    text: 'When you summon **5 minions** in combat, **permanently** give minions in the **Shop +3/+3**.',
-    reward: { kind: 'combatFlag', flag: 'runeRemains', amount: 3 },
   },
   {
     // Pays ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
@@ -328,7 +321,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_kindling',
     name: 'Rune of Kindling',
-    cost: 5, // owner balance 2026-08-04
+    cost: 4, // owner balance 2026-08-07
     text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
     reward: { kind: 'runeKindling' },
   },
@@ -484,14 +477,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_refrain',
     name: 'Rune of Refrain',
-    cost: 6,
-    text: 'Your **Shout** minions have a **20%** chance to return to your hand after you play them.',
+    cost: 3, // owner balance 2026-08-07
+    text: 'Your **Shout** minions have a **25%** chance to return to your hand after you play them.',
     reward: { kind: 'runeRefrain' },
   },
   {
     id: 'rune_trophy',
     name: 'Rune of the Trophy',
-    cost: 5,
+    cost: 3, // owner balance 2026-08-07
     text: 'Get a copy of the first minion you **kill** in combat.',
     reward: { kind: 'combatFlag', flag: 'runeTrophy' },
   },
@@ -1204,6 +1197,15 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // Archived 2026-08-07 (owner): out of both forge stocks, but the def and its `runeRemains` combat flag stay
+    // so a saved or replayed run that already owns it keeps its badge, text and payout.
+    id: 'rune_remains',
+    name: 'Rune of the Remains',
+    cost: 3,
+    text: 'When you summon **5 minions** in combat, **permanently** give minions in the **Shop +3/+3**.',
+    reward: { kind: 'combatFlag', flag: 'runeRemains', amount: 3 },
+  },
   {
     id: 'rune_brokerage',
     name: 'Rune of the Brokerage',

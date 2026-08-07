@@ -87,14 +87,14 @@ export const SET2_NEUTRAL: CardDef[] = [
     id: 'n2_paragon',
     name: 'Paragon',
     tribe: 'neutral',
-    tier: 6,
+    tier: 5,
     attack: 4,
     health: 5,
     keywords: [],
     universalTribe: true,
-    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 3, health: 3 } }],
-    text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+3/+3** permanently.',
-    goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+6/+6** permanently.',
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 4, health: 4 } }],
+    text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
+    goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
     // Owner roster addition 2026-07-29. Two branches, deliberately different SHAPES rather than two stat buffs:

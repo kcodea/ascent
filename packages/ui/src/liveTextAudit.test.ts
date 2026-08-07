@@ -22,7 +22,6 @@ const SCALING_FACTORIES = new Set([
   'rallyTribeAuraGrowing',    // Trophy Stalker
   'summonBuffTribeImprove',   // Mama Bear
   'onSummonTribeBuffThenDouble', // Denkeeper Oona — flat half grows per Avenge
-  'onBattlecryBuffTribeAlternating', // Roaring Matriarch — alternates which stat
 ]);
 
 /**
@@ -41,7 +40,6 @@ const COVERED_BY: Record<string, (id: string) => string | null> = {
   buffOnSummon: (id) => cardText.summonBuffText(id, 3),
   rallyTribeAuraGrowing: (id) => cardText.summonBuffText(id, 3),
   summonBuffTribeImprove: (id) => cardText.summonImproveText(id, 3, false),
-  onBattlecryBuffTribeAlternating: (id) => cardText.alternatingBuffText(id, 1),
   onSummonTribeBuffThenDouble: () => null, // exempt above
 };
 

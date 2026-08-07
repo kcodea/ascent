@@ -5020,12 +5020,19 @@ svg { width: 18px; height: 18px; }
 /* The table WIDTH follows its column count (owner report 2026-08-02: the placement columns pushed the grid
    past the old fixed 960px, clipping Name on the left and the last column on the right). `--balcols` is
    already set per section on this element, so the width can be derived from it and capped at the viewport. */
-.balsolo { width: min(calc(9rem + var(--balcols, 4) * 6.9rem), 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
+/* The Name allowance is a SEPARATE term from the numeric columns (owner report 2026-08-07: rune and card
+   names were ellipsising to "Rune of the Ci…" at every column count). Widening this term widens only Name. */
+.balsolo { width: min(calc(17rem + var(--balcols, 4) * 6.9rem), 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
 /* Number columns are a FIXED rem width (not em/minmax) so every row — including the smaller-font header — resolves
    IDENTICAL tracks and the columns line up perfectly across Heroes/Quests/Runes/Minions/Spells. Name fills the rest. */
 /* Numeric columns SHRINK to a floor rather than sitting at a fixed 6rem — with ten columns a fixed width
    overflows any container, and an overflowing grid clips instead of scrolling here. */
-.balgrid-solo .balrow { grid-template-columns: minmax(7rem, 1.4fr) repeat(var(--balcols, 4), minmax(3.6rem, 1fr)); gap: 14px; padding: 10px 2px; font-size: 17px; }
+/* The Name FLOOR is capped at what still lets the widest section (10 numeric columns) fit a 1024px viewport —
+   past that the grid overflows the panel and clips rather than scrolling. Names longer than the floor wrap. */
+.balgrid-solo .balrow { grid-template-columns: minmax(12rem, 2.4fr) repeat(var(--balcols, 4), minmax(3.6rem, 1fr)); gap: 14px; padding: 10px 2px; font-size: 17px; }
+/* Anything still too long to fit the widened track WRAPS to a second line rather than ellipsising, so a name
+   is never hidden — `align-items: center` keeps the numbers aligned against the taller row. */
+.balgrid-solo .balname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 .balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
 .balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
 /* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-07 — Balance Report: card and rune names stop truncating
+
+The Balance Report's solo table gave Name a `minmax(7rem, 1.4fr)` track, and `.balname` ellipsised whatever
+didn't fit. At the column counts the report actually runs (8 for Runes, 10 for Minions/Spells) that resolved to
+~112px, so almost every rune read `Rune of the Ci…` / `Rune of Gems…` — the sortable list was unusable without
+hovering each row for its `title`.
+
+**What changed** (`packages/ui/src/styles.css`, CSS only):
+- The Name floor goes `7rem → 12rem`, and `.balsolo`'s width formula gains a matching `9rem → 17rem` in its
+  Name term so the extra width is granted rather than stolen from the numeric columns.
+- `.balgrid-solo .balname` now wraps (`white-space: normal; overflow-wrap: anywhere`) instead of ellipsising,
+  so a name longer than the track is never *hidden* — it takes a second line and the row grows.
+
+**Why 12rem and not more.** 15rem was measured first and clipped: at a 1024px viewport the 10-column sections
+pushed the last numeric column past the panel's right border, and an overflowing grid clips here rather than
+scrolling (the pre-existing constraint the surrounding comments already flag). 12rem is the largest floor that
+still fits 10 numeric columns at 1024px, and the wrap fallback covers the rest.
+
+**Verified live** in the dev server across all nine report sections at 1912px and 1024px: 0 names clipped
+(`scrollWidth > clientWidth`) and 0 rows overflowing the panel at either width; at 1024px seven long rune names
+wrap to two lines, at 1912px only "Rune of the Merchant's Chorus" does. `npm run typecheck` clean, `npm run
+lint` at the 7-warning/0-error baseline, 4124 tests pass, `npm run build:web` succeeds.
+
 ## 2026-08-06 — One stat system: combat's bespoke hold is deleted, and combat buffs roll like the shop
 
 Combat had a SECOND, parallel implementation of the stat-withholding the shop uses — two `useState` Maps

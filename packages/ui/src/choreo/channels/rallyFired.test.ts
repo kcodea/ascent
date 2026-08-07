@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ralliesFiredIn, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
+import { attackSummonUids, ralliesFiredIn, rallyPulseUnits, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -168,5 +168,32 @@ describe('ralliesFiredIn — delivered summons', () => {
   it('never reads past the moment window for a litter', () => {
     const events = [rally('ech', 'saber'), summon('inside'), summon('next-moment')];
     expect(ralliesFiredIn(span(0, 2), events)[0]?.delivered).toEqual([['inside']]);
+  });
+});
+
+describe('rallyPulseUnits', () => {
+  const buffE = (source: string, target: string): CombatEvent =>
+    ({ type: 'buff', target, attack: 1, health: 1, source } as CombatEvent);
+
+  it('marks the attacker\'s own rally effect as a medallion pulse', () => {
+    // attacker 'A' buffs someone → A rallied on its own swing
+    expect(rallyPulseUnits(span(0, 1), [buffE('A', 'X')], 'A'))
+      .toEqual([{ uid: 'A', surface: 'medallion' }]);
+  });
+
+  it('marks a different friendly\'s effect as a frame pulse (watcher)', () => {
+    // attacker 'A' swings; watcher 'W' reacts with a buff → frame pulse on W
+    expect(rallyPulseUnits(span(0, 1), [buffE('W', 'X')], 'A'))
+      .toEqual([{ uid: 'W', surface: 'frame' }]);
+  });
+
+  it('dedupes multiple events from the same source, first surface wins', () => {
+    expect(rallyPulseUnits(span(0, 2), [buffE('W', 'X'), buffE('W', 'Y')], 'A'))
+      .toEqual([{ uid: 'W', surface: 'frame' }]);
+  });
+
+  it('includes both a self-rally and a watcher in the same beat, in first-seen order', () => {
+    expect(rallyPulseUnits(span(0, 2), [buffE('A', 'X'), buffE('W', 'Y')], 'A'))
+      .toEqual([{ uid: 'A', surface: 'medallion' }, { uid: 'W', surface: 'frame' }]);
   });
 });

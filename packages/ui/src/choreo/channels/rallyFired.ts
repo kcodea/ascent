@@ -45,6 +45,12 @@ export interface RallyFired {
   delivered: string[][];
 }
 
+export interface RallyPulse {
+  uid: string;
+  /** medallion = a self-rally (this unit swung), frame = a watcher (an ally swung). */
+  surface: 'medallion' | 'frame';
+}
+
 /**
  * Pair key separator. NUL is the right choice because it cannot occur in a uid, where a `-` or a space could
  * — but it is written as an ESCAPE and never as a literal control character in the source. A raw NUL byte
@@ -101,6 +107,27 @@ export function attackSummonUids(moment: Moment, events: CombatEvent[], attacker
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (e?.type === 'summon' && e.source === attacker) out.push(e.minion.uid);
+  }
+  return out;
+}
+
+/**
+ * Who pulses this attack beat, and on which surface. A rally effect emits `buff`/`summon`/`sc`/`keyword`/`dmg`
+ * events carrying the ACTING unit as `source`. If that source IS the beat's attacker it is a self-rally
+ * (medallion); any other friendly source is a watcher answering the swing (frame). First event per source
+ * wins; order preserved so a cascade reads left-to-right.
+ */
+const PULSE_EVENT_TYPES = new Set<CombatEvent['type']>(['buff', 'summon', 'sc', 'keyword', 'dmg']);
+export function rallyPulseUnits(moment: Moment, events: CombatEvent[], attacker: string): RallyPulse[] {
+  const seen = new Set<string>();
+  const out: RallyPulse[] = [];
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (!e || !PULSE_EVENT_TYPES.has(e.type)) continue;
+    const src = (e as { source?: string }).source;
+    if (!src || seen.has(src)) continue;
+    seen.add(src);
+    out.push({ uid: src, surface: src === attacker ? 'medallion' : 'frame' });
   }
   return out;
 }

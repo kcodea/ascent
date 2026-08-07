@@ -488,6 +488,7 @@ export function simulate(
       return { attack: base.attack + live.attack, health: base.health + live.health };
     },
     leftmostHandSpellFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds)?.[0],
+    handSpellsFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds) ?? [],
     spellEscalationFor: (side) => {
       const base = (side === 'player' ? playerState : enemyState).spellEscalation ?? { attack: 0, health: 0 };
       const live = spellEscalationGain[side];

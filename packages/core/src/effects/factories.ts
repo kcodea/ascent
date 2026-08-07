@@ -462,6 +462,9 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
           ctx.buff(t, step.attack + acc.attack + sp.attack, step.health + acc.health + sp.health, self.uid);
         }
         ctx.grantSpellEscalation?.(step.attack + sp.attack, step.health + sp.health, side);
+        // Announced so the REPLAY can move the held card's printed value live (owner ask 2026-08-07) — the
+        // run state itself only takes the gain at settle, exactly like every other carry-back.
+        ctx.log({ type: 'sc', source: self.uid, side, text: `${def.name} improves +${step.attack + sp.attack}/+${step.health + sp.health}` });
         did = true; break;
       }
       // ── economy + power ──
@@ -1258,6 +1261,32 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       pool = pool.filter((m) => m !== pick);
     }
     } finally { scavversChainDepth--; }
+  },
+
+  /**
+   * MENAGERIE MAMMOTH (owner rework 2026-08-07) — Avenge (N): cast a RANDOM spell from your hand, through
+   * the combat resolver. Kept, not consumed, like Quil's cast; a targeted spell picks a random friendly; a
+   * hand with no combat-castable spell is a clean no-op (the pick pool is pre-filtered, so it never counts
+   * a fizzling cast). Golden casts twice per proc (castInCombat).
+   */
+  avengeCastRandomHandSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 3));
+    if (count % every !== 0) return;
+    const pool = (ctx.handSpellsFor?.(self.side) ?? [])
+      .map((id) => ctx.getCard(id))
+      .filter((d): d is CardDef => !!d?.spell && combatCastable(d));
+    if (pool.length === 0) return;
+    castInCombat(ctx, self, () => {
+      const def = ctx.rng.pick(pool);
+      const friends = ctx.living(self.side);
+      const targets = def.target ? (friends.length > 0 ? [ctx.rng.pick(friends)] : []) : undefined;
+      if (def.target && (!targets || targets.length === 0)) return;
+      if (resolveCombatSpellCast(ctx, self, def, targets)) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+      }
+    });
   },
 
   /** Set 2 — Vault Curator: Avenge (X) copies the LEFT-MOST spell in your hand into your hand again (golden 2).
@@ -3147,8 +3176,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Scalechanter (combat half): a spell cast mid-fight gives the whole side +atk. Mirrors the recruit
    *  factory so the card behaves the same whichever phase the cast happens in. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
-  spellCastBuffAll: (ctx, self, params) => {
-    if (self.dead) return;
+  spellCastBuffAll: (ctx, self, params, payload) => {
+    // SIDE GUARD (owner bug report 2026-08-07): every sibling spell-cast watcher checks the caster's side;
+    // this one didn't, so an ENEMY Earthbreaker was buffing its board off YOUR casts.
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
     ARENA_EFFECTS.spellCastBuffAll(combatArena(ctx, self), params);
   },
 

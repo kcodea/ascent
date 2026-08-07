@@ -298,6 +298,7 @@ export type EffectFactoryId =
   | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
   | 'deathrattleTriggerAdjacentRally' // Scavvers: Echo — trigger an adjacent minion's Rally
   | 'rubyBounceExtra' // Candle Conduit (passive marker): every Ruby played on your side bounces to 1 more minion
+  | 'avengeCastRandomHandSpell' // Menagerie Mammoth: Avenge (N) — cast a random spell from your hand (kept, not consumed)
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
@@ -2098,6 +2099,9 @@ export interface CombatContext {
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
   leftmostHandSpellFor(side: Side): string | undefined;
+  /** ALL the spell ids in that side's hand at combat start, in hand order (Menagerie Mammoth casts a random
+   *  one). The same snapshot `leftmostHandSpellFor` reads — combat never mutates the run hand. */
+  handSpellsFor?(side: Side): readonly string[];
   /** The side's accumulated Front-to-Back escalation going INTO this fight, plus anything earned during it —
    *  so a combat cast grants what a hand cast would grant right now. */
   spellEscalationFor?(side: Side): { attack: number; health: number };

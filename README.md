@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Live-play fixes** — enemy Earthbreaker no longer buffs off your casts; Front to Back's held-card value moves the moment a minion casts it; Sporebat names its stored spell; Menagerie Mammoth is a T5 hand-caster (Avenge 3) and its rune retires.
+
 - **Combat casts beyond the stat family** — Discovers, refreshes, spell power, Gold and card grants all resolve mid-fight now (only pure tavern work fizzles); Mage-Pup's taught spell fires on a combat Shout re-trigger, and Sporebat/Badgington/Scavvers/Candle Conduit/Ruby Transfer are reworked onto the new reach.
 
 - **Thunderous Sovereign improves twice as fast** — +2/+2 per Shop spell cast (gilded +4/+4), and the card now prints the step instead of just saying "improves".

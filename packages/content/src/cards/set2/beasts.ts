@@ -16,7 +16,7 @@ export const SET2_BEASTS: CardDef[] = [
     id: 'b2_moonhowl',
     name: 'Moonhowl Mentor',
     tribe: 'beast',
-    tier: 5,
+    tier: 6, // T6 -> T5 (2026-08-07 batch) -> back to T6 (owner, same day)
     attack: 4,
     health: 9,
     keywords: [],
@@ -157,19 +157,19 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Rally:** trigger your left-most **Echo** twice.',
   },
   {
-    // The tribe's go-wide finisher: dying floods the board with real Beasts (tokens excluded from the pool).
+    // Owner rework 2026-08-07: the summon-buff engine is out (and Rune of the Mammoth retires with it —
+    // archived). It is a hand-caster now: every 3 friendly deaths it casts a random spell from your hand,
+    // through the combat resolver — kept, not consumed, like Quil's. Targeted spells pick a random friendly.
     id: 'b2_mammoth',
     name: 'Menagerie Mammoth',
     tribe: 'beast',
-    tier: 6,
+    tier: 5,
     attack: 6,
-    health: 8,
+    health: 6,
     keywords: [],
-    // Owner rebalance 2026-08-02 (third pass): back to ATTACK-only +3 improving +3 (gilded +6 / +6). The
-    // Rune of the Mammoth turns the grant symmetric (1:1 Health) — see `mammothHealthFor` in the factory.
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffImproveSelf', params: { tribe: 'beast', attack: 3, health: 0, stepAttack: 3, stepHealth: 0 } }],
-    text: 'When you summon a Beast in combat, give it **+3 Attack**, improving by **+3 Attack** permanently.',
-    goldenText: 'When you summon a Beast in combat, give it **+6 Attack**, improving by **+6 Attack** permanently.',
+    effects: [{ on: 'avenge', do: 'avengeCastRandomHandSpell', params: { count: 3 } }],
+    text: '**Avenge (3):** cast a random spell in your hand.',
+    goldenText: '**Avenge (3):** cast a random spell in your hand **twice**.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4

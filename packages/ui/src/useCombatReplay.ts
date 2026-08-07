@@ -1180,6 +1180,17 @@ export function useCombatReplay(
       // Firing from the narration beat puts it on the moment the gain actually happens.
       fireSpellBuffOnHandSpells(useGame.getState().run.hand);
     }
+    // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
+    // improvement, and this moves the HELD card's printed value live via the display-only preview action.
+    // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.text || e.side !== 'player') continue;
+      const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
+      if (!m) continue;
+      useGame.getState().dispatch({ type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) });
+      fireSpellBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
+    }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
     // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
     // moment it fired; it now emits the same `sc` narration shape spell power does, which is what this reads.

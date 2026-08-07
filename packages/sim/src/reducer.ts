@@ -2003,6 +2003,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'combatEscalationPreview': {
+      // Display-only (see `fxEscalationPreview`): the replay narrates an escalating spell improving itself
+      // mid-fight, and the held card's printed value moves with it. The REAL gain lands at settle through
+      // `playerSpellEscalationGain`; settle clears this, so the two can never stack.
+      const cur = s.fxEscalationPreview ?? { attack: 0, health: 0 };
+      s.fxEscalationPreview = { attack: cur.attack + action.attack, health: cur.health + action.health };
+      return s;
+    }
     case 'settleCombat': {
       // Combat replay finished — apply the outcome (damage + carry-backs) now, in the combat view, so the
       // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
@@ -2569,6 +2577,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.frontToBackBonus += result.playerSpellEscalationGain.attack;
     s.frontToBackBonusH += result.playerSpellEscalationGain.health;
   }
+  s.fxEscalationPreview = undefined; // the display preview retires — the real gain just landed above
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without
   // being re-bought. Labelled 'Undead Bond' to match the buy-time aura (the source varies, the aura is one).

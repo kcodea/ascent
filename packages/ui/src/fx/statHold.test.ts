@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  HOLD_TTL_MS, anyStatHeld, heldFor, holdStat, releaseAllStats, releaseStat, statHoldKey,
-  subscribeStatHolds,
+  DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, claimStat, heldFor, holdOrigin, holdStat,
+  releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, stepHolds, subscribeStatHolds,
 } from './statHold';
 
 afterEach(() => {
@@ -33,6 +33,132 @@ describe('holding a stat change', () => {
   it('does not store a zero delta — nothing to withhold is not a hold', () => {
     holdStat('a', { attack: 0, health: 0 });
     expect(heldFor('a')).toBeNull();
+    expect(anyStatHeld()).toBe(false);
+  });
+});
+
+/**
+ * THE GATE between the intrinsic badge roll and a better-informed effect.
+ *
+ * Several paths can watch the same stat change. `Card`'s intrinsic roll fires off the value moving, a cue
+ * that computed a stagger can say when this particular minion's number is due, and a `react` layer with
+ * `carries` ticked owns the moment AND the clock. Because React flushes layout effects CHILD FIRST, the
+ * card's intrinsic hold always lands before a parent's — left to accumulate, a +1/+1 gem would withhold
+ * +2/+2 and the badge would print a number the unit never had.
+ *
+ * So `origin` is a RANK: a higher-ranked hold REPLACES a live lower one (same change, better-informed
+ * placer), a lower one never lands on top of a higher one, and equal ranks still accumulate — those are
+ * genuinely two changes, which is the case the accumulate tests above cover.
+ */
+describe('origin rank — who owns a change when several paths see it', () => {
+  it('a cue REPLACES an intrinsic hold instead of stacking a second copy', () => {
+    holdStat('a', { attack: 1, health: 1 }, { origin: 'intrinsic' });
+    holdStat('a', { attack: 1, health: 1 }, { origin: 'cue', startAt: 300 });
+    expect(heldFor('a')).toEqual({ attack: 1, health: 1 });
+    expect(holdOrigin('a')).toBe('cue');
+    expect(scheduleFor('a')?.startAt).toBe(300);
+  });
+
+  it('an effect REPLACES a cue hold', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'cue', startAt: 300 });
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'effect' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+    expect(holdOrigin('a')).toBe('effect');
+  });
+
+  it('a lower rank never lands on top of a higher one', () => {
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'effect' });
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'cue' });
+    holdStat('a', { attack: 2, health: 2 }, { origin: 'intrinsic' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 2 });
+    expect(holdOrigin('a')).toBe('effect');
+  });
+
+  it('replaces even when the lower-ranked hold already showed part of the change', () => {
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic' });
+    revealStat('a', 0.5);
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue' });
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // the whole change again, from the top
+  });
+
+  it('SAME rank still accumulates — two genuinely separate changes', () => {
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'cue' });
+    holdStat('a', { attack: 1, health: 0 }, { origin: 'cue' });
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('defaults to effect, so every existing caller keeps its precedence', () => {
+    holdStat('a', { attack: 1, health: 0 });
+    expect(holdOrigin('a')).toBe('effect');
+  });
+
+  it('an EXPIRED hold does not block a later one of any rank', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'effect' });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    holdStat('a', { attack: 3, health: 0 }, { origin: 'intrinsic' });
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+    expect(holdOrigin('a')).toBe('intrinsic');
+  });
+
+  it('reports no origin for a unit with nothing held', () => {
+    expect(holdOrigin('nobody')).toBeNull();
+  });
+});
+
+/**
+ * THE HANDOVER. A `cue` hold is self-delivering: the shared ticker walks it, which is what gives every stat
+ * change an automatic floor with nothing authored. The moment a `react` layer with `carries` starts driving
+ * the same uid there are two clocks on one counter — the reveal is monotonic, so the one that is further
+ * ahead wins each frame, and the ticker reaching the end DELETES the hold, after which the authored
+ * player's `revealStat`/`releaseStat` land on nothing and its timing is silently thrown away.
+ *
+ * `claimStat` is the only way a production path reaches `effect` rank from a cue's hold. Before it existed,
+ * `react.ts` imported only `releaseStat`/`revealStat` and the "an authored layer outranks the cue" story in
+ * three doc comments described a mechanism with no code behind it.
+ */
+describe('claiming — handing a live hold to the layer that will drive it', () => {
+  it('makes the shared ticker stand down, so only the claimer drives the counter', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 0, rollMs: 200 });
+    claimStat('a');
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 1000);   // long past the roll, inside the TTL
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });    // untouched — the claimer owns it now
+    expect(holdOrigin('a')).toBe('effect');
+  });
+
+  it('does not tick the counter backwards when it takes over mid-roll', () => {
+    // The reason this promotes in place instead of re-placing at `effect` rank: a fresh hold would reset
+    // `revealed` to 0 and the badge would jump back to the pre-buff number on the handover.
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 0, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // half walked by the ticker
+    claimStat('a');
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // the handover shows nothing new
+  });
+
+  it('is safe on a uid with nothing held', () => {
+    expect(() => claimStat('nobody')).not.toThrow();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  it('does not resurrect an expired hold', () => {
+    holdStat('a', { attack: 2, health: 0 }, { origin: 'cue' });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    claimStat('a');
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('still expires on its own if the claimer never delivers — promotion must not defeat failing OPEN', async () => {
+    // A def torn down before its peak, a `carries` layer whose moment never arrives: the claim says "I own
+    // this clock", not "this hold is now permanent".
+    vi.useFakeTimers();
+    holdStat('a', { attack: 3, health: 0 }, { origin: 'cue', ttlMs: 50 });
+    claimStat('a');
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(60);
     expect(anyStatHeld()).toBe(false);
   });
 });
@@ -97,6 +223,50 @@ describe('a hold nobody claims must not be permanent', () => {
     holdStat('a', { attack: 2, health: 0 });
     expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
   });
+
+  /**
+   * The header promises "a hold nobody claims must not be permanent". Until now that was enforced only by
+   * `heldFor` sweeping on READ — and nothing re-reads a badge on a shop that isn't being touched, so a hold
+   * whose effect never released it froze the number until some unrelated re-render happened to sweep it.
+   *
+   * Reachable for real: pull the `carries` layer off a def in the workbench and the cue still holds, but
+   * nothing is left to deliver. The owner's report was a gem apply that didn't update until they clicked
+   * again. So expiry NOTIFIES on its own now, rather than waiting to be asked.
+   */
+  it('an unclaimed hold releases ITSELF at the TTL, and tells subscribers', async () => {
+    vi.useFakeTimers();
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    holdStat('a', { attack: 3, health: 3 }, { ttlMs: 50 });
+    expect(notified).toBe(1);          // the hold itself
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(60);
+    expect(anyStatHeld()).toBe(false); // gone WITHOUT anyone reading it
+    expect(notified).toBe(2);          // and the badge was told to re-render
+    stop();
+  });
+
+  it('a hold released on time does not also fire its expiry', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 3, health: 0 }, { ttlMs: 50 });
+    releaseStat('a');
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    await vi.advanceTimersByTimeAsync(60);
+    expect(notified).toBe(0);          // no stray emit for a hold that is already gone
+    stop();
+  });
+
+  it('a re-hold restarts the clock rather than inheriting the old deadline', async () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(80);
+    holdStat('a', { attack: 2, health: 0 }, { ttlMs: 100 });
+    await vi.advanceTimersByTimeAsync(40);   // past the FIRST deadline, inside the second
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(70);
+    expect(anyStatHeld()).toBe(false);
+  });
 });
 
 describe('the render subscription', () => {
@@ -145,5 +315,262 @@ describe('the render subscription', () => {
     releaseStat('never-held');
     expect(fn).not.toHaveBeenCalled();
     off();
+  });
+});
+
+describe('rolling the counter', () => {
+  it('shows the OLD number at 0 revealed', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0);
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  });
+
+  it('steps through whole numbers as it rolls', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.25);
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+    revealStat('a', 0.5);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+    revealStat('a', 0.75);
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+  });
+
+  it('shows the NEW number at 1, leaving no entry behind', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 1);
+    expect(heldFor('a')).toBeNull();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  it('is MONOTONIC — a counter never ticks backwards', () => {
+    // Two effects can be mid-flight on one unit. A number that went forward then back would read as a bug
+    // in the game's arithmetic, not as an animation.
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.75);
+    revealStat('a', 0.25);
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+  });
+
+  it('rolls a DEBUFF down as happily as a buff up', () => {
+    holdStat('a', { attack: -4, health: 0 });
+    revealStat('a', 0.5);
+    expect(heldFor('a')).toEqual({ attack: -2, health: 0 });
+  });
+
+  it('reads as fully revealed once rounding leaves nothing — a +1 never sticks mid-step', () => {
+    holdStat('a', { attack: 1, health: 0 });
+    revealStat('a', 0.6);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('clamps out-of-range progress instead of inverting the roll', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', -5);
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+    revealStat('a', 99);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('a NEW delta mid-roll restarts the reveal rather than carrying the fraction', () => {
+    // The badge is now behind by the full new total; keeping the old fraction would silently reveal part of
+    // a change nobody animated.
+    holdStat('a', { attack: 4, health: 0 });
+    revealStat('a', 0.5);
+    holdStat('a', { attack: 4, health: 0 });
+    expect(heldFor('a')).toEqual({ attack: 6, health: 0 }); // 2 still owed + 4 new, none revealed
+  });
+
+  it('is a no-op for a unit with nothing held', () => {
+    expect(() => revealStat('nobody', 0.5)).not.toThrow();
+    expect(heldFor('nobody')).toBeNull();
+  });
+});
+
+describe('the reel', () => {
+  it('gives a +1 change something to spin through', () => {
+    // The case that made the honest roll invisible: nothing sits between 4 and 5, so the counter had two
+    // states however long it ran. With a reel it moves.
+    holdStat('a', { attack: 1, health: 0 });
+    const seen = new Set<number>();
+    for (let i = 1; i < 20; i++) {
+      revealStat('a', i / 20, 6);
+      seen.add(heldFor('a')?.attack ?? 0);
+    }
+    expect(seen.size).toBeGreaterThan(2);
+  });
+
+  it('still STARTS on the old number — the wobble is zero at t=0', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 0.0001, 8);
+    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
+  });
+
+  it('still LANDS on the new number, however wild the reel', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 1, 12);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  it('reel 0 is the honest odometer — only values between old and new', () => {
+    holdStat('a', { attack: 4, health: 0 });
+    for (let i = 1; i < 10; i++) {
+      revealStat('a', i / 10, 0);
+      const r = heldFor('a')?.attack ?? 0;
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('a negative reel is treated as none rather than inverting the swing', () => {
+    holdStat('a', { attack: 3, health: 0 });
+    revealStat('a', 0.5, -9);
+    expect(heldFor('a')?.attack).toBe(2); // the plain odometer value at halfway
+  });
+});
+
+describe('a delivery schedule', () => {
+  it('defaults to delivering immediately, with the standard roll', () => {
+    holdStat('a', { attack: 2, health: 0 });
+    expect(scheduleFor('a')).toEqual({ startAt: 0, rollMs: DEFAULT_ROLL_MS });
+  });
+
+  it('records a startAt as an offset from now', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 300, rollMs: 500 });
+    expect(scheduleFor('a')).toEqual({ startAt: 300, rollMs: 500 });
+  });
+
+  /**
+   * The TTL is what force-delivers a hold nobody claimed. A flat 1200ms would fire BEFORE the tail of a
+   * long cascade was due — the failsafe undoing the feature it is protecting.
+   */
+  it('extends the TTL to cover a scheduled delivery', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1500);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });   // still alive past the old flat TTL
+  });
+
+  it('keeps the 1200ms floor for an unscheduled hold, so a react layer still has room to claim it', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 0, rollMs: 0 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1000);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('does expire once the schedule plus grace has passed', () => {
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 400, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + HOLD_TTL_MS + 1);
+    expect(heldFor('a')).toBeNull();
+  });
+
+  /**
+   * The case the test above CANNOT make: its 400 + 400 + 200 lifetime is under the 1200ms floor, so what
+   * kills that hold is the flat TTL, not its own schedule. Nothing proved a SCHEDULE-driven lifetime ever
+   * ends — and both enforcement points (`heldFor`'s sweep and the self-firing `setTimeout`) read the same
+   * `lifetimeMs`, so there is no second guard to catch it if that number stopped being bounded. A hold that
+   * never expires is a badge stuck on a stale number with nothing left to move it, which is the exact
+   * failure the TTL exists for.
+   *
+   * 2000 + 500 + 200 grace = 2700, well clear of the floor, so only the schedule can explain the death.
+   */
+  it('a SCHEDULED hold still dies on its own deadline, not just at the flat floor', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 2699);
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });   // its own deadline has not arrived yet
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 2701);
+    expect(heldFor('a')).toBeNull();                           // …and it does arrive
+  });
+
+  it('a scheduled hold releases ITSELF at its own deadline, with nobody reading it', async () => {
+    // The sweep above is `heldFor` noticing on read. This is the other enforcement point: the timer armed
+    // at placement, which is what rescues a badge on a shop nothing is re-rendering.
+    vi.useFakeTimers();
+    let notified = 0;
+    holdStat('a', { attack: 2, health: 0 }, { startAt: 2000, rollMs: 500 });
+    const stop = subscribeStatHolds(() => { notified++; });
+    await vi.advanceTimersByTimeAsync(2699);
+    expect(anyStatHeld()).toBe(true);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(anyStatHeld()).toBe(false);
+    expect(notified).toBe(1);   // and the badge was told
+    stop();
+  });
+});
+
+describe('the shared ticker', () => {
+  /** rAF does not run under vitest, so the tests drive the exported step directly.
+   *
+   *  These holds are all explicitly `intrinsic` — the ticker's actual job is Card's fallback roll (Step 5
+   *  gives it exactly this origin), and `holdStat`'s bare default is `effect`, which the ticker deliberately
+   *  skips (see the "never advances" test below). Relying on the default here would test the wrong path —
+   *  every one of these would silently no-op against the origin check rather than the startAt/rollMs math
+   *  they're named for. */
+  it('reveals nothing before startAt', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 500, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 100);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // untouched
+  });
+
+  it('walks the reveal once startAt has passed', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 100, rollMs: 400 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300);   // 200ms into a 400ms roll
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+  });
+
+  it('releases when the roll completes', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 0, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(heldFor('a')).toBeNull();
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  /** A `cue` hold has no player of its own — unlike `effect`, nothing ever calls `revealStat` for it, so
+   *  the ticker is the ONLY thing that can carry it from placed to delivered. Two production call sites
+   *  now bet on that: the ruby cascade (`Recruit.tsx` ~884) and the fodder tendril (`Recruit.tsx` ~3032),
+   *  both of which withhold at `origin: 'cue'` with no authored layer required to release them. This
+   *  mirrors the `intrinsic` walk-the-reveal case above but on the origin those call sites actually use,
+   *  so a future change that special-cased `cue` out of the ticker's path would fail here instead of only
+   *  in the harness. */
+  it('drives a cue hold to completion on its own — the automatic floor has no player behind it', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 300, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 100);   // before startAt
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });   // untouched
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300 + 200);   // startAt + the full roll
+    stepHolds();
+    expect(heldFor('a')).toBeNull();   // delivered and released, with no react layer anywhere
+    expect(anyStatHeld()).toBe(false);
+  });
+
+  /** An effect layer drives its own reveal off the player's clock; two clocks on one counter stutter.
+   *
+   *  The jump is 1000ms (well past the 200ms roll) rather than something past `HOLD_TTL_MS` (1200ms): past
+   *  the floor, `heldFor`'s own expiry sweep deletes the hold independently of the ticker, and the test
+   *  would pass for the wrong reason — a hold that's gone reads the same as one the ticker declined to
+   *  touch. Staying under the floor isolates the claim this test actually makes. */
+  it('never advances an effect-origin hold', () => {
+    const t0 = performance.now();
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'effect', startAt: 0, rollMs: 200 });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 1000);
+    stepHolds();
+    expect(heldFor('a')).toEqual({ attack: 4, health: 0 });
+  });
+
+  it('emits once per step, not once per hold', () => {
+    let notified = 0;
+    holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', rollMs: 400 });
+    holdStat('b', { attack: 4, health: 0 }, { origin: 'intrinsic', rollMs: 400 });
+    const t0 = performance.now();
+    const stop = subscribeStatHolds(() => { notified++; });
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
+    stepHolds();
+    expect(notified).toBe(1);
+    stop();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
-import { rubiedLandsIn } from './rubyLanded';
+import { rubiedLandsIn, rubyLandSchedule, rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './rubyLanded';
 import { groupSelfBuffs } from './buffSelf';
 import { groupBuffCasts } from './buffCast';
 
@@ -83,3 +83,46 @@ describe('a Ruby buff is claimed by the gem, not the generic buff cues', () => {
     expect(rubiedLandsIn(span(0, 2), [big('a'), big('a')]))
       .toEqual([{ uid: 'a', count: 2, attack: 6, health: 4 }]);
   });
+
+describe('rubyLandSchedule', () => {
+  it('staggers recipients by the ruby gap and stack members by the beat', () => {
+    const out = rubyLandSchedule([{ uid: 'a', count: 2 }, { uid: 'b', count: 1 }]);
+    expect(out.map((l) => l.uid)).toEqual(['a', 'a', 'b']);
+    expect(out[0]!.at).toBe(0);
+    expect(out[1]!.at).toBe(RUBY_BEAT_MS);
+    expect(out[2]!.at).toBe(RUBY_GAP_MS);
+  });
+
+  it('is PURE — the same input twice gives identical timings, which is what keeps the hold and the fire in step', () => {
+    const input = [{ uid: 'a', count: 1 }, { uid: 'b', count: 3 }];
+    expect(rubyLandSchedule(input)).toEqual(rubyLandSchedule(input));
+  });
+
+  it('returns nothing for no lands', () => {
+    expect(rubyLandSchedule([])).toEqual([]);
+  });
+});
+
+/**
+ * The grouping, counting and round-once arithmetic now live in `landHolds` (`fx/land.ts`, see its test
+ * file for the Task 5 Critical regression). What's left to prove here is only `rubyLandHolds`'s OWN job:
+ * that it hands `landHolds` the right per-gem share for Ruby's semantics, and the right `null`s.
+ */
+describe('rubyLandHolds', () => {
+  it('passes the per-gem share (buff total / buff count) through to landHolds, scaled by THIS event\'s own count', () => {
+    // Total buff is all-time (count 5), but this particular land only reports 2 of them — the per-gem
+    // average times THIS event's count, not the buff's lifetime count.
+    const buff = { attack: 10, health: 5, count: 5 };
+    const out = rubyLandHolds([{ uid: 'a', count: 2 }], () => buff);
+    expect(out).toEqual([{ uid: 'a', attack: 4, health: 2, at: 0 }]); // (10/5)*2, (5/5)*2
+  });
+
+  it('skips a recipient with no board buff yet, or a buff with a zero count — nothing safe to divide by', () => {
+    expect(rubyLandHolds([{ uid: 'a', count: 1 }], () => undefined)).toEqual([]);
+    expect(rubyLandHolds([{ uid: 'a', count: 1 }], () => ({ attack: 1, health: 1, count: 0 }))).toEqual([]);
+  });
+
+  it('returns nothing for no lands', () => {
+    expect(rubyLandHolds([], () => undefined)).toEqual([]);
+  });
+});

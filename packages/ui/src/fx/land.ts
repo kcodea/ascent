@@ -145,3 +145,55 @@ export function scheduleDuration(lands: readonly Land[]): number {
   for (const l of lands) if (l.at > max) max = l.at;
   return max;
 }
+
+// ─── holds: the withheld stat delta per recipient ───────────────────────────────────────────────────
+
+/** One recipient's withheld stat delta and delivery moment, derived from a schedule of lands. */
+export interface LandHold {
+  uid: string;
+  /** Rounded ONCE, over the recipient's whole share for this event — never accumulated from a per-land
+   *  rounding. See `landHolds` for why. */
+  attack: number;
+  health: number;
+  /** This recipient's OWN delivery moment: the earliest of its lands. */
+  at: number;
+}
+
+/**
+ * The withheld PER-RECIPIENT delta + delivery moment for a schedule of lands: group by uid, count each
+ * uid's lands in THIS event, and ask the caller for that uid's PER-GEM share via `perGemFor` — which may be
+ * fractional, or `null` when there's nothing to withhold for that uid (skipped).
+ *
+ * ── why this rounds ONCE per recipient, not once per land ────────────────────────────────────────────
+ * A caller that instead rounds `perGemFor(uid)` separately for each of that uid's lands and sums the
+ * results accumulates rounding error: a per-gem share of `1.5` landing twice rounds to `Math.round(1.5) = 2`
+ * each time, holding `4` against a true delta of `3` — a badge printing a number the recipient never had
+ * (Task 5's Critical bug, born from exactly this shortcut). Multiplying the share by the recipient's count
+ * FIRST and rounding the product ONCE makes that class of error impossible rather than merely unlikely,
+ * because there is only ever one rounding operation per recipient to get wrong.
+ *
+ * ── why `at` is the recipient's FIRST land, not a per-land stagger ───────────────────────────────────
+ * `holdStat`'s accumulate path REPLACES a live hold's `startAt` outright when the same uid is held again
+ * (`fx/statHold.ts`), so if a caller placed one hold per land, every land after the first for that uid
+ * would silently overwrite the previous hold's timing before anything ever read it — a within-stack
+ * stagger was never actually deliverable at the hold layer. One hold per recipient, timed to its first
+ * land, says exactly what IS deliverable and nothing more.
+ */
+export function landHolds(
+  lands: readonly Land[],
+  perGemFor: (uid: string) => { attack: number; health: number } | null,
+): LandHold[] {
+  const byUid = new Map<string, { count: number; at: number }>();
+  for (const land of lands) {
+    const existing = byUid.get(land.uid);
+    if (existing === undefined) byUid.set(land.uid, { count: 1, at: land.at });
+    else existing.count += 1;
+  }
+  const out: LandHold[] = [];
+  for (const [uid, { count, at }] of byUid) {
+    const share = perGemFor(uid);
+    if (share === null) continue;
+    out.push({ uid, attack: Math.round(share.attack * count), health: Math.round(share.health * count), at });
+  }
+  return out;
+}

@@ -21,12 +21,26 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Author the first react effect, and retire `statflash` into it.** The `react` primitive shipped
-  2026-08-03 (card / badge / plate / value targets, reach with falloff, rides the player's clock,
-  additive so it composes with drag and the reorder slide). Nothing is bound to it yet. First use: a Ruby
-  landing pops `badge.plate` while `badge.value` counts to its new number. `statflash` — the 0.34s CSS badge
-  pop — must be REPLACED by that react, not left running alongside it, or a buffed badge pops twice.
-  Still open underneath: the number itself doesn't yet count (see the `eotAnimStats` generalisation).
+- **Stat readout choreography — hardening follow-ups (both halves SHIPPED).** The shop half
+  (2026-08-05, [`plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))
+  and the combat half (2026-08-06,
+  [`plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md))
+  both landed: one `fx/statHold.ts` store serves shop and combat, buffs roll and pop the same way in both, and
+  combat's bespoke `statHold`/`statFlash` system is deleted. Details in the devlog. What's left is small,
+  none blocking:
+  - The two browser harnesses (`cascade-verify.mjs`, `combat-invariant.mjs`) are manual pre-merge gates, not
+    CI — so the next change to `stepHolds`, the rank table, or combat's beat cleanup gets none of their
+    protection. Wiring them into CI is the highest-leverage of these.
+  - Combat's damage-interrupt (a hit releases an in-flight buff roll) is proven correct-when-it-fires but only
+    exercised by a synthetic roll-inflation control — the test card's roll finishes ~300ms before damage
+    lands, so no naturally-reachable overlap exists for it today. A slower-windup card would reach it; worth a
+    harness scenario on such a card if one exists.
+  - Combat's hold TTL is computed at placement speed while the roll tracks live speed, so a mid-roll SLOWDOWN
+    force-delivers early (fails open — true value, lost animation frames, never a wrong number). Closing it
+    needs a `statHold.ts` export that re-arms `until` without resetting the reveal.
+  - A carrying `react` layer can only `claimStat` from the moment it SPAWNS, so one armed with an `at` past
+    the cue's roll completion can't (fail-open); and `revealStat`'s rejected-call reel ordering is correct but
+    pinned by no test.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

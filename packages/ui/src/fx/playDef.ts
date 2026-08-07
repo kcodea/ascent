@@ -10,6 +10,7 @@ import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
+import { holdStat, revealStat } from './statHold';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -428,5 +429,31 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     poolSize: fxPoolSize,
     anchors: anchorsForUnits,
     list: (): string[] => listDefs().map((d) => d.id),
+    /**
+     * Drive the badge counter DIRECTLY on a live card, with no def, binding, layer or combat involved.
+     *
+     * This exists because "is the roll working?" and "is my effect wired up?" are two questions, and until
+     * now the only way to ask the first was to answer the second first — a def, a bound moment, a react
+     * layer, two toggles and the right game phase, any one of which fails silently. Three sessions were
+     * spent chasing wiring while the mechanism itself was never in doubt.
+     *
+     * Paste in the console with any minion's uid (grab one from a card's `data-uid`):
+     *   window.__fx.roll('<uid>', 6, 600, 6)
+     * The badge should hold 6 below its true value, then reel up to it over 600ms.
+     *
+     * Args: uid, how much to withhold, how long to roll, reel amplitude (0 = honest odometer).
+     */
+    roll: (uid: string, delta = 4, ms = 600, reel = 6): void => {
+      // Defaults to `effect` origin: this handle drives its own rAF below, so the store's ticker must not
+      // also advance it.
+      holdStat(uid, { attack: delta, health: delta });
+      const t0 = performance.now();
+      const step = (): void => {
+        const p = (performance.now() - t0) / Math.max(1, ms);
+        revealStat(uid, Math.min(1, p), reel);
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
   };
 }

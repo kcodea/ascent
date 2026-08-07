@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
@@ -9,7 +9,71 @@ import {
 import { CardArtEditor } from './CardArtEditor';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
-import { heldFor, statHoldKey, subscribeStatHolds } from './fx/statHold';
+import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
+
+/** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
+const BADGE_POP_SCALE = 1.35;
+const BADGE_POP_MS = 180;
+
+/**
+ * A scale-POP on the whole stat badge — plate and number together — every time the printed value changes.
+ *
+ * This is what gives a **+1 its motion**. The roll is an honest odometer, printing only values between the
+ * old number and the new one, so a one-point change has nothing in between and lands in a single step
+ * however long the roll runs. Popping the badge solves that without the counter ever inventing a value it
+ * never had, which is the trade the reel made and the owner turned down.
+ *
+ * THE BADGE, not the digit alone. Scaling `.value` on its own was too quiet next to the card's own green
+ * burst, so this targets the same element (plate + number together). One pop path covers both surfaces now:
+ * combat used to run its own hand-set CSS flash cue for this, driven by a per-badge boolean prop `Unit` set
+ * by hand; that cue is retired (Task 3 of the combat/shop stat-hold unification) now that combat's `Card`
+ * carries a `uid` and reads the same shared hold store the shop does — its badge's printed value moves for
+ * the same reason a shop badge's does, so this ONE hook pops it, with nothing combat-specific to author. The
+ * badges are positioned by absolute left/right/bottom with no base transform, so a scale composes cleanly
+ * without shifting them.
+ *
+ * It pops on EVERY change, not just the last one, so there is no special case — and because a restart
+ * cancels the one in flight, a fast multi-step roll doesn't read as N separate pops. Each step re-launches
+ * a swell that only gets partway before the next digit lands, so the badge rides slightly enlarged for the
+ * length of the roll and then completes one full pop as it settles.
+ */
+function useBadgePop(value: number): RefObject<HTMLSpanElement> {
+  const ref = useRef<HTMLSpanElement>(null);
+  /** The value as of the last frame that actually reached the screen — see the rAF below. */
+  const painted = useRef(value);
+  const anim = useRef<Animation | null>(null);
+  const raf = useRef(0);
+  useLayoutEffect(() => {
+    /*
+     * Compare at the PAINT boundary, not per commit.
+     *
+     * Placing a hold re-renders synchronously inside the same frame, so on a +1 the digit's value goes
+     * 1 → 2 → 1 before the browser paints anything: the 2 is the raw store value, and the hold takes it
+     * straight back. Popping per commit therefore fired on a number nobody ever saw, and a single +1 got
+     * TWO bounces ~230ms apart (browser-measured). One rAF collapses every intermediate commit in a frame
+     * down to the one value that actually reached the screen, so the digit pops once per visible change.
+     */
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(() => {
+      if (painted.current === value) return;   // the frame settled back to where it started
+      painted.current = value;
+      const el = ref.current;
+      if (el === null) return;
+      // Cancel before re-launching. WAAPI animations under `composite: 'add'` ACCUMULATE, and a roll
+      // changes the number every few frames — a dozen live pops on one badge would scale it off the card.
+      anim.current?.cancel();
+      try {
+        anim.current = el.animate([
+          { transform: 'scale(1)' },
+          { transform: `scale(${BADGE_POP_SCALE})`, offset: 0.35 },
+          { transform: 'scale(1)' },
+        ], { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
+      } catch { /* WAAPI composite unsupported: skip the pop rather than clobber the badge's transform */ }
+    });
+    return () => cancelAnimationFrame(raf.current);
+  }, [value]);
+  return ref;
+}
 // Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
@@ -228,9 +292,6 @@ export interface CardView {
    *  Left undefined outside combat — the shop colours against the printed base alone. */
   floorAttack?: number;
   floorHealth?: number;
-  /** Transient per-stat flash (a buff just landed on this unit this frame). Set by the combat replay. */
-  flashAtk?: boolean;
-  flashHp?: boolean;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
 }
@@ -276,7 +337,6 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
-  buffFloat,
   battlecry,
   electrify,
   karwind,
@@ -300,6 +360,7 @@ export const Card = memo(function Card({
   locked,
   lockLabel,
   plated,
+  autoRoll = true,
   align,
 }: {
   card: CardView;
@@ -320,9 +381,6 @@ export const Card = memo(function Card({
   buffed?: boolean;
   /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
-  /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
-   *  changes per buff so the float remounts and re-runs its rise animation. */
-  buffFloat?: { attack: number; health: number; key: number } | null;
   /** One-shot flourish beneath a just-played minion whose Battlecry fired. */
   battlecry?: boolean;
   /** Electric flash — a Mech being magnetized onto by Combinator's End-of-Turn. */
@@ -379,6 +437,10 @@ export const Card = memo(function Card({
   /** Render the ornate card BACKPLATE behind this card — the full card body used in hand and on the card
    *  dragged out of hand. Board / shop / combat cards are never plated. */
   plated?: boolean;
+  /** Off switch for the intrinsic roll below (default on, so every existing `<Card>` is unaffected). Combat
+   *  passes `false`: a combat badge's changes are either damage (instant by decision) or buffs (driven by the
+   *  replay's own `effect` holds), so an intrinsic roll on top would double-drive damage. */
+  autoRoll?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
@@ -398,10 +460,61 @@ export const Card = memo(function Card({
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
   const held = useMemo(() => (uid && statHoldSeq !== 0 ? heldFor(uid) : null), [uid, statHoldSeq]);
+  /**
+   * ANY stat change rolls the badge — a shop buff, a gem, a Shout, a hero power, up or down, with nothing
+   * authored anywhere.
+   *
+   * Driven by the value CHANGING rather than by an authored effect, and that is the whole point. Routing
+   * this through the FX system meant six things had to line up (a def exists, it is bound to that exact
+   * moment, it has a react layer, `carries` is on, `roll` is set, the phase actually fires that cue) and
+   * every one of them failed silently and identically. "The stat changed" is the only signal that is
+   * universal, and the badge is the only place that always sees it.
+   *
+   * ── the two gates ────────────────────────────────────────────────────────────────────────────────────
+   * **1. It needs a `uid`, which is what keeps it out of combat.** Only the recruit surfaces pass one;
+   * `Unit` renders its `Card` without a uid (the uid lives on `Unit`'s own wrapper), so a fight's damage
+   * ticks and strike beats never reach here. That is deliberate rather than incidental — combat numbers are
+   * already choreographed (`score.ts` holds, damage floats, the strike beats), and an unauthored roll on
+   * top of that is a second clock on the same digits. Static surfaces (EndScreen, Leaderboard, Career,
+   * MinionBook) pass no uid either, so a recap board never animates.
+   *
+   * **2. It yields to an authored effect**, via the hold's origin (see `fx/statHold.ts`). The gem cue in
+   * `Recruit` holds the SAME delta for the same commit, and React flushes layout effects child-first, so
+   * this one always lands first — accumulating both would withhold +2/+2 for a +1/+1 gem. `holdStat`
+   * replaces this hold with the authored one, and the shared ticker's own origin check stands down for it.
+   *
+   * A layout effect so the hold lands BEFORE paint: in a passive effect the new number would show for one
+   * frame and then jump backwards to roll, which is worse than not rolling at all.
+   *
+   * `prevStats` resets when the uid changes, because React reuses a Card component across units — without
+   * that, a recycled card would roll from the previous minion's numbers to this one's.
+   */
+  const prevStats = useRef<{ uid?: string; attack: number; health: number }>({ uid, attack: card.attack, health: card.health });
+  useLayoutEffect(() => {
+    const prev = prevStats.current;
+    prevStats.current = { uid, attack: card.attack, health: card.health };
+    if (prev.uid !== uid || uid === undefined || !autoRoll) return;   // a recycled component, not a stat change
+    const dA = card.attack - prev.attack;
+    const dH = card.health - prev.health;
+    if (dA === 0 && dH === 0) return;
+    holdStat(uid, { attack: dA, health: dH }, { origin: 'intrinsic' });
+    // NO local loop and no failsafe timer. `fx/statHold.ts` owns the clock for every hold no effect claimed
+    // — one rAF for the whole board instead of one per card, and it survives this card unmounting mid-roll.
+    // Its schedule-aware TTL is what force-delivers a hold nobody finished.
+  }, [uid, card.attack, card.health, autoRoll]);
+
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).
-  const shownAttack = held ? card.attack - held.attack : card.attack;
-  const shownHealth = held ? card.health - held.health : card.health;
+  //
+  // Floored at 0 as a last line of defence. The intrinsic roll fits its own reel to the room underneath it
+  // (see above), but an AUTHORED `react` layer sets `reel` by hand in a def, and nothing stops a dial from
+  // being turned past what the minion has room for. A mid-roll frame is allowed to overshoot; it is not
+  // allowed to print a negative stat.
+  const shownAttack = held ? Math.max(0, card.attack - held.attack) : card.attack;
+  const shownHealth = held ? Math.max(0, card.health - held.health) : card.health;
+  // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
+  const atkPopRef = useBadgePop(shownAttack);
+  const hpPopRef = useBadgePop(shownHealth);
   const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
   const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
@@ -655,11 +768,6 @@ export const Card = memo(function Card({
             </div>
           )}
         </>
-      )}
-      {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
-          Keyed so a fresh buff remounts it and replays the rise. */}
-      {buffFloat && (
-        <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
       )}
       {/* Step-progress counter below step-based scalers — either "X/N to next step" (Guel 1/4, Monk 2/5, …) or a
           `label` override for cadence cards ("2 Turns" until Money Maker fires). Keyed on the shown value so each
@@ -918,11 +1026,11 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>
+            <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{shownAttack}</span>
             </span>
-            <span className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>
+            <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{shownHealth}</span>
             </span>

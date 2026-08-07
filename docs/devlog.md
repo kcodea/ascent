@@ -1,5 +1,388 @@
 # ASCENT — development log
 
+## 2026-08-06 — One stat system: combat's bespoke hold is deleted, and combat buffs roll like the shop
+
+Combat had a SECOND, parallel implementation of the stat-withholding the shop uses — two `useState` Maps
+(`statHold`, `statFlash`) in `useCombatReplay`, threaded `Recruit → Unit → Card`, released by post-paint strike
+timers, with `.statflash` for the pop. That is all gone. Combat's `Card` now carries a `uid` and reads the
+same `fx/statHold.ts` store the shop does; there is one stat system in the game.
+
+**How it works now.** A combat buff installs an `effect`-origin hold at the pre-buff value (the store's ticker
+leaves `effect` holds alone — the replay owns their clock). At the strike, the replay drives a ROLL that counts
+the number up over ~420ms, and `Card`'s existing badge pop fires as the value moves. Damage stays instant: with
+`autoRoll={false}` the intrinsic roll never fires in combat, so a damaged badge updates immediately and pops.
+
+**A mechanism the spec got wrong, corrected here.** The spec proposed combat holds carry `startAt: <strike
+beat>`. They can't — the strike time is measured POST-paint (DOM geometry) while the hold is installed PRE-paint
+to avoid the up-down-up flash the owner filmed in July. `effect` origin is the right shape: the ticker skips it,
+the replay's timers drive it, exactly the contract `claimStat` gives an authored `react` layer. Combat needed no
+`startAt`.
+
+**Two owner feel calls (2026-08-05):** combat buffs roll like the shop rather than snapping; the health badge
+pops on damage too (already true — the pop has no uid gate).
+
+**Getting the roll to actually play took a real fight with combat's beat pipeline.** The first cut SNAPPED, not
+rolled: the strike timer that starts the roll lived in the per-beat cleanup array, and the beat advances at
+lunge CONTACT — a measured 5–44ms race that usually cancelled the roll before it began. Option A (chosen over a
+cheaper patch that would have ignored mid-roll speed changes) moved the roll into a combat-lifetime registry that
+survives the beat advance and is cancelled only on teardown or a re-seek, and made `driveRoll` integrate LIVE
+combat speed each frame. That surfaced two more stacked bugs: an install-effect release pass racing the pending
+strike, and the store's default 1200ms hold TTL being tighter than combat's own ~1740ms wind-up+travel+roll
+chain (fixed with an explicit per-call `ttlMs`, the shared store untouched).
+
+**And making the roll survive the beat advance opened a new invariant hole, caught by review.** Because the roll
+now reliably outlives the beat, a unit buffed and then DAMAGED within the roll window could print below its floor
+— the badge shows `live − withheld`, and the delta model never accounted for the live value dropping. Fixed by
+making damage INTERRUPT an in-flight roll: a damaged unit's hold releases and the badge snaps to its true
+post-damage value (damage is authoritative and instant, so this is the correct read anyway).
+
+**Verified** by a per-frame browser harness (`docs/superpowers/harness/combat-invariant.mjs`) that drives a real
+fight and asserts, every frame, that no badge prints outside its true trajectory — plus four negative controls
+that each inject a bug and confirm the harness catches it (an inflated delta, a wrong-origin hold, damage routed
+through a hold, and the removed damage-interrupt). Buff timeline against a real fight: held 2 → rolls → 4 →
+counter-damage → 1, every value inside the floor/ceiling. Gates: typecheck ✓, 3933 tests ✓, lint ✓ (7
+pre-existing). **Known limitation carried forward:** the harness's buff-then-damage scenario finishes its roll
+~300ms before damage lands for the test card, so the damage-interrupt is validated by a synthetic
+roll-inflation control rather than a naturally-reachable overlap for that card — it is correct-when-it-fires,
+fail-safe, and reachable for slower-windup cards or future tuning, but not proven reachable today.
+
+## 2026-08-05 — Plan: combat stat unification (plan only, no code)
+
+Implementation plan for the combat half of the choreography work:
+[`superpowers/plans/2026-08-05-combat-stat-unification.md`](superpowers/plans/2026-08-05-combat-stat-unification.md).
+Five tasks that delete combat's second, bespoke stat-withholding system — the `statHold`/`statFlash` `useState`
+Maps in `useCombatReplay`, threaded `Recruit → Unit → Card` and released by post-paint strike timers — and
+route it through the same `fx/statHold.ts` store the shop uses.
+
+**A mechanism refinement over the spec, found by reading `useCombatReplay.ts` closely.** The spec proposed
+combat holds carry `startAt: <strike beat>`. They can't: the strike time is measured POST-paint (from DOM
+geometry in `fireBuffCasts`) while the hold is installed PRE-paint to avoid the up-down-up flash the owner
+filmed in July. The clean shape is `origin: 'effect'` — the ticker already leaves those alone, and combat's
+existing release timers are their driver, which is exactly the contract an authored `react` layer has via
+`claimStat`. Combat reuses machinery this branch already built and needs no `startAt`.
+
+**Two owner feel calls (2026-08-05):** combat buffs ROLL on strike, counting up over `rollMs` like the shop,
+rather than the hold-then-snap they do today; and the health badge pops on damage too (already true — the pop
+has no uid gate — so the only new pop is on buffs once `.statflash` retires).
+
+Merge is gated on a per-frame browser assertion that no combat badge ever prints a number the minion did not
+have, with negative controls — because `useCombatReplay`/`Unit`/`Card` have no DOM test harness and combat is
+the most tuned surface in the game. Deferred until now on purpose: the shop half had to land first so the plan
+could be written against the shared ticker's real behaviour rather than a prediction of it.
+
+## 2026-08-05 — The cascade actually reaches the badge: the gate goes, the maths generalises, four review findings close
+
+The entry below landed the scheduling mechanism and proved it in a browser — but only with a diagnostic
+`react` layer armed. Against the real shipped `ruby-gem-apply.json` the harness FAILED, spread 0, every
+number landing together. This closes that, generalises the arithmetic out of the Ruby channel, and fixes what
+a whole-branch review found afterwards.
+
+**`defCarriesNumber` is gone, and with it the reason the feature did nothing.** That gate was added the day
+before to fix a real bug: a cue withheld a number, no layer released it, and the badge froze until an
+unrelated re-render swept it. Correct then. The shared ticker made it wrong — every hold that is not
+`effect`-owned is now self-delivering, so gating the withhold on a def's authoring only prevented the cue from
+ever publishing its schedule. Harness against unmodified content: **spread 311ms**, four badges at
+286/380/508/597. Negative control with `startAt` stripped: spread 0, FAIL. The function had exactly one
+caller and is deleted.
+
+**The round-once rule moved somewhere generic.** `landHolds` in `fx/land.ts` groups scheduled lands by
+recipient, takes the FIRST land's time, and multiplies the per-gem share by the recipient's count **before**
+rounding — the discipline whose absence printed a badge one below its own pre-buff value earlier in this
+work. The caller supplies a possibly-fractional per-gem share and its own semantics; the arithmetic that had
+the bug lives in one tested place. `rubyLandHolds` is now a wrapper holding only Ruby meaning. `fx/land.ts`
+still has zero imports.
+
+**Four findings from the whole-branch review, none of which the per-task reviews could see:**
+
+- **The authored override never existed.** `fx/primitives/react.ts` imports `releaseStat`/`revealStat` and
+  never called `holdStat`, so a `react` layer could not create an `effect` hold — `origin: 'effect'` appeared
+  only in tests. Everything claiming an armed layer "outranks the cue" was false, in the code comments, the
+  spec and the plan. With a layer armed, the ticker and the def player drove one counter; a `roll` longer
+  than 420ms was outrun and the ticker DELETED the hold, discarding the authored timing. New `claimStat(uid)`
+  promotes a live hold to `effect` and the react primitive calls it when it commits to driving. Measured both
+  ways with a temporary 800ms carrying layer: **811ms** to settle with the claim, **502ms** without (the
+  ticker's `120 + 420` winning). Known ceiling, documented rather than hidden: a layer can only claim from
+  the moment it spawns, so one armed later than the cue's roll finishes still cannot — fail-open, and closing
+  it needs the def-level knowledge deliberately removed above.
+- **The fodder hold sat outside the commit that raised the value.** It was placed from a passive effect, and
+  from the End-of-Turn beat ten lines before `setEotAnimStats` — hold on the sync external-store lane, value
+  on the default lane, so any commit carrying one without the other printed below pre-buff. Its `tryShow`
+  retry could also place a fresh full-delta hold up to 650ms late, after the intrinsic roll had completed and
+  deleted, snapping the badge backwards for about a second. Gains now come from a pure `fx/fodderGains.ts`
+  and every path holds in the commit that raises.
+- **`releaseAllStats` was only wired to the phase flip**, inside `actionSfx`, which `newRun`,
+  `startSceneBuilder`, `pickHero`, `clearRun` and `continueRun` all bypass — while its comment claimed to
+  solve the uid-reuse-across-runs case it did not cover. Now `dropBoardFx`, called from all of them.
+- **Nothing proved a scheduled hold ever expires.** The existing test used a lifetime under the 1200ms floor,
+  so it exercised the flat TTL. Two new tests at `startAt 2000 / rollMs 500` cover both enforcement points —
+  the read sweep and the self-firing timer — and pin the deadline from both sides.
+
+Also: `revealStat` stamped `reel` before the monotonic check, harmless under one driver and not under two;
+and the harness asserted stagger but never the invariant — it recorded when a badge first CHANGED, never what
+it printed, so it would have passed a badge flashing `-1`. It now tracks per-uid min/max against a
+pre-change baseline. Negative control with the hold inflated by +3: `invariantHeld: false`, where the old
+harness passed.
+
+**Verified** — typecheck ✓, 3930 tests ✓, lint ✓ (7 pre-existing), harness PASS at spread 299ms with
+`invariantHeld: true` against byte-unmodified content. **Still open:** combat is untouched and is the
+follow-up plan — `Unit` renders `Card` without a `uid`, so no hold reaches a combat badge and `score.ts`'s
+`holdStat` remains inert.
+
+## 2026-08-05 — Scheduled stat delivery lands for the shop; `releaseAllStats` finally gets called
+
+The seven-task plan ([`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))
+is done. A badge's stat change now carries three separate facts instead of one conflated event: the DELTA
+(whoever caused it), WHEN it lands (a cue's schedule, or nothing — meaning now), and HOW it lands (the shared
+ticker's roll, unless an authored `react` layer overrides it). Splitting those apart is what makes a cascade
+possible: an Excavator dropping four gems across the board can now deliver each minion's number on its OWN
+gem's arrival instead of all four landing on the reducer's tick, which is the one thing that visibly proves an
+effect isn't just decoration.
+
+**The shared ticker.** `statHold` used to run one rAF loop per `Card` mounted, each polling its own hold.
+That doesn't scale to "N holds, each with its own delivery time" — a per-card loop has no way to know when a
+DIFFERENT card's hold is due, so nothing could stagger. One ticker now owns every live hold, walks `scheduleFor(uid)`
+against the player's own clock, and calls `revealStat` at each hold's `startAt`. `Card`'s old per-instance rAF
+and its failsafe timer are gone; the module is the single clock the whole board reads from, which is also what
+makes combat-speed changes and scrubbing carry a mid-roll cascade for free instead of needing a second wiring.
+
+**`origin` becomes a three-way rank, not a boolean.** `intrinsic < cue < effect`: the badge's own "any stat
+change rolls, no authoring required" floor never overrides an authored cue, an authored cue never overrides a
+live effect mid-delivery, and same-rank holds still accumulate (two shop buffs landing in one commit sum
+rather than clobber). This is what makes "decline to hold, fall through to the intrinsic roll" a safe default
+rather than a special case — every one of these three tasks that skips arming a schedule was already covered
+by the rank that shipped two days ago, not by anything new.
+
+**Two cue sites adopted the schedule.** The shop Ruby cascade (`rubyLandSchedule`, one `scheduleLands` call
+now shared by both the hold and the fire effect, so the badge and the gem detonation cannot compute two
+schedules that merely agree today) and the fodder-eat tendril (`holdStat(uid, ..., { origin: 'cue', startAt:
+CRUMBLE_MS + icfg.travelMs })`, placed at commit time so the eater's digits change exactly when the tendril
+arrives). The tendril adoption also cut the LAST `+X/+X` float left in the game — recruit's generic float went
+with the intrinsic roll two days ago, combat's lives in `choreo/channels/float.ts` and was never a float, and
+this was the one place a float and a badge were still both racing to tell the player the same number.
+`statFloats`/`setStatFloats`/`statFloatKey` and `Card`'s `buffFloat` prop are deleted; grep confirmed nothing
+else produced them.
+
+**`releaseAllStats` and `clearAllSpellBuffs` are now called in production.** Both have existed since the
+scheduling work began, documented for exactly this — "drop every hold when the scene that placed it is gone" —
+and called by nothing but their own tests. Survivable only while the store served a single surface; the moment
+combat starts reading from the same module, a hold that outlives its scene withholds a NUMBER THAT BELONGS TO
+WHOEVER NEXT REUSES THAT UID, since uids are reused across runs and `heldFor` sweeps expired holds silently on
+read rather than announcing the leak. Wired into `store.ts`'s post-dispatch cue dispatcher, the same function
+that already diffs `prev`/`next` run state for sound cues: on any `prev.phase !== next.phase` edge, both get
+called. This was flagged as a prerequisite in the original design doc and stayed unaddressed through six tasks
+of building the delivery mechanism itself — closing it here, before combat's half of this plan starts reading
+the same store, is the point of doing it now rather than discovering it mid-fight.
+
+**Proven in a browser, not just in tests — and the negative control matters more than the pass.**
+A committed harness (`docs/superpowers/harness/cascade-verify.mjs`, driven headless over CDP against the real
+dev server) buys and plays four minions, fires a synthetic board-wide Ruby cascade exactly like a Frenzied
+Excavator would, and samples every badge's `.value` on every animation frame to find when each one actually
+changes. Two things had to be fixed in the harness itself before it measured anything real: `buy` splices the
+purchased offer out of `run.shop`, so re-reading `shop[0]` after the first purchase (the original sketch)
+handed later iterations an already-emptied slot with no `cardId`; and the starting shop's three offers aren't
+guaranteed distinct, so reusing one card id three times fired the triple-merge and silently left fewer than
+four board minions to cascade across. Fixed by rolling until four distinct card ids have been seen and driving
+each purchase off one of them.
+
+With a `react` layer armed to carry the number (verified with a temporary layer, then reverted — see below),
+the harness passes cleanly: `landedAt` of `{b8: 155, b9: 285, b10: 435, b11: 478}`, a 323ms spread across four
+recipients at the `RUBY_GAP_MS = 100` cascade rate. The negative control matters more than that pass: with
+`startAt` stripped from the shop's `holdStat` call (`{ origin: 'cue' }` instead of `{ origin: 'cue', startAt:
+hold.at + RUBY_DELIVER_OFFSET_MS }`), the SAME harness against the SAME armed content prints `landedAt` of
+`{b8: 115, b9: 115, b10: 115, b11: 115}` — spread 0, exit code 1, `FAIL`. A harness that passes whether or not
+the feature it's testing is wired up is worse than no harness; this one only passes when the schedule is
+actually driving delivery, which is the thing this whole plan built. Both edits — the diagnostic layer and the
+negative-control line — were reverted after use; `git diff` against `Recruit.tsx` and `ruby-gem-apply.json` is
+clean.
+
+**One finding worth stating loudly rather than smoothing over.** Run against the ACTUAL committed
+`ruby-gem-apply.json` — no diagnostic layer — the harness prints `FAIL` (spread 0, all four badges land on the
+same frame). This is not a regression from this plan: commit `f219d122` (owner tuning, same branch, the day
+before this task) deliberately removed both `react` layers from that def, with a commit message that
+independently re-derives the exact same measurement this task's harness produced — "verified delivering at
+762ms on the def's own clock rather than the intrinsic 420ms" — and chose the intrinsic roll instead. The
+scheduling MECHANISM this plan built is correct and proven; the shop's shipped Ruby-gem effect currently opts
+out of using it, by explicit owner decision already baked into this branch's history. Re-arming
+`ruby-gem-apply.json` is a one-field workbench edit (`carries: true` on a `react` layer) whenever that call
+changes, not a code change — nothing in this plan is blocked on it.
+
+Gates: `npx tsc -b` clean, `npx vitest run` at the existing baseline (3912 passing, no new failures), `npx
+eslint .` at the pre-existing 7 warnings tree-wide (no new ones).
+
+## 2026-08-04 — Plan: scheduled stat delivery, the shop half (plan only, no code)
+
+Implementation plan for the shop half of the choreography design:
+[`superpowers/plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md).
+Seven TDD tasks: the hold gains `startAt`/`rollMs` with a schedule-aware TTL → `origin` becomes an
+`intrinsic < cue < effect` rank → one shared rAF ticker in `statHold` replaces the per-card loop and `Card`'s
+failsafe → a pure `rubyLandSchedule` helper so the hold and the fire cannot compute different schedules →
+the shop gem cascade delivers each number with its own gem → the fodder tendril does the same and the LAST
+`+X/+X` float in the game goes → `releaseAllStats` finally gets called on a phase change, plus a committed
+browser harness with a negative control.
+
+**Split from combat deliberately, and the reason is structural rather than caution.** Combat's hold is
+installed by a wholesale per-beat rebuild in a layout effect (`useCombatReplay.ts:1491`, via `preBuffHolds`)
+while its RELEASE lives in two post-paint callbacks (`fireBuffCasts`, `fireSelfBuffs`) as timers keyed on a
+`strikeMs` computed only in that post-paint effect. `startAt` requires the hold to know its delivery time at
+install, so those have to become one decision — a restructure of the beat pipeline on top of the
+absolute-to-delta conversion, the wholesale-rebuild semantics the accumulating store lacks, `.statflash`'s
+retirement and `autoRoll` on `Card`. Each half is working software alone, and mixing a low-risk mechanism
+change into the most tuned surface in the game is how the risk gets hidden. The combat plan gets written
+against the shared ticker's real behaviour once this lands.
+
+## 2026-08-04 — The badge carries every stat change: intrinsic roll, the authored gate, and a badge pop
+
+The roll now fires on ANY stat change in the shop with no authoring at all, yields correctly to an authored
+effect, and the badge pops as the number lands. Five defects fixed on the way, three of them found by driving
+a real browser rather than by reading.
+
+**The intrinsic roll, and the two gates it needed.** `Card` watches its own printed value and withholds any
+change nobody authored, so a stat change is never silent because someone forgot a layer. Two gates make that
+safe. It needs a `uid`, which is what keeps it out of combat — only the recruit surfaces pass one (`Unit`
+renders its `Card` without one, and the static surfaces — EndScreen, Leaderboard, Career, MinionBook — pass
+none either, so a recap board never animates). And it yields to authored effects via a new `origin` on the
+hold.
+
+**That second gate was a live bug, not a precaution.** React flushes layout effects CHILD FIRST, so the
+card's intrinsic hold always landed before `Recruit`'s gem hold for the same commit, and the two ACCUMULATED
+— a +1/+1 gem withheld +2/+2 and the badge printed a number the minion never had. `holdStat` now takes an
+origin: authored REPLACES intrinsic (same change, better clock), intrinsic never lands on top of authored,
+same-origin still accumulates. The rAF loop stands down when it sees itself superseded, so two clocks never
+drive one counter.
+
+**The reel is gone (owner call).** It printed impossible values: a 1/3 buffed to 9/12 measured
+`1/3 → -2/0 → -3/-1` before climbing. A negative stat isn't a spinning counter, it's a broken badge, and this
+is the number players buy and position from. The intrinsic roll is now an honest odometer — only values
+between the old number and the new one. The `reel` dial is untouched and still available to an authored
+`react` layer. A print-time `Math.max(0, …)` floor stays as a backstop, since an authored layer's amplitude
+is hand-set and nothing stops a dial being turned past what a minion has room for.
+
+**A stranded hold could never resolve.** rAF stops dead when the tab is backgrounded, and the TTL is swept ON
+READ — a shop nobody is touching re-renders nobody. Measured in the live app: the store said 7/9 while the
+badge sat on 2/4, indefinitely. Two fixes: a per-card timer failsafe (timers still fire while hidden), and
+`holdStat` now arms a real expiry that releases AND emits, so the module's "an unclaimed hold must not be
+permanent" promise is enforced rather than merely documented.
+
+**A def that no longer carries the number must not withhold one.** Pulling the `react` layers off
+`ruby-gem-apply` in the workbench left `Recruit` placing a hold with nothing to release it — the owner's
+report was a gem apply that didn't update until they clicked again. New `defCarriesNumber(id)` asks whether a
+def still has a live `react` layer with `carries` ticked; when it doesn't, the cue withholds nothing and the
+change falls through to the intrinsic roll, so the badge still rolls on no authoring at all.
+
+**Recruit's `+X/+X` float is cut**, mirroring the combat cut in `choreo/channels/float.ts` — the badge now
+carries its own change, and a float saying "+2/+2" beside a badge counting 4→6 is two things asking for the
+eye in the same place at the same moment. The GREEN BURST stays: "this minion was buffed" is a different read
+from "the number is now 6". The fodder-eat float deliberately survives for now — it is choreographed to the
+tendril's arrival, and cutting it before the badge can be scheduled to that beat would remove the payoff
+rather than de-duplicate it (see the choreography design).
+
+**The badge pop.** With no reel, a +1 has nothing to step through, so motion moved to the GLYPH instead of
+the value. It pops the whole badge — plate and number — because `.statflash` (combat's existing badge pop) is
+only ever set by `Unit`, so the shop had no equivalent and a gem landed with nothing marking it. Two
+subtleties, both browser-measured: the comparison happens at the PAINT boundary via one rAF, because placing
+a hold re-renders synchronously and the value goes 1 → 2 → 1 before the browser paints (popping per commit
+fired on a number nobody saw, giving a +1 two bounces ~230ms apart); and the pop skips any badge carrying
+`.statflash`, since a script animation composites on top of a CSS one and both would multiply to ~2×.
+
+**Verified by driving Chrome over CDP** against the dev server, sampling the badge every frame — the in-app
+pane and the extension tab both refuse to composite, so rAF never runs there and nothing could be confirmed.
+Traces: `1/3 → 9/12` steps through 14 distinct values and lands exactly, 0 negative frames; a +1/+1 holds
+~250ms then flips with one clean pop peaking 1.315 and settling to exactly 1.0; the gate prints 15/18 against
+a true 21/24 with an authored delta of 6 (double-held would be 9/12); a gem apply with the react layers
+removed rolls 2/2 → 3/3 → 4/4 with no second click; and with a synthetic carrying layer re-added it delivers
+at 762ms on the def's own clock rather than the intrinsic 420ms. Gates: typecheck ✓, lint ✓ (1 pre-existing),
+3893 tests ✓ (12 new in `statHold.test.ts`).
+
+**One self-inflicted break worth recording:** swapping the `playDef('ruby-gem-apply', …)` literal for a
+constant failed `directCalls.test.ts`, which pins a static scan of def usage — the literal is deliberate so
+the scanner can read it, which is what the `// literal — see RUBY_LANDED_DEF` comment was for. Restored, and
+the existing `RUBY_LANDED_DEF` in `choreo/channels/rubyLanded.ts` is now imported rather than duplicated.
+
+**Still open:** a report that the self-buff effect fires when placing units, reliably on goldens. Not
+reproduced across three probes — a plain placement, a hand triple, and a board triple all fire no `cardbuff`,
+`spellbuff`, `sbsparks` or `statflash`, and a board triple gives the golden a NEW uid (`b4`+`b5` → `b7`) so
+its card mounts fresh and never rolls. Needs the card or hero involved.
+
+## 2026-08-04 — Design: stat readout choreography (spec only, no code)
+
+Design doc for making the stat badge follow an effect's choreography instead of the reducer's tick:
+[`superpowers/specs/2026-08-04-stat-readout-choreography-design.md`](superpowers/specs/2026-08-04-stat-readout-choreography-design.md).
+Approved by the owner; **nothing is implemented yet** — this commit is the spec, the roadmap entry and this
+line.
+
+**The problem it names.** A stat change and its effect are currently unrelated events that coincide. The acid
+test is a cascade: if an Excavator drops gems across the board one at a time and all seven numbers tick
+together, the simultaneity *proves* to the player that the effect isn't causing anything. Framed as a
+legibility problem rather than a polish one — nearly every mechanic in the game terminates in "two numbers on
+a card moved", so at a wave-15 board where a Shout, a Ruby cascade, an aura and a triple all commit on one
+tick, staggering is what lets a player attribute the change to a source. Attribution is the skill expression
+of the genre, and the board is the only place players look mid-fight.
+
+**The model.** Three facts get separated: the DELTA (whoever caused it), WHEN it lands (whoever choreographs —
+a cue holding `Land[]`, or a `react` layer), and HOW it lands (the system, unless overridden). "When" is
+currently hardcoded to *now*; making it optional on a hold costs little, because every cue that staggers
+anything already holds a `Land { uid, at }` at the moment it schedules each fire. Alignment is then a
+consequence of one `scheduleLands` call feeding both consumers, not something maintained by hand.
+
+**Four decisions taken.** Automatic floor with authored override (a `react` layer wins where present); shop
+AND combat; unify *wholly* rather than bridge; and damage delivers instantly while the badge still pops — the
+pop needs no special case because it fires on the printed value moving, whatever delivered it.
+
+**Two live defects found while scoping, both recorded in the spec.** `Unit` renders its `<Card>` without a
+`uid`, so `choreo/score.ts:364`'s `holdStat` has always written into a store no combat badge reads — dead
+since it was added. And `releaseAllStats` is never called anywhere in production despite its doc comment
+describing exactly the scenario it exists for; harmless while the store serves only the shop, a hazard the
+moment combat reads it. Wiring it is a prerequisite, not a follow-up.
+
+**Known limits stated rather than hidden.** The cascade *rhythm* stays a per-cue constant
+(`RUBY_GAP_MS`/`RUBY_BEAT_MS`) because one `playDef` fire targets one minion and the def cannot know it is the
+fourth gem in a sweep; per-effect control covers everything *within* an effect (`hold × peak`, `roll`, `reel`,
+`reach`/`order`/`gap`). Timing is wall-clock, so a combat-speed change mid-roll isn't picked up by a roll
+already running. And scheduling means badges intentionally show stale numbers for longer — up to the length of
+a cascade — which is the trade being made deliberately on load-bearing information.
+
+**Verification plan** (for the implementation, not this commit): store units for `startAt`, the TTL now
+covering `startAt + rollMs + grace`, and rank precedence; a cue-level assertion that the hold and the fire
+derive from the same `Land`; and browser runs for cascade stagger, damage-never-holds, and a per-frame combat
+sweep asserting no badge ever shows a wrong number. Merge gated on that last one. Negative controls required
+for the two tests that could otherwise pass for the wrong reason.
+
+## 2026-08-04 — the number ROLLS to its new value
+
+Owner, once the hold existed: *"a spinning counter that very quickly spins up or down to the new number
+rather than instantly displaying the new one."* The hold made the number land on the effect's clock; this
+makes it *travel*.
+
+A hold stops being a switch and becomes a dial. It gains `revealed` (0..1): 0 shows the old number, 1 shows
+the new one, and anything between is the counter mid-roll. A release is just `reveal(1)`. The react layer's
+new **Roll** slider walks it — from the moment the carrying layer delivers, over the roll's own duration, on
+the player's clock, so combat speed and scrubbing carry it for free exactly like the motion does.
+
+Named `roll`, not `spin`: `spin` was already the rotation param, and an odometer is the better metaphor
+anyway — it counts THROUGH the values between old and new rather than cycling arbitrary digits. Every number
+the badge prints during the roll is a number the unit genuinely passes through. Given the day this system
+has had, inventing digits that were never true is not a trade worth making for a slot-machine look.
+
+Three properties that matter more than the animation:
+
+- **Monotonic.** A lower progress than a hold already has is ignored. Two effects can be mid-flight on one
+  unit, and a counter that ticked forward then back reads as a bug in the game's arithmetic, not as an
+  animation.
+- **Rounded to whole numbers**, and a hold that rounds to nothing reads as absent — which is what stops a
+  +1 buff sitting visibly stuck at 0.4 revealed.
+- **Re-renders once per DIGIT, not per frame.** `statHoldKey` is derived from the rounded remainder, so
+  `useSyncExternalStore` bails out on the frames between steps. Driving the reveal every frame costs a
+  comparison, not a render.
+
+**A bug the tests caught and eyes would not have.** Accumulating a new delta onto a partly-revealed hold
+carried the FULL previous delta rather than the unrevealed remainder — so a second buff landing mid-roll
+would have put the badge further behind than it ever was, printing a number the unit never had. The test
+that found it asserts the arithmetic (2 owed + 4 new = 6, not 8); nothing about it is visible in a 300ms
+animation.
+
+Verified: 27 tests over the store (9 new for the roll), including monotonicity, debuffs rolling down, the
++1-never-sticks rounding case, and out-of-range progress clamping rather than inverting. Full gate:
+typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 

@@ -24,6 +24,8 @@ export interface CombatQuestDelta {
   slaughterByTribe: Partial<Record<Tribe, number>>;
 }
 import { sfx } from './sfx';
+import { releaseAllStats } from './fx/statHold';
+import { clearAllSpellBuffs } from './spellBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
@@ -80,6 +82,26 @@ function rollHeroChoices(): string[] {
 const countGolden = (s: RunState): number =>
   [...s.board, ...s.hand].filter((c) => c.golden).length;
 
+/**
+ * Drop every piece of per-body FX state the store keeps OUTSIDE React, because the bodies it describes are
+ * about to stop existing.
+ *
+ * Both of these are keyed by minion uid and live in module globals, so nothing unmounts them: a withheld
+ * stat delta (`fx/statHold.ts`) and a spell-buff sparkle (`spellBuffFx.ts`) survive any amount of React
+ * teardown. uids are reused across runs — `createRun` starts its counter from scratch — so a survivor
+ * silently withholds SOMEONE ELSE'S number, and `heldFor` only sweeps on read, which means the wrong number
+ * can sit on a badge indefinitely.
+ *
+ * Called from every point where the set of live bodies is replaced wholesale: the phase flip (recruit board
+ * → combat board), and each of the run swaps, which build a fresh `RunState` through `set()` and so never
+ * reach the dispatch path at all. The phase check alone missed all of them — and misses the run-to-run case
+ * outright, since a new run starting in `recruit` from an old run in `recruit` is no phase change.
+ */
+function dropBoardFx(): void {
+  releaseAllStats();
+  clearAllSpellBuffs();
+}
+
 /** Fire the sound for a dispatched action (+ a sparkle when a triple just formed). */
 function actionSfx(action: Action, prev: RunState, next: RunState): void {
   // The reducer returns the *same* reference for a rejected action (can't afford, board/hand
@@ -134,6 +156,9 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
     case 'faceOmen': sfx.combatStart(); break;
     default: break;
   }
+  // The recruit board and the combat board are different sets of bodies; anything withheld for one of them
+  // has nothing left to deliver it once the other is on screen. See `dropBoardFx`.
+  if (prev.phase !== next.phase) dropBoardFx();
   // A Discover choice just OPENED (any action that set run.discover — playing a Discover spell, a golden's
   // reward, etc.): play the discover cue, on top of the triggering action's own sound.
   if (!prev.discover && next.discover) sfx.discover();
@@ -480,6 +505,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
   continueRun: () => {
     turnClock.set(0);
+    dropBoardFx(); // the dormant throwaway run behind the title is being swapped for the saved one
     // A resumed lobby run has an EMPTY driver cache (drivers are closures, rebuilt from seed rather than saved),
     // so every seat has to be rebuilt and re-advanced to the round the lobby is on. Do it while the player is
     // looking at the shop, not when the round resolves.
@@ -490,6 +516,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
     clearSave();
+    dropBoardFx();
     const fresh = createRun(randomSeed());
     set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
   },
@@ -774,7 +801,8 @@ export const useGame = create<GameStore>((set, get) => ({
   inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
-  pickHero: (heroId) =>
+  pickHero: (heroId) => {
+    dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
@@ -788,13 +816,16 @@ export const useGame = create<GameStore>((set, get) => ({
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
-    }),
-  newRun: (seed, heroId) =>
+    });
+  },
+  newRun: (seed, heroId) => {
+    dropBoardFx();
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
-    }),
+    });
+  },
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
@@ -804,7 +835,8 @@ export const useGame = create<GameStore>((set, get) => ({
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
   startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
-  startSceneBuilder: (heroId = 'warden', setId = activeSet().id) =>
+  startSceneBuilder: (heroId = 'warden', setId = activeSet().id) => {
+    dropBoardFx();
     set(() => {
       // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the
       // hero picker — it's a testing rig, not a scored climb. Re-creating the run per hero runs that hero's
@@ -813,7 +845,8 @@ export const useGame = create<GameStore>((set, get) => ({
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
       return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
-    }),
+    });
+  },
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.
   openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); },

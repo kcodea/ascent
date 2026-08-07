@@ -16,6 +16,7 @@
  */
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
+import { cascade, scheduleLands, landHolds, type Land, type LandHold } from '../../fx/land';
 
 export interface RubyLand {
   uid: string;
@@ -74,3 +75,50 @@ export const RUBY_BEAT_MS = 50;
  * surfaces in (`buffWave`, `attackExchange`) already spend theirs on the self-buff cue.
  */
 export const RUBY_LANDED_DEF = 'ruby-gem-apply';
+
+/**
+ * The shop Ruby cascade's schedule, derived ONCE from the raw land list.
+ *
+ * Exists because two consumers need the identical timing: the layout effect that withholds each minion's
+ * number, and the later effect that fires each gem. Two independent `scheduleLands` calls would be two
+ * schedules that happen to agree today — this makes agreement structural instead. Alignment between the
+ * number and the effect is a consequence of one computation, not something maintained by hand.
+ */
+export function rubyLandSchedule(lands: readonly { uid: string; count: number }[]): Land[] {
+  return scheduleLands(cascade(lands), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS });
+}
+
+/** One recipient's withheld stat delta and delivery moment — what `Recruit.tsx`'s hold effect needs, once
+ *  per uid rather than once per gem. Structurally identical to `LandHold`; kept as its own name here
+ *  because this is the Ruby-specific contract callers of `rubyLandHolds` code against. */
+export type RubyLandHold = LandHold;
+
+/**
+ * The withheld PER-RECIPIENT delta + delivery moment for a shop Ruby cascade, derived from the identical
+ * `rubyLandSchedule` the fire effect walks — so the hold's uid list and timings can never be a second,
+ * independently-computed schedule that merely agrees with the fire effect today.
+ *
+ * All grouping, counting and the round-once arithmetic live in `landHolds` (`fx/land.ts`) — the generic,
+ * tested place a Task 5 Critical bug once lived in this file instead. This wrapper's only job is Ruby's own
+ * semantics: what a "share" means for a Ruby buff, and when there's nothing to withhold.
+ *
+ * ── why the per-gem share is `buff.attack / buff.count`, not a flat number ───────────────────────────
+ * `mintRubies` stamps each gem with `def.attack + state.rubyBonus.attack` at mint time, and `rubyBonus` can
+ * differ between mints, so a source's lifetime total need not divide evenly by its lifetime count — the
+ * average is the only value that's actually meaningful per gem. `landHolds` then multiplies that average by
+ * THIS event's own count (not the buff's lifetime count) before rounding, which is why a card can receive
+ * one gem of a two-gem play and still see the correct partial delta withheld.
+ *
+ * `buffOf` is injected rather than read from board state directly, so this stays pure and testable without
+ * a live `RunState` — the shop caller supplies it as a one-line board lookup.
+ */
+export function rubyLandHolds(
+  lands: readonly { uid: string; count: number }[],
+  buffOf: (uid: string) => { attack: number; health: number; count: number } | undefined,
+): RubyLandHold[] {
+  return landHolds(rubyLandSchedule(lands), (uid) => {
+    const buff = buffOf(uid);
+    if (!buff || buff.count <= 0) return null;
+    return { attack: buff.attack / buff.count, health: buff.health / buff.count };
+  });
+}

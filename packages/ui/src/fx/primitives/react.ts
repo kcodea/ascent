@@ -38,7 +38,7 @@ import {
   type FxOrder, type FxPart, type FxReach,
 } from '../reactTargets';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
-import { releaseStat } from '../statHold';
+import { claimStat, releaseStat, revealStat } from '../statHold';
 
 
 const SPECS = {
@@ -59,8 +59,16 @@ const SPECS = {
     help: 'Milliseconds between each step outward (ripple) or each unit (cascade). Ignored by volley.',
   },
   carries: {
-    kind: 'toggle', label: 'Carries the number', group: 'Target', default: false,
+    kind: 'toggle', label: 'Carries the number', group: 'Target', default: false, essential: true,
     help: "This layer DELIVERS the stat change: the badge holds the old number until this layer peaks, then shows the new one. Tick it on exactly one layer — the one whose motion should read as the number landing.",
+  },
+  roll: {
+    kind: 'slider', label: 'Roll', group: 'Target', min: 0, max: 800, step: 10, default: 0, essential: true,
+    help: "How long the number takes to count to its new value, once this layer delivers it — an odometer roll rather than a snap. 0 snaps. Only does anything with 'Carries the number' on. (Not to be confused with Spin, which rotates the element.)",
+  },
+  reel: {
+    kind: 'slider', label: 'Reel', group: 'Target', min: 0, max: 12, step: 1, default: 0, essential: true,
+    help: 'How far the counter overshoots either side while rolling. 0 counts only through real values — invisible on a +1, since nothing sits between 4 and 5. Raise it to give a small change something to spin through. Always lands on the true number.',
   },
   falloff: {
     kind: 'slider', label: 'Falloff', group: 'Target', min: 0, max: 1, step: 0.01, default: 0.4,
@@ -116,6 +124,11 @@ interface Release {
   /** ms from the effect's start — the layer's own peak for THIS recipient, so a cascade delivers each
    *  unit's number in turn rather than all of them on the first pop. */
   at: number;
+  /** ms the counter takes to roll from the old value to the new one. 0 snaps, which is what a release was
+   *  before spinning existed. */
+  spinMs: number;
+  /** Overshoot amplitude while rolling — what makes a 1-point change visible. See `Hold.reel`. */
+  reel: number;
   done: boolean;
 }
 
@@ -191,8 +204,18 @@ class ReactInstance implements FxInstance<ReactParams> {
         anim.pause(); // the player owns the clock — see the module header
         this.beats.push({ anim, at: land.at, duration: p.hold });
       }
-      if (p.carries) this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, done: false });
-      this.totalMs = Math.max(this.totalMs, land.at + p.hold);
+      if (p.carries) {
+        // CLAIM before scheduling, because from here on this layer is the only clock allowed on that
+        // counter. A cue's hold is self-delivering — `statHold`'s shared ticker walks it — so without this
+        // the ticker and this player both drive the same reveal, the faster one wins every frame, and a
+        // ticker that reaches the end first deletes the hold out from under the release below. An authored
+        // roll longer than the ticker's default never got to play. See `claimStat`.
+        claimStat(land.uid);
+        this.releases.push({ uid: land.uid, at: land.at + p.hold * p.peak, spinMs: p.roll, reel: p.reel, done: false });
+      }
+      // A spin that outlasts the motion still has to finish, or `isComplete` retires the player mid-roll and
+      // the badge is rescued by the TTL instead of by the effect.
+      this.totalMs = Math.max(this.totalMs, land.at + p.hold, p.carries ? land.at + p.hold * p.peak + p.roll : 0);
     }
     this.seek();
   }
@@ -202,13 +225,19 @@ class ReactInstance implements FxInstance<ReactParams> {
     for (const b of this.beats) {
       b.anim.currentTime = Math.min(Math.max(this.localMs - b.at, 0), b.duration);
     }
-    // Once-guarded: `seek` runs every frame, and `releaseStat` notifies subscribers, so firing it repeatedly
-    // would wake every held card's render path for the rest of the effect.
+    // The counter. A 0-length spin is the original single release; anything longer walks the reveal so the
+    // digits step from the old value to the new one on this same clock — which means combat speed and
+    // scrubbing carry it for free, exactly like the motion.
+    //
+    // `revealStat` only notifies when the ROUNDED remainder actually changes, so driving it every frame
+    // costs one comparison per frame rather than a render: the badge re-renders once per digit, not once
+    // per tick.
     for (const r of this.releases) {
-      if (!r.done && this.localMs >= r.at) {
-        r.done = true;
-        releaseStat(r.uid);
-      }
+      if (r.done || this.localMs < r.at) continue;
+      if (r.spinMs <= 0) { r.done = true; releaseStat(r.uid); continue; }
+      const t = (this.localMs - r.at) / r.spinMs;
+      revealStat(r.uid, t, r.reel);
+      if (t >= 1) r.done = true;
     }
   }
 

@@ -1202,6 +1202,17 @@ export function useCombatReplay(
       // bus is callable from here precisely because it no longer lives in Recruit's state.
       fireSpellBuffOnHandRubies(useGame.getState().run.hand);
     }
+    // PROC CRIT (Karwind's 20% double trigger). Unlike the two gains above this carries its own `source` uid
+    // on a dedicated event, so no text-matching and no side-gating heuristic is needed — an enemy Karwind's
+    // crit simply resolves to an enemy slot and draws there, which is correct.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'proccrit') continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const { cx, cy, h } = layoutRectOf(el); // SLOT, not the live rect — the proccer may be mid-lunge
+      pixiFx.procCritText(cx, cy - h * 0.45, `${e.mult}x`);
+    }
     // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
     // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
     // the next shop, so the moment it was earned looked like nothing happened (owner report 2026-07-31). Rides

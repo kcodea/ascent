@@ -1619,6 +1619,7 @@ export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
+  | { type: 'proccrit'; source: string; mult: number } // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
@@ -2114,6 +2115,9 @@ export interface CombatContext {
   castSpell(side: Side): void;
   /** Rune of the Spellstone (combat half): is the mod armed for `side`? Read by the Ruby-play primitive. */
   spellstoneFor?(side: Side): boolean;
+  /** Announce that a `doubleChance`-style roll came up, so the UI can float a crit-style "Nx" above the
+   *  proccing minion (Karwind). Purely presentational — the extra repetitions are applied by the caller. */
+  crit?(sourceUid: string, mult: number): void;
   /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
    *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
    *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */

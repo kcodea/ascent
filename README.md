@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Karwind reworked** — flat +3/+3 to every Dragon on a Shout trigger, with a 20% chance to land +6/+6 instead, announced by a crit-style "2x" that floats above him. Seeded on both sides, so replays crit identically.
+
 - **Owner balance batch** — 12 card/rune tier, stat and cost changes; Bathing Matriarch drops its alternating Attack/Health mode for a flat +1/+1; Rune of the Remains retires to the rune archive.
 
 - **Balance Report names stop truncating** — the solo table's Name column had a ~112px track, ellipsising nearly every rune to `Rune of the Ci…`; the floor is wider now and anything still too long wraps rather than hiding.

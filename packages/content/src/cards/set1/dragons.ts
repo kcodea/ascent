@@ -72,9 +72,12 @@ export const DRAGONS: CardDef[] = [
     attack: 4,
     health: 12,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribeAdjacentMore', params: { tribe: 'dragon', attack: 2, health: 2, adjAttack: 4, adjHealth: 4 } }],
-    text: 'Whenever a **Shout** triggers, give your Dragons **+2/+2**. Adjacent Dragons gain **+4/+4** instead.',
-    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+4/+4**. Adjacent Dragons gain **+8/+8** instead.',
+    // Owner rework 2026-08-07: the adjacency clause is GONE — a flat grant to every Dragon, with a 20% chance
+    // to DOUBLE THE BUFF (+6/+6), not to fire an extra time. The roll is seeded (run cursor in the shop,
+    // combat RNG in a fight), so a replay crits on exactly the same triggers.
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, doubleChance: 20 } }],
+    text: 'Whenever a **Shout** triggers, give your Dragons **+3/+3**. This has a **20%** chance to give **+6/+6** instead.',
+    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+3/+3** twice. This has a **20%** chance to give **+6/+6** instead.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Shout *fire* on your board permanently enchants your IMPS +3/+3

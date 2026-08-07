@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-07 — Karwind: flat +3/+3 with a 20% double BUFF, and a floating "2x"
+
+Karwind loses its adjacency clause. Every Dragon takes the same flat **+3/+3** on a Shout trigger, and that
+buff has a **20% chance to land DOUBLED — +6/+6**. `doubleChance` is a new param on the existing
+`onBattlecryBuffTribe` — both halves, defaulting to 0 — so the factory's other callers are untouched.
+
+**Double the buff, not the trigger** (owner revision, same day). The first cut fired the grant an extra time.
+That is a different card: an extra fire re-procs every per-trigger watcher, where a doubled magnitude is one
+trigger paying more. The invariant now under test is that the number of buff EVENTS is flat whatever the roll
+does — a crit only moves them from the +3/+3 bucket to the +6/+6 one.
+
+**The roll is seeded on both sides of the game**: the run cursor in the shop, the combat RNG in a fight. A
+reloaded run and a replayed combat crit on exactly the same triggers; `Math.random` never enters it.
+
+**The "2x".** A new `proccrit` CombatEvent carries `{source, mult}` — worth flagging, since the event
+vocabulary is the shared boundary with Mike. `pixiFx.procCritText` is the text-only cousin of `critImpact`:
+the same crit lettering and palette so the two read as one language, at 0.62× size because it annotates a
+buff rather than punctuating a hit. It reuses the generic particle `spawn` for the rise-and-fade, so there
+is no new per-frame list and no paint-property animation.
+
+**It draws ABOVE the card, and that was a finding, not a preference.** Drawn on the body it was effectively
+invisible: Karwind's own flame flash floods the card's top edge with red at exactly the moment the crit
+fires, and the crit palette is crimson.
+
+**A verification trap worth recording.** The first live check showed the float never appearing even though
+every probe said it had spawned. The cause was HMR: editing `pixiFx.ts` left *three* orphaned Pixi apps
+parked at `x: -9999`, and the sprite was drawing into a stale one. A hard reload — not a hot update — is
+required to check a pixiFx change. Same family as the stale-art-glob trap.
+
+Six tests encoded the old adjacency spec and are rewritten for the new shape. Where the crit makes an exact
+total seed-dependent, they now assert the SHAPE (both Dragons get the same grant; grants divide evenly by
+1 + crits) rather than a magic number. New `karwindCrit.test.ts` pins the roll itself: it announces via
+`proccrit`, a crit strictly increases the grant count, it lands near 20% over a 600-seed sweep, and it is
+replay-stable.
+
+**Verified live:** 18.3% over 60 shop trials, Karwind 4/12 → 13/21 on a crit, "2x" rendering above the card.
+`typecheck` clean, `lint` at the 7-warning/0-error baseline, 4129 tests pass, `build:web` succeeds.
+
 ## 2026-08-07 — Owner balance batch: 12 card/rune changes, and the alternating mode retires
 
 Tier/stat/magnitude tuning off the owner's 2026-08-07 sheet. Voicekeeper T5 5/9 → T4 4/6; Moonhowl Mentor

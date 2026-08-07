@@ -677,6 +677,9 @@ export interface RunState {
   karwindFlash?: string[];
   /** Bumps each time Karwind flame-buffs — the UI keys its flame animation off this. */
   karwindFlashSeq: number;
+  /** The uid whose `doubleChance` roll just came up (Karwind 2026-08-07) — the UI floats a crit-style "2x"
+   *  above that body. Transient: a Shout trigger that does NOT crit clears it. */
+  karwindCritUid?: string;
   /** Chaos hero power: bumps each time a Chaos Attachment is granted (every 5th turn), with the new token's
    *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
   chaosGrantSeq?: number;

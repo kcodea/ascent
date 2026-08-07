@@ -3007,6 +3007,25 @@ export function Recruit() {
     }, 520);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
+  // KARWIND'S DOUBLE TRIGGER (owner 2026-08-07) — float a crit-style "2x" over the proccer when its 20% roll
+  // comes up. Rides `karwindFlashSeq` (the same bump the flame flash already uses) rather than a seq of its
+  // own, because a crit is always accompanied by a flame flash — the state field only says WHETHER this bump
+  // was a crit, and which body to draw over. Read a frame late for the same reason the gain flourishes are:
+  // React must have committed the card before its rect can be measured.
+  useEffect(() => {
+    const uid = run.karwindCritUid;
+    if (!uid) return;
+    const raf = requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-uid="${uid}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      // ABOVE the card, not on it: Karwind's own flame flash floods the card's top edge with red at exactly
+      // the moment this fires, and the crit palette is crimson — drawn on the body it had no contrast at all.
+      pixiFx.procCritText(r.left + r.width / 2, r.top - r.height * 0.10, '2x');
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.karwindFlashSeq, run.karwindCritUid]);
+
   // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting
   // gesture is live — the armed hero power / a pending targeted Battlecry (the `aim` state), or a
   // targeted spell being cast from hand (the drag). Replaces the old dotted SVG line; the arch is rolled

@@ -86,22 +86,25 @@ describe('recruitBuffFx capture (source → target)', () => {
     // Pennycat's Battlecry summons a Stray (a Beast) — it never buffs Dragons, so Karwind's +2/+2 to `dragon` is
     // the ONLY thing touching it. That isolates the reaction's source.
     const pennycat: BoardCard = { uid: 'pc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
-    // A SECOND Dragon, deliberately not adjacent to Karwind, so this also pins the 2026-07-25 adjacency rule:
-    // neighbours get +4/+4 INSTEAD of the base +2/+2.
+    // A SECOND Dragon, deliberately NOT adjacent to Karwind. Since the 2026-08-07 rework there is no adjacency
+    // clause at all, so this now pins the opposite rule: distance makes no difference, both take the same +3/+3.
     const farDragon: BoardCard = { uid: 'far', cardId: 'frontdrake', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false };
     const s: RunState = { ...createRun(1), board: [karwind, dragon, pennycat, farDragon] };
 
     playCard(s, pennycat); // a Battlecry fires → Karwind reacts
 
+    // The fx channel COALESCES a source→target pair into one event, so Karwind's 20% double-trigger shows up
+    // as +6 rather than two +3s. Either is correct; what this pins is that the two Dragons get the SAME thing.
     const drFx = s.recruitBuffFx.filter((e) => e.targetUid === 'dr');
-    expect(drFx.length).toBe(1);              // one reaction event, no duplicate
+    const farFx = s.recruitBuffFx.filter((e) => e.targetUid === 'far');
+    expect(drFx.length).toBe(1);              // one coalesced reaction event, no duplicate
     expect(drFx[0]!.sourceUid).toBe('kw');    // Karwind, not the played Pennycat
     expect(drFx[0]!.sourceCardId).toBe('karwind');
-    expect(drFx[0]!.attack, 'adjacent to Karwind → the bigger grant').toBe(4);
-    expect(drFx[0]!.health).toBe(4);
-    const farFx = s.recruitBuffFx.filter((e) => e.targetUid === 'far');
-    expect(farFx[0]!.attack, 'not adjacent → the base grant').toBe(2);
-    expect(farFx[0]!.health).toBe(2);
+    expect([3, 6], 'the flat grant, doubled iff the 20% rolled').toContain(drFx[0]!.attack);
+    expect(drFx[0]!.health).toBe(drFx[0]!.attack);
+    expect(farFx.length, 'distance no longer changes anything').toBe(1);
+    expect(farFx[0]!.attack, 'not adjacent → the SAME grant now').toBe(drFx[0]!.attack);
+    expect(farFx[0]!.health).toBe(drFx[0]!.health);
     // The played minion never gets attributed the Dragon's gain.
     expect(s.recruitBuffFx.some((e) => e.sourceUid === 'pc')).toBe(false);
   });

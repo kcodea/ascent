@@ -85,13 +85,11 @@ const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
 const COMBAT_HOLD_TTL_MS = 2000;
 
 /**
- * How long a unit's OWN on-attack summons are withheld before they slide onto the board — so Errand Fiend's
- * Imps arrive a beat after the swing instead of snapping in at wind-up start (owner ask 2026-08-07). Measured
- * from the instant the attack beat becomes current, and scaled by combat speed at the call site so the lead
- * shrinks with a faster replay. Kept short so the reveal stays well inside the attack beat (always longer than
- * this) — which is what lets the Imp mount while its `summoned` anim is still live and play `summonpop`.
+ * The uniform gap between a rally's pulse (anchor `T`) and its effect FX landing. The ONE timing knob for
+ * the rally beat — summons, buffs, casts and damage all release at `T + RALLY_EFFECT_GAP_MS`. Scaled by
+ * combat speed at each call site so the beat shrinks with a faster replay.
  */
-const IMP_SUMMON_LEAD_MS = 300;
+const RALLY_EFFECT_GAP_MS = 300;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -1760,7 +1758,7 @@ export function useCombatReplay(
       if (impUids.length) {
         for (const uid of impUids) holdSummon(uid);
         const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
-        impReveal = window.setTimeout(() => releaseSummons(impUids), IMP_SUMMON_LEAD_MS / speed);
+        impReveal = window.setTimeout(() => releaseSummons(impUids), RALLY_EFFECT_GAP_MS / speed);
       }
     }
     return () => { if (impReveal !== undefined) clearTimeout(impReveal); };

@@ -298,7 +298,12 @@ export function computeFrame(
         // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
         if (e.attack !== 0 || e.health !== 0) {
           u.buffs ??= [];
-          recordBuff(u.buffs, names.get(e.source) ?? 'Combat', e.attack, e.health);
+          // A source is EITHER a minion uid (resolved through `names`) or an authored label a rune passed in
+          // ("Rune of Savagery"). Collapsing the second kind to 'Combat' hid which rune granted what — every
+          // rune buff read as anonymous in the inspect panel. Combat uids are `m<n>` / `e<n>`, so anything
+          // that doesn't match that shape is a label and is kept verbatim.
+          const isUid = /^[me]\d+$/.test(e.source ?? '');
+          recordBuff(u.buffs, names.get(e.source) ?? (!isUid && e.source ? e.source : 'Combat'), e.attack, e.health);
         }
         // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
         if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {

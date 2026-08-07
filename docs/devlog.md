@@ -1,5 +1,57 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of Savagery doubles LAST; all 163 rune arts re-wired
+
+**The owner found the real Savagery bug, and it was an ordering one.** It ran BEFORE the summon watchers and
+tribe auras, so it doubled a body's bare arrival stats and every summon payoff then landed on top
+un-doubled. With a Groveweaver on board a pup went 1 → 2 → 5 Attack; the rune's whole point is that it should
+go 1 → 4 → 8. Moved after `bus.emit('onSummon')` and `applyTribeAuras`, which is what makes it COMPOSE with
+the summon engines it exists to reward.
+
+My original comment argued the opposite ("doubling acts on what the body arrived with") — that reasoning was
+wrong, and it is why the rune read as dead rather than merely small.
+
+The regression test pins the exact arithmetic rather than an inequality: a pup prints 1 Attack, Groveweaver
+grants +3, so Savagery must grant exactly +4. Under the old ordering it granted +1 — one number, the whole
+bug. Verified live end to end through `reduce`: flag armed, two summons, two +4 doublings.
+
+**All 163 rune arts re-wired** from the source folder (owner redid many under the same names). Seven needed
+explicit overrides, each a deliberate attribution rather than a guess: five are "Rune of THE X" filenames for
+a "Rune of X" rune, one is a filename typo (`RuneOTheMenagerie`, shared by both Menagerie twins), one is a
+rune since renamed (`rune_scale` is now "Bulk Order" but its art tracks the id), and Pillaging's file is
+named `SpellOf…` while being the only Pillaging art there is.
+
+`typecheck` clean, lint at the 7-warning baseline, 4537 tests, `build:web` OK.
+
+## 2026-08-07 — The rune wiring audit: all 163 runes, every link checked
+
+Owner report: "Rune of Savagery is not working at all… can you audit our entire runebase?"
+
+**Savagery's wiring is correct**, verified end to end through `reduce`: buying it writes the flag, and a fight
+with a Beast-summoning board produces one doubling per summon. I could not reproduce a failure, so rather than
+guess I built the audit — which now covers the whole runebase and would have caught both of today's real
+defects.
+
+**`runeWiringAudit.test.ts` walks every rune** and checks the chain its reward kind implies, through the real
+reducer rather than by injecting `questMods` into `simulate` (the blind spot that hid the Chef's two bugs):
+
+1. buying it never throws, is recorded as owned, and changes something beyond bookkeeping — no inert rune;
+2. a `combatFlag` rune actually writes `questFlags[flag]` — the Chef's first defect;
+3. something CONSUMES that flag, in `simulate.ts` or at settle in `reducer.ts`;
+4. if combat reads it, the reducer threads it into the mods object — the Chef's second defect.
+
+**309 checks, all green.** The one initial failure was my own rule being too strict: Rune of Slaying is a
+SETTLE-time reader (it spends `playerQuestTally.slaughter` after the fight) and legitimately needs no combat
+mod. The rule now accepts either home, which is the honest contract.
+
+**A real find along the way.** `recordBuff` labelled every combat buff `names.get(source) ?? 'Combat'` — and a
+rune passes an authored LABEL, not a minion uid, so every rune buff showed up anonymously as "Combat" in the
+inspect panel. Combat uids match `m<n>`/`e<n>`, so anything else is now kept verbatim; the four new rune
+buffs also switched from raw flag ids to display names, matching Aftershocks' convention. You can now see
+which rune granted what.
+
+`typecheck` clean, lint at the 7-warning baseline, 4536 tests, `build:web` OK.
+
 ## 2026-08-07 — Rune of the Chef targets ANOTHER Dwarf
 
 Owner ruling: the Chef can never feed itself. `m !== attacker` on the target filter, and the printed text

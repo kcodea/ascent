@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of Savagery doubles last** — it ran before summon triggers, so a Groveweaver's buff landed outside the doubling (pup 1→2→5 instead of 1→4→8); plus all 163 rune arts re-wired.
+
+- **The rune wiring audit** — 309 checks across all 163 runes prove each one arms, travels and is consumed through the real reducer path; rune buffs are also attributed by name instead of showing as anonymous "Combat".
+
 - **Rune meters are readable at last** — the tally span had never had a CSS rule, so every rune counter rendered as unstyled text against its badge; it's now a pill above the rune, visible whenever the value is non-zero.
 
 - **Bucky + the Chef no longer pay a turn late** — the tally was banked after combat rather than read live at combat build; both now land in the fight right after the shop that earned them. Bucky's art is wired and his rune counts the Ales you're banking.

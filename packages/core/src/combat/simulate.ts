@@ -840,7 +840,7 @@ export function simulate(
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read.
       if (modsFor(side).runeEnchantment) {
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'runeEnchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -1032,16 +1032,20 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
-    // Rune of Savagery: a Beast summoned in combat doubles its Attack. Applied BEFORE the tribe auras so the
-    // doubling acts on what the body arrived with, not on aura stats it has not received yet — the same
-    // ordering every summon-time grant uses.
-    if (modsFor(side).runeSavagery && minion.attack > 0
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
-      fireTrigger('runeSavagery', side);
-      ctx.buff(minion, minion.attack, 0, 'runeSavagery');
-    }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
+    // RUNE OF SAVAGERY: a Beast summoned in combat doubles its Attack — applied LAST, after the summon
+    // watchers and the tribe auras have paid out (owner ruling 2026-08-07).
+    //
+    // It used to run FIRST, which is why the rune read as doing nothing: the body was doubled at its bare
+    // arrival stats, then Groveweaver's +3/+3 and every aura landed on top un-doubled. A Beast arriving 1/1
+    // beside a Groveweaver went 1 → 2 → 5 Attack, when the rune's whole point is that it should go
+    // 1 → 4 → 8. Doubling last is what makes it compose with the summon payoffs it is meant to reward.
+    if (modsFor(side).runeSavagery && minion.attack > 0 && !minion.dead
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      fireTrigger('runeSavagery', side);
+      ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+    }
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
     // the placed body inline right after this returns — so the token summons, then swings, before the next
@@ -2316,7 +2320,7 @@ export function simulate(
       const gains = living.filter((m) => Math.floor(m.attack / 2) > 0);
       if (gains.length > 0) {
         nextStep(); fireTrigger('runeTemperedTime', rside);
-        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'runeTemperedTime');
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'Rune of Tempered Time');
       }
     }
     if (rmods.runeHerald) {
@@ -2359,7 +2363,7 @@ export function simulate(
         .slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
       if (lowest.length > 0) {
         nextStep(); fireTrigger('runeUnderdog', rside);
-        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'runeUnderdog');
+        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
       }
     }
     if (rmods.runeVanguard) {

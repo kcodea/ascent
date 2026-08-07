@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance Report names stop truncating** — the solo table's Name column had a ~112px track, ellipsising nearly every rune to `Rune of the Ci…`; the floor is wider now and anything still too long wraps rather than hiding.
+
 - **Leaderboard + post-game MMR readability** — a button reset was erasing each leaderboard row's plate and pulling dark page ink over its text; the big MMR number had no colour declared at all.
 
 - **Echo multipliers fixed** — Echohorn's Rally proc ignored Sylus entirely (halving the Echohorn→Dawnclaw→Drakko→Sylus chain) and Deathsayer's hardcoded scan dropped Zyff/Funeral Engine/Elderhorn/Grave Contract; both now share one canonical read.

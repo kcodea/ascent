@@ -961,6 +961,14 @@ export type QuestReward =
   // Rune of Refrain: after your third Shout minion each turn, the first Shout you played returns to your hand.
   | { kind: 'runeRefrain' }
   | { kind: 'runeCoffers' } // End of Turn: max Gold +1
+  | { kind: 'runeEnchantment' } // per Shop-spell cast: your minions +1/+1 (combat casts give +2/+2)
+  | { kind: 'runeCrown'; per: number; attack: number; health: number } // after `per` casts, spells give +A/+H extra
+  | { kind: 'runeLapidary' } // End of Turn: a Ruby on one friendly minion of each type
+  | { kind: 'runeDeep'; tier: number } // each turn: a random minion of `tier`
+  | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
+  | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
+  | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
+  | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
   | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
   | { kind: 'runeLorekeeping' } // targeted Shop spells give the target an extra +4/+4
@@ -1073,7 +1081,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1299,6 +1307,16 @@ export interface QuestCombatMods {
   runeAftershocks?: boolean;
   runeEngraving?: boolean;
   runeUnderdog?: boolean;
+  runeGemGolem?: boolean;
+  /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
+  runeEnchantment?: boolean;
+  /** Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3). */
+  runeDragonscale?: number;
+  runeTemperedTime?: boolean;
+  runeSavagery?: boolean;
+  /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
+  runeCrucible?: number;
+  runeHerald?: boolean;
   /** Rune of the Undertow: minions summoned by your Echoes (Deathrattles) attack immediately. */
   runeUndertow?: boolean;
   /** Rune of the Mirror March: at Start of Combat, if your board has room, summon a copy of your leftmost

@@ -152,6 +152,16 @@ export function simulate(
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
   const spellCastExtra: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of the Crucible: the bodies sacrificed at Start of Combat, per side, kept at the stats they had.
+   *  Resummoned when that side's LAST minion dies — see the wipe check in `killOrReborn`. Emptied on use, so
+   *  a side can only be brought back once per fight. */
+  const crucibleBank: Record<Side, { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[]> =
+    { player: [], enemy: [] };
+  /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
+  const runeDragonscaleLeft: Record<Side, number> = {
+    player: playerState.questMods.runeDragonscale ?? 0,
+    enemy: enemyState.questMods.runeDragonscale ?? 0,
+  };
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
   const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
@@ -826,6 +836,12 @@ export function simulate(
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
       if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
       emit({ type: 'spellcast', side, count: spellTotals[side] }); // the replay's live-counter beat
+      // Rune of Enchantment: a COMBAT cast gives your minions +2/+2 (the shop half gives the printed +1/+1 —
+      // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
+      // AFTER the counter beat, so the replay's tick and the buff land in the order they read.
+      if (modsFor(side).runeEnchantment) {
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'runeEnchantment');
+      }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
@@ -1013,6 +1029,14 @@ export function simulate(
         }
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
+    }
+    // Rune of Savagery: a Beast summoned in combat doubles its Attack. Applied BEFORE the tribe auras so the
+    // doubling acts on what the body arrived with, not on aura stats it has not received yet — the same
+    // ordering every summon-time grant uses.
+    if (modsFor(side).runeSavagery && minion.attack > 0
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      fireTrigger('runeSavagery', side);
+      ctx.buff(minion, minion.attack, 0, 'runeSavagery');
     }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
@@ -1418,6 +1442,23 @@ export function simulate(
     if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
       ctx.grantToHand('ruby', minion.side, minion.uid);
     }
+    // Rune of the Gem Golem: a dying Kobold leaves a token with stats equal to the RUBIES it was carrying.
+    // `rubyTallyOf` is the same read the Gemheart line uses (the carried 'Ruby' snapshot + this fight's gains),
+    // so a body with no Rubies leaves nothing rather than a 0/0.
+    if (modsFor(minion.side).runeGemGolem && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
+      // The same read the arena's `rubyTallyOf` does: the carried shop 'Ruby' buff plus this fight's gains.
+      const carried = minion.buffs?.find((b) => b.source === 'Ruby');
+      const tally = {
+        attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
+        health: (carried?.health ?? 0) + (minion.rubyGain?.health ?? 0),
+      };
+      const golemDef = cards['gemheart-shard'];
+      if (golemDef && (tally.attack > 0 || tally.health > 0)) {
+        fireTrigger('runeGemGolem', minion.side);
+        summonMinion(minion.side, golemDef, minion.uid, undefined, false, false,
+          { attack: tally.attack, health: tally.health, maxHealth: tally.health });
+      }
+    }
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
     if (minion.side === 'enemy') enemyDeaths++;
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
@@ -1425,6 +1466,20 @@ export function simulate(
     if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     bus.emit('onDeath', { minion, side: minion.side, killer });
+    // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
+    // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
+    // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
+    if (crucibleBank[minion.side].length > 0 && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
+      const bank = crucibleBank[minion.side];
+      crucibleBank[minion.side] = [];
+      fireTrigger('runeCrucible', minion.side);
+      for (const b of bank) {
+        const def = cards[b.cardId];
+        if (!def) continue;
+        summonMinion(minion.side, def, undefined, [...b.keywords], b.golden, false,
+          { attack: b.attack, health: b.health, maxHealth: b.health });
+      }
+    }
     // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
     // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
     // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
@@ -1614,6 +1669,21 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Rune of Dragonscale: an attacking Dragon earns Ward (= Divine Shield), N times per combat. The
+      // allowance is decremented on the GRANT, not the attack, so a Dragon that already has a shield does not
+      // burn a charge — the sheet promises 3 shields, not 3 attempts.
+      {
+        const dsLeft = runeDragonscaleLeft[attacker.side];
+        const isDragon = attacker.tribe === 'dragon' || attacker.tribe2 === 'dragon'
+          || !!cards[attacker.cardId]?.universalTribe;
+        if (dsLeft > 0 && isDragon && !attacker.divineShield && !attacker.dead) {
+          runeDragonscaleLeft[attacker.side] = dsLeft - 1;
+          fireTrigger('runeDragonscale', attacker.side);
+          attacker.divineShield = true;
+          if (!attacker.keywords.includes('DS')) attacker.keywords.push('DS');
+          emit({ type: 'shieldUp', target: attacker.uid });
+        }
+      }
       // Rune of Attacking Gems: every friendly attack plays a Ruby on your whole board. A Ruby is 1/1 plus the
       // side's Ruby strength — the same body the shop mints — so a late-run board scales with its Rubies.
       const gems = modsFor(attacker.side).runeAttackingGems ?? 0;
@@ -2218,6 +2288,48 @@ export function simulate(
         }
         ctx.attackNow?.(front, false);
         flushImmediateAttacks();
+      }
+    }
+    if (rmods.runeTemperedTime) {
+      // Rune of Tempered Time: +Health equal to HALF each minion's Attack (floored — a 5-Attack body gains 2).
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const gains = living.filter((m) => Math.floor(m.attack / 2) > 0);
+      if (gains.length > 0) {
+        nextStep(); fireTrigger('runeTemperedTime', rside);
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'runeTemperedTime');
+      }
+    }
+    if (rmods.runeHerald) {
+      // Rune of the Herald: trigger EVERY Echo on the side. "Any onDeath effect is an Echo" — the same rule
+      // Echohorn's proc uses (a factory-id prefix filter was the bug there). The bodies do NOT die; each Echo
+      // simply fires once, and every Echo multiplier the side has (Sylus, Uron, Elderhorn…) applies.
+      const echoes = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      if (echoes.length > 0) {
+        nextStep(); fireTrigger('runeHerald', rside);
+        for (const target of echoes) {
+          const procs = 1 + (rside === 'player' ? playerEchoExtras(target) : 0);
+          for (let r = 0; r < procs; r++) {
+            ctx.countDeathrattle?.(target.side);
+            for (const effect of target.effects) {
+              if (effect.on !== 'onDeath') continue;
+              FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+            }
+          }
+        }
+      }
+    }
+    if (rmods.runeCrucible) {
+      // Rune of the Crucible: sacrifice the N left-most now; when the side's LAST minion dies, they return.
+      // Snapshotted at full current stats so the resummon is the body you gave up, not a base-stat copy.
+      const n = rmods.runeCrucible ?? 3;
+      const doomed = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, n);
+      if (doomed.length > 0) {
+        nextStep(); fireTrigger('runeCrucible', rside);
+        crucibleBank[rside] = doomed.map((m) => ({
+          cardId: m.cardId, attack: m.attack, health: m.maxHealth ?? m.health,
+          keywords: [...m.keywords], golden: !!m.golden,
+        }));
+        for (const m of doomed) killOrReborn(m);
       }
     }
     if (rmods.runeUnderdog) {

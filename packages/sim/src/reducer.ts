@@ -1367,6 +1367,16 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
+        // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
+        if (s.runeFoundry) {
+          const fd = { ...s.runeFoundry, sold: s.runeFoundry.sold + 1 };
+          if (fd.sold >= fd.per) {
+            fd.sold -= fd.per;
+            const dragons = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon'));
+            if (dragons.length > 0) conjureToHand(s, dragons, 1, true);
+          }
+          s.runeFoundry = fd;
+        }
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
@@ -2054,6 +2064,12 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
+  // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
+  // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
+  if (s.runeCorruptedTome) {
+    s.runeCorruptedTome = undefined;
+    try { grantGoldenDiscover(s); } finally { s.runeCorruptedTome = true; }
+  }
   if (s.hand.length >= handCap(s)) return; // the hand cap — raised while the Runeforge is open (see handCap)
   s.hand.push({
     uid: `b${s.uidSeq++}`,
@@ -2939,6 +2955,14 @@ function advanceCombat(s: RunState): void {
   if (s.questRecurringGrants?.length) {
     for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
   }
+  // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier. `overflow` so an earned
+  // reward is never dropped to a full hand, matching the quest/rune grant rule.
+  if (s.runeDeep) {
+    const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
+    if (pool.length > 0) conjureToHand(s, pool, 1, true);
+  }
+  // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
+  if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
   if (s.runeCopies) copyRandomBoardMinion(s);
   // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
@@ -3349,6 +3373,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = add(s.questFlags.runeGemstorm, r.amount ?? 2); // amount = Rubies per Kobold
       else if (r.flag === 'runeEngraving') s.questFlags.runeEngraving = true;
       else if (r.flag === 'runeUnderdog') s.questFlags.runeUnderdog = true;
+      else if (r.flag === 'runeGemGolem') s.questFlags.runeGemGolem = true;
+      else if (r.flag === 'runeDragonscale') s.questFlags.runeDragonscale = add(s.questFlags.runeDragonscale, r.amount ?? 3);
+      else if (r.flag === 'runeTemperedTime') s.questFlags.runeTemperedTime = true;
+      else if (r.flag === 'runeSavagery') s.questFlags.runeSavagery = true;
+      else if (r.flag === 'runeCrucible') s.questFlags.runeCrucible = add(s.questFlags.runeCrucible, r.amount ?? 3);
+      else if (r.flag === 'runeHerald') s.questFlags.runeHerald = true;
       else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = add(s.questFlags.runeBloodAndCoin, r.amount ?? 4); // amount = Gold banked
       else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = add(s.questFlags.runeWildHunt, r.amount ?? 1);        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
       else if (r.flag === 'runeRemains') s.questFlags.runeRemains = add(s.questFlags.runeRemains, r.amount ?? 3);           // amount = Shop buff per 5 summons
@@ -3618,6 +3648,14 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeReplication = true; // Rune of Replication: the first Attachment each turn copies onto the leftmost Mech
       break;
     case 'runeCoffers': s.runeCoffers = true; break;
+    case 'runeEnchantment': s.runeEnchantment = true; break;
+    case 'runeCrown': s.runeCrown = { per: r.per, attack: r.attack, health: r.health }; break;
+    case 'runeLapidary': s.runeLapidary = true; break;
+    case 'runeDeep': s.runeDeep = r.tier; break;
+    case 'runeGuidingCandle': s.runeGuidingCandle = { count: r.count, tier: r.tier, left: r.count }; break;
+    case 'runeMuster': s.runeMuster = true; break;
+    case 'runeFoundry': s.runeFoundry = { per: r.per, sold: 0 }; break;
+    case 'runeCorruptedTome': s.runeCorruptedTome = true; break;
     case 'runeVault': s.runeVault = true; break;
     case 'runeAltar': {
       // Sell the ENTIRE board through the sell case's own rituals: the shared value helper, then the on-sell
@@ -3941,6 +3979,13 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeAftershocks: f?.runeAftershocks, // Rune of Aftershocks: Echo summons gain +4/+4
     runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
+    runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
+    runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
+    runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat
+    runeTemperedTime: f?.runeTemperedTime,   // Rune of Tempered Time: SoC — +Health equal to half Attack
+    runeSavagery: f?.runeSavagery,           // Rune of Savagery: a summoned Beast doubles its Attack
+    runeCrucible: f?.runeCrucible,           // Rune of the Crucible: sacrifice N left-most, resummon at the end
+    runeHerald: f?.runeHerald,               // Rune of the Herald: SoC — trigger all your Echoes
     runeUndertow: f?.runeUndertow, // Rune of the Undertow: Echo summons attack immediately
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
@@ -3956,7 +4001,21 @@ export function questCombatMods(s: RunState): QuestCombatMods {
  * with "tavern refresh" hooks in one place.
  */
 function refreshTavern(s: RunState, hold = false): void {
+  // Rune of the Muster: the armed free refresh is stocked with PLAIN copies of your board instead of a draw.
+  // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
+  if (s.runeMuster && s.board.length > 0) {
+    s.runeMuster = undefined;
+    for (const offer of s.shop) returnToPool(s, offer.cardId);
+    s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
+    injectPendingTavern(s, hold);
+    return;
+  }
+  // Rune of the Guiding Candle: the turn's first `count` refreshes draw ONLY tier-`tier` minions. `rollShop`
+  // reads the lock off the state, so the allowance is spent AFTER the draw — decrementing first made the
+  // second refresh see left=0 and go unrestricted (off-by-one, caught by its own test).
+  const gc = s.runeGuidingCandle;
   rollShop(s);
+  if (gc && gc.left > 0) s.runeGuidingCandle = { ...gc, left: gc.left - 1 };
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
   const nb = s.nextShopBuff;
   if (nb && (nb.attack || nb.health)) {

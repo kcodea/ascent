@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
+
+The owner's 14-rune Epic sheet, stacked on the Basic batch (both touch the same four files, so they ship in
+order rather than colliding).
+
+**Shop-side.** Enchantment (per cast: minions +1/+1 permanently — its "+2/+2 during combat" half lives in
+`castSpell`, so a combat cast pays the bigger, temporary grant). The Crown folds into `spellStatBonus`, the
+SHARED helper both spell-power readers use — symmetric, so one edit covers Attack and Health, exactly like
+the hero amplify beside it. The Lapidary walks the board in seat order taking the first body of each tribe,
+so the pick is a seating decision, not RNG, and a dual-type body covers both its tribes. The Deep and the
+Foundry grant with `overflow`, the quest/rune rule that an earned reward is never dropped to a full hand.
+The Muster replaces the draw entirely with plain board copies (returning the old offers to the pool first);
+the Guiding Candle narrows the draw POOL at the single draw site rather than post-filtering, so pool
+bookkeeping stays honest. The Corrupted Tome recurses `grantGoldenDiscover` once with its own flag cleared —
+two Triple Rewards, never four, however many Tomes are owned.
+
+**Combat.** Tempered Time (+Health = floor(Attack/2), so a 1-Attack body is skipped rather than granted 0),
+Savagery (applied BEFORE the tribe auras, so the doubling acts on what the body arrived with), Dragonscale
+(the allowance is spent on the GRANT, not the attack — a Dragon that already has a shield doesn't burn a
+charge; the sheet promises 3 shields, not 3 attempts), the Gem Golem (reads the same carried-Ruby + this-fight
+tally the arena's `rubyTallyOf` does), the Herald (every `onDeath` effect is an Echo — the rule Echohorn's
+proc learned the hard way — with the side's Echo multipliers applied, and the bodies do not die), and the
+Crucible (banks the sacrificed bodies at their real stats; the wipe check runs AFTER the Echoes fire, so an
+Echo that summons defers the return, and the bank empties on use).
+
+**A real off-by-one, caught by its own test.** The Guiding Candle decremented its allowance BEFORE `rollShop`
+read it, so the second refresh already saw `left: 0` and drew unrestricted. The allowance is spent after the
+draw now.
+
+**Three tripwires fired**: the rune-count test, the preview audit (the Gem Golem and the Corrupted Tome name
+cards their hovers didn't show), and the tally audit — which took real counters for the Crown and the Foundry
+and reasoned exemptions for Enchantment.
+
+No art authored yet for these 14 either. `typecheck` clean, lint at the 7-warning baseline, 4176 tests (13
+new), `build:web` OK, harness determinism ✓.
+
 ## 2026-08-07 — 16 new Basic runes (the Tip Jar batch)
 
 The owner's 16-rune sheet, all Basic. **Pure data on existing kinds**: Tip Jar (`multi` of gainGold +

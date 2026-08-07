@@ -80,8 +80,14 @@ export function rollShop(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
   const offers: RunState['shop'] = [...kept];
+  // Rune of the Guiding Candle: while the turn's allowance holds, the draw pool is narrowed to that tier.
+  // Read here (the single draw site) rather than by post-filtering offers, so the pool bookkeeping stays honest.
+  const candle = state.runeGuidingCandle;
+  const lockTier = candle && candle.left > 0 ? candle.tier : undefined;
   for (let i = kept.length; i < slots; i++) {
-    const id = drawOfferId(rng, availableOffers(state), state.tier);
+    const pool = availableOffers(state);
+    const narrowed = lockTier === undefined ? pool : pool.filter((c) => c.tier === lockTier);
+    const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.tier);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });

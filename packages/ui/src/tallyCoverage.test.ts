@@ -49,6 +49,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_flagship: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_brew: 'fires on EVERY Gold spend; the digits are the +4/+3 grant',
   rune_golden_splinter: 'a one-shot latch (reach 15 Gold) — the Gold counter IS the meter',
+  rune_enchantment: 'fires on EVERY Shop spell; the digits are the +1/+1 grant and its combat +2/+2',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */
@@ -57,6 +58,8 @@ const armedRun = (): RunState => ({
   foodForGold: { per: 7, attack: 1, health: 1 },
   foodForGoldTick: 4,
   shopBuffPerShouts: { per: 3, attack: 1, health: 1, tick: 2 },
+  runeCrown: { per: 6, attack: 4, health: 4 }, // Rune of the Crown — spells cast toward its one-time step
+  runeFoundry: { per: 5, sold: 2 },            // Rune of the Foundry — minions sold toward the next Dragon
   shopBuffOnRefresh: { attack: 5, health: 5, step: 1, per: 2, grown: 0, tick: 1 },
   questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 3 },
   questScalingAuras: [{ tribe: 'beast', per: 5, event: 'summon', stepAttack: 4, stepHealth: 4, progress: 2 }],

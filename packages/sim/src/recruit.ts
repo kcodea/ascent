@@ -5054,6 +5054,11 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
   if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.spellsCast);
+  // Rune of the Crown: once the run has cast `per` Shop spells, every spell gives an extra +A/+H. A flat step
+  // (not per-`per`), matching the sheet's "after you cast 6". Symmetric, so it lives in the SHARED helper —
+  // both spellAttackBonus and spellHealthBonus read it, exactly like the hero amplify above.
+  const crown = state.runeCrown;
+  if (crown && state.spellsCast >= crown.per) bonus += crown.attack;
   // Spell-power auras: +1/+1 per `def.spellAura` point on a board card (golden ×2 — no card in the current
   // set carries it), PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic
   // over `def.spellAura` so future aura cards fold in automatically.
@@ -6158,6 +6163,13 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   if (state.runeKindling && kindlingTarget) {
     captureBuffFx(state, undefined, 'spell', () => addBuff(kindlingTarget, 'Rune of Kindling', 3, 3));
   }
+  // Rune of Enchantment: each spell cast gives your minions +1/+1, permanently. (The +2/+2 half is the
+  // COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +1/+1.)
+  if (state.runeEnchantment) {
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 1, 1);
+    });
+  }
   // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
   if (state.runeFlagship) {
     captureBuffFx(state, undefined, 'spell', () => {
@@ -6222,6 +6234,24 @@ export function applyEndOfTurn(state: RunState): void {
   // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
   // that reads maxEmbers this tick already sees the raise.
   if (state.runeCoffers) state.maxEmbers += 1;
+  // Rune of the Lapidary: a Ruby on ONE friendly minion of each type. Walks the board in seat order and takes
+  // the first body of each tribe it has not covered yet, so the pick is a seating decision rather than RNG;
+  // a dual-type body covers BOTH its tribes (it is a minion "of each type" for both). Routed through the real
+  // Ruby-play path, so Resonance Idol / Candle Conduit / Ruby Broker all hear it.
+  if (state.runeLapidary) {
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const covered = new Set<string>();
+    for (const c of [...state.board]) {
+      const def = CARD_INDEX[c.cardId];
+      const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+      if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
+      for (const t of tribes) covered.add(t);
+      const a = 1 + rb.attack;
+      const h = 1 + rb.health;
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(state, c, a, h);
+    }
+  }
 
   const ctx = makeContext(state);
   const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times

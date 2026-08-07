@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of the Chef targets ANOTHER Dwarf
+
+Owner ruling: the Chef can never feed itself. `m !== attacker` on the target filter, and the printed text
+now says "buff **another** random Dwarf".
+
+A lone Chef with no other Dwarf therefore does nothing — that is the honest reading of "another" rather than
+an edge case to paper over, and it has its own test. Two Chefs CAN still feed each other, since each is
+"another" from the other's point of view.
+
+**The end-to-end test broke on this, for a reason worth recording.** Its fixture had two Dwarves, but the
+other one died before the Chef ever swung — so with self-targeting gone there was no legal target and the
+Rally correctly did nothing. Stacking Health to 9000 did not help either: the served omens carry **Venom**,
+which kills through any amount of Health. Ward is what makes the fixture survive contact. The rule was
+right; the fixture was quietly relying on the Chef being allowed to feed itself.
+
 ## 2026-08-07 — The rune tally pill gets styled, and sits above its badge
 
 Owner ask: put the Bucky and Chef counters **above** their runes, always visible when > 0.

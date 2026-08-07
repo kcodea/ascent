@@ -105,7 +105,14 @@ describe('end to end, through the reducer', () => {
     expect(s.questFlags?.runeChef, 'the rune never armed its flag').toBe(true);
     s = {
       ...s, embers: 0, shop: [], hand: [],
-      board: [{ ...bm('chef', 'dw_chef', 6, 40), chefGranted: 12 }, bm('d0', 'dw_wardkeeper', 1, 40)],
+      // Both bodies must OUTLIVE the Chef's first swing: since the 2026-08-07 ruling the Rally targets
+      // "another" Dwarf, so a fixture whose only other Dwarf dies first has no legal target and proves
+      // nothing. Ward ('DS') is what makes that reliable — the served omens carry VENOM, which kills through
+      // any amount of Health, so stacking HP alone did not survive contact.
+      board: [
+        { ...bm('chef', 'dw_chef', 6, 9000), chefGranted: 12, keywords: ['DS'] },
+        { ...bm('d0', 'dw_wardkeeper', 1, 9000), keywords: ['DS'] },
+      ],
     } as RunState;
     s = reduce(s, { type: 'faceOmen' }) as RunState;
     const r = s.lastCombat!;
@@ -140,5 +147,23 @@ describe('the combat half — the Rally spends the banked figure', () => {
 
   it('a Chef that banked nothing pays nothing — no 0/0 buffs', () => {
     expect(chefBuffs(fight(true, 0)).length).toBe(0);
+  });
+
+  it('buffs ANOTHER Dwarf — never itself (owner ruling 2026-08-07)', () => {
+    const r = fight(true, 12);
+    const chef = r.initial.player.find((m) => m.cardId === 'dw_chef')!;
+    const self = r.events.filter((e) => e.type === 'buff' && e.source === chef.uid && e.target === chef.uid);
+    expect(self.length, 'the Chef fed itself').toBe(0);
+    // …and it did feed the other Dwarf, so the exclusion didn't just switch the whole thing off.
+    expect(chefBuffs(r).length).toBeGreaterThan(0);
+  });
+
+  it('a LONE Chef does nothing — "another" with no other Dwarf has no target', () => {
+    const r = simulate(
+      [{ cardId: 'dw_chef', attack: 4, health: 400, chefGrantedLast: 12 }],
+      [{ cardId: 'sandbag', attack: 0, health: 40000 }], makeRng(4), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['dwarf'], ...mods({ runeChef: true }) }), combatSide({ tier: 1 }));
+    const chef = r.initial.player.find((m) => m.cardId === 'dw_chef')!;
+    expect(r.events.filter((e) => e.type === 'buff' && e.source === chef.uid).length).toBe(0);
   });
 });

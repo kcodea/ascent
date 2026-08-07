@@ -1467,7 +1467,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Chef',
     cost: 6,
     epic: true,
-    text: 'Your **Chef Gary Toasts** gain **Rally:** buff a random Dwarf for the combined stats this granted last turn.',
+    text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
     previewCards: ['dw_chef'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeChef' },
     sets: ['set2'], // Dwarves

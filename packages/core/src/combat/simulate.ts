@@ -1671,13 +1671,17 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
-      // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs a random friendly DWARF by the combined stats it
-      // handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs each pay
-      // their own, and a Chef bought this turn has banked nothing and pays nothing.
+      // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
+      // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
+      // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
+      //
+      // `m !== attacker` (owner ruling 2026-08-07): the Chef can never feed itself. A lone Chef with no other
+      // Dwarf therefore does nothing — which is the honest reading of "another", not an edge case to paper
+      // over. Two Chefs CAN feed each other, since each is "another" from the other's view.
       {
         const banked = attacker.chefGrantedLast ?? 0;
         if (banked > 0 && modsFor(attacker.side).runeChef && !attacker.dead && attacker.cardId === 'dw_chef') {
-          const dwarves = boards[attacker.side].filter((m) => !m.dead && m.health > 0
+          const dwarves = boards[attacker.side].filter((m) => m !== attacker && !m.dead && m.health > 0
             && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || !!cards[m.cardId]?.universalTribe));
           if (dwarves.length > 0) {
             fireTrigger('runeChef', attacker.side);

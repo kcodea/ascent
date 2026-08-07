@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of Savagery doubles LAST; all 163 rune arts re-wired
+
+**The owner found the real Savagery bug, and it was an ordering one.** It ran BEFORE the summon watchers and
+tribe auras, so it doubled a body's bare arrival stats and every summon payoff then landed on top
+un-doubled. With a Groveweaver on board a pup went 1 → 2 → 5 Attack; the rune's whole point is that it should
+go 1 → 4 → 8. Moved after `bus.emit('onSummon')` and `applyTribeAuras`, which is what makes it COMPOSE with
+the summon engines it exists to reward.
+
+My original comment argued the opposite ("doubling acts on what the body arrived with") — that reasoning was
+wrong, and it is why the rune read as dead rather than merely small.
+
+The regression test pins the exact arithmetic rather than an inequality: a pup prints 1 Attack, Groveweaver
+grants +3, so Savagery must grant exactly +4. Under the old ordering it granted +1 — one number, the whole
+bug. Verified live end to end through `reduce`: flag armed, two summons, two +4 doublings.
+
+**All 163 rune arts re-wired** from the source folder (owner redid many under the same names). Seven needed
+explicit overrides, each a deliberate attribution rather than a guess: five are "Rune of THE X" filenames for
+a "Rune of X" rune, one is a filename typo (`RuneOTheMenagerie`, shared by both Menagerie twins), one is a
+rune since renamed (`rune_scale` is now "Bulk Order" but its art tracks the id), and Pillaging's file is
+named `SpellOf…` while being the only Pillaging art there is.
+
+`typecheck` clean, lint at the 7-warning baseline, 4537 tests, `build:web` OK.
+
 ## 2026-08-07 — The rune wiring audit: all 163 runes, every link checked
 
 Owner report: "Rune of Savagery is not working at all… can you audit our entire runebase?"

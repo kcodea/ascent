@@ -116,6 +116,30 @@ describe('the combat flags', () => {
     expect(grants[0]).toMatchObject({ attack: 0, health: 2 }); // floor(5/2)
   });
 
+  it("Savagery doubles LAST — a Groveweaver's summon buff is inside the doubling (owner 2026-08-07)", () => {
+    // The ordering bug that made the rune read as dead: it used to double the body's bare arrival stats, so
+    // every summon payoff landed on top UN-doubled. With a Groveweaver on board a summoned Beast must come
+    // out at (arrival + grant) x2, not (arrival x2) + grant.
+    const board: BoardMinion[] = [
+      { cardId: 'b2_groveweaver', attack: 4, health: 400 }, // grants +3/+3 to each summoned Beast
+      { cardId: 'pack', attack: 3, health: 1 },             // dies -> Echo summons pups
+    ];
+    const wallOnly = [{ cardId: 'omen', attack: 40, health: 4000 }];
+    const run = (armed: boolean) => simulate(board, wallOnly, makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], ...(armed ? mods({ runeSavagery: true }) : {}) }), combatSide({ tier: 1 }));
+    const doubling = run(true).events.filter((e) => e.type === 'buff' && e.source === 'Rune of Savagery');
+    expect(doubling.length, 'Savagery never fired').toBeGreaterThan(0);
+    // EXACT arithmetic, so the test can't pass by accident. A pup prints 1 Attack and the Groveweaver grants
+    // +3/+3 on arrival, so Savagery must read 4 and grant +4 (taking the pup to 8). Under the OLD ordering it
+    // read the bare 1 and granted +1, with the +3 landing outside the doubling for a total of 5 — so this
+    // single number is the whole regression.
+    const pupBase = CARD_INDEX['pup']!.attack;
+    const grant = 3; // Groveweaver's printed summon buff
+    expect(new Set(doubling.map((e) => (e.type === 'buff' ? e.attack : 0))),
+      'the doubling ignored the summon buff — Savagery is running before the triggers again')
+      .toEqual(new Set([pupBase + grant]));
+  });
+
   it('Savagery doubles a summoned Beast’s Attack', () => {
     // Pack summons pups (Beasts) on death — the summoned body arrives with its Attack doubled.
     const r = simulate(

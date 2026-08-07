@@ -64,7 +64,9 @@ import { ChargeMotes } from './chargeMotes';
 gsap.registerPlugin(Flip);
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
-const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
+const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
+const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
+const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
 
 /** Fodder-keyword card ids — a constant of the card corpus, computed once so `cardBuffsLive` doesn't walk
  *  the whole CARD_INDEX on every shop action (perf audit 2026-08-06). */
@@ -350,8 +352,25 @@ function tokenRefView(
   impBuff?: { attack: number; health: number },
   spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number },
   rubyBonus?: { attack: number; health: number },
+  /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
+  ownerRuby?: { attack: number; health: number; golden?: boolean },
 ): CardView {
   const c = CARD_INDEX[id];
+  // GEMHEART GOLEM: its stats come from the Rubies on the minion that summons it, so previewing a flat 1/1
+  // was a lie about what you'd get (owner 2026-08-06: "the gemheart golem preview should show the stats it
+  // will have from that unit"). Mirrors `deathrattleSummonRubyStats` exactly: (1 + owner's Ruby tally) × the
+  // owner's gild. `ownerRuby` is absent everywhere except the referenced-card popup, so every other caller
+  // keeps the printed token.
+  if (id === 'gemheart-shard' && ownerRuby) {
+    const g = ownerRuby.golden ? 2 : 1;
+    const a = (c.attack + ownerRuby.attack) * g;
+    const h = (c.health + ownerRuby.health) * g;
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, universalTribe: !!c.universalTribe,
+      attack: a, health: h, keywords: c.keywords, tier: c.tier, text: c.text,
+      baseAttack: c.attack, baseHealth: c.health, // so the Ruby-fed gain reads green against the printed 1/1
+    };
+  }
   // A RUBY previews at what it is worth RIGHT NOW — base 1/1 plus the run's accrued `rubyBonus` (owner
   // 2026-07-25: hovering a card that mentions Rubies should show the Ruby at its current value). Handled
   // before the generic spell branch because a Ruby is flagged `spell` but has no spell-power text of its own.
@@ -549,6 +568,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const fodder = c.keywords.includes('FD');
   const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
+  // Veinstorm's run-wide Ruby grant — same rails and same Fodder exclusion as the tavern buy bonus.
   // Preview the run-wide buy auras a fresh minion inherits (Undead/Beast Attack, Magnetic +atk/+hp) so the
   // offer already reads the stats it'll buy in at — the reducer's buy path bakes exactly these.
   const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk
@@ -571,7 +591,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   if (card.buffs?.length) for (const b of card.buffs) pushBuff(b.source, b.attack, b.health, b.count);
   else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
   pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
-  pushBuff('Tavern', tavernAtk, tavernHp);
+  pushBuff('Tavern', tavernAtk, tavernHp); // Veinstorm — itemized as Rubies, which is what it now is
   pushBuff('Tribe Bond',
     (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
@@ -1985,7 +2005,7 @@ export function Recruit() {
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
   const refViewsByUid = useMemo(() => {
     const m = new Map<string, CardView[]>();
-    const add = (uid: string, cardId: string): void => {
+    const add = (uid: string, cardId: string, owner?: { buffs?: { source: string; attack: number; health: number }[]; golden?: boolean }): void => {
       // The manual map first (Fodder/Imp cards whose references aren't effect params — e.g. Feed *consumes*
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
       // card that mentions another in its text surfaces it. De-duped, manual order wins.
@@ -2004,11 +2024,13 @@ export function Recruit() {
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
       // `cardBuff()`; this popup was the last raw reader.
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus)));
+      const or = owner?.buffs?.find((b) => b.source === 'Ruby');
+      const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby)));
     };
-    for (const c of run.board) add(c.uid, c.cardId);
-    for (const c of run.hand) add(c.uid, c.cardId);
-    for (const o of run.shop) add(o.uid, o.cardId);
+    for (const c of run.board) add(c.uid, c.cardId, c);
+    for (const c of run.hand) add(c.uid, c.cardId, c);
+    for (const o of run.shop) add(o.uid, o.cardId, o);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
   }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus]);
@@ -3310,9 +3332,23 @@ export function Recruit() {
    // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs every commit — a heavy branch here
    // is the fanout-frame cost that's neither the sim nor the weld FX.
    perfMonitor.measure('layout:flip', () => {
+    // WHICH ROW CAN MOVE. Only one row re-lays-out during a drag: the warband when its drop gap is open, the
+    // tavern when the shop's is. Capturing/animating BOTH doubled the most expensive thing in the shop phase
+    // for a row that provably cannot have moved. Outside a drag (a buy, a sell, a commit) either row can
+    // change, so the full selector stands.
+    //
+    // Switching selectors mid-drag is safe: `Flip.from` simply ignores elements absent from the captured
+    // state, and an absent element is one that did not move — which is the same outcome it had before.
+    // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
+    // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
+    const draggingNow = dragRef.current?.active ?? false;
+    const flipSel = !draggingNow ? FLIP_SELECTOR
+      : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
+        : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
+          : FLIP_SELECTOR;
     if (flipStateRef.current) {
       const flipCfg = getFlipConfig();
-      const dragging = dragRef.current?.active ?? false;
+      const dragging = draggingNow;
       if (dragging) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
@@ -3388,11 +3424,17 @@ export function Recruit() {
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
-    flipStateRef.current = Flip.getState(FLIP_SELECTOR);
+    // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
+    // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
+    // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
+    // whole drag (styles.css), so there is no rotation or scale for the full path to account for.
+    flipStateRef.current = Flip.getState(flipSel, { simple: true });
     // Persist each flipping card's LAYOUT left (offsetLeft — transform-immune, so a capture taken while a
     // prior tween is still mid-flight records the true resting spot) for the NEXT commit's manual FLIP.
+    // Scoped with the same selector: a card in the row that could not move is absent, and the commit branch
+    // reads an absent uid as delta 0 — "did not move" — which is exactly right.
     commitRectsRef.current = new Map(
-      gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
+      gsap.utils.toArray<HTMLElement>(flipSel).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
     );
    });
   }, [flipKey]);
@@ -4731,7 +4773,7 @@ export function Recruit() {
                 // arrive cheaper — the buy path charges the same number.
                 const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
                 return (
-                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} duplicating={!!run.runeDuplication && !!run.runeforgeEpic} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
                 );
               })}
             </div>

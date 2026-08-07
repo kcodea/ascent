@@ -5043,34 +5043,44 @@ svg { width: 18px; height: 18px; }
 .ranktable { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); }
 /* Columns in PX (not em) so the header — which uses a smaller font-size — computes the SAME track widths as the
    data rows and lines up. (em tracks scale with each row's own font-size, which was the misalignment.) */
-.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0e8da; }
+/* The row is a PLATE, not a tint (owner report 2026-08-06: "the leaderboard font is hidden in the
+   background"). At rgba(0,0,0,.3) the homescreen's daylit castle read straight through it, so the columns
+   that aren't accent-coloured — Games, the hero name, the header labels — washed out against clouds and
+   towers. Opaque-enough navy fixes every one of them at once and needs no per-column colour tuning. */
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
 /* A leaderboard row is a BUTTON now (it opens that player's career). Reset the button chrome so it still
    reads as a table row, and keep the grid from the base rule — a button defaults to inline-block and would
    otherwise collapse the columns. */
-.rankrow-btn { width: 100%; font: inherit; color: inherit; text-align: inherit; background: none; border: none; appearance: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.rankrow-btn:hover { border-color: var(--acc); background: rgba(196, 160, 92, 0.1); }
+/* THE ACTUAL BUG (owner report 2026-08-06). This button reset is declared AFTER `.rankrow`, so its
+   `background: none` erased the row's plate and its `color: inherit` pulled the page's dark ink
+   (rgb(42,32,23)) over the row's own light colour — leaving dark-brown text on a transparent row above a
+   daylit castle. Only the `.me` row looked right, because `.rankrow.me` is declared later still and put its
+   tint back. The reset now drops `background` / `color` / `border` and keeps only what a button actually
+   needs neutralising, so `.rankrow` owns the plate and the ink. */
+.rankrow-btn { width: 100%; font: inherit; text-align: inherit; appearance: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rankrow-btn:hover { border-color: var(--acc); background: linear-gradient(rgba(196, 160, 92, 0.14), rgba(196, 160, 92, 0.14)), rgba(8, 13, 26, 0.82); }
 .rankrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
 /* Transparent 2px border keeps the header's columns inset the SAME as the bordered data rows, so they line up. */
-.rankrow.rankhead { background: none; border: 2px solid transparent; border-bottom: 2px solid rgba(255, 255, 255, 0.16); border-radius: 0; padding-top: 4px; padding-bottom: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); }
+.rankrow.rankhead { background: none; border: 2px solid transparent; border-bottom: 2px solid rgba(255, 255, 255, 0.28); border-radius: 0; padding-top: 4px; padding-bottom: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.78); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
 /* Column dividers: a full-height rule at the left of every column after the player name. */
 .rankrow > .ranknum, .rankrow > .rankfav { align-self: stretch; display: flex; align-items: center; border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 14px; margin-left: 14px; }
 .rankrow.rankhead > .ranknum, .rankrow.rankhead > .rankfav { border-left-color: transparent; }
 .rankrow > .ranknum { justify-content: flex-end; }
 .rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
 .rankrow > .rankrank { justify-content: center; }
-.rankrow.me { border-color: var(--acc); background: rgba(255, 140, 40, 0.12); }
-.rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.6); }
+.rankrow.me { border-color: var(--acc); background: linear-gradient(rgba(255, 140, 40, 0.16), rgba(255, 140, 40, 0.16)), rgba(8, 13, 26, 0.82); }
+.rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.82); }
 .rankrank.r1 { color: #ffcf4a; }
 .rankrank.r2 { color: #d6dde6; }
 .rankrank.r3 { color: #e0965a; }
 .rankname { font-weight: 800; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rankhead .rankname { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+.rankhead .rankname { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
 .rankyou { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #1a1206; background: var(--acc); padding: 1px 6px; border-radius: 6px; }
-.ranknum { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; }
+.ranknum { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; color: #f4eee2; }
 .rankhead .ranknum { font-size: 11px; font-weight: 800; }
 .rankrating { color: var(--acc); font-weight: 800; }
-.rankfav { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rankhead .rankfav { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+.rankfav { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankhead .rankfav { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
 .rankportrait { width: 30px; height: 30px; border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.3); flex: none; display: grid; place-items: center; }
 .rankportrait img { width: 100%; height: 100%; object-fit: cover; }
 .rankportrait svg { width: 18px; height: 18px; color: #f6efe2; }
@@ -6998,11 +7008,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Lobby post-game rating — the BIG number (current rating) with the placement's ± delta beside it. Static
    colors + a one-shot entrance via the existing endbox animation; nothing loops. */
 .endmmr { display: flex; align-items: baseline; justify-content: center; gap: 12px; margin: 6px 0 2px; }
-.endmmr-now { font-family: var(--disp, inherit); font-weight: 800; font-size: 64px; line-height: 1; letter-spacing: 1px; }
-.endmmr-delta { font-weight: 800; font-size: 26px; }
-.endmmr.up .endmmr-delta { color: #58c470; }
-.endmmr.down .endmmr-delta { color: #e06060; }
-.endmmr-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.65; }
+/* The 64px rating carried NO colour declaration, so it inherited whatever the end screen's ink happened to
+   be and sank into the art (owner report 2026-08-06). Explicit warm white + a static shadow so it reads over
+   the final-warband render regardless of what is behind it. The shadow is static — nothing here animates. */
+.endmmr-now { font-family: var(--disp, inherit); font-weight: 800; font-size: 64px; line-height: 1; letter-spacing: 1px; color: #fff6e4; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
+.endmmr-delta { font-weight: 800; font-size: 26px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); }
+.endmmr.up .endmmr-delta { color: #6fe089; }
+.endmmr.down .endmmr-delta { color: #ff7d7d; }
+.endmmr-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255, 246, 228, 0.85); opacity: 1; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); }
 .endplace-practice { display: block; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; margin-top: 4px; }
 
 .endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
@@ -7169,3 +7182,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .alignarc.aa-dawn { background-image: var(--aa-grad-dawn, none); }
 .alignarc.aa-dusk { background-image: var(--aa-grad-dusk, none); }
 .alignarc.aa-eclipse { background-image: var(--aa-grad-eclipse, none); }
+
+/* "Does not stack" — shown on an Epic rune in the forge while Rune of Duplication is held and a second copy
+   of that rune would change nothing (see `runeStacks`). Static; nothing here animates. */
+.runecard-nostack { align-self: center; margin: 0 0 6px; padding: 2px 9px; border-radius: 999px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.22); color: rgba(255, 226, 170, 0.92); font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }

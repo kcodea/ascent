@@ -44,6 +44,18 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Leaderboard + post-game MMR readability** — a button reset was erasing each leaderboard row's plate and pulling dark page ink over its text; the big MMR number had no colour declared at all.
+
+- **Echo multipliers fixed** — Echohorn's Rally proc ignored Sylus entirely (halving the Echohorn→Dawnclaw→Drakko→Sylus chain) and Deathsayer's hardcoded scan dropped Zyff/Funeral Engine/Elderhorn/Grave Contract; both now share one canonical read.
+
+- **Shop perf slice 2** — a real 240 Hz capture showed the drag FLIP was 90% of all frame work (~9.2 ms/call vs a 4.17 ms budget); it now captures only the row that can move, on GSAP's fast path.
+
+- **New spell: Ruby Transfer** (T5, 1 Gold, Set 2) — target a minion and it steals all Ruby buffs from its neighbours, on the board *or* in the shop row.
+
+- **Rune of Duplication actually duplicates** — it was a silent no-op on 41 of 72 Epic runes; amounts now accumulate, boolean runes fire per copy, White Wolf grants a second pup, and non-stacking runes say so on a forge pill.
+
+- **Veinstorm grants Rubies** — its permanent shop grant now bakes into bought minions as *Rubies*, not a generic tavern buff, so a Gemheart Carver out of a +10/+10 Veinstorm shop summons an 11/11 Golem.
+
 - **Spells wear a new bronze arch frame** — the art is clipped to the arch, the old purple tint is gone,
   and ~1.9MB of retired frame art left the bundle.
 

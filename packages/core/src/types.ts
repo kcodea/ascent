@@ -366,6 +366,7 @@ export type EffectFactoryId =
   | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
+  | 'spellStealAdjacentRubies' // Ruby Transfer: the target steals adjacent minions' Ruby buffs (board or shop row)
   | 'spellAverageStats' // Common Ground: cast — average two friendly minions' Attack and Health
   | 'spellSwapStats' // Turnabout: cast — swap the target's Attack and Health
   | 'spellGoldIfLostLast' // Insurance Policy: cast — gain Gold if you lost your last combat
@@ -1189,6 +1190,13 @@ export interface QuestCombatMods {
   runeCinderLedger?: number;
   /** Rune of the Procession: Avenge (4) — double your right-most minion's stats. */
   runeProcession?: boolean;
+  /** How many COPIES of each rune-granted combat flag the run holds (Rune of Duplication). 1 = the normal
+   *  single copy and is what an absent entry means, so every existing consumer reads correctly untouched.
+   *  Only the DISPATCHERS consult it — a duplicated boolean rune fires its effect twice rather than setting
+   *  the same `true` twice, which is why Duplication used to be a no-op on 23 combat-flag runes (owner
+   *  report 2026-08-06: two Rune of the Procession, one trigger). Amount-carrying flags instead ACCUMULATE
+   *  their amount (owner ruling: two Finality = 14 Imps), so they need no entry here. */
+  flagCopies?: Record<string, number>;
   /** Rune of Gemstorm: Rubies played on each friendly Kobold at every second friendly death. */
   runeGemstorm?: number;
   /** Rune of Blood and Coin: Gold banked for next turn per 4 friendly deaths. */
@@ -2029,6 +2037,15 @@ export interface CombatContext {
   /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
    *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
   countDeathrattle?(side: Side): void;
+  /** How many EXTRA times `minion`'s Echo fires, from every Echo multiplier that side has — Sylus / Uron
+   *  (card-data driven), Elderhorn's Beast Ritual, Funeral Engine's `echoExtraAlways`, Grave Contract's
+   *  first-Echo bonus. THE canonical read: `simulate` uses it for real deaths, and the Rally-proc factories
+   *  (Echohorn, Deathsayer) now use the same one instead of their own partial views — Echohorn consulted NO
+   *  multiplier at all (Sylus contributed exactly zero through it) and Deathsayer hardcoded a `cardId ===
+   *  'sylus'` scan that silently dropped Zyff / Funeral Engine / Elderhorn / Grave Contract.
+   *  NOTE: this CONSUMES the once-per-combat first-Echo bonus, which is correct — a proc'd Echo is an Echo
+   *  firing — so call it once per proc batch, not speculatively. */
+  echoExtras?(minion: Minion): number;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;

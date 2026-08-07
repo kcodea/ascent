@@ -90,6 +90,8 @@ describe('card sets — set 2 carries set 1 spells', () => {
       'wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack',
       // Owner batch 2026-07-31: the currency-locked pair (Ales / Rubies are set-2) + the two Dwarf steal spells.
       'onthehouse', 'rubyexcavation', 'deepdelvewrit', 'ironcladreq', 'cupcakes',
+      // Owner add 2026-08-06: consolidates a row's Rubies onto one body (board OR shop row).
+      'rubytransfer',
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });

@@ -267,6 +267,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onFriendlyAttackBuffTribe',
   'battlecryDiscoverMinion',
   'spellSetStats',
+  'spellStealAdjacentRubies', // Ruby Transfer — steal adjacent Ruby buffs
   'spellAverageStats',
   'spellSwapStats',
   'spellGoldIfLostLast',

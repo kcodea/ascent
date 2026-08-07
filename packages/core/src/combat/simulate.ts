@@ -591,6 +591,8 @@ export function simulate(
       // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
       if (side === 'player') bumpDeathrattles(1);
     },
+    // The one Echo-multiplier read, shared with the Rally-proc factories (see the CombatContext doc).
+    echoExtras: (minion) => playerEchoExtras(minion),
     grantToHand: (cardId, side, sourceUid) => {
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
@@ -2293,8 +2295,14 @@ export function simulate(
       const m = modsFor(side);
       if (!mask(m, side)) return;
       fireTrigger(flag, side); // pulse the rune's badge when its Avenge fires
-      fire(side);
-      if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
+      // COPIES (Rune of Duplication, owner report 2026-08-06): a boolean flag can't say "twice", so the
+      // copy count says it here. Two Rune of the Procession = two fires. `?? 1` keeps every single-copy run
+      // byte-identical, and Rune of Fury multiplies the whole thing exactly as it always did.
+      const copies = Math.max(1, m.flagCopies?.[flag] ?? 1);
+      for (let c = 0; c < copies; c++) {
+        fire(side);
+        if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
+      }
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.

@@ -260,6 +260,16 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
 
 /** Buff a TAVERN OFFER (Apples / Fortify / Fried Circuits / next-shop) — bumps its `atk`/`hp` AND records the
  *  named source in `buffs`, so the inspect + the bought minion attribute it correctly (not a generic label). */
+/** Give one tavern offer `attack`/`health` worth of Veinstorm RUBIES. Minions only — a spell/Ruby offer has
+ *  no stats to carry, and Fodder is excluded exactly as it was under the old tavern channel (its buffs ride
+ *  the run-wide enchant instead). Shared by the cast and by the shop roll so the two can never disagree. */
+export function stampVeinstormRubies(offer: ShopCard, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  const d = CARD_INDEX[offer.cardId];
+  if (!d || d.spell || d.ruby || d.keywords.includes('FD')) return;
+  addOfferBuff(offer, 'Ruby', attack, health);
+}
+
 export function addOfferBuff(offer: ShopCard, source: string, attack: number, health: number): void {
   if (attack === 0 && health === 0) return;
   offer.atk = (offer.atk ?? 0) + attack;
@@ -911,7 +921,10 @@ export function teachMagePup(state: RunState, spellId: string): void {
     (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
     0,
   );
-  const cap = boardCap + (state.runeWhiteWolf ? 1 : 0);
+  // Each White Wolf copy adds one teach, like an extra Mentor (owner ruling 2026-08-06). `=== true` keeps a
+  // legacy save (which stored a boolean) worth exactly the one teach it always was.
+  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
+  const cap = boardCap + wolves;
   const used = state.moonhowlTeachesThisTurn ?? 0;
   if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
   if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land
@@ -4011,17 +4024,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     queueDiscover(state, { kind: 'pool', ids });
   },
 
-  /** Veinstorm (Set 2) — cast: give EVERY tavern minion offer stats equal to your Rubies (base 1/1 + the run's
-   *  `rubyBonus`), baked onto each offer so a buy keeps it. Untargeted; live value shown via spellDisplayText. */
+  /**
+   * Veinstorm (Set 2) — cast: LITERALLY play its own value in Rubies onto every tavern minion (owner
+   * 2026-08-06: "veinstorm should literally apply the value of itself in rubies to the shop"). A Ruby is
+   * 1/1 + the run's `rubyBonus`, so that is what each offer gains, under the `Ruby` source.
+   *
+   * ONE mechanism, on purpose. This shipped twice as something cleverer and both were wrong:
+   *   · as `tavernBuyBonus` (the Staff of Guel channel) it was a generic tavern buff, invisible to every
+   *     "the Rubies on this minion" reader — a Gemheart Carver bought out of a +10/+10 shop minted a 1/1;
+   *   · as a run-level Ruby channel + a per-offer stamp it was an AURA no card could interact with (Ruby
+   *     Transfer had nothing to steal), and the split had to be un-double-counted in every reader — which
+   *     `offerBuyStats` did and the shop's own display did NOT, so the value rendered doubled.
+   * Real Ruby buffs on real offers need no reconciliation: they ARE the offer's stats, they travel to the
+   * bought minion as Rubies, Ruby Transfer can move them, and the inspect names them correctly.
+   *
+   * Deliberately does NOT fire `onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier,
+   * no Spellstone cast tick. Offers have no watchers to fire, and a shop-wide grant firing one per offer
+   * would make a 1-Gold spell the largest Ruby-count payoff in the game. `gainRubyStats` is the established
+   * "Ruby stats, no watcher notify" precedent. The Ruby-LANDED cue does play, derived from the per-offer
+   * Ruby-count delta — correctly: real Rubies are arriving, and that is what makes the spell legible.
+   */
   spellBuffShopByRuby: (ctx) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
-    const a = 1 + rb.attack, h = 1 + rb.health;
-    // PERMANENT (owner 2026-07-24): routed through `tavernBuyBonus` — the run-level tavern buff Staff of Guel
-    // uses — rather than `addOfferBuff` on the current offers. `offerBuyStats` folds it into EVERY offer, so
-    // the current shop updates immediately AND every future shop inherits it. Buffing the offers directly made
-    // it a one-shot that a single reroll wiped.
-    ctx.state.tavernBuyBonus.atk += a;
-    ctx.state.tavernBuyBonus.hp += h;
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    for (const offer of ctx.state.shop) stampVeinstormRubies(offer, a, h);
+    // BANK it so every future shop is stamped too — "permanently", and the owner's "every time i refresh the
+    // shop, it should have that buff". The bank is only ever READ at mint time (see `rollShop`), never folded
+    // into a stat read, which is what keeps each offer's Rubies real, stealable and counted exactly once.
+    const bank = (ctx.state.veinstormRubies ??= { atk: 0, hp: 0 });
+    bank.atk += a;
+    bank.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
@@ -4205,6 +4238,65 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Common Ground — cast with TWO friendly targets (the second is `self`; the first is stashed on
    *  `pendingTarget.spellFirstUid`): set BOTH minions to the rounded average of their combined Attack and
    *  Health. Applied as delta buffs so it folds through the inspect breakdown. No spell-power scaling. */
+  /**
+   * Ruby Transfer (owner add 2026-08-06) — the target STEALS every Ruby buff from its adjacent minions.
+   *
+   * Works in BOTH rows, which is the whole point of the card (owner: "it can also target shop minions and
+   * should steal ruby buffs from adjacent shop minions in that instance"). `castSpellOnOffer` casts on a
+   * temp BoardCard that shares the offer's uid, so the row is identified by looking that uid up: found in
+   * `shop` → steal from the SHOP neighbours; otherwise the board's. A Ruby buff is a first-class named entry
+   * (`buffs[].source === 'Ruby'`) on both card kinds, so "all Ruby buffs" is exact — it moves precisely what
+   * Rubies put there and never touches Growth, a tavern buff or an aura.
+   *
+   * Deliberately NOT routed through `fireOnRubyPlayed`: nothing is being CAST here, stats are changing hands.
+   * Firing it would let a Resonance Idol bounce a Ruby that was already played, and would tick Deepdelve
+   * Paragon / the Spellstone cast count a second time for one Ruby (matching `gainRubyStats`' documented
+   * no-rebounce reasoning). The stolen stats stay labelled 'Ruby' on the thief, so Gemheart Carver and every
+   * other reader of "the Rubies on this minion" sees them.
+   */
+  spellStealAdjacentRubies: (ctx, self) => {
+    const state = ctx.state;
+    const shopIdx = state.shop.findIndex((o) => o.uid === self.uid);
+    const inShop = shopIdx >= 0;
+    // Neighbours in the row the target actually sits in. A spell OFFER is not a minion, so the shop row
+    // skips them — stealing "from the spell slot" is meaningless and would silently do nothing anyway.
+    const donors: { rubyOf: () => { attack: number; health: number }; take: (a: number, h: number) => void }[] = [];
+    if (inShop) {
+      for (const i of [shopIdx - 1, shopIdx + 1]) {
+        const o = state.shop[i];
+        if (!o || CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby) continue;
+        donors.push({
+          rubyOf: () => { const e = o.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
+          take: (a, h) => addOfferBuff(o, 'Ruby', -a, -h),
+        });
+      }
+    } else {
+      const bi = state.board.findIndex((c) => c.uid === self.uid);
+      if (bi < 0) return;
+      for (const i of [bi - 1, bi + 1]) {
+        const c = state.board[i];
+        if (!c) continue;
+        donors.push({
+          rubyOf: () => { const e = c.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
+          take: (a, h) => addBuff(c, 'Ruby', -a, -h),
+        });
+      }
+    }
+    let gotA = 0;
+    let gotH = 0;
+    for (const d of donors) {
+      const { attack, health } = d.rubyOf();
+      if (attack <= 0 && health <= 0) continue;
+      d.take(attack, health); // the donor loses exactly what it had — negatives net the entry to zero
+      gotA += attack;
+      gotH += health;
+    }
+    if (gotA === 0 && gotH === 0) return;
+    // Land on the target as RUBY stats, so the thief reads as a Ruby-laden minion to everything downstream.
+    if (inShop) addOfferBuff(state.shop[shopIdx]!, 'Ruby', gotA, gotH);
+    addBuff(self, 'Ruby', gotA, gotH); // `self` IS the temp card in the shop case — keeps the fold-back honest
+  },
+
   spellAverageStats: (ctx, self) => {
     const first = ctx.state.board.find((c) => c.uid === ctx.state.pendingTarget?.spellFirstUid);
     if (!first || first.uid === self.uid) return;
@@ -5674,6 +5766,9 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
+  // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
+  // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
+  // Veinstorm's Rubies need no line here: they are REAL per-offer buffs, already inside `offer.atk/hp`.
   let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
   let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild

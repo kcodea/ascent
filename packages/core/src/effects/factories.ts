@@ -1670,8 +1670,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // Sylus, +2 golden). A *golden Deathsayer* then doubles the whole thing — it's a multiplier, so it
     // stacks multiplicatively on Sylus (e.g. golden Deathsayer + 2 Sylus = (1+2)×2 = 6 procs). Echo
     // Warden's extra tokens are already folded into the summon factories.
-    const reaperBonus = ctx.living(self.side).reduce((n, m) => n + (m.cardId === 'sylus' ? (m.golden ? 2 : 1) : 0), 0);
-    const procs = (1 + reaperBonus) * (self.golden ? 2 : 1);
+    // Every Echo multiplier, via the canonical read. This was a hardcoded `cardId === 'sylus'` scan, which
+    // silently dropped Zyff, Funeral Engine's `echoExtraAlways`, Elderhorn's Beast Ritual and Grave
+    // Contract's first-Echo bonus — all of which a real death honours (audit 2026-08-06).
+    const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * (self.golden ? 2 : 1);
     for (let r = 0; r < procs; r++) {
       // A rattle triggered WITHOUT a death still counts toward the tally (same rule as Sporeling's
       // Battlecry proc above) — Grim and the run's deathrattlesTriggered see every proc.
@@ -2574,7 +2576,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       (m) => m !== self && m.effects.some((e) => e.on === 'onDeath'),
     );
     if (!target) return;
-    for (let r = 0; r < mul(self); r++) {
+    // The proc'd Echo fires as many times as a REAL death would — every Echo multiplier the side has (Sylus,
+    // Uron, Elderhorn's Ritual, Funeral Engine, Grave Contract) — and the Stag's own gild then DOUBLES that
+    // whole count, multiplicatively, the same shape `deathrattleReplayAdjacentBattlecry` uses for Drakko.
+    //
+    // This loop used to be `mul(self)` alone: it consulted NO multiplier, so Sylus contributed exactly ZERO
+    // through the Stag (owner report 2026-08-06 — the Echohorn → Dawnclaw → Drakko → Sylus chain came out at
+    // half its stated value, and every count was byte-identical with 0, 1, 2 or gilded Sylus on board).
+    const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
+    for (let r = 0; r < procs; r++) {
       ctx.log({ type: 'rally', source: self.uid, target: target.uid });
       ctx.countDeathrattle?.(target.side);
       for (const effect of target.effects) {

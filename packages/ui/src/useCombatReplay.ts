@@ -16,7 +16,8 @@ import { holdMs } from './choreo/clock';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
-import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
+import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
+import { attackSummonUids } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -82,6 +83,15 @@ const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
  * asymmetry moved one level up, not resolved.
  */
 const COMBAT_HOLD_TTL_MS = 2000;
+
+/**
+ * How long a unit's OWN on-attack summons are withheld before they slide onto the board — so Errand Fiend's
+ * Imps arrive a beat after the swing instead of snapping in at wind-up start (owner ask 2026-08-07). Measured
+ * from the instant the attack beat becomes current, and scaled by combat speed at the call site so the lead
+ * shrinks with a faster replay. Kept short so the reveal stays well inside the attack beat (always longer than
+ * this) — which is what lets the Imp mount while its `summoned` anim is still live and play `summonpop`.
+ */
+const IMP_SUMMON_LEAD_MS = 300;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -1727,6 +1737,22 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     for (const uid of rallyDeliveredUids(beat, { events, cardIds })) holdSummon(uid);
+    // Errand Fiend (and any unit that summons on its OWN attack): withhold the attacker's own on-attack summons
+    // and reveal them a short lead later, so the Imps slide in just after the swing instead of snapping onto the
+    // board at wind-up start (owner ask 2026-08-07). Triggered by "summons on its own attack" (`source ===
+    // attacker`), NOT the RL keyword — a card's "Rally: summon…" is an onAttack EFFECT and carries no RL keyword
+    // (Errand Fiend's keywords are just `['W']`), so an RL gate here never fired. The reveal rides a speed-scaled
+    // timer cleared on the next beat/seek; the summon-hold TTL is the fail-open backstop if it is ever lost.
+    let impReveal: number | undefined;
+    if (beat.kind === 'attackExchange' && beat.primary.type === 'attack') {
+      const impUids = attackSummonUids(beat, events, beat.primary.attacker);
+      if (impUids.length) {
+        for (const uid of impUids) holdSummon(uid);
+        const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+        impReveal = window.setTimeout(() => releaseSummons(impUids), IMP_SUMMON_LEAD_MS / speed);
+      }
+    }
+    return () => { if (impReveal !== undefined) clearTimeout(impReveal); };
   }, [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate
@@ -1829,6 +1855,13 @@ export function useCombatReplay(
         // The venom-spent flourish lands first in its beat; don't let the poisoner's same-beat
         // retaliation `struck` clobber it. A death still wins (the demise reads over the flourish).
         if (anims[uid] === 'venomspent' && cls === 'struck') continue;
+        // A unit SUMMONED this beat keeps its arrival entrance (`summonpop`) against a same-beat soft
+        // overlay: Errand Fiend summons an Imp AND buffs your Imps in one swing, so the fresh Imp's uid gets
+        // both a `summon` and a `buff` anim — and a unit can't pulse a buff before it has even appeared. The
+        // summon wins regardless of event order (it either survives this guard or overwrites below). Death is
+        // exempt (`cls === 'dying'` falls through to the demise block), so a summoned-then-killed unit still
+        // reads its death rather than its arrival.
+        if (anims[uid] === 'summoned' && cls !== 'dying') continue;
         // A Rise body dies SOFT — `dying rising` fades it in place (no bounce/spin/slot collapse; see
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {

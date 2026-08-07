@@ -1031,7 +1031,12 @@ body.dragging .zone[data-zone='warband'] .card:hover,
 body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
 
 /* STANDARD CARD */
-.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
+/* Legacy tribe-coloured arch glow SCRUBBED (owner 2026-08-06): the base card box no longer carries a tribe
+   tint or a `var(--c)` ring/bloom. It used to flash "the old arch-frame styling with a tribe glow" for a paint
+   or two on load — the window before `.card.compact` + the frame PNG settle — then get covered. Neutralised at
+   the source (not via another override that races the image) so no unit can ever flash it, in any state. Tribe
+   colour lives only on the medallion/gem + stat plates now. Neutral drop-shadow kept for grounding. */
+.card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: var(--card); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 3px 0 var(--shadow); transition: transform 0.12s, border-color 0.12s; }
 /* The mount-pop is opt-in via `popin` (frozen at mount in Card) so it fires for freshly bought/played
    cards but NOT when the warband re-mounts on the way back from combat (that re-mount looked like a
    random jiggle). Declared before .dscard/.reborncard/.unit so their persistent glows still win. */
@@ -1463,7 +1468,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.dual .cfoot { background: linear-gradient(112deg, color-mix(in srgb, var(--c) 30%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 30%, var(--card)) 53% 100%); }
 /* Tribe edge — dual types split the outer rim half-and-half. A box-shadow can't be two colours, so
    the split is drawn as a pseudo-element rim behind the card and the solid ring is dropped for it. */
-.card.dual { background: linear-gradient(112deg, color-mix(in srgb, var(--c) 30%, var(--card)) 0 47%, color-mix(in srgb, var(--c2) 30%, var(--card)) 53% 100%); box-shadow: 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); }
+/* Dual-tribe box: same legacy-arch-glow scrub as the base `.card` above — drop the tribe fill + `var(--c)` bloom
+   from the card box (the split matte on `.art`/`.cfoot` above still carries both tribe hues; the split rim is the
+   `::before`). Prevents a two-tribe unit flashing the arch bloom in the same pre-frame window. */
+.card.dual { background: var(--card); box-shadow: 0 3px 0 var(--shadow); }
 /* The split rim is a masked gradient *ring* (border-box minus content-box) rather than a filled
    pseudo-element behind the card — so it stays a clean rim and never floods the interior when hover's
    transform turns the card into a stacking context (which used to flip a z-index:-1 pseudo to the front). */
@@ -1513,7 +1521,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact .art {
   flex: 1 1 auto; margin: 0;
   border-radius: var(--arch-radius);                                      /* arched top, rounded base */
-  border: 4px solid var(--c);
+  /* De-tribed 2026-08-07 (owner ask): a NEUTRAL frame edge, not the tribe hue. Only seen on the art-missing
+     (404) fallback and in the sub-frame window before a real frame PNG overlays it — never a tribe glow. */
+  border: 4px solid var(--line);
   /* Last two layers = the hover glow (driven by --hglow-*; 0 = invisible, set on .card:hover). Living on a
      box-shadow of the ARCHED .art means the glow hugs the card silhouette AND the card never becomes a stacking
      context — so the z3 shield/reborn bubble still sits under the badges (a filter/z-index glow would lift the

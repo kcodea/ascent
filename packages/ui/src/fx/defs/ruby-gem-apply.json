@@ -232,6 +232,24 @@
         "erode": 0.5,
         "gain": 1.5
       }
+    },
+    {
+      "primitive": "react",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "part": "badges",
+        "reach": "self",
+        "gap": 60,
+        "falloff": 0.4,
+        "hold": 300,
+        "peak": 0.35,
+        "scale": 1.35,
+        "lift": 0,
+        "spin": 0,
+        "dip": 0,
+        "ease": "overshoot"
+      }
     }
   ]
 }

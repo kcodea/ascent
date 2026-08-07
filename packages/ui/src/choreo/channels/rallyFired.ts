@@ -82,6 +82,30 @@ export function ralliesFiredIn(moment: Moment, events: CombatEvent[]): RallyFire
 }
 
 /**
+ * A rally-summoner's OWN on-attack summons in a moment — Errand Fiend's imps — attributed by the summon
+ * event's `source`.
+ *
+ * The counterpart to `ralliesFiredIn`'s `delivered`, and DISJOINT from it by construction: `delivered` holds
+ * a procced ALLY's Echo summons (whose `source` is that ally), while these are the attacker summoning
+ * DIRECTLY on its own swing (`source === attacker`). So a unit that both Rallies an ally and summons on
+ * attack keeps each set on its own release, and neither path ever withholds the other's units.
+ *
+ * Presentation-only, exactly like the rally cubs: the summon has already happened in the sim: this only
+ * decides which uids the frame withholds so they can arrive AFTER the attacker's yellow Rally pulse instead
+ * of at the top of the wind-up (owner ask 2026-08-06). No `rally` event is involved — that event means
+ * "a Rally triggered an ally's Echo", which an on-attack summoner does not do, so emitting one would print a
+ * false "triggers its own Echo" line in the floats, procs tab and contribution tally.
+ */
+export function attackSummonUids(moment: Moment, events: CombatEvent[], attacker: string): string[] {
+  const out: string[] = [];
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (e?.type === 'summon' && e.source === attacker) out.push(e.minion.uid);
+  }
+  return out;
+}
+
+/**
  * Between distinct rallier→ally PAIRS in a cascade — the `gap`.
  *
  * 240, which is NOT the Ruby cue's 100: it is derived from the `beat` below rather than chosen, because the

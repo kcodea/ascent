@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { ralliesFiredIn, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
+import { attackSummonUids, ralliesFiredIn, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
   ({ type: 'buff', target, attack: 1, health: 1, source: 's' } as CombatEvent);
+const summon = (uid: string, source: string): CombatEvent =>
+  ({ type: 'summon', minion: { uid }, side: 'player', index: 0, source } as unknown as CombatEvent);
 
 /** Only `start`/`end` are read; the rest of a Moment is irrelevant to this scan. */
 const span = (start: number, end: number): Moment => ({ start, end } as unknown as Moment);
@@ -59,6 +61,29 @@ describe('ralliesFiredIn', () => {
   /** `end` may run past the array when a moment is the last one compiled; a hole must not throw. */
   it('tolerates an end index past the event array', () => {
     expect(ralliesFiredIn(span(0, 99), [rally('r', 'e')])).toEqual([{ source: 'r', target: 'e', count: 1, delivered: [[]] }]);
+  });
+});
+
+describe('attackSummonUids', () => {
+  it('picks the attacker\'s OWN on-attack summons (Errand Fiend\'s imps)', () => {
+    const events = [summon('imp1', 'errand'), summon('imp2', 'errand')];
+    expect(attackSummonUids(span(0, 2), events, 'errand')).toEqual(['imp1', 'imp2']);
+  });
+
+  /** The whole reason it filters on `source`: a procced ally's Echo summon (source = that ally) belongs to
+   *  the rally-cubs path, NOT to the attacker's own release, so it must be left out here. */
+  it('excludes a procced ally\'s summons, keeping only source === attacker', () => {
+    const events = [summon('imp1', 'errand'), summon('cub', 'manasaber')];
+    expect(attackSummonUids(span(0, 2), events, 'errand')).toEqual(['imp1']);
+  });
+
+  it('returns nothing when the attacker summoned nothing on this swing', () => {
+    expect(attackSummonUids(span(0, 2), [buff('a'), summon('cub', 'someoneElse')], 'errand')).toEqual([]);
+  });
+
+  it('respects the moment window', () => {
+    const events = [summon('before', 'errand'), summon('inside', 'errand'), summon('after', 'errand')];
+    expect(attackSummonUids(span(1, 2), events, 'errand')).toEqual(['inside']);
   });
 });
 

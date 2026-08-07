@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-07 — the Rally medallion pulses once per PROC
+
+Owner: *"instead of it being back to back after one rally icon pulse, can we have the rally icon pulse twice
+instead of once?"* A gilded Echohorn read as one pulse followed by two effects; it should read as two beats.
+
+The medallion was already capable of it — its React `key` carries a nonce so it REMOUNTS and the CSS
+animation restarts (Card.tsx), which is why the *second* Rally in a fight used to ping sound with no visual
+until that nonce existed. What was missing was anyone firing it twice: the lunge wraps `onRallyPulse` in
+`once()` and calls it from a single point in its timeline. So the `rallyFx` cue — which already schedules one
+land per proc — now owns every pulse after the first, and both owners call the SAME `firePulse`, which is
+what guarantees flash #2 is identical to flash #1.
+
+Each proc is now a whole slot rather than a bare repeat: `RALLY_PROC_STRIDE_MS` (the 200ms pulse read plus
+the 120ms beat) is what the cascade schedules on, so every proc reads pulse → link instead of the second
+sparkle arriving bare.
+
+**The wind-up stretches to fit, uncapped — an explicit owner call.** The 440ms Rally hold was sized for one
+pulse, so two pairs overran contact; `runAttackExchangeCues` now adds one stride per extra proc. A cap was
+offered and declined. It matters because PR #897 rewrote Echohorn's loop from `mul(self)` to
+`(1 + echoExtras) * mul(self)`, so Sylus the Reaper multiplies the proc count — a gilded Echohorn beside two
+gilded Sylus procs TEN times, roughly three extra seconds of hold on one swing. Owner: *"i want the full
+wind-up stretch, no matter how long it takes."* Pinned by a test at ten procs so it reads as intent rather
+than being rediscovered later as a hang.
+
+Blast radius is exactly one card, and not by choice: `rallyProcLeftmostEcho` logs its `rally` event INSIDE
+the repeat loop while `rallyProcDeathrattle` logs once OUTSIDE it, so a golden Deathsayer with two Sylus does
+six procs and still emits one event. Echohorn is the only card that can pulse more than once today. If that
+inconsistency is ever settled the other way, Deathsayer inherits multi-pulse and the longer wind-up
+automatically — worth knowing before "fixing" it.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4156 tests, `build:web`. The wind-up
+scaling is pinned by measuring the real GSAP timeline duration (1 proc unchanged, 2 = +1 stride, 3 = +2,
+10 = +9) rather than by reading a constant back to itself.
+
+Rebase note: this was written against `main` at #877 and sat as a wip snapshot while ~20 commits landed. Two
+touched the same files — #902 (`attackSummonUids`, the on-attack summon delay) and #897 above. Both conflicts
+were additive and resolved as unions; the retimed tests were re-derived rather than re-baselined.
+
 ## 2026-08-07 — Two live-play bugs, and the Mammoth becomes a hand-caster
 
 **Enemy Earthbreaker was buffing off YOUR casts** (owner report, from live play). Combat `spellCastBuffAll`

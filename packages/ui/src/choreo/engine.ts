@@ -1,6 +1,7 @@
 import gsap from 'gsap';
 import type { Moment } from './compile';
 import { getScore } from './score';
+import { RALLY_PROC_STRIDE_MS } from './channels/rallyFired';
 import { playLunge, setTransition } from './channels/lunge';
 import { getCleaveFxConfig } from '../cleaveFxConfig';
 import { hitPower, playContactImpact } from './channels/impact';
@@ -15,8 +16,14 @@ export interface AttackCueCtx {
    *  formulas that merely agreed in value; now there is exactly one timeline event both key off). */
   advance: () => void;
   /** Set when a RALLY fires as this unit attacks → the lunge holds a beat at the top of the wind-up and calls
-   *  this (flash the attacker's yellow Rally trigger pulse) before the strike. Absent = a normal swing. */
+   *  this (flash the attacker's yellow Rally trigger pulse) before the strike. Absent = a normal swing.
+   *  Fires ONCE, for the first proc; `rallyProcs` below is what makes room for the rest. */
   onRallyPulse?: () => void;
+  /** How many times this attacker's Rally procced in this exchange (1 for the ordinary case, 2 for a gilded
+   *  Echohorn). Each proc past the first needs its own pulse → sparkle pair, and they do not fit in the
+   *  single-proc hold — so the wind-up stretches by one `RALLY_PROC_STRIDE_MS` per extra proc, keeping the
+   *  whole Rally inside the swing that caused it (owner call 2026-08-05). Absent/0/1 = the hold as it was. */
+  rallyProcs?: number;
   /** Set when this attack's moment absorbed buff-other casts (on-attack / Rally buffers) → the lunge holds at the
    *  top of the wind-up and calls this (launch the buff tendrils) after `onRallyPulse`, before the strike, so the
    *  beat reads pulse → tendril → lunge. Absent = no absorbed buffs. */
@@ -154,7 +161,9 @@ export function runAttackExchangeCues(
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,
     onImpactAuras: ctx.onImpactAuras,
-    rallyPauseMs: RALLY_PAUSE_MS,
+    // One extra stride per extra proc. Without it a gilded Echohorn's second pulse+sparkle would spill past
+    // contact and read as detached from the swing that caused it.
+    rallyPauseMs: RALLY_PAUSE_MS + Math.max(0, (ctx.rallyProcs ?? 1) - 1) * RALLY_PROC_STRIDE_MS,
   });
 }
 

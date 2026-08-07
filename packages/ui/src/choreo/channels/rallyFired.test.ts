@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ralliesFiredIn, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
+import { attackSummonUids, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -112,10 +112,48 @@ describe('a real Rally is absorbed into its attacker wind-up', () => {
   });
 });
 
-/** The 2:1 ratio IS the information — see `beatExceedsGap` in fx/land.ts. */
+/** The ratio IS the information — see `beatExceedsGap` in fx/land.ts. The cascade now schedules on the whole
+ *  proc STRIDE (a pulse plus its sparkle), so that is what has to stay clear of the between-pairs gap. */
 describe('cascade timing', () => {
-  it('beats a stack clearly faster than it walks between pairs', () => {
-    expect(RALLY_BEAT_MS).toBeLessThan(RALLY_GAP_MS);
+  it('a proc stride is a pulse read plus the gap before the next pulse', () => {
+    expect(RALLY_PROC_STRIDE_MS).toBe(RALLY_PULSE_READ_MS + RALLY_BEAT_MS);
+  });
+
+  it('walks between pairs slower than it repeats within one', () => {
+    expect(RALLY_PROC_STRIDE_MS).toBeLessThan(RALLY_GAP_MS);
+  });
+});
+
+/**
+ * HOW MANY PULSES — and therefore how far the wind-up has to stretch to fit them (see engine.ts).
+ *
+ * Counts the attacker's OWN rally events, because the medallion being flashed is the attacker's.
+ */
+describe('rallyProcsFor', () => {
+  it('counts one for an ordinary Rally', () => {
+    const events = [rally('ech', 'ally')];
+    expect(rallyProcsFor(span(0, 1), events, 'ech')).toBe(1);
+  });
+
+  it('counts two for a gilded Echohorn', () => {
+    const events = [rally('ech', 'ally'), rally('ech', 'ally')];
+    expect(rallyProcsFor(span(0, 2), events, 'ech')).toBe(2);
+  });
+
+  /** Someone ELSE's Rally in the same moment must not stretch this attacker's wind-up. */
+  it('ignores rallies sourced by anyone else', () => {
+    const events = [rally('ech', 'ally'), rally('other', 'ally2')];
+    expect(rallyProcsFor(span(0, 2), events, 'ech')).toBe(1);
+  });
+
+  it('is zero for a swing with no Rally, and for no attacker at all', () => {
+    expect(rallyProcsFor(span(0, 1), [buff('a')], 'ech')).toBe(0);
+    expect(rallyProcsFor(span(0, 1), [rally('ech', 'ally')], null)).toBe(0);
+  });
+
+  it('respects the moment window', () => {
+    const events = [rally('ech', 'a'), rally('ech', 'a'), rally('ech', 'a')];
+    expect(rallyProcsFor(span(1, 2), events, 'ech')).toBe(1);
   });
 });
 

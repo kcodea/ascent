@@ -6,7 +6,10 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
-import { ralliesFiredIn, rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS, type RallyFired } from './channels/rallyFired';
+import {
+  ralliesFiredIn, rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS,
+  type RallyFired,
+} from './channels/rallyFired';
 import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
 import type { FxBinding } from './bindings';
@@ -250,6 +253,15 @@ export interface CueContext {
   /** This moment's `ascend` targets — a unit transforming into another (Tara→Taragosa, Spirit Pup→Worgen). The
    *  replay blooms a flash over each (masking the card swap) + pops the new card in (CSS). */
   onAscend: (uids: string[]) => void;
+  /**
+   * Flash a rallier's yellow trigger medallion — once per PROC, so a gilded Echohorn's double Rally reads as
+   * two beats rather than one pulse followed by two effects (owner call 2026-08-05).
+   *
+   * The lunge still owns the FIRST pulse of the attacker's own Rally (it fires inside the GSAP timeline, at
+   * the top of the wind-up, where it is seek- and speed-safe); this covers every proc after it. Optional
+   * because the non-combat callers and older tests have no medallion to flash.
+   */
+  onRallyPulse?: (uid: string) => void;
 }
 
 /** The two units a moment is ABOUT, read off its PRIMARY event — what an authored def anchors to. `attack`
@@ -446,21 +458,37 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         }
       }
       at(cue, () => {
-        // The same CASCADE-of-N-STACKS shape the Ruby sweep uses, for the same reason: `gap` walks between
-        // distinct rallier→ally pairs, `beat` repeats within one so a gilded double-proc reads as two.
-        // `land.group` indexes `fired` because `cascade` emits exactly one group per entry, in order.
+        // The same CASCADE-of-N-STACKS shape the Ruby sweep uses: `gap` walks between distinct rallier→ally
+        // pairs, `beat` repeats within one. `land.group` indexes `fired` because `cascade` emits exactly one
+        // group per entry, in order; `land.member` is the proc index within that pair.
         //
-        // `lead` is the sequencing the owner asked for: the attacker's yellow Rally pulse fires at the top of
-        // the wind-up, and the sparkle follows it rather than landing on top of it (see `RALLY_PULSE_READ_MS`).
-        // Only on `attackExchange` — that is the only kind that HAS a wind-up to wait for, and a standalone
-        // rally moment would otherwise sit doing nothing for half a second. Read live (not frozen into the
-        // score table) so a retuned wind-up carries the sparkle with it.
+        // The `beat` is a whole PROC STRIDE rather than a bare gap, because each proc now owns a pulse as
+        // well as a sparkle (owner call 2026-08-05: the medallion pulses once per proc, not once per Rally).
+        //
+        // `lead` is the sequencing from 2026-08-04: the attacker's pulse fires at the top of the wind-up and
+        // the sparkle follows it rather than landing on top of it. Only on `attackExchange` — the only kind
+        // with a wind-up to wait for; a standalone rally moment would otherwise sit doing nothing for half a
+        // second. Read live (not frozen into the score table) so a retuned wind-up carries both with it.
+        const inExchange = moment.kind === 'attackExchange';
+        const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
+        // The lunge already pulses the ATTACKER once, at the top of its wind-up, from inside the GSAP
+        // timeline — so this cue owns every pulse EXCEPT that one. Identified by (attacker, first proc)
+        // rather than by "the first land", so a second rallier in the moment would still get its opener.
+        const lungePulsed = inExchange && moment.primary.type === 'attack' ? moment.primary.attacker : null;
         for (const land of scheduleLands(cascade(fired.map((r) => ({ uid: r.target, count: r.count }))), {
-          gap: RALLY_GAP_MS, beat: RALLY_BEAT_MS, speed: ctx.combatSpeed,
-          lead: moment.kind === 'attackExchange' ? rallyLeadMs(getLungeConfig().windupDur) : 0,
+          gap: RALLY_GAP_MS, beat: RALLY_PROC_STRIDE_MS, speed,
+          lead: inExchange ? rallyLeadMs(getLungeConfig().windupDur) : 0,
         })) {
           const r = fired[land.group];
           if (!r) continue;
+          // This proc's OWN pulse, one read-time before its sparkle, so every proc reads pulse → link.
+          if (ctx.onRallyPulse && !(r.source === lungePulsed && land.member === 0)) {
+            const src = r.source;
+            const pulseAt = Math.max(0, land.at - RALLY_PULSE_READ_MS / speed);
+            const pulse = (): void => ctx.onRallyPulse?.(src);
+            if (pulseAt <= 0) pulse();
+            else timers.push(setTimeout(pulse, pulseAt));
+          }
           // THIS proc's litter — `land.member` is its index within the pair's stack, which is the same order
           // `delivered` is built in. So a gilded Echohorn's first sparkle reveals the first pair of cubs and
           // its second reveals the second, instead of both arriving on the first.

@@ -598,6 +598,10 @@ export interface RunState {
    *  `combatEscalationPreview`; settle clears it — the REAL gain arrives through `playerSpellEscalationGain`,
    *  so this is display-only and can never double-count. */
   fxEscalationPreview?: { attack: number; health: number };
+  /** TRANSIENT combat-replay preview of spells cast this fight — Yirin's Attunement counter (and any other
+   *  spells-cast reader) ticks live instead of jumping at settle. Cleared at settle, where the REAL count
+   *  arrives via `playerSpellsCast`; display-only, so it can never double-count. */
+  fxSpellsCastPreview?: number;
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Chronos hero: End-of-Turn minions bought this run (his Encore quest grants a Chronos at 4). */
@@ -1138,6 +1142,8 @@ export interface RunState {
 export type Action =
   /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
   | { type: 'combatEscalationPreview'; attack: number; health: number }
+  /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
+  | { type: 'combatSpellCastPreview' }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }

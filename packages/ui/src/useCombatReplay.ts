@@ -1197,6 +1197,12 @@ export function useCombatReplay(
       // Firing from the narration beat puts it on the moment the gain actually happens.
       fireSpellBuffOnHandSpells(useGame.getState().run.hand);
     }
+    // SPELLS CAST mid-combat (owner ask 2026-08-07, for Yirin's Attunement): every player-side `spellcast`
+    // event bumps the display-only counter, so the hero-power tracker ticks AS the casts happen.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type === 'spellcast' && e.side === 'player') useGame.getState().dispatch({ type: 'combatSpellCastPreview' });
+    }
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.
     // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.

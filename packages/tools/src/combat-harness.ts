@@ -40,6 +40,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `  ⚡ ${ev.text}`;
     case 'tribeAura':
       return `  🌊 ${ev.side} ${ev.tribe} aura rises`;
+    case 'spellcast':
+      return `  ✨ ${ev.side} casts a spell (#${ev.count})`;
     case 'proccrit':
       return `  ✦ ${n(ev.source)} DOUBLE trigger (${ev.mult}x)`;
     case 'attack':

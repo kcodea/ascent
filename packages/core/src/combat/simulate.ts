@@ -825,6 +825,7 @@ export function simulate(
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
       if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
+      emit({ type: 'spellcast', side, count: spellTotals[side] }); // the replay's live-counter beat
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,

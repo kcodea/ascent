@@ -43,8 +43,10 @@ const spell = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
 describe('set 2 — Beast spell payoffs', () => {
-  it('Runebloom Matriarch: every spell buffs 3 Beasts +3/+3', () => {
-    // DISTINCT beasts on purpose — three copies of one token triple-combine and vanish (the recurring trap).
+  it('Runebloom Matriarch no longer procs in the SHOP — its payoff moved into combat (2026-08-07)', () => {
+    // It used to buff 3 Beasts +3/+3 on every shop cast. The rework replaced that with a Start-of-Combat
+    // grant ("your Shop Spells cast an extra time in combat"), so a shop cast must now do nothing beyond the
+    // spell itself. The combat half is covered in `core/src/combat/combatSpellCast.test.ts`.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
       board: [
@@ -54,10 +56,9 @@ describe('set 2 — Beast spell payoffs', () => {
       hand: [spell('s1', 'spiritfire')],
     };
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'rm' }); // Spirit Fire +2/+3, plus Runebloom's proc
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'rm' });
     const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    // Spirit Fire (+2/+3 = 5) + Runebloom picks 3 Beasts × (+3/+3 = 6) = 5 + 18 = 23, whatever the pick.
-    expect(after - before).toBe(23);
+    expect(after - before, 'only Spirit Fire (+2/+3) should have landed').toBe(5);
   });
 });
 

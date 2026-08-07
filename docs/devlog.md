@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-07 — One combat spell-cast path, and Runebloom Matriarch multiplies it
+
+**The problem, in the owner's words:** "your Shop Spells cast an extra time in combat" had nowhere to hook.
+Spells *do* cast mid-fight — Taragosa's and Fatecarver's Growth, Watcher's Lantern of Souls, the Rally and
+Slaughter casters, the random stat spells — but **eight separate factories each hand-rolled the same three
+lines**: decide how many times to cast, call `ctx.castSpell`, apply the effect. Nothing owned the repetition
+count, so there was no single place a multiplier could attach.
+
+**`castInCombat(ctx, self, body)` is now that place.** Every combat Shop-Spell cast routes through it. The
+count is `golden × (1 + the side's granted extras)`, and `body` — the spell's actual effect — runs once per
+cast. Golden has always meant TWO GENUINE CASTS rather than one doubled cast, so the in-combat spell watchers
+(Guel, Forsaken Weaver, Spirit Pup, Thunderous Sovereign, the `spellsCast` carry-back) fire per cast; extras
+stack the same way. All 4124 tests passed unchanged across the conversion, which is the evidence it is
+behaviour-preserving.
+
+**Deliberately NOT routed through it:** Rune of the Spellstone counting a *Ruby* as a cast. A Ruby is not a
+Shop Spell, so a "your Shop Spells cast again" grant must not multiply it.
+
+**Runebloom Matriarch** stops paying out per cast (+3/+3 to 3 Beasts) and instead multiplies the casts:
+Start of Combat, your Shop Spells cast an extra time. Start of Combat rather than an aura, so the grant is
+locked in — killing the Matriarch mid-fight does not retract casts already promised, matching every other
+Start-of-Combat mode. **Rune of the Matriarch** ("your Runebloom Matriarchs trigger twice") follows the
+trigger to its new home and now grants two extra casts; its old branch in `onSpellCastBuffRandomTribe` is
+deleted rather than left dead, and Runekeg keeps that factory to itself.
+
+**Verified live** by driving the real module graph in the browser, not just fixtures: casts-per-friendly-attack
+is 0.974 with no granter, exactly **2.0** with a Matriarch, exactly **3.0** golden. New
+`combatSpellCast.test.ts` pins the discriminator that matters — a "just double the numbers" implementation
+would inflate each Growth and leave the cast count flat, so the tests assert each Growth still lands at its
+own printed magnitude *while* casts per opportunity doubles. Cross-fight totals are deliberately not compared:
+extra casts buff the board, which changes how long the fight runs.
+
+**Still open, and confirmed while here.** The owner also named Mage-Pup — a Shout that casts the spell it was
+taught, re-triggered in combat by Dawnclaw. `battlecryCastTaughtSpell` exists ONLY in the recruit table, so
+that Shout is inert in combat today. Closing it needs a genuine combat spell RESOLVER (arbitrary spell effect
+data run mid-fight); `randomStatSpellBuff` only understands `spellBuffTarget`/`spellBuffAll`. That is its own
+slice, and a partial version that silently no-ops for damage spells would be worse than none.
+
+`typecheck` clean, `lint` at the 7-warning/0-error baseline, 4130 tests pass, `build:web` succeeds, harness
+determinism ✓.
+
 ## 2026-08-07 — Karwind: flat +3/+3 with a 20% double BUFF, and a floating "2x"
 
 Karwind loses its adjacency clause. Every Dragon takes the same flat **+3/+3** on a Shout trigger, and that

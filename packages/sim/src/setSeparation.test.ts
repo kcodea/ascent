@@ -39,7 +39,7 @@ describe('set separation — combat random picks respect the run’s set', () =>
     const leaked: string[] = [];
     for (let seed = 1; seed <= 40; seed++) {
       const r = simulate(
-        [bm('badgington', 'B', 30, 200)],
+        [bm('badgington', 'B', 30, 200), bm('pack', 'P', 1, 200)], // rework 2026-08-07: it casts ON another Beast — a lone Badgington does nothing
         [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 },
          { cardId: 'sandbag', attack: 0, health: 1 }],
         makeRng(seed), CARD_INDEX,
@@ -61,7 +61,7 @@ describe('set separation — combat random picks respect the run’s set', () =>
     let sawAnySpell = false;
     for (let seed = 1; seed <= 40 && !sawAnySpell; seed++) {
       const r = simulate(
-        [bm('badgington', 'B', 30, 200)],
+        [bm('badgington', 'B', 30, 200), bm('pack', 'P', 1, 200)], // rework 2026-08-07: it casts ON another Beast — a lone Badgington does nothing
         [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }],
         makeRng(seed), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }),
       );
@@ -76,7 +76,7 @@ describe('set separation — combat random picks respect the run’s set', () =>
     const leaked: string[] = [];
     for (let seed = 1; seed <= 30; seed++) {
       const r = simulate(
-        [bm('badgington', 'B', 30, 200)],
+        [bm('badgington', 'B', 30, 200), bm('pack', 'P', 1, 200)], // rework 2026-08-07: it casts ON another Beast — a lone Badgington does nothing
         [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }],
         makeRng(seed), CARD_INDEX,
         combatSide({ tier: 6, poolIds: set2Pool }), combatSide({ tier: 1 }),

@@ -143,6 +143,11 @@ export function simulate(
    *  fight — a second cast grants the improved value — and the player's half carries back at settle. */
   const spellEscalationGain: Record<Side, { attack: number; health: number }> =
     { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
+  /** Discover spells cast mid-fight (Quil / Sporebat / a taught Pup) — the modal can't open here, so the
+   *  cast carries back and settle queues the real pick. Player-only, like every hand channel. */
+  const discoverCasts: string[] = [];
+  /** Shop-buff spells cast mid-fight → a one-time NEXT-shop buff (the run's `nextShopBuff` channel). */
+  const nextShopBuffGain = { attack: 0, health: 0 };
   /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
@@ -825,6 +830,14 @@ export function simulate(
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
+    lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
+    triggerRally: (m) => fireFreeRally(m, m.side),
+    queueDiscoverCast: (spellId, side) => { if (side === 'player') discoverCasts.push(spellId); },
+    gainNextShopBuff: (attack, health, side) => {
+      if (side !== 'player') return;
+      nextShopBuffGain.attack += attack;
+      nextShopBuffGain.health += health;
+    },
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,
@@ -2655,6 +2668,8 @@ export function simulate(
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerSpellEscalationGain: (spellEscalationGain.player.attack > 0 || spellEscalationGain.player.health > 0)
       ? { ...spellEscalationGain.player } : undefined,
+    playerDiscoverCasts: discoverCasts.length > 0 ? discoverCasts : undefined,
+    playerNextShopBuff: (nextShopBuffGain.attack > 0 || nextShopBuffGain.health > 0) ? { ...nextShopBuffGain } : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,

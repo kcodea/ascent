@@ -514,30 +514,25 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27)', () => {
   });
 });
 
-describe('set 2 — Moonlit Scavenger (owner rework 2026-08-02: Avenge summons a Ninja Pal)', () => {
-  it('every 4 friendly deaths summons a 4/1 Ninja Pal that attacks immediately', () => {
-    // Four 1-health bodies die to the sandbag's swings; the 4th death is the Avenge proc. The Pal must both
-    // SPAWN (4/1) and STRIKE out of turn order — `avengeSummonAttack`'s immediate-attack queue.
-    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag' as const, attack: 0, health: 1, sourceUid: `f${i}`, keywords: ['T'] as never }));
-    const r = simulate(
-      [{ cardId: 'b2_scavenger', attack: 4, health: 60, sourceUid: 'S', keywords: [] }, ...fodder],
-      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(2), CARD_INDEX,
-      combatSide({ tier: 4, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    const pals = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string; attack: number; health: number } }[])
-      .filter((e) => e.minion.cardId === 'b2_ninjapal');
-    expect(pals.length, 'the Avenge never summoned a Pal').toBeGreaterThanOrEqual(1);
-    expect([pals[0]!.minion.attack, pals[0]!.minion.health]).toEqual([4, 1]);
-    const palIdx = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'b2_ninjapal');
-    const palUid = pals[0]!.minion.uid;
-    expect(r.events.slice(palIdx).some((e) => e.type === 'attack' && (e as { attacker: string }).attacker === palUid),
-      'the Pal must strike immediately after spawning').toBe(true);
+describe('set 2 — Scavvers (owner rework 2026-08-07: Echo triggers an adjacent Rally)', () => {
+  it('wiring: T4 4/5, Echo effect in place, Ninja Pal machinery gone', () => {
+    const d = CARD_INDEX['b2_scavenger']!;
+    expect([d.tier, d.attack, d.health]).toEqual([4, 4, 5]);
+    expect(d.effects.some((e) => e.do === 'deathrattleTriggerAdjacentRally')).toBe(true);
+    expect(d.effects.some((e) => e.do === 'avengeSummonAttack')).toBe(false);
   });
 
-  it('wiring: T4 4/5, and GOLDEN summons a GILDED Pal (the factory rule), not two', () => {
-    const scav = CARD_INDEX['b2_scavenger']!;
-    expect([scav.tier, scav.attack, scav.health]).toEqual([4, 4, 5]);
-    expect(scav.effects[0]!).toMatchObject({ on: 'avenge', do: 'avengeSummonAttack', params: { count: 4, cardId: 'b2_ninjapal' } });
-    expect(CARD_INDEX['b2_ninjapal']!.token).toBe(true);
+  it('its Echo fires the neighbouring Rally in combat', () => {
+    // Scavvers (1 hp, dies to the first hit) sits beside Crownvein Vanguard, whose Rally buffs its Rubies —
+    // the cheapest observable Rally. The free-rally primitive narrates 'Rally', which is what we pin.
+    const r = simulate(
+      [
+        { cardId: 'b2_scavenger', attack: 1, health: 1, sourceUid: 'SC' },
+        { cardId: 'k_crownvein', attack: 4, health: 200, sourceUid: 'CV' },
+      ],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(2), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast', 'kobold'] }), combatSide({ tier: 1 }));
+    expect(r.events.some((e) => e.type === 'sc' && e.text === 'Rally'), 'the adjacent Rally never fired').toBe(true);
   });
 });
 

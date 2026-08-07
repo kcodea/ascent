@@ -1921,6 +1921,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
         spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
+        lastSpellCastId: s.lastSpellCastId,
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2545,6 +2546,21 @@ function settleCombat(s: RunState, result: CombatResult): void {
         c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
       }
     }
+  }
+  // Discover spells cast mid-fight (Quil / Sporebat / a taught Pup): the modal can't open in combat, so the
+  // cast carried back and the real pick queues here, exactly as a hand cast would have queued it.
+  if (result.playerDiscoverCasts) {
+    for (const id of result.playerDiscoverCasts) {
+      const d = CARD_INDEX[id];
+      const spec = d ? discoverSpecFor(s, d) : undefined;
+      if (spec) queueDiscover(s, { ...spec });
+    }
+  }
+  // Shop-buff spells cast mid-fight: a one-time buff for the NEXT shop (the `nextShopBuff` channel).
+  if (result.playerNextShopBuff) {
+    s.nextShopBuff ??= { attack: 0, health: 0 };
+    s.nextShopBuff.attack += result.playerNextShopBuff.attack;
+    s.nextShopBuff.health += result.playerNextShopBuff.health;
   }
   // Front to Back improved itself mid-fight (Quil casting it). The STATS that cast handed out were temporary
   // like any combat buff and are already gone; the SPELL keeps what it learned (owner ruling 2026-08-07), so

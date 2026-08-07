@@ -119,11 +119,14 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
+    // Owner rework 2026-08-07: the Ninja Pal Avenge is out; its Echo now fires a NEIGHBOUR's Rally through
+    // the shared free-rally primitive (tallies and quest halves ride along). Golden triggers twice — both
+    // neighbours when both have a Rally.
     effects: [
-      { on: 'avenge', do: 'avengeSummonAttack', params: { count: 4, cardId: 'b2_ninjapal' } },
+      { on: 'onDeath', do: 'deathrattleTriggerAdjacentRally' },
     ],
-    text: '**Avenge (4):** summon a **4/1 Ninja Pal** that attacks immediately.',
-    goldenText: '**Avenge (4):** summon a **Gilded 4/1 Ninja Pal** that attacks immediately.',
+    text: '**Echo:** trigger an adjacent **Rally**.',
+    goldenText: '**Echo:** trigger **2** adjacent **Rallies**.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the

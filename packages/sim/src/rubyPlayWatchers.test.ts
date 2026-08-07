@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, type RunState, type BoardCard } from './state';
-import { applyEndOfTurn, mintRubies } from './recruit';
+import { addBuff, applyEndOfTurn, fireOnRubyPlayed } from './recruit';
 import { reduce } from './reducer';
 
 /**
@@ -35,10 +35,16 @@ describe('a Ruby played by a card notifies its target', () => {
     expect(s.embers, 'Ruby Broker never heard the Ruby').toBeGreaterThan(gold);
   });
 
-  it('Candle Conduit (when you GET a Ruby, cast one)', () => {
-    const s: RunState = { ...createRun(1), board: [broker('b'), { uid: 'cc', cardId: 'k_candleconduit', tribe: 'kobold', attack: 3, health: 4, keywords: [], golden: false }], hand: [] };
-    mintRubies(s, 1);
-    const total = s.board.reduce((n, c) => n + (c.rubiesOnThisTurn ?? 0), 0);
-    expect(total, "the Conduit's cast notified nobody").toBe(1);
+  it("Candle Conduit's bounce notifies NOBODY — the no-rebounce guard (rework 2026-08-07)", () => {
+    // The bounce is stats-only by design: if it went back through fireOnRubyPlayed, two Conduits (or a
+    // Conduit + Resonance Idol) would ping Rubies forever. So after one real Ruby play, exactly ONE minion
+    // heard a Ruby land — the original target — even though a second minion gained the stats.
+    const cc = { uid: 'cc', cardId: 'k_candleconduit', tribe: 'kobold' as const, attack: 3, health: 4, keywords: [], golden: false };
+    const s: RunState = { ...createRun(1), board: [broker('b'), cc], hand: [] };
+    const target = s.board[0]!;
+    addBuff(target, 'Ruby', 1, 1);
+    fireOnRubyPlayed(s, target, 1, 1);
+    const notified = s.board.reduce((n, c) => n + (c.rubiesOnThisTurn ?? 0), 0);
+    expect(notified, 'only the original target was notified').toBe(1);
   });
 });

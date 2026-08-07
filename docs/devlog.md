@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-07 — Combat casts grow past the stat family, and five cards ride the new reach
+
+**The resolver** (`resolveCombatSpellCast`) now executes everything the owner ruled should work mid-fight:
+stat buffs, spell power, Gold, free rolls, Rubies, card grants, **Discovers** (the modal can't open in a
+fight, so the cast carries back via `playerDiscoverCasts` and settle queues the real pick), and **shop
+buffs** (banked into the run's `nextShopBuff`). Only pure tavern work fizzles — Displacement, gilding,
+steals, transforms, sells; refresh-shaped specials bank a free roll instead of vanishing. And a cast that
+would fizzle no longer *counts*: `combatCastable(def)` gates before `castInCombat`, so a tavern-only spell
+doesn't tick Guel or the spell tally.
+
+**Mage-Pup's combat half** closes the owner-reported gap: a Shout re-trigger (Dawnclaw, Ryme) now casts the
+taught spell mid-fight — verified live as "Mage-Pup casts Front to Back" with the +2/+2 escalation carried
+back. The SHOP path was never broken (play → aim picker → cast), which the diagnosis confirmed first.
+
+**The batch**: Sporebat stores the run's last-cast spell (the existing Steward-of-Spells `lastSpellCastId`,
+now snapshot-threaded) and its Echo casts it on a random friendly Beast. Badgington's Rally casts a random
+targeted spell on another friendly Beast and copies it — its pool is the resolver's own targeted set, so it
+can never pick a fizzler. Scavvers' Echo triggers an adjacent Rally through the shared free-rally primitive.
+Candle Conduit (T5 → T6) makes every Ruby played on your side bounce its stats to one more random friendly,
+both phases, stats-only (Resonance Idol's no-rebounce guard). Ruby Transfer now plays 2 real Rubies on its
+target — through the watcher path, so Idol/Conduit/Broker all see them — before stealing the neighbours'.
+
+**A loop the bot fleet caught before any human did.** Echohorn's Rally fires the leftmost ECHO; that can be
+Scavvers, whose Echo fires a RALLY; that can be the same Echohorn. Infinite recursion, surfaced as a stack
+overflow in `bots.test.ts`. Capped at depth 2 with Orbit's try/finally shape.
+
+**Verified:** typecheck clean, lint at the 7-warning/0-error baseline, 4153 tests pass (12 new in
+`combatCastBatch.test.ts`), build:web succeeds; the Ryme → Mage-Pup → Front to Back chain and Quil casting
+Sprout (Discover queued) both verified live through the app's module graph.
+
 ## 2026-08-07 — Thunderous Sovereign improves twice as fast
 
 Owner balance: the per-Shop-spell improvement goes **+1/+1 → +2/+2** (gilded +4/+4). Only the STEP moves;

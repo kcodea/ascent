@@ -128,6 +128,7 @@ export type GameEvent =
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
+  | 'rubyPlayedAnywhere' // Candle Conduit: a Ruby was played on ANY friendly minion (passive marker — the ruby paths scan for it; never dispatched through the bus)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
   | 'rubyCast' // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
   | 'shopRefreshed' // set 2 recruit phase: the tavern was rolled (Hellrider counts refreshes)
@@ -293,6 +294,10 @@ export type EffectFactoryId =
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
   | 'scCastLeftmostHandSpell' // Quil: Start of Combat — cast the left-most spell in your hand on adjacent Beasts
+  | 'deathrattleCastLastSpell' // Sporebat: Echo — cast the run's LAST-cast Shop spell on a random friendly Beast
+  | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
+  | 'deathrattleTriggerAdjacentRally' // Scavvers: Echo — trigger an adjacent minion's Rally
+  | 'rubyBounceExtra' // Candle Conduit (passive marker): every Ruby played on your side bounces to 1 more minion
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
@@ -1715,6 +1720,8 @@ export interface CombatSideState {
   /** The side's accumulated escalating-spell bonus (Front to Back) going into this fight, so a combat cast
    *  grants what a hand cast would grant right now. Snapshot fidelity: a served enemy carries its owner's. */
   spellEscalation?: { attack: number; health: number };
+  /** The LAST Shop spell this side's owner cast, by card id (Sporebat's stored spell). */
+  lastSpellCastId?: string;
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
@@ -1924,6 +1931,11 @@ export interface CombatResult {
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
+  /** Discover spells cast mid-combat (by card id, one entry per cast). Settle re-derives each spell's
+   *  Discover spec and queues it, so the player picks in the next shop — the modal can't open in a fight. */
+  playerDiscoverCasts?: string[];
+  /** Shop-buff spells cast mid-combat: a one-time buff for the NEXT shop (the `nextShopBuff` channel). */
+  playerNextShopBuff?: { attack: number; health: number };
   /** Front to Back improved itself during this combat (Quil casting it). Added to the run's
    *  `frontToBackBonus`/`frontToBackBonusH` in settleCombat: the buff the cast handed out was temporary, but
    *  the SPELL keeps what it learned (owner ruling 2026-08-07). Absent if 0. */
@@ -2139,6 +2151,17 @@ export interface CombatContext {
   spellCastRepsFor?(side: Side): number;
   /** Grant `side` N extra combat casts of every Shop Spell (Runebloom Matriarch's Start of Combat). */
   grantSpellCastExtra?(side: Side, n: number): void;
+  /** The card id of the LAST Shop spell this side's owner cast, if any (Sporebat's stored spell). */
+  lastSpellCastFor?(side: Side): string | undefined;
+  /** Fire one minion's Rally WITHOUT an attack (Scavvers' Echo) — the shared free-rally primitive, so the
+   *  tally bump and quest halves ride along exactly as an attack-path rally would. */
+  triggerRally?(m: Minion): void;
+  /** A Discover spell was cast mid-combat (Quil / Sporebat / a taught Pup). The modal can't open in a fight,
+   *  so the CAST carries back (`playerDiscoverCasts`) and settle queues the real Discover. Player-only. */
+  queueDiscoverCast?(spellId: string, side: Side): void;
+  /** A shop-buff spell was cast mid-combat: bank a one-time buff for the NEXT shop (the run's `nextShopBuff`
+   *  channel, via `playerNextShopBuff`). Player-only. */
+  gainNextShopBuff?(attack: number, health: number, side: Side): void;
   /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
    *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
    *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */

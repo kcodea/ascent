@@ -42,9 +42,9 @@ describe('Ruby Transfer — on the BOARD', () => {
     const nm = next.board.find((c) => c.uid === 'm')!;
     const nl = next.board.find((c) => c.uid === 'l')!;
     const nr = next.board.find((c) => c.uid === 'r')!;
-    expect(rubyOf(nm), 'the thief holds both donors\' Rubies').toEqual({ a: 6, h: 7 });
-    expect(nm.attack).toBe(midBefore.a + 6);
-    expect(nm.health).toBe(midBefore.h + 7);
+    expect(rubyOf(nm), 'both donors\' Rubies + the 2 played Rubies (2026-08-07)').toEqual({ a: 8, h: 9 });
+    expect(nm.attack).toBe(midBefore.a + 8); // stolen 6 + the 2 played Rubies
+    expect(nm.health).toBe(midBefore.h + 9); // stolen 7 + the 2 played Rubies
     expect(rubyOf(nl), 'the left donor is stripped').toEqual({ a: 0, h: 0 });
     expect(rubyOf(nr), 'the right donor is stripped').toEqual({ a: 0, h: 0 });
     expect(nl.buffs?.find((b) => b.source === 'Growth'), 'a non-Ruby buff stays put').toMatchObject({ attack: 5, health: 5 });
@@ -56,15 +56,16 @@ describe('Ruby Transfer — on the BOARD', () => {
     const s = base({ board: [far, body('x', 'alley'), body('t', 'stray')], hand: [spellCard('sp')] });
     const next = reduce(s, { type: 'play', uid: 'sp', targetUid: 't' });
     expect(rubyOf(next.board.find((c) => c.uid === 'f')!), 'two slots away — untouched').toEqual({ a: 9, h: 9 });
-    expect(rubyOf(next.board.find((c) => c.uid === 't')!)).toEqual({ a: 0, h: 0 });
+    // The 2 played Rubies (2026-08-07) land even when there is nothing to steal.
+    expect(rubyOf(next.board.find((c) => c.uid === 't')!)).toEqual({ a: 2, h: 2 });
   });
 
-  it('with no adjacent Rubies it is a clean no-op on stats', () => {
+  it('with no adjacent Rubies it still plays its 2 Rubies (2026-08-07 — no longer a stat no-op)', () => {
     const t = body('t', 'pack');
     const s = base({ board: [body('a', 'alley'), t], hand: [spellCard('sp')] });
     const next = reduce(s, { type: 'play', uid: 'sp', targetUid: 't' });
     const nt = next.board.find((c) => c.uid === 't')!;
-    expect([nt.attack, nt.health]).toEqual([t.attack, t.health]);
+    expect([nt.attack - t.attack, nt.health - t.health], 'exactly the 2 played Rubies').toEqual([2, 2]);
   });
 });
 
@@ -79,14 +80,14 @@ describe('Ruby Transfer — on a SHOP offer (the owner\'s second mode)', () => {
     const next = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o2' });
 
     const nm = next.shop.find((o) => o.uid === 'o2')!;
-    expect(rubyOf(nm), 'the shop target holds both neighbours\' Rubies').toEqual({ a: 8, h: 4 });
+    expect(rubyOf(nm), 'both neighbours\' Rubies + the 2 played (2026-08-07)').toEqual({ a: 10, h: 6 });
     expect(rubyOf(next.shop.find((o) => o.uid === 'o1')!)).toEqual({ a: 0, h: 0 });
     expect(rubyOf(next.shop.find((o) => o.uid === 'o3')!)).toEqual({ a: 0, h: 0 });
     // The stolen stats are real buy stats, not just a breakdown entry.
     const def = CARD_INDEX['alley']!;
     const buy = offerBuyStats(next, nm);
-    expect(buy.attack).toBe(def.attack + 8);
-    expect(buy.health).toBe(def.health + 4);
+    expect(buy.attack).toBe(def.attack + 10); // stolen 8 + the 2 played Rubies
+    expect(buy.health).toBe(def.health + 6);  // stolen 4 + the 2 played Rubies
   });
 
   it('carries onto the minion when bought — still labelled Ruby', () => {
@@ -98,14 +99,14 @@ describe('Ruby Transfer — on a SHOP offer (the owner\'s second mode)', () => {
     s = reduce(s, { type: 'buy', uid: 'o2' });
     const bought = s.hand.find((c) => c.cardId === 'alley');
     expect(bought, 'the offer was bought').toBeTruthy();
-    expect(rubyOf(bought!), 'the stolen Rubies travel with the card as Rubies').toEqual({ a: 6, h: 6 });
+    expect(rubyOf(bought!), 'the stolen + played Rubies travel with the card as Rubies').toEqual({ a: 8, h: 8 });
   });
 
   it('does not try to rob the spell slot or a Ruby offer', () => {
     // A spell offer beside the target has nothing to give and must not throw or absorb anything.
     const s = base({ shop: [offer('o1', 'growth'), offer('o2', 'alley')], hand: [spellCard('sp')] });
     const next = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o2' });
-    expect(rubyOf(next.shop.find((o) => o.uid === 'o2')!)).toEqual({ a: 0, h: 0 });
+    expect(rubyOf(next.shop.find((o) => o.uid === 'o2')!), 'nothing stolen, but the 2 played Rubies land').toEqual({ a: 2, h: 2 });
   });
 });
 
@@ -142,7 +143,7 @@ describe("the owner's combo: Veinstorm → Ruby Transfer → Gemheart (2026-08-0
     // Now transfer the row's Rubies onto the middle offer.
     s = { ...s, hand: [spellCard('sp')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o2' });
-    expect(rubyOf(s.shop.find((o) => o.uid === 'o2')!).a, 'the middle offer now holds all three grants').toBe(oneGrant * 3);
+    expect(rubyOf(s.shop.find((o) => o.uid === 'o2')!).a, 'all three grants + the 2 played Rubies (2026-08-07)').toBe(oneGrant * 3 + 2);
     expect(rubyOf(s.shop.find((o) => o.uid === 'o1')!).a, 'the donor is stripped').toBe(0);
   });
 

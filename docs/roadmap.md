@@ -21,6 +21,15 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,
+  Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling)
+  shipped 2026-08-07. Still queued, in order:
+  - **Tranche 2** — 3 new minions (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the 3 Epic runes
+    that grant them. Needs art and the usual live-text wiring.
+  - **Tranche 3** — 8 contained-machinery Basics: Spellhide, Spellmarket, Last Word, Runic Hoard, Backbeat,
+    Spare Chair, Ashen Payroll, Emberline.
+  - **Tranche 4** — 5 hard Epics: Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir.
+
 - **Stat readout choreography — hardening follow-ups (both halves SHIPPED).** The shop half
   (2026-08-05, [`plans/2026-08-04-scheduled-stat-delivery.md`](superpowers/plans/2026-08-04-scheduled-stat-delivery.md))
   and the combat half (2026-08-06,

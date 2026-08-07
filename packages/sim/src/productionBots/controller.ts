@@ -67,6 +67,10 @@ export function decide(run: RunState, controller: BotControllerState): BotDecisi
   // 1) Automatic transitions — not decisions, just the run needing to be driven forward. Combat settles and
   // then advances through two actions in the same phase, so the settled flag is what distinguishes them.
   if (run.phase === 'combat') {
+    // NOTE: a modal open during combat is NOT resolved here. The reducer's phase guard only admits the two
+    // combat transitions while `phase === 'combat'`, so a Discover raised mid-fight cannot be answered until
+    // the next recruit phase — the transition is the correct move, and the modal presents itself after it.
+    // (Proposing the modal action here instead deadlocks; see the matching note in reducer.ts.)
     return { action: { type: run.combatSettled ? 'resolveCombat' : 'settleCombat' }, controller: next };
   }
   if (run.phase !== 'recruit') return null;

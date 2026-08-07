@@ -104,6 +104,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 3, rune_cinder_ledger: 3,
   rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
   rune_blood_and_coin: 4, rune_engraving: 3, // Engraving: Avenge (3) — Rubies +1 Health per proc
+  rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

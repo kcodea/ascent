@@ -876,11 +876,15 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
+      /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
+      grantGoldNextTurn?: number;
+      /** The meter is a per-TURN window (no remainder carries across the rollover). */
+      resetEachTurn?: boolean;
       oncePerTurn?: boolean }
   /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
   | { kind: 'runeBrokerage' }
@@ -971,6 +975,9 @@ export type QuestReward =
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
   | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
   | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
+  | { kind: 'runeSharedPour' } // the first Ale each turn casts an extra time
+  | { kind: 'runeAftermarket' } // the first sell each turn feeds the current Shop
+  | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
   | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
@@ -1084,7 +1091,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeChef' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeChef' | 'runeCarrionCoin' | 'runeFiveBanners' | 'runeCenterline' | 'runeSecondLitter' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1313,6 +1320,14 @@ export interface QuestCombatMods {
   runeGemGolem?: boolean;
   /** Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`. */
   runeChef?: boolean;
+  /** Rune of Carrion Coin: Avenge (N) grants a random Shop spell. */
+  runeCarrionCoin?: number;
+  /** Rune of the Five Banners: Start of Combat, one friendly of each type gains +6/+6. */
+  runeFiveBanners?: boolean;
+  /** Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike. */
+  runeCenterline?: boolean;
+  /** Rune of the Second Litter: the first Beast summoned each combat summons another copy. */
+  runeSecondLitter?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */

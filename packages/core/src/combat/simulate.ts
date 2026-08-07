@@ -157,6 +157,8 @@ export function simulate(
    *  a side can only be brought back once per fight. */
   const crucibleBank: Record<Side, { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[]> =
     { player: [], enemy: [] };
+  /** Rune of the Second Litter: has the once-per-combat copy already fired, per side? */
+  const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
   const runeDragonscaleLeft: Record<Side, number> = {
     player: playerState.questMods.runeDragonscale ?? 0,
@@ -1034,6 +1036,19 @@ export function simulate(
     }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
+    // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
+    // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
+    // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.
+    if (modsFor(side).runeSecondLitter && !secondLitterUsed[side] && !minion.dead
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      const def = cards[minion.cardId];
+      if (def) {
+        secondLitterUsed[side] = true;
+        fireTrigger('runeSecondLitter', side);
+        summonMinion(side, def, minion.uid, [...minion.keywords], !!minion.golden, false,
+          { attack: minion.attack, health: minion.maxHealth ?? minion.health, maxHealth: minion.maxHealth ?? minion.health }, true);
+      }
+    }
     // RUNE OF SAVAGERY: a Beast summoned in combat doubles its Attack — applied LAST, after the summon
     // watchers and the tribe auras have paid out (owner ruling 2026-08-07).
     //
@@ -2314,6 +2329,49 @@ export function simulate(
         flushImmediateAttacks();
       }
     }
+    if (rmods.runeFiveBanners) {
+      // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a
+      // dual-type body can stand in for either tribe and an all-type body (Paragon itself) always collects.
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
+      const taken = new Set<string>();
+      for (const m of living) {
+        if (cards[m.cardId]?.universalTribe) continue;
+        for (const t of [m.tribe, m.tribe2]) {
+          if (!t || t === 'neutral' || taken.has(t)) continue;
+          taken.add(t);
+          if (!recipients.includes(m)) recipients.push(m);
+          break; // one banner per body: a Dragon/Demon covers whichever tribe was still open
+        }
+      }
+      if (recipients.length > 0) {
+        nextStep(); fireTrigger('runeFiveBanners', rside);
+        for (const m of recipients) ctx.buff(m, 6, 6, 'Rune of the Five Banners');
+      }
+    }
+    if (rmods.runeCenterline) {
+      // Rune of the Centerline: a positional payoff — if the two END minions are of DIFFERENT types, the
+      // middle one gains Ward + Critical Strike. Needs at least three bodies for "ends" and "middle" to mean
+      // anything, and the ends must both have a real (non-neutral) type to be different.
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      if (living.length >= 3) {
+        const left = living[0]!;
+        const right = living[living.length - 1]!;
+        const mid = living[Math.floor(living.length / 2)]!;
+        const typeOf = (m: Minion): string | undefined => (m.tribe && m.tribe !== 'neutral' ? m.tribe : undefined);
+        const lt = typeOf(left);
+        const rt = typeOf(right);
+        if (lt && rt && lt !== rt) {
+          nextStep(); fireTrigger('runeCenterline', rside);
+          if (!mid.keywords.includes('CR')) mid.keywords.push('CR');
+          if (!mid.divineShield) {
+            mid.divineShield = true;
+            if (!mid.keywords.includes('DS')) mid.keywords.push('DS');
+            emit({ type: 'shieldUp', target: mid.uid });
+          }
+        }
+      }
+    }
     if (rmods.runeTemperedTime) {
       // Rune of Tempered Time: +Health equal to HALF each minion's Attack (floored — a 5-Attack body gains 2).
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
@@ -2525,6 +2583,13 @@ export function simulate(
     if (!lead) return;
     nextStep();
     fireFreeRally(lead, side);
+  });
+  runeAvenge(4, 'runeCarrionCoin', (m) => !!m.runeCarrionCoin, (side) => {
+    // Rune of Carrion Coin: every 4th friendly death hands over a random Shop spell. `grantRandomSpell` is
+    // the shared grant Badgington's Rally uses — it already picks from the run's pinned pool, respects the
+    // hand cap and carries back at settle, and it is player-only, so a served enemy's deaths grant nothing.
+    nextStep();
+    ctx.grantRandomSpell(1, side, undefined);
   });
   runeAvenge(3, 'runeEngraving', (m) => !!m.runeEngraving, (side) => {
     // Rune of Engraving: the side's Rubies permanently give +1 more Health. Routed through gainRubyBonus —

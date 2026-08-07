@@ -506,6 +506,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
   const first = (state.consumesThisTurn = (state.consumesThisTurn ?? 0) + 1) === 1;
+  advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate counts Shop-minion Consumes
   // Rune of Transfusion: whenever a DEMON Consumes, your leftmost minion also gains the Fodder's stats
   // (skipped when the eater IS the leftmost — its own Consume already banked them).
   if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
@@ -792,6 +793,10 @@ export function spellCasts(state: RunState, def: CardDef): number {
     // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
     // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
     mult += state.aleExtraCasts ?? 0;
+    // Rune of Shared Pour: the FIRST Ale each turn casts one extra time. READ-ONLY here, like Spell Thesis
+    // above — the cast site consumes the freebie by setting `sharedPourUsedThisTurn`, so previewing the count
+    // in the UI can't spend it.
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) mult += 1;
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
@@ -865,7 +870,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -884,6 +889,9 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  // Rune of the Gem Dividend: Gold banked into NEXT turn's opening rather than paid now — the sheet's
+  // "gain 3 Gold next turn". Rides the same channel Bounty Bot's next-shop Gold uses.
+  if (t.grantGoldNextTurn) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + t.grantGoldNextTurn;
   // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
   // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
   // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.

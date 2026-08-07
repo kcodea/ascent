@@ -397,8 +397,10 @@ export const Card = memo(function Card({
    *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
    *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
   pulseRally?: number;
-  /** Pulse the whole card FRAME (not the medallion), light blue — a WATCHER answering an ally's attack.
-   *  A per-fire nonce used as the frame element's `key` so the CSS animation restarts each fire. */
+  /** Pulse the whole card FRAME (not the medallion), light blue — a WATCHER answering an ally's attack. Renders
+   *  as a dedicated overlay sibling of `.art` (not a class/animation on `.art` itself — see the overlay's JSX
+   *  comment), so a hover glow in progress and a Reborn card's looping wisps are unaffected. A per-fire nonce
+   *  used as that overlay's `key` so the CSS animation restarts each fire. */
   pulseFrame?: number;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
@@ -695,7 +697,7 @@ export const Card = memo(function Card({
   return (
     <div
       ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${pulseFrame ? ' framepulse' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -853,10 +855,7 @@ export const Card = memo(function Card({
       {/* The arched frame: the art, the corner attack/health badges, and the mechanic medallion. Fixed
           square so the badges/medallion always ride the arch even when the text drawer drops below. */}
       <div className="archbox">
-        {/* Keyed on `pulseFrame` (nonce), mirroring the `.cgem` medallion-pulse trick (`key={`cgem-${pulseRally ?? 0}`}`):
-            a repeat watcher-fire needs the `.framepulse` CSS animation to REPLAY even though the class is already
-            present, so the key change forces this node to remount instead of just re-adding an unchanged class. */}
-        <div className="art" key={`framepulse-${pulseFrame ?? 0}`}>
+        <div className="art">
           {artUrl ? (
             /* decoding="sync": paint the art WITH the frame in the same frame. `async` let the browser
                commit the card before the (already-preloaded, cached) image finished decoding — the residual
@@ -882,6 +881,23 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* WATCHER frame pulse — a dedicated overlay, SIBLING to `.art` rather than living on it (fix round 1,
+            2026-08-07): `.art` carries its own box-shadow (gold inner line + the --hglow-* hover-glow layers),
+            and an active CSS animation fully REPLACES the animated property for its whole duration — hosting the
+            pulse on `.art` blanked the hover-glow rim for the entire 0.55s pulse whenever a hover coincided with
+            a fire. Keying `.art` itself (the previous approach) also remounted its children every fire, which on
+            a Reborn card restarted all 27 looping `.wisp` animations. This overlay is absolutely positioned to
+            match `.art`'s footprint exactly (`inset: 0` inside `.archbox`, which is already `position: relative`)
+            and owns nothing but the light-blue ring glow, so `.art` and its box-shadow/children are never
+            touched. Keyed on `pulseFrame` (nonce), mirroring the `.cgem` medallion-pulse trick
+            (`key={`cgem-${pulseRally ?? 0}`}`): a repeat watcher-fire needs the CSS animation to REPLAY even
+            though `.pulsing` may already be present, so the key change forces THIS node (and only this node) to
+            remount. */}
+        <div
+          key={`framepulse-${pulseFrame ?? 0}`}
+          className={`framepulsering${pulseFrame ? ' pulsing' : ''}`}
+          aria-hidden="true"
+        />
         {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
             clips, so buttons parented there could never sit outside the card. The drag maths still measures
             `.art` (see CardArtEditor) because the stored offset is a % of the ART window, not the card. */}

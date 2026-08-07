@@ -1534,15 +1534,26 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
               0 0 0 var(--hglow-ring, 0) #ffffff, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 255, 255, 0.6);
 }
 /* WATCHER frame pulse — a one-shot light-blue ring bloom around the whole card frame (NOT the medallion),
-   marking "an ally's attack triggered this unit". Lives on the arched .art box-shadow, same surface as the
-   hover glow, so it hugs the silhouette without creating a stacking context. */
-.card.compact.framepulse .art {
+   marking "an ally's attack triggered this unit". FIX ROUND 1 (2026-08-07): this used to be an animation hosted
+   directly on `.art`'s own box-shadow, which had two problems — (1) an active CSS animation fully REPLACES the
+   animated property for its duration, so it silently dropped `.art`'s --hglow-* hover-glow layers (the white
+   hover rim) for the whole 0.55s any time a hover coincided with a pulse; (2) the React `key` needed to force
+   the animation to REPLAY on a repeat fire was on `.art` itself, so every pulse remounted `.art`'s children —
+   restarting a Reborn card's 27 looping `.wisp` animations. Now a DEDICATED overlay, sibling to `.art` (see
+   Card.tsx, rendered right after `.art` inside `.archbox`, which is already `position: relative`): same arched
+   footprint (`inset: 0`, same `--arch-radius`), but it owns only the light-blue glow and nothing else, so
+   `.art`'s box-shadow (hover glow included) and its children are never touched by a pulse. */
+.card.compact .framepulsering {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  border-radius: var(--arch-radius);
+}
+.card.compact .framepulsering.pulsing {
   animation: framepulse 0.55s ease-out;
 }
 @keyframes framepulse {
-  0%   { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 0 0 var(--framepulse-color); }
-  35%  { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 22px 5px var(--framepulse-color); }
-  100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 0 0 transparent; }
+  0%   { box-shadow: 0 0 0 0 var(--framepulse-color); }
+  35%  { box-shadow: 0 0 22px 5px var(--framepulse-color); }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */

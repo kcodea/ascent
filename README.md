@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of the Chef fixed + tracked, and 34 runes get art** — its banked total never reached the combat body (the reducer's own mapper dropped it); its badge now shows the exact buff it will pay, and every rune but the Coffers has illustration.
+
 - **Bucky + Rune of Bucky** — a T6 Dwarf whose Start of Combat pays +5/+5 per Dwarven Ale you cast last turn; the Groveweaver rune now grows its owner in combat as well as the shop.
 
 - **Rune of the Chef** — a Chef Gary Toast banks the combined stats it hands out each shop turn, then spends that total as a combat Rally onto a random Dwarf.

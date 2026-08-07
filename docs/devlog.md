@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of the Chef actually fires, gains a tracker, and 34 runes get their art
+
+**The Chef was broken in the real game** (owner report), for a second reason beyond this morning's missing
+flag: `chefGrantedLast` never reached the combat body. `minion.ts`'s board→Minion mapper carried it, but the
+REDUCER builds the player's `BoardMinion` list itself, and that list didn't. So the flag armed, the tally
+banked, and the Rally then read `undefined` and paid nothing.
+
+**Why the tests missed it, twice.** Every per-mechanism combat test injects `questMods` straight into
+`simulate` — which proves the combat behaviour but bypasses the reducer entirely, so neither the flag writer
+nor the board→BoardMinion mapper is ever exercised. Both defects lived in exactly that blind spot. There is
+now an explicit end-to-end test that drives buy → play → fight through `reduce` and nothing else, with a
+comment saying why it exists.
+
+**A tracker on the badge** (owner ask). The Chef's pill shows the buff it is actually going to hand out —
+`+N/+N`, summed across every Chef's banked total — rather than a countdown, because the rune's whole question
+is "how big is it this fight?". Nothing banked shows no pill, which correctly reads as "this fight pays
+nothing".
+
+**Rune art: 34 of the 35 missing files wired**, matched by name against the art folder with one explicit
+override (the file is `RuneOfTheDragonscale`, the rune is "Rune of Dragonscale"). Done with the same
+512×512 / webp-q90 pipeline `wire-art.ts` uses, but per-file — the real tool has no per-card flag and would
+rewrite ~1000 files. **Rune of the Coffers has no art**: nothing in the folder matches it, and
+`RuneOfBanking.png` belongs to the existing Rune of Banking, so it stays on the fallback frame rather than
+being guessed at.
+
+Verified live through the app's own module graph: the rune arms, 9 banks, the tracker reads +9/+9, and the
+Rally pays +9/+9 per swing. 163 of 163 runes now resolve art bar Coffers.
+
+`typecheck` clean, lint at the 7-warning baseline, 4221 tests, `build:web` OK.
+
 ## 2026-08-07 — Bucky, his rune, and the Groveweaver rune reaches combat
 
 **Rune of the Groveweaver now works in combat too** (owner). The recruit half shipped this morning; the

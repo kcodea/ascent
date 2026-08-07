@@ -56,6 +56,14 @@ export function runeTally(run: RunState, runeId: string): string | null {
     return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_PER)}/${SLAYING_PER}`;
   }
   // Rune of Bulk Order keeps its own Gold meter on `runeScale` rather than joining `runeThresholds`.
+  // RUNE OF THE CHEF (owner ask 2026-08-07): show the buff the Rally is actually going to hand out, not a
+  // countdown — the rune's whole question is "how big is it this fight?". That figure is each Chef's BANKED
+  // `chefGrantedLast`, summed across the board (two Chefs each pay their own Dwarf, so the total is what the
+  // rune pays this combat). Nothing banked → no pill, which correctly reads as "this fight pays nothing".
+  if (runeId === 'rune_chef' && run.questFlags?.runeChef) {
+    const banked = run.board.reduce((n, c) => n + (c.cardId === 'dw_chef' ? (c.chefGrantedLast ?? 0) : 0), 0);
+    return banked > 0 ? `+${banked}/+${banked}` : null;
+  }
   // Rune of the Crown: spells cast toward the one-time step. Latches at per/per once earned — the bonus is
   // permanent from then on, so a cyclic counter would lie about it turning off.
   if (runeId === 'rune_crown' && run.runeCrown) {

@@ -60,6 +60,31 @@ describe('the shop half — banking what the Chef handed out', () => {
   });
 });
 
+/**
+ * THE END-TO-END PATH — buy the rune, bank a tally, fight. The per-mechanism tests below inject `questMods`
+ * straight into `simulate`, which proves the COMBAT behaviour but bypasses the reducer entirely: the flag
+ * writer and the board→BoardMinion mapper are both invisible to them. Two real defects hid in exactly that
+ * blind spot (the flag was never written; `chefGrantedLast` never reached the combat body), so this test
+ * drives the whole chain through `reduce` and nothing else.
+ */
+describe('end to end, through the reducer', () => {
+  it('buying the rune and fighting actually pays the Rally out', () => {
+    let s: RunState = { ...createRun(3, 'runesmith'), wave: 7, phase: 'recruit', embers: 20, runeforgeOffer: ['rune_chef'] };
+    s = reduce(s, { type: 'buyRune', index: 0 }) as RunState;
+    expect(s.questFlags?.runeChef, 'the rune never armed its flag').toBe(true);
+    s = {
+      ...s, embers: 0, shop: [], hand: [],
+      board: [{ ...bm('chef', 'dw_chef', 6, 40), chefGrantedLast: 12 }, bm('d0', 'dw_wardkeeper', 1, 40)],
+    } as RunState;
+    s = reduce(s, { type: 'faceOmen' }) as RunState;
+    const r = s.lastCombat!;
+    const chef = r.initial.player.find((m) => m.cardId === 'dw_chef')!;
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.source === chef.uid);
+    expect(buffs.length, 'the Rally never fired through the real path').toBeGreaterThan(0);
+    expect(buffs.every((b) => b.type === 'buff' && b.attack === 12 && b.health === 12)).toBe(true);
+  });
+});
+
 describe('the combat half — the Rally spends the banked figure', () => {
   const mods = (m: Partial<CombatSideState['questMods']>) => ({ questMods: m as CombatSideState['questMods'] });
   const fight = (armed: boolean, banked: number) => simulate(

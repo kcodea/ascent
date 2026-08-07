@@ -1838,6 +1838,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
         ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
         summonBonus: b.summonBonus ?? 0,
+        ...(b.chefGrantedLast ? { chefGrantedLast: b.chefGrantedLast } : {}), // Rune of the Chef: last turn's granted total, spent as a combat Rally
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total

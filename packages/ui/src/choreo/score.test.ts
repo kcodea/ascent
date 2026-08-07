@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import { compileMoments, type Moment } from './compile';
-import { rallyLeadMs, RALLY_BEAT_MS, RALLY_GAP_MS } from './channels/rallyFired';
+import { rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './channels/rallyFired';
 import { getLungeConfig } from '../lungeConfig';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, rallyDeliveredUids, type Channel } from './score';
@@ -775,14 +775,14 @@ describe('rallyFx channel', () => {
 
   /** "Any instance of it triggering" — a gilded Echohorn loops twice, and both procs get their own play,
    *  spaced by the stack `beat` so the eye can count them. */
-  it('fires once per PROC, spaced by the stack beat', () => {
+  it('fires once per PROC, spaced by the proc stride', () => {
     vi.useFakeTimers();
     const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
     const c = baseCtx(events, withCard('ech', 'b2_echohorn'));
     runMomentCues(compileMoments(events)[0]!, c);
     vi.advanceTimersByTime(LEAD());
     expect(mockPlayDef).toHaveBeenCalledTimes(1);           // the first lands after the pulse…
-    vi.advanceTimersByTime(RALLY_BEAT_MS - 1);
+    vi.advanceTimersByTime(RALLY_PROC_STRIDE_MS - 1);
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(2);
     expect(mockPlayDef).toHaveBeenCalledTimes(2);           // …the second a beat later
@@ -791,16 +791,16 @@ describe('rallyFx channel', () => {
 
   /** Two ralliers in one exchange walk pair to pair on the wider `gap`, so "two different minions rallied"
    *  never reads as one minion rallying twice. */
-  it('walks distinct pairs on the cascade gap, not the stack beat', () => {
+  it('walks distinct pairs on the cascade gap, not the proc stride', () => {
     vi.useFakeTimers();
     const events = [attack('ech', 'foe'), rally('ech', 'ally1'), rally('ech2', 'ally2')];
     const c = baseCtx(events, { cardIds: new Map([['ech', 'b2_echohorn'], ['ech2', 'b2_echohorn']]) });
     runMomentCues(compileMoments(events)[0]!, c);
     vi.advanceTimersByTime(LEAD());
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(RALLY_BEAT_MS);                  // a beat is NOT enough — these are separate pairs
+    vi.advanceTimersByTime(RALLY_PROC_STRIDE_MS);           // a stride is NOT enough — these are separate pairs
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(RALLY_GAP_MS - RALLY_BEAT_MS);
+    vi.advanceTimersByTime(RALLY_GAP_MS - RALLY_PROC_STRIDE_MS);
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
     expect(mockAnchors).toHaveBeenCalledWith('ech2', 'ally2');
     vi.useRealTimers();
@@ -921,7 +921,7 @@ describe('rallyFx channel — summon delivery', () => {
     vi.advanceTimersByTime(LEAD());
     expect(isSummonHeld('c1')).toBe(false);       // first proc's cub is out…
     expect(isSummonHeld('c2')).toBe(true);        // …the second's is still held
-    vi.advanceTimersByTime(RALLY_BEAT_MS);
+    vi.advanceTimersByTime(RALLY_PROC_STRIDE_MS);
     expect(isSummonHeld('c2')).toBe(false);
     vi.useRealTimers();
   });
@@ -942,6 +942,92 @@ describe('rallyFx channel — summon delivery', () => {
     expect(mockPlayDef).not.toHaveBeenCalled();   // nothing played…
     expect(isSummonHeld('c1')).toBe(false);       // …and the cub is on the board anyway
     expect(anySummonHeld()).toBe(false);
+    vi.useRealTimers();
+  });
+});
+
+/**
+ * ONE PULSE PER PROC (owner call 2026-08-05): *"instead of it being back to back after one rally icon pulse,
+ * can we have the rally icon pulse twice instead of once?"*
+ *
+ * The medallion was already built for repeat firing — its React `key` carries a nonce so it REMOUNTS and the
+ * CSS animation restarts (see Card.tsx). What was missing is anyone firing it more than once: the lunge fires
+ * `onRallyPulse` from a single `once()`-wrapped point in its timeline. So the cue owns every proc after the
+ * first, and each pulse leads its own sparkle by the same read time.
+ */
+describe('rallyFx channel — one pulse per proc', () => {
+  const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
+  const attack = (attacker: string, defender: string): CombatEvent =>
+    ({ type: 'attack', attacker, defender, swing: 0 } as CombatEvent);
+  const LEAD = (): number => rallyLeadMs(getLungeConfig().windupDur);
+
+  beforeEach(() => {
+    mockPlayDef.mockClear(); mockAnchors.mockClear();
+    mockCanPlayDefs.mockReturnValue(true);
+    mockAnchors.mockReturnValue({ target: { x: 5, y: 7 } });
+    releaseAllSummons();
+  });
+
+  /** The lunge already flashed the attacker at the top of the wind-up. Firing it again here would double the
+   *  opening pulse — the one case this cue must NOT cover. */
+  it('leaves the first proc to the lunge, which already pulsed the attacker', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally')];
+    const onRallyPulse = vi.fn();
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
+    vi.advanceTimersByTime(LEAD() + 1000);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);   // the sparkle played…
+    expect(onRallyPulse).not.toHaveBeenCalled();    // …but the cue fired no pulse of its own
+    vi.useRealTimers();
+  });
+
+  /** THE ask: a gilded Echohorn procs twice, so the medallion flashes twice. */
+  it('pulses the rallier again for the SECOND proc', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
+    const onRallyPulse = vi.fn();
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
+    vi.advanceTimersByTime(LEAD());
+    expect(onRallyPulse).not.toHaveBeenCalled();    // proc 1's pulse was the lunge's
+    vi.advanceTimersByTime(1000);
+    expect(onRallyPulse).toHaveBeenCalledTimes(1);  // exactly one more, for proc 2
+    expect(onRallyPulse).toHaveBeenCalledWith('ech');
+    vi.useRealTimers();
+  });
+
+  /** …and it leads its own sparkle by the same read time the first pair got, so both procs read pulse → link
+   *  rather than the second arriving bare. */
+  it('fires that pulse a read-time BEFORE the second sparkle', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
+    const onRallyPulse = vi.fn();
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
+    vi.advanceTimersByTime(LEAD() + RALLY_PROC_STRIDE_MS - RALLY_PULSE_READ_MS);
+    expect(onRallyPulse).toHaveBeenCalledTimes(1);  // pulse 2 has fired…
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);   // …and sparkle 2 has NOT
+    vi.advanceTimersByTime(RALLY_PULSE_READ_MS);
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);   // now it has
+    vi.useRealTimers();
+  });
+
+  /** A rally-KIND moment has no lunge, so nobody pulsed the opener — the cue owns that one too. */
+  it('pulses the FIRST proc too when there is no wind-up to have done it', () => {
+    const events = [rally('ech', 'ally')];
+    const onRallyPulse = vi.fn();
+    runMomentCues(moment('rally', events), baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
+    expect(onRallyPulse).toHaveBeenCalledTimes(1);
+    expect(onRallyPulse).toHaveBeenCalledWith('ech');
+  });
+
+  /** Optional on the context — the non-combat callers and every older test pass no medallion. */
+  it('plays the sparkles fine with no pulse callback at all', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
+    expect(() => {
+      runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ech', 'b2_echohorn')));
+      vi.advanceTimersByTime(LEAD() + RALLY_PROC_STRIDE_MS + 10);
+    }).not.toThrow();
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
 });

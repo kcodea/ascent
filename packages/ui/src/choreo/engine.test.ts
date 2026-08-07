@@ -5,6 +5,7 @@ import type { Moment } from './compile';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS } from './score';
 import { runAttackExchangeCues, runRiseReturn } from './engine';
+import { RALLY_PROC_STRIDE_MS } from './channels/rallyFired';
 
 // Node env (no jsdom) — use a stubbed attacker Element (see lunge.test.ts). `defender` is null here, so the
 // impact channel skips getBoundingClientRect; the attacker stub only needs the fields playLunge reads.
@@ -85,5 +86,39 @@ describe('runRiseReturn', () => {
     expect(onLanded).not.toHaveBeenCalled();
     tl.progress(1);
     expect(onLanded).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * THE WIND-UP MAKES ROOM FOR EXTRA PROCS (owner call 2026-08-05).
+ *
+ * The Rally hold was sized for ONE pulse. Once the medallion pulses per proc, a gilded Echohorn's second
+ * pulse→sparkle pair needs another `RALLY_PROC_STRIDE_MS` — without it the pair spills past contact and reads
+ * as detached from the swing that caused it. Measured off the timeline's own duration rather than by
+ * inspecting a private constant, so it pins the OUTCOME.
+ */
+describe('runAttackExchangeCues — the Rally hold scales with the proc count', () => {
+  const withProcs = (rallyProcs?: number): number => {
+    const tl = runAttackExchangeCues(attackMoment(0), fakeEl(), null, 10, 0, {
+      combatSpeed: 1, advance: vi.fn(), onRallyPulse: () => {}, rallyProcs,
+    });
+    return tl!.duration();
+  };
+
+  it('one proc holds exactly as long as it always did', () => {
+    expect(withProcs(1)).toBeCloseTo(withProcs(undefined), 5);   // absent = the single-proc hold
+  });
+
+  it('two procs hold one stride longer', () => {
+    expect(withProcs(2) - withProcs(1)).toBeCloseTo(RALLY_PROC_STRIDE_MS / 1000, 3);
+  });
+
+  it('three procs hold two strides longer — it scales, not just a special case for gilded', () => {
+    expect(withProcs(3) - withProcs(1)).toBeCloseTo((2 * RALLY_PROC_STRIDE_MS) / 1000, 3);
+  });
+
+  /** A swing with no Rally at all must be untouched: 0 procs is "no Rally", not "negative hold". */
+  it('never shortens the hold below the single-proc case', () => {
+    expect(withProcs(0)).toBeCloseTo(withProcs(1), 5);
   });
 });

@@ -809,12 +809,9 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
-<<<<<<< HEAD
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
-=======
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
->>>>>>> b3518f69 (feat(core,content): one combat spell-cast path, and Runebloom multiplies it)
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,

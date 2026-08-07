@@ -108,11 +108,16 @@ export const SET2_DRAGONS: CardDef[] = [
     // inherit the turn's history. `scBeastAura` spends that accrual as the Start-of-Combat grant — the same
     // pairing Kennelmaster uses, tribe-swapped to Dragons.
     effects: [
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 1, stepHealth: 1 } },
+      // Owner balance 2026-08-07: the per-cast improvement is +2/+2 (golden +4/+4 — `scBeastAura` applies the
+      // golden multiplier to the WHOLE grant, base and accrual alike, so the step doubles for free).
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 2, stepHealth: 2 } },
       { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
     ],
-    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves with every Shop spell you cast.',
-    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves with every Shop spell you cast.',
+    // TWO "+N/+N" groups: the GRANT (slot 0, which `summonBuffText` rewrites live as the accrual builds) and
+    // the per-cast STEP (slot 1, static — the helper only ever replaces the first). The step is printed rather
+    // than left as a bare "Improves" so the card states the number it is actually paying, per the text rule.
+    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves by **+2/+2** with every Shop spell you cast.',
+    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves by **+4/+4** with every Shop spell you cast.',
   },
   {
     // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand

@@ -46,8 +46,10 @@ describe('a Start-of-Combat tribe aura grants what its card prints', () => {
   it('Thunderous Sovereign: golden grants DOUBLE, not the plain amount', () => {
     const plain = grantOf('d2_sovereign', false, 3);
     const golden = grantOf('d2_sovereign', true, 3);
-    expect(plain, 'base 1 + 3 accrued').toEqual({ attack: 4, health: 4 });
-    expect(golden, 'the golden grant was identical to the plain one — the reported bug').toEqual({ attack: 8, health: 8 });
+    // Step is +2/+2 per cast since the 2026-08-07 balance change: base 1 + 3 casts x 2 = 7; golden doubles
+    // the WHOLE grant (base and accrual), so 14.
+    expect(plain, 'base 1 + 3 accrued at +2/+2 each').toEqual({ attack: 7, health: 7 });
+    expect(golden, 'the golden grant was identical to the plain one — the reported bug').toEqual({ attack: 14, health: 14 });
   });
 
   it('the PRINTED number equals the GRANTED number — the actual contract', () => {
@@ -81,7 +83,7 @@ describe('a Start-of-Combat tribe aura grants what its card prints', () => {
       .map((e) => (e as unknown as { attack: number }).attack);
     expect(buffs.length, 'all four Dragons should be buffed').toBe(4);
     expect(new Set(buffs).size, 'the Dragons got DIFFERENT amounts — that would be a split').toBe(1);
-    expect(buffs[0]).toBe(4);
+    expect(buffs[0], 'base 1 + 3 accrued at +2/+2 each').toBe(7);
   });
 });
 

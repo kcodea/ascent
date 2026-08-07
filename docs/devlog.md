@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-07 — Thunderous Sovereign improves twice as fast
+
+Owner balance: the per-Shop-spell improvement goes **+1/+1 → +2/+2** (gilded +4/+4). Only the STEP moves;
+the Start-of-Combat base stays +1/+1 (+2/+2 gilded). Gilded needs no separate wiring — `scBeastAura` applies
+the golden multiplier to the whole grant, base and accrual alike, so a doubled step falls out for free.
+
+**The printed text now names the step.** It read "Improves with every Shop spell you cast" — no number, which
+under the card-text rule is a card hiding the magnitude it pays. It now prints "Improves by **+2/+2**", a
+second `+N/+N` group after the grant. That is safe because `summonBuffText` replaces only the FIRST group
+(the live grant); the step sits in slot 1 and stays static. The golden line carries literal final numbers,
+since `Card` uses `goldenText` verbatim rather than running its `doubleNums` pass over it.
+
+**Verified live** that printed equals granted at every accrual, both gildings: 1/3/5 casts → +3/+3, +7/+7,
++11/+11, and gilded +6/+6, +14/+14, +22/+22. The two tests that hardcoded the old step were updated with the
+arithmetic spelled out; the sibling "printed equals granted" test needed no change because it derives both
+sides — which is why it caught nothing and should have caught nothing.
+
+`typecheck` clean, `lint` at the 7-warning/0-error baseline, 4140 tests pass, `build:web` succeeds.
+
 ## 2026-08-07 — Quil + Rune of the Wildscript, and a combat cast keeps what the spell learns
 
 **Rune of the Wildscript** (Epic, 5, all sets) hands over **Quil** — a T6 Beast 7/7 whose Start of Combat

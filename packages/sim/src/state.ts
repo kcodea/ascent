@@ -397,6 +397,8 @@ export interface RunState {
   goldSpentThisTurn?: number;
   /** Set 2 — Ales CAST this turn (Chef Gary Toast scales off it). Reset with the other per-turn tallies. */
   alesCastThisTurn?: number;
+  /** Dwarven Ales cast LAST shop turn — banked at the turn rollover. Bucky's Start of Combat spends it. */
+  alesCastLastTurn?: number;
   /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
    *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
   cardsPlayedTotal?: number;

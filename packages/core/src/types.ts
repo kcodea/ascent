@@ -293,6 +293,7 @@ export type EffectFactoryId =
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
+  | 'scTribeBuffPerAle' // Bucky: Start of Combat — buff your tribe +A/+H per Dwarven Ale cast LAST turn
   | 'scCastLeftmostHandSpell' // Quil: Start of Combat — cast the left-most spell in your hand on adjacent Beasts
   | 'deathrattleCastLastSpell' // Sporebat: Echo — cast the run's LAST-cast Shop spell on a random friendly Beast
   | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
@@ -1312,6 +1313,8 @@ export interface QuestCombatMods {
   runeGemGolem?: boolean;
   /** Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`. */
   runeChef?: boolean;
+  /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
+  runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
   runeEnchantment?: boolean;
   /** Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3). */
@@ -1759,6 +1762,8 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** Dwarven Ales this side cast LAST shop turn (Bucky's Start of Combat scales off it). */
+  alesLastTurn?: number;
   /** The side's accumulated escalating-spell bonus (Front to Back) going into this fight, so a combat cast
    *  grants what a hand cast would grant right now. Snapshot fidelity: a served enemy carries its owner's. */
   spellEscalation?: { attack: number; health: number };
@@ -2188,6 +2193,10 @@ export interface CombatContext {
   castSpell(side: Side): void;
   /** Rune of the Spellstone (combat half): is the mod armed for `side`? Read by the Ruby-play primitive. */
   spellstoneFor?(side: Side): boolean;
+  /** Rune of the Groveweaver: is the self-buff armed for `side`? */
+  groveweaverSelfFor?(side: Side): boolean;
+  /** Bucky: Dwarven Ales that side cast LAST shop turn. */
+  alesLastTurnFor?(side: Side): number;
   /** Announce that a `doubleChance`-style roll came up, so the UI can float a crit-style "Nx" above the
    *  proccing minion (Karwind). Purely presentational — the extra repetitions are applied by the caller. */
   crit?(sourceUid: string, mult: number): void;

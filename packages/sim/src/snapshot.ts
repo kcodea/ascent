@@ -116,6 +116,8 @@ export interface BoardSnapshot {
   cardBuffs?: Record<string, { attack: number; health: number }>;
   /** Spell ids in the owner's hand at capture, in hand order (Vault Curator copies the left-most). */
   handSpellIds?: string[];
+  /** Bucky: Dwarven Ales the owner cast last shop turn. */
+  alesLastTurn?: number;
   /** The owner's accumulated Front-to-Back escalation, so a served Quil casts it at the strength its owner
    *  had built up — the same fidelity rule as `rubyBonus`. Absent = none. */
   spellEscalation?: { attack: number; health: number };
@@ -311,6 +313,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
     ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),
     ...(handSpellIds.length ? { handSpellIds } : {}),
+    ...(s.alesCastLastTurn ? { alesLastTurn: s.alesCastLastTurn } : {}),
     ...(s.frontToBackBonus || s.frontToBackBonusH
       ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),

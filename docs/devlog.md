@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-07 — Bucky, his rune, and the Groveweaver rune reaches combat
+
+**Rune of the Groveweaver now works in combat too** (owner). The recruit half shipped this morning; the
+combat half mirrors it exactly — the arena body's own arithmetic (base + this instance's `summonBonus`,
+× golden) behind the same tribe gate — so a Groveweaver grows as it buffs whichever phase the summon
+happens in. Reads a new `groveweaverSelfFor` off the combat mods.
+
+**Bucky** (T6 Dwarf 6/10, rune-exclusive) — Start of Combat: your Dwarves gain +5/+5 **for every Dwarven Ale
+you cast last turn**. `alesCastThisTurn` already existed for Chef Gary Toast; the turn rollover now BANKS it
+into `alesCastLastTurn` first, which is the same shape the Chef's own grant tally uses and for the same
+reason: the fight's opening should be decided by the turn you just finished, not the one you are still
+shopping in. Threaded through the combat side state and both opponent-snapshot writers, so a served enemy
+Bucky pours at its owner's brew rather than nothing. Zero Ales is a clean no-op — no 0/0 sweep, no narration.
+
+**Rune of Bucky** (Epic, 7, Set 2) hands him over.
+
+**A gap the tests had been hiding.** Wiring this exposed that **Rune of the Chef's flag was never threaded**
+into combat mods at all — an earlier scripted edit had aborted midway and taken both the `combatFlag` writer
+and the mods line with it. The Chef's own tests passed because they inject `questMods` directly, so buying
+the rune in a real run would have done nothing. Both lines are restored.
+
+The Dwarf-roster tripwire fired (26 → 27) and was the only failure.
+
+`typecheck` clean, lint at the 7-warning baseline, 4220 tests (7 new), `build:web` OK, harness determinism ✓.
+
 ## 2026-08-07 — Rune of the Chef
 
 "Your Chef Gary Toasts gain **Rally:** buff a random Dwarf for the combined stats this granted last turn."

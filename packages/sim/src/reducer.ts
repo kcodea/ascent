@@ -1942,6 +1942,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        alesLastTurn: s.alesCastLastTurn ?? 0, // Bucky: Ales cast last shop turn
         spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
         lastSpellCastId: s.lastSpellCastId,
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
@@ -2771,6 +2772,9 @@ function advanceCombat(s: RunState): void {
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  // Bucky reads LAST turn's Ales, so bank the count before clearing it — the same shape the Chef's grant
+  // tally uses, and for the same reason: the fight's opening is decided by the turn you just finished.
+  s.alesCastLastTurn = s.alesCastThisTurn ?? 0;
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
@@ -3382,6 +3386,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeEngraving') s.questFlags.runeEngraving = true;
       else if (r.flag === 'runeUnderdog') s.questFlags.runeUnderdog = true;
       else if (r.flag === 'runeGemGolem') s.questFlags.runeGemGolem = true;
+      else if (r.flag === 'runeChef') s.questFlags.runeChef = true;
       else if (r.flag === 'runeDragonscale') s.questFlags.runeDragonscale = add(s.questFlags.runeDragonscale, r.amount ?? 3);
       else if (r.flag === 'runeTemperedTime') s.questFlags.runeTemperedTime = true;
       else if (r.flag === 'runeSavagery') s.questFlags.runeSavagery = true;
@@ -3990,6 +3995,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
     runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
+    runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
+    runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
     runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat
     runeTemperedTime: f?.runeTemperedTime,   // Rune of Tempered Time: SoC — +Health equal to half Attack

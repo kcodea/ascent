@@ -1472,6 +1472,16 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeChef' },
     sets: ['set2'], // Dwarves
   },
+  {
+    id: 'rune_bucky',
+    name: 'Rune of Bucky',
+    cost: 7,
+    epic: true,
+    text: 'Get a **Bucky**.',
+    previewCards: ['dw_bucky'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['dw_bucky'] },
+    sets: ['set2'], // Dwarven Ales
+  },
 ];
 
 /**

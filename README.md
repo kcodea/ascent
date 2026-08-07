@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Badge value rolls ease out** — stat counters (shop + combat) now decelerate onto their final number instead of ticking linearly, tuned for a slow, visible settle. And **combat damage now counts the HP badge down** on a hit (the mirror of a buff rolling up), contact-timed; a killing blow and a same-beat buff still snap.
+
 - **14 new Epic runes** — the Enchantment batch: spell payoffs (Enchantment, the Crown), Ruby engines (the Lapidary, the Gem Golem), combat swings (Dragonscale, Tempered Time, Savagery, the Crucible, the Herald), and shop shapers (the Deep, the Guiding Candle, the Muster, the Foundry, the Corrupted Tome).
 
 - **16 new Basic runes** — the Tip Jar batch: Gold engines (Coffers, Vault, Treasure Map, Golden Splinter), spell payoffs (Lorekeeping, Thrift, Flagship), a board-seller (the Altar), a board-transformer (Evolution), buy-dupes (Transcription), and two combat flags (Engraving, the Underdog).

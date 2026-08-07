@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-07 — badge value rolls ease out, and combat damage counts the HP down
+
+**Ease-out on the value roll.** The badge roll (`fx/statHold.ts`) revealed its withheld delta linearly — the
+digits ticked at a constant rate. They now ease out: `withheldFraction(revealed)` maps the reveal fraction to
+what is still withheld, so the counter sprints out of the gate and settles slowly onto its final number. It is
+the ONLY place the curve lives — `revealed` still advances with real time (the shared ticker and combat's
+`driveRoll` are untouched), and `holdStat`'s mid-roll top-up reads the same curve so a buff landing on a
+rolling counter owes exactly what the badge is showing (no backward tick). The reel wobble deliberately keeps
+the LINEAR remainder, so a +1/+1's spin is unchanged; only the main value eases. Owner-tuned the exponent from
+cubic to **quad** (`t * t`) for a slower, more visible settle at the end. One curve, so shop and combat inherit
+it together.
+
+**Combat damage now ROLLS the HP badge down** (owner ask), the mirror of a buff rolling it up. On a hit, the
+install effect places a self-delivering `cue`-origin hold of the beat's total damage per target; the shared
+ticker counts the badge down from the pre-hit number, and because the damage RESULT beat is already scheduled
+to land on contact (`lungeConfig.ts`), a `startAt: 0` roll starts exactly as the blow lands — no strike
+registry needed. Two targets deliberately still SNAP, preserving the below-floor invariant the old
+unconditional `cancelRollForUid` protected: a target with a buff/roll already in flight (`holdOrigin != null` —
+netting a live up-roll against a down-roll is the exact never-had-number case), and a target that dies this
+beat (`combatDamageDeltas` excludes it, so the death collapse + float own that moment). Every other clean,
+survivable hit rolls. `COMBAT_ROLL_MS` bumped 420 → 650 so the fight-paced count reads clearly.
+
+**Verified.** `npm test` (4207) green; new `combatDamageDeltas` coverage (sums per surviving target; excludes
+a dying target and one gone from the frame); the `statHold` ease tests rewritten property-based (front-loaded +
+monotonic + exact endpoints) so future settle tuning won't churn them. typecheck + lint + build:web all green.
+Live-verified in combat by the owner (own units perfect).
+
+**Known follow-up.** An enemy self-buffer whose buff lands in the SAME beat it takes damage (Training Dummy)
+snaps instead of rolling — the `holdOrigin != null` guard treats it as the overlap case. Being investigated as
+its own change; it needs same-beat buff+damage to net cleanly rather than fall back to a snap.
+
 ## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
 
 The owner's 14-rune Epic sheet, stacked on the Basic batch (both touch the same four files, so they ship in

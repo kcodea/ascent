@@ -32,16 +32,17 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
-import { combatBuffDeltas, driveRoll } from './fx/combatBuffRoll';
-import { DEFAULT_ROLL_MS, holdStat, releaseStat } from './fx/statHold';
+import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
+import { holdOrigin, holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
 
-/** How long a combat buff's strike-time badge roll takes, in ms (before the combat-speed divide). Starts
- *  equal to the shop's roll (`DEFAULT_ROLL_MS`) so a gem and a combat buff count up at the same pace by
- *  default — its own constant because a fight-paced roll is free to diverge if it ever needs its own tuning. */
-const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
+/** How long a combat badge roll takes, in ms (before the combat-speed divide) — both a buff counting UP and a
+ *  hit counting the HP DOWN. Owner-tuned 2026-08-07 to 650ms (up from the shop's `DEFAULT_ROLL_MS`, 420) so the
+ *  count runs slower and reads more clearly in a fight; it is its own constant precisely so a fight-paced roll
+ *  can diverge from the shop's pace like this. */
+const COMBAT_ROLL_MS = 650;
 
 /**
  * How long the install effect's pre-buff hold survives before the store's own fail-open forces it, in ms
@@ -1751,9 +1752,28 @@ export function useCombatReplay(
     // type (a decay/wither tick, a stat-lowering transform) would slip both nets: neither pass would cancel the
     // in-flight roll, so `live - held` could print below the unit's true floor until the ~2s `COMBAT_HOLD_TTL_MS`
     // fail-open backstop expires. Extend this scan (and/or the release pass above) when such an event lands.
+    // Damage ROLLS the HP badge DOWN — the mirror of a buff rolling it up (owner ask 2026-08-07). This result
+    // beat is already scheduled to land on CONTACT (see lungeConfig.ts's header), so a `cue` hold placed here
+    // with `startAt: 0` counts the badge down from the pre-hit number the instant the blow lands; the shared
+    // ticker delivers it with no strike registry, and the ease-out (`fx/statHold`) settles it onto the true
+    // HP. `rollMs` is speed-scaled so a sped-up replay tightens the count exactly as `driveRoll` does for buffs.
+    //
+    // TWO targets still SNAP, which is what keeps the below-floor invariant this scan has always protected:
+    //  - one with a buff/roll ALREADY in flight (`holdOrigin !== null`) — netting a live up-roll against a
+    //    down-roll is the exact case that can print a number the unit never had, so it stays a snap; and
+    //  - one that DIES this beat — excluded inside `combatDamageDeltas`, so the death collapse + float own that
+    //    moment rather than a counter racing toward 0 under a dissolving card.
+    // Every other (clean, survivable) hit rolls.
+    const dmgRollMs = COMBAT_ROLL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+    const rolledDown = new Set<string>();
+    for (const d of combatDamageDeltas(beat, events, frame)) {
+      if (holdOrigin(d.uid) !== null) continue;   // buff/roll in flight → fall through to the snap, don't net
+      holdStat(d.uid, { health: -d.health }, { origin: 'cue', startAt: 0, rollMs: dmgRollMs });
+      rolledDown.add(d.uid);
+    }
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
-      if (e?.type === 'dmg') cancelRollForUid(e.target);
+      if (e?.type === 'dmg' && !rolledDown.has(e.target)) cancelRollForUid(e.target);
     }
     // `seekNonce`: this is the ONLY installer of these holds, and it's what makes a same-beat re-seek re-run
     // this effect at all (`beatIdx` alone wouldn't change). `frame` can't stand in — it is memoised on

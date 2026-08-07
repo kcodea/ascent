@@ -9,31 +9,22 @@
  * ── consolidates, doesn't reinvent ───────────────────────────────────────────────────────────────────────
  * Every scenario here is a cleanup pass over a scratch probe an earlier task already wrote and validated
  * against this exact feature (paths under the fxverify scratchpad, not committed):
- *   - SUMMON   ← imp-entrance.mjs (pre-Task-1 imp-arrival probe) — see the FINDING below, this channel FAILS
+ *   - SUMMON   ← imp-entrance.mjs (pre-Task-1 imp-arrival probe)
  *   - BUFF     ← task5-buff-gap.mjs (Supporter)
  *   - CAST     ← task6-hoardbreaker-cast.mjs (Hoardbreaker; Task 6 found casts have no separate flash — see below)
  *   - DAMAGE   ← task7-philippe-verify.mjs (Philippe; seed-retry for a clean random-enemy hit)
  *   - WATCHER  ← task4-rally-pulse-decoupled.mjs Scenario A (Crypt Drake; frame pulse, not medallion)
  *
- * ── FINDING: SUMMON (Errand Fiend) does NOT pass — a real pre-existing ordering bug, not a harness fault ──
- * The task-8 brief assumed this channel was "already passing pre-feature." It is not, and the mechanism is
- * fully diagnosed (confirmed with `window.setTimeout` instrumentation + a doc-comment paper trail, not
- * guessed): Errand Fiend's own-attack imp reveal (`attackSummonUids`/`impReveal`, a SEPARATE mechanism from
- * `fireBuffCasts`/`fireSelfBuffs`) was ALWAYS anchored to "the instant the attack beat becomes current" — its
- * own pre-rename doc comment on `IMP_SUMMON_LEAD_MS` said exactly that (Task 1's report quotes it verbatim).
- * Task 4 then decoupled Errand Fiend's medallion pulse from that SAME beat-start anchor and moved it to fire
- * at the wind-up-PAUSE instant instead (`windupDur` = 540ms into the beat, `lungeConfig.ts`) — correct, and
- * exactly what Tasks 3-4 set out to do. But nothing in Tasks 1-7 re-anchored `impReveal`'s OWN 300ms release
- * to that new pulse instant; it still fires at beat-start + `RALLY_EFFECT_GAP_MS` = beat-start + 300ms, a full
- * 240ms BEFORE the pulse now fires at beat-start + 540ms. Measured directly below (instrumented timer log):
- * `impReveal` scheduled/fired at beat-start+~300ms while the pulse's own cleanup timer (proof of when
- * `onRallyPulse` actually ran) is scheduled at beat-start+~540ms, every run, never seed-dependent (reproduced
- * with both a procedural seed and a pinned tanky opponent, no death-order confound). Tasks 5-7 each did the
- * matching fix for their own channel (re-anchoring the EFFECT to fire off the same `onRallyPulse` callback the
- * pulse itself fires from) — the summon channel's own-attack path is the one channel that never got that
- * treatment. This lines up with the still-pending "Errand Fiend imps use the Manasaber cub summon delay" work
- * item, which is almost certainly the fix. Not in scope for Task 8 (a verify harness) to patch — reported, not
- * silently passed.
+ * ── history: SUMMON (Errand Fiend) FAILED on first landing here, now fixed (fix round 1) ────────────────────
+ * This harness's first committed run caught a real pre-existing ordering bug, not a harness fault: Errand
+ * Fiend's own-attack imp reveal (`attackSummonUids`/`impReveal`) was anchored to "the instant the attack beat
+ * becomes current" (beat-start), while Task 4 had moved its medallion pulse to fire at the wind-up-PAUSE
+ * instant instead (`windupDur` = 540ms into the beat, `lungeConfig.ts`) — so the imp landed ~240ms BEFORE its
+ * own pulse every run. Tasks 5-7 each re-anchored their own channel's effect to the same `onRallyPulse`
+ * callback the pulse fires from; the summon channel's own-attack path had never gotten that treatment. Product
+ * code has since been fixed (mapped onto the "Errand Fiend imps use the Manasaber cub summon delay" work
+ * item), and this harness now reports SUMMON PASS along with the other four. See the Task 8 report for the
+ * original finding's full diagnosis and the fix-round confirmation.
  *
  * ── why two different "effect fired" signals ─────────────────────────────────────────────────────────────
  * BUFF and CAST land through `fireBuffCasts`/`fireSelfBuffs`, which draw the tendril/pulse FX on a Pixi
@@ -111,6 +102,16 @@ function gapCheck(pulseT, effectT) {
   return { ok: pulseFirst && inBand, gap, pulseFirst, inBand };
 }
 
+/** Does an instrumented `window.setTimeout` `delay` match the LIVE `RALLY_EFFECT_GAP_MS/speed` — i.e. is this
+ *  the windup-buff/imp-reveal launch timer, not some unrelated short timer in the same log? Matched against
+ *  the dynamically-read `RALLY_EFFECT_GAP_MS` (never a bare `300` literal) so retuning the product constant
+ *  can't silently break this into matching nothing — every scenario below pins `combatSpeed: 1`, but `speed`
+ *  is still a parameter (not folded into a hardcoded expected value) so a future non-1-speed scenario stays
+ *  correct too. A small tolerance absorbs the float division `RALLY_EFFECT_GAP_MS/speed` can produce. */
+function isRallyGapTimer(delay, speed = 1) {
+  return Math.abs(delay - RALLY_EFFECT_GAP_MS / speed) < 30;
+}
+
 /** Rising-edge scan of a sampled class-list series (e.g. `.cgem` or `.framepulsering`) for the first frame
  *  it carries `pulsing` (and, if `requireClass` is set, that class too — e.g. `rally` for the yellow token). */
 function firstRisingPulse(samples, classKey, requireClass) {
@@ -135,9 +136,11 @@ async function withFreshPage(fn) {
     const page = await browser.newPage();
     page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
     // Catch every short (<1000ms) setTimeout BEFORE any app code runs — this is how BUFF/CAST see their
-    // canvas-only FX "fire" (see the header). RALLY_EFFECT_GAP_MS=300 is comfortably under the 1000ms cap;
-    // the only other short timers in these scenarios (medallion/frame-pulse unset at 1150ms, float cleanup)
-    // fall outside it, so a delay-300 firing is unambiguous per scenario (mirrors task5/6's own probes).
+    // canvas-only FX "fire" (see the header). `RALLY_EFFECT_GAP_MS` (read from source, currently 300) is
+    // comfortably under the 1000ms cap; the only other short timers in these scenarios (medallion/frame-pulse
+    // unset at 1150ms, float cleanup) fall well outside `isRallyGapTimer`'s tolerance, so a match is
+    // unambiguous per scenario (mirrors task5/6's own probes). Matching is against the LIVE constant via
+    // `isRallyGapTimer`, never a hardcoded literal — see that function's own comment.
     await page.evaluateOnNewDocument(() => {
       window.__timerLog = [];
       const orig = window.setTimeout.bind(window);
@@ -275,8 +278,9 @@ async function runCast(page) {
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // SUMMON — Errand Fiend (Rally-as-onAttack-effect "summon an Imp…"; the summon itself withheld/released via
 // `attackSummonUids`/`releaseSummons`, independent of the RL keyword — see useCombatReplay.ts's own comment).
-// EXPECTED to FAIL here — see the header's FINDING. The imp reveal fires ~240ms BEFORE its own medallion
-// pulse (both timers instrumented below so the report shows real numbers, not just a DOM-sample gap).
+// Originally caught a real pre-existing ordering bug here (imp reveal firing ~240ms BEFORE its own medallion
+// pulse) — see the header's history note. Now fixed in product code; kept instrumented (timerLog diagnostic
+// below) so a regression prints real numbers, not just a DOM-sample gap.
 //
 // Pinned tanky dummy enemy (same `servedBoards` technique BUFF/CAST/WATCHER use below), not a procedural
 // seed: `rallySummonImpBuffImps` is an unconditional onAttack effect (no proc chance), so Errand Fiend's
@@ -536,7 +540,7 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
     report('BUFF — Supporter', false, [res.reason]);
   } else {
     const pulseT = firstRisingPulse(res.samples, 'gemClass', 'rally');
-    const gapTimers = res.timerLog.filter((e) => e.delay === 300)
+    const gapTimers = res.timerLog.filter((e) => isRallyGapTimer(e.delay))
       .map((e) => ({ schedT: Math.round(e.sched - res.t0perf), firedT: Math.round(e.fired - res.t0perf) }));
     const effectT = gapTimers[0]?.firedT ?? null;
     const { ok, gap } = gapCheck(pulseT, effectT);
@@ -555,7 +559,7 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
     report('CAST — Hoardbreaker Drake', false, [res.reason]);
   } else {
     const pulseT = firstRisingPulse(res.samples, 'gemClass', 'rally');
-    const gapTimers = res.timerLog.filter((e) => e.delay === 300)
+    const gapTimers = res.timerLog.filter((e) => isRallyGapTimer(e.delay))
       .map((e) => ({ schedT: Math.round(e.sched - res.t0perf), firedT: Math.round(e.fired - res.t0perf) }));
     const effectT = gapTimers[0]?.firedT ?? null;
     const { ok, gap } = gapCheck(pulseT, effectT);
@@ -581,13 +585,13 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
     let effectT = null;
     for (const s of res.samples) { if (s.impPresent) { effectT = s.t; break; } }
     const { ok, gap } = gapCheck(pulseT, effectT);
-    // Diagnostic cross-check (see the header's FINDING): `impReveal`'s own 300ms release timer independently
+    // Diagnostic cross-check (see the header's history note): `impReveal`'s own release timer independently
     // confirms when the imp actually released, straight from the instrumented timer log rather than the DOM
     // sample. (The pulse's matching cleanup timer is NOT used the same way — Flurry gives Errand Fiend a
     // second swing, and each new pulse `clearTimeout`s the previous swing's still-pending cleanup, so the
     // first swing's cleanup timer routinely never fires at all; the DOM rising-edge is the reliable pulse
     // signal here, not a timer log that a later swing can silently cancel.)
-    const revealTimer = res.timerLog.filter((e) => e.delay === 300)[0];
+    const revealTimer = res.timerLog.filter((e) => isRallyGapTimer(e.delay))[0];
     report('SUMMON — Errand Fiend (medallion pulse -> imp summonpop)', ok, [
       `pulse_t=${pulseT}ms (medallion .cgem.pulsing rising edge, DOM sample)`,
       `effect_t=${effectT}ms (impscrap unit first present in DOM)`,

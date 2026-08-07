@@ -151,6 +151,13 @@ export function rallyPulseUnits(moment: Moment, events: CombatEvent[], attacker:
  *
  * Returns the event index, or undefined if this attacker doesn't have the effect or the moment has no `dmg`
  * event at all (its `ctx.living(foe)` pool was empty and the effect no-opped).
+ *
+ * KNOWN LIMITATION: only the FIRST `dmg` event is ever returned. Uron / additive-doubler stacking
+ * (`playerRallyExtras` in simulate.ts) re-fires `rallyDamageRandomEnemy` several times in one moment — still
+ * all before Phase 1, so all still logged ahead of the clash's own damage — producing MULTIPLE `dmg` events
+ * here. Only the first gets the T+gap treatment; the rest fall back to their natural (late) timing. Degrades
+ * gracefully rather than misfiring (no wrong unit's FX gets delayed), so left as-is rather than generalized
+ * to a list — revisit if a stacked Philippe's extra splash hits ever need the same beat.
  */
 export function rallyDamageEventIndex(moment: Moment, events: CombatEvent[], attackerHasRallyDamage: boolean): number | undefined {
   if (!attackerHasRallyDamage) return undefined;

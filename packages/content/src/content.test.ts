@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { FACTORIES } from '@game/core';
 import { ALL_CARDS, CARD_INDEX, QUEST_DEFS, QUEST_INDEX, referencedCardIds, validateCards, validateQuests } from './index';
 import { SETS } from './sets';
 import { TOKENS } from './cards/set1/tokens';
@@ -86,5 +87,48 @@ describe('content', () => {
         }
       }
     }
+  });
+
+  it('rallyDamageRandomEnemy is the ONLY onAttack effect whose factory deals combat damage', () => {
+    // GUARD TEST — protects a presentation-layer invariant, not a gameplay one.
+    //
+    // packages/ui/src/useCombatReplay.ts's rally-beat-choreography (Task 7, spec
+    // docs/superpowers/sdd/2026-08-07-rally-beat-choreography) delays Philippe's Rally splash to
+    // `T + RALLY_EFFECT_GAP_MS` so it reads as "pulse, then effect" instead of landing at lunge contact. The
+    // `dmg` event it fires carries no `source` (types.ts), so `rallyDamageEventIndex`
+    // (choreo/channels/rallyFired.ts) can't identify it by who caused it — it identifies it by POSITION
+    // instead: simulate.ts's `bus.emit('onAttack', ...)` (where every Rally fires) always completes BEFORE
+    // the clash's own damage (Cleave, the main hit, the retaliation), so an onAttack effect's `dmg` event is
+    // always the FIRST `dmg` event in the moment it lands in. That reasoning is airtight ONLY as long as
+    // `rallyDamageRandomEnemy` is the SINGLE onAttack effect in the game that deals damage — with a second
+    // one, "which dmg event is first" would depend on `bus.emit`'s listener order, not on which card the
+    // choreographer actually wants to delay, and the FX would silently mistime for whichever effect loses
+    // that race.
+    //
+    // This test is the tripwire for that: it scans every card's `onAttack` effects (including `chooseOne`
+    // branches) and, for each DISTINCT effect id with a combat-time factory, source-scans the factory body for
+    // a `ctx.damage(...)` call — the one call site every damage-dealing effect in this codebase uses (verified
+    // by grep against factories.ts/arena.ts at the time this test was written; there is no second path that
+    // emits a `dmg` event). If this ever fails, it means a second damage-dealing onAttack effect has been
+    // added — DO NOT just update the expected list here. Go re-read `rallyDamageEventIndex`'s doc comment and
+    // Task 7's report (docs/superpowers/sdd/2026-08-07-rally-beat-choreography/task-7-report.md) first: the
+    // discriminator needs a real fix (e.g. keying off the attacker's specific effect id instead of "first dmg
+    // event"), not a widened assertion.
+    const dealsDamage = (id: string): boolean => {
+      const fn = FACTORIES[id as keyof typeof FACTORIES];
+      return !!fn && /\bctx\.damage\(/.test(fn.toString());
+    };
+    const onAttackDamageIds = new Set<string>();
+    for (const card of ALL_CARDS) {
+      const allEffects = [...card.effects, ...(card.chooseOne?.flatMap((o) => o.effects) ?? [])];
+      for (const effect of allEffects) {
+        if (effect.on === 'onAttack' && dealsDamage(effect.do)) onAttackDamageIds.add(effect.do);
+      }
+    }
+    expect(
+      [...onAttackDamageIds],
+      'A second onAttack effect now deals combat damage — see this test\'s comment before touching the ' +
+        'expectation below.',
+    ).toEqual(['rallyDamageRandomEnemy']);
   });
 });

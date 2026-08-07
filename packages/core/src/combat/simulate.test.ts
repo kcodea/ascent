@@ -1660,7 +1660,9 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true); // Karwind procced (+3/+3)
+    // +3/+3 normally, +6/+6 if this trigger's 20% roll came up — either proves Karwind procced.
+    const proc = r.events.some((e) => e.type === 'buff' && ((e.attack === 3 && e.health === 3) || (e.attack === 6 && e.health === 6)));
+    expect(proc, 'Karwind never procced').toBe(true);
   });
 
 
@@ -1681,12 +1683,15 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
     // Karwind procs once per trigger. Since the 2026-08-07 rework the adjacency clause is GONE: every Dragon
     // takes the same flat +3/+3, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
-    // (Drakko is NEUTRAL and is passed over, as before). A trigger whose 20% roll comes up pays TWICE, so the
-    // grant count is 8 + (one extra per crit) — pin it against the `proccrit` events the roll announces.
-    const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
+    // (Drakko is NEUTRAL and is passed over, as before). A trigger whose 20% roll comes up pays DOUBLE — the
+    // same number of grants, at +6/+6 instead of +3/+3 — so the TOTAL grant count is flat at 8 x 2 whatever
+    // the rolls do. That invariance is the point of the "double the buff, not the trigger" revision.
     const dragons = 2; // Karwind + the Cleric
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length)
-      .toBe((8 + crits) * dragons);
+    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length;
+    const doubled = r.events.filter((e) => e.type === 'buff' && e.attack === 6 && e.health === 6).length;
+    const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
+    expect(plain + doubled).toBe(8 * dragons);
+    expect(doubled).toBe(crits * dragons);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the IMP enchant back to the run", () => {

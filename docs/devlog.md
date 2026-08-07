@@ -1,10 +1,15 @@
 # ASCENT — development log
 
-## 2026-08-07 — Karwind: flat +3/+3 with a 20% double, and a floating "2x"
+## 2026-08-07 — Karwind: flat +3/+3 with a 20% double BUFF, and a floating "2x"
 
-Karwind loses its adjacency clause. Every Dragon takes the same flat **+3/+3** on a Shout trigger, and the
-whole grant has a **20% chance to pay twice**. `doubleChance` is a new param on the existing
+Karwind loses its adjacency clause. Every Dragon takes the same flat **+3/+3** on a Shout trigger, and that
+buff has a **20% chance to land DOUBLED — +6/+6**. `doubleChance` is a new param on the existing
 `onBattlecryBuffTribe` — both halves, defaulting to 0 — so the factory's other callers are untouched.
+
+**Double the buff, not the trigger** (owner revision, same day). The first cut fired the grant an extra time.
+That is a different card: an extra fire re-procs every per-trigger watcher, where a doubled magnitude is one
+trigger paying more. The invariant now under test is that the number of buff EVENTS is flat whatever the roll
+does — a crit only moves them from the +3/+3 bucket to the +6/+6 one.
 
 **The roll is seeded on both sides of the game**: the run cursor in the shop, the combat RNG in a fight. A
 reloaded run and a replayed combat crit on exactly the same triggers; `Math.random` never enters it.

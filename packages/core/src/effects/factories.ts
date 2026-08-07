@@ -2391,16 +2391,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = str(params.tribe);
     const a = num(params.attack, 1);
     const h = num(params.health, 1);
-    // `doubleChance` (Karwind 2026-08-07): a percent roll that repeats the WHOLE grant. Drawn off the combat
-    // RNG, so a replayed fight crits on exactly the same triggers. `ctx.crit` announces it for the UI float.
+    // `doubleChance` (Karwind 2026-08-07, owner revision): a percent roll that DOUBLES THE BUFF — +3/+3
+    // becomes +6/+6 — rather than firing the grant an extra time. Drawn off the combat RNG, so a replayed
+    // fight crits on exactly the same triggers. `ctx.crit` announces it for the UI float.
     const chance = num(params.doubleChance, 0);
     const crit = chance > 0 && ctx.rng.int(100) < chance;
     if (crit) ctx.crit?.(self.uid, 2);
+    const ca = a * (crit ? 2 : 1);
+    const ch = h * (crit ? 2 : 1);
     // Golden "+2/+2 twice" = the buff applied twice (mul = 2), not one doubled grant — two visible buff pulses.
-    for (let i = 0; i < mul(self) * (crit ? 2 : 1); i++) {
+    for (let i = 0; i < mul(self); i++) {
       for (const m of ctx.living(self.side)) {
         if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
-        ctx.buff(m, a, h, self.uid);
+        ctx.buff(m, ca, ch, self.uid);
       }
     }
   },

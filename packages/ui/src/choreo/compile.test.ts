@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeRng, simulate } from '@game/core';
+import { makeRng, simulate, type CombatEvent } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { buildBeats } from '../combatBeats';
 import { compileMoments, DEFAULT_RULES } from './compile';
@@ -78,5 +78,19 @@ describe('compileMoments — default rules reproduce buildBeats exactly', () => 
 
   it('empty log compiles to no moments', () => {
     expect(compileMoments([], DEFAULT_RULES)).toEqual([]);
+  });
+
+  /** The cosmetic rallyPulse marker (types.ts) rides the same wind-up as a real Rally — it's an on-attack
+   *  event, so it must absorb into the attacker's moment exactly like `rally`/`buff`/`summon`, not start a
+   *  moment of its own or leak into the next one. */
+  it('absorbs a rallyPulse marker into the attacker wind-up, stopping at a non-absorb event', () => {
+    const events = [
+      { type: 'attack', attacker: 'a', defender: 'b', swing: 0 },
+      { type: 'rallyPulse', source: 'a' },
+      { type: 'sc', source: 'a', text: '+2/+2 Shop' },
+    ] as unknown as CombatEvent[];
+    const moments = compileMoments(events, DEFAULT_RULES);
+    expect(moments[0]!.start).toBe(0);
+    expect(moments[0]!.end).toBe(2); // attack + rallyPulse absorbed; sc starts the next moment
   });
 });

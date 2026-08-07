@@ -115,9 +115,11 @@ export function attackSummonUids(moment: Moment, events: CombatEvent[], attacker
  * Who pulses this attack beat, and on which surface. A rally effect emits `buff`/`summon`/`sc`/`keyword`/`dmg`
  * events carrying the ACTING unit as `source`. If that source IS the beat's attacker it is a self-rally
  * (medallion); any other friendly source is a watcher answering the swing (frame). First event per source
- * wins; order preserved so a cascade reads left-to-right.
+ * wins; order preserved so a cascade reads left-to-right. `rallyPulse` is the cosmetic marker (types.ts) for
+ * rallies whose real effect logs OUTSIDE the attack beat (Demon Horse, Mineral Master) — it carries nothing
+ * but `source` and exists purely so this classifier still has something in-beat to read.
  */
-const PULSE_EVENT_TYPES = new Set<CombatEvent['type']>(['buff', 'summon', 'sc', 'keyword', 'dmg']);
+const PULSE_EVENT_TYPES = new Set<CombatEvent['type']>(['buff', 'summon', 'sc', 'keyword', 'dmg', 'rallyPulse']);
 export function rallyPulseUnits(moment: Moment, events: CombatEvent[], attacker: string): RallyPulse[] {
   const seen = new Set<string>();
   const out: RallyPulse[] = [];

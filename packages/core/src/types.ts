@@ -1642,6 +1642,7 @@ export type CombatEvent = (
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true }
   | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
+  | { type: 'rallyPulse'; source: string } // COSMETIC: a unit's on-attack rally ACTED this swing (emitted by simulate's onAttack dispatch when the effect appended to the log). Never read by the sim, never affects outcomes — the UI's rallyPulseUnits reads it to pulse `source` at the wind-up beat, covering economy rallies (Demon Horse, Mineral Master) whose real effect logs outside the attack beat. `source === attacker` → medallion, else → frame.
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement

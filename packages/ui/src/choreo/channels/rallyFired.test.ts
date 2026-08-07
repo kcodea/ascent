@@ -196,6 +196,14 @@ describe('rallyPulseUnits', () => {
     expect(rallyPulseUnits(span(0, 2), [buffE('A', 'X'), buffE('W', 'Y')], 'A'))
       .toEqual([{ uid: 'A', surface: 'medallion' }, { uid: 'W', surface: 'frame' }]);
   });
+
+  /** The marker exists FOR this: an economy rally (Demon Horse, Mineral Master) whose real effect logs
+   *  outside the attack beat still needs something in-beat to classify by source, same as buff/summon/etc. */
+  it('a rallyPulse marker classifies by source, same as buff/summon/etc', () => {
+    const pulse = (source: string): CombatEvent => ({ type: 'rallyPulse', source } as CombatEvent);
+    expect(rallyPulseUnits(span(0, 2), [pulse('A'), pulse('W')], 'A'))
+      .toEqual([{ uid: 'A', surface: 'medallion' }, { uid: 'W', surface: 'frame' }]);
+  });
 });
 
 describe('rallyDamageEventIndex', () => {

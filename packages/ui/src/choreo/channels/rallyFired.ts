@@ -107,21 +107,17 @@ export function attackSummonUids(moment: Moment, events: CombatEvent[], attacker
 
 /**
  * Between distinct rallier→ally PAIRS in a cascade — the `gap`.
+ * Between distinct rallier→ally PAIRS in a cascade — the `gap`. Must stay clear of `RALLY_PROC_STRIDE_MS`,
+ * or two pairs would interleave and "two minions rallied" would read as one minion rallying repeatedly.
  *
- * 240, which is NOT the Ruby cue's 100: it is derived from the `beat` below rather than chosen, because the
- * 2:1 ratio is what carries the count (docs/fx-vocabulary.md, and `beatExceedsGap` in fx/land.ts reports the
- * violation). The owner raised the beat to 120 on 2026-08-04 after watching a gilded Echohorn, so the gap had
- * to move with it — at the old 100 the beat would have EXCEEDED the gap and a cascade of 2-stacks would read
- * as one long cascade of unrelated hits.
- *
- * More than one pair in a single moment needs a board carrying two ralliers that swing in the same exchange,
- * so this is the rarer of the two numbers; the `beat` is the one that does the visible work.
+ * Effectively unreachable, and kept only because the cascade is written generically: every Rally is an
+ * `onAttack` trigger and one exchange has one attacker, so a moment cannot contain two different ralliers.
+ * Sized at 2× the stride to hold the ratio the vocabulary asks for rather than tuned by eye.
  */
-export const RALLY_GAP_MS = 240;
+export const RALLY_GAP_MS = 640;
 
-/** Between repeats WITHIN one pair — the `beat`. Owner-set 120 (2026-08-04, up from 50): at 50 a gilded
- *  Echohorn's two procs read as one thicker detonation rather than two, which is exactly the count this
- *  spacing exists to preserve. Must stay clearly shorter than `gap` — see the note there. */
+/** The visual gap between one proc's sparkle and the NEXT proc's pulse. Owner-set 120 (2026-08-04, up from
+ *  50): at 50 a gilded Echohorn's two procs read as one thicker detonation rather than two. */
 export const RALLY_BEAT_MS = 120;
 
 /**
@@ -131,13 +127,42 @@ export const RALLY_BEAT_MS = 120;
  * after."* Without it both land together — the lunge fires `onRallyPulse` at the top of the wind-up and this
  * cue fired at the moment's start — so the beat read as one event rather than as cause and effect.
  *
- * 200ms sits inside the wind-up's 440ms Rally hold (`RALLY_PAUSE_MS` in engine.ts), which is the window the
- * lunge deliberately opens so a Rally can be read before the strike. That leaves ~240ms of hold after the
- * sparkle starts and before contact, so the whole exchange still reads as one beat. Deliberately NOT imported
- * from engine.ts: engine imports `score.ts`, so the dependency would close a cycle — if that 440 is ever
- * retuned, this number wants a look.
+ * 200ms sits inside the wind-up's Rally hold (`RALLY_PAUSE_MS` in engine.ts), which is the window the lunge
+ * deliberately opens so a Rally can be read before the strike. Deliberately NOT imported from engine.ts:
+ * engine imports `score.ts`, so the dependency would close a cycle — if that pause is ever retuned by hand,
+ * this number wants a look.
  */
 export const RALLY_PULSE_READ_MS = 200;
+
+/**
+ * One proc's whole slot: its pulse, the beat the pulse needs to read, its sparkle, then the gap before the
+ * next proc's pulse. This is the `beat` the cascade schedules on now.
+ *
+ * It grew from `RALLY_BEAT_MS` alone when the owner asked for the medallion to pulse ONCE PER PROC rather
+ * than once for the whole Rally (2026-08-05). Before that a repeat only had to fit a sparkle; now it has to
+ * fit a pulse→sparkle pair, so a proc costs the read time as well as the gap.
+ */
+export const RALLY_PROC_STRIDE_MS = RALLY_PULSE_READ_MS + RALLY_BEAT_MS;
+
+/**
+ * How many times `attackerUid` procced a Rally inside this moment — i.e. how many times its medallion will
+ * pulse, and therefore how long the wind-up has to hold to fit them all.
+ *
+ * ONLY ECHOHORN can return more than 1 today, and that is a property of the sim rather than of this scan:
+ * `rallyProcLeftmostEcho` logs its `rally` event INSIDE the repeat loop, while `rallyProcDeathrattle`
+ * (Deathsayer) logs once OUTSIDE it — so a golden Deathsayer with two Sylus does six procs and still emits
+ * a single event. If that inconsistency is ever settled the other way, Deathsayer inherits the multi-pulse
+ * and the longer wind-up automatically, which is worth knowing before "fixing" it.
+ */
+export function rallyProcsFor(moment: Moment, events: CombatEvent[], attackerUid: string | null): number {
+  if (attackerUid === null) return 0;
+  let n = 0;
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (e && e.type === 'rally' && e.source === attackerUid) n++;
+  }
+  return n;
+}
 
 /**
  * When the first sparkle lands, measured from the moment's start.

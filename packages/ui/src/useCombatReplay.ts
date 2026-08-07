@@ -17,7 +17,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
-import { attackSummonUids } from './choreo/channels/rallyFired';
+import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -743,6 +743,23 @@ export function useCombatReplay(
   // re-add wouldn't replay the CSS animation (that's why the 2nd Rally in a combat pinged sound but no visual).
   const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
   const rallyNonceRef = useRef(0);
+  // ONE flash, used by both pulse owners: the lunge fires the attacker's opener from inside its GSAP
+  // timeline, and the `rallyFx` cue fires every proc after it (owner call 2026-08-05 — the medallion pulses
+  // once per proc, not once per Rally). Sharing the function is what guarantees the 2nd pulse is identical
+  // to the 1st; the nonce is what makes it VISIBLE, since it keys the medallion's remount (see Card.tsx) and
+  // a plain class re-add would not restart the CSS animation.
+  const firePulse = useCallback((uid: string): void => {
+    sfx.triggerPulse();
+    const n = ++rallyNonceRef.current;
+    setRallyPulse((prev) => new Map(prev).set(uid, n));
+    // Cleared only if THIS fire is still the current one — a later proc's nonce must not be cancelled by an
+    // earlier proc's timer, or the second pulse would vanish partway through.
+    window.setTimeout(() => setRallyPulse((prev) => {
+      const m = new Map(prev);
+      if (m.get(uid) === n) m.delete(uid);
+      return m;
+    }), 1150);
+  }, []);
   // uids this instance currently holds in the module store (`fx/statHold`) — the install effect below
   // releases exactly what THIS beat placed before placing the next. A uid drops off this list the moment its
   // strike is SCHEDULED (`scheduleRoll`, not when the strike actually fires — see that function's own note
@@ -1313,6 +1330,8 @@ export function useCombatReplay(
       events,
       cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
       combatSpeed: combatSpeedRef.current,
+      onRallyPulse: firePulse, // procs 2..N; the lunge owns the attacker's opener
+
       onShake: () => setShake((n) => n + 1),
       // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at
       // spawn — see spawnFloats' "the position snapshot" note.
@@ -1556,12 +1575,10 @@ export function useCombatReplay(
         const windupSelfBuffs = groupSelfBuffs(cur, events);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
-          onRallyPulse: rallies ? () => {
-            sfx.triggerPulse();
-            const n = ++rallyNonceRef.current; // a fresh nonce per fire → new medallion key → the pulse restarts
-            setRallyPulse((prev) => new Map(prev).set(atkUid, n));
-            window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
-          } : undefined,
+          onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
+          // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
+          // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
+          rallyProcs: rallyProcsFor(cur, events, atkUid),
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
             ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
             : undefined,

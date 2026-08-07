@@ -118,10 +118,13 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     ).toEqual(DYNAMIC_CALL_SITES);
   });
 
-  // Everything dynamic today is the binding path. If that stops being true the note the by-event lens prints
-  // ("the rest is the binding path, already listed above") becomes false.
-  it('has no dynamic call site outside the binding resolver', () => {
-    expect(Object.keys(DYNAMIC_CALL_SITES)).toEqual(['choreo/score.ts']);
+  // Almost everything dynamic is the binding path (`choreo/score.ts`). The one exception,
+  // `useCombatReplay.ts`, is `WATCHER_PULSE_DEF_ID` held as a constant rather than inlined — see the
+  // `DYNAMIC_CALL_SITES` doc comment — because the def it names is not committed yet. If that stops being the
+  // whole set the note the by-event lens prints ("the rest is the binding path, already listed above")
+  // becomes false and needs a second line.
+  it('has no dynamic call site outside the binding resolver or a not-yet-committed def', () => {
+    expect(Object.keys(DYNAMIC_CALL_SITES)).toEqual(['choreo/score.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

@@ -32,6 +32,8 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
+import { getDef } from './fx/fxDefs';
+import { WATCHER_PULSE_DEF_ID, useWatcherPixi } from './fx/watcherPulse';
 import { combatBuffDeltas, driveRoll } from './fx/combatBuffRoll';
 import { DEFAULT_ROLL_MS, holdStat, releaseStat } from './fx/statHold';
 
@@ -1681,10 +1683,21 @@ export function useCombatReplay(
                   setTriggers((prev) => { if (!prev.has(p.uid)) return prev; const next = new Set(prev); next.delete(p.uid); return next; });
                 }, 1150));
               } else {
-                // a WATCHER answering the swing → the card-frame pulse (light-blue), never the medallion
-                const n = ++frameNonceRef.current;
-                setFramePulse((prev) => new Map(prev).set(p.uid, n));
-                window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(p.uid) === n) m.delete(p.uid); return m; }), 1150);
+                // a WATCHER answering the swing → the card-frame pulse (light-blue), never the medallion.
+                // Prefer the owner-authored `watcher-pulse` Pixi ring-bloom when it is committed AND the overlay
+                // can play it; otherwise fall back to the CSS `.framepulsering` nonce (which ships until the def
+                // lands, so nothing regresses before it).
+                if (useWatcherPixi(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
+                  const a = anchorsForUnits(p.uid, p.uid); // source = target = the watcher's own card
+                  if (a) {
+                    const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+                    playDef(WATCHER_PULSE_DEF_ID, a, { speed, uids: { source: p.uid, target: p.uid } });
+                  }
+                } else {
+                  const n = ++frameNonceRef.current;
+                  setFramePulse((prev) => new Map(prev).set(p.uid, n));
+                  window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(p.uid) === n) m.delete(p.uid); return m; }), 1150);
+                }
               }
             }
             // Task 7 (rally DAMAGE, Philippe): the withhold effect (the beat-boundary `runMomentCues` pass)

@@ -40,14 +40,23 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
 /**
  * `playDef` calls whose def id is an expression — the scan's blind spot, counted per file on purpose.
  *
- * All four are `score.ts` firing a resolved binding's `def`, which is how a BINDING plays; they are not direct
- * calls and must never be counted as one. (Three are the `fxDef` cue's fan-out branches; the fourth is the
- * `rallyFx` cue, which resolves a binding per rally event rather than per moment — see `channels/rallyFired.ts`.)
+ * Four of the five are `score.ts` firing a resolved binding's `def`, which is how a BINDING plays; they are not
+ * direct calls and must never be counted as one. (Three are the `fxDef` cue's fan-out branches; the fourth is
+ * the `rallyFx` cue, which resolves a binding per rally event rather than per moment — see
+ * `channels/rallyFired.ts`.)
+ *
+ * The fifth, `useCombatReplay.ts`, is `WATCHER_PULSE_DEF_ID` (`fx/watcherPulse.ts`) — a def id held in a
+ * constant rather than inlined as a literal, specifically BECAUSE `watcher-pulse.json` is not committed yet
+ * (the owner authors it separately in the FX workshop). Inlining the literal would register it in
+ * `DIRECT_CALL_SITES` and trip the "every listed def exists" check below before the def is real. Once
+ * `watcher-pulse.json` lands this site can move to a literal call and drop out of this map.
+ *
  * Counts rather than line numbers: a line pin would go red every time anything above it moved, which trains
  * people to update it without reading — the opposite of what a guard is for.
  */
 export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'choreo/score.ts': 4,
+  'useCombatReplay.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

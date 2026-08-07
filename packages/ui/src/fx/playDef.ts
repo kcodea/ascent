@@ -405,6 +405,14 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
     });
   });
 
+  // DEV-only fire log: a Pixi effect paints to a canvas with no DOM class, so the browser harness can't rAF-
+  // sample it. This gives the committed rally-beat harness (and any future FX probe) a way to observe that a
+  // def fired, and when. Positive `import.meta.env.DEV` branch so Rollup drops it from production builds.
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const w = window as unknown as { __fxFires?: { id: string; t: number }[] };
+    (w.__fxFires ??= []).push({ id, t: performance.now() });
+  }
+
   return retire;
 }
 

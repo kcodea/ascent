@@ -111,7 +111,7 @@ describe('the combat flags', () => {
     const r = simulate(
       [{ cardId: 'sandbag', attack: 5, health: 10 }, { cardId: 'sandbag', attack: 1, health: 10 }],
       wall, makeRng(2), CARD_INDEX, combatSide({ tier: 6, ...mods({ runeTemperedTime: true }) }), combatSide({ tier: 1 }));
-    const grants = r.events.filter((e) => e.type === 'buff' && e.source === 'runeTemperedTime');
+    const grants = r.events.filter((e) => e.type === 'buff' && e.source === 'Rune of Tempered Time');
     expect(grants.length, 'a 1-Attack body floors to 0 and is skipped').toBe(1);
     expect(grants[0]).toMatchObject({ attack: 0, health: 2 }); // floor(5/2)
   });
@@ -122,7 +122,7 @@ describe('the combat flags', () => {
       [{ cardId: 'pack', attack: 3, health: 1 }],
       [{ cardId: 'omen', attack: 40, health: 4000 }], makeRng(2), CARD_INDEX,
       combatSide({ tier: 6, tribes: ['beast'], ...mods({ runeSavagery: true }) }), combatSide({ tier: 1 }));
-    expect(r.events.some((e) => e.type === 'buff' && e.source === 'runeSavagery'), 'no summoned Beast doubled').toBe(true);
+    expect(r.events.some((e) => e.type === 'buff' && e.source === 'Rune of Savagery'), 'no summoned Beast doubled').toBe(true);
   });
 
   it('Dragonscale shields attacking Dragons, capped at 3 a combat', () => {

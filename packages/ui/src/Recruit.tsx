@@ -64,7 +64,9 @@ import { ChargeMotes } from './chargeMotes';
 gsap.registerPlugin(Flip);
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
-const FLIP_SELECTOR = '[data-zone="tavern"] .row .card[data-uid], [data-zone="warband"] .row .card[data-uid]';
+const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
+const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
+const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
 
 /** Fodder-keyword card ids — a constant of the card corpus, computed once so `cardBuffsLive` doesn't walk
  *  the whole CARD_INDEX on every shop action (perf audit 2026-08-06). */
@@ -3330,9 +3332,23 @@ export function Recruit() {
    // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs every commit — a heavy branch here
    // is the fanout-frame cost that's neither the sim nor the weld FX.
    perfMonitor.measure('layout:flip', () => {
+    // WHICH ROW CAN MOVE. Only one row re-lays-out during a drag: the warband when its drop gap is open, the
+    // tavern when the shop's is. Capturing/animating BOTH doubled the most expensive thing in the shop phase
+    // for a row that provably cannot have moved. Outside a drag (a buy, a sell, a commit) either row can
+    // change, so the full selector stands.
+    //
+    // Switching selectors mid-drag is safe: `Flip.from` simply ignores elements absent from the captured
+    // state, and an absent element is one that did not move — which is the same outcome it had before.
+    // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
+    // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
+    const draggingNow = dragRef.current?.active ?? false;
+    const flipSel = !draggingNow ? FLIP_SELECTOR
+      : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
+        : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
+          : FLIP_SELECTOR;
     if (flipStateRef.current) {
       const flipCfg = getFlipConfig();
-      const dragging = dragRef.current?.active ?? false;
+      const dragging = draggingNow;
       if (dragging) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
@@ -3408,11 +3424,17 @@ export function Recruit() {
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     }
-    flipStateRef.current = Flip.getState(FLIP_SELECTOR);
+    // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
+    // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
+    // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
+    // whole drag (styles.css), so there is no rotation or scale for the full path to account for.
+    flipStateRef.current = Flip.getState(flipSel, { simple: true });
     // Persist each flipping card's LAYOUT left (offsetLeft — transform-immune, so a capture taken while a
     // prior tween is still mid-flight records the true resting spot) for the NEXT commit's manual FLIP.
+    // Scoped with the same selector: a card in the row that could not move is absent, and the commit branch
+    // reads an absent uid as delta 0 — "did not move" — which is exactly right.
     commitRectsRef.current = new Map(
-      gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
+      gsap.utils.toArray<HTMLElement>(flipSel).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
     );
    });
   }, [flipKey]);

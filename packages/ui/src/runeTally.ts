@@ -56,6 +56,15 @@ export function runeTally(run: RunState, runeId: string): string | null {
     return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_PER)}/${SLAYING_PER}`;
   }
   // Rune of Bulk Order keeps its own Gold meter on `runeScale` rather than joining `runeThresholds`.
+  // Rune of the Crown: spells cast toward the one-time step. Latches at per/per once earned — the bonus is
+  // permanent from then on, so a cyclic counter would lie about it turning off.
+  if (runeId === 'rune_crown' && run.runeCrown) {
+    return `${Math.min(run.spellsCast, run.runeCrown.per)}/${run.runeCrown.per}`;
+  }
+  // Rune of the Foundry: minions sold toward the next Dragon.
+  if (runeId === 'rune_foundry' && run.runeFoundry) {
+    return `${Math.min(run.runeFoundry.sold, run.runeFoundry.per)}/${run.runeFoundry.per}`;
+  }
   if (runeId === 'rune_scale' && run.runeScale?.per) {
     return `${Math.min(run.runeScale.tick ?? 0, run.runeScale.per)}/${run.runeScale.per}g`;
   }

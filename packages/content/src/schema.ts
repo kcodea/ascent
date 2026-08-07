@@ -532,7 +532,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeShopMinion',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -579,6 +579,14 @@ z.object({ kind: z.literal('shopBuffPerShouts'), per: z.number().int().positive(
 z.object({ kind: z.literal('shopBuffOnRefresh'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('spellCost'), cost: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeCoffers') }).strict(),
+z.object({ kind: z.literal('runeEnchantment') }).strict(),
+z.object({ kind: z.literal('runeCrown'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
+z.object({ kind: z.literal('runeLapidary') }).strict(),
+z.object({ kind: z.literal('runeDeep'), tier: z.number().int().min(1).max(7) }).strict(),
+z.object({ kind: z.literal('runeGuidingCandle'), count: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
+z.object({ kind: z.literal('runeMuster') }).strict(),
+z.object({ kind: z.literal('runeFoundry'), per: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeCorruptedTome') }).strict(),
 z.object({ kind: z.literal('runeVault') }).strict(),
 z.object({ kind: z.literal('runeAltar'), goldPer: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeLorekeeping') }).strict(),

@@ -744,7 +744,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -822,6 +822,22 @@ export interface RunState {
   runeRefrain?: boolean;
   /** Rune of the Coffers: End of Turn, max Gold +1. */
   runeCoffers?: boolean;
+  /** Rune of Enchantment: each Shop-spell cast gives your minions +1/+1 (permanent). */
+  runeEnchantment?: boolean;
+  /** Rune of the Crown: once `spellsCast` reaches `per`, your spells give +attack/+health extra. */
+  runeCrown?: { per: number; attack: number; health: number };
+  /** Rune of the Lapidary: End of Turn, a Ruby on one friendly minion of each type. */
+  runeLapidary?: boolean;
+  /** Rune of the Deep: each turn setup, a random minion of this tier. */
+  runeDeep?: number;
+  /** Rune of the Guiding Candle: refreshes left THIS TURN that draw only `tier` minions. Reset each turn. */
+  runeGuidingCandle?: { count: number; tier: number; left: number };
+  /** Rune of the Muster: one armed free refresh stocked with plain copies of the board. Spent on use. */
+  runeMuster?: boolean;
+  /** Rune of the Foundry: minions sold toward `per` — a random Dragon each time it fills. */
+  runeFoundry?: { per: number; sold: number };
+  /** Rune of the Corrupted Tome: a Triple Reward grants two. */
+  runeCorruptedTome?: boolean;
   /** Rune of the Vault: 10 Gold when the shop first reaches tier 5. Cleared when paid. */
   runeVault?: boolean;
   /** Rune of Lorekeeping: a Shop spell cast ON a minion gives it an extra +4/+4. */

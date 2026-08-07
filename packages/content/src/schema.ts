@@ -405,6 +405,7 @@ export const EffectFactoryIdSchema = z.enum([
   'cardsBoughtGetRubies',
   'grantRandomAle', 'battlecryBuffTribeOthersAttack', 'battlecryGainKeyword', 'goldSpentBuffTribeAttack', 'battlecryBuffTargetPerGoldSpent', 'endOfTurnBuffLeftmostTribePerCard', 'cardsBoughtGrantRandomSpell', 'battlecryGildTarget', 'goldSpentGrantTribeMinion',
   'combatGrantAle', 'rallyGiveAttackToOthers', 'echoSummonCopyNoEcho', 'echoSummonInheritAttackAndCharge',
+  'impInheritOnDeath', 'impInheritOnSummon', 'echoCastRememberedSpells', 'echoResummonDeadBeasts',
   'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onTribeSummonedBuffTribe', 'onSpellCastBuffOnePerTribe', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)

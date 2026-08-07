@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Batch 4, tranche 2 — three T6 bodies** (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the Epic runes that grant them; the Colossus needed two loop guards, since a resurrected Beast that dies is fuel for the next resurrection.
+
 - **Batch 4, tranche 1 — nine new Basic runes** (Empty Plate, Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling), plus a real combat-phase softlock: a Discover raised mid-fight left no legal action, since the phase guard and the modal guard each refused what the other allowed.
 
 - **Rune of Savagery doubles last** — it ran before summon triggers, so a Groveweaver's buff landed outside the doubling (pup 1→2→5 instead of 1→4→8); plus all 163 rune arts re-wired.

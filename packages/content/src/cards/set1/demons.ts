@@ -359,4 +359,23 @@ export const DEMONS: CardDef[] = [
     goldenText: "**Start of Combat:** give your other minions **100%** of this minion's stats.",
     token: true,
   },
+  {
+    // ASHEN HEIR (owner batch 4, 2026-08-07) — the Imp payoff body. One dying Imp's stats ride onto the next
+    // one to arrive, and because an inheriting Imp's own stats already include what it inherited, the chain
+    // compounds on its own: Imp 1 dies 1/1 → Imp 2 arrives 2/2 → dies → Imp 3 arrives 3/3. Reached through
+    // Rune of the Ashen Heir; it is not in the Shop pool on its own.
+    id: 'ashen_heir',
+    name: 'Ashen Heir',
+    tribe: 'demon',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    token: true,
+    effects: [
+      { on: 'onDeath', do: 'impInheritOnDeath' },
+      { on: 'onSummon', do: 'impInheritOnSummon' },
+    ],
+    text: 'Whenever an **Imp** dies, your next Imp gains its stats. If that Imp dies, it passes all accumulated stats onward.',
+  },
 ];

@@ -516,6 +516,11 @@ export interface RunState {
   /** Steward of Spells: the id of the most recent spell cast this run (persists across turns until the next
    *  cast). Absent until a spell is cast. */
   lastSpellCastId?: string;
+  /** Runesnout Archivist's journal — the first Shop spell cast on each turn an Archivist was on the board,
+   *  in order. Its Echo casts every one of them. Run-lifetime; `rememberedThisTurn` is the per-turn latch. */
+  rememberedSpellIds?: string[];
+  /** Runesnout Archivist: whether this turn's entry is already recorded (cleared each `faceOmen`). */
+  rememberedThisTurn?: boolean;
   /** The last Shop spell cast THIS TURN (reset each wave) — Recaller's copy target. Distinct from
    *  `lastSpellCastId`, which is run-lifetime (Steward of Spells): Recaller's printed rule says "this turn",
    *  and reading the run-lifetime field made it copy LAST turn's spell on a turn where none was cast. */

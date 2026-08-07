@@ -75,6 +75,13 @@ function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
         playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
+        // Runesnout Archivist's journal + Ashen Heir's banked Imp stats, LIVE during the fight: both cards are
+        // entirely about a number that moves mid-combat, so the printed text has to move with it (the hard
+        // live-value rule). The journal is run-side (player only, like lastSpellName); the bank rides the
+        // combat body itself, so a served Heir shows its own.
+        rememberedSpellNames: foe ? undefined
+          : (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
+        impBank: u.impBank,
         // The Dragon copiers' targets are frozen with the rest of the run for the fight — player-side only,
         // same as lastSpellName (an enemy carries no run, so it falls back to its printed text).
         firstSpellThisTurnName: foe ? undefined : (run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined),

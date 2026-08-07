@@ -1,5 +1,48 @@
 # ASCENT — development log
 
+## 2026-08-07 — Batch 4, tranche 2: three T6 bodies and the Epic runes that grant them
+
+**Three new minions, each reachable only through its own Epic rune** (all `token: true`, so none of them roll
+in the tavern):
+
+- **Ashen Heir** (Demon, T6, 5/9) — *Rune of the Ashen Heir* (5). "Whenever an Imp dies, your next Imp gains
+  its stats. If that Imp dies, it passes all accumulated stats onward." One rule produces the whole snowball:
+  bank a dying friendly Imp's stats, hand the bank to the next Imp to arrive. An inheriting Imp's own stats
+  already include what it inherited, so the "passes all accumulated stats onward" clause needs no separate
+  accounting. The bank rides the Heir, so two Heirs each keep one and both pay out.
+- **Runesnout Archivist** (Beast, T6, 6/9) — *Rune of Wild Memory* (5). "Remember the first Shop spell you cast
+  each turn. Echo: cast every remembered spell on random friendly Beasts." Sporebat's stored-spell Echo widened
+  from one spell to a journal, with Sporebat's fizzle gate re-checked per entry (earlier casts in the loop can
+  kill the Beast pool). The journal is run-level and only records on turns an Archivist was actually on the
+  board, so the card remembers what it witnessed rather than inheriting history that predates it.
+- **Mossmemory Colossus** (Beast, T6, 5/10) — *Rune of the Ancient Den* (6). "Echo: resummon the first 3 other
+  Beasts that died this combat." Earliest-first off a new death-ordered Beast graveyard; the printed bodies
+  return (the Rise precedent), never the grown corpses. Golden brings back six.
+
+**Two defects the tests caught before they shipped**, both in the Colossus:
+
+1. The resummon loop iterated the live graveyard, and a resurrected body that dies inside that same loop pushes
+   a fresh corpse onto the array being walked — it fed itself and never terminated. Snapshotted.
+2. The Colossus is *itself a Beast*, so two of them resurrected each other endlessly: each new copy died, entered
+   the graveyard under a new uid, and was raised again. 134 bodies in the two-Colossi test. A resurrected body's
+   death no longer re-banks — "the first 3 other Beasts that died" means three corpses, not three per raise.
+
+**Live card text**, per the hard rule: the Archivist names every spell in its journal (not the abstract "every
+remembered spell"), and the Heir prints what the next Imp would actually inherit. The Heir's bank moves
+mid-fight, so the replay re-derives it from the event log exactly the way Crypt Drake's `attackSeen` is — no
+new event crosses the boundary. It needed each body's max Health, which `UnitFrame` doesn't carry, so that is
+tracked in a local map rather than widening a hot per-beat structure for one card.
+
+**Verified.** 4584 tests across 268 files green, including a new 10-case `runeBatch4T2.test.ts`. A fixture note
+worth keeping: attackers pick targets at RANDOM, so "the front row dies first" is not a thing you can assume —
+both the Colossus and the Ashen Heir tests had to use Health to force the death ORDER their cards depend on.
+Typecheck, lint (0 errors) and `build:web` all clean.
+
+**No art yet** for the three minions or their runes — nothing matching those names is in the art folder, and
+the standing rule is to wire art only on a filename match, never a guess.
+
+**Still queued from batch 4:** tranche 3 (8 contained-machinery Basics), tranche 4 (5 hard Epics).
+
 ## 2026-08-07 — Batch 4, tranche 1: nine Basic runes, plus a real combat-phase softlock
 
 **Nine new Basic runes (the pattern-reuse tranche of the owner's batch 4).** Each one leans on machinery that

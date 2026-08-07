@@ -852,17 +852,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['copycat'] },
   },
   {
-    // Owner add 2026-08-02: the Mammoth's Attack-only grant becomes 1:1 symmetric (+3/+3, +6/+6, …).
-    id: 'rune_mammoth',
-    name: 'Rune of the Mammoth',
-    cost: 4,
-    epic: true,
-    text: 'Your **Menagerie Mammoths** also give **Health**, 1:1 with their Attack.',
-    previewCards: ['b2_mammoth'], // text names it — the forge hover shows the card
-    reward: { kind: 'combatFlag', flag: 'runeMammoth' },
-    sets: ['set2'], // the Mammoth is a set-2 Beast
-  },
-  {
     // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
     // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
     id: 'rune_taurus',
@@ -1208,6 +1197,18 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // Archived 2026-08-07 (owner) alongside Menagerie Mammoth's rework — its subject no longer has the
+    // Attack-only grant this rune symmetrised. The def and `runeMammoth` flag stay for saved runs.
+    id: 'rune_mammoth',
+    name: 'Rune of the Mammoth',
+    cost: 4,
+    epic: true,
+    text: 'Your **Menagerie Mammoths** also give **Health**, 1:1 with their Attack.',
+    previewCards: ['b2_mammoth'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeMammoth' },
+    sets: ['set2'], // the Mammoth is a set-2 Beast
+  },
   {
     // Archived 2026-08-07 (owner): out of both forge stocks, but the def and its `runeRemains` combat flag stay
     // so a saved or replayed run that already owns it keeps its badge, text and payout.

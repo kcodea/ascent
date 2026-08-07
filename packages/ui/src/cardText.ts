@@ -687,6 +687,16 @@ export function stewardText(cardId: string, golden: boolean, lastSpellName: stri
   return golden ? `**End of Turn:** get **2** copies of ${name}.` : `**End of Turn:** get a copy of ${name}.`;
 }
 
+/** Sporebat (rework 2026-08-07) stores the run's last-cast spell — its printed text must NAME what it will
+ *  actually cast (owner ask), the same live rule Steward of Spells follows. Base text when nothing stored. */
+export function sporebatText(cardId: string, golden: boolean, lastSpellName: string | undefined): string | null {
+  if (cardId !== 'sporebat' || !lastSpellName) return null;
+  const name = `{{${lastSpellName}}}`;
+  return golden
+    ? `**Taunt.** Store the last spell you cast. **Echo:** cast ${name} on a random friendly Beast **twice**.`
+    : `**Taunt.** Store the last spell you cast. **Echo:** cast ${name} on a random friendly Beast.`;
+}
+
 /**
  * Squirl Scout's grant snowballs: each played raises the run-wide `squirlScoutBuff` by 3 (×2 golden). Surface
  * the grant a play NOW would make — (squirlScoutBuff + step) — green, in place of the FIRST printed "+N/+N"

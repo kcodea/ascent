@@ -536,43 +536,38 @@ describe('set 2 — Scavvers (owner rework 2026-08-07: Echo triggers an adjacent
   });
 });
 
-describe('set 2 — Menagerie Mammoth (owner rebalance 2026-08-02, third pass: +3 Attack improving +3)', () => {
-  it('gives each summoned Beast +3 Attack, improving by +3 per summon — no Health without the rune', () => {
-    // Mama Pup dies and leaves Pups behind: the first gets +3/+0, the next +6/+0 — the escalation is the whole
-    // card, so asserting a single grant would pass against a version that never improved.
-    const r = simulate(
-      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
-       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
-      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
-      .filter((b) => b.source === 'm0');
-    expect(grants.length, 'the Mammoth granted nothing').toBeGreaterThan(1);
-    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), 'Attack-only, climbing per summon').toEqual([[3, 0], [6, 0]]);
+describe('set 2 — Menagerie Mammoth (owner rework 2026-08-07: Avenge 3, cast a random hand spell)', () => {
+  it('wiring: T5 6/6, the summon-buff engine is gone', () => {
+    const d = CARD_INDEX['b2_mammoth']!;
+    expect([d.tier, d.attack, d.health]).toEqual([5, 6, 6]);
+    expect(d.effects.some((e) => e.do === 'avengeCastRandomHandSpell')).toBe(true);
+    expect(d.effects.some((e) => e.do === 'onSummonTribeBuffImproveSelf')).toBe(false);
   });
 
-  it('Rune of the Mammoth makes the grant 1:1 symmetric — +3/+3, +6/+6', () => {
+  it('every 3 friendly deaths it casts a random spell from the hand snapshot (kept, not consumed)', () => {
+    // Three 1-hp strays die to the wall → one Avenge(3) proc → a Growth cast (the only hand spell).
     const r = simulate(
-      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
-       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
-      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'], questMods: { runeMammoth: true } }), combatSide({ tier: 1 }));
-    const grants = (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
-      .filter((b) => b.source === 'm0');
-    expect(grants.slice(0, 2).map((g) => [g.attack, g.health]), '1:1 with the rune').toEqual([[3, 3], [6, 6]]);
+      [
+        { cardId: 'b2_mammoth', attack: 6, health: 4000, sourceUid: 'MM' },
+        { cardId: 'stray', attack: 1, health: 1 }, { cardId: 'stray', attack: 1, health: 1 },
+        { cardId: 'stray', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], handSpellIds: ['growth'] }), combatSide({ tier: 1 }));
+    expect(r.events.some((e) => e.type === 'sc' && /Menagerie Mammoth casts Growth/.test(e.text)), 'no cast').toBe(true);
+    expect(r.playerSpellsCast ?? 0).toBeGreaterThan(0);
   });
 
-  it('…and the improved grant rides home on the summon-bonus carry-back', () => {
-    // "Permanently" is the load-bearing word: without `playerSummonBonus` the escalation would reset every
-    // round and the card would read as broken across turns.
+  it('an empty (or tavern-only) hand is a clean no-op — no cast is counted', () => {
     const r = simulate(
-      [{ cardId: 'b2_mammoth', attack: 6, health: 200, sourceUid: 'M', keywords: [] },
-       { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
-      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    const carried = (r.playerSummonBonus ?? []).find((b) => b.sourceUid === 'M');
-    expect(carried, 'the Mammoth’s accrual never left combat').toBeTruthy();
-    expect(carried!.bonus).toBeGreaterThan(0);
+      [
+        { cardId: 'b2_mammoth', attack: 6, health: 4000, sourceUid: 'MM' },
+        { cardId: 'stray', attack: 1, health: 1 }, { cardId: 'stray', attack: 1, health: 1 },
+        { cardId: 'stray', attack: 1, health: 1 },
+      ],
+      [{ cardId: 'omen', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], handSpellIds: ['displacement'] }), combatSide({ tier: 1 }));
+    expect(r.playerSpellsCast ?? 0).toBe(0);
   });
 });
 

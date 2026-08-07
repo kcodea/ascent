@@ -593,6 +593,11 @@ export interface RunState {
   /** Apples (Choose One) — a one-shot buff folded into the offers of the NEXT tavern roll (refresh or turn
    *  advance), then cleared. Stacks if cast more than once before the next roll. */
   nextShopBuff?: { attack: number; health: number };
+  /** TRANSIENT combat-replay preview of Front-to-Back escalation earned mid-fight (owner ask 2026-08-07: the
+   *  held card's printed value moves AS the cast happens, not at settle). The replay accumulates it via
+   *  `combatEscalationPreview`; settle clears it — the REAL gain arrives through `playerSpellEscalationGain`,
+   *  so this is display-only and can never double-count. */
+  fxEscalationPreview?: { attack: number; health: number };
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Chronos hero: End-of-Turn minions bought this run (his Encore quest grants a Chronos at 4). */
@@ -1131,6 +1136,8 @@ export interface RunState {
 }
 
 export type Action =
+  /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
+  | { type: 'combatEscalationPreview'; attack: number; health: number }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }

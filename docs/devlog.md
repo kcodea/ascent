@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-07 — Two live-play bugs, and the Mammoth becomes a hand-caster
+
+**Enemy Earthbreaker was buffing off YOUR casts** (owner report, from live play). Combat `spellCastBuffAll`
+was the only spell-cast watcher missing the `side !== self.side` guard every sibling has. Guarded, with
+regression tests pinning both directions.
+
+**Front to Back now moves in hand AS a minion casts it.** The escalation gain is a carry-back, so the held
+card's printed value stood still until settle. The resolver now narrates each improvement (side-stamped), the
+replay rides that narration into a display-only preview (`combatEscalationPreview` → `fxEscalationPreview`),
+and the live hand text folds the preview in. Settle clears the preview and applies the real gain through the
+existing channel — the two can never double-count, because only one of them ever touches `frontToBackBonus`.
+
+**Sporebat names its stored spell** — "Echo: cast {{Growth}} on a random friendly Beast" — via the same
+live-name pattern Steward of Spells uses. **Moonhowl Mentor** returns to T6 (reverting the morning's T5).
+**Rune of the Mammoth** is archived alongside its subject's rework: **Menagerie Mammoth** is now T5 6/6,
+"Avenge (3): cast a random spell in your hand" — the combat resolver again, kept not consumed, pool
+pre-filtered to combat-castable spells so a fizzler never counts as a cast.
+
+Verified live (Sporebat's named text, Mammoth def, the rune unofferable-but-resolvable). `typecheck` clean,
+lint at the 7-warning baseline, 4154 tests, `build:web` OK.
+
 ## 2026-08-07 — Combat casts grow past the stat family, and five cards ride the new reach
 
 **The resolver** (`resolveCombatSpellCast`) now executes everything the owner ruled should work mid-fight:

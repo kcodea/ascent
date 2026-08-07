@@ -116,6 +116,33 @@ describe('Badgington — Rally casts a random targeted spell on another Beast, a
   });
 });
 
+describe('Earthbreaker — the side guard (owner bug report 2026-08-07)', () => {
+  it("an ENEMY Earthbreaker does not react to YOUR casts", () => {
+    // Quil casts Growth on the player side; the enemy board holds an Earthbreaker. Before the guard it
+    // buffed its whole side off that cast. Pin: no enemy-side buff events sourced from the Earthbreaker.
+    const r = simulate(
+      [{ cardId: 'stray', attack: 1, health: 400 }, { cardId: 'b2_quil', attack: 7, health: 400 },
+       { cardId: 'stray', attack: 1, health: 400 }],
+      [{ cardId: 'd2_scalechanter', attack: 4, health: 4000 }, { cardId: 'sandbag', attack: 0, health: 4000 }],
+      makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'], handSpellIds: ['growth'] }), combatSide({ tier: 6 }));
+    expect(r.playerSpellsCast ?? 0).toBeGreaterThan(0); // the cast really happened
+    const enemyEB = r.initial.enemy.find((m) => m.cardId === 'd2_scalechanter')!;
+    expect(r.events.some((e) => e.type === 'buff' && e.source === enemyEB.uid),
+      'the enemy Earthbreaker reacted to the player cast').toBe(false);
+  });
+
+  it('its OWN side still works — a friendly Earthbreaker reacts to a friendly cast', () => {
+    const r = simulate(
+      [{ cardId: 'd2_scalechanter', attack: 4, health: 400 }, { cardId: 'b2_quil', attack: 7, health: 400 },
+       { cardId: 'stray', attack: 1, health: 400 }],
+      wall, makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast', 'dragon'], handSpellIds: ['growth'] }), combatSide({ tier: 1 }));
+    const eb = r.initial.player.find((m) => m.cardId === 'd2_scalechanter')!;
+    expect(r.events.some((e) => e.type === 'buff' && e.source === eb.uid), 'the friendly watcher broke').toBe(true);
+  });
+});
+
 describe('Candle Conduit — the combat-side bounce', () => {
   it('a combat Ruby play lands on its target AND one more minion', () => {
     // playRubyOn is exercised through Rune of Gemstorm (Avenge 2) — so the fixture needs two friendly deaths

@@ -502,7 +502,10 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold,
     impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn,
     spellBonus: spellAttackBonus(run), spellBonusH: spellHealthBonus(run),
-    frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
+    // The combat replay's display-only escalation preview folds in, so a Quil/Sporebat/Mammoth casting
+    // Front to Back moves the HELD card's number as the cast happens rather than at settle (owner 2026-08-07).
+    frontToBackBonus: run.frontToBackBonus + (run.fxEscalationPreview?.attack ?? 0),
+    frontToBackBonusH: run.frontToBackBonusH + (run.fxEscalationPreview?.health ?? 0),
     goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
     squirlScoutBuff: run.squirlScoutBuff,
     lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,

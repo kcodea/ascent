@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -125,6 +125,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
+            sporebatText(c.id, p.golden, p.lastSpellName) ?? // Sporebat: name the stored spell it will cast
             copyCastSpellText(c.id, p.golden, { firstThisTurn: p.firstSpellThisTurnName, lastThisTurn: p.lastSpellThisTurnName, keeperFirst: p.keeperFirstSpellName }) ?? // the Dragon copiers name the spell they will give
             improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant

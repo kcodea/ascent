@@ -13,16 +13,7 @@ const improvesFor = (events: readonly CombatEvent[], uid: string) =>
   events.filter((e): e is Extract<CombatEvent, { type: 'improve' }> => e.type === 'improve' && e.target === uid);
 
 describe('combat accruals log improve events (live text ticks mid-fight)', () => {
-  it('Menagerie Mammoth: each summon logs amount 1 (a proc) with the +3 step as display', () => {
-    const r = simulate(
-      [{ cardId: 'b2_mammoth', attack: 6, health: 200 }, { cardId: 'pack', attack: 2, health: 1 }],
-      [{ cardId: 'sandbag', attack: 9, health: 9999 }], makeRng(2), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    const ticks = improvesFor(r.events, 'm0');
-    expect(ticks.length, 'the Mammoth accrued silently').toBeGreaterThan(0);
-    expect(ticks[0]!.amount).toBe(1);
-    expect(ticks[0]!.display).toBe(3);
-  });
+// (Menagerie Mammoth's summon-improve case retired with its 2026-08-07 rework to a hand-caster.)
 
   it('Thundeer logs its self-improve step', () => {
     const r = simulate(

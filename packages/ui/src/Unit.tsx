@@ -21,13 +21,17 @@ interface UnitProps {
    *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`.
    *  A per-fire nonce (not a bool) so a repeat Rally in the same combat restarts the pulse (used as a `key`). */
   rallyPulse?: number;
+  /** Pulse the whole card FRAME light-blue — this unit is a WATCHER answering a rallied ally's attack. Fired
+   *  from the same wind-up-pause instant as `rallyPulse`, just onto the frame instead of the medallion. A
+   *  per-fire nonce, same reasoning as `rallyPulse`. */
+  pulseFrame?: number;
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
-function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
+function UnitInner({ u, side, anim, triggered, rallyPulse, pulseFrame }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -118,7 +122,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
           the replay itself drives via `driveRoll`) is the only thing that rolls. See `useCombatReplay`. */}
-      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} />
+      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} pulseFrame={pulseFrame} />
     </div>
   );
 }
@@ -135,6 +139,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.anim === b.anim &&
   a.triggered === b.triggered &&
   a.rallyPulse === b.rallyPulse &&
+  a.pulseFrame === b.pulseFrame &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&

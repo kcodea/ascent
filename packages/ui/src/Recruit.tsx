@@ -4199,6 +4199,7 @@ export function Recruit() {
                 anim={replay.anims[u.uid]}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
+                pulseFrame={replay.framePulseUids.get(u.uid)}
               />
             ))
           ) : (
@@ -4249,6 +4250,7 @@ export function Recruit() {
                 anim={replay.anims[u.uid]}
                 triggered={replay.triggerUids.has(u.uid)}
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
+                pulseFrame={replay.framePulseUids.get(u.uid)}
               />
             ))
           ) : (

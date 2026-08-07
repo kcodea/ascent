@@ -17,7 +17,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
-import { attackSummonUids } from './choreo/channels/rallyFired';
+import { attackSummonUids, rallyPulseUnits } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -522,6 +522,9 @@ export interface CombatReplay {
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
   rallyPulseUids: Map<string, number>;
+  /** uid → a per-fire nonce for WATCHERS answering a rallied ally's attack — the card-frame pulse, not the
+   *  medallion. Fired at the same wind-up-pause instant as `rallyPulseUids` (see the attack layout effect). */
+  framePulseUids: Map<string, number>;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -741,6 +744,11 @@ export function useCombatReplay(
   // re-add wouldn't replay the CSS animation (that's why the 2nd Rally in a combat pinged sound but no visual).
   const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
   const rallyNonceRef = useRef(0);
+  // Same shape, for a WATCHER's card-frame pulse (light-blue) instead of the medallion — an ally answering a
+  // rallied unit's attack. Fired from the SAME wind-up-pause callback as `rallyPulse`/the normal medallion
+  // pulse (Task 4's decoupling point), just onto a different surface. See `rallyPulseUnits`.
+  const [framePulse, setFramePulse] = useState<Map<string, number>>(new Map());
+  const frameNonceRef = useRef(0);
   // uids this instance currently holds in the module store (`fx/statHold`) — the install effect below
   // releases exactly what THIS beat placed before placing the next. A uid drops off this list the moment its
   // strike is SCHEDULED (`scheduleRoll`, not when the strike actually fires — see that function's own note
@@ -934,6 +942,7 @@ export function useCombatReplay(
     pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
+    setFramePulse(new Map());
     setFinished(false);
     setAttackUid(null);
     // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
@@ -1137,13 +1146,21 @@ export function useCombatReplay(
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
     const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
     for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
+    // RALLY-BEAT PULSES for an attack beat fire from the attack layout effect's wind-up-pause callback,
+    // timed to `T` rather than to the beat becoming current (Task 4). So a unit `rallyPulseUnits` claims for
+    // THIS beat — self-rally (medallion) or watcher (frame) — must be skipped here, or it would pulse twice:
+    // once (wrong surface and/or wrong instant) from this beat-boundary scan, and again at `T` from the pause.
+    const rallyPulseSkip = new Set<string>();
+    if (beat.primary.type === 'attack') {
+      for (const p of rallyPulseUnits(beat, events, beat.primary.attacker)) rallyPulseSkip.add(p.uid);
+    }
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
       // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
       // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
-      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
-      else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
+      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source && !rallyPulseSkip.has(e.source)) trig.add(e.source);
+      else if ((e.type === 'summon' || e.type === 'toHand') && e.source && !rallyPulseSkip.has(e.source)) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
       // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
       // the resulting summon/buff events don't reliably carry the dying unit as their source).
@@ -1535,6 +1552,13 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
+        // WHO pulses this beat, and on which surface — `rallyPulseUnits` (Task 3) classifies every unit whose
+        // effect fired inside this attack: the attacker itself (self-rally) or an ally answering the swing (a
+        // watcher). ALL of it fires HERE, at the wind-up pause (`T`), decoupled from the beat-boundary trigger
+        // scan above — which explicitly excludes these same uids for exactly this reason (Task 4). That's what
+        // lets a watcher's card-frame pulse and a self-rally's medallion pulse land on the swing, once each,
+        // instead of at the top of the beat and/or twice.
+        const beatRallyPulses = rallyPulseUnits(cur, events, atkUid);
         // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
         // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
         // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
@@ -1543,11 +1567,35 @@ export function useCombatReplay(
         const windupSelfBuffs = groupSelfBuffs(cur, events);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
-          onRallyPulse: rallies ? () => {
-            sfx.triggerPulse();
-            const n = ++rallyNonceRef.current; // a fresh nonce per fire → new medallion key → the pulse restarts
-            setRallyPulse((prev) => new Map(prev).set(atkUid, n));
-            window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
+          onRallyPulse: (rallies || beatRallyPulses.length) ? () => {
+            sfx.triggerPulse(); // once per pause regardless of how many units pulse (mirrors the beat-boundary cue)
+            if (rallies) {
+              // self-rally, attacker carries RL → the existing YELLOW token pulse. Fires unconditionally on the
+              // keyword (mirrors the OLD gate exactly) — an RL swing that finds no eligible Rally target (e.g.
+              // the only friendly Dragon on board) still reads as "this unit Rallied", same as before Task 4.
+              const n = ++rallyNonceRef.current; // a fresh nonce per fire → new medallion key → the pulse restarts
+              setRallyPulse((prev) => new Map(prev).set(atkUid, n));
+              window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
+            }
+            for (const p of beatRallyPulses) {
+              if (p.surface === 'medallion') {
+                if (rallies) continue; // already fired yellow for the attacker above — don't double-pulse it
+                // the attacker's own effect fired this swing but it isn't an RL Rally → the plain (non-yellow)
+                // medallion pulse — same visual the beat-boundary scan would have given it, just timed to `T`
+                setTriggers((prev) => new Set([...prev, p.uid]));
+                const prevT = pulseTimersRef.current.get(p.uid);
+                if (prevT !== undefined) window.clearTimeout(prevT);
+                pulseTimersRef.current.set(p.uid, window.setTimeout(() => {
+                  pulseTimersRef.current.delete(p.uid);
+                  setTriggers((prev) => { if (!prev.has(p.uid)) return prev; const next = new Set(prev); next.delete(p.uid); return next; });
+                }, 1150));
+              } else {
+                // a WATCHER answering the swing → the card-frame pulse (light-blue), never the medallion
+                const n = ++frameNonceRef.current;
+                setFramePulse((prev) => new Map(prev).set(p.uid, n));
+                window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(p.uid) === n) m.delete(p.uid); return m; }), 1150);
+              }
+            }
           } : undefined,
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
             ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
@@ -1937,6 +1985,7 @@ export function useCombatReplay(
     frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
+    framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight

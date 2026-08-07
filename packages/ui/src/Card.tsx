@@ -92,7 +92,7 @@ const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OV
 // Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
 // (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
 // grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
-const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
+const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`;
 let spellFrameAvailable = true;
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a

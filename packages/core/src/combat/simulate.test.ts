@@ -4427,3 +4427,76 @@ describe('Rally quest tally counts EXTRA fires (Uron)', () => {
     expect(perAttack(true)).toBe(2);
   });
 });
+
+describe('rallyPulse marker', () => {
+  // SDD 2026-08-07 rally-pulse-coverage-and-pixi-watcher, Task 2: the sim splices a cosmetic
+  // `rallyPulse` marker into the log whenever an on-attack effect actually APPENDS something —
+  // "acted", not just "fired" — so a watcher's non-triggering own swing marks nothing and strike
+  // damage (logged outside any on-attack handler) can never mark.
+  const pulses = (events: CombatEvent[], src: string) =>
+    events.filter((e) => e.type === 'rallyPulse' && (e as { source: string }).source === src);
+
+  it('economy self-rally (Demon Horse) emits a rallyPulse for itself when it swings', () => {
+    // Demon Horse (dm_hungerling): onAttack → rallyBuffShopPermanent → ctx.gainTavernBuy, which logs a
+    // non-absorb `sc` ('+N/+N Shop') FIRST — the exact case the splice (not append) exists to cover.
+    // Opponent is a fully vanilla dummy (stray has no effects at all) so nothing else can mark.
+    const a = run(
+      [{ cardId: 'dm_hungerling', attack: 3, health: 20 }],
+      [{ cardId: 'stray', attack: 1, health: 40 }],
+      1,
+    );
+    const dhUid = a.initial.player[0]!.uid;
+    expect(pulses(a.events, dhUid).length).toBeGreaterThanOrEqual(1);
+    // It lands INSIDE the wind-up: the marker index precedes the first `sc` event from dhUid — proving
+    // splice-at-preLen worked (an appended marker would land AFTER that non-absorb `sc`, outside the
+    // contiguous absorb run the UI folds into the wind-up).
+    const pulseIdx = a.events.findIndex((e) => e.type === 'rallyPulse' && (e as { source: string }).source === dhUid);
+    const scIdx = a.events.findIndex((e) => e.type === 'sc' && (e as { source: string }).source === dhUid);
+    expect(pulseIdx).toBeGreaterThanOrEqual(0);
+    expect(scIdx).toBeGreaterThan(pulseIdx);
+  });
+
+  it('a plain vanilla attacker (no on-attack effect) emits NO rallyPulse — strike damage never marks', () => {
+    // `stray` has an empty effects array on both sides — proves ordinary strike damage, logged outside
+    // any on-attack handler, can never produce a marker.
+    const a = run(
+      [{ cardId: 'stray', attack: 5, health: 5 }],
+      [{ cardId: 'stray', attack: 1, health: 20 }],
+      1,
+    );
+    expect(a.events.filter((e) => e.type === 'rallyPulse')).toHaveLength(0);
+  });
+
+  it('a watcher on a swing it does NOT trigger emits no rallyPulse', () => {
+    // Traveling Skald (d2_skald): onAttack → onTribeAttackBuffAttacker, gated to "ANOTHER friendly
+    // Dragon attacks". With no other Dragon on the board, Skald's own plain swing hits the
+    // `minion === self` early return and appends nothing — so it must mark nothing.
+    const a = run(
+      [{ cardId: 'd2_skald', attack: 2, health: 4 }],
+      [{ cardId: 'stray', attack: 1, health: 60 }],
+      1,
+    );
+    const skaldUid = a.initial.player[0]!.uid;
+    expect(pulses(a.events, skaldUid)).toHaveLength(0);
+  });
+
+  it('a watcher (Mineral Master) that plays Rubies on your tribe emits a rallyPulse when a friendly Rally fires', () => {
+    // Mineral Master (k_mineralmaster): onAttack → onRallyPlayRubiesTribe, gated to "the attacker has the
+    // RL keyword" (any friendly Rally, not just its own swing) → plays Rubies on friendly Kobolds. This is
+    // the economy WATCHER proof (frame surface), distinct from Demon Horse's self-rally (medallion surface).
+    // Packstrider (b2_packstrider) carries RL and is the Rally attacker; Chipwick Prospector (k_chipwick,
+    // kobold, no combat effects) is a Ruby-eligible tribe minion. Player attacks first (3 minions vs 1), so
+    // Packstrider — first in board order — swings on turn one.
+    const a = run(
+      [
+        { cardId: 'b2_packstrider', attack: 5, health: 50 },
+        { cardId: 'k_chipwick', attack: 1, health: 50 },
+        { cardId: 'k_mineralmaster', attack: 5, health: 50 },
+      ],
+      [{ cardId: 'stray', attack: 1, health: 200 }],
+      1,
+    );
+    const mmUid = a.initial.player[2]!.uid;
+    expect(pulses(a.events, mmUid).length).toBeGreaterThanOrEqual(1);
+  });
+});

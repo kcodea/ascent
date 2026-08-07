@@ -1153,8 +1153,25 @@ export function simulate(
           ? { ...(effect.params ?? {}), tribe: '' }
           : effect.params ?? {};
       // An Echo (onDeath) effect resolving marks its summons as Echo summons (Aftershocks / Undertow).
-      if (effect.on === 'onDeath') asEcho(minion.side, () => fn(ctx, minion, params, payload));
-      else fn(ctx, minion, params, payload);
+      if (effect.on === 'onDeath') {
+        asEcho(minion.side, () => fn(ctx, minion, params, payload));
+      } else if (effect.on === 'onAttack') {
+        // COSMETIC rallyPulse marker: if THIS on-attack effect appends anything to the log, it ACTED — a real
+        // rally. Splice a marker at the PRE-effect position (not appended) so it sits immediately after the
+        // `attack` event, inside the contiguous absorb run the UI folds into the wind-up — even when the effect's
+        // own first log line is a non-absorb `sc` (economy rallies: Demon Horse's "+N/+N Shop", Chorus Drake's
+        // "+N/+N Spell Power"). A watcher whose guard early-returns appends nothing → no marker. Strike damage is
+        // logged later in the clash, OUTSIDE this handler, so it can never mark. The UI classifier dedups per
+        // source, so a hypothetical multi-onAttack-effect unit pulsing twice collapses to one pulse.
+        const markStep = stepN;
+        const preLen = events.length;
+        fn(ctx, minion, params, payload);
+        if (events.length > preLen) {
+          events.splice(preLen, 0, { type: 'rallyPulse', source: minion.uid, step: markStep });
+        }
+      } else {
+        fn(ctx, minion, params, payload);
+      }
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {

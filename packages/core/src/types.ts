@@ -1083,7 +1083,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeChef' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1310,6 +1310,8 @@ export interface QuestCombatMods {
   runeEngraving?: boolean;
   runeUnderdog?: boolean;
   runeGemGolem?: boolean;
+  /** Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`. */
+  runeChef?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
   runeEnchantment?: boolean;
   /** Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3). */
@@ -1452,6 +1454,9 @@ export interface BoardMinion {
   taughtSpellId?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
+  /** Chef Gary Toast: the COMBINED stats this instance handed out last shop turn (Rune of the Chef spends it
+   *  as a combat Rally). `chefGranted` accrues during the current turn; the rollover moves it here. */
+  chefGrantedLast?: number;
   summonBonus?: number;
   /** Ritualist: accrued End-of-Turn Fodder/Imp grant (climbs by `step` each trigger) — carried into combat so the
    *  live card text shows its current per-tick value there too. */
@@ -1517,6 +1522,7 @@ export interface Minion {
   critChance?: number;
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
+  chefGrantedLast?: number;
   summonBonus: number;
   /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
   eotBonus?: number;
@@ -1618,6 +1624,7 @@ export interface MinionSnapshot {
   /** Tripled — so the UI can render the golden treatment in combat too. */
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
+  chefGrantedLast?: number;
   summonBonus?: number;
   /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
   eotBonus?: number;

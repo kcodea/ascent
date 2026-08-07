@@ -1460,6 +1460,18 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeConduit' },
     sets: ['set2'], // Rubies
   },
+  {
+    // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
+    // Per-instance, so two Chefs each pay their own tally.
+    id: 'rune_chef',
+    name: 'Rune of the Chef',
+    cost: 6,
+    epic: true,
+    text: 'Your **Chef Gary Toasts** gain **Rally:** buff a random Dwarf for the combined stats this granted last turn.',
+    previewCards: ['dw_chef'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeChef' },
+    sets: ['set2'], // Dwarves
+  },
 ];
 
 /**

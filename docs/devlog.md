@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of the Chef
+
+"Your Chef Gary Toasts gain **Rally:** buff a random Dwarf for the combined stats this granted last turn."
+Two halves, because the Chef grants in the SHOP and the rune pays in COMBAT.
+
+**Banking.** `onTribeSummonedBuffTribe` now sums what it hands out into a per-INSTANCE `chefGranted` —
+summed across every recipient, so a wide Dwarf board banks far more than a narrow one, which is what ties the
+payout to how well the Chef was actually played. Accrued **unconditionally**, not gated on owning the rune:
+arming it mid-run must not depend on a tally that was never kept. The turn rollover moves `chefGranted` into
+`chefGrantedLast` and resets it, so the Rally always spends last turn's work rather than the turn you are
+still shopping in.
+
+**Spending.** `chefGrantedLast` rides the instance into combat (the same route `summonBonus` takes) and is
+threaded through BOTH opponent-snapshot writers, so a served enemy Chef pays its owner's banked tally instead
+of nothing. On the Chef's attack the rune buffs a random friendly Dwarf by that figure; a Chef that banked
+nothing pays nothing rather than emitting a 0/0.
+
+**A test trap, twice in one day.** The shop test first read "2 plays bank the same as 1". Three copies of one
+Dwarf id had tripled into a golden mid-test and eaten the very plays being counted — the same trap the Rune of
+Transcription test hit this morning. Distinct ids, noted in the test both times.
+
+`typecheck` clean, lint at the 7-warning baseline, 4213 tests (6 new), `build:web` OK. No art yet.
+
 ## 2026-08-07 — Three more runes: the Badger, the Groveweaver, the Conduit
 
 **Rune of the Badger** (Basic, 5) is pure data — the `grant` reward already carried `grantKeywords`, so it is

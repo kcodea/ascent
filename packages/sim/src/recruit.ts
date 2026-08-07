@@ -1645,9 +1645,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (tribe && !isTribe(minion, tribe as never)) return;  // only the named tribe's plays count
     const mag = num(params.attack, 3) * gold(self);
     if (mag <= 0) return;
+    let handedOut = 0;
     for (const c of ctx.state.board) {
-      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), mag, mag);
+      if (!tribe || isTribe(c, tribe as never)) { addBuff(c, nameOf(self), mag, mag); handedOut += mag; }
     }
+    // Rune of the Chef reads this: the COMBINED stats this instance handed out, summed across every recipient
+    // (so a wide Dwarf board banks more than a narrow one). Per-INSTANCE, so two Chefs each keep their own.
+    // Accrued unconditionally — the rune only decides whether it is ever SPENT, so arming it mid-run must not
+    // depend on a tally that was never kept.
+    self.chefGranted = (self.chefGranted ?? 0) + handedOut;
   },
 
   /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which

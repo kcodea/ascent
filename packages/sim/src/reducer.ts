@@ -2817,6 +2817,14 @@ function advanceCombat(s: RunState): void {
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
+  // Chef Gary Toast: bank what each Chef handed out this turn, then reset — Rune of the Chef's Rally spends
+  // the BANKED figure, so the payout is always last turn's work rather than the turn you are still shopping in.
+  for (const c of s.board) {
+    if (c.chefGranted !== undefined || c.chefGrantedLast !== undefined) {
+      c.chefGrantedLast = c.chefGranted ?? 0;
+      c.chefGranted = 0;
+    }
+  }
   s.rubyCastsThisTurn = 0;
   s.gemscriptRubyUsed = false;
   // Rune of the Treasure Map: tick the countdown at each new shop; pay out and retire at zero.

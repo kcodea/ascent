@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of the Chef** — a Chef Gary Toast banks the combined stats it hands out each shop turn, then spends that total as a combat Rally onto a random Dwarf.
+
 - **Three more runes** — the Badger (a Badgington with Flurry and Ward), the Groveweaver (its summon grant also buffs itself), and the Conduit (every Ruby bounces one extra time).
 
 - **14 new Epic runes** — the Enchantment batch: spell payoffs (Enchantment, the Crown), Ruby engines (the Lapidary, the Gem Golem), combat swings (Dragonscale, Tempered Time, Savagery, the Crucible, the Herald), and shop shapers (the Deep, the Guiding Candle, the Muster, the Foundry, the Corrupted Tome).

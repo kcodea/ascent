@@ -1669,6 +1669,20 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs a random friendly DWARF by the combined stats it
+      // handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs each pay
+      // their own, and a Chef bought this turn has banked nothing and pays nothing.
+      {
+        const banked = attacker.chefGrantedLast ?? 0;
+        if (banked > 0 && modsFor(attacker.side).runeChef && !attacker.dead && attacker.cardId === 'dw_chef') {
+          const dwarves = boards[attacker.side].filter((m) => !m.dead && m.health > 0
+            && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || !!cards[m.cardId]?.universalTribe));
+          if (dwarves.length > 0) {
+            fireTrigger('runeChef', attacker.side);
+            ctx.buff(rng.pick(dwarves), banked, banked, attacker.uid);
+          }
+        }
+      }
       // Rune of Dragonscale: an attacking Dragon earns Ward (= Divine Shield), N times per combat. The
       // allowance is decremented on the GRANT, not the attack, so a Dragon that already has a shield does not
       // burn a charge — the sheet promises 3 shields, not 3 attempts.

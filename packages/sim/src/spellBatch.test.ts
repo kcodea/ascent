@@ -398,14 +398,14 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
       const st = offerBuyStats(s, o);
       expect([st.attack - def.attack, st.health - def.health], 'counted exactly once').toEqual([3, 4]);
     }
-    // A REROLL replaces the minions, so the new ones carry nothing — you rolled away the bodies that held
-    // the Rubies. "Permanently" on the card means the buff never wears off the minion it landed on (and
-    // travels with it into your hand), not that unrelated future minions inherit it.
+    // PERMANENTLY: the grant is banked and stamped onto every minion a later shop mints, so a refresh keeps
+    // the buff (owner 2026-08-06) — still as real per-offer Rubies, so Ruby Transfer can move those too.
     s = reduce(s, { type: 'roll' });
     for (const o of s.shop) {
       const def = CARD_INDEX[o.cardId]!;
-      if (def.spell || def.ruby) continue;
-      expect(o.buffs?.find((b) => b.source === 'Ruby'), 'a freshly rolled minion carries no Veinstorm Rubies').toBeUndefined();
+      if (def.spell || def.ruby || def.keywords.includes('FD')) continue;
+      expect(o.buffs?.find((b) => b.source === 'Ruby'), 'a freshly rolled minion carries the banked grant').toMatchObject({ attack: 3, health: 4 });
+      expect(offerBuyStats(s, o).attack - def.attack, 'counted exactly once').toBe(3);
     }
   });
 

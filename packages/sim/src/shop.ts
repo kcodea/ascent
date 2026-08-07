@@ -3,6 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { POOL_QUANTITIES, maxTierFor } from './config';
 import type { RunState } from './state';
+import { stampVeinstormRubies } from './recruit';
 
 /** Fallback copy count for a tier not listed in POOL_QUANTITIES (defensive — every tier 1–7 is set). */
 const POOL_FALLBACK = 6;
@@ -110,6 +111,13 @@ export function rollShop(state: RunState): void {
   // Attachment Issues: price EVERY Magnetic offer (naturally rolled too, not just the forced one) at the deal.
   if (state.attachmentCost !== undefined) {
     for (const o of offers) if (o.cost === undefined && CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = state.attachmentCost;
+  }
+  // VEINSTORM (owner 2026-08-06): every minion in a refreshed shop carries the banked Ruby grant, stamped as
+  // a REAL per-offer Ruby buff at mint. Kept offers (Layaway) already hold theirs and must not be stamped
+  // twice, which is what `kept` excludes here.
+  const vs = state.veinstormRubies;
+  if (vs && (vs.atk > 0 || vs.hp > 0)) {
+    for (const o of offers) if (!kept.includes(o)) stampVeinstormRubies(o, vs.atk, vs.hp);
   }
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but

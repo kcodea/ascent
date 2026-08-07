@@ -1064,6 +1064,11 @@ export interface RunState {
    *  single copy. Threaded into combat via `questCombatMods.flagCopies` so a duplicated BOOLEAN rune fires
    *  its effect twice — amount-carrying flags instead accumulate their amount. See the `combatFlag` case. */
   flagCopies?: Record<string, number>;
+  /** Veinstorm's banked grant: the Ruby stats every FUTURE tavern minion is stamped with when it is minted
+   *  (owner 2026-08-06: "veinstorm is still a buff to every shop minion — every time i refresh the shop, it
+   *  should have that buff"). Deliberately NOT an aura folded at read time: each offer gets a REAL per-offer
+   *  `Ruby` buff at mint, so Ruby Transfer can steal it and nothing has to be un-double-counted anywhere. */
+  veinstormRubies?: { atk: number; hp: number };
   runeSummit?: boolean;
   /** Rune of Contraband: first Ruby cast each turn → a random Ale; first Ale cast each turn → a Ruby. */
   runeContraband?: boolean;

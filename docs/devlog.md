@@ -386,6 +386,36 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Veinstorm persists across refreshes; the Gemheart Golem preview reads its owner's Rubies
+
+Two follow-ups after the owner confirmed the functionality works.
+
+**1. "Veinstorm is still a buff to every shop minion — every time I refresh the shop, it should have that
+buff."** Right, and the previous cut lost that when it dropped the run-wide channel. The synthesis: the cast
+BANKS its grant in `veinstormRubies`, and that bank is read at exactly one place — the moment a shop offer is
+MINTED (`rollShop`) — to stamp the new minion with a real per-offer `Ruby` buff.
+
+That keeps both properties that fought each other across three attempts: every offer, forever, carries the
+grant (it is genuinely permanent), AND the grant is a real per-offer buff rather than an aura, so Ruby
+Transfer can steal it and no reader has to un-double-count anything. The bank is never folded into a stat
+read; `stampVeinstormRubies` is shared by the cast and the roll so the two cannot disagree, and Layaway's
+kept offers are excluded from the re-stamp (they already hold theirs).
+
+**2. "The Gemheart Golem preview should show the stats it will have from that unit."** The referenced-card
+popup printed the token's flat 1/1, which is a lie about what you get — the Golem's stats come from the
+Rubies on the minion summoning it. The popup now sizes it exactly as `deathrattleSummonRubyStats` does:
+`(1 + owner's Ruby tally) × the owner's gild`, with the printed 1/1 as its base so the Ruby-fed gain reads
+green. The owner card is threaded into the popup builder, so a Carver in hand, on board or in the SHOP each
+preview their own Golem correctly.
+
+Verified live: 3 Veinstorms → both offers carry `Ruby 3/3` → REFRESH → all three freshly rolled minions
+carry `Ruby 3/3` from the bank (`veinstormRubies {atk:3,hp:3}`), each counted exactly once.
+
+NOT verified live: the Golem popup itself — it is portalled and hover-timer gated, so synthetic pointer
+events don't raise it. The data path is unit-covered and typechecked; the owner should eyeball one hover.
+
+Gates: typecheck / lint (7-warning baseline) / 4056 tests / harness determinism / build:web.
+
 ## 2026-08-06 — Veinstorm, third time: it just plays Rubies onto the shop (owner: "not built correctly at all")
 
 Two clever designs shipped and both were wrong. The owner's correction is the spec: "veinstorm should

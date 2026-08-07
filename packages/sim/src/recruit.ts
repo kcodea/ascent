@@ -260,6 +260,16 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
 
 /** Buff a TAVERN OFFER (Apples / Fortify / Fried Circuits / next-shop) — bumps its `atk`/`hp` AND records the
  *  named source in `buffs`, so the inspect + the bought minion attribute it correctly (not a generic label). */
+/** Give one tavern offer `attack`/`health` worth of Veinstorm RUBIES. Minions only — a spell/Ruby offer has
+ *  no stats to carry, and Fodder is excluded exactly as it was under the old tavern channel (its buffs ride
+ *  the run-wide enchant instead). Shared by the cast and by the shop roll so the two can never disagree. */
+export function stampVeinstormRubies(offer: ShopCard, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  const d = CARD_INDEX[offer.cardId];
+  if (!d || d.spell || d.ruby || d.keywords.includes('FD')) return;
+  addOfferBuff(offer, 'Ruby', attack, health);
+}
+
 export function addOfferBuff(offer: ShopCard, source: string, attack: number, health: number): void {
   if (attack === 0 && health === 0) return;
   offer.atk = (offer.atk ?? 0) + attack;
@@ -4038,13 +4048,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const a = 1 + rb.attack;
     const h = 1 + rb.health;
-    for (const offer of ctx.state.shop) {
-      const d = CARD_INDEX[offer.cardId];
-      // Minions only: a spell/Ruby offer has no stats to carry, and Fodder is excluded exactly as it was
-      // under the old tavern channel (its buffs ride the run-wide enchant instead).
-      if (!d || d.spell || d.ruby || d.keywords.includes('FD')) continue;
-      addOfferBuff(offer, 'Ruby', a, h);
-    }
+    for (const offer of ctx.state.shop) stampVeinstormRubies(offer, a, h);
+    // BANK it so every future shop is stamped too — "permanently", and the owner's "every time i refresh the
+    // shop, it should have that buff". The bank is only ever READ at mint time (see `rollShop`), never folded
+    // into a stat read, which is what keeps each offer's Rubies real, stealable and counted exactly once.
+    const bank = (ctx.state.veinstormRubies ??= { atk: 0, hp: 0 });
+    bank.atk += a;
+    bank.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you

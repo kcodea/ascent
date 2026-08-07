@@ -146,15 +146,21 @@ describe("the owner's combo: Veinstorm → Ruby Transfer → Gemheart (2026-08-0
     expect(rubyOf(s.shop.find((o) => o.uid === 'o1')!).a, 'the donor is stripped').toBe(0);
   });
 
-  it("a REROLLED minion carries none — you rolled away the bodies that held the Rubies", () => {
-    let s = base({ shop: [offer('o1', 'pack')], hand: [body('vs', 'veinstorm', 0, 1)], embers: 40 });
+  it("a REFRESHED shop is stamped too — Veinstorm buffs EVERY shop minion, not just the ones present", () => {
+    // Owner 2026-08-06: "veinstorm is still a buff to every shop minion. therefore, every time i refresh the
+    // shop, it should have that buff." The grant is BANKED and stamped onto each newly minted offer as a real
+    // per-offer Ruby buff — so a fresh minion carries it AND Ruby Transfer can still steal it.
+    let s = base({ shop: [offer('o1', 'pack')], hand: [body('vs', 'veinstorm', 0, 1)], embers: 99 });
     s = reduce(s, { type: 'play', uid: 'vs' });
-    expect(rubyOf(s.shop[0]!).a, "the offer present at cast time was Rubied").toBeGreaterThan(0);
+    const grant = rubyOf(s.shop[0]!).a;
+    expect(grant, 'the offer present at cast time was Rubied').toBeGreaterThan(0);
     s = reduce(s, { type: 'roll' });
-    for (const o of s.shop) {
+    const minions = s.shop.filter((o) => { const d = CARD_INDEX[o.cardId]!; return !d.spell && !d.ruby && !d.keywords.includes('FD'); });
+    expect(minions.length, 'the reroll produced minions to check').toBeGreaterThan(0);
+    for (const o of minions) {
+      expect(rubyOf(o).a, 'a freshly rolled minion carries the banked grant').toBe(grant);
       const d = CARD_INDEX[o.cardId]!;
-      if (d.spell || d.ruby) continue;
-      expect(rubyOf(o).a, "a fresh minion was never Rubied").toBe(0);
+      expect(offerBuyStats(s, o).attack, 'counted exactly once').toBe(d.attack + grant);
     }
   });
 });

@@ -44,6 +44,11 @@ const NOT_A_METER: Record<string, string> = {
   q_motherlode: 'the 2 is how many Kobolds a Ruby copies onto',
   rune_scales: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_profit_sharing: 'fires on EVERY Gold gain; the digits are the +3/+3 grant',
+  rune_vault: 'a one-shot latch (reach Tier 5) — the shop-tier gem IS the meter',
+  rune_wheel: 'the refresh accrual already prints live on every shop offer via shopBuffOnRefresh',
+  rune_flagship: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
+  rune_brew: 'fires on EVERY Gold spend; the digits are the +4/+3 grant',
+  rune_golden_splinter: 'a one-shot latch (reach 15 Gold) — the Gold counter IS the meter',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */

@@ -960,6 +960,17 @@ export type QuestReward =
   | { kind: 'runeReplication' }
   // Rune of Refrain: after your third Shout minion each turn, the first Shout you played returns to your hand.
   | { kind: 'runeRefrain' }
+  | { kind: 'runeCoffers' } // End of Turn: max Gold +1
+  | { kind: 'runeVault' } // 10 Gold at shop tier 5
+  | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
+  | { kind: 'runeLorekeeping' } // targeted Shop spells give the target an extra +4/+4
+  | { kind: 'runeThrift' } // stat-granting Shop spells cost 2 less
+  | { kind: 'runeFlagship' } // per Shop-spell cast: Dwarves +2/+2
+  | { kind: 'runeBrew' } // per Gold spend: a random friendly Dwarf +4/+3
+  | { kind: 'runeEvolution'; tier: number } // transform the board into random minions of `tier`
+  | { kind: 'runeTranscription'; count: number } // the next N buys each come with a free copy
+  | { kind: 'runeTreasureMap'; turns: number; gold: number } // countdown payout
+  | { kind: 'runeGoldenSplinter'; at: number; tier: number } // once: golden T`tier` minion at `at` Gold
   // Rune of Transfusion (Epic): whenever a Demon Consumes Fodder, your leftmost minion also gains its stats.
   | { kind: 'runeTransfusion' }
   // Rune of Endless Appetite (Epic): the first Fodder Consume each turn — all your other Demons Consume a copy.
@@ -1062,7 +1073,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1286,6 +1297,8 @@ export interface QuestCombatMods {
   runeRebirth?: boolean;
   /** Rune of Aftershocks: minions summoned by your Echoes (Deathrattles) gain +4/+4. */
   runeAftershocks?: boolean;
+  runeEngraving?: boolean;
+  runeUnderdog?: boolean;
   /** Rune of the Undertow: minions summoned by your Echoes (Deathrattles) attack immediately. */
   runeUndertow?: boolean;
   /** Rune of the Mirror March: at Start of Combat, if your board has room, summon a copy of your leftmost

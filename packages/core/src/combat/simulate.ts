@@ -2220,6 +2220,16 @@ export function simulate(
         flushImmediateAttacks();
       }
     }
+    if (rmods.runeUnderdog) {
+      // Rune of the Underdog: double the stats of the TWO lowest-Attack living minions (ties by board order,
+      // so the pick is a seating decision rather than RNG — Rune of Rallying's rule).
+      const lowest = boards[rside].filter((m) => !m.dead && m.health > 0)
+        .slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
+      if (lowest.length > 0) {
+        nextStep(); fireTrigger('runeUnderdog', rside);
+        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'runeUnderdog');
+      }
+    }
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {
@@ -2379,6 +2389,13 @@ export function simulate(
     if (!lead) return;
     nextStep();
     fireFreeRally(lead, side);
+  });
+  runeAvenge(3, 'runeEngraving', (m) => !!m.runeEngraving, (side) => {
+    // Rune of Engraving: the side's Rubies permanently give +1 more Health. Routed through gainRubyBonus —
+    // the same channel Veinbreaker uses — so the "+0/+1 Ruby Power" narration, the live flourish and the
+    // permanent carry-back all ride for free.
+    nextStep();
+    ctx.gainRubyBonus(0, 1, side, undefined);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
     // "PLAY 2 Rubies", so it goes through the real Ruby-play primitive — which folds in the side's Ruby

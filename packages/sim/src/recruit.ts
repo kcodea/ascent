@@ -985,6 +985,19 @@ export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: n
 export function gainGold(state: RunState, amount: number): void {
   if (amount <= 0) return;
   state.embers += amount;
+  // Rune of the Golden Splinter: the FIRST time Gold reaches the mark, a random Golden T`tier` minion — then
+  // the rune is spent (cleared), so it can never pay twice.
+  const gs = state.runeGoldenSplinter;
+  if (gs && state.embers >= gs.at) {
+    state.runeGoldenSplinter = undefined;
+    const pool = poolOf(state).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === gs.tier);
+    if (pool.length > 0 && state.hand.length < handCap(state)) {
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      state.hand.push({ uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe, attack: pick.attack * 2, health: pick.health * 2, keywords: [...pick.keywords], golden: true });
+    }
+  }
   const ps = state.runeProfitSharing;
   if (ps) {
     // Buffs the tribe wherever it is (board + hand), like every other "+X/+X to your <tribe>" run effect.
@@ -995,10 +1008,14 @@ export function gainGold(state: RunState, amount: number): void {
 }
 
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
-export function spellCostReduction(state: RunState): number {
+export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
+  // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change),
+  // and "gives stats" = the buff family — the same set the combat resolver calls the stat family.
+  if (state.runeThrift && def?.effects.some((e) => e.on === 'cast' &&
+    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do))) n += 2;
   return n;
 }
 
@@ -4697,6 +4714,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
   advanceRuneThresholds(state, 'gold', amount);
+  // Rune of the Brew: every SPEND (however large) pours one +4/+3 onto a seeded-random friendly Dwarf.
+  if (state.runeBrew) {
+    const dwarves = state.board.filter((c) => isTribe(c, 'dwarf'));
+    if (dwarves.length > 0) {
+      const rng = makeRng(state.rngCursor);
+      const pick = dwarves[rng.int(dwarves.length)]!;
+      state.rngCursor = rng.state();
+      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Brew', 4, 3));
+    }
+  }
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -6029,6 +6056,11 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
   // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
+  // Rune of Lorekeeping: a Shop spell cast ON a minion gives that minion an extra +4/+4 — any targeted spell,
+  // not just stat ones (the sheet says "on a minion", so a targeted Gild or Runefire counts too).
+  if (target && state.runeLorekeeping && state.board.includes(target) && !spellDef.ruby) {
+    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', 4, 4));
+  }
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
   for (const effect of spellDef.effects) {
@@ -6126,6 +6158,12 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   if (state.runeKindling && kindlingTarget) {
     captureBuffFx(state, undefined, 'spell', () => addBuff(kindlingTarget, 'Rune of Kindling', 3, 3));
   }
+  // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
+  if (state.runeFlagship) {
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2, 2);
+    });
+  }
   // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand) — descends onto each affected board Dragon.
   if (state.runeScales) {
     captureBuffFx(state, undefined, 'spell', () => {
@@ -6181,6 +6219,10 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
+  // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
+  // that reads maxEmbers this tick already sees the raise.
+  if (state.runeCoffers) state.maxEmbers += 1;
+
   const ctx = makeContext(state);
   const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times
   let fires = 0; // End-of-Turn effect TRIGGERS this turn (feeds Parliament of Flame's "Trigger N End-of-Turn effects")

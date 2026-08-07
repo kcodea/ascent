@@ -749,6 +749,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.dupeUsedThisTurn = true;
         conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
       }
+      // Rune of Transcription: the next N bought minions each come with a free extra copy — counts DOWN and
+      // retires at 0. Stacks with the first-buy dupe (they are separate purchases of the same idea).
+      if ((s.runeTranscription ?? 0) > 0 && s.hand.length < handCap(s)) {
+        s.runeTranscription = (s.runeTranscription ?? 0) - 1;
+        if (s.runeTranscription <= 0) s.runeTranscription = undefined;
+        conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
+      }
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
@@ -1406,6 +1413,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
       s.tier += 1;
+      // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
+      if (s.runeVault && s.tier >= 5) {
+        s.runeVault = undefined;
+        gainGold(s, 10);
+      }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
     }
@@ -2791,6 +2803,16 @@ function advanceCombat(s: RunState): void {
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
   s.rubyCastsThisTurn = 0;
   s.gemscriptRubyUsed = false;
+  // Rune of the Treasure Map: tick the countdown at each new shop; pay out and retire at zero.
+  if (s.runeTreasureMap) {
+    const tm = { ...s.runeTreasureMap, turns: s.runeTreasureMap.turns - 1 };
+    if (tm.turns <= 0) {
+      gainGold(s, tm.gold);
+      s.runeTreasureMap = undefined;
+    } else {
+      s.runeTreasureMap = tm;
+    }
+  }
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
@@ -3325,6 +3347,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeFinality') s.questFlags.runeFinality = add(s.questFlags.runeFinality, r.amount ?? 7); // amount = Warded Imps summoned
       else if (r.flag === 'runeCinderLedger') s.questFlags.runeCinderLedger = add(s.questFlags.runeCinderLedger, r.amount ?? 6); // amount = the Imp improve
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = add(s.questFlags.runeGemstorm, r.amount ?? 2); // amount = Rubies per Kobold
+      else if (r.flag === 'runeEngraving') s.questFlags.runeEngraving = true;
+      else if (r.flag === 'runeUnderdog') s.questFlags.runeUnderdog = true;
       else if (r.flag === 'runeBloodAndCoin') s.questFlags.runeBloodAndCoin = add(s.questFlags.runeBloodAndCoin, r.amount ?? 4); // amount = Gold banked
       else if (r.flag === 'runeWildHunt') s.questFlags.runeWildHunt = add(s.questFlags.runeWildHunt, r.amount ?? 1);        // amount = Health per Beast attack (the rune authors 1 since the 2026-08-02 rebalance; the old ?? 3 fallback was a trap)
       else if (r.flag === 'runeRemains') s.questFlags.runeRemains = add(s.questFlags.runeRemains, r.amount ?? 3);           // amount = Shop buff per 5 summons
@@ -3593,6 +3617,46 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeReplication':
       s.runeReplication = true; // Rune of Replication: the first Attachment each turn copies onto the leftmost Mech
       break;
+    case 'runeCoffers': s.runeCoffers = true; break;
+    case 'runeVault': s.runeVault = true; break;
+    case 'runeAltar': {
+      // Sell the ENTIRE board through the sell case's own rituals: the shared value helper, then the on-sell
+      // and minion-sold notifications, so Hoard Whelp / Voicekeeper behave exactly as a manual sell. The
+      // 3-Gold premium lands once per body on top of the normal sell value.
+      const toSell = [...s.board];
+      for (const sold of toSell) {
+        const i = s.board.findIndex((c) => c.uid === sold.uid);
+        if (i < 0) continue; // an on-sell effect removed it already
+        s.board.splice(i, 1);
+        gainGold(s, sellValueWithBonus(sold, s) + (r.goldPer ?? 3));
+        if (s.nextSellBonus) s.nextSellBonus = 0;
+        fireOnSell(s, sold);
+        s.soldThisTurn = [...(s.soldThisTurn ?? []), sold.cardId];
+        fireOnMinionSold(s, sold);
+      }
+      break;
+    }
+    case 'runeLorekeeping': s.runeLorekeeping = true; break;
+    case 'runeThrift': s.runeThrift = true; break;
+    case 'runeFlagship': s.runeFlagship = true; break;
+    case 'runeBrew': s.runeBrew = true; break;
+    case 'runeEvolution': {
+      // Transform each board minion into a random minion of `tier` from the run's pinned pool. Buffs and
+      // golden do NOT carry — it is a transform, the same contract as spellTransformSameTier.
+      const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === (r.tier ?? 4));
+      if (pool.length > 0) {
+        const rng = makeRng(s.rngCursor);
+        s.board = s.board.map((c) => {
+          const pick = pool[rng.int(pool.length)]!;
+          return { uid: c.uid, cardId: pick.id, tribe: pick.tribe, attack: pick.attack, health: pick.health, keywords: [...pick.keywords], golden: false };
+        });
+        s.rngCursor = rng.state();
+      }
+      break;
+    }
+    case 'runeTranscription': s.runeTranscription = (s.runeTranscription ?? 0) + (r.count ?? 2); break;
+    case 'runeTreasureMap': s.runeTreasureMap = { turns: r.turns ?? 2, gold: r.gold ?? 10 }; break;
+    case 'runeGoldenSplinter': s.runeGoldenSplinter = { at: r.at ?? 15, tier: r.tier ?? 5 }; break;
     case 'runeRefrain':
       s.runeRefrain = true; // Rune of Refrain: your 3rd Shout each turn returns the turn's first Shout to hand
       break;
@@ -3875,6 +3939,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeWarden: f?.runeWarden, // Rune of the Warden: SoC summon a Spear Warden if there's room
     runeRebirth: f?.runeRebirth, // Rune of Rebirth: your minions Rise with full Health
     runeAftershocks: f?.runeAftershocks, // Rune of Aftershocks: Echo summons gain +4/+4
+    runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
+    runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
     runeUndertow: f?.runeUndertow, // Rune of the Undertow: Echo summons attack immediately
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop

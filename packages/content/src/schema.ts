@@ -532,7 +532,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeShopMinion',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -578,6 +578,17 @@ z.object({ kind: z.literal('shopBuff'), attack: z.number().int(), health: z.numb
 z.object({ kind: z.literal('shopBuffPerShouts'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('shopBuffOnRefresh'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('spellCost'), cost: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeCoffers') }).strict(),
+z.object({ kind: z.literal('runeVault') }).strict(),
+z.object({ kind: z.literal('runeAltar'), goldPer: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeLorekeeping') }).strict(),
+z.object({ kind: z.literal('runeThrift') }).strict(),
+z.object({ kind: z.literal('runeFlagship') }).strict(),
+z.object({ kind: z.literal('runeBrew') }).strict(),
+z.object({ kind: z.literal('runeEvolution'), tier: z.number().int().min(1).max(7) }).strict(),
+z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'shout']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),

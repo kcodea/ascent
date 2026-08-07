@@ -758,24 +758,14 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(spells).toHaveLength(2);
   });
 
-  it('Rune of the Matriarch: Runebloom Matriarch fires TWICE per Shop spell', () => {
-    const beastBoard = (): RunState['board'] => [
-      { uid: 'rb', cardId: 'b2_runebloom', tribe: 'beast', attack: 5, health: 9, keywords: [], golden: false },
-    ];
-    const cast = (runeOn: boolean): RunState => {
-      let s: RunState = { ...createRun(11), phase: 'recruit', embers: 10, runeMatriarch: runeOn || undefined,
-        board: beastBoard(), hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
-      s = reduce(s, { type: 'play', uid: 'sp' });
-      return s;
-    };
-    // The Matriarch's per-cast payout is 3× (+3/+3) onto Beasts — itself the only Beast here, so its own
-    // stat gain measures the trigger count directly: doubled trigger = doubled gain over baseline.
-    // Growth itself adds +1 to the board — subtract it, or the doubling assertion double-counts the spell.
-    const base = cast(false).board[0]!;
-    const doubled = cast(true).board[0]!;
-    const matriarchGain = base.attack - 5 - 1;
-    expect(matriarchGain).toBeGreaterThan(0); // fixture: the trigger fired at all
-    expect(doubled.attack - 5 - 1).toBe(matriarchGain * 2);
+  it('Rune of the Matriarch stays wired after the 2026-08-07 Runebloom rework', () => {
+    // The rune used to be measured HERE, in the shop: Runebloom's payout was a recruit-phase per-cast proc, so
+    // "triggers twice" doubled a stat gain you could read off the board. The rework moved Runebloom's trigger
+    // into combat (Start of Combat: your Shop Spells cast an extra time), so the rune now doubles that grant
+    // and is measured in `core/src/combat/combatSpellCast.test.ts`. What remains checkable here is the wiring.
+    const s = buyRune('rune_matriarch', 10);
+    expect(s.runeMatriarch, 'the rune no longer arms its flag').toBe(true);
+    expect(CARD_INDEX['b2_runebloom']!.effects.some((e) => e.do === 'scGrantSpellCastExtra')).toBe(true);
   });
 
   it('Rune of Slaying: every 6 kills banks a minion of the dominant type (owner change 2026-07-31)', () => {

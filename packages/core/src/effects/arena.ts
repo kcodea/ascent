@@ -426,18 +426,17 @@ export const ARENA_EFFECTS = {
     arena.grantUndeadAttackAura((typeof params.attack === 'number' ? params.attack : 2) * (arena.self.golden ? 2 : 1));
   },
 
-  /** Runebloom / Runekeg — whenever you cast a Shop spell: give `count` random minions of `tribe` +atk/+hp
-   *  (golden doubles; `excludeSelf` for "other"). Runebloom repeats under Rune of the Matriarch — combat's
-   *  legacy behaviour, carried by the adapter's `matriarchReps` (the shop returns 1, as it always did). */
+  /** Runekeg — whenever you cast a Shop spell: give `count` random minions of `tribe` +atk/+hp (golden
+   *  doubles; `excludeSelf` for "other"). Runebloom Matriarch used to share this and repeat under Rune of the
+   *  Matriarch; its 2026-08-07 rework moved it to `scGrantSpellCastExtra`, which now carries that rune. */
   onSpellCastBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
     const tribe = typeof params.tribe === 'string' ? params.tribe : '';
     const a = (typeof params.attack === 'number' ? params.attack : 3) * g;
     const h = (typeof params.health === 'number' ? params.health : 3) * g;
     if (a <= 0 && h <= 0) return;
-    const reps = arena.self.cardId === 'b2_runebloom' ? arena.matriarchReps() : 1;
     const rng = arena.rng();
-    for (let r = 0; r < reps; r++) {
+    {
       const pool = arena.friends().filter((m) =>
         (!tribe || arena.isTribe(m, tribe)) && !(params.excludeSelf && m.uid === arena.self.uid));
       if (pool.length === 0) return;

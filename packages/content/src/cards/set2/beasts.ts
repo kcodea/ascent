@@ -183,17 +183,20 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Avenge (4):** gain **Ward** and attack immediately **twice**.',
   },
   {
-    // The top-end spell payoff: every cast rains +3/+3 onto three Beasts. Rewards a spell-heavy Beast board.
+    // The top-end spell payoff. Owner rework 2026-08-07: instead of paying out PER cast, it multiplies the
+    // casts themselves — every Shop Spell your board casts mid-fight resolves an extra time. It reads the
+    // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.
+    // Start of Combat, so the grant is locked in and does not retract if the Matriarch dies.
     id: 'b2_runebloom',
     name: 'Runebloom Matriarch',
     tribe: 'beast',
     tier: 6,
     attack: 5,
     health: 9,
-    keywords: [],
-    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'beast', count: 3, attack: 3, health: 3 } }],
-    text: 'Whenever you cast a Shop spell, give 3 Beasts **+3/+3**.',
-    goldenText: 'Whenever you cast a Shop spell, give 3 Beasts **+6/+6**.',
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scGrantSpellCastExtra', params: { extra: 1 } }],
+    text: 'Your **Shop Spells** cast an extra time in combat.',
+    goldenText: 'Your **Shop Spells** cast **2** extra times in combat.',
   },
   {
     // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both

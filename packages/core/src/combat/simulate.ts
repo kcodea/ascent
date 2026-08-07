@@ -139,6 +139,10 @@ export function simulate(
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: playerState.spellsCast, enemy: 0 };
   let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
+  /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
+   *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
+   *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
+  const spellCastExtra: Record<Side, number> = { player: 0, enemy: 0 };
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
   const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
@@ -806,6 +810,8 @@ export function simulate(
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
+    spellCastRepsFor: (side) => 1 + spellCastExtra[side],
+    grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,

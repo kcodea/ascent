@@ -37,6 +37,29 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  *  turn every downstream stat into NaN. Set far past any reachable board strength so it never binds in play. */
 const RALLY_SPREAD_CAP = 1_000_000_000;
 
+/**
+ * THE combat spell-cast path. Every minion that "casts a Shop Spell" mid-fight must come through here.
+ *
+ * Before this existed (owner report 2026-08-07) each caster hand-rolled the same three lines — decide how many
+ * times to cast, call `ctx.castSpell`, apply the effect — in eight separate places. That is why "your Shop
+ * Spells cast an extra time in combat" had nowhere to hook: there was no single owner of the repetition count.
+ * Now there is. `body` is the spell's actual effect, run once per cast.
+ *
+ * The count is `golden x (1 + the side's granted extras)`. Golden has always meant TWO GENUINE CASTS rather
+ * than one doubled cast — so in-combat spell reactions (Guel, Forsaken Weaver, Spirit Pup, the `spellsCast`
+ * carry-back) fire per cast, exactly as a hand-played "twice" resolves. Extras stack on top the same way.
+ *
+ * NOT routed through here: Rune of the Spellstone counting a RUBY as a cast (see `playRubyOn`). A Ruby is not
+ * a Shop Spell, so a "your Shop Spells cast again" grant must not multiply it.
+ */
+export function castInCombat(ctx: CombatContext, self: Minion, body: () => void): void {
+  const reps = mul(self) * Math.max(1, ctx.spellCastRepsFor?.(self.side) ?? 1);
+  for (let i = 0; i < reps; i++) {
+    ctx.castSpell(self.side);
+    body();
+  }
+}
+
 /** Exported for the Rune of Gemstorm handler in simulate.ts — the ONE Ruby-play primitive. Anything that
  *  "plays a Ruby" in combat must come through here: a hand-rolled `ctx.buff` with Ruby-shaped stats misses
  *  the Deepdelve multiplier, the target's `onRubyPlayed` listeners, the Spellstone cast-count and the
@@ -239,12 +262,14 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
     activeTribes: () => ctx.activeTribesFor(self.side),
     castTribeAttackSpell: (tribe, amount) => {
-      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
-      const sp = ctx.spellPowerFor(self.side);
-      const a = amount + sp.attack;
-      const h = sp.health;
-      ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+      // One cast per repetition, so an extra-cast grant stacks the aura again rather than doubling one grant.
+      castInCombat(ctx, { ...self, golden: false } as Minion, () => {
+        const sp = ctx.spellPowerFor(self.side);
+        const a = amount + sp.attack;
+        const h = sp.health;
+        ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+      });
     },
     damageAll: (amount) => {
       for (const sideKey of ['player', 'enemy'] as Side[]) {
@@ -531,11 +556,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     // Golden "casts Growth twice" = TWO genuine casts (mul = 2), not one doubled cast — so it procs in-combat
     // spell reactions (Guel, transforms, spell-count payoffs) twice, matching how a hand-played "twice" resolves.
-    for (let i = 0; i < mul(self); i++) {
+    castInCombat(ctx, self, () => {
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);
-      ctx.castSpell(self.side);
-    }
+    });
   },
 
   /** Hoardbreaker Drake (Rally): on its OWN attack, "cast Growth" — the Slaughter twin (onKillCastSpell) on the
@@ -551,11 +575,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(eff.params?.attack, 0) + sp.attack;
     const h = num(eff.params?.health, 0) + sp.health;
     if (a <= 0 && h <= 0) return;
-    for (let i = 0; i < mul(self); i++) { // golden = two genuine casts (see onKillCastSpell)
+    castInCombat(ctx, self, () => { // golden = two genuine casts (see onKillCastSpell)
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);
-      ctx.castSpell(self.side);
-    }
+    });
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
@@ -567,8 +590,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (friends.length === 0) return;
     const pick = randomStatSpellBuff(ctx, mul(self), self.side);
     if (!pick) return;
-    ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // cast the stat spell on a random friend
-    ctx.castSpell(self.side); // proc in-combat spell reactions (Guel, Forsaken Weaver, Spirit Pup…) + count it
+    // `randomStatSpellBuff` already folded the golden multiplier into `pick`, so the cast wrapper must not
+    // apply it a second time — pass a non-golden self and let it own only the extra-cast repetitions.
+    castInCombat(ctx, { ...self, golden: false } as Minion, () => {
+      ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // the stat spell on a random friend
+    });
     ctx.grantToHand(pick.spellId, self.side, self.uid); // add a copy of THAT spell to your hand
   },
 
@@ -586,8 +612,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
     const pick = randomStatSpellBuff(ctx, mul(self), self.side);
     if (!pick) return;
-    ctx.buff(target, pick.attack, pick.health, self.uid);
-    ctx.castSpell(self.side); // a real spell cast — proc in-combat spell reactions + count it
+    // As above: `pick` already carries the golden scaling.
+    castInCombat(ctx, { ...self, golden: false } as Minion, () => {
+      ctx.buff(target, pick.attack, pick.health, self.uid);
+    });
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
@@ -1548,10 +1576,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const sp = ctx.spellPowerFor(self.side); // per-side: an enemy Taragosa scales with the OPPONENT's spell power
     const a = num(params.attack, 3) + sp.attack;
     const h = num(params.health, 4) + sp.health;
-    for (let r = 0; r < mul(self); r++) {
-      ctx.castSpell(self.side); // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement
+    // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement.
+    castInCombat(ctx, self, () => {
       for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
-    }
+    });
   },
 
   /** Runebloom Matriarch / Runekeg (combat half — owner audit 2026-08-02): a spell cast MID-FIGHT
@@ -1793,6 +1821,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     while (ctx.living(self.side).length < 7 && guard++ < 7) {
       ctx.summon(self.side, ctx.getCard(ctx.rng.pick(pool)), self.uid);
     }
+  },
+
+  /**
+   * Runebloom Matriarch — Start of Combat: your Shop Spells cast `extra` additional times for the rest of the
+   * fight. Golden doubles the extra. Every combat cast routes through `castInCombat`, so this reaches all of
+   * them at once (Growth, Lantern, the Rally/Slaughter casters, the random stat spells) rather than a list
+   * someone has to remember to extend.
+   *
+   * Start of Combat, not an aura, so the grant is LOCKED IN: killing the Matriarch mid-fight does not retract
+   * casts already promised, which is the same contract every other Start-of-Combat mode installs. It also
+   * keeps the count a plain number rather than a per-cast board scan.
+   */
+  scGrantSpellCastExtra: (ctx, self, params) => {
+    // Rune of the Matriarch ("your Runebloom Matriarchs trigger twice") lands here now that the trigger IS
+    // this grant — twice the trigger is twice the extra casts. The card-id check is deliberate and matches
+    // the rune's own wording; it moved from `onSpellCastBuffRandomTribe`, whose Runebloom branch is now dead.
+    const runeReps = self.cardId === 'b2_runebloom' ? ctx.matriarchRepsFor(self.side) : 1;
+    const extra = num(params.extra, 1) * mul(self) * runeReps;
+    if (extra <= 0) return;
+    ctx.grantSpellCastExtra?.(self.side, extra);
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: your Shop Spells cast ${extra} extra time${extra === 1 ? '' : 's'}` });
   },
 
   // --- Mechs (Divine Shield walls + shield-break payoffs) ---
@@ -2818,10 +2867,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const sp = ctx.spellPowerFor(self.side);
     const a = num(params.attack, 2) + sp.attack;
     const h = num(params.health, 2) + sp.health;
-    for (let r = 0; r < mul(self); r++) {
-      ctx.castSpell(self.side); // a REAL cast — fires Guel / Groveweaver / the spellsCast carry-back
+    // A REAL cast — fires Guel / Groveweaver / the spellsCast carry-back.
+    castInCombat(ctx, self, () => {
       ctx.gainTavernBuy(a, h, self.side, self.uid);
-    }
+    });
   },
 
   /** Set 2 — Traveling Skald: whenever ANOTHER friendly minion of `tribe` attacks, give IT +atk/+hp. The
@@ -2976,15 +3025,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const sp = ctx.spellPowerFor(self.side);
     const a = num(params.amount, 3) + sp.attack;
     const h = sp.health;
-    for (let i = 0; i < mul(self); i++) { // golden casts it twice
-      ctx.castSpell(self.side); // counts as a real spell cast (Spirit Pup, Guel, Forsaken Weaver all see it)
+    castInCombat(ctx, self, () => { // golden casts it twice
       if (undead && (a > 0 || h > 0)) {
         for (const m of ctx.living(self.side)) {
           if (m.tribe === 'undead' || m.tribe2 === 'undead' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
         }
         ctx.grantUndeadAura(a, h, self.side); // permanent — carried back, stacks the run-wide Undead aura (Lantern channel)
       }
-    }
+    });
   },
 };
 

@@ -292,6 +292,7 @@ export type EffectFactoryId =
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
+  | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'deathrattleGrantShield'
@@ -2118,6 +2119,11 @@ export interface CombatContext {
   /** Announce that a `doubleChance`-style roll came up, so the UI can float a crit-style "Nx" above the
    *  proccing minion (Karwind). Purely presentational — the extra repetitions are applied by the caller. */
   crit?(sourceUid: string, mult: number): void;
+  /** How many times ONE Shop Spell cast by `side` resolves in combat — 1 normally, more when something has
+   *  granted extra casts (Runebloom Matriarch). Read by `castInCombat`, the single combat cast path. */
+  spellCastRepsFor?(side: Side): number;
+  /** Grant `side` N extra combat casts of every Shop Spell (Runebloom Matriarch's Start of Combat). */
+  grantSpellCastExtra?(side: Side, n: number): void;
   /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
    *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
    *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */

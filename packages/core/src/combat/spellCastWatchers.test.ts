@@ -19,14 +19,19 @@ const buffsFrom = (events: readonly CombatEvent[], sourceUid: string) =>
 const fatecarver: BoardMinion = { cardId: 'n2_fatecarver', attack: 4, health: 60, sourceUid: 'FC', chosenOption: 1 };
 
 describe('Fatecarver’s mid-combat Growth is a real cast for every watcher', () => {
-  it('Runebloom Matriarch procs on each cast (the owner’s board)', () => {
+  it('Runekeg procs on each cast — the per-cast watcher shape Runebloom used to carry', () => {
+    // This case was Runebloom Matriarch until its 2026-08-07 rework moved it off per-cast payouts and onto a
+    // Start-of-Combat cast multiplier (now covered in combatSpellCast.test.ts). Runekeg is the same effect
+    // (`onSpellCastBuffRandomTribe`), so the watcher path the original report was about stays under test.
+    // Runekeg is "2 random OTHER friendly Dwarves", so the board needs a second Dwarf or it has no targets.
     const r = simulate(
-      [fatecarver, { cardId: 'b2_runebloom', attack: 8, health: 60, sourceUid: 'RB' }],
+      [fatecarver, { cardId: 'dw_runekeg', attack: 8, health: 60, sourceUid: 'RK' },
+       { cardId: 'dw_soldier', attack: 3, health: 60, sourceUid: 'DW' }],
       wall, makeRng(3), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast', 'dragon'] }), combatSide({ tier: 1 }));
-    const procs = buffsFrom(r.events, 'm1'); // buff events carry the combat uid — Runebloom is board slot 1
-    expect(procs.length, 'the Matriarch never saw the cast').toBeGreaterThan(0);
-    expect(procs.every((b) => b.attack === 3 && b.health === 3)).toBe(true);
+      combatSide({ tier: 6, tribes: ['dwarf', 'dragon'] }), combatSide({ tier: 1 }));
+    const procs = buffsFrom(r.events, 'm1'); // buff events carry the combat uid — Runekeg is board slot 1
+    expect(procs.length, 'the watcher never saw the cast').toBeGreaterThan(0);
+    expect(procs.every((b) => b.attack === 2 && b.health === 1)).toBe(true);
   });
 
   it('Thunderous Sovereign gains a stack per cast, and the accrual carries back to the run', () => {

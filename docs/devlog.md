@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-07 — The rune tally pill gets styled, and sits above its badge
+
+Owner ask: put the Bucky and Chef counters **above** their runes, always visible when > 0.
+
+Fixing it turned up why they were hard to see at all: **`.qb-tally` had no CSS rule**. `QuestBadges` has
+emitted that span since 2026-08-03, so EVERY rune meter — not just today's two — has been rendering as
+unstyled inline text jammed against the badge: present in the DOM, effectively unreadable. (Same finding as
+the parked `feat/rune-live-values` branch, now closed here.)
+
+It now sits above the badge in `.questbadge-chip`'s pill language, centred, with `pointer-events: none` so it
+can never eat the badge's own hover tooltip. "Visible when > 0" is structural rather than a style rule:
+`runeTally` returns null at zero, so the span simply isn't in the DOM. The value change replays a one-shot
+pop — compositor-only (transform + opacity), per the no-looping-paint rule.
+
+Verified live with both runes owned: pills read "3 Ales" and "+9/+9", both fully clear of the badge rim
+(1.2px gap), centred to within 2px, and the tooltip still opens.
+
 ## 2026-08-07 — Rune of the Coffers art
 
 The one rune left on the fallback frame now has its illustration (`RuneOfTheCoffers.png`, an exact name

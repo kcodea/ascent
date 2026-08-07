@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune meters are readable at last** — the tally span had never had a CSS rule, so every rune counter rendered as unstyled text against its badge; it's now a pill above the rune, visible whenever the value is non-zero.
+
 - **Bucky + the Chef no longer pay a turn late** — the tally was banked after combat rather than read live at combat build; both now land in the fight right after the shop that earned them. Bucky's art is wired and his rune counts the Ales you're banking.
 
 - **Rune of the Chef fixed + tracked, and 34 runes get art** — its banked total never reached the combat body (the reducer's own mapper dropped it); its badge now shows the exact buff it will pay, and every rune but the Coffers has illustration.

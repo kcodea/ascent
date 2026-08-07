@@ -1985,6 +1985,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
         lastSpellCastId: s.lastSpellCastId,
         rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
+        spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2687,6 +2688,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Rune of Slaying (owner change 2026-07-31, second pass): kills BANK across combats — every 6th pays a
   // minion of the board's dominant type into hand (the same resolver Reinforcing Ale uses). Replaces the
   // max-Gold-per-Slaughter shape entirely; the leftover progress carries in `runeSlayingKills`.
+  // RUNE OF ASHEN PAYROLL: 3 Imps summoned in a fight pays 4 Gold into next turn's opening, ONCE per combat
+  // however far past the threshold the fight went ("Once per combat" is printed on the rune). Settled here off
+  // the carried Imp tally rather than inside the sim, the same shape Rune of Slaying uses just below.
+  if (s.questFlags?.runeAshenPayroll && (result.playerImpsSummoned ?? 0) >= s.questFlags.runeAshenPayroll) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 4;
+  }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     while (s.runeSlayingKills >= 6) {
@@ -2837,6 +2844,10 @@ function advanceCombat(s: RunState): void {
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
   s.lastSpellThisTurnId = undefined; // Recaller's last-spell-this-turn record resets each wave
   s.rememberedThisTurn = false; // Runesnout Archivist may record one entry again next turn
+  s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
+  s.spellmarketUsedThisTurn = false; // Rune of the Spellmarket feeds the Shop once per turn
+  s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  s.spellhidePending = [];           // …and the recorded re-casts are spent by the combat that just began
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
   s.contrabandAleUsed = undefined;
   s.gemscriptSpellUsed = undefined; // Rune of Gemscript's two first-each-turn latches
@@ -3439,6 +3450,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
       else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
+      else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
@@ -3711,6 +3723,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeGroveweaver': s.runeGroveweaver = true; break;
     case 'runeSharedPour': s.runeSharedPour = true; break;
     case 'runeAftermarket': s.runeAftermarket = true; break;
+    case 'runeSpellhide': s.runeSpellhide = true; break;
+    case 'runeSpellmarket': s.runeSpellmarket = true; break;
+    case 'runeLastWord': s.runeLastWord = true; break;
+    case 'runeRunicHoard': s.runeRunicHoard = true; break;
     case 'runeHoardcalling': s.runeHoardcalling = true; break;
     case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
@@ -4041,6 +4057,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
     runeCenterline: f?.runeCenterline,       // Rune of the Centerline: SoC — middle minion Ward + Crit
+    runeEmberline: f?.runeEmberline,         // Rune of Emberline: the first dead Imp feeds the next one
+    runeAshenPayroll: f?.runeAshenPayroll,   // Rune of Ashen Payroll: read at SETTLE off the Imp tally
+    runeBackbeat: f?.runeBackbeat,           // Rune of Backbeat: first Echo also fires the left-most Rally
+    runeSpareChair: f?.runeSpareChair,       // Rune of the Spare Chair: the 7th seat arrives Warded + swinging
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)

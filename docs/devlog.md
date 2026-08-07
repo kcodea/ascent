@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-07 — Batch 4, tranche 3: the contained-machinery eight
+
+Eight more Basic runes, each built on machinery already in the engine:
+
+- **Rune of Emberline** (3) — the first Imp to die each combat feeds the next Imp summoned. The Ashen Heir's
+  rule narrowed to one payout a fight; banks `maxHealth`, so a chipped Imp passes on what it *was*.
+- **Rune of Ashen Payroll** (4) — 3 Imps summoned in a combat pays 4 Gold next turn, once per combat. Settled
+  off the carried `playerImpsSummoned` tally, the same shape Rune of Slaying uses.
+- **Rune of Backbeat** (4) — the first Echo triggered each combat also fires your left-most Rally.
+- **Rune of the Spare Chair** (4) — begin combat with exactly 6 and the first minion summoned arrives Warded
+  and swinging. Keyed on the START-of-combat size, so a board that reaches 6 by losing a body doesn't qualify.
+- **Rune of Spellhide** (4) — the turn's first stat spell cast on a Beast is cast on it again at Start of
+  Combat. Stored as `{spellId, uid}` rather than as stats, so the re-cast runs the real spell and a scaling
+  spell pays its live value.
+- **Rune of the Spellmarket** (4) — …and the turn's first stat spell on any friend also hands its stats to the
+  right-most Shop offer. Both runes measure "stat-granting" as an actual delta across the cast rather than
+  guessing from the card, so anything that makes the target bigger qualifies.
+- **Rune of the Last Word** (4) — the turn's first sold Dragon-with-a-Shout triggers it on the way out, through
+  `replayBattlecry` (the same path Myra's hero power uses).
+- **Rune of the Runic Hoard** (4) — a Shop spell copied into your hand gives your Dragons +1/+1, hooked at the
+  shared `conjureToHand` chokepoint so every copy source pays.
+
+**One wiring mistake worth recording:** Backbeat was first hooked in `fireOwnDeathrattles`, which reads like the
+Echo chokepoint but is actually the FORCED-Echo path (Echoing Coop, Bone Throne). An ordinary Deathrattle is
+dispatched through the `onDeath` bus and never passes through it, so the rune did nothing. It now lives at the
+real death site beside Emberline's bank.
+
+**Verified.** 4614 tests across 269 files green, including a new 10-case `runeBatch4T3.test.ts`. Typecheck, lint
+(0 errors) and `build:web` all clean. Two fixture notes: the Spare Chair's granted Ward rides the SUMMON
+snapshot rather than a `shieldUp` event (that event is for shields gained after a body is in play), and
+Backbeat's Rally body has to be alive when the Echo fires — a free Rally on a corpse pays nothing.
+
+**Still queued from batch 4:** tranche 4 (5 hard Epics — Ancestral Roar, Ruby Shrapnel, Shared Scripture,
+Banquet Hall, Crucible Choir).
+
 ## 2026-08-07 — Batch 4, tranche 2: three T6 bodies and the Epic runes that grant them
 
 **Three new minions, each reachable only through its own Epic rune** (all `token: true`, so none of them roll

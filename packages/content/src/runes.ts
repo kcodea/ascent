@@ -693,6 +693,66 @@ export const RUNES: RuneDef[] = [
     text: 'After your first **Dragon Shout** each turn, get a random **Shop spell**.',
     reward: { kind: 'runeHoardcalling' },
   },
+
+  // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
+  {
+    id: 'rune_emberline',
+    name: 'Rune of Emberline',
+    cost: 3,
+    text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeEmberline' },
+  },
+  {
+    id: 'rune_ashen_payroll',
+    name: 'Rune of Ashen Payroll',
+    cost: 4,
+    text: 'After you summon **3 Imps** in combat, gain **4 Gold** next turn. Once per combat.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeAshenPayroll', amount: 3 },
+  },
+  {
+    id: 'rune_backbeat',
+    name: 'Rune of Backbeat',
+    cost: 4,
+    text: 'The first **Echo** you trigger each combat triggers your left-most **Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeBackbeat' },
+  },
+  {
+    id: 'rune_spare_chair',
+    name: 'Rune of the Spare Chair',
+    cost: 4,
+    text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
+  },
+  {
+    id: 'rune_spellhide',
+    name: 'Rune of Spellhide',
+    cost: 4,
+    text: 'The first stat-granting **Shop spell** you cast on a **Beast** each turn is cast on it again at **Start of Combat**.',
+    reward: { kind: 'runeSpellhide' },
+  },
+  {
+    id: 'rune_spellmarket',
+    name: 'Rune of the Spellmarket',
+    cost: 4,
+    text: 'The first stat-granting **Shop spell** you cast on a friendly minion each turn also gives its stats to the right-most **Shop** minion.',
+    reward: { kind: 'runeSpellmarket' },
+  },
+  {
+    id: 'rune_last_word',
+    name: 'Rune of the Last Word',
+    cost: 4,
+    text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
+    reward: { kind: 'runeLastWord' },
+  },
+  {
+    id: 'rune_runic_hoard',
+    name: 'Rune of the Runic Hoard',
+    cost: 4,
+    text: 'After you add a copy of a **Shop spell** to your hand, give your **Dragons +1/+1**.',
+    reward: { kind: 'runeRunicHoard' },
+  },
 ];
 
 /**

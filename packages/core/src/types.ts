@@ -981,6 +981,10 @@ export type QuestReward =
   | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
   | { kind: 'runeSharedPour' } // the first Ale each turn casts an extra time
   | { kind: 'runeAftermarket' } // the first sell each turn feeds the current Shop
+  | { kind: 'runeSpellhide' } // the turn's first stat spell on a Beast re-casts at Start of Combat
+  | { kind: 'runeSpellmarket' } // …and also feeds the right-most Shop minion
+  | { kind: 'runeLastWord' } // selling a Dragon with a Shout triggers it first
+  | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
   | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
@@ -1125,6 +1129,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeBrood' | 'runeLivingEchoes' | 'runeWarChorus'
   // Rune of the Warpath: the left-most minion's attack chains into the right-most's.
   | 'runeWarpath'
+  | 'runeEmberline' // the first Imp to die each combat feeds the next one summoned
+  | 'runeAshenPayroll' // 3 Imps summoned in a combat pays Gold next turn (once per combat)
+  | 'runeBackbeat' // the first Echo each combat also fires the left-most Rally
+  | 'runeSpareChair'
   // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
   | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
@@ -1332,6 +1340,14 @@ export interface QuestCombatMods {
   runeCenterline?: boolean;
   /** Rune of the Second Litter: the first Beast summoned each combat summons another copy. */
   runeSecondLitter?: boolean;
+  /** Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned. */
+  runeEmberline?: boolean;
+  /** Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle. */
+  runeAshenPayroll?: number;
+  /** Rune of Backbeat: the first Echo triggered each combat also fires your left-most Rally. */
+  runeBackbeat?: boolean;
+  /** Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now. */
+  runeSpareChair?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
@@ -1795,6 +1811,8 @@ export interface CombatSideState {
    *  Run-level and snapshot-captured (like `lastSpellCastId`) so a served Archivist replays its own journal
    *  rather than borrowing the player's. */
   rememberedSpellIds?: string[];
+  /** Rune of Spellhide: {spellId, uid} pairs re-cast at Start of Combat onto the Beast that was buffed. */
+  spellhide?: { spellId: string; uid: string }[];
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */

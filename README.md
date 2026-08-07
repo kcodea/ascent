@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **New: Quil + Rune of the Wildscript** — a T6 Beast that re-casts your left-most held spell on its neighbours every fight; a combat cast's stats are temporary, but the spell keeps what it learns.
+
 - **One combat spell-cast path** — eight factories each hand-rolled their own cast, so "your Shop Spells cast an extra time" had nowhere to hook; `castInCombat` now owns it, and Runebloom Matriarch multiplies every combat cast at once.
 
 - **Karwind reworked** — flat +3/+3 to every Dragon on a Shout trigger, with a 20% chance to land +6/+6 instead, announced by a crit-style "2x" that floats above him. Seeded on both sides, so replays crit identically.

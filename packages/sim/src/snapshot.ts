@@ -116,6 +116,9 @@ export interface BoardSnapshot {
   cardBuffs?: Record<string, { attack: number; health: number }>;
   /** Spell ids in the owner's hand at capture, in hand order (Vault Curator copies the left-most). */
   handSpellIds?: string[];
+  /** The owner's accumulated Front-to-Back escalation, so a served Quil casts it at the strength its owner
+   *  had built up — the same fidelity rule as `rubyBonus`. Absent = none. */
+  spellEscalation?: { attack: number; health: number };
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -305,6 +308,8 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
     ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),
     ...(handSpellIds.length ? { handSpellIds } : {}),
+    ...(s.frontToBackBonus || s.frontToBackBonusH
+      ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
     ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),

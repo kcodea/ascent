@@ -139,6 +139,10 @@ export function simulate(
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: playerState.spellsCast, enemy: 0 };
   let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
+  /** Escalating-spell improvement earned this fight (Quil casting Front to Back). Live for the REST of the
+   *  fight — a second cast grants the improved value — and the player's half carries back at settle. */
+  const spellEscalationGain: Record<Side, { attack: number; health: number }> =
+    { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
   /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
@@ -479,6 +483,15 @@ export function simulate(
       return { attack: base.attack + live.attack, health: base.health + live.health };
     },
     leftmostHandSpellFor: (side) => (side === 'player' ? playerState.handSpellIds : enemyState.handSpellIds)?.[0],
+    spellEscalationFor: (side) => {
+      const base = (side === 'player' ? playerState : enemyState).spellEscalation ?? { attack: 0, health: 0 };
+      const live = spellEscalationGain[side];
+      return { attack: base.attack + live.attack, health: base.health + live.health };
+    },
+    grantSpellEscalation: (attack, health, side) => {
+      spellEscalationGain[side].attack += attack;
+      spellEscalationGain[side].health += health;
+    },
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -2640,6 +2653,8 @@ export function simulate(
     playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
     playerGuaranteedAttachments: attachmentShopGrants > 0 ? attachmentShopGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
+    playerSpellEscalationGain: (spellEscalationGain.player.attack > 0 || spellEscalationGain.player.health > 0)
+      ? { ...spellEscalationGain.player } : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,

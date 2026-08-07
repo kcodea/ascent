@@ -1189,6 +1189,13 @@ export interface QuestCombatMods {
   runeCinderLedger?: number;
   /** Rune of the Procession: Avenge (4) — double your right-most minion's stats. */
   runeProcession?: boolean;
+  /** How many COPIES of each rune-granted combat flag the run holds (Rune of Duplication). 1 = the normal
+   *  single copy and is what an absent entry means, so every existing consumer reads correctly untouched.
+   *  Only the DISPATCHERS consult it — a duplicated boolean rune fires its effect twice rather than setting
+   *  the same `true` twice, which is why Duplication used to be a no-op on 23 combat-flag runes (owner
+   *  report 2026-08-06: two Rune of the Procession, one trigger). Amount-carrying flags instead ACCUMULATE
+   *  their amount (owner ruling: two Finality = 14 Imps), so they need no entry here. */
+  flagCopies?: Record<string, number>;
   /** Rune of Gemstorm: Rubies played on each friendly Kobold at every second friendly death. */
   runeGemstorm?: number;
   /** Rune of Blood and Coin: Gold banked for next turn per 4 friendly deaths. */

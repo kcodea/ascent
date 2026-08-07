@@ -7159,3 +7159,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .alignarc.aa-dawn { background-image: var(--aa-grad-dawn, none); }
 .alignarc.aa-dusk { background-image: var(--aa-grad-dusk, none); }
 .alignarc.aa-eclipse { background-image: var(--aa-grad-eclipse, none); }
+
+/* "Does not stack" — shown on an Epic rune in the forge while Rune of Duplication is held and a second copy
+   of that rune would change nothing (see `runeStacks`). Static; nothing here animates. */
+.runecard-nostack { align-self: center; margin: 0 0 6px; padding: 2px 9px; border-radius: 999px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.22); color: rgba(255, 226, 170, 0.92); font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }

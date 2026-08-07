@@ -481,7 +481,10 @@ export interface RunState {
   /** Rune of Profit Sharing: whenever you GAIN Gold, buff this tribe wherever it is. */
   runeProfitSharing?: { tribe: Tribe; attack: number; health: number };
   /** Rune of the White Wolf: buying a Shop spell teaches it to a Mage-Pup (shares the Mentor per-turn cap). */
-  runeWhiteWolf?: boolean;
+  /** Rune of the White Wolf — how many COPIES are held, each adding one Mage-Pup teach per turn (a count,
+   *  not a flag, so Rune of Duplication genuinely grants a second pup — owner ruling 2026-08-06: "white wolf
+   *  should give a second pup as if you had 2 mentors"). Legacy saves stored `true`; read defensively. */
+  runeWhiteWolf?: boolean | number;
   /** Rune of the Spellstone: a Ruby you cast also counts as a Shop-spell cast. */
   runeSpellstone?: boolean;
   /** Rune of Investment: Rubies minted per minion sold. */
@@ -1051,6 +1054,10 @@ export interface RunState {
   /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
+  /** How many COPIES of each rune-granted combat flag this run holds (Rune of Duplication). Absent/1 = a
+   *  single copy. Threaded into combat via `questCombatMods.flagCopies` so a duplicated BOOLEAN rune fires
+   *  its effect twice — amount-carrying flags instead accumulate their amount. See the `combatFlag` case. */
+  flagCopies?: Record<string, number>;
   runeSummit?: boolean;
   /** Rune of Contraband: first Ruby cast each turn → a random Ale; first Ale cast each turn → a Ruby. */
   runeContraband?: boolean;

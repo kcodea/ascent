@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { type CardDef, combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { mintRubies, applyGoldSpent, applyEndOfTurn, RUBY_ID } from './recruit';
+import { addBuff, applyEndOfTurn, applyGoldSpent, fireOnRubyPlayed, mintRubies, RUBY_ID } from './recruit';
 
 /**
  * The Ruby engine (set 2 Kobolds). Rubies are a spell-LIKE token that is NOT a Shop Spell: minted into hand,
@@ -135,14 +135,17 @@ describe('Ruby engine (set 2)', () => {
     expect(CARD_INDEX[s.hand[s.hand.length - 1]!.cardId]!.tier, 'the granted minion was not Tier 1').toBe(1);
   });
 
-  it('Candle Conduit casts a Ruby on a random Kobold when you get a Ruby', () => {
+  it('Candle Conduit (rework 2026-08-07): every Ruby played bounces its stats to 1 more minion', () => {
     const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false });
-    const s: RunState = { ...createRun(1), board: [mk('cc', 'k_candleconduit'), mk('k2', 'sandbag')], hand: [] };
+    const s: RunState = { ...createRun(1), board: [mk('cc', 'k_candleconduit'), mk('k2', 'sandbag'), mk('k3', 'sandbag')], hand: [] };
     const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
-    mintRubies(s, 1); // getting a Ruby → Candle Conduit casts a Ruby (+1/+1) on a random board Kobold
+    // Play a Ruby on k2 through the real path: the Ruby lands (+1/+1) AND the Conduit bounces its stats to
+    // one more random friendly (+1/+1 again) — total board delta +4, not +2.
+    const target = s.board.find((c) => c.uid === 'k2')!;
+    addBuff(target, 'Ruby', 1, 1);
+    fireOnRubyPlayed(s, target, 1, 1);
     const after = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
-    expect(after).toBe(before + 2); // exactly one +1/+1 landed
-    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(1); // the minted Ruby is in hand
+    expect(after - before, 'the Ruby + exactly one bounce').toBe(4);
   });
 
   it('Prismcaster makes a hand Ruby cast an extra time', () => {

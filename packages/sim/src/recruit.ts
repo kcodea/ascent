@@ -4271,6 +4271,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         });
       }
     }
+    // Play 2 REAL Rubies on the target first (owner addition 2026-08-07): through the same addBuff('Ruby') +
+    // watcher path a played Ruby uses, so Resonance Idol / Candle Conduit / Ruby Broker all see them. A shop
+    // target takes them as offer Rubies (offers have no watchers, matching every other shop-row Ruby).
+    {
+      const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+      for (let n = 0; n < 2; n++) {
+        const ra = 1 + rb.attack;
+        const rh = 1 + rb.health;
+        if (inShop) addOfferBuff(state.shop[shopIdx]!, 'Ruby', ra, rh);
+        addBuff(self, 'Ruby', ra, rh); // `self` IS the temp card in the shop case — the fold-back carries it
+        if (!inShop) fireOnRubyPlayed(state, self, ra, rh);
+      }
+    }
     let gotA = 0;
     let gotH = 0;
     for (const d of donors) {
@@ -5289,6 +5302,21 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
   // on this body must see a count past 1 or a "first each turn" card recurses.
   card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
+  // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
+  // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
+  // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
+  for (const m of state.board) {
+    if (!CARD_INDEX[m.cardId]?.effects.some((e) => e.on === 'rubyPlayedAnywhere' && e.do === 'rubyBounceExtra')) continue;
+    const bounces = m.golden ? 2 : 1;
+    for (let b = 0; b < bounces; b++) {
+      const others = state.board.filter((x) => x.uid !== card.uid);
+      if (others.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const pick = others[rng.int(others.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
+    }
+  }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
   const ctx = makeContext(state);

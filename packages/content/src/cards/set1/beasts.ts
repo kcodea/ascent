@@ -84,11 +84,14 @@ export const BEASTS: CardDef[] = [
     // Rally, not Slaughter (owner 2026-07-31): it now pays for ATTACKING rather than for landing a kill, so it
     // no longer needs a favourable trade to do anything. `rallyGrantSpell` is the shared Rally spell-grant
     // (Perfect Core's), which already handles the golden multiplier and the carry-back to hand.
+    // Owner rework 2026-08-07: instead of granting a spell, it CASTS one — a random targeted spell onto
+    // another friendly Beast (never itself) — and hands you a copy of what it cast. The pool is the targeted
+    // spells the combat resolver can execute, so it never picks a spell that would fizzle.
     effects: [
-      { on: 'onAttack', do: 'rallyGrantSpell' },
+      { on: 'onAttack', do: 'rallyCastRandomTargetedSpell' },
     ],
-    text: '**Rally:** get a random Shop spell.',
-    goldenText: '**Rally:** get **2** random Shop spells.',
+    text: '**Rally:** cast a random targeted spell on another friendly Beast. Get a copy of it.',
+    goldenText: '**Rally:** cast a random targeted spell on another friendly Beast **twice**. Get a copy of each.',
   },
   {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.
@@ -240,9 +243,12 @@ export const BEASTS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
-    text: '**Taunt. Echo:** get a random Shop spell.',
-    goldenText: '**Taunt. Echo:** get **2** random Shop spells.',
+    // Owner rework 2026-08-07: it stores the run's LAST-cast Shop spell and re-casts it on death. The stored
+    // spell is run-level (`lastSpellCastId`, snapshot-captured for served boards); a targeted spell picks a
+    // random friendly Beast, an untargeted one simply casts (owner ruling). Golden casts twice.
+    effects: [{ on: 'onDeath', do: 'deathrattleCastLastSpell' }],
+    text: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast.',
+    goldenText: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast **twice**.',
   },
   {
     // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap

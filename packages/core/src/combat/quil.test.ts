@@ -39,10 +39,19 @@ describe('Quil — Start of Combat, cast the left-most held spell on adjacent Be
     expect(buffs.every((b) => b.attack === 1 && b.health === 1), 'cast the wrong spell').toBe(true);
   });
 
-  it('hits BOTH adjacent Beasts and nothing else', () => {
-    const r = fight(['growth']);
+  it('a TARGETED spell hits both adjacent Beasts and nothing else', () => {
+    // Spirit Fire is targeted, so Quil aims it at its neighbours. (Growth is untargeted and — owner ruling
+    // 2026-08-07, general resolver — an untargeted spell "simply casts", resolving its own board-wide shape;
+    // the next test pins that.)
+    const r = fight(['spiritfire']);
     const targets = new Set(quilBuffs(r).map((b) => b.target));
     expect(targets).toEqual(new Set(['m0', 'm2'])); // its two neighbours, not itself, not the far board
+  });
+
+  it('an UNTARGETED spell simply casts — its own shape, whole board', () => {
+    const r = fight(['growth']);
+    const targets = new Set(quilBuffs(r).map((b) => b.target));
+    expect(targets).toEqual(new Set(['m0', 'm1', 'm2'])); // Growth buffs everyone, Quil included
   });
 
   it('does nothing with an empty hand, or a hand whose left-most spell is tavern-only', () => {

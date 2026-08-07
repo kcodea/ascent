@@ -264,16 +264,20 @@ export const SET2_KOBOLDS: CardDef[] = [
   },
   {
     // "When you GET a Ruby" trigger (fires in mintRubies) — casts a Ruby on a random friendly Kobold.
+    // Owner rework 2026-08-07 (T5 → T6): Resonance Idol's bounce, globalised — EVERY Ruby played on your
+    // side (by you or by a minion, either phase) bounces its stats to 1 more random friendly minion. The
+    // bounce is stats-only, the same no-rebounce guard the Idol uses. `rubyPlayedAnywhere` is a passive
+    // marker the two ruby paths scan for; it is never dispatched through the bus.
     id: 'k_candleconduit',
     name: 'Candle Conduit',
     tribe: 'kobold',
-    tier: 5,
+    tier: 6,
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast', params: { tribe: 'kobold' } }],
-    text: 'When you get a Ruby, this casts a Ruby on a random friendly Kobold.',
-    goldenText: 'When you get a Ruby, this casts a Ruby on a random friendly minion twice.',
+    effects: [{ on: 'rubyPlayedAnywhere', do: 'rubyBounceExtra' }],
+    text: 'Your **Rubies** all bounce **1 more time**.',
+    goldenText: 'Your **Rubies** all bounce **2 more times**.',
   },
   {
     // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework

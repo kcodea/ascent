@@ -1766,13 +1766,17 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a combat-generated card is shown mid-fight as a toHand event', () => {
+    // Was Sporebat until its 2026-08-07 rework (it now CASTS its stored spell instead of granting one);
+    // Badgington's Rally grants a copy of the spell it casts, so it is the fixture now — it needs a second
+    // friendly Beast to cast on.
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
     const r = run([
-      { cardId: 'sporebat', attack: 2, health: 1 },   // Deathrattle → generates a real spell → a toHand event
+      { cardId: 'badgington', attack: 30, health: 200 },
+      { cardId: 'pack', attack: 1, health: 200 },
     ], omen, 1);
     const grant = r.events.find((e) => e.type === 'toHand');
     expect(grant).toBeDefined();
-    expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was generated
+    expect(CARD_INDEX[(grant as { cardId: string }).cardId]?.spell).toBe(true); // the actual spell that was cast
   });
 
   it("a mid-combat spell-power telegraph is a narration sc (no `cast`) — the UI won't replay it as a SoC attack", () => {
@@ -2498,16 +2502,17 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true); // summoned an Imp
   });
 
-  it('Sporebat Deathrattle generates a real tavern-tier spell (toHand + handGrant); golden generates two', () => {
-    const spellGrants = (golden: boolean): string[] => {
-      const r = run([{ cardId: 'sporebat', attack: 2, health: 1, golden }], [{ cardId: 'omen', attack: 5, health: 5 }], 3);
-      const ids = r.events.flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
-      expect(ids.every((id) => CARD_INDEX[id]?.spell)).toBe(true); // each is an actual spell
-      expect(r.playerHandGrants ?? []).toEqual(ids); // carried back to add at settle
-      return ids;
-    };
-    expect(spellGrants(false)).toHaveLength(1);
-    expect(spellGrants(true)).toHaveLength(2);
+  it("Sporebat's Echo casts the run's STORED spell on a friendly Beast (rework 2026-08-07); golden casts twice", () => {
+    // The stored spell rides `CombatSideState.lastSpellCastId`. Growth is untargeted, so it "simply casts"
+    // (owner ruling) — its board-wide buff is the proof the cast resolved. No spell stored = a clean no-op.
+    const cast = (golden: boolean, stored?: string) => simulate(
+      [{ cardId: 'sporebat', attack: 2, health: 1, golden }, { cardId: 'pack', attack: 3, health: 200 }],
+      [{ cardId: 'omen', attack: 5, health: 200 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 4, ...(stored ? { lastSpellCastId: stored } : {}) }), combatSide({ tier: 1 }));
+    const casts = (r: ReturnType<typeof cast>): number => (r.playerSpellsCast ?? 0);
+    expect(casts(cast(false)), 'nothing stored → no cast').toBe(0);
+    expect(casts(cast(false, 'growth'))).toBe(1);
+    expect(casts(cast(true, 'growth')), 'golden casts twice').toBe(2);
   });
 
   it('Gryphon banks a free refresh PER HIT, capped at 4 a combat', () => {

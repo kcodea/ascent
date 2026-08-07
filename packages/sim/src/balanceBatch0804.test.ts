@@ -128,8 +128,11 @@ describe('Rune of Distillation — "Spells", and now Rubies too', () => {
   });
 });
 
-describe('Candle Conduit fires for rubies gained IN COMBAT (settled through the real mint)', () => {
-  it('a combat mintRubies carry-back triggers onGetRuby at settle', () => {
+describe('combat-minted rubies settle through the real mint', () => {
+  // This block used to pin Candle Conduit's onGetRuby cast; its 2026-08-07 rework retired that behaviour
+  // (it is now the every-Ruby bounce, tested in rubies.test.ts). What must SURVIVE the rework is the mint
+  // path itself: a combat Ruby carry-back still lands real Rubies in hand at settle.
+  it('a combat mintRubies carry-back mints real Rubies at settle', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat',
       board: [card('cc', 'k_candleconduit', 5, 5)],
@@ -137,14 +140,8 @@ describe('Candle Conduit fires for rubies gained IN COMBAT (settled through the 
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
         initial: { player: [], enemy: [] }, playerRubyMints: 2 },
     };
-    const conduitId = s.board[0]!.cardId;
-    expect(CARD_INDEX[conduitId], 'conduit id resolves').toBeTruthy();
-    const before = s.board[0]!.attack + s.board[0]!.health;
     s = reduce(s, { type: 'settleCombat' });
-    // 2 rubies minted → the conduit cast 2 rubies onto its (only) friendly Kobold — itself.
-    const after = s.board.find((c) => c.uid === 'cc')!;
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'the rubies landed in hand').toBe(2);
-    expect(after.attack + after.health, 'the conduit reacted to the combat-gained rubies').toBeGreaterThan(before);
   });
 });
 

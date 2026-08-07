@@ -43,6 +43,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     cardBuffs: snap.cardBuffs ?? {}, // enemy run-wide card-type buffs (sizes mid-fight tokens)
     handSpellIds: snap.handSpellIds ?? [], // enemy Vault Curator
     spellEscalation: snap.spellEscalation ?? { attack: 0, health: 0 }, // enemy Quil casting Front to Back
+    lastSpellCastId: snap.lastSpellCastId, // enemy Sporebat's stored spell
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
     beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)

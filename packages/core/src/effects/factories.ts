@@ -71,6 +71,21 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
   applyRubyStats(ctx, self, target, a, h);
+  // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
+  // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
+  // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.
+  for (const m of ctx.living(self.side)) {
+    if (m.dead) continue;
+    for (const eff of m.effects) {
+      if (eff.on !== 'rubyPlayedAnywhere' || eff.do !== 'rubyBounceExtra') continue;
+      const bounces = m.golden ? 2 : 1;
+      for (let b = 0; b < bounces; b++) {
+        const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
+        if (others.length === 0) break;
+        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h);
+      }
+    }
+  }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
   // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
   if (ctx.spellstoneFor?.(self.side)) ctx.castSpell(self.side);
@@ -390,42 +405,118 @@ function randomStatSpellBuff(ctx: CombatContext, scale: number, side: Side): { s
 }
 
 /**
- * What a Shop Spell DOES when cast mid-fight, for the stat family — the only family with a combat meaning
- * today. Returns the per-target grant (spell power folded in, exactly as the shop path folds it) plus, for an
- * escalating spell, the improvement that cast owes its future self.
+ * Resolve ONE cast of a Shop Spell mid-fight (owner ruling 2026-08-07): everything that has a meaning outside
+ * the tavern resolves in combat — stat buffs, spell power, Gold, free rolls, Rubies, card grants, Discovers
+ * (queued for after the fight), shop buffs (banked for the next shop). Only PURE tavern work fizzles:
+ * Displacement, gilding, steals, transforms, sells; refresh-shaped specials map to a banked free roll,
+ * since there is no live shop to re-stock mid-fight.
  *
- * `escalation` is the side's ALREADY-ACCUMULATED bonus, so a combat cast of Front to Back grants what a hand
- * cast would grant right now, and then advances it.
- *
- * Returns null for a spell with no combat-resolvable effect. That set is currently everything outside the
- * stat family — Discovers, refreshes, shop buffs, card grants, spell-power gains all still resolve only in
- * the shop. The owner has ruled they SHOULD work in combat (only pure tavern work should fizzle); that is a
- * separate slice, and this is the one place to extend when it lands.
+ * Returns true if the cast did anything. `targets` is the caster's choice for a TARGETED spell (Quil's
+ * adjacency, Badgington's chosen Beast); an untargeted spell ignores it and resolves its own shape.
+ * Callers run this INSIDE `castInCombat`, once per repetition — escalating spells advance per cast.
  */
-function combatSpellStatGrant(
-  ctx: CombatContext, def: CardDef, side: Side,
-): { attack: number; health: number; escalate?: { attack: number; health: number } } | null {
+export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: CardDef, targets?: Minion[]): boolean {
+  const side = self.side;
   const sp = ctx.spellPowerFor(side);
-  const flat = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll' || e.do === 'spellBuffRandomFriendlies');
-  if (flat) {
-    const attack = num(flat.params?.attack, 0) + sp.attack;
-    const health = num(flat.params?.health, 0) + sp.health;
-    return attack > 0 || health > 0 ? { attack, health } : null;
+  const alive = (): Minion[] => ctx.living(side);
+  const chosen = (): Minion[] => (targets && targets.length > 0 ? targets : alive().filter((m) => m !== self).slice(0, 1));
+
+  // A Discover spell's payload is the OFFER, not effects[] — the modal can't open mid-fight, so the CAST is
+  // carried back and settle queues the real pick.
+  if (def.discoverOnPlay) { ctx.queueDiscoverCast?.(def.id, side); return true; }
+
+  let did = false;
+  for (const eff of def.effects) {
+    if (eff.on !== 'cast') continue;
+    const a = num(eff.params?.attack, 0);
+    const h = num(eff.params?.health, 0);
+    switch (eff.do) {
+      // ── stat family ──
+      case 'spellBuffTarget': {
+        for (const t of chosen()) ctx.buff(t, a + sp.attack, h + sp.health, self.uid);
+        did = true; break;
+      }
+      case 'spellBuffAll': {
+        for (const t of alive()) ctx.buff(t, a + sp.attack, h + sp.health, self.uid);
+        did = true; break;
+      }
+      case 'spellBuffRandomFriendlies': {
+        const pool = [...alive()];
+        for (let i = 0; i < num(eff.params?.count, 2) && pool.length > 0; i++) {
+          ctx.buff(pool.splice(ctx.rng.int(pool.length), 1)[0]!, a + sp.attack, h + sp.health, self.uid);
+        }
+        did = true; break;
+      }
+      case 'spellBuffLeftmost': {
+        const t = alive()[0];
+        if (t) { ctx.buff(t, a + sp.attack, h + sp.health, self.uid); did = true; }
+        break;
+      }
+      case 'spellBuffTargetEscalating': {
+        // Attack and Health escalate INDEPENDENTLY, each stat's step compounding its own spell power — the
+        // same arithmetic the shop half runs. The stats are temporary; the IMPROVEMENT is permanent and
+        // carries back (owner ruling 2026-08-07), and is live for the rest of this fight.
+        const step = { attack: num(eff.params?.attack, 2), health: num(eff.params?.health, 2) };
+        const acc = ctx.spellEscalationFor?.(side) ?? { attack: 0, health: 0 };
+        for (const t of chosen()) {
+          ctx.buff(t, step.attack + acc.attack + sp.attack, step.health + acc.health + sp.health, self.uid);
+        }
+        ctx.grantSpellEscalation?.(step.attack + sp.attack, step.health + sp.health, side);
+        did = true; break;
+      }
+      // ── economy + power ──
+      case 'spellGainSpellPower': ctx.grantSpellPower(a, h, side, self.uid); did = true; break;
+      case 'gainEmbers': ctx.grantBonusGold(num(eff.params?.amount, 1), side); did = true; break;
+      case 'grantFreeRolls': ctx.grantFreeRolls(num(eff.params?.count, 1), side); did = true; break;
+      // A refresh-shaped special cannot re-stock a shop that does not exist mid-fight — bank a free roll, so
+      // the cast still pays its refresh forward rather than silently vanishing.
+      case 'spellRefreshToSpells': case 'spellRefreshToTribe': case 'spellRefreshTierUp':
+        ctx.grantFreeRolls(1, side); did = true; break;
+      case 'spellBuffShop': case 'spellBuffTavern': case 'spellBuffNextShop':
+        ctx.gainNextShopBuff?.(num(eff.params?.attack, 2), num(eff.params?.health, 2), side); did = true; break;
+      // ── cards + Rubies ──
+      case 'getRubies': ctx.mintRubies(num(eff.params?.count, 1), side, self.uid); did = true; break;
+      case 'rubyStatGain': {
+        for (const t of chosen()) playRubyOn(ctx, self, t, 1);
+        did = true; break;
+      }
+      case 'spellGainRandomMinion': {
+        const tier = num(eff.params?.tier, 1);
+        const pool = ctx.poolCards(side).filter((c) => !c.spell && !c.token && c.tier === tier);
+        if (pool.length > 0) { ctx.grantToHand(ctx.rng.pick(pool).id, side, self.uid); did = true; }
+        break;
+      }
+      default: break; // pure tavern work — fizzles, by the ruling
+    }
   }
-  const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
-  if (esc) {
-    // Attack and Health escalate INDEPENDENTLY, and each stat's step compounds that stat's spell power —
-    // the same arithmetic the shop half runs, kept in step deliberately rather than re-derived.
-    const step = { attack: num(esc.params?.attack, 2), health: num(esc.params?.health, 2) };
-    const acc = ctx.spellEscalationFor?.(side) ?? { attack: 0, health: 0 };
-    return {
-      attack: step.attack + acc.attack + sp.attack,
-      health: step.health + acc.health + sp.health,
-      escalate: { attack: step.attack + sp.attack, health: step.health + sp.health },
-    };
-  }
-  return null;
+  return did;
 }
+
+/** The targeted spells `resolveCombatSpellCast` can actually execute — Badgington's random pool. Extend BOTH
+ *  when a targeted family lands in the resolver. */
+const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEscalating', 'rubyStatGain']);
+
+/** Every effect id the resolver's switch executes — the PURE half of the resolvability question, so a caller
+ *  can decline to cast at all (and never count a cast) when the spell would fizzle. Kept beside the switch:
+ *  a family added there without extending this set silently counts fizzling casts again. */
+const COMBAT_CASTABLE_SPELL_DOS = new Set([
+  'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
+  'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
+  'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
+  'spellGainRandomMinion',
+]);
+
+/** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
+ *  so a pure-tavern spell never even counts as a cast. */
+export function combatCastable(def: CardDef): boolean {
+  if (!def.spell) return false;
+  if (def.discoverOnPlay) return true;
+  return def.effects.some((e) => e.on === 'cast' && COMBAT_CASTABLE_SPELL_DOS.has(e.do));
+}
+
+/** Scavvers ↔ Echohorn recursion guard — see `deathrattleTriggerAdjacentRally`. */
+const SCAVVERS_CHAIN_MAX = 2;
+let scavversChainDepth = 0;
 
 /**
  * Combat-time factories. This is a *partial* registry: recruit-time ids
@@ -1056,27 +1147,117 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const id = ctx.leftmostHandSpellFor(self.side);
     const def = id ? ctx.getCard(id) : undefined;
     if (!def?.spell) return;
-    if (!combatSpellStatGrant(ctx, def, self.side)) return; // no combat effect — a silent fizzle, per the ruling
     // "Adjacent" = the living neighbours either side, filtered to Beasts (Paragon's all-type counts).
     const board = ctx.living(self.side);
     const i = board.indexOf(self);
     if (i < 0) return;
     const targets = [board[i - 1], board[i + 1]].filter((m): m is Minion =>
       !!m && (m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe));
-    if (targets.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+    if (targets.length === 0 || !combatCastable(def)) return; // pure tavern work never even counts a cast
+    let announced = false;
     castInCombat(ctx, self, () => {
-      // Recomputed PER CAST, not hoisted: an escalating spell improves itself as it resolves, so a second cast
-      // (golden Quil, or a Runebloom extra) must grant the value the FIRST cast just taught it — exactly as
-      // two hand casts in a row would. Hoisting this was a real bug, caught by the golden test below.
-      const grant = combatSpellStatGrant(ctx, def, self.side);
-      if (!grant) return;
-      for (const t of targets) ctx.buff(t, grant.attack, grant.health, self.uid);
-      // Front to Back and friends IMPROVE THEMSELVES on every cast. The owner's ruling (2026-08-07): the
-      // stats a combat cast hands out are temporary like any combat buff, but the spell's own improvement is
-      // PERMANENT and carries back — a minion casting it advances the spell exactly as a hand cast would.
-      if (grant.escalate) ctx.grantSpellEscalation?.(grant.escalate.attack, grant.escalate.health, self.side);
+      // Resolved PER CAST, not hoisted: an escalating spell improves itself as it resolves, so a second cast
+      // (golden Quil, or a Runebloom extra) grants the value the first cast just taught it. The narration only
+      // lands when the spell actually does something — a pure-tavern spell fizzles silently, per the ruling.
+      const did = resolveCombatSpellCast(ctx, self, def, targets);
+      if (did && !announced) { ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` }); announced = true; }
     });
+  },
+
+  /**
+   * MAGE-PUP (combat half, owner report 2026-08-07) — a Shout re-trigger (Dawnclaw, Ryme, Funeral on Loan)
+   * fires the Pup's taught spell mid-fight. Targeted spells pick a seeded-random living friendly, exactly as
+   * the recruit path does when a repeater (not the player) fires the Shout. Routed through `castInCombat`,
+   * so it is a genuine cast and a Runebloom Matriarch multiplies it.
+   */
+  battlecryCastTaughtSpell: (ctx, self) => {
+    const def = self.taughtSpellId ? ctx.getCard(self.taughtSpellId) : undefined;
+    if (!def?.spell || self.dead || !combatCastable(def)) return;
+    castInCombat(ctx, self, () => {
+      const friends = ctx.living(self.side);
+      if (friends.length === 0) return;
+      const targets = def.target ? [ctx.rng.pick(friends)] : undefined;
+      if (resolveCombatSpellCast(ctx, self, def, targets)) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+      }
+    });
+  },
+
+  /**
+   * SPOREBAT (owner rework 2026-08-07) — Echo: cast the run's LAST-cast Shop spell on a random friendly
+   * Beast. The stored spell is run-level (`lastSpellCastFor`, snapshot-captured so a served Sporebat casts
+   * its owner's). An untargeted spell simply casts (owner ruling); no spell stored is a clean no-op.
+   */
+  deathrattleCastLastSpell: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const id = ctx.lastSpellCastFor?.(self.side);
+    const def = id ? ctx.getCard(id) : undefined;
+    if (!def?.spell || !combatCastable(def)) return;
+    // An aimed spell with no living Beast to aim at fizzles BEFORE the cast counts — same reason as the
+    // castability gate: a cast that resolves onto nothing is not a cast the watchers should see.
+    const beastPool = (): Minion[] => ctx.living(self.side).filter((m) =>
+      m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe);
+    if (def.target && beastPool().length === 0) return;
+    castInCombat(ctx, self, () => {
+      const beasts = beastPool();
+      const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+      if (def.target && (!targets || targets.length === 0)) return; // the last Beast died mid-repetition
+      if (resolveCombatSpellCast(ctx, self, def, targets)) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+      }
+    });
+  },
+
+  /**
+   * BADGINGTON (owner rework 2026-08-07) — Rally: cast a RANDOM targeted spell on another friendly Beast,
+   * then get a copy of that spell. The pool is the targeted spells the combat resolver can actually execute
+   * (`COMBAT_TARGETED_SPELL_DOS`) drawn from the run's pinned set — never a spell that would fizzle. It can't
+   * target itself (owner ruling). Golden = two casts (castInCombat), each granting its copy.
+   */
+  rallyCastRandomTargetedSpell: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const beasts = ctx.living(self.side).filter((m) => m !== self &&
+      (m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe));
+    if (beasts.length === 0) return;
+    const pool = ctx.poolCards(self.side).filter((c) =>
+      c.spell && !c.token && !!c.target && c.effects.some((e) => e.on === 'cast' && COMBAT_TARGETED_SPELL_DOS.has(e.do)));
+    if (pool.length === 0) return;
+    castInCombat(ctx, self, () => {
+      const spell = ctx.rng.pick(pool);
+      const target = ctx.rng.pick(beasts);
+      if (resolveCombatSpellCast(ctx, self, spell, [target])) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell.name}` });
+        ctx.grantToHand(spell.id, self.side, self.uid); // …and a copy of THAT spell
+      }
+    });
+  },
+
+  /**
+   * SCAVVERS (owner rework 2026-08-07) — Echo: trigger an adjacent Rally. Picks a seeded-random adjacent
+   * minion that HAS a Rally and fires it through the shared free-rally primitive, so the tally and quest
+   * halves ride along. Golden triggers twice (both neighbours when both qualify — the second pick excludes
+   * the first, so a gilded Scavvers between two Rally bodies fires each once).
+   */
+  deathrattleTriggerAdjacentRally: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    // DEPTH CAP (same shape as the Orbit cap): Echohorn's Rally fires the leftmost ECHO, which can be this
+    // very Scavvers — whose Echo fires a RALLY, which can be that very Echohorn. Without a cap the pair
+    // recurse forever (found by the bot fleet, as a stack overflow). Two rounds keeps the toy; try/finally
+    // keeps the counter clean across sims.
+    if (scavversChainDepth >= SCAVVERS_CHAIN_MAX) return;
+    scavversChainDepth++;
+    try {
+    const board = ctx.living(self.side);
+    const i = board.indexOf(self);
+    const hasRally = (m: Minion | undefined): m is Minion =>
+      !!m && !m.dead && m.keywords.includes('RL') && m.effects.some((e) => e.on === 'onAttack');
+    let pool = [board[i - 1], board[i + 1]].filter(hasRally);
+    for (let n = 0; n < mul(self) && pool.length > 0; n++) {
+      const pick = pool.length === 1 ? pool[0]! : ctx.rng.pick(pool);
+      ctx.triggerRally?.(pick);
+      pool = pool.filter((m) => m !== pick);
+    }
+    } finally { scavversChainDepth--; }
   },
 
   /** Set 2 — Vault Curator: Avenge (X) copies the LEFT-MOST spell in your hand into your hand again (golden 2).

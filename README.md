@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Combat casts beyond the stat family** — Discovers, refreshes, spell power, Gold and card grants all resolve mid-fight now (only pure tavern work fizzles); Mage-Pup's taught spell fires on a combat Shout re-trigger, and Sporebat/Badgington/Scavvers/Candle Conduit/Ruby Transfer are reworked onto the new reach.
+
 - **Thunderous Sovereign improves twice as fast** — +2/+2 per Shop spell cast (gilded +4/+4), and the card now prints the step instead of just saying "improves".
 
 - **New: Quil + Rune of the Wildscript** — a T6 Beast that re-casts your left-most held spell on its neighbours every fight; a combat cast's stats are temporary, but the spell keeps what it learns.

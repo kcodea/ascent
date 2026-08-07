@@ -1,5 +1,10 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of the Coffers art
+
+The one rune left on the fallback frame now has its illustration (`RuneOfTheCoffers.png`, an exact name
+match — no guessing needed). **All 163 runes resolve art**; the earlier gap is closed.
+
 ## 2026-08-07 — Bucky and the Chef paid a turn late; Bucky's art + Ale counter
 
 **Both were running one turn behind** (owner report: three Ales paid 0 that combat and only landed the fight

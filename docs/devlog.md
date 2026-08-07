@@ -386,6 +386,53 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Echo multipliers: the Rally-proc paths ignored them (two owner reports, one root cause)
+
+Two separate owner reports turned out to be the same omission, exactly as the owner suspected once they
+corrected the first card ("i am now wondering if it is the echohorn drop as well.. maybe same issue for
+both" — it was).
+
+**The bug.** `rallyProcLeftmostEcho` (Echohorn) looped on `mul(self)` — its own gild — and consulted NO Echo
+multiplier whatsoever. Sylus contributed **exactly zero** through it: measured proc counts were
+byte-identical with 0, 1, 2 or gilded Sylus on the board. The owner's stated chain
+
+  gilded Echohorn (×2) → gilded Dawnclaw (×2) → gilded Drakko (×3) → Sylus (×2) = 24
+
+came out at **12** — a flat halving (a third with a gilded Sylus). Every other link compounds correctly;
+only this one dropped its multiplier.
+
+**Same cause, second symptom.** Alchemist Brisbane is a Shout AND an Echo, and its Echo is what Echohorn
+procs. Measured end-to-end, Brisbane has NO defect of its own: its recruit Shout multiplies perfectly under
+Drakko / Hoardwake / Warm Embers / golden (8 cases), its End-of-Turn Ruby multiplies under Chronos, its
+Dawnclaw re-fire composes multiplicatively (6 cases), and the carry-back accumulates rather than
+overwriting. The ONE path where it under-fires is Echohorn's — at exactly 1× regardless of Sylus. The
+owner's "+1/+1 only" was this, not a Ruby bug.
+
+**Deathsayer had a milder version of the same defect.** Its twin factory honoured Sylus by a hardcoded
+`m.cardId === 'sylus'` scan, so it silently dropped Zyff, Funeral Engine's `echoExtraAlways`, Elderhorn's
+Beast Ritual and Grave Contract's first-Echo bonus — all of which a REAL death honours.
+
+**The fix — one canonical read.** `CombatContext.echoExtras(minion)` exposes `playerEchoExtras`, the same
+multiplier stack a real death uses (Sylus/Uron via card data, Elderhorn's ritual, `echoExtraAlways`,
+`echoFirstEachCombat`). Both Rally-proc factories now call it instead of their own partial views — Echohorn
+gaining a multiplier it never had, Deathsayer trading a hardcoded id scan for the full set. Both keep the
+established multiplicative shape: `(1 + echoExtras) × own gild`, matching what
+`deathrattleReplayAdjacentBattlecry` already did for Drakko.
+
+Note the accessor CONSUMES the once-per-combat first-Echo bonus, which is correct — a proc'd Echo is an Echo
+firing — and is documented on the interface so it isn't called speculatively.
+
+**Not changed, by owner ruling:** Choose One still does not count as a Shout, so Veinbreaker (whose Ruby
+gain lives in a Choose One branch and therefore never repeats) is working as designed. The first audit had
+flagged it as a candidate; the owner ruled the existing 2026-08-04 behaviour stands.
+
+New `echoChain.test.ts` pins the owner's arithmetic directly: the Stag's gild doubles, Sylus adds and stacks,
+the gild multiplies on top rather than replacing, and across the full chain Drakko triples each fire while
+Sylus doubles the whole product. That last assertion is the regression guard — before this fix Sylus changed
+nothing at all there.
+
+Verified: typecheck / lint (7-warning baseline) / 4032 tests (4 new) / harness determinism / build:web.
+
 ## 2026-08-06 — Shop perf slice 2: the FLIP was 90% of everything (owner's 240 Hz capture)
 
 The owner exported a real perf log and it settled the shop-sluggishness question outright. `layout:flip`

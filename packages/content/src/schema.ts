@@ -587,6 +587,8 @@ z.object({ kind: z.literal('runeGuidingCandle'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeMuster') }).strict(),
 z.object({ kind: z.literal('runeFoundry'), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeCorruptedTome') }).strict(),
+z.object({ kind: z.literal('runeGroveweaver') }).strict(),
+z.object({ kind: z.literal('runeConduit') }).strict(),
 z.object({ kind: z.literal('runeVault') }).strict(),
 z.object({ kind: z.literal('runeAltar'), goldPer: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeLorekeeping') }).strict(),

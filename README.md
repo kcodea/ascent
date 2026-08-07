@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Three more runes** — the Badger (a Badgington with Flurry and Ward), the Groveweaver (its summon grant also buffs itself), and the Conduit (every Ruby bounces one extra time).
+
 - **14 new Epic runes** — the Enchantment batch: spell payoffs (Enchantment, the Crown), Ruby engines (the Lapidary, the Gem Golem), combat swings (Dragonscale, Tempered Time, Savagery, the Crucible, the Herald), and shop shapers (the Deep, the Guiding Candle, the Muster, the Foundry, the Corrupted Tome).
 
 - **16 new Basic runes** — the Tip Jar batch: Gold engines (Coffers, Vault, Treasure Map, Golden Splinter), spell payoffs (Lorekeeping, Thrift, Flagship), a board-seller (the Altar), a board-transformer (Evolution), buy-dupes (Transcription), and two combat flags (Engraving, the Underdog).

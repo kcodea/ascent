@@ -613,6 +613,16 @@ export const RUNES: RuneDef[] = [
     text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per run.',
     reward: { kind: 'runeGoldenSplinter', at: 15, tier: 5 },
   },
+  {
+    // Pure data: the existing grant reward already carries `grantKeywords`, so the Badger is a Badgington
+    // handed over with Flurry (W) and Ward (DS) stamped on.
+    id: 'rune_badger',
+    name: 'Rune of the Badger',
+    cost: 5,
+    text: 'Get a **Badgington** with **Flurry** and **Ward**.',
+    previewCards: ['badgington'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] },
+  },
 ];
 
 /**
@@ -1430,6 +1440,25 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever you get a **Triple Reward**, get **two** Triple Rewards instead.',
     previewCards: ['discoverspell'], // text names it — the forge hover shows the card
     reward: { kind: 'runeCorruptedTome' },
+  },
+  {
+    id: 'rune_groveweaver',
+    name: 'Rune of the Groveweaver',
+    cost: 6,
+    epic: true,
+    text: 'When your **Groveweavers** buff a friendly Beast, they also buff **themselves**.',
+    previewCards: ['b2_groveweaver'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeGroveweaver' },
+  },
+  {
+    id: 'rune_conduit',
+    name: 'Rune of the Conduit',
+    cost: 5,
+    epic: true,
+    text: 'Your **Rubies** all bounce an additional time.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeConduit' },
+    sets: ['set2'], // Rubies
   },
 ];
 

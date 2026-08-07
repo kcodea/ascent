@@ -3656,6 +3656,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeMuster': s.runeMuster = true; break;
     case 'runeFoundry': s.runeFoundry = { per: r.per, sold: 0 }; break;
     case 'runeCorruptedTome': s.runeCorruptedTome = true; break;
+    case 'runeGroveweaver': s.runeGroveweaver = true; break;
+    case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
     case 'runeAltar': {
       // Sell the ENTIRE board through the sell case's own rituals: the shared value helper, then the on-sell

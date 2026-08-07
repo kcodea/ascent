@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-07 — Three more runes: the Badger, the Groveweaver, the Conduit
+
+**Rune of the Badger** (Basic, 5) is pure data — the `grant` reward already carried `grantKeywords`, so it is
+a Badgington handed over with Flurry (`W`) and Ward (`DS`) stamped on.
+
+**Rune of the Groveweaver** (Epic, 6) makes a Groveweaver's summon grant land on ITSELF as well. The self-buff
+recomputes the arena body's own arithmetic (base + that instance's `summonBonus`, × golden) rather than
+inventing a second formula, so the two can't drift, and it repeats the same tribe gate — a Groveweaver that
+skipped a non-Beast arriver must not pay itself either. That last rule has its own test.
+
+**Rune of the Conduit** (Epic, 5, Set 2) gives the whole side one extra Ruby bounce. Candle Conduit's per-body
+bounce loop already existed from this morning's rework; the rune folds into the same counter as "a body's worth
+of bouncing without being a body", keeping the one no-rebounce guard that stops two Idols pinging forever.
+
+**A test-fixture trap worth recording.** The Conduit test first read a bounce of +1 instead of +2 and looked
+like a bug. It wasn't: a Ruby's stats ride on the INSTANCE (it can be buffed in hand), and the fixture had
+built a 0/1 Ruby off `bm`'s defaults. The code was right; the fixture was wrong.
+
+The rune-count tripwire fired (+1 Basic, 72 → 73) and was the only thing that failed — the tally and preview
+audits passed untouched, since all three either name a card they already preview or fire per-event rather
+than on a threshold.
+
+`typecheck` clean, lint at the 7-warning baseline, 4207 tests (7 new), `build:web` OK. No art authored yet.
+
 ## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
 
 The owner's 14-rune Epic sheet, stacked on the Basic batch (both touch the same four files, so they ship in

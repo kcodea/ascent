@@ -969,6 +969,8 @@ export type QuestReward =
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
   | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
+  | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
+  | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
   | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
   | { kind: 'runeLorekeeping' } // targeted Shop spells give the target an extra +4/+4

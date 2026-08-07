@@ -838,6 +838,10 @@ export interface RunState {
   runeFoundry?: { per: number; sold: number };
   /** Rune of the Corrupted Tome: a Triple Reward grants two. */
   runeCorruptedTome?: boolean;
+  /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on the Groveweaver. */
+  runeGroveweaver?: boolean;
+  /** Rune of the Conduit: every Ruby played bounces its stats to one extra random friendly minion. */
+  runeConduit?: boolean;
   /** Rune of the Vault: 10 Gold when the shop first reaches tier 5. Cleared when paid. */
   runeVault?: boolean;
   /** Rune of Lorekeeping: a Shop spell cast ON a minion gives it an extra +4/+4. */

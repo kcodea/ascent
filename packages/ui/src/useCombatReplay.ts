@@ -1538,6 +1538,10 @@ export function useCombatReplay(
     // NEXT moment's natural (late, at-contact) firing — see `onRallyPulse` below and the withhold effect
     // that mirrors this one's skip conditions. Same cleanup shape as `windupBuffTimer`.
     let windupDamageFxTimer: number | undefined;
+    // Task 8b: the LAUNCH timer for the attacker's own-attack summon reveal (Errand Fiend's imps), re-anchored
+    // from the old beat-start `impReveal` timer in the summon-hold effect below to this wind-up-pause callback
+    // — see `onRallyPulse` and the withhold effect's own comment for why the hold itself stays there.
+    let windupSummonTimer: number | undefined;
 
     // A RISE ATTACKER dying to retaliation returns HOME first: the engine's `runRiseReturn` kills the slow
     // elastic settle and pulls the unit straight back to its slot (a short hold so the contact reads, then a
@@ -1626,6 +1630,13 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
+        // Task 8b: Errand Fiend (and any unit that summons on its OWN attack) — its imps are withheld pre-paint
+        // by the summon-hold effect below, then released HERE, from the same wind-up-pause callback that
+        // releases buffs (`onWindupBuffs`/`windupBuffTimer`), so the reveal reads pulse → (gap) → imp instead of
+        // the old beat-start-anchored timer that could land the imp BEFORE its own pulse. `attackSummonUids`
+        // already guarantees `source === attacker`, so this never touches a Rally-delivered cub — those release
+        // through the separate `rallyDeliveredUids` / `rallyFx` cue path and are untouched by this task.
+        const impUids = attackSummonUids(cur, events, atkUid);
         // Task 7 (rally DAMAGE, Philippe): a rally-damage effect's `dmg` event carries no `source`, so it
         // can't be seen from `beatRallyPulses` (which reads `source`) — AND it isn't even in `cur` (dmg is a
         // RESULT type, never absorbed into the wind-up moment; see `rallyDamageEventIndex`'s doc). Reach
@@ -1647,7 +1658,7 @@ export function useCombatReplay(
           : undefined;
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
-          onRallyPulse: (rallies || beatRallyPulses.length || releaseRallyDmg) ? () => {
+          onRallyPulse: (rallies || beatRallyPulses.length || releaseRallyDmg || impUids.length) ? () => {
             sfx.triggerPulse(); // once per pause regardless of how many units pulse (mirrors the beat-boundary cue)
             if (rallies) {
               // self-rally, attacker carries RL → the existing YELLOW token pulse. Fires unconditionally on the
@@ -1694,6 +1705,17 @@ export function useCombatReplay(
                 // hit (see that cue, above), just fired here instead of at the withheld moment's natural time.
                 playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { uids: { source: uid, target: uid } });
                 pixiFx.impactPulse(cx, cy);
+              }, RALLY_EFFECT_GAP_MS / speed);
+            }
+            // Task 8b: Errand Fiend's own-attack summons (the imps) — withheld pre-paint by the summon-hold
+            // effect below, released HERE at `T + RALLY_EFFECT_GAP_MS` so the reveal lands AFTER this pulse
+            // instead of the old beat-start timer that could beat the pulse by ~240ms. Same delayed-launch +
+            // cleanup shape as `windupBuffTimer`/`windupDamageFxTimer` above.
+            if (impUids.length) {
+              const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+              windupSummonTimer = window.setTimeout(() => {
+                windupSummonTimer = undefined;
+                releaseSummons(impUids);
               }, RALLY_EFFECT_GAP_MS / speed);
             }
           } : undefined,
@@ -1775,21 +1797,24 @@ export function useCombatReplay(
       }
     }
     setProjectiles(ps);
-    // Cleanup only clears the WIND-UP LAUNCH timers added in Task 5 (`windupBuffTimer`) and Task 7
-    // (`windupDamageFxTimer`), above — the actual buff strike timer + roll it hands off to are still NOT
-    // tracked here (Task 6): `fireBuffCasts`/`fireSelfBuffs` schedule those in the combat-lifetime roll
-    // registry (see `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this per-beat cleanup
-    // deliberately still never reaches into — clearing THAT out from under an in-flight roll is the exact bug
-    // Task 6 fixed. Both launch timers are safe to clear per-beat because they only fire the LAUNCH, well
-    // before contact could normally advance the beat (`windupDamageFxTimer` fires at `T+300ms`; the earliest
-    // this effect's own cleanup could run first is a fast skip/seek that jumps `beatIdx` past this attack
-    // without going through its GSAP contact — in which case the damage moment this timer would have
-    // released into is ALSO skipped outright, same as every other per-beat cue in this file, so nothing is
-    // stranded: there is no natural-timing fallback left running to race against).
+    // Cleanup only clears the WIND-UP LAUNCH timers added in Task 5 (`windupBuffTimer`), Task 7
+    // (`windupDamageFxTimer`), and Task 8b (`windupSummonTimer`), above — the actual buff strike timer + roll
+    // it hands off to are still NOT tracked here (Task 6): `fireBuffCasts`/`fireSelfBuffs` schedule those in
+    // the combat-lifetime roll registry (see `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this
+    // per-beat cleanup deliberately still never reaches into — clearing THAT out from under an in-flight roll
+    // is the exact bug Task 6 fixed. All three launch timers are safe to clear per-beat because they only
+    // fire the LAUNCH, well before contact could normally advance the beat (each fires at `T+300ms`; the
+    // earliest this effect's own cleanup could run first is a fast skip/seek that jumps `beatIdx` past this
+    // attack without going through its GSAP contact — in which case the moment each timer would have released
+    // into is ALSO skipped outright, same as every other per-beat cue in this file, so nothing is stranded:
+    // there is no natural-timing fallback left running to race against — and any imp still withheld at that
+    // point is released wholesale by the summon-hold effect's `releaseAllSummons()` on its next run, with the
+    // hold TTL in `fx/summonHold.ts` as the final backstop).
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
     return () => {
       if (windupBuffTimer !== undefined) window.clearTimeout(windupBuffTimer);
       if (windupDamageFxTimer !== undefined) window.clearTimeout(windupDamageFxTimer);
+      if (windupSummonTimer !== undefined) window.clearTimeout(windupSummonTimer);
     };
   }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
@@ -1925,21 +1950,25 @@ export function useCombatReplay(
     if (!beat) return;
     for (const uid of rallyDeliveredUids(beat, { events, cardIds })) holdSummon(uid);
     // Errand Fiend (and any unit that summons on its OWN attack): withhold the attacker's own on-attack summons
-    // and reveal them a short lead later, so the Imps slide in just after the swing instead of snapping onto the
-    // board at wind-up start (owner ask 2026-08-07). Triggered by "summons on its own attack" (`source ===
-    // attacker`), NOT the RL keyword — a card's "Rally: summon…" is an onAttack EFFECT and carries no RL keyword
-    // (Errand Fiend's keywords are just `['W']`), so an RL gate here never fired. The reveal rides a speed-scaled
-    // timer cleared on the next beat/seek; the summon-hold TTL is the fail-open backstop if it is ever lost.
-    let impReveal: number | undefined;
+    // pre-paint so the Imps never flash onto the board at wind-up start (owner ask 2026-08-07). Triggered by
+    // "summons on its own attack" (`source === attacker`), NOT the RL keyword — a card's "Rally: summon…" is an
+    // onAttack EFFECT and carries no RL keyword (Errand Fiend's keywords are just `['W']`), so an RL gate here
+    // never fired.
+    //
+    // Task 8b: the RELEASE used to ride a beat-start-anchored timer HERE, which fired at `T + gap` measured
+    // from the top of the beat — but Task 4 moved the rally PULSE itself to the wind-up pause `T` (~540ms into
+    // the beat), so the old beat-start timer landed the imp ~240ms BEFORE its own pulse, backwards from every
+    // other channel's "pulse first, then effect." The release now happens from the attack-exchange effect's
+    // `onRallyPulse` callback (`windupSummonTimer`, same T+gap pattern as `windupBuffTimer`), so it can't fire
+    // before the pulse it's supposed to follow. Only the pre-paint HOLD stays here — the hold has to land
+    // before first paint of this beat regardless of when the pulse fires, and this is the only effect that
+    // runs pre-paint. If that release timer is ever lost (a skip/seek/speed change), the summon-hold TTL in
+    // `fx/summonHold.ts` is the fail-open backstop, and this effect's own `releaseAllSummons()` on the NEXT
+    // beat/seek clears any hold left standing so nothing can strand past its own beat.
     if (beat.kind === 'attackExchange' && beat.primary.type === 'attack') {
       const impUids = attackSummonUids(beat, events, beat.primary.attacker);
-      if (impUids.length) {
-        for (const uid of impUids) holdSummon(uid);
-        const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
-        impReveal = window.setTimeout(() => releaseSummons(impUids), RALLY_EFFECT_GAP_MS / speed);
-      }
+      for (const uid of impUids) holdSummon(uid);
     }
-    return () => { if (impReveal !== undefined) clearTimeout(impReveal); };
   }, [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate

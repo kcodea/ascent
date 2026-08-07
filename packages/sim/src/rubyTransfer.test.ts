@@ -119,3 +119,40 @@ describe('the card data itself', () => {
     expect(def.target, 'must reach shop offers too').toBe('any');
   });
 });
+
+describe("the owner's combo: Veinstorm → Ruby Transfer → Gemheart (2026-08-06)", () => {
+  it("Veinstorm's grant is a REAL per-offer Ruby buff, so Ruby Transfer can move it", () => {
+    // This is the case the owner hit in Scene Builder: Veinstorm used to write the run-wide TAVERN channel,
+    // so the shop showed "Tavern" and Ruby Transfer found nothing to steal. It now stamps each current offer
+    // with a genuine `Ruby` buff (and keeps the run channel for FUTURE offers).
+    let s = base({
+      shop: [offer('o1', 'pack'), offer('o2', 'alley'), offer('o3', 'stray')],
+      hand: [body('vs', 'veinstorm', 0, 1)],
+      embers: 20,
+    });
+    s = reduce(s, { type: 'play', uid: 'vs' });
+    const stamped = s.shop.map((o) => rubyOf(o));
+    expect(stamped.every((r) => r.a > 0 && r.h > 0), 'every offer carries a real Ruby buff').toBe(true);
+
+    // …and no double-count: the offer's buy stats equal base + exactly one grant.
+    const oneGrant = stamped[0]!.a;
+    const buy = offerBuyStats(s, s.shop[0]!);
+    expect(buy.attack, 'the run channel must not be added on top of the stamp').toBe(CARD_INDEX['pack']!.attack + oneGrant);
+
+    // Now transfer the row's Rubies onto the middle offer.
+    s = { ...s, hand: [spellCard('sp')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o2' });
+    expect(rubyOf(s.shop.find((o) => o.uid === 'o2')!).a, 'the middle offer now holds all three grants').toBe(oneGrant * 3);
+    expect(rubyOf(s.shop.find((o) => o.uid === 'o1')!).a, 'the donor is stripped').toBe(0);
+  });
+
+  it("a FUTURE offer still inherits Veinstorm's run channel (the card says permanently)", () => {
+    let s = base({ shop: [offer('o1', 'pack')], hand: [body('vs', 'veinstorm', 0, 1)], embers: 20 });
+    s = reduce(s, { type: 'play', uid: 'vs' });
+    const grant = rubyOf(s.shop[0]!).a;
+    // A brand-new offer carries no stamp, so the run channel covers it in full — one grant, not two.
+    const fresh = offer('new', 'alley');
+    const buy = offerBuyStats({ ...s, shop: [fresh] }, fresh);
+    expect(buy.attack).toBe(CARD_INDEX['alley']!.attack + grant);
+  });
+});

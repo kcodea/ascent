@@ -4039,6 +4039,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // "played on" anything on your board; (3) a shop-wide grant firing one watcher per offer would make a
     // 1-Gold spell the single largest Ruby-count payoff in the game. The `gainRubyStats` arena hook is the
     // established precedent for "Ruby stats, no watcher notify".
+    //
+    // TWO PLACES, deliberately (owner ruling 2026-08-06, confirming both halves). The run channel alone made
+    // the grant a run-wide AURA, which no card could interact with: Ruby Transfer found nothing to steal
+    // because no individual offer carried a Ruby buff, and "stealing" a run-wide bonus from one neighbour is
+    // meaningless anyway (the neighbour would keep it). So:
+    //   · each CURRENT offer gets a real per-offer `Ruby` buff — a first-class thing Ruby Transfer can move,
+    //     the hover can itemise, and the inspect names correctly;
+    //   · the run channel keeps covering FUTURE offers, which is what "permanently" means on the card (owner
+    //     confirmed a refreshed shop keeps the value).
+    // `offerBuyStats` folds ONLY the run channel, and the per-offer buff is already inside `offer.atk/hp`, so
+    // the two do not double-count — the same split every other permanent shop grant uses.
+    for (const offer of ctx.state.shop) {
+      const d = CARD_INDEX[offer.cardId];
+      if (!d || d.spell || d.ruby || d.keywords.includes('FD')) continue; // Fodder is excluded, as it always was
+      addOfferBuff(offer, 'Ruby', a, h);
+      // Record that this offer now carries this much of the run channel itself, so `offerBuyStats` folds only
+      // the remainder — otherwise a current offer would count the same grant twice (verified: it folds both).
+      offer.rubyStamped = { atk: (offer.rubyStamped?.atk ?? 0) + a, hp: (offer.rubyStamped?.hp ?? 0) + h };
+    }
     ctx.state.tavernRubyBonus.atk += a;
     ctx.state.tavernRubyBonus.hp += h;
   },
@@ -5754,8 +5773,10 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
   // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
   // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
-  const rubyA = fodder ? 0 : (state.tavernRubyBonus?.atk ?? 0);
-  const rubyH = fodder ? 0 : (state.tavernRubyBonus?.hp ?? 0);
+  // Only the share this offer does NOT already carry as its own `Ruby` buff (Veinstorm stamps the offers
+  // present when it casts; later offers carry none and inherit the whole channel here).
+  const rubyA = fodder ? 0 : Math.max(0, (state.tavernRubyBonus?.atk ?? 0) - (offer.rubyStamped?.atk ?? 0));
+  const rubyH = fodder ? 0 : Math.max(0, (state.tavernRubyBonus?.hp ?? 0) - (offer.rubyStamped?.hp ?? 0));
   let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA + rubyA;
   let health = def.health + cb.health + (offer.hp ?? 0) + staffH + rubyH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild

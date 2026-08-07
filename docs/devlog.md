@@ -386,6 +386,38 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Veinstorm's grant becomes PER-OFFER Rubies, closing the Ruby Transfer combo
+
+Follow-up to the same day's Veinstorm rework and the new Ruby Transfer, after the owner tested the pair in
+Scene Builder: "ruby transfer did not work? the buff in shop also shows 'tavern' as the buff."
+
+Ruby Transfer was fine — verified live on both rows (board: donors stripped, target 2/2 → 8/8; shop: donors
+stripped, target +7/+7). The word "Tavern" was the diagnosis: that label is the run-wide tavern-buy channel,
+which is what Veinstorm wrote. Nothing in that shop carried a `Ruby`-sourced buff, so the spell correctly
+found nothing to steal.
+
+The earlier rework had made Veinstorm's grant COUNT as Rubies (fixing the Gemheart Carver 11/11 case) but
+implemented it purely as a run-level channel — an aura no card could interact with. Owner confirmed both
+halves of the fix:
+- **Each CURRENT offer now gets a real per-offer `Ruby` buff** — a first-class thing Ruby Transfer can move,
+  the inspect can name, and the Ruby-landing cue can play on.
+- **The run channel still covers FUTURE offers**, which is what "permanently" means on the card (owner
+  confirmed a refreshed shop keeps the value).
+
+The double-count that split creates is closed by `ShopCard.rubyStamped`: an offer records how much of the run
+channel it already carries as its own buff, and `offerBuyStats` folds only the remainder. Worth noting the
+first draft of this asserted in a comment that the two "do not double-count" — reading `offerBuyStats`
+showed it added BOTH. The comment was wrong before the code was; checking beat asserting.
+
+One deliberate behaviour flip: Veinstorm now plays the Ruby-landed cue on each offer. That cue is derived
+from the per-offer Ruby-count delta, so it follows automatically — and correctly: real Rubies are arriving,
+and the animation is what makes the spell legible. The test that pinned "no landed cue" was updated with the
+reasoning rather than deleted; the cast meters (Spellstone, rubyCasts) still must not move, and are still
+pinned at zero.
+
+Verified: typecheck / lint (7-warning baseline) / 4056 tests (2 new combo tests) / harness determinism /
+build:web.
+
 ## 2026-08-06 — New spell: Ruby Transfer (T5, 1 Gold, Set 2) — consolidate a row's Rubies
 
 Owner spec: "Target a minion. It steals all Ruby buffs from adjacent minions" — and, importantly, "it can

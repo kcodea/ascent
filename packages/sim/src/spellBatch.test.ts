@@ -476,13 +476,17 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
     expect([onBoard.attack, onBoard.health]).toEqual([def.attack + 10, def.health + 10]);
   });
 
-  it('a shop-wide Veinstorm does NOT count as Ruby CASTS (no Spellstone / Ruby-cast tally, no landed cue)', () => {
-    // Conservative reading: the grant lands on OFFERS and bakes in at buy, so it is not "a Ruby played on your
-    // minion". Pinned so a future change to the watcher policy is a deliberate edit, not a silent drift.
+  it('a shop-wide Veinstorm does NOT count as Ruby CASTS (no Spellstone / Ruby-cast tally)', () => {
+    // Conservative reading: the grant is not "a Ruby CAST" — it never touches the cast meters or the
+    // watchers. Pinned so a future change to the watcher policy is a deliberate edit, not silent drift.
     const s = veinstormTen();
     expect(s.rubyCasts ?? 0, 'ten Veinstorms are ten SPELL casts, not ten Ruby casts').toBe(0);
     expect(s.rubyCastsThisTurn ?? 0).toBe(0);
-    expect(s.rubyLandedFxSeq ?? 0, 'no per-offer Ruby-landed cue for a run-wide grant').toBe(0);
+    // The LANDED CUE is a different question and its answer flipped with the 2026-08-06 rework (owner
+    // confirmed the grant should be per-offer Rubies so Ruby Transfer can move them). The cue is derived
+    // from the per-offer Ruby-count delta, so it now plays — correctly: real Rubies really are arriving on
+    // those offers, and the animation is what makes that legible.
+    expect(s.rubyLandedFxSeq ?? 0, 'the offers really do gain Rubies now — the cue should play').toBeGreaterThan(0);
   });
 
   it('buying a Resonance Idol out of a Veinstorm shop does not bounce the grant onwards', () => {

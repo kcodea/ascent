@@ -59,6 +59,10 @@ export interface ShopCard {
   /** Per-SOURCE breakdown of `atk`/`hp` (Apples, Fortify, Fried Circuits, …) so the tavern inspect + the bought
    *  minion attribute the buff to the right name instead of a generic label. Sums to `atk`/`hp`. */
   buffs?: CardBuff[];
+  /** How much of the run-wide Veinstorm RUBY channel this offer already carries as a real per-offer `Ruby`
+   *  buff (stamped at cast time so Ruby Transfer has something to steal). `offerBuyStats` folds only the
+   *  REMAINDER of the run channel, so the two halves can never double-count on the same offer. */
+  rubyStamped?: { atk: number; hp: number };
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;

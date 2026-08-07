@@ -575,7 +575,14 @@ function reduceCore(state: RunState, action: Action): RunState {
   // stay clickable under `timeUp` (so it can always be resolved and needs no escape), and letting End Turn fire
   // over an open Discover / Choose One / quest / Runeforge would strand it going into combat.
   const endTurnEscapesAim = action.type === 'faceOmen' && !!state.pendingTarget;
-  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  // COMBAT TRANSITIONS ARE EXEMT TOO (found 2026-08-07 by the seed-7 hard bot). The phase guard above allows
+  // ONLY `settleCombat`/`resolveCombat` while `phase === 'combat'`. So if a modal is open during a fight, the
+  // phase guard rejects the modal-resolving action AND this guard rejects the transition — a hard deadlock
+  // with no legal move, for a player as much as a bot. A Discover raised mid-combat is the reachable case.
+  // Letting the transitions through is safe: the modal is untouched and presents itself in the next recruit
+  // phase, which is where a Discover can be answered anyway.
+  const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat';
+  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -822,6 +829,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); }
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
+          if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true;
           return s;
         }
         // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
@@ -852,6 +860,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         return s;
       }
 
@@ -1025,6 +1034,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
@@ -1159,6 +1169,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (playedDef && hasBattlecry(playedDef)) {
           s.shoutsThisTurn = (s.shoutsThisTurn ?? 0) + 1;
           if (s.shoutsThisTurn === 1) s.firstShoutUid = card.uid;
+          // Rune of Hoardcalling: the first DRAGON Shout each turn hands over a random Shop spell. Gated on
+          // the played card being a Dragon, so a turn of Beast Shouts never spends the freebie.
+          if (s.runeHoardcalling && !s.hoardcallingUsedThisTurn && isTribe(card, 'dragon')) {
+            s.hoardcallingUsedThisTurn = true;
+            const spells = poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
+            if (spells.length > 0) conjureToHand(s, spells, 1, true);
+          }
           if (s.runeRefrain) {
             const rrng = makeRng(s.rngCursor);
             const returns = rrng.int(100) < 25;
@@ -1238,6 +1255,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
         s.chooseOne = undefined;
@@ -1367,7 +1385,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
-        // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
+        // Rune of the Aftermarket: the FIRST sale each turn gives the sold minion's BASE stats (its printed
+      // card, not what it had grown into) to every minion currently in the Shop. Base rather than live so a
+      // fully-buffed body doesn't dump a monstrous shop buff — the sheet says "its base stats".
+      if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
+        const soldDef = CARD_INDEX[sold.cardId];
+        if (soldDef && !soldDef.spell && !soldDef.ruby) {
+          s.aftermarketUsedThisTurn = true;
+          const g = sold.golden ? 2 : 1;
+          for (const o of s.shop) {
+            const d = CARD_INDEX[o.cardId];
+            if (d && !d.spell && !d.ruby) addOfferBuff(o, 'Rune of the Aftermarket', soldDef.attack * g, soldDef.health * g);
+          }
+        }
+      }
+      // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
         if (s.runeFoundry) {
           const fd = { ...s.runeFoundry, sold: s.runeFoundry.sold + 1 };
           if (fd.sold >= fd.per) {
@@ -2780,6 +2812,10 @@ function advanceCombat(s: RunState): void {
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
+  // Batch-4 per-turn gates (Shared Pour / Aftermarket / Hoardcalling all read "the first … each turn").
+  s.sharedPourUsedThisTurn = undefined;
+  s.aftermarketUsedThisTurn = undefined;
+  s.hoardcallingUsedThisTurn = undefined;
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
@@ -3400,6 +3436,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = add(s.questFlags.runeLivingEchoes, r.amount ?? 3); // amount = Heralds per combat
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
+      else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
@@ -3464,7 +3501,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };
@@ -3670,6 +3707,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeFoundry': s.runeFoundry = { per: r.per, sold: 0 }; break;
     case 'runeCorruptedTome': s.runeCorruptedTome = true; break;
     case 'runeGroveweaver': s.runeGroveweaver = true; break;
+    case 'runeSharedPour': s.runeSharedPour = true; break;
+    case 'runeAftermarket': s.runeAftermarket = true; break;
+    case 'runeHoardcalling': s.runeHoardcalling = true; break;
     case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
     case 'runeAltar': {
@@ -3996,6 +4036,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
     runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
+    runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
+    runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
+    runeCenterline: f?.runeCenterline,       // Rune of the Centerline: SoC — middle minion Ward + Crit
+    runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
     runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat

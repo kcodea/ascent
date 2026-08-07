@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-07 — Batch 4, tranche 1: nine Basic runes, plus a real combat-phase softlock
+
+**Nine new Basic runes (the pattern-reuse tranche of the owner's batch 4).** Each one leans on machinery that
+already existed, which is why they went first:
+
+- **Rune of the Empty Plate** (3) — after 3 Shop-minion Consumes, a random Shop spell. Adds a `consume` meter
+  to the existing `runeThreshold` engine.
+- **Rune of the Gem Dividend** (3, Set 2) — 5 Rubies cast in a turn banks 3 Gold into *next* turn's opening.
+  Introduces `grantGoldNextTurn`, riding the same channel Bounty Bot's next-shop Gold uses. The sheet says
+  "in a turn", so the meter is `resetEachTurn` rather than banking a remainder across turns.
+- **Rune of Carrion Coin** (3) — Avenge (4): a random Shop spell. Straight `runeAvenge` registration.
+- **Rune of the Five Banners** (4) — Start of Combat, one friendly minion of *each* type gains +6/+6. Follows
+  the Paragon rule: an all-type body always collects, and a dual-type body stands in for whichever tribe is
+  still unclaimed, so it pays per TYPE PRESENT, never per minion.
+- **Rune of the Centerline** (3) — Start of Combat, if the two end minions differ in type, the middle one gains
+  Ward and Critical Strike. Needs three bodies for "ends" and "middle" to mean anything.
+- **Rune of the Second Litter** (4) — the first Beast summoned each combat summons another copy. Latched, so a
+  Deathrattle that summons two Beasts still yields exactly one extra body.
+- **Rune of Shared Pour** (4, Set 2) — your first Dwarven Ale each turn casts an additional time. Folds into
+  the existing per-cast multiplier rather than adding a second cast path.
+- **Rune of the Aftermarket** (4) — the first minion sold each turn pushes its BASE stats (not what it grew
+  into) onto every current Shop offer.
+- **Rune of Hoardcalling** (5) — after your first Dragon Shout each turn, a random Shop spell.
+
+**A combat-phase softlock, found by the bot and fixed.** The seed-7 hard bot stalled, and the cause predates
+these runes — the new content only shifted the RNG enough to walk into it. The reducer's phase guard admits
+ONLY `settleCombat`/`resolveCombat` while `phase === 'combat'`, while the global modal guard rejected every
+action with a modal open. So a Discover raised mid-combat left no legal move at all: the transition was
+refused by one guard and the Discover by the other. A player would have hit the same dead end. The combat
+transitions are now exempt from the modal guard — safe, because the modal is untouched and presents itself in
+the next recruit phase, which is the only phase where a Discover can be answered anyway.
+
+**Verified.** 4571 tests across 267 files green, including a new 13-case `runeBatch4T1.test.ts` that measures
+each combat rune against the same board *without* its flag, and drives the shop-side ones through the real
+`reduce` rather than injected state — the gap where both of the Chef's defects hid earlier today. Typecheck,
+lint (0 errors) and `build:web` all clean. The rune-count tripwire moves 73 → 82 and Carrion Coin is
+classified in the tally coverage as an Avenge (4) rune.
+
+**Still queued from batch 4:** tranche 2 (3 minions — Ashen Heir, Runesnout Archivist, Mossmemory Colossus —
+plus their Epic grant runes), tranche 3 (8 contained-machinery Basics), tranche 4 (5 hard Epics).
+
 ## 2026-08-07 — Rune of Savagery doubles LAST; all 163 rune arts re-wired
 
 **The owner found the real Savagery bug, and it was an ordering one.** It ran BEFORE the summon watchers and

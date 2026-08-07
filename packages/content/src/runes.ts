@@ -623,6 +623,76 @@ export const RUNES: RuneDef[] = [
     previewCards: ['badgington'], // text names it — the forge hover shows the card
     reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] },
   },
+  // ── the 2026-08-07 owner batch 4 (tranche 1: the pattern-reuse nine) ──
+  {
+    // Reuses the threshold engine with a new `consume` meter.
+    id: 'rune_empty_plate',
+    name: 'Rune of the Empty Plate',
+    cost: 3,
+    text: 'After you **Consume 3 Shop minions**, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'consume', per: 3, grantSpell: 1 },
+  },
+  {
+    // Threshold again, with the new next-turn Gold payout. Per the sheet the window is a TURN, so the meter
+    // resets each turn rather than banking a remainder across them.
+    id: 'rune_gem_dividend',
+    name: 'Rune of the Gem Dividend',
+    cost: 3,
+    text: 'After you cast **5 Rubies** in a turn, gain **3 Gold** next turn.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 5, grantGoldNextTurn: 3, resetEachTurn: true },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_carrion_coin',
+    name: 'Rune of Carrion Coin',
+    cost: 3,
+    text: '**Avenge (4):** get a random **Shop spell**.',
+    reward: { kind: 'combatFlag', flag: 'runeCarrionCoin', amount: 4 },
+  },
+  {
+    id: 'rune_five_banners',
+    name: 'Rune of the Five Banners',
+    cost: 4,
+    text: '**Start of Combat:** give one friendly minion of **each type +6/+6**.',
+    reward: { kind: 'combatFlag', flag: 'runeFiveBanners' },
+  },
+  {
+    id: 'rune_centerline',
+    name: 'Rune of the Centerline',
+    cost: 3,
+    text: '**Start of Combat:** if your **end minions** have different types, give your **middle** minion **Ward** and **Critical Strike**.',
+    reward: { kind: 'combatFlag', flag: 'runeCenterline' },
+  },
+  {
+    id: 'rune_second_litter',
+    name: 'Rune of the Second Litter',
+    cost: 4,
+    text: 'The first **Beast** summoned each combat summons **another copy**.',
+    reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
+  },
+  {
+    id: 'rune_shared_pour',
+    name: 'Rune of Shared Pour',
+    cost: 4,
+    text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
+    reward: { kind: 'runeSharedPour' },
+    sets: ['set2'], // Ales
+  },
+  {
+    id: 'rune_aftermarket',
+    name: 'Rune of the Aftermarket',
+    cost: 4,
+    text: 'The first minion you **sell** each turn gives its **base stats** to minions in the current **Shop**.',
+    reward: { kind: 'runeAftermarket' },
+  },
+  {
+    id: 'rune_hoardcalling',
+    name: 'Rune of Hoardcalling',
+    cost: 5,
+    text: 'After your first **Dragon Shout** each turn, get a random **Shop spell**.',
+    reward: { kind: 'runeHoardcalling' },
+  },
 ];
 
 /**

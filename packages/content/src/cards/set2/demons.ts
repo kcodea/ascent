@@ -203,9 +203,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffSpellsAndImps', params: { attack: 1, health: 1 } }],
-    text: '**End of Turn:** give your **Shop Spells** and **Imps +1/+1**.',
-    goldenText: '**End of Turn:** give your **Shop Spells** and **Imps +2/+2**.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffSpellsAndImps', params: { attack: 1, health: 1, impAttack: 3, impHealth: 1 } }],
+    text: '**End of Turn:** give your **Shop Spells +1/+1** and your **Imps +3/+1**.',
+    goldenText: '**End of Turn:** give your **Shop Spells +2/+2** and your **Imps +6/+2**.',
   },
   {
     id: 'dm_avarice',

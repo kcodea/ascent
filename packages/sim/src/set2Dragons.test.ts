@@ -87,7 +87,9 @@ describe('set 2 — Dragon effects', () => {
     expect(CARD_INDEX[next.hand[0]!.cardId]!.spell).toBe(true);
   });
 
-  it('Bathing Matriarch: a played Shout gives your Dragons +2 Attack only (no Health)', () => {
+  // Owner rework 2026-08-07: the alternating Attack/Health mode is retired — it is a flat +1/+1 on every
+  // Shout trigger now, so the assertion moves from "Attack only" to both stats.
+  it('Bathing Matriarch: a played Shout gives your Dragons +1/+1', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
       board: [minion('mm', 'd2_matriarch', 'dragon', 4, 7)],
@@ -95,7 +97,7 @@ describe('set 2 — Dragon effects', () => {
     };
     const next = reduce(s, { type: 'play', uid: 'c1' });
     const mm = next.board.find((c) => c.uid === 'mm')!;
-    expect([mm.attack - 4, mm.health - 7]).toEqual([2, 0]);
+    expect([mm.attack - 4, mm.health - 7]).toEqual([1, 1]);
     expect(poolOf(next)).toBeTruthy();
   });
 });
@@ -503,11 +505,12 @@ describe('set 2 — Orivax installs a permanent global mode', () => {
     s = reduce(s, { type: 'play', uid: 'ox' });
     s = reduce(s, { type: 'chooseOne', index: 0 }); // Chorus
     expect(s.shoutExtraAlways).toBe(1);
-    // now a played Shout fires TWICE, so Matriarch pays +2 Attack twice = +4
+    // now a played Shout fires TWICE, so Matriarch pays its +1 Attack twice = +2 (it was +2 Attack a fire
+    // before the 2026-08-07 rework to a flat +1/+1 — the DOUBLING is what this test pins, not the magnitude)
     const before = s.board.find((c) => c.uid === 'mm')!.attack;
     s = reduce(s, { type: 'play', uid: 'sh' });
     const mm = s.board.find((c) => c.uid === 'mm')!;
-    expect(mm.attack - before).toBe(4);
+    expect(mm.attack - before).toBe(2);
   });
 
   it('Spellweave: the first spell each turn casts 3 times (later spells single)', () => {

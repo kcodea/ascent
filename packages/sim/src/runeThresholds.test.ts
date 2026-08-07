@@ -102,7 +102,7 @@ describe('the meters are wired to real play', () => {
 describe('the seven runes', () => {
   it('ship at the sheet\'s costs', () => {
     const want: [string, number][] = [
-      ['Rune of the Chorus', 3], ['Rune of Overtime', 1], ['Rune of Infernal Ink', 4],
+      ['Rune of the Chorus', 3], ['Rune of Overtime', 1], ['Rune of Infernal Ink', 3], // Ink 4 -> 3 (owner 2026-08-07)
       ['Rune of the Cindergem', 4], ['Rune of the Showcase', 3], ["Rune of the Merchant's Chorus", 3],
       ['Rune of the Long Shift', 2],
     ];

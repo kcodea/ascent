@@ -228,8 +228,6 @@ export type EffectFactoryId =
   | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
   | 'spellCastDemonConsumesShop' // Set 2 — Baal: every N spells, a friendly Demon consumes a Shop minion
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
-  | 'onBattlecryBuffTribeAlternating' // Set 2 — Bathing Matriarch: alternates Attack/Health each turn
-  | 'endOfTurnAlternateMode' // …and the tick that flips it
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
   | 'onSummonTribeBuffThenDouble' // Set 2 — King Oona: a summoned Beast gets +1/+1, then doubles (gilded: triples)
   | 'onSummonTribeBuffImproveSelf' // Set 2 — Menagerie Mammoth: a summoned Beast gets +N Attack; the grant improves permanently

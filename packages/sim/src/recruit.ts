@@ -2597,7 +2597,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     const cur = ctx.state.spellBonus ?? { attack: 0, health: 0 };
     ctx.state.spellBonus = { attack: cur.attack + a, health: cur.health + h };
-    buffImpsRunWide(ctx.state, a, h, nameOf(self));
+    // The Imp half takes its OWN magnitude when the card asks for one (Void Curator 2026-08-07: Imps +3/+1
+    // while its Spells stay +1/+1). Defaulting to the spell numbers keeps every existing caller unchanged.
+    const ia = num(params.impAttack, num(params.attack, 1)) * gold(self);
+    const ih = num(params.impHealth, num(params.health, 1)) * gold(self);
+    buffImpsRunWide(ctx.state, ia, ih, nameOf(self));
   },
 
   /** Set 2 — Avarice Incarnate: the FIRST Shop-minion Consume each turn pays a flat `gold` (golden doubles).
@@ -2676,36 +2680,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onBattlecryBuffTribeAdjacentMore(shopArena(ctx.state, self), params);
   },
 
-
-  /** Set 2 — Bathing Matriarch: each Shout you trigger buffs your Dragons, and WHICH stat it buffs alternates
-   *  every turn — Attack on its first turn, Health on the next, and so on (owner spec 2026-07-25).
-   *
-   *  The phase is PER-INSTANCE (`eotTick`, advanced by the `endOfTurnAlternateMode` half below) rather than
-   *  global wave parity, so a Matriarch always starts on Attack no matter which turn you bought it — the same
-   *  reasoning as Hellrider counting refreshes "from its own arrival". Two copies can therefore sit out of
-   *  phase, which is a feature: one covers each stat.
-   *
-   *  `alternateModeOf` is exported so the printed text can name the stat that's live RIGHT NOW — the card-text
-   *  rule means an alternating card must never print a stat it isn't currently giving. */
-  onBattlecryBuffTribeAlternating: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const amount = num(params.amount, 2);
-    const health = alternateModeOf(self) === 'health';
-    const flash = (ctx.state.karwindFlash ??= []);
-    for (let i = 0; i < gold(self); i++) {
-      for (const c of ctx.state.board) {
-        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
-        addBuff(c, nameOf(self), health ? 0 : amount, health ? amount : 0);
-        if (!flash.includes(c.uid)) flash.push(c.uid);
-      }
-    }
-  },
-
-  /** The other half of the alternating pair: advance this instance's turn counter so the mode flips. Does
-   *  nothing else — it exists purely so the phase is per-instance and survives in the saved run. */
-  endOfTurnAlternateMode: (_ctx, self) => {
-    self.eotTick = (self.eotTick ?? 0) + 1;
-  },
 
   /** Set 2 — Scalechanter: every SHOP spell you cast gives your whole board +atk. The `spellCast` event is
    *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording

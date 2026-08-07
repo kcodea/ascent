@@ -16,7 +16,7 @@ export const SET2_BEASTS: CardDef[] = [
     id: 'b2_moonhowl',
     name: 'Moonhowl Mentor',
     tribe: 'beast',
-    tier: 6,
+    tier: 5,
     attack: 4,
     health: 9,
     keywords: [],
@@ -113,7 +113,7 @@ export const SET2_BEASTS: CardDef[] = [
     // a Ninja Pal that strikes out of turn order. Reuses Steadfast Champion's `avengeSummonAttack` verbatim;
     // GOLDEN summons a GILDED Pal (the factory's golden rule), not two.
     id: 'b2_scavenger',
-    name: 'Moonlit Scavenger',
+    name: 'Scavvers', // renamed 2026-08-07 (owner); id unchanged so saved runs and pool boards still resolve
     tribe: 'beast',
     tier: 4,
     attack: 4,

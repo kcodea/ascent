@@ -377,30 +377,35 @@ describe('spell batch — tranche C (Discover-based)', () => {
 });
 
 describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
-  it('Veinstorm: PERMANENTLY buffs the Shop by your Ruby stats — current offers and future ones', () => {
-    // Owner 2026-07-24: it's a permanent shop grant, not a one-shot on the offers standing at cast time.
-    // It routes through a run-level accumulator, so a reroll no longer wipes it — the failure mode before that.
-    // Owner 2026-08-06: that accumulator is `tavernRubyBonus` (RUBIES), NOT `tavernBuyBonus` (a tavern buff).
-    let s: RunState = { ...createRun(1), setId: 'set2', embers: 99, rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
+  it('Veinstorm plays its own value in RUBIES onto the tavern minions', () => {
+    // Owner 2026-08-06: "veinstorm should literally apply the value of itself in rubies to the shop." A Ruby
+    // is 1/1 + the run's rubyBonus, so that is what each tavern minion gains, under the `Ruby` source.
+    let s: RunState = { ...createRun(1), setId: 'set2', embers: 99, rubyBonus: { attack: 2, health: 3 },
+      shop: [{ uid: 'a', cardId: 'pack' }, { uid: 'b', cardId: 'alley' }], hand: [mkSpell('sp', 'veinstorm')] };
     const n = s.shop.length;
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
     expect(s.shop.length).toBe(n);
-    expect(s.tavernRubyBonus).toEqual({ atk: 3, hp: 4 }); // 1+2 / 1+3
-    expect(s.tavernBuyBonus, 'the grant must NOT also land in the tavern-buff channel').toEqual({ atk: 0, hp: 0 });
-
-    // Every CURRENT offer already reads the buff through `offerBuyStats`…
+    // ONE mechanism (owner 2026-08-06: "veinstorm should literally apply the value of itself in rubies to
+    // the shop"): a real per-offer `Ruby` buff on each current tavern minion. No run-level channel — that
+    // shipped briefly as an aura no card could interact with, and its double-count had to be undone in every
+    // reader (`offerBuyStats` did; the shop's own display did NOT, so the value rendered doubled).
+    expect(s.tavernBuyBonus, 'the grant must NOT land in the tavern-buff channel').toEqual({ atk: 0, hp: 0 });
     for (const o of s.shop) {
       const def = CARD_INDEX[o.cardId]!;
+      if (def.spell || def.ruby || def.keywords.includes('FD')) continue;
+      const ruby = o.buffs?.find((b) => b.source === 'Ruby');
+      expect(ruby, `${o.cardId} carries a real Ruby buff`).toMatchObject({ attack: 3, health: 4 });
       const st = offerBuyStats(s, o);
-      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+      expect([st.attack - def.attack, st.health - def.health], 'counted exactly once').toEqual([3, 4]);
     }
-    // …and so does a shop drawn AFTER a reroll, which used to lose it entirely.
+    // A REROLL replaces the minions, so the new ones carry nothing — you rolled away the bodies that held
+    // the Rubies. "Permanently" on the card means the buff never wears off the minion it landed on (and
+    // travels with it into your hand), not that unrelated future minions inherit it.
     s = reduce(s, { type: 'roll' });
-    expect(s.tavernRubyBonus).toEqual({ atk: 3, hp: 4 });
     for (const o of s.shop) {
       const def = CARD_INDEX[o.cardId]!;
-      const st = offerBuyStats(s, o);
-      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+      if (def.spell || def.ruby) continue;
+      expect(o.buffs?.find((b) => b.source === 'Ruby'), 'a freshly rolled minion carries no Veinstorm Rubies').toBeUndefined();
     }
   });
 
@@ -413,8 +418,12 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   // "veinstorm should technically function as if that value of rubies was played on the minion … if i played
   // veinstorms so that the shop has +10/+10 from veinstorm, a gemheart carver should then summon an 11/11
   // gemstone golem." Ten casts at base Ruby strength = +10/+10; the Golem is its own 1/1 + those 10/10.
-  const veinstormTen = (): RunState => {
+  // The offer must be IN the tavern when Veinstorm casts — the spell plays Rubies onto the minions in front
+  // of you, so a body that arrives afterwards was never Ruby'd. `shopCardId` seeds the offer the caller will
+  // buy, so the ten casts land on it.
+  const veinstormTen = (shopCardId?: string): RunState => {
     let s: RunState = { ...createRun(1), setId: 'set2', embers: 999 };
+    if (shopCardId) s = { ...s, shop: [{ uid: 'off', cardId: shopCardId }] };
     for (let i = 0; i < 10; i++) {
       s = { ...s, hand: [...s.hand, mkSpell(`v${i}`, 'veinstorm')] };
       s = reduce(s, { type: 'play', uid: `v${i}`, targetUid: undefined });
@@ -423,19 +432,19 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   };
   /** Put a Gemheart Carver in the tavern and buy it. Returns the bought BoardCard (it lands in hand). */
   const buyCarver = (s0: RunState): { state: RunState; carver: BoardCard } => {
-    const s1: RunState = { ...s0, shop: [{ uid: 'off', cardId: 'k_gemheart' }], embers: 999, hand: [] };
+    // `s0` was built with the Carver already on offer (see `veinstormTen`), so it carries the Rubies.
+    const s1: RunState = { ...s0, embers: 999, hand: [] };
     const s2 = reduce(s1, { type: 'buy', uid: 'off' });
     return { state: s2, carver: s2.hand.find((c) => c.cardId === 'k_gemheart')! };
   };
 
-  it("Veinstorm's shop grant is RUBIES: ten casts = +10/+10, banked in tavernRubyBonus alone", () => {
+  it("Veinstorm's shop grant is RUBIES: ten casts = +10/+10 of real per-offer Ruby buffs", () => {
     const s = veinstormTen();
-    expect(s.tavernRubyBonus).toEqual({ atk: 10, hp: 10 });
     expect(s.tavernBuyBonus, 'no double-count into the tavern-buff channel').toEqual({ atk: 0, hp: 0 });
   });
 
   it('a minion bought from a +10/+10 Veinstorm shop carries 10/10 of RUBIES (one buff entry, no tavern buff)', () => {
-    const { carver } = buyCarver(veinstormTen());
+    const { carver } = buyCarver(veinstormTen('k_gemheart'));
     const def = CARD_INDEX['k_gemheart']!;
     expect([carver.attack, carver.health]).toEqual([def.attack + 10, def.health + 10]); // 15/13
     const ruby = carver.buffs?.find((b) => b.source === 'Ruby');
@@ -447,15 +456,14 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   });
 
   it("the offer preview already reads the Ruby grant (offerBuyStats == the bought minion's stats)", () => {
-    const s = veinstormTen();
-    const shopped: RunState = { ...s, shop: [{ uid: 'off', cardId: 'k_gemheart' }] };
+    const shopped = veinstormTen('k_gemheart');
     const st = offerBuyStats(shopped, shopped.shop[0]!);
     const def = CARD_INDEX['k_gemheart']!;
     expect([st.attack, st.health]).toEqual([def.attack + 10, def.health + 10]);
   });
 
   it("OWNER SCENARIO: Veinstorm +10/+10 → buy a Gemheart Carver → its Echo summons an 11/11 Gemheart Golem", () => {
-    const { carver } = buyCarver(veinstormTen());
+    const { carver } = buyCarver(veinstormTen('k_gemheart'));
     // Straight into combat with the body the buy produced — the buff breakdown is what travels (reducer's
     // combat handoff copies `buffs`), and combat's `rubyTallyOf` reads exactly that `Ruby` entry.
     const r = simulate(
@@ -468,7 +476,7 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   });
 
   it('the Ruby grant travels with the minion: buy → play → still 10/10 of Rubies on the board body', () => {
-    const { state, carver } = buyCarver(veinstormTen());
+    const { state, carver } = buyCarver(veinstormTen('k_gemheart'));
     const played = reduce(state, { type: 'play', uid: carver.uid, toIndex: 0 });
     const onBoard = played.board.find((c) => c.uid === carver.uid)!;
     expect(onBoard.buffs?.find((b) => b.source === 'Ruby')).toMatchObject({ attack: 10, health: 10 });
@@ -492,8 +500,8 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   it('buying a Resonance Idol out of a Veinstorm shop does not bounce the grant onwards', () => {
     // The Idol reacts to "a Ruby is played on THIS minion". A run-wide grant baked in at buy is not that
     // event — it never notifies `onRubyPlayed` — so the Idol enters with exactly its 10/10 and nothing else.
-    const s0 = veinstormTen();
-    const s1: RunState = { ...s0, shop: [{ uid: 'off', cardId: 'k_resonance' }], embers: 999, hand: [] };
+    const s0 = veinstormTen('k_resonance');
+    const s1: RunState = { ...s0, embers: 999, hand: [] };
     const s2 = reduce(s1, { type: 'buy', uid: 'off' });
     const idol = s2.hand.find((c) => c.cardId === 'k_resonance')!;
     const def = CARD_INDEX['k_resonance']!;

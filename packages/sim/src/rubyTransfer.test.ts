@@ -146,13 +146,15 @@ describe("the owner's combo: Veinstorm → Ruby Transfer → Gemheart (2026-08-0
     expect(rubyOf(s.shop.find((o) => o.uid === 'o1')!).a, 'the donor is stripped').toBe(0);
   });
 
-  it("a FUTURE offer still inherits Veinstorm's run channel (the card says permanently)", () => {
-    let s = base({ shop: [offer('o1', 'pack')], hand: [body('vs', 'veinstorm', 0, 1)], embers: 20 });
+  it("a REROLLED minion carries none — you rolled away the bodies that held the Rubies", () => {
+    let s = base({ shop: [offer('o1', 'pack')], hand: [body('vs', 'veinstorm', 0, 1)], embers: 40 });
     s = reduce(s, { type: 'play', uid: 'vs' });
-    const grant = rubyOf(s.shop[0]!).a;
-    // A brand-new offer carries no stamp, so the run channel covers it in full — one grant, not two.
-    const fresh = offer('new', 'alley');
-    const buy = offerBuyStats({ ...s, shop: [fresh] }, fresh);
-    expect(buy.attack).toBe(CARD_INDEX['alley']!.attack + grant);
+    expect(rubyOf(s.shop[0]!).a, "the offer present at cast time was Rubied").toBeGreaterThan(0);
+    s = reduce(s, { type: 'roll' });
+    for (const o of s.shop) {
+      const d = CARD_INDEX[o.cardId]!;
+      if (d.spell || d.ruby) continue;
+      expect(rubyOf(o).a, "a fresh minion was never Rubied").toBe(0);
+    }
   });
 });

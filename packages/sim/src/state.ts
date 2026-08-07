@@ -59,10 +59,6 @@ export interface ShopCard {
   /** Per-SOURCE breakdown of `atk`/`hp` (Apples, Fortify, Fried Circuits, …) so the tavern inspect + the bought
    *  minion attribute the buff to the right name instead of a generic label. Sums to `atk`/`hp`. */
   buffs?: CardBuff[];
-  /** How much of the run-wide Veinstorm RUBY channel this offer already carries as a real per-offer `Ruby`
-   *  buff (stamped at cast time so Ruby Transfer has something to steal). `offerBuyStats` folds only the
-   *  REMAINDER of the run channel, so the two halves can never double-count on the same offer. */
-  rubyStamped?: { atk: number; hp: number };
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
@@ -591,7 +587,6 @@ export interface RunState {
    *  Rubies on this minion" — Gemheart Carver's Golem above all — actually sees it (owner 2026-08-06).
    *  Kept as its OWN accumulator rather than reusing `tavernBuyBonus` so a Staff of Guel buff never
    *  masquerades as a Ruby (and vice versa). */
-  tavernRubyBonus: { atk: number; hp: number };
   /** Rune of the Wild Hunt's accrued escalation — PERMANENT across combats (owner fix 2026-08-01). Seeds each
    *  fight's counter and is written back from `playerWildHuntGrown` at settle. Absent until the rune fires. */
   runeWildHuntGrown?: number;
@@ -1310,7 +1305,6 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     magneticBuyHp: 0,
     spellBonus: { attack: 0, health: 0 },
     tavernBuyBonus: { atk: 0, hp: 0 },
-    tavernRubyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     cassenKills: 0,
     turnStartPower: 0,

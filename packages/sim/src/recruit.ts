@@ -4014,52 +4014,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     queueDiscover(state, { kind: 'pool', ids });
   },
 
-  /** Veinstorm (Set 2) — cast: give EVERY tavern minion offer stats equal to your Rubies (base 1/1 + the run's
-   *  `rubyBonus`), baked onto each offer so a buy keeps it. Untargeted; live value shown via spellDisplayText. */
+  /**
+   * Veinstorm (Set 2) — cast: LITERALLY play its own value in Rubies onto every tavern minion (owner
+   * 2026-08-06: "veinstorm should literally apply the value of itself in rubies to the shop"). A Ruby is
+   * 1/1 + the run's `rubyBonus`, so that is what each offer gains, under the `Ruby` source.
+   *
+   * ONE mechanism, on purpose. This shipped twice as something cleverer and both were wrong:
+   *   · as `tavernBuyBonus` (the Staff of Guel channel) it was a generic tavern buff, invisible to every
+   *     "the Rubies on this minion" reader — a Gemheart Carver bought out of a +10/+10 shop minted a 1/1;
+   *   · as a run-level Ruby channel + a per-offer stamp it was an AURA no card could interact with (Ruby
+   *     Transfer had nothing to steal), and the split had to be un-double-counted in every reader — which
+   *     `offerBuyStats` did and the shop's own display did NOT, so the value rendered doubled.
+   * Real Ruby buffs on real offers need no reconciliation: they ARE the offer's stats, they travel to the
+   * bought minion as Rubies, Ruby Transfer can move them, and the inspect names them correctly.
+   *
+   * Deliberately does NOT fire `onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier,
+   * no Spellstone cast tick. Offers have no watchers to fire, and a shop-wide grant firing one per offer
+   * would make a 1-Gold spell the largest Ruby-count payoff in the game. `gainRubyStats` is the established
+   * "Ruby stats, no watcher notify" precedent. The Ruby-LANDED cue does play, derived from the per-offer
+   * Ruby-count delta — correctly: real Rubies are arriving, and that is what makes the spell legible.
+   */
   spellBuffShopByRuby: (ctx) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
-    const a = 1 + rb.attack, h = 1 + rb.health;
-    // PERMANENT (owner 2026-07-24): a run-level accumulator rather than `addOfferBuff` on the current offers.
-    // `offerBuyStats` folds it into EVERY offer, so the current shop updates immediately AND every future shop
-    // inherits it. Buffing the offers directly made it a one-shot that a single reroll wiped.
-    //
-    // It is RUBIES, not a tavern buff (owner 2026-08-06): "veinstorm should technically function as if that
-    // value of rubies was played on the minion". So it accumulates in `tavernRubyBonus`, its own channel, and
-    // the buy path bakes it in as the `Ruby` buff entry — which is exactly what `rubyTallyOf` reads in both
-    // phases. That is what makes a Gemheart Carver bought out of a +10/+10 Veinstorm shop mint an 11/11 Golem
-    // (the token's own 1/1 + 10/10 of Rubies) instead of a 1/1. Routing it through `tavernBuyBonus` — the Staff
-    // of Guel channel — was the bug: a generic tavern buff is invisible to every "the Rubies on this minion"
-    // reader. Deliberately NOT both channels: a single grant must not be counted twice.
-    //
-    // Knock-ons (owner spec asked for the defensible reading, so: the conservative one). This does NOT fire
-    // `onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier, no Rune of the Spellstone
-    // cast tick. Three reasons: (1) the grant lands on TAVERN OFFERS, and the existing "play a real Ruby on an
-    // offer" path (`addOfferBuff(offer, 'Ruby', …)` in the reducer) doesn't fire watchers either — offers have
-    // no watchers to fire; (2) the run-level share is baked at BUY time, when the minion is going to hand, not
-    // "played on" anything on your board; (3) a shop-wide grant firing one watcher per offer would make a
-    // 1-Gold spell the single largest Ruby-count payoff in the game. The `gainRubyStats` arena hook is the
-    // established precedent for "Ruby stats, no watcher notify".
-    //
-    // TWO PLACES, deliberately (owner ruling 2026-08-06, confirming both halves). The run channel alone made
-    // the grant a run-wide AURA, which no card could interact with: Ruby Transfer found nothing to steal
-    // because no individual offer carried a Ruby buff, and "stealing" a run-wide bonus from one neighbour is
-    // meaningless anyway (the neighbour would keep it). So:
-    //   · each CURRENT offer gets a real per-offer `Ruby` buff — a first-class thing Ruby Transfer can move,
-    //     the hover can itemise, and the inspect names correctly;
-    //   · the run channel keeps covering FUTURE offers, which is what "permanently" means on the card (owner
-    //     confirmed a refreshed shop keeps the value).
-    // `offerBuyStats` folds ONLY the run channel, and the per-offer buff is already inside `offer.atk/hp`, so
-    // the two do not double-count — the same split every other permanent shop grant uses.
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
     for (const offer of ctx.state.shop) {
       const d = CARD_INDEX[offer.cardId];
-      if (!d || d.spell || d.ruby || d.keywords.includes('FD')) continue; // Fodder is excluded, as it always was
+      // Minions only: a spell/Ruby offer has no stats to carry, and Fodder is excluded exactly as it was
+      // under the old tavern channel (its buffs ride the run-wide enchant instead).
+      if (!d || d.spell || d.ruby || d.keywords.includes('FD')) continue;
       addOfferBuff(offer, 'Ruby', a, h);
-      // Record that this offer now carries this much of the run channel itself, so `offerBuyStats` folds only
-      // the remainder — otherwise a current offer would count the same grant twice (verified: it folds both).
-      offer.rubyStamped = { atk: (offer.rubyStamped?.atk ?? 0) + a, hp: (offer.rubyStamped?.hp ?? 0) + h };
     }
-    ctx.state.tavernRubyBonus.atk += a;
-    ctx.state.tavernRubyBonus.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
@@ -5773,12 +5758,9 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
   // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
   // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
-  // Only the share this offer does NOT already carry as its own `Ruby` buff (Veinstorm stamps the offers
-  // present when it casts; later offers carry none and inherit the whole channel here).
-  const rubyA = fodder ? 0 : Math.max(0, (state.tavernRubyBonus?.atk ?? 0) - (offer.rubyStamped?.atk ?? 0));
-  const rubyH = fodder ? 0 : Math.max(0, (state.tavernRubyBonus?.hp ?? 0) - (offer.rubyStamped?.hp ?? 0));
-  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA + rubyA;
-  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + rubyH + buyHealthAura(state, def);
+  // Veinstorm's Rubies need no line here: they are REAL per-offer buffs, already inside `offer.atk/hp`.
+  let attack = def.attack + cb.attack + undeadBuyBonus(state, def) + (offer.atk ?? 0) + staffA;
+  let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
 }

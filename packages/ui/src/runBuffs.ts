@@ -144,10 +144,8 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const tav = run.tavernBuyBonus;
   if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
 
-  // Veinstorm's run-wide grant — the same "every minion you buy" shape, but it enters as RUBIES, so it gets
-  // its own row rather than being folded into the tavern-buys one (they scale different payoffs).
-  const tavRuby = run.tavernRubyBonus;
-  if (tavRuby && (tavRuby.atk > 0 || tavRuby.hp > 0)) rows.push({ key: 'tavernRuby', label: 'Tavern buys · Rubies', value: `+${tavRuby.atk}/+${tavRuby.hp}` });
+  // (Veinstorm has no row here: it plays real Rubies onto the tavern minions in front of you rather than
+  // running a run-wide channel, so its value is visible ON those offers — see `spellBuffShopByRuby`.)
 
   // Permanent max-Gold gained (Soulsman's Avenge) — the actual Gold gained this run, golden-aware (matches the
   // "Gained X Gold" the card itself shows). `soulsmanGold` is the tracked total; the natural per-wave curve is

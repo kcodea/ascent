@@ -386,6 +386,40 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Veinstorm, third time: it just plays Rubies onto the shop (owner: "not built correctly at all")
+
+Two clever designs shipped and both were wrong. The owner's correction is the spec: "veinstorm should
+literally apply the value of itself in rubies to the shop. if a transfer is used on a minion, it STEALS the
+Ruby buffs from the adjacent minions."
+
+What was wrong, in order:
+1. **`tavernBuyBonus`** — the Staff of Guel channel. A generic tavern buff, invisible to every "the Rubies on
+   this minion" reader, so a Gemheart Carver bought from a +10/+10 shop minted a 1/1. It is also why the
+   owner's Scene Builder test showed **"Tavern"** as the buff source and Ruby Transfer found nothing to steal.
+2. **A run-level Ruby channel + a per-offer stamp** — an AURA no card could interact with, plus a split that
+   had to be un-double-counted in EVERY reader. `offerBuyStats` did it; the shop's own `shopView` did NOT, so
+   the value rendered doubled. (I had written a comment asserting the two "do not double-count" before
+   reading the code that added both — the comment was wrong before the code was.)
+
+Now: ONE mechanism. `spellBuffShopByRuby` calls `addOfferBuff(offer, 'Ruby', 1 + rubyBonus.attack, 1 +
+rubyBonus.health)` on each tavern MINION (spells/Rubies/Fodder excluded, as they always were) and that is the
+whole implementation. Real Ruby buffs on real offers need no reconciliation: they ARE the offer's stats, they
+travel to the bought minion as Rubies, Ruby Transfer can move them, and the inspect names them correctly.
+`tavernRubyBonus` and `ShopCard.rubyStamped` are deleted, along with their folds in `offerBuyStats`, the buy
+path, `shopView` and the run-buffs drawer.
+
+Consequence worth stating plainly: a REROLL no longer carries the grant, because the minions that held the
+Rubies are gone. "Permanently" now means the buff never wears off the minion it landed on and travels with it
+into your hand — not that unrelated future minions inherit it. That reverses the 2026-07-24 note; if the
+owner wants roll-persistence back it needs a different shape than a run-wide aura, since an aura is
+exactly what cannot be stolen.
+
+Verified LIVE, end to end, in the game the owner tests in: 5 Veinstorms → every offer carries `Ruby 5/5`
+(no "Tavern", no doubling) → Ruby Transfer on the middle offer → it holds `Ruby 15/15` and both donors read
+0 → buying it yields a 20/18 Carver carrying `Ruby 15/15`, so its Echo mints a 16/16 Golem.
+
+Gates: typecheck / lint (7-warning baseline) / 4056 tests / harness determinism / build:web.
+
 ## 2026-08-06 — Veinstorm's grant becomes PER-OFFER Rubies, closing the Ruby Transfer combo
 
 Follow-up to the same day's Veinstorm rework and the new Ruby Transfer, after the owner tested the pair in

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **16 new Basic runes** — the Tip Jar batch: Gold engines (Coffers, Vault, Treasure Map, Golden Splinter), spell payoffs (Lorekeeping, Thrift, Flagship), a board-seller (the Altar), a board-transformer (Evolution), buy-dupes (Transcription), and two combat flags (Engraving, the Underdog).
+
 - **Yirin ticks live + a live-tracking tripwire** — the Attunement counter moves as combat casts happen, and a new audit test fails CI when any combat carry-back ships without a real-time signal or an explicit exemption.
 
 - **Big trigger chains resolve much faster** — a card that re-fires your Shouts announced every single one with a full pause, so a Dawnclaw chain could spend 8+ seconds saying the same line eight times. The first one still reads at full weight; the rest now cascade, cutting that to under three seconds without dropping a single trigger.

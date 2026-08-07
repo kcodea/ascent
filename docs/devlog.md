@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-07 — 16 new Basic runes (the Tip Jar batch)
+
+The owner's 16-rune sheet, all Basic. **Pure data on existing kinds**: Tip Jar (`multi` of gainGold +
+gainMaxGold), Top Hat (three `grant randomTier` pulls), the Wheel (`shopBuffOnRefresh` — Hellrider's stock
+kind is exactly its sheet line). **New machinery**: Coffers (EoT max-Gold +1), Vault (10 Gold at Tier 5,
+once), the Altar (sells the whole board through the sell case's own rituals — value helper, on-sell and
+minion-sold notifications — plus 3 Gold premium each), Lorekeeping (targeted Shop spells give the target an
+extra +4/+4), Thrift (`spellCostReduction` gains a def parameter; the stat family costs 2 less), the Flagship
+and the Brew (Dwarf payoffs on cast / on spend), Evolution (board → random T4, transform semantics: buffs and
+golden do not carry), Transcription (next 2 buys each bring a free copy — stacks beside the first-buy dupe),
+the Treasure Map (countdown in `resolveCombat`'s new-turn tick), the Golden Splinter (a `gainGold` latch —
+first time Gold reaches 15, a random Golden T5, then spent). **Combat flags**: Engraving (Avenge 3 → +0/+1
+Ruby Power through Veinbreaker's channel, so the narration/flourish/carry-back all ride free; combat tally
+wired at 3) and the Underdog (SoC: the two lowest-Attack minions double, ties by board order — a seating
+decision, per Rallying's rule).
+
+**Two tripwires fired during the build, as designed**: the rune-count test (56 → 72) and the tally-coverage
+audit, which demanded Engraving's combat tally and reasoned exemptions for the five event-fired runes. A test
+fixture also tripled (three bought strays combined into a golden and ate the Transcription count) — the fix
+is distinct ids, noted in the test.
+
+No art authored yet — the 16 fall back to the default rune frame until files land in the art folder.
+
+`typecheck` clean, lint at the 7-warning baseline, 4163 tests (9 new), `build:web` OK.
+
 ## 2026-08-07 — Yirin ticks live, and live-tracking becomes machinery
 
 **Yirin's Attunement counter now moves during combat.** Spells cast mid-fight (Quil, Mammoth, a taught Pup,

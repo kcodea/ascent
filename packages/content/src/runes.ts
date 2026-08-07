@@ -488,6 +488,131 @@ export const RUNES: RuneDef[] = [
     text: 'Get a copy of the first minion you **kill** in combat.',
     reward: { kind: 'combatFlag', flag: 'runeTrophy' },
   },
+  // ── the 2026-08-07 owner batch (16 Basic runes) ──
+  {
+    id: 'rune_tip_jar',
+    name: 'Rune of the Tip Jar',
+    cost: 6,
+    text: 'Gain **4 Gold** and increase your **maximum Gold** by **4**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 4, immediate: true }, { kind: 'gainMaxGold', amount: 4 }] },
+  },
+  {
+    id: 'rune_coffers',
+    name: 'Rune of the Coffers',
+    cost: 5,
+    text: '**End of Turn:** increase your **maximum Gold** by **1**.',
+    reward: { kind: 'runeCoffers' },
+  },
+  {
+    id: 'rune_vault',
+    name: 'Rune of the Vault',
+    cost: 2,
+    text: 'When you reach **Shop Tier 5**, gain **10 Gold**.',
+    reward: { kind: 'runeVault' },
+  },
+  {
+    // Immediate, destructive on purpose: the whole board cashes out at a premium. The sell goes through the
+    // real sell path so on-sell effects (Voicekeeper, sell-value cards) behave exactly as a manual sell.
+    id: 'rune_altar',
+    name: 'Rune of the Altar',
+    cost: 1,
+    text: 'Sell your **entire board**. Gain **3 Gold** for each minion sold.',
+    reward: { kind: 'runeAltar', goldPer: 3 },
+  },
+  {
+    id: 'rune_lorekeeping',
+    name: 'Rune of Lorekeeping',
+    cost: 4,
+    text: 'Whenever you cast a **Shop spell on a minion**, give it an extra **+4/+4**.',
+    reward: { kind: 'runeLorekeeping' },
+  },
+  {
+    id: 'rune_thrift',
+    name: 'Rune of Thrift',
+    cost: 3,
+    text: 'Shop spells that **give stats** cost **2 less**.',
+    reward: { kind: 'runeThrift' },
+  },
+  {
+    id: 'rune_engraving',
+    name: 'Rune of Engraving',
+    cost: 3,
+    text: '**Avenge (3):** your **Rubies** permanently give **+1 more Health**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeEngraving' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // `shopBuffOnRefresh` is the Hellrider-shaped stock kind: base +A/+H on every offer, +step more per `per`
+    // refreshes — exactly this rune's sheet line, so it ships as pure data.
+    id: 'rune_wheel',
+    name: 'Rune of the Wheel',
+    cost: 4,
+    text: 'Minions in the **Shop** have **+2/+2**. Improves every **4 refreshes**.',
+    reward: { kind: 'shopBuffOnRefresh', attack: 2, health: 2, step: 2, per: 4 },
+  },
+  {
+    id: 'rune_flagship',
+    name: 'Rune of the Flagship',
+    cost: 3,
+    text: 'Whenever you cast a **Shop spell**, give your **Dwarves +2/+2**.',
+    reward: { kind: 'runeFlagship' },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    id: 'rune_brew',
+    name: 'Rune of the Brew',
+    cost: 4,
+    text: 'Whenever you **spend Gold**, give a friendly **Dwarf +4/+3**.',
+    reward: { kind: 'runeBrew' },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    id: 'rune_underdog',
+    name: 'Rune of the Underdog',
+    cost: 4,
+    text: '**Start of Combat:** double the stats of your **two lowest-Attack** minions.',
+    reward: { kind: 'combatFlag', flag: 'runeUnderdog' },
+  },
+  {
+    id: 'rune_top_hat',
+    name: 'Rune of the Top Hat',
+    cost: 3,
+    text: 'Get **two random minions** each from **Tiers 1, 2, and 3**.',
+    reward: { kind: 'multi', rewards: [
+      { kind: 'grant', randomTier: 1, randomCount: 2 },
+      { kind: 'grant', randomTier: 2, randomCount: 2 },
+      { kind: 'grant', randomTier: 3, randomCount: 2 },
+    ] },
+  },
+  {
+    id: 'rune_evolution',
+    name: 'Rune of Evolution',
+    cost: 3,
+    text: 'Transform your minions into random **Tier 4** minions.',
+    reward: { kind: 'runeEvolution', tier: 4 },
+  },
+  {
+    id: 'rune_transcription',
+    name: 'Rune of Transcription',
+    cost: 4,
+    text: 'The next **2 minions** you buy each come with a **free extra copy**.',
+    reward: { kind: 'runeTranscription', count: 2 },
+  },
+  {
+    id: 'rune_treasure_map',
+    name: 'Rune of the Treasure Map',
+    cost: 2,
+    text: 'In **2 turns**, gain **10 Gold**.',
+    reward: { kind: 'runeTreasureMap', turns: 2, gold: 10 },
+  },
+  {
+    id: 'rune_golden_splinter',
+    name: 'Rune of the Golden Splinter',
+    cost: 3,
+    text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per run.',
+    reward: { kind: 'runeGoldenSplinter', at: 15, tier: 5 },
+  },
 ];
 
 /**

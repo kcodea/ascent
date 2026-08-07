@@ -17,19 +17,23 @@ install effect places a self-delivering `cue`-origin hold of the beat's total da
 ticker counts the badge down from the pre-hit number, and because the damage RESULT beat is already scheduled
 to land on contact (`lungeConfig.ts`), a `startAt: 0` roll starts exactly as the blow lands — no strike
 registry needed. Two targets deliberately still SNAP, preserving the below-floor invariant the old
-unconditional `cancelRollForUid` protected: a target with a buff/roll already in flight (`holdOrigin != null` —
-netting a live up-roll against a down-roll is the exact never-had-number case), and a target that dies this
-beat (`combatDamageDeltas` excludes it, so the death collapse + float own that moment). Every other clean,
-survivable hit rolls. `COMBAT_ROLL_MS` bumped 420 → 650 so the fight-paced count reads clearly.
+unconditional `cancelRollForUid` protected: a target with a HEALTH change already in flight
+(`heldFor(uid).health !== 0` — netting a live health up-roll against this down-roll is the exact
+never-had-number case), and a target that dies this beat (`combatDamageDeltas` excludes it, so the death
+collapse + float own that moment). Every other clean, survivable hit rolls. `COMBAT_ROLL_MS` bumped 420 → 650
+so the fight-paced count reads clearly.
 
 **Verified.** `npm test` (4207) green; new `combatDamageDeltas` coverage (sums per surviving target; excludes
 a dying target and one gone from the frame); the `statHold` ease tests rewritten property-based (front-loaded +
 monotonic + exact endpoints) so future settle tuning won't churn them. typecheck + lint + build:web all green.
 Live-verified in combat by the owner (own units perfect).
 
-**Known follow-up.** An enemy self-buffer whose buff lands in the SAME beat it takes damage (Training Dummy)
-snaps instead of rolling — the `holdOrigin != null` guard treats it as the overlap case. Being investigated as
-its own change; it needs same-beat buff+damage to net cleanly rather than fall back to a snap.
+**Same-beat self-buffer, caught in the same pass.** The overlap guard first snapped ANY unit with a hold in
+flight, which caught Target Dummy (`sandbag`, +1 Attack when hit): its self-buff lands in the same beat as the
+hit, so its HP snapped instead of rolling (owner report). Narrowed the guard from `holdOrigin != null` to a
+HEALTH conflict only (`heldFor(uid).health !== 0`) — an attack-only hold is orthogonal to the HP badge, so the
+hit still rolls (the attack hold is cleared so the cue owns the counter; a +1 Attack snaps regardless). A
+genuine health up-roll meeting damage still snaps, so the invariant holds.
 
 ## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
 

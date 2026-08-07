@@ -33,7 +33,7 @@ import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
-import { holdOrigin, holdStat, releaseStat } from './fx/statHold';
+import { heldFor, holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -1759,15 +1759,20 @@ export function useCombatReplay(
     // HP. `rollMs` is speed-scaled so a sped-up replay tightens the count exactly as `driveRoll` does for buffs.
     //
     // TWO targets still SNAP, which is what keeps the below-floor invariant this scan has always protected:
-    //  - one with a buff/roll ALREADY in flight (`holdOrigin !== null`) — netting a live up-roll against a
-    //    down-roll is the exact case that can print a number the unit never had, so it stays a snap; and
+    //  - one with a HEALTH change already in flight (`heldFor(uid).health !== 0`) — netting a live health
+    //    up-roll against this down-roll is the exact case that can print an HP the unit never had, so it snaps.
+    //    An attack-only hold does NOT count: it is orthogonal to the HP badge, so a Target Dummy that gains
+    //    +Attack in the SAME beat it is hit still rolls its HP — the attack hold is cleared first so the cue
+    //    owns the counter cleanly (its +1 Attack just snaps, which a one-point change does regardless); and
     //  - one that DIES this beat — excluded inside `combatDamageDeltas`, so the death collapse + float own that
     //    moment rather than a counter racing toward 0 under a dissolving card.
     // Every other (clean, survivable) hit rolls.
     const dmgRollMs = COMBAT_ROLL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
     const rolledDown = new Set<string>();
     for (const d of combatDamageDeltas(beat, events, frame)) {
-      if (holdOrigin(d.uid) !== null) continue;   // buff/roll in flight → fall through to the snap, don't net
+      const held = heldFor(d.uid);
+      if (held && held.health !== 0) continue;   // a HEALTH buff/debuff is mid-roll → fall through to the snap
+      cancelRollForUid(d.uid);                   // clear any attack-only hold so the cue owns the counter
       holdStat(d.uid, { health: -d.health }, { origin: 'cue', startAt: 0, rollMs: dmgRollMs });
       rolledDown.add(d.uid);
     }

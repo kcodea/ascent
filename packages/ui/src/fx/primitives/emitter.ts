@@ -93,6 +93,17 @@ const SPECS = {
     enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
+  emitSquash: {
+    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1,
+    // Rides the same gateway as the radius above: with `point` there is no area to squash. It does NOT
+    // declare a dependency on `emitRadius` — the pair would deadlock (see the note there), and shape is the
+    // single gateway both hang off.
+    enabledWhen: { param: 'emitShape', not: 'point' },
+    // NOT `axis: 'scale'`, unlike Emit radius: this is a RATIO, not a length. `scaleDef` multiplies every
+    // `scale` param by the same factor, and scaling a ratio would distort the oval as the effect resized
+    // rather than resizing it — the shape would change, not just its size.
+    help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
+  },
   inheritVel: {
     kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
     help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
@@ -538,7 +549,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const bias = Math.min(1, Math.max(0, p.coreBias + (rand - 0.5) * 0.12));
 
     // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-    emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch);
+    emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch, p.emitSquash);
     const particle = new Particle({
       texture: this.texture,
       x: this.originX + this.emitScratch.ox,

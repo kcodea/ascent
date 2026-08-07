@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-07 — emit shapes can be squashed into ovals
+
+Owner: *"i need to add the ability to adjust the height and width of the emit shapes"* — concretely, *"so i
+can select ring and squash it to the shape of an oval."*
+
+A single `emitRadius` drove both axes, so `ring` could only ever be a circle, `disc` a filled circle and
+`box` a square. The new **Emit squash** slider scales the Y extent, turning each into its oval/rectangle
+counterpart.
+
+Deliberately NOT a second radius or a width/height pair. The shockwave primitive already ships a `squash`
+dial with exactly this meaning — "1 is a true circle, lower reads as a ring lying on the ground" — so reusing
+the name and the contract means one dial means one thing across the workbench, and it needs no migration of
+the `emitRadius` key that sits in every committed def.
+
+- **The default is an EXACT no-op.** `squash` multiplies AFTER the shape is solved, so at 1 it is an IEEE
+  identity and every def written before this spawns bit-identical positions. Asserted with `toBe`, not
+  `toBeCloseTo` — the same argument the shockwave shader makes for its own divide-by-1.
+- **Range 0.2–3, wider than shockwave's 0.2–1.** Shockwave caps at 1 because its ring is a ground-plane
+  read; an emit area has no such convention, so taller-than-wide is equally useful.
+- **Not `axis: 'scale'`**, unlike Emit radius. `scaleDef` multiplies every `scale` param by one factor, and
+  scaling a RATIO would distort the oval as the effect resized rather than resizing it.
+- Rides `emitShape`'s existing gateway (`not: 'point'`) rather than declaring a dependency on `emitRadius` —
+  the pair would deadlock, as the note on the radius already explains.
+
+Landed in all three primitives that share `emissionOffset`: burst, emitter and smoke.
+
+Two RNG guards needed their pinned call text updated (`emitter.test.ts`, `smoke.test.ts`). They assert the
+exact `emissionOffset(...)` source string so the draw ORDER cannot shift silently; appending an argument
+broke the match while leaving the two `this.rand()` draws — the half that actually governs seed replay —
+untouched. The note now says so.
+
+**Also documents a worktree trap this work walked straight into.** A fresh `git worktree` has no
+`node_modules`, so `@game/*` imports resolve through the ROOT symlinks into the PRIMARY checkout's packages —
+whatever branch that is parked on. The first typecheck here reported three `runeChef` errors from a checkout
+sitting on an unrelated branch, which reads exactly like a broken `main`; `main` was green the whole time.
+`npm install` inside the worktree fixes it. Added to the concurrency block in CLAUDE.md.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4544 tests, `build:web` — all after
+that install, so this is the first run in this worktree that was genuinely self-contained.
+
 ## 2026-08-07 — Batch 4, tranche 1: nine Basic runes, plus a real combat-phase softlock
 
 **Nine new Basic runes (the pattern-reuse tranche of the owner's batch 4).** Each one leans on machinery that

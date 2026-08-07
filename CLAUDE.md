@@ -110,6 +110,15 @@ boundary leaked.
 > touches nothing else's — never another session's worktree, branch, or the shared primary checkout. Commit +
 > push early (origin is the only durable copy), keep branches tiny, take `main` in often, and split by ownership
 > seam so two sessions never edit the same file.
+>
+> **Run `npm install` INSIDE a new worktree before you trust a local `typecheck`/`test`.** A fresh worktree has
+> no `node_modules` of its own, so every `@game/core` / `@game/sim` / `@game/content` import resolves through
+> the ROOT symlinks — which point at the **primary checkout's** `packages/*`, on whatever branch that happens
+> to be sitting on. Your own `packages/ui` edits still load (they are relative imports), so the run looks
+> healthy while silently checking against someone else's in-progress engine. It surfaces as errors in files you
+> never touched, which reads exactly like "`main` is broken" when `main` is fine (hit 2026-08-07 — three
+> phantom `runeChef` errors from a checkout parked on an unrelated branch). One install per worktree fixes it
+> for good. CI is unaffected: it clones clean and installs.
 
 - **`main` is always playable, and NOTHING ON THE SERVER ENFORCES THAT — the discipline is the only guard.**
   Verified 2026-08-05: `main` has no classic branch protection (the API 404s) and the repo has no rulesets.

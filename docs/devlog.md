@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-08-07 — a run of repeated narration rides instead of pausing eight times
+
+Owner report: proccing Dawnclaw through Echohorn "seems to cause a pretty slow overall resolution."
+
+Measured before touching anything, because the obvious suspect was wrong. Every repeated-trigger card logs
+one `sc` line per fire (`X triggers Y's Battlecry` — Ryme/Dawnclaw, Thunderous Sovereign, Chorus Drake, the
+Deepvein cascade), and each was its own full-weight beat. The config reads `sc: 720`, but `beatDelay` is
+multiplied by the `speed: 1.5` tempo, so the real hold is **1080ms**.
+
+A gilded Echohorn beside a Sylus procs Dawnclaw four times, into two Shout neighbours:
+
+| | count | cost |
+|---|---|---|
+| Shout narration beats | 4 procs × 2 neighbours = 8 | 8 × 1080 = **8.6s** |
+| Rally wind-up stretch (this morning's per-proc pulse) | 3 extra procs | +0.96s |
+
+So the pulse work shipped earlier the same day was ~1s of it, and the narration run was ~85% — eight
+full-weight pauses spent saying the same thing again.
+
+The fix reuses the clock's own idea rather than inventing one. `OVERLAP_INTO` already lets consequence beats
+(`summon`, `reborn`, `improve`) RIDE the preceding beat at `overlapMs` (240) instead of waiting their full
+delay; it is keyed by event TYPE, so it could not express "the 2nd through 8th of a repeated run." Now a
+`scNarrate` following another `scNarrate` rides too. **8.6s → 2.8s**, and every Shout keeps its own trigger
+pulse, float and log line — narration cues are fire-and-forget, exactly like the consequence beats, so
+nothing is truncated. The FIRST of a run keeps full weight, so the cascade still announces itself.
+
+Keyed on the KIND, not the `sc` event type, and that distinction is load-bearing: `sc` is two different beats
+behind one type. `scCast` is a genuine Start-of-Combat damage cast where each one is a different thing
+happening, so a run of those keeps full pacing. Pinned both ways — cast→cast, cast→narration and
+narration→cast all stay full.
+
+Applied to every narration run rather than gated to Dawnclaw (owner call): they all have the identical
+problem, and a card-specific exception in the clock is exactly the kind of thing this repo keeps having to
+clean up later.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4145 tests, `build:web`, and watched
+live on the reported board. The clock test helper now takes an overridable `kind` — its old comment claimed
+only `primary.type` was read, which this makes untrue.
+
 ## 2026-08-07 — the Rally medallion pulses once per PROC
 
 Owner: *"instead of it being back to back after one rally icon pulse, can we have the rally icon pulse twice

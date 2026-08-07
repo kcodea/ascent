@@ -1521,7 +1521,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact .art {
   flex: 1 1 auto; margin: 0;
   border-radius: var(--arch-radius);                                      /* arched top, rounded base */
-  border: 4px solid var(--c);
+  /* De-tribed 2026-08-07 (owner ask): a NEUTRAL frame edge, not the tribe hue. Only seen on the art-missing
+     (404) fallback and in the sub-frame window before a real frame PNG overlays it — never a tribe glow. */
+  border: 4px solid var(--line);
   /* Last two layers = the hover glow (driven by --hglow-*; 0 = invisible, set on .card:hover). Living on a
      box-shadow of the ARCHED .art means the glow hugs the card silhouette AND the card never becomes a stacking
      context — so the z3 shield/reborn bubble still sits under the badges (a filter/z-index glow would lift the

@@ -613,6 +613,16 @@ export const RUNES: RuneDef[] = [
     text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per run.',
     reward: { kind: 'runeGoldenSplinter', at: 15, tier: 5 },
   },
+  {
+    // Pure data: the existing grant reward already carries `grantKeywords`, so the Badger is a Badgington
+    // handed over with Flurry (W) and Ward (DS) stamped on.
+    id: 'rune_badger',
+    name: 'Rune of the Badger',
+    cost: 5,
+    text: 'Get a **Badgington** with **Flurry** and **Ward**.',
+    previewCards: ['badgington'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] },
+  },
 ];
 
 /**
@@ -1430,6 +1440,47 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever you get a **Triple Reward**, get **two** Triple Rewards instead.',
     previewCards: ['discoverspell'], // text names it — the forge hover shows the card
     reward: { kind: 'runeCorruptedTome' },
+  },
+  {
+    id: 'rune_groveweaver',
+    name: 'Rune of the Groveweaver',
+    cost: 6,
+    epic: true,
+    text: 'When your **Groveweavers** buff a friendly Beast, they also buff **themselves**.',
+    previewCards: ['b2_groveweaver'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeGroveweaver' },
+  },
+  {
+    id: 'rune_conduit',
+    name: 'Rune of the Conduit',
+    cost: 5,
+    epic: true,
+    text: 'Your **Rubies** all bounce an additional time.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeConduit' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
+    // Per-instance, so two Chefs each pay their own tally.
+    id: 'rune_chef',
+    name: 'Rune of the Chef',
+    cost: 6,
+    epic: true,
+    text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
+    previewCards: ['dw_chef'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeChef' },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    id: 'rune_bucky',
+    name: 'Rune of Bucky',
+    cost: 7,
+    epic: true,
+    text: 'Get a **Bucky**.',
+    previewCards: ['dw_bucky'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['dw_bucky'] },
+    sets: ['set2'], // Dwarven Ales
   },
 ];
 

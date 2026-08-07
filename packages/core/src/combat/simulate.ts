@@ -845,6 +845,8 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
+    groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
+    alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
@@ -1669,6 +1671,24 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
+      // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
+      // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
+      //
+      // `m !== attacker` (owner ruling 2026-08-07): the Chef can never feed itself. A lone Chef with no other
+      // Dwarf therefore does nothing — which is the honest reading of "another", not an edge case to paper
+      // over. Two Chefs CAN feed each other, since each is "another" from the other's view.
+      {
+        const banked = attacker.chefGrantedLast ?? 0;
+        if (banked > 0 && modsFor(attacker.side).runeChef && !attacker.dead && attacker.cardId === 'dw_chef') {
+          const dwarves = boards[attacker.side].filter((m) => m !== attacker && !m.dead && m.health > 0
+            && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || !!cards[m.cardId]?.universalTribe));
+          if (dwarves.length > 0) {
+            fireTrigger('runeChef', attacker.side);
+            ctx.buff(rng.pick(dwarves), banked, banked, attacker.uid);
+          }
+        }
+      }
       // Rune of Dragonscale: an attacking Dragon earns Ward (= Divine Shield), N times per combat. The
       // allowance is decremented on the GRANT, not the attack, so a Dragon that already has a shield does not
       // burn a charge — the sheet promises 3 shields, not 3 attempts.

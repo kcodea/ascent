@@ -293,6 +293,7 @@ export type EffectFactoryId =
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
+  | 'scTribeBuffPerAle' // Bucky: Start of Combat — buff your tribe +A/+H per Dwarven Ale cast LAST turn
   | 'scCastLeftmostHandSpell' // Quil: Start of Combat — cast the left-most spell in your hand on adjacent Beasts
   | 'deathrattleCastLastSpell' // Sporebat: Echo — cast the run's LAST-cast Shop spell on a random friendly Beast
   | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
@@ -969,6 +970,8 @@ export type QuestReward =
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
   | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
+  | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
+  | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
   | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
   | { kind: 'runeLorekeeping' } // targeted Shop spells give the target an extra +4/+4
@@ -1081,7 +1084,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
-  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeChef' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1308,6 +1311,10 @@ export interface QuestCombatMods {
   runeEngraving?: boolean;
   runeUnderdog?: boolean;
   runeGemGolem?: boolean;
+  /** Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`. */
+  runeChef?: boolean;
+  /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
+  runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
   runeEnchantment?: boolean;
   /** Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3). */
@@ -1450,6 +1457,9 @@ export interface BoardMinion {
   taughtSpellId?: string;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
+  /** Chef Gary Toast: the COMBINED stats this instance handed out last shop turn (Rune of the Chef spends it
+   *  as a combat Rally). `chefGranted` accrues during the current turn; the rollover moves it here. */
+  chefGrantedLast?: number;
   summonBonus?: number;
   /** Ritualist: accrued End-of-Turn Fodder/Imp grant (climbs by `step` each trigger) — carried into combat so the
    *  live card text shows its current per-tick value there too. */
@@ -1515,6 +1525,7 @@ export interface Minion {
   critChance?: number;
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
+  chefGrantedLast?: number;
   summonBonus: number;
   /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
   eotBonus?: number;
@@ -1616,6 +1627,7 @@ export interface MinionSnapshot {
   /** Tripled — so the UI can render the golden treatment in combat too. */
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
+  chefGrantedLast?: number;
   summonBonus?: number;
   /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
   eotBonus?: number;
@@ -1750,6 +1762,8 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** Dwarven Ales this side cast LAST shop turn (Bucky's Start of Combat scales off it). */
+  alesLastTurn?: number;
   /** The side's accumulated escalating-spell bonus (Front to Back) going into this fight, so a combat cast
    *  grants what a hand cast would grant right now. Snapshot fidelity: a served enemy carries its owner's. */
   spellEscalation?: { attack: number; health: number };
@@ -2179,6 +2193,10 @@ export interface CombatContext {
   castSpell(side: Side): void;
   /** Rune of the Spellstone (combat half): is the mod armed for `side`? Read by the Ruby-play primitive. */
   spellstoneFor?(side: Side): boolean;
+  /** Rune of the Groveweaver: is the self-buff armed for `side`? */
+  groveweaverSelfFor?(side: Side): boolean;
+  /** Bucky: Dwarven Ales that side cast LAST shop turn. */
+  alesLastTurnFor?(side: Side): number;
   /** Announce that a `doubleChance`-style roll came up, so the UI can float a crit-style "Nx" above the
    *  proccing minion (Karwind). Purely presentational — the extra repetitions are applied by the caller. */
   crit?(sourceUid: string, mult: number): void;

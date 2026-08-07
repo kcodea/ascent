@@ -1645,9 +1645,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (tribe && !isTribe(minion, tribe as never)) return;  // only the named tribe's plays count
     const mag = num(params.attack, 3) * gold(self);
     if (mag <= 0) return;
+    let handedOut = 0;
     for (const c of ctx.state.board) {
-      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), mag, mag);
+      if (!tribe || isTribe(c, tribe as never)) { addBuff(c, nameOf(self), mag, mag); handedOut += mag; }
     }
+    // Rune of the Chef reads this: the COMBINED stats this instance handed out, summed across every recipient
+    // (so a wide Dwarf board banks more than a narrow one). Per-INSTANCE, so two Chefs each keep their own.
+    // Accrued unconditionally — the rune only decides whether it is ever SPENT, so arming it mid-run must not
+    // depend on a tally that was never kept.
+    //
+    // SHOP-PHASE ONLY (owner ruling 2026-08-07): stats the Chef grants during COMBAT must never count toward
+    // next turn's payout. That holds today for a structural reason rather than a check — this factory lives
+    // only in the RECRUIT table; `onTribeSummonedBuffTribe` has no combat implementation at all, so a combat
+    // summon can't reach this line. `runeChef.test.ts` guards that: if the effect is ever arena-migrated, the
+    // test fails and whoever does it has to decide about the tally deliberately.
+    self.chefGranted = (self.chefGranted ?? 0) + handedOut;
   },
 
   /** Warhorn Captain (Shout): your OTHER minions of `tribe` gain +attack. Attack-only and self-excluded, which
@@ -1989,6 +2001,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
     if (minion === self) return;
     ARENA_EFFECTS.summonBuffTribeAsym(shopArena(ctx.state, self), { ...params, arriver: minion });
+    // Rune of the Groveweaver: the grant ALSO lands on the granter. Recomputed with the arena body's own
+    // arithmetic (base + this instance's summonBonus, x golden) so the two can't drift, and gated on the same
+    // tribe check — a Groveweaver that skipped a non-Beast arriver must not pay itself either.
+    if (!ctx.state.runeGroveweaver) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    const g = gold(self);
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * g;
+    const h = (num(params.health, 4) + bonus) * g;
+    if (a > 0 || h > 0) addBuff(self, 'Rune of the Groveweaver', a, h);
   },
 
   /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
@@ -5337,17 +5360,20 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
   // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
+  // RUNE OF THE CONDUIT: one extra bounce for the whole side, on top of whatever Candle Conduits are on the
+  // board — so it counts as a body's worth of bouncing without being one. Same no-rebounce guard.
+  let extraBounces = state.runeConduit ? 1 : 0;
   for (const m of state.board) {
     if (!CARD_INDEX[m.cardId]?.effects.some((e) => e.on === 'rubyPlayedAnywhere' && e.do === 'rubyBounceExtra')) continue;
-    const bounces = m.golden ? 2 : 1;
-    for (let b = 0; b < bounces; b++) {
-      const others = state.board.filter((x) => x.uid !== card.uid);
-      if (others.length === 0) break;
-      const rng = makeRng(state.rngCursor);
-      const pick = others[rng.int(others.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
-    }
+    extraBounces += m.golden ? 2 : 1;
+  }
+  for (let b = 0; b < extraBounces; b++) {
+    const others = state.board.filter((x) => x.uid !== card.uid);
+    if (others.length === 0) break;
+    const rng = makeRng(state.rngCursor);
+    const pick = others[rng.int(others.length)]!;
+    state.rngCursor = rng.state();
+    addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
   }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;

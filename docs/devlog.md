@@ -1,5 +1,172 @@
 # ASCENT — development log
 
+## 2026-08-07 — Rune of the Chef targets ANOTHER Dwarf
+
+Owner ruling: the Chef can never feed itself. `m !== attacker` on the target filter, and the printed text
+now says "buff **another** random Dwarf".
+
+A lone Chef with no other Dwarf therefore does nothing — that is the honest reading of "another" rather than
+an edge case to paper over, and it has its own test. Two Chefs CAN still feed each other, since each is
+"another" from the other's point of view.
+
+**The end-to-end test broke on this, for a reason worth recording.** Its fixture had two Dwarves, but the
+other one died before the Chef ever swung — so with self-targeting gone there was no legal target and the
+Rally correctly did nothing. Stacking Health to 9000 did not help either: the served omens carry **Venom**,
+which kills through any amount of Health. Ward is what makes the fixture survive contact. The rule was
+right; the fixture was quietly relying on the Chef being allowed to feed itself.
+
+## 2026-08-07 — The rune tally pill gets styled, and sits above its badge
+
+Owner ask: put the Bucky and Chef counters **above** their runes, always visible when > 0.
+
+Fixing it turned up why they were hard to see at all: **`.qb-tally` had no CSS rule**. `QuestBadges` has
+emitted that span since 2026-08-03, so EVERY rune meter — not just today's two — has been rendering as
+unstyled inline text jammed against the badge: present in the DOM, effectively unreadable. (Same finding as
+the parked `feat/rune-live-values` branch, now closed here.)
+
+It now sits above the badge in `.questbadge-chip`'s pill language, centred, with `pointer-events: none` so it
+can never eat the badge's own hover tooltip. "Visible when > 0" is structural rather than a style rule:
+`runeTally` returns null at zero, so the span simply isn't in the DOM. The value change replays a one-shot
+pop — compositor-only (transform + opacity), per the no-looping-paint rule.
+
+Verified live with both runes owned: pills read "3 Ales" and "+9/+9", both fully clear of the badge rim
+(1.2px gap), centred to within 2px, and the tooltip still opens.
+
+## 2026-08-07 — Rune of the Coffers art
+
+The one rune left on the fallback frame now has its illustration (`RuneOfTheCoffers.png`, an exact name
+match — no guessing needed). **All 163 runes resolve art**; the earlier gap is closed.
+
+## 2026-08-07 — Bucky and the Chef paid a turn late; Bucky's art + Ale counter
+
+**Both were running one turn behind** (owner report: three Ales paid 0 that combat and only landed the fight
+after). The cause was mine and it was the "banking" indirection itself: `faceOmen` BUILDS the combat side,
+and `resolveCombat` does the per-turn reset — in that order. Banking the tally during `resolveCombat` meant
+every fight read a figure frozen after the PREVIOUS combat.
+
+**The fix is to delete the indirection, not to shift it.** At `faceOmen` time `alesCastThisTurn` and the
+Chef's `chefGranted` already hold exactly "the shop phase that just ended", so combat reads them live and the
+rollover simply zeroes them. `alesCastLastTurn` and the `chefGrantedLast` twin on the BoardCard are gone; the
+combat-side field keeps its name, since from the fight's perspective the shop it followed IS last turn.
+
+A regression test now casts three Ales and fights immediately, asserting +15/+15 in that combat rather than
+the next — the exact shape of the report.
+
+**Chef Gary Toast's tally is SHOP-PHASE ONLY** (owner ruling). That already held, structurally rather than by
+a check: `onTribeSummonedBuffTribe` exists only in the RECRUIT factory table, so a combat summon cannot reach
+the accrual line. A guard test pins it — if the effect is ever arena-migrated the test fails first, forcing a
+deliberate decision about whether mid-fight grants should bank.
+
+**Bucky's art wired**, and his rune's badge now counts the Ales cast this turn ("3 Ales") — the brewing you
+are banking for the fight ahead.
+
+Verified live: Bucky pays +15/+15 in the combat right after casting 3 Ales, the Chef pays +9/+9 the same
+turn it grants, both pills read correctly, and `dw_bucky.webp` fetches 200 (art count 380 → 381).
+
+`typecheck` clean, lint at the 7-warning baseline, 4225 tests, `build:web` OK.
+
+## 2026-08-07 — Rune of the Chef actually fires, gains a tracker, and 34 runes get their art
+
+**The Chef was broken in the real game** (owner report), for a second reason beyond this morning's missing
+flag: `chefGrantedLast` never reached the combat body. `minion.ts`'s board→Minion mapper carried it, but the
+REDUCER builds the player's `BoardMinion` list itself, and that list didn't. So the flag armed, the tally
+banked, and the Rally then read `undefined` and paid nothing.
+
+**Why the tests missed it, twice.** Every per-mechanism combat test injects `questMods` straight into
+`simulate` — which proves the combat behaviour but bypasses the reducer entirely, so neither the flag writer
+nor the board→BoardMinion mapper is ever exercised. Both defects lived in exactly that blind spot. There is
+now an explicit end-to-end test that drives buy → play → fight through `reduce` and nothing else, with a
+comment saying why it exists.
+
+**A tracker on the badge** (owner ask). The Chef's pill shows the buff it is actually going to hand out —
+`+N/+N`, summed across every Chef's banked total — rather than a countdown, because the rune's whole question
+is "how big is it this fight?". Nothing banked shows no pill, which correctly reads as "this fight pays
+nothing".
+
+**Rune art: 34 of the 35 missing files wired**, matched by name against the art folder with one explicit
+override (the file is `RuneOfTheDragonscale`, the rune is "Rune of Dragonscale"). Done with the same
+512×512 / webp-q90 pipeline `wire-art.ts` uses, but per-file — the real tool has no per-card flag and would
+rewrite ~1000 files. **Rune of the Coffers has no art**: nothing in the folder matches it, and
+`RuneOfBanking.png` belongs to the existing Rune of Banking, so it stays on the fallback frame rather than
+being guessed at.
+
+Verified live through the app's own module graph: the rune arms, 9 banks, the tracker reads +9/+9, and the
+Rally pays +9/+9 per swing. 163 of 163 runes now resolve art bar Coffers.
+
+`typecheck` clean, lint at the 7-warning baseline, 4221 tests, `build:web` OK.
+
+## 2026-08-07 — Bucky, his rune, and the Groveweaver rune reaches combat
+
+**Rune of the Groveweaver now works in combat too** (owner). The recruit half shipped this morning; the
+combat half mirrors it exactly — the arena body's own arithmetic (base + this instance's `summonBonus`,
+× golden) behind the same tribe gate — so a Groveweaver grows as it buffs whichever phase the summon
+happens in. Reads a new `groveweaverSelfFor` off the combat mods.
+
+**Bucky** (T6 Dwarf 6/10, rune-exclusive) — Start of Combat: your Dwarves gain +5/+5 **for every Dwarven Ale
+you cast last turn**. `alesCastThisTurn` already existed for Chef Gary Toast; the turn rollover now BANKS it
+into `alesCastLastTurn` first, which is the same shape the Chef's own grant tally uses and for the same
+reason: the fight's opening should be decided by the turn you just finished, not the one you are still
+shopping in. Threaded through the combat side state and both opponent-snapshot writers, so a served enemy
+Bucky pours at its owner's brew rather than nothing. Zero Ales is a clean no-op — no 0/0 sweep, no narration.
+
+**Rune of Bucky** (Epic, 7, Set 2) hands him over.
+
+**A gap the tests had been hiding.** Wiring this exposed that **Rune of the Chef's flag was never threaded**
+into combat mods at all — an earlier scripted edit had aborted midway and taken both the `combatFlag` writer
+and the mods line with it. The Chef's own tests passed because they inject `questMods` directly, so buying
+the rune in a real run would have done nothing. Both lines are restored.
+
+The Dwarf-roster tripwire fired (26 → 27) and was the only failure.
+
+`typecheck` clean, lint at the 7-warning baseline, 4220 tests (7 new), `build:web` OK, harness determinism ✓.
+
+## 2026-08-07 — Rune of the Chef
+
+"Your Chef Gary Toasts gain **Rally:** buff a random Dwarf for the combined stats this granted last turn."
+Two halves, because the Chef grants in the SHOP and the rune pays in COMBAT.
+
+**Banking.** `onTribeSummonedBuffTribe` now sums what it hands out into a per-INSTANCE `chefGranted` —
+summed across every recipient, so a wide Dwarf board banks far more than a narrow one, which is what ties the
+payout to how well the Chef was actually played. Accrued **unconditionally**, not gated on owning the rune:
+arming it mid-run must not depend on a tally that was never kept. The turn rollover moves `chefGranted` into
+`chefGrantedLast` and resets it, so the Rally always spends last turn's work rather than the turn you are
+still shopping in.
+
+**Spending.** `chefGrantedLast` rides the instance into combat (the same route `summonBonus` takes) and is
+threaded through BOTH opponent-snapshot writers, so a served enemy Chef pays its owner's banked tally instead
+of nothing. On the Chef's attack the rune buffs a random friendly Dwarf by that figure; a Chef that banked
+nothing pays nothing rather than emitting a 0/0.
+
+**A test trap, twice in one day.** The shop test first read "2 plays bank the same as 1". Three copies of one
+Dwarf id had tripled into a golden mid-test and eaten the very plays being counted — the same trap the Rune of
+Transcription test hit this morning. Distinct ids, noted in the test both times.
+
+`typecheck` clean, lint at the 7-warning baseline, 4213 tests (6 new), `build:web` OK. No art yet.
+
+## 2026-08-07 — Three more runes: the Badger, the Groveweaver, the Conduit
+
+**Rune of the Badger** (Basic, 5) is pure data — the `grant` reward already carried `grantKeywords`, so it is
+a Badgington handed over with Flurry (`W`) and Ward (`DS`) stamped on.
+
+**Rune of the Groveweaver** (Epic, 6) makes a Groveweaver's summon grant land on ITSELF as well. The self-buff
+recomputes the arena body's own arithmetic (base + that instance's `summonBonus`, × golden) rather than
+inventing a second formula, so the two can't drift, and it repeats the same tribe gate — a Groveweaver that
+skipped a non-Beast arriver must not pay itself either. That last rule has its own test.
+
+**Rune of the Conduit** (Epic, 5, Set 2) gives the whole side one extra Ruby bounce. Candle Conduit's per-body
+bounce loop already existed from this morning's rework; the rune folds into the same counter as "a body's worth
+of bouncing without being a body", keeping the one no-rebounce guard that stops two Idols pinging forever.
+
+**A test-fixture trap worth recording.** The Conduit test first read a bounce of +1 instead of +2 and looked
+like a bug. It wasn't: a Ruby's stats ride on the INSTANCE (it can be buffed in hand), and the fixture had
+built a 0/1 Ruby off `bm`'s defaults. The code was right; the fixture was wrong.
+
+The rune-count tripwire fired (+1 Basic, 72 → 73) and was the only thing that failed — the tally and preview
+audits passed untouched, since all three either name a card they already preview or fire per-event rather
+than on a threshold.
+
+`typecheck` clean, lint at the 7-warning baseline, 4207 tests (7 new), `build:web` OK. No art authored yet.
+
 ## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
 
 The owner's 14-rune Epic sheet, stacked on the Basic batch (both touch the same four files, so they ship in

@@ -54,6 +54,7 @@ export function instantiate(
     critChance: board.critChance ?? card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef); a spell (Executioner's Edge) can seed one onto the combat board for one fight
 
     summonBonus: board.summonBonus ?? 0,
+    chefGrantedLast: board.chefGrantedLast, // Rune of the Chef: last shop turn's granted total
     eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
     chosenOption: board.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     taughtSpellId: board.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast

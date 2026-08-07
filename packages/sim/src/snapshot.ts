@@ -116,6 +116,8 @@ export interface BoardSnapshot {
   cardBuffs?: Record<string, { attack: number; health: number }>;
   /** Spell ids in the owner's hand at capture, in hand order (Vault Curator copies the left-most). */
   handSpellIds?: string[];
+  /** Bucky: Dwarven Ales the owner cast last shop turn. */
+  alesLastTurn?: number;
   /** The owner's accumulated Front-to-Back escalation, so a served Quil casts it at the strength its owner
    *  had built up — the same fidelity rule as `rubyBonus`. Absent = none. */
   spellEscalation?: { attack: number; health: number };
@@ -194,6 +196,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.chosenOption !== undefined ? { chosenOption: c.chosenOption } : {}), // Choose One: which branch this body became, so a served/restored board reads the same single branch
     ...(c.taughtSpellId ? { taughtSpellId: c.taughtSpellId } : {}), // Mage-Pup: the spell it learned, so a restored/served Pup still names it
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
+    ...(c.chefGranted ? { chefGrantedLast: c.chefGranted } : {}), // Rune of the Chef: a served Chef pays its OWNER's tally
     ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
     ...(c.sellBonus ? { sellBonus: c.sellBonus } : {}), // Trail Forager: carry the sell bonus so a served board reads its live sell value
     ...(c.eotTick ? { eotTick: c.eotTick } : {}), // Frontdrake / Money Maker / Vineweaver: carry the cadence counter for live text
@@ -310,6 +313,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
     ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),
     ...(handSpellIds.length ? { handSpellIds } : {}),
+    ...(s.alesCastThisTurn ? { alesLastTurn: s.alesCastThisTurn } : {}),
     ...(s.frontToBackBonus || s.frontToBackBonusH
       ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),

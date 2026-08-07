@@ -1477,6 +1477,15 @@ export function useCombatReplay(
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
+    // Wind-up buff LAUNCH timer (Task 5): `onWindupBuffs` fires at the wind-up pause (T, right after the
+    // rally pulse) but the tendril/self-pulse itself shouldn't pop until `T + RALLY_EFFECT_GAP_MS`, so the
+    // beat reads pulse -> (gap) -> buff instead of both landing in the same instant. `fireBuffCasts`/
+    // `fireSelfBuffs` already schedule their own badge ROLL relative to when they're CALLED (`scheduleRoll`,
+    // see its own comment) — delaying the call itself is enough to push both the FX and the roll out by the
+    // gap; adding the gap a second time into that roll's ms would double-delay it. Cleared on cleanup/next
+    // beat like the summon-reveal timer below; if a beat advance or seek loses it before it fires, the
+    // combat-lifetime roll registry + stat-hold TTL are the fail-open backstop against a stranded badge.
+    let windupBuffTimer: number | undefined;
 
     // A RISE ATTACKER dying to retaliation returns HOME first: the engine's `runRiseReturn` kills the slow
     // elastic settle and pulls the unit straight back to its slot (a short hold so the contact reads, then a
@@ -1598,7 +1607,14 @@ export function useCombatReplay(
             }
           } : undefined,
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
-            ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
+            ? () => {
+                const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+                windupBuffTimer = window.setTimeout(() => {
+                  windupBuffTimer = undefined;
+                  fireBuffCasts(windupCasts);
+                  fireSelfBuffs(windupSelfBuffs);
+                }, RALLY_EFFECT_GAP_MS / speed);
+              }
             : undefined,
           onImpactAuras: breakWards,
           onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
@@ -1656,11 +1672,15 @@ export function useCombatReplay(
       }
     }
     setProjectiles(ps);
-    // No cleanup needed: this effect no longer owns any teardown-able resource of its own. The wind-up
-    // buffs' strike timer + roll used to be tracked here (`windupTimers`, cleared on every beat advance) —
-    // that per-beat clearing was the Task 6 bug. They now live in the combat-lifetime roll registry (see
-    // `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this effect never reaches into.
+    // Cleanup only clears the WIND-UP LAUNCH timer added in Task 5 (`windupBuffTimer`, above) — the actual
+    // buff strike timer + roll it hands off to are still NOT tracked here (Task 6): `fireBuffCasts`/
+    // `fireSelfBuffs` schedule those in the combat-lifetime roll registry (see `scheduleRoll`/
+    // `cancelPendingRolls` near `resetTo`), which this per-beat cleanup deliberately still never reaches
+    // into — clearing THAT out from under an in-flight roll is the exact bug Task 6 fixed. `windupBuffTimer`
+    // is safe to clear per-beat because it only fires the LAUNCH, well before contact could advance the
+    // beat; if it's ever lost to a fast skip/seek, the roll registry + hold TTL fail open.
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
+    return () => { if (windupBuffTimer !== undefined) window.clearTimeout(windupBuffTimer); };
   }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {

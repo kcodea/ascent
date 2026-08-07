@@ -17,7 +17,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
-import { attackSummonUids, RALLY_PULSE_READ_MS } from './choreo/channels/rallyFired';
+import { attackSummonUids } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -83,6 +83,15 @@ const COMBAT_ROLL_MS = DEFAULT_ROLL_MS;
  * asymmetry moved one level up, not resolved.
  */
 const COMBAT_HOLD_TTL_MS = 2000;
+
+/**
+ * How long a unit's OWN on-attack summons are withheld before they slide onto the board — so Errand Fiend's
+ * Imps arrive a beat after the swing instead of snapping in at wind-up start (owner ask 2026-08-07). Measured
+ * from the instant the attack beat becomes current, and scaled by combat speed at the call site so the lead
+ * shrinks with a faster replay. Kept short so the reveal stays well inside the attack beat (always longer than
+ * this) — which is what lets the Imp mount while its `summoned` anim is still live and play `summonpop`.
+ */
+const IMP_SUMMON_LEAD_MS = 100;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {
@@ -1530,14 +1539,6 @@ export function useCombatReplay(
             const n = ++rallyNonceRef.current; // a fresh nonce per fire → new medallion key → the pulse restarts
             setRallyPulse((prev) => new Map(prev).set(atkUid, n));
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
-            // …then reveal the attacker's OWN on-attack summons (Errand Fiend's imps) a beat after the pulse, so
-            // the sequence reads wind-up → pulse → summon (owner ask 2026-08-06). RALLY_PULSE_READ_MS is the same
-            // lead the rally-echo cubs use for the identical "pulse, then delivery" spacing, scaled by combat
-            // speed like every other lead. No sparkle: unlike the rally cue this plays no def, it only reveals.
-            // `releaseSummons` on already-shown uids is a safe no-op, so a seek that clears the holds first (via
-            // the withhold effect's `releaseAllSummons`) leaves this a harmless late no-op.
-            const impUids = attackSummonUids(cur, events, atkUid);
-            if (impUids.length) window.setTimeout(() => releaseSummons(impUids), RALLY_PULSE_READ_MS / combatSpeed);
           } : undefined,
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
             ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
@@ -1736,18 +1737,22 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     for (const uid of rallyDeliveredUids(beat, { events, cardIds })) holdSummon(uid);
-    // Errand Fiend (and any Rally-summons-on-attack unit): withhold the ATTACKER'S OWN on-attack summons too,
-    // so its imps arrive AFTER the yellow Rally pulse rather than snapping onto the board at the top of the
-    // wind-up (owner ask 2026-08-06). Released by that pulse — see the `onRallyPulse` closure in the attack-
-    // exchange cue below; the module TTL is the backstop if the pulse never fires. Gated on the PRINTED `RL`
-    // keyword, which is a SUBSET of the release's own `rallies` check (that also honours a mid-combat-granted
-    // RL), so anything withheld here is guaranteed a releaser — a frame-only RL just degrades to instant.
+    // Errand Fiend (and any unit that summons on its OWN attack): withhold the attacker's own on-attack summons
+    // and reveal them a short lead later, so the Imps slide in just after the swing instead of snapping onto the
+    // board at wind-up start (owner ask 2026-08-07). Triggered by "summons on its own attack" (`source ===
+    // attacker`), NOT the RL keyword — a card's "Rally: summon…" is an onAttack EFFECT and carries no RL keyword
+    // (Errand Fiend's keywords are just `['W']`), so an RL gate here never fired. The reveal rides a speed-scaled
+    // timer cleared on the next beat/seek; the summon-hold TTL is the fail-open backstop if it is ever lost.
+    let impReveal: number | undefined;
     if (beat.kind === 'attackExchange' && beat.primary.type === 'attack') {
-      const atkUid = beat.primary.attacker;
-      if (CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL')) {
-        for (const uid of attackSummonUids(beat, events, atkUid)) holdSummon(uid);
+      const impUids = attackSummonUids(beat, events, beat.primary.attacker);
+      if (impUids.length) {
+        for (const uid of impUids) holdSummon(uid);
+        const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+        impReveal = window.setTimeout(() => releaseSummons(impUids), IMP_SUMMON_LEAD_MS / speed);
       }
     }
+    return () => { if (impReveal !== undefined) clearTimeout(impReveal); };
   }, [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate

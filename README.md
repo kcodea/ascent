@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Big trigger chains resolve much faster** — a card that re-fires your Shouts announced every single one with a full pause, so a Dawnclaw chain could spend 8+ seconds saying the same line eight times. The first one still reads at full weight; the rest now cascade, cutting that to under three seconds without dropping a single trigger.
+
 - **A gilded Rally pulses its token once per trigger** — Echohorn firing twice used to show one pulse and then two effects back to back; each trigger now gets its own pulse followed by its own burst, and the wind-up stretches to fit however many there are.
 
 - **Live-play fixes** — enemy Earthbreaker no longer buffs off your casts; Front to Back's held-card value moves the moment a minion casts it; Sporebat names its stored spell; Menagerie Mammoth is a T5 hand-caster (Avenge 3) and its rune retires.

@@ -27,6 +27,21 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
   const c = getLungeConfig();
   const spd = combatSpeed > 0 ? combatSpeed : 1;
   if (shown && OVERLAP_INTO.has(next.primary.type)) return cfg.overlapMs / spd; // ride on the preceding FX
+  // A REPEATED NARRATION rides the one before it, for the same reason those consequence beats do.
+  //
+  // Every repeated-trigger card logs one `sc` line per fire (`X triggers Y's Battlecry` — Ryme/Dawnclaw,
+  // Thunderous Sovereign, Chorus Drake, the Deepvein cascade), and each was a full-weight beat: 720 × the
+  // 1.5 tempo = 1080ms, spent saying the same thing again. A gilded Echohorn beside a Sylus procs Dawnclaw
+  // four times into two Shout neighbours — eight of them, 8.6 SECONDS of pauses (owner report 2026-08-07).
+  //
+  // The FIRST of a run keeps its full weight, so the cascade still announces itself; only the repeats ride.
+  // Nothing is cut off: a narration beat's cues are fire-and-forget (trigger pulse, log line, float), exactly
+  // like the `OVERLAP_INTO` beats above, so every Shout keeps its own read.
+  //
+  // Keyed on the KIND rather than the `sc` event type, because `sc` is two different beats: `scCast` is a
+  // genuine Start-of-Combat damage cast and each one is a different thing happening, so a run of those keeps
+  // full pacing. Only narration compresses.
+  if (shown && next.kind === 'scNarrate' && shown.kind === 'scNarrate') return cfg.overlapMs / spd;
   let d = beatDelay(next.primary.type) * cfg.speed;
   if (shown && RESULT_TYPES.has(shown.primary.type) && next.primary.type === 'attack') {
     d += c.attackGap * 1000; // a breather after an impact before the next swing

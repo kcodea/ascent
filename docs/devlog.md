@@ -386,6 +386,37 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Leaderboard + post-game MMR were unreadable (a button reset eating the row's own styles)
+
+Owner report with a screenshot: the leaderboard's text is "hidden in the background", same for the post-game
+MMR. Two different causes, both "text with no winning colour over a bright backdrop".
+
+**Leaderboard — a CSS cascade bug, not a colour choice.** `.rankrow-btn` (the button reset that makes a
+clickable row look like a row) is declared AFTER `.rankrow`, and it set `background: none`, `color: inherit`
+and `border: none`. So it erased the row's plate, pulled the PAGE's dark ink over the row's own light colour
+— computed `rgb(42, 32, 23)`, dark brown — and dropped the border. Dark-brown text on a transparent row
+sitting over the homescreen's daylit castle: exactly the screenshot. The tell was that only the player's own
+row looked right, because `.rankrow.me` is declared later still and put its tint back.
+
+The reset now keeps only what a `<button>` actually needs neutralising (`width`, `font`, `text-align`,
+`appearance`, cursor) and leaves `background` / `color` / `border` to `.rankrow`. On top of that the row
+plate goes from `rgba(0,0,0,.3)` — a tint the castle read straight through — to a real `rgba(8,13,26,.82)`
+panel, the header labels lift from 50% to 78% white with a shadow, and Games + the hero name state their
+colour explicitly rather than inheriting, so a future row-background change can't silently dim them again.
+
+**Post-game MMR — no colour at all.** `.endmmr-now` (the 64px rating) carried NO `color` declaration, so it
+inherited whatever the end screen's ink happened to be and sank into the final-warband art. It now has an
+explicit warm white plus a static text-shadow; the delta and label get the same treatment (the label's flat
+`opacity: .65` becomes a real colour, which reads better over busy art), and the up/down greens and reds are
+brightened for the same reason.
+
+All static properties — nothing here animates, so the looping-paint rule is untouched.
+
+Verified live in the browser via computed styles: the row now resolves to `background rgba(8,13,26,.82)`,
+`color rgb(244,238,226)` and a real 2px border (was transparent / `rgb(42,32,23)` / none), and the MMR block
+resolves to `rgb(255,246,228)` with its shadow. Gates: typecheck / lint (7-warning baseline) / 1940 UI tests
+/ build:web.
+
 ## 2026-08-06 — Echo multipliers: the Rally-proc paths ignored them (two owner reports, one root cause)
 
 Two separate owner reports turned out to be the same omission, exactly as the owner suspected once they

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Leaderboard + post-game MMR readability** — a button reset was erasing each leaderboard row's plate and pulling dark page ink over its text; the big MMR number had no colour declared at all.
+
 - **Echo multipliers fixed** — Echohorn's Rally proc ignored Sylus entirely (halving the Echohorn→Dawnclaw→Drakko→Sylus chain) and Deathsayer's hardcoded scan dropped Zyff/Funeral Engine/Elderhorn/Grave Contract; both now share one canonical read.
 
 - **Shop perf slice 2** — a real 240 Hz capture showed the drag FLIP was 90% of all frame work (~9.2 ms/call vs a 4.17 ms budget); it now captures only the row that can move, on GSAP's fast path.

@@ -339,6 +339,7 @@ export function reduce(state: RunState, action: Action): RunState {
       shopStatGain += Math.max(0, (o.atk ?? 0) - prev.a) + Math.max(0, (o.hp ?? 0) - prev.h);
     }
     shopStatGain += Math.max(0, next.tavernBuyBonus.atk - state.tavernBuyBonus.atk) + Math.max(0, next.tavernBuyBonus.hp - state.tavernBuyBonus.hp);
+    // Veinstorm's run-wide Ruby grant is stats given to the shop too — it just lives in its own accumulator.
     if (shopStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'shopStats', shopStatGain);
     // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
     // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
@@ -732,6 +733,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
+      // Veinstorm — the run-wide shop grant that is made of RUBIES (owner 2026-08-06). Same shape as the Staff
+      // bonus above and the same Fodder exclusion, but recorded under the `Ruby` source, which is the entry
+      // `rubyTallyOf` reads in BOTH phases: the bought minion now genuinely carries "N Rubies", so a Gemheart
+      // Carver's Echo sizes its Golem off it. No `fireOnRubyPlayed` here — see `spellBuffShopByRuby` for why
+      // a shop-wide grant deliberately doesn't notify the on-Ruby watchers.
       // Golden Touch: a gilded offer buys in Golden — double the BASE stats only (accrued buffs stay single,
       // like a gild / triple), recorded as a buff so the inspect breakdown still itemizes it. The golden flag
       // (set above) doubles its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.

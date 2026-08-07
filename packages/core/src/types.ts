@@ -366,6 +366,7 @@ export type EffectFactoryId =
   | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
+  | 'spellStealAdjacentRubies' // Ruby Transfer: the target steals adjacent minions' Ruby buffs (board or shop row)
   | 'spellAverageStats' // Common Ground: cast — average two friendly minions' Attack and Health
   | 'spellSwapStats' // Turnabout: cast — swap the target's Attack and Health
   | 'spellGoldIfLostLast' // Insurance Policy: cast — gain Gold if you lost your last combat

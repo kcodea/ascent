@@ -386,6 +386,134 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+## 2026-08-06 — Veinstorm persists across refreshes; the Gemheart Golem preview reads its owner's Rubies
+
+Two follow-ups after the owner confirmed the functionality works.
+
+**1. "Veinstorm is still a buff to every shop minion — every time I refresh the shop, it should have that
+buff."** Right, and the previous cut lost that when it dropped the run-wide channel. The synthesis: the cast
+BANKS its grant in `veinstormRubies`, and that bank is read at exactly one place — the moment a shop offer is
+MINTED (`rollShop`) — to stamp the new minion with a real per-offer `Ruby` buff.
+
+That keeps both properties that fought each other across three attempts: every offer, forever, carries the
+grant (it is genuinely permanent), AND the grant is a real per-offer buff rather than an aura, so Ruby
+Transfer can steal it and no reader has to un-double-count anything. The bank is never folded into a stat
+read; `stampVeinstormRubies` is shared by the cast and the roll so the two cannot disagree, and Layaway's
+kept offers are excluded from the re-stamp (they already hold theirs).
+
+**2. "The Gemheart Golem preview should show the stats it will have from that unit."** The referenced-card
+popup printed the token's flat 1/1, which is a lie about what you get — the Golem's stats come from the
+Rubies on the minion summoning it. The popup now sizes it exactly as `deathrattleSummonRubyStats` does:
+`(1 + owner's Ruby tally) × the owner's gild`, with the printed 1/1 as its base so the Ruby-fed gain reads
+green. The owner card is threaded into the popup builder, so a Carver in hand, on board or in the SHOP each
+preview their own Golem correctly.
+
+Verified live: 3 Veinstorms → both offers carry `Ruby 3/3` → REFRESH → all three freshly rolled minions
+carry `Ruby 3/3` from the bank (`veinstormRubies {atk:3,hp:3}`), each counted exactly once.
+
+NOT verified live: the Golem popup itself — it is portalled and hover-timer gated, so synthetic pointer
+events don't raise it. The data path is unit-covered and typechecked; the owner should eyeball one hover.
+
+Gates: typecheck / lint (7-warning baseline) / 4056 tests / harness determinism / build:web.
+
+## 2026-08-06 — Veinstorm, third time: it just plays Rubies onto the shop (owner: "not built correctly at all")
+
+Two clever designs shipped and both were wrong. The owner's correction is the spec: "veinstorm should
+literally apply the value of itself in rubies to the shop. if a transfer is used on a minion, it STEALS the
+Ruby buffs from the adjacent minions."
+
+What was wrong, in order:
+1. **`tavernBuyBonus`** — the Staff of Guel channel. A generic tavern buff, invisible to every "the Rubies on
+   this minion" reader, so a Gemheart Carver bought from a +10/+10 shop minted a 1/1. It is also why the
+   owner's Scene Builder test showed **"Tavern"** as the buff source and Ruby Transfer found nothing to steal.
+2. **A run-level Ruby channel + a per-offer stamp** — an AURA no card could interact with, plus a split that
+   had to be un-double-counted in EVERY reader. `offerBuyStats` did it; the shop's own `shopView` did NOT, so
+   the value rendered doubled. (I had written a comment asserting the two "do not double-count" before
+   reading the code that added both — the comment was wrong before the code was.)
+
+Now: ONE mechanism. `spellBuffShopByRuby` calls `addOfferBuff(offer, 'Ruby', 1 + rubyBonus.attack, 1 +
+rubyBonus.health)` on each tavern MINION (spells/Rubies/Fodder excluded, as they always were) and that is the
+whole implementation. Real Ruby buffs on real offers need no reconciliation: they ARE the offer's stats, they
+travel to the bought minion as Rubies, Ruby Transfer can move them, and the inspect names them correctly.
+`tavernRubyBonus` and `ShopCard.rubyStamped` are deleted, along with their folds in `offerBuyStats`, the buy
+path, `shopView` and the run-buffs drawer.
+
+Consequence worth stating plainly: a REROLL no longer carries the grant, because the minions that held the
+Rubies are gone. "Permanently" now means the buff never wears off the minion it landed on and travels with it
+into your hand — not that unrelated future minions inherit it. That reverses the 2026-07-24 note; if the
+owner wants roll-persistence back it needs a different shape than a run-wide aura, since an aura is
+exactly what cannot be stolen.
+
+Verified LIVE, end to end, in the game the owner tests in: 5 Veinstorms → every offer carries `Ruby 5/5`
+(no "Tavern", no doubling) → Ruby Transfer on the middle offer → it holds `Ruby 15/15` and both donors read
+0 → buying it yields a 20/18 Carver carrying `Ruby 15/15`, so its Echo mints a 16/16 Golem.
+
+Gates: typecheck / lint (7-warning baseline) / 4056 tests / harness determinism / build:web.
+
+## 2026-08-06 — Veinstorm's grant becomes PER-OFFER Rubies, closing the Ruby Transfer combo
+
+Follow-up to the same day's Veinstorm rework and the new Ruby Transfer, after the owner tested the pair in
+Scene Builder: "ruby transfer did not work? the buff in shop also shows 'tavern' as the buff."
+
+Ruby Transfer was fine — verified live on both rows (board: donors stripped, target 2/2 → 8/8; shop: donors
+stripped, target +7/+7). The word "Tavern" was the diagnosis: that label is the run-wide tavern-buy channel,
+which is what Veinstorm wrote. Nothing in that shop carried a `Ruby`-sourced buff, so the spell correctly
+found nothing to steal.
+
+The earlier rework had made Veinstorm's grant COUNT as Rubies (fixing the Gemheart Carver 11/11 case) but
+implemented it purely as a run-level channel — an aura no card could interact with. Owner confirmed both
+halves of the fix:
+- **Each CURRENT offer now gets a real per-offer `Ruby` buff** — a first-class thing Ruby Transfer can move,
+  the inspect can name, and the Ruby-landing cue can play on.
+- **The run channel still covers FUTURE offers**, which is what "permanently" means on the card (owner
+  confirmed a refreshed shop keeps the value).
+
+The double-count that split creates is closed by `ShopCard.rubyStamped`: an offer records how much of the run
+channel it already carries as its own buff, and `offerBuyStats` folds only the remainder. Worth noting the
+first draft of this asserted in a comment that the two "do not double-count" — reading `offerBuyStats`
+showed it added BOTH. The comment was wrong before the code was; checking beat asserting.
+
+One deliberate behaviour flip: Veinstorm now plays the Ruby-landed cue on each offer. That cue is derived
+from the per-offer Ruby-count delta, so it follows automatically — and correctly: real Rubies are arriving,
+and the animation is what makes the spell legible. The test that pinned "no landed cue" was updated with the
+reasoning rather than deleted; the cast meters (Spellstone, rubyCasts) still must not move, and are still
+pinned at zero.
+
+Verified: typecheck / lint (7-warning baseline) / 4056 tests (2 new combo tests) / harness determinism /
+build:web.
+
+## 2026-08-06 — New spell: Ruby Transfer (T5, 1 Gold, Set 2) — consolidate a row's Rubies
+
+Owner spec: "Target a minion. It steals all Ruby buffs from adjacent minions" — and, importantly, "it can
+also target shop minions and should steal ruby buffs from adjacent shop minions in that instance."
+
+Both modes fall out of `target: 'any'` plus one detail of how offer-casting already works: `castSpellOnOffer`
+casts on a temp BoardCard that SHARES the offer's uid, so the factory identifies its row by looking that uid
+up — found in `shop` → steal from the shop neighbours; otherwise the board's. That makes the shop mode a real
+combo line rather than a special case: fatten a tavern minion off its neighbours, then buy it.
+
+"All Ruby buffs" is exact rather than approximate because a Ruby buff is a first-class NAMED entry
+(`buffs[].source === 'Ruby'`) on both card kinds. The spell moves precisely what Rubies put there and never
+touches a Growth, a tavern buff or an aura — and the stolen stats stay labelled `Ruby` on the thief, so
+Gemheart Carver and every other reader of "the Rubies on this minion" sees them.
+
+Deliberately NOT routed through `fireOnRubyPlayed`: nothing is being CAST, stats are changing hands. Firing
+it would let a Resonance Idol bounce a Ruby that was already played and would tick Deepdelve Paragon / the
+Spellstone cast count a second time for one Ruby — the same reasoning `gainRubyStats` documents for its own
+no-rebounce guard.
+
+Art wired from the owner's `RubyTransfer.png` through `npm run art:wire` (strict name match, 512px + webp
+sibling). The apply pass regenerates every webp in the repo as a side effect; only this card's two files were
+kept, the other ~1000 touched files reverted — a mass art re-encode is its own PR, not a rider on a new card.
+
+7 tests: both neighbours robbed on the board, non-adjacent minions untouched, a non-Ruby buff left alone, the
+no-adjacent-Rubies no-op, the shop mode with its buy-stat fold, the stolen Rubies surviving the purchase
+still labelled Ruby, and the spell/Ruby offers correctly skipped as donors. Plus the card-data pin (T5, 1
+Gold, `target: 'any'`) and registration in the set-2 spell allowlist.
+
+Verified: typecheck / lint (7-warning baseline) / 4047 tests / harness determinism / build:web; set scoping
+confirmed live (`poolFor('set2')` yes, `poolFor('set1')` no).
+
 ## 2026-08-06 — Rune of Duplication was a no-op on 41 of 72 Epic runes
 
 Owner report: "i got rune of duplication, and then rune of the procession, so i had 2 of them, but only 1 of
@@ -423,6 +551,51 @@ classification (including that a `multi` stacks when either half does — Soul T
 even though its flag is boolean).
 
 Verified: typecheck / lint (7-warning baseline) / 4040 tests / harness determinism / build:web.
+
+## 2026-08-06 — Veinstorm grants RUBIES, not a tavern buff
+
+Owner spec: *"veinstorm should technically function as if that value of rubies was played on the minion.
+it's different than a tavern buff. the reason this is important is for things like gemheart carver. if i
+played veinstorms so that the shop has +10/+10 from veinstorm, a gemheart carver should then summon an
+11/11 gemstone golem."*
+
+**The defect.** Veinstorm's permanent shop grant was routed through `tavernBuyBonus` — the Staff of Guel
+channel — so a bought minion recorded it under the `Staff of Guel` buff source. Every reader of "the Rubies
+on this minion" goes through `rubyTallyOf`, which reads the `Ruby` buff entry (recruit) plus `rubyGain`
+(combat). A generic tavern buff is invisible to it, so a Gemheart Carver bought out of a +10/+10 Veinstorm
+shop summoned a 1/1 Golem instead of an 11/11.
+
+**The change.** Veinstorm now accumulates in its own run-level channel, `tavernRubyBonus`, with the same
+shape and lifetime as `tavernBuyBonus` (permanent; folded into present *and* future offers by
+`offerBuyStats`; the same Fodder exclusion) — but the buy path bakes it in under the `Ruby` source. The
+grant lands in exactly one channel, so nothing double-counts.
+
+- `packages/sim/src/state.ts` — new `tavernRubyBonus: { atk, hp }` on `RunState` + `createRun`. Old saves
+  heal automatically through the `{...createRun(), ...parsed}` merge.
+- `packages/sim/src/recruit.ts` — `spellBuffShopByRuby` writes `tavernRubyBonus`; `offerBuyStats` folds it
+  into every offer's previewed/consumed/sold value.
+- `packages/sim/src/reducer.ts` — the buy path applies it as `addBuff(bought, 'Ruby', …)`; the "grant N
+  stats to Shop minions" quest counts its rises too.
+- `packages/ui/src/Recruit.tsx` — shop offers preview the grant and itemize it as **Ruby** in the inspect.
+- `packages/ui/src/runBuffs.ts` — its own "Tavern buys · Rubies" row (it scales different payoffs from the
+  Staff bonus, so folding the two into one row would lie).
+- `packages/content/src/cards/set2/spells.ts` — card text now says the stats arrive **as Rubies**.
+
+**Knock-on decision (conservative, documented in the effect).** The grant does **not** fire
+`onRubyPlayed` — no Resonance Idol bounce, no Deepdelve Paragon multiplier, no Rune of the Spellstone /
+Ruby-cast tick. Three reasons: it lands on tavern OFFERS, and the existing "play a real Ruby on an offer"
+path (`addOfferBuff(offer, 'Ruby', …)`) doesn't notify watchers either; the run-level share bakes in at BUY
+time, when the body is going to hand rather than being played on your board; and a shop-wide grant firing
+one watcher per offer would make a 1-Gold spell the largest Ruby-count payoff in the game. The
+`gainRubyStats` arena hook is the established "Ruby stats, no watcher notify" precedent.
+
+**Verified.** Six new tests in `packages/sim/src/spellBatch.test.ts` pin the owner's exact scenario end to
+end — ten Veinstorms → `tavernRubyBonus {10,10}` with `tavernBuyBonus {0,0}`; a bought Gemheart Carver at
+15/13 carrying one `Ruby` buff of 10/10 and no `Staff of Guel` entry (breakdown sums to exactly 20, so the
+grant applied once); `offerBuyStats` matching the bought body; the Carver's Echo through `simulate` minting
+an **11/11** Gemheart Golem; the Rubies surviving buy → play onto the board; and the two knock-on pins (no
+Ruby-cast tally / landed cue, and a Resonance Idol bought from that shop not bouncing). Full suite 4034/4034,
+`typecheck`, `lint` (7 warnings — baseline), `harness` (determinism ✓), `build:web` all green.
 
 ## 2026-08-05 (new spell frame — the bronze arch)
 

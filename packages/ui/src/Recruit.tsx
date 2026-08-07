@@ -350,8 +350,25 @@ function tokenRefView(
   impBuff?: { attack: number; health: number },
   spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number },
   rubyBonus?: { attack: number; health: number },
+  /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
+  ownerRuby?: { attack: number; health: number; golden?: boolean },
 ): CardView {
   const c = CARD_INDEX[id];
+  // GEMHEART GOLEM: its stats come from the Rubies on the minion that summons it, so previewing a flat 1/1
+  // was a lie about what you'd get (owner 2026-08-06: "the gemheart golem preview should show the stats it
+  // will have from that unit"). Mirrors `deathrattleSummonRubyStats` exactly: (1 + owner's Ruby tally) × the
+  // owner's gild. `ownerRuby` is absent everywhere except the referenced-card popup, so every other caller
+  // keeps the printed token.
+  if (id === 'gemheart-shard' && ownerRuby) {
+    const g = ownerRuby.golden ? 2 : 1;
+    const a = (c.attack + ownerRuby.attack) * g;
+    const h = (c.health + ownerRuby.health) * g;
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, universalTribe: !!c.universalTribe,
+      attack: a, health: h, keywords: c.keywords, tier: c.tier, text: c.text,
+      baseAttack: c.attack, baseHealth: c.health, // so the Ruby-fed gain reads green against the printed 1/1
+    };
+  }
   // A RUBY previews at what it is worth RIGHT NOW — base 1/1 plus the run's accrued `rubyBonus` (owner
   // 2026-07-25: hovering a card that mentions Rubies should show the Ruby at its current value). Handled
   // before the generic spell branch because a Ruby is flagged `spell` but has no spell-power text of its own.
@@ -549,6 +566,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const fodder = c.keywords.includes('FD');
   const tavernAtk = fodder ? 0 : opts.tavernAtk ?? 0;
   const tavernHp = fodder ? 0 : opts.tavernHp ?? 0;
+  // Veinstorm's run-wide Ruby grant — same rails and same Fodder exclusion as the tavern buy bonus.
   // Preview the run-wide buy auras a fresh minion inherits (Undead/Beast Attack, Magnetic +atk/+hp) so the
   // offer already reads the stats it'll buy in at — the reducer's buy path bakes exactly these.
   const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk
@@ -571,7 +589,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   if (card.buffs?.length) for (const b of card.buffs) pushBuff(b.source, b.attack, b.health, b.count);
   else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
   pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
-  pushBuff('Tavern', tavernAtk, tavernHp);
+  pushBuff('Tavern', tavernAtk, tavernHp); // Veinstorm — itemized as Rubies, which is what it now is
   pushBuff('Tribe Bond',
     (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
@@ -1985,7 +2003,7 @@ export function Recruit() {
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
   const refViewsByUid = useMemo(() => {
     const m = new Map<string, CardView[]>();
-    const add = (uid: string, cardId: string): void => {
+    const add = (uid: string, cardId: string, owner?: { buffs?: { source: string; attack: number; health: number }[]; golden?: boolean }): void => {
       // The manual map first (Fodder/Imp cards whose references aren't effect params — e.g. Feed *consumes*
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
       // card that mentions another in its text surfaces it. De-duped, manual order wins.
@@ -2004,11 +2022,13 @@ export function Recruit() {
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
       // `cardBuff()`; this popup was the last raw reader.
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus)));
+      const or = owner?.buffs?.find((b) => b.source === 'Ruby');
+      const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby)));
     };
-    for (const c of run.board) add(c.uid, c.cardId);
-    for (const c of run.hand) add(c.uid, c.cardId);
-    for (const o of run.shop) add(o.uid, o.cardId);
+    for (const c of run.board) add(c.uid, c.cardId, c);
+    for (const c of run.hand) add(c.uid, c.cardId, c);
+    for (const o of run.shop) add(o.uid, o.cardId, o);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
   }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus]);

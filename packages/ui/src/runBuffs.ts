@@ -144,6 +144,9 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const tav = run.tavernBuyBonus;
   if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
 
+  // (Veinstorm has no row here: it plays real Rubies onto the tavern minions in front of you rather than
+  // running a run-wide channel, so its value is visible ON those offers — see `spellBuffShopByRuby`.)
+
   // Permanent max-Gold gained (Soulsman's Avenge) — the actual Gold gained this run, golden-aware (matches the
   // "Gained X Gold" the card itself shows). `soulsmanGold` is the tracked total; the natural per-wave curve is
   // NOT counted (it's not a buff). In combat, add this fight's `maxGold` procs so far so the row ticks up live.

@@ -581,6 +581,12 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** Veinstorm (Set 2) — the run-wide shop grant that is made of RUBIES, not of generic tavern stats. Same
+   *  shape and lifetime as `tavernBuyBonus` (permanent, folded into every present and future offer by
+   *  `offerBuyStats`), but the buy path bakes it in under the `Ruby` source so everything that reads "the
+   *  Rubies on this minion" — Gemheart Carver's Golem above all — actually sees it (owner 2026-08-06).
+   *  Kept as its OWN accumulator rather than reusing `tavernBuyBonus` so a Staff of Guel buff never
+   *  masquerades as a Ruby (and vice versa). */
   /** Rune of the Wild Hunt's accrued escalation — PERMANENT across combats (owner fix 2026-08-01). Seeds each
    *  fight's counter and is written back from `playerWildHuntGrown` at settle. Absent until the rune fires. */
   runeWildHuntGrown?: number;
@@ -1058,6 +1064,11 @@ export interface RunState {
    *  single copy. Threaded into combat via `questCombatMods.flagCopies` so a duplicated BOOLEAN rune fires
    *  its effect twice — amount-carrying flags instead accumulate their amount. See the `combatFlag` case. */
   flagCopies?: Record<string, number>;
+  /** Veinstorm's banked grant: the Ruby stats every FUTURE tavern minion is stamped with when it is minted
+   *  (owner 2026-08-06: "veinstorm is still a buff to every shop minion — every time i refresh the shop, it
+   *  should have that buff"). Deliberately NOT an aura folded at read time: each offer gets a REAL per-offer
+   *  `Ruby` buff at mint, so Ruby Transfer can steal it and nothing has to be un-double-counted anywhere. */
+  veinstormRubies?: { atk: number; hp: number };
   runeSummit?: boolean;
   /** Rune of Contraband: first Ruby cast each turn → a random Ale; first Ale cast each turn → a Ruby. */
   runeContraband?: boolean;

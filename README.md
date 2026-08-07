@@ -44,7 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **New spell: Ruby Transfer** (T5, 1 Gold, Set 2) — target a minion and it steals all Ruby buffs from its neighbours, on the board *or* in the shop row.
+
 - **Rune of Duplication actually duplicates** — it was a silent no-op on 41 of 72 Epic runes; amounts now accumulate, boolean runes fire per copy, White Wolf grants a second pup, and non-stacking runes say so on a forge pill.
+
+- **Veinstorm grants Rubies** — its permanent shop grant now bakes into bought minions as *Rubies*, not a generic tavern buff, so a Gemheart Carver out of a +10/+10 Veinstorm shop summons an 11/11 Golem.
 
 - **Spells wear a new bronze arch frame** — the art is clipped to the arch, the old purple tint is gone,
   and ~1.9MB of retired frame art left the bundle.

@@ -1606,6 +1606,18 @@ export function useCombatReplay(
               }
             }
           } : undefined,
+          // Task 6 (rally CASTS, not just buffs) confirmed this same delayed launch already IS a rally cast's
+          // FX: `groupBuffCasts`/`groupSelfBuffs` read `cur`'s absorbed `buff` events, and a Rally "cast"
+          // (Hoardbreaker's Growth, Watcher's Lantern of Souls, …) never logs anything but those `buff`
+          // events — no separate `sc`/`scCast` flash exists to schedule (see the note on `scCast` in
+          // score.ts). So the cast's flash and its buff are the SAME thing, already coincident at
+          // `T + RALLY_EFFECT_GAP_MS` from Task 5; delaying it a second time here would be the double-delay
+          // the brief warned against. Verified live: a Hoardbreaker probe showed its wind-up-buff launch timer
+          // scheduled within ~15ms of the medallion pulse, same as Task 5's own probe. (One narration-only
+          // exception found but left alone: Demon Horse's shop buff logs a bare `sc` line with no `cast:true`
+          // and no buff event, which — because `sc` is never absorbed into a wind-up — becomes its OWN trailing
+          // beat rather than a cue inside this moment; there's no `T`-relative instant to reschedule it to
+          // without a structural change this task doesn't need, and it isn't one of the brief's named cards.)
           onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
             ? () => {
                 const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;

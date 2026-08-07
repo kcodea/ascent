@@ -119,6 +119,17 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE],
   // A real Start-of-Combat CAST (`sc` with `cast: true`) vs. mid-combat NARRATION, which classifies as
   // `scNarrate` and stays unbound so a spell-power line is silent.
+  //
+  // Rally-beat choreography Task 6 investigated this row as the candidate home for a rally cast's FX
+  // (Hoardbreaker -> Growth, Watcher -> Lantern of Souls) and found it's a dead end for that purpose: every
+  // `cast: true` emitter is a Start-of-Combat factory (`scDamage`/`scSplitDamage`/`scAoePerTribe`/
+  // `scDestroyHighestAttack` in factories.ts, plus a handful of narrative `emit`s in simulate.ts) — none are
+  // wired to `onAttack`. A Rally's "cast" (`rallyCastSpell`, `rallyCastTribeAttack`, …) never logs an `sc`
+  // event at all; it goes straight to `ctx.buff(...)`, which IS the cast's only on-screen FX. That buff is
+  // already absorbed into the attacker's wind-up and delayed to `T + RALLY_EFFECT_GAP_MS` by Task 5
+  // (`onWindupBuffs` in useCombatReplay.ts) — so a rally cast's flash and its resulting buff are already
+  // coincident with no further scheduling needed here. Confirmed by reading every `cast: true` call site plus
+  // two live probes (Hoardbreaker, Watcher): both emit ONLY `buff` events off their Rally, never `sc`.
   scCast: [...BASE], scNarrate: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.

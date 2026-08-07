@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-07 — Quil + Rune of the Wildscript, and a combat cast keeps what the spell learns
+
+**Rune of the Wildscript** (Epic, 5, all sets) hands over **Quil** — a T6 Beast 7/7 whose Start of Combat
+casts the **left-most spell in your hand on adjacent Beasts**. The spell is NOT consumed (owner ruling), so
+Quil re-casts it every fight and you steer it by ordering your hand. `token: true` keeps Quil rune-exclusive:
+out of the shop pool and out of the "random Beast" grants. Both art files wired.
+
+It resolves through `castInCombat`, so the cast is genuine — it counts, it fires the in-combat spell watchers,
+and a Runebloom Matriarch multiplies it like any other combat cast.
+
+**The Front to Back ruling, implemented.** The owner's rule: a spell cast in combat hands out stats that are
+temporary like any combat buff, but the SPELL itself keeps the improvement — including when a minion casts it.
+`combatSpellStatGrant` reads the side's already-accumulated escalation (so a combat cast grants what a hand
+cast would grant *right now*), and the improvement carries back via `playerSpellEscalationGain` into the run's
+`frontToBackBonus`. `spellEscalation` is threaded through the opponent snapshot too, so a served Quil casts at
+its owner's strength.
+
+**A bug the tests caught.** The grant was first computed once and hoisted out of the cast loop, so a golden
+Quil's SECOND cast missed the improvement its first cast had just earned. Recomputed per cast now — two casts
+in a row behave exactly like two hand casts. `snapshotFidelity.test.ts` also did its job, failing on the new
+scaler before it could ship silently dropped.
+
+**Verified live** through the app's own module graph: Growth → both neighbours +1/+1 with a "Quil casts Growth"
+narration; Front to Back with +4/+4 banked → both neighbours +6/+6 and +2/+2 carried back; a tavern-only spell
+(Spell Cart) and an empty hand both fizzle silently. Art: both files fetch 200, `ART_COUNT` 379 → 380 — and
+note that a dev-server **restart** is required, since a reload leaves the eager `import.meta.glob` stale.
+
+**Scope, stated plainly.** The owner ruled that Discovers, refreshes, shop buffs, spell-power gains and card
+grants should ALL work in combat, with only pure tavern work (Displacement, gilding a shop minion) fizzling.
+Today only the stat family resolves, so Quil fizzles on more than it eventually should. `combatSpellStatGrant`
+is the single place to extend, and the Effect Arena already models exactly this split for Shouts.
+
+`typecheck` clean, `lint` at the 7-warning/0-error baseline, 4139 tests pass, `build:web` succeeds.
+
 ## 2026-08-07 — One combat spell-cast path, and Runebloom Matriarch multiplies it
 
 **The problem, in the owner's words:** "your Shop Spells cast an extra time in combat" had nowhere to hook.

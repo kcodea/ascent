@@ -1188,6 +1188,17 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Chimerus**.',
     reward: { kind: 'grant', cards: ['chimerus'] },
   },
+  {
+    // Owner addition 2026-08-07. Hands over Quil, whose Start of Combat re-casts your left-most held spell
+    // every fight — so the rune's value is whatever spell you choose to park on the left of your hand.
+    id: 'rune_wildscript',
+    name: 'Rune of the Wildscript',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Quil**.',
+    previewCards: ['b2_quil'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['b2_quil'] },
+  },
 ];
 
 /**

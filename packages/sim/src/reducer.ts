@@ -1920,6 +1920,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+        spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2544,6 +2545,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
         c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
       }
     }
+  }
+  // Front to Back improved itself mid-fight (Quil casting it). The STATS that cast handed out were temporary
+  // like any combat buff and are already gone; the SPELL keeps what it learned (owner ruling 2026-08-07), so
+  // the escalation lands on the run here and the next hand cast grants the improved value.
+  if (result.playerSpellEscalationGain) {
+    s.frontToBackBonus += result.playerSpellEscalationGain.attack;
+    s.frontToBackBonusH += result.playerSpellEscalationGain.health;
   }
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without

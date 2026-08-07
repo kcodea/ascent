@@ -1,4 +1,4 @@
-import type { CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import type { CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { ARENA_EFFECTS, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
 
@@ -387,6 +387,44 @@ function randomStatSpellBuff(ctx: CombatContext, scale: number, side: Side): { s
   const attack = (num(eff.params?.attack, 0) + sp.attack) * scale;
   const health = (num(eff.params?.health, 0) + sp.health) * scale;
   return attack > 0 || health > 0 ? { spellId: spell.id, attack, health } : null;
+}
+
+/**
+ * What a Shop Spell DOES when cast mid-fight, for the stat family — the only family with a combat meaning
+ * today. Returns the per-target grant (spell power folded in, exactly as the shop path folds it) plus, for an
+ * escalating spell, the improvement that cast owes its future self.
+ *
+ * `escalation` is the side's ALREADY-ACCUMULATED bonus, so a combat cast of Front to Back grants what a hand
+ * cast would grant right now, and then advances it.
+ *
+ * Returns null for a spell with no combat-resolvable effect. That set is currently everything outside the
+ * stat family — Discovers, refreshes, shop buffs, card grants, spell-power gains all still resolve only in
+ * the shop. The owner has ruled they SHOULD work in combat (only pure tavern work should fizzle); that is a
+ * separate slice, and this is the one place to extend when it lands.
+ */
+function combatSpellStatGrant(
+  ctx: CombatContext, def: CardDef, side: Side,
+): { attack: number; health: number; escalate?: { attack: number; health: number } } | null {
+  const sp = ctx.spellPowerFor(side);
+  const flat = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll' || e.do === 'spellBuffRandomFriendlies');
+  if (flat) {
+    const attack = num(flat.params?.attack, 0) + sp.attack;
+    const health = num(flat.params?.health, 0) + sp.health;
+    return attack > 0 || health > 0 ? { attack, health } : null;
+  }
+  const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
+  if (esc) {
+    // Attack and Health escalate INDEPENDENTLY, and each stat's step compounds that stat's spell power —
+    // the same arithmetic the shop half runs, kept in step deliberately rather than re-derived.
+    const step = { attack: num(esc.params?.attack, 2), health: num(esc.params?.health, 2) };
+    const acc = ctx.spellEscalationFor?.(side) ?? { attack: 0, health: 0 };
+    return {
+      attack: step.attack + acc.attack + sp.attack,
+      health: step.health + acc.health + sp.health,
+      escalate: { attack: step.attack + sp.attack, health: step.health + sp.health },
+    };
+  }
+  return null;
 }
 
 /**
@@ -999,6 +1037,46 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleQueueNextSpellCopy: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ctx.queueNextTurnSpellCopy(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /**
+   * QUIL — Start of Combat: cast the left-most spell in your hand on adjacent Beasts. The spell is NOT
+   * consumed (owner ruling 2026-08-07), so Quil re-casts it every fight and you steer it by ordering the hand.
+   *
+   * It resolves through `castInCombat`, so the cast is genuine: it counts, it fires the in-combat spell
+   * watchers, and a Runebloom Matriarch multiplies it like any other combat cast.
+   *
+   * WHICH SPELLS RESOLVE. Only spell effects with a combat implementation do anything here; a spell whose
+   * whole job is tavern work (Displacement, gilding a shop minion) fizzles silently, by the owner's ruling.
+   * The stat family is covered below. Everything else — Discovers, refreshes, shop buffs, card grants — is
+   * NOT yet combat-capable and is the next slice; see `combatCastableSpell` for the honest list.
+   */
+  scCastLeftmostHandSpell: (ctx, self) => {
+    if (self.dead) return;
+    const id = ctx.leftmostHandSpellFor(self.side);
+    const def = id ? ctx.getCard(id) : undefined;
+    if (!def?.spell) return;
+    if (!combatSpellStatGrant(ctx, def, self.side)) return; // no combat effect — a silent fizzle, per the ruling
+    // "Adjacent" = the living neighbours either side, filtered to Beasts (Paragon's all-type counts).
+    const board = ctx.living(self.side);
+    const i = board.indexOf(self);
+    if (i < 0) return;
+    const targets = [board[i - 1], board[i + 1]].filter((m): m is Minion =>
+      !!m && (m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe));
+    if (targets.length === 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+    castInCombat(ctx, self, () => {
+      // Recomputed PER CAST, not hoisted: an escalating spell improves itself as it resolves, so a second cast
+      // (golden Quil, or a Runebloom extra) must grant the value the FIRST cast just taught it — exactly as
+      // two hand casts in a row would. Hoisting this was a real bug, caught by the golden test below.
+      const grant = combatSpellStatGrant(ctx, def, self.side);
+      if (!grant) return;
+      for (const t of targets) ctx.buff(t, grant.attack, grant.health, self.uid);
+      // Front to Back and friends IMPROVE THEMSELVES on every cast. The owner's ruling (2026-08-07): the
+      // stats a combat cast hands out are temporary like any combat buff, but the spell's own improvement is
+      // PERMANENT and carries back — a minion casting it advances the spell exactly as a hand cast would.
+      if (grant.escalate) ctx.grantSpellEscalation?.(grant.escalate.attack, grant.escalate.health, self.side);
+    });
   },
 
   /** Set 2 — Vault Curator: Avenge (X) copies the LEFT-MOST spell in your hand into your hand again (golden 2).

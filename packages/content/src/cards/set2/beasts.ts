@@ -183,6 +183,24 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Avenge (4):** gain **Ward** and attack immediately **twice**.',
   },
   {
+    // Owner addition 2026-08-07, the Rune of the Wildscript's reward. Turns a held spell into a per-combat
+    // engine: the LEFT-MOST spell in hand is cast on its two neighbours at the start of every fight, and it is
+    // NOT consumed (owner ruling) — so you steer it by ordering your hand and it keeps paying.
+    //
+    // `token: true` keeps it out of the shop pool and the "random Beast" grants: it is rune-exclusive.
+    id: 'b2_quil',
+    name: 'Quil',
+    tribe: 'beast',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: ['SC'],
+    token: true,
+    effects: [{ on: 'startOfCombat', do: 'scCastLeftmostHandSpell' }],
+    text: '**Start of Combat:** cast the left-most spell in your hand on adjacent Beasts.',
+    goldenText: '**Start of Combat:** cast the left-most spell in your hand on adjacent Beasts **twice**.',
+  },
+  {
     // The top-end spell payoff. Owner rework 2026-08-07: instead of paying out PER cast, it multiplies the
     // casts themselves — every Shop Spell your board casts mid-fight resolves an extra time. It reads the
     // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.

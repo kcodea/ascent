@@ -292,6 +292,7 @@ export type EffectFactoryId =
   | 'deathrattleFillTribe'
   | 'avengeBuff' // Avenge (X): after X friendly deaths, buff self (combat)
   // Mechs — Divine Shield walls + shield-break payoffs (resolved in combat)
+  | 'scCastLeftmostHandSpell' // Quil: Start of Combat — cast the left-most spell in your hand on adjacent Beasts
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
@@ -1711,6 +1712,9 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** The side's accumulated escalating-spell bonus (Front to Back) going into this fight, so a combat cast
+   *  grants what a hand cast would grant right now. Snapshot fidelity: a served enemy carries its owner's. */
+  spellEscalation?: { attack: number; health: number };
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
@@ -1920,6 +1924,10 @@ export interface CombatResult {
   /** Spells the player cast IN this combat (Taragosa's Growth). Added to the run's `spellsCast` in
    *  settleCombat — so combat casts permanently improve spell-count payoffs (Archmagus Guel). Absent if 0. */
   playerSpellsCast?: number;
+  /** Front to Back improved itself during this combat (Quil casting it). Added to the run's
+   *  `frontToBackBonus`/`frontToBackBonusH` in settleCombat: the buff the cast handed out was temporary, but
+   *  the SPELL keeps what it learned (owner ruling 2026-08-07). Absent if 0. */
+  playerSpellEscalationGain?: { attack: number; health: number };
   /** Permanent Undead Attack bonus from this combat (Karthus on-kill). Stacks into `undeadBuyAtk` and is
    *  also applied to existing run-board Undead immediately after combat. Absent if 0. */
   playerUndeadBuyAtkGain?: number;
@@ -2078,6 +2086,13 @@ export interface CombatContext {
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */
   leftmostHandSpellFor(side: Side): string | undefined;
+  /** The side's accumulated Front-to-Back escalation going INTO this fight, plus anything earned during it —
+   *  so a combat cast grants what a hand cast would grant right now. */
+  spellEscalationFor?(side: Side): { attack: number; health: number };
+  /** A combat cast of an escalating spell improved it. The STATS it handed out are temporary like any combat
+   *  buff, but this improvement is PERMANENT (owner ruling 2026-08-07) and carries back via
+   *  `CombatResult.playerSpellEscalationGain`. Player-only; an enemy's cast advances only its own fight. */
+  grantSpellEscalation?(attack: number, health: number, side: Side): void;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

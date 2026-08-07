@@ -1850,6 +1850,13 @@ export function useCombatReplay(
         // The venom-spent flourish lands first in its beat; don't let the poisoner's same-beat
         // retaliation `struck` clobber it. A death still wins (the demise reads over the flourish).
         if (anims[uid] === 'venomspent' && cls === 'struck') continue;
+        // A unit SUMMONED this beat keeps its arrival entrance (`summonpop`) against a same-beat soft
+        // overlay: Errand Fiend summons an Imp AND buffs your Imps in one swing, so the fresh Imp's uid gets
+        // both a `summon` and a `buff` anim — and a unit can't pulse a buff before it has even appeared. The
+        // summon wins regardless of event order (it either survives this guard or overwrites below). Death is
+        // exempt (`cls === 'dying'` falls through to the demise block), so a summoned-then-killed unit still
+        // reads its death rather than its arrival.
+        if (anims[uid] === 'summoned' && cls !== 'dying') continue;
         // A Rise body dies SOFT — `dying rising` fades it in place (no bounce/spin/slot collapse; see
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {

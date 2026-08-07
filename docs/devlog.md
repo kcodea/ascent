@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-07 — Yirin ticks live, and live-tracking becomes machinery
+
+**Yirin's Attunement counter now moves during combat.** Spells cast mid-fight (Quil, Mammoth, a taught Pup,
+Taragosa) only reached `spellsCast` at settle, so the hero-power tracker jumped after the fight instead of
+ticking through it. A new `spellcast` CombatEvent fires on every combat cast; the replay rides player-side
+ones into a display-only preview (`combatSpellCastPreview` → `fxSpellsCastPreview`), and the StatusBar folds
+the preview into its `n/10`. Settle clears the preview as the real count lands — the escalation-preview
+pattern, reused exactly.
+
+**"Is there a way to make sure EVERYTHING has real-time tracking?" — yes, and it is now a test.** The
+structural fact: anything shown in real time must ride the EVENT LOG, because carry-backs land at settle. So
+`liveTrackingAudit.test.ts` enumerates every `player*` carry-back on CombatResult (by scanning the interface,
+not a hand-kept list) and fails CI unless each is classified LIVE (naming the event/narration that carries it
+mid-fight) or EXEMPT (naming why real-time display is meaningless — Discover modals, next-shop banks). Adding
+a carry-back without a tracker now breaks the build instead of shipping a silent settle-jump. On its first
+run it demanded classification of 26 existing fields, which is the audit doing its job.
+
+`typecheck` clean, lint at the 7-warning baseline, 4157 tests, `build:web` OK; the event emission and the
+preview accumulation both verified live through the app's module graph.
+
 ## 2026-08-07 — a run of repeated narration rides instead of pausing eight times
 
 Owner report: proccing Dawnclaw through Echohorn "seems to cause a pretty slow overall resolution."

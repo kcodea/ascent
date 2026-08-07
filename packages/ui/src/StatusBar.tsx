@@ -96,7 +96,7 @@ export function StatusBar() {
   const powerTally: string | null = (() => {
     switch (power.kind) {
       case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
-      case 'spellAmplify': return `${run.spellsCast % 10}/10`; // Yirin — spells toward the next step
+      case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin — ticks live as combat casts resolve (fxSpellsCastPreview)
       case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen — kills
       case 'quest': return run.heroPowerSpent ? null : `${run.drakkoBuys}/5`; // Drakko — fades away when complete
       case 'questChronos': return run.heroPowerSpent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos — same

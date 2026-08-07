@@ -37,6 +37,15 @@ export const EMIT_SHAPES = ['point', 'ring', 'disc', 'box'] as const;
  *   - `disc`  → uniform *inside* the circle of radius `radius` (√rand for area-uniform, not centre-biased).
  *   - `box`   → uniform in the square `[-radius, radius]²`.
  * `radius` 0 collapses every shape to (0, 0).
+ *
+ * `squash` scales the Y extent only, turning each of those into its oval/rectangle counterpart: a ring
+ * becomes an ellipse outline, a disc a filled ellipse, a box a rectangle. Below 1 flattens, above 1 makes it
+ * taller than it is wide. Deliberately the same name and the same "1 is a true circle" contract as the
+ * shockwave primitive's `squash`, so one dial means one thing across the workbench.
+ *
+ * Applied as a multiply AFTER the shape is solved rather than by carrying two radii through it: at the
+ * default 1 that is an exact IEEE no-op, so every def written before this existed spawns bit-identical
+ * positions. (The shockwave shader makes the same argument for its own divide-by-1.)
  */
 export function emissionOffset(
   shape: EmitShape,
@@ -44,24 +53,25 @@ export function emissionOffset(
   randA: number,
   randB: number,
   out: { ox: number; oy: number },
+  squash = 1,
 ): void {
   switch (shape) {
     case 'ring': {
       const a = randA * Math.PI * 2;
       out.ox = Math.cos(a) * radius;
-      out.oy = Math.sin(a) * radius;
+      out.oy = Math.sin(a) * radius * squash;
       return;
     }
     case 'disc': {
       const a = randA * Math.PI * 2;
       const r = Math.sqrt(randB) * radius; // sqrt → area-uniform, not clustered at the centre
       out.ox = Math.cos(a) * r;
-      out.oy = Math.sin(a) * r;
+      out.oy = Math.sin(a) * r * squash;
       return;
     }
     case 'box': {
       out.ox = (randA * 2 - 1) * radius;
-      out.oy = (randB * 2 - 1) * radius;
+      out.oy = (randB * 2 - 1) * radius * squash;
       return;
     }
     case 'point':

@@ -45,6 +45,25 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
 - **Badge value rolls ease out** — stat counters (shop + combat) now decelerate onto their final number instead of ticking linearly, tuned for a slow, visible settle. And **combat damage now counts the HP badge down** on a hit (the mirror of a buff rolling up), contact-timed; a killing blow and a same-beat buff still snap.
+- **Effect spawn areas can be ovals** — the workbench's emit shapes were locked to circles and squares; a new Emit squash slider flattens or stretches them vertically, so a ring can now spawn particles around an oval. Existing effects are untouched.
+
+- **Batch 4, tranche 1 — nine new Basic runes** (Empty Plate, Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling), plus a real combat-phase softlock: a Discover raised mid-fight left no legal action, since the phase guard and the modal guard each refused what the other allowed.
+
+- **Rune of Savagery doubles last** — it ran before summon triggers, so a Groveweaver's buff landed outside the doubling (pup 1→2→5 instead of 1→4→8); plus all 163 rune arts re-wired.
+
+- **The rune wiring audit** — 309 checks across all 163 runes prove each one arms, travels and is consumed through the real reducer path; rune buffs are also attributed by name instead of showing as anonymous "Combat".
+
+- **Rune meters are readable at last** — the tally span had never had a CSS rule, so every rune counter rendered as unstyled text against its badge; it's now a pill above the rune, visible whenever the value is non-zero.
+
+- **Bucky + the Chef no longer pay a turn late** — the tally was banked after combat rather than read live at combat build; both now land in the fight right after the shop that earned them. Bucky's art is wired and his rune counts the Ales you're banking.
+
+- **Rune of the Chef fixed + tracked, and 34 runes get art** — its banked total never reached the combat body (the reducer's own mapper dropped it); its badge now shows the exact buff it will pay, and every rune but the Coffers has illustration.
+
+- **Bucky + Rune of Bucky** — a T6 Dwarf whose Start of Combat pays +5/+5 per Dwarven Ale you cast last turn; the Groveweaver rune now grows its owner in combat as well as the shop.
+
+- **Rune of the Chef** — a Chef Gary Toast banks the combined stats it hands out each shop turn, then spends that total as a combat Rally onto a random Dwarf.
+
+- **Three more runes** — the Badger (a Badgington with Flurry and Ward), the Groveweaver (its summon grant also buffs itself), and the Conduit (every Ruby bounces one extra time).
 
 - **14 new Epic runes** — the Enchantment batch: spell payoffs (Enchantment, the Crown), Ruby engines (the Lapidary, the Gem Golem), combat swings (Dragonscale, Tempered Time, Savagery, the Crucible, the Herald), and shop shapers (the Deep, the Guiding Candle, the Muster, the Foundry, the Corrupted Tome).
 

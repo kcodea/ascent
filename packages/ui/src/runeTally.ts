@@ -56,6 +56,21 @@ export function runeTally(run: RunState, runeId: string): string | null {
     return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_PER)}/${SLAYING_PER}`;
   }
   // Rune of Bulk Order keeps its own Gold meter on `runeScale` rather than joining `runeThresholds`.
+  // RUNE OF BUCKY (owner ask 2026-08-07): the Ales cast THIS turn — i.e. what you are currently banking for
+  // NEXT combat, since Bucky pays off last turn's brewing. A plain count, not `x/N`: there is no threshold,
+  // every Ale is worth another +5/+5.
+  if (runeId === 'rune_bucky') {
+    const ales = run.alesCastThisTurn ?? 0;
+    return ales > 0 ? `${ales} Ale${ales === 1 ? '' : 's'}` : null;
+  }
+  // RUNE OF THE CHEF (owner ask 2026-08-07): show the buff the Rally is actually going to hand out, not a
+  // countdown — the rune's whole question is "how big is it this fight?". That figure is each Chef's BANKED
+  // `chefGrantedLast`, summed across the board (two Chefs each pay their own Dwarf, so the total is what the
+  // rune pays this combat). Nothing banked → no pill, which correctly reads as "this fight pays nothing".
+  if (runeId === 'rune_chef' && run.questFlags?.runeChef) {
+    const banked = run.board.reduce((n, c) => n + (c.cardId === 'dw_chef' ? (c.chefGranted ?? 0) : 0), 0);
+    return banked > 0 ? `+${banked}/+${banked}` : null;
+  }
   // Rune of the Crown: spells cast toward the one-time step. Latches at per/per once earned — the bonus is
   // permanent from then on, so a cyclic counter would lie about it turning off.
   if (runeId === 'rune_crown' && run.runeCrown) {
@@ -89,6 +104,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 3, rune_cinder_ledger: 3,
   rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
   rune_blood_and_coin: 4, rune_engraving: 3, // Engraving: Avenge (3) — Rubies +1 Health per proc
+  rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

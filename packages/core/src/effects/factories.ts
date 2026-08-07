@@ -2368,6 +2368,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) by +M/+M where M = base + its permanently
    *  accrued bonus, then improve that accrual by `step` for good. The accrual rides `summonBonus` (carried
    *  back like Kennelmaster's), so the grant climbs every combat. Golden doubles the applied grant. */
+  /**
+   * BUCKY (owner 2026-08-07) — Start of Combat: give your `tribe` +A/+H FOR EVERY Dwarven Ale cast last shop
+   * turn. Zero Ales is a clean no-op rather than a 0/0 sweep, so the log stays quiet on a turn you didn't brew.
+   */
+  scTribeBuffPerAle: (ctx, self, params) => {
+    if (self.dead) return;
+    const ales = ctx.alesLastTurnFor?.(self.side) ?? 0;
+    if (ales <= 0) return;
+    const tribe = (str(params.tribe) || 'dwarf') as Tribe;
+    const a = num(params.attack, 5) * ales * mul(self);
+    const h = num(params.health, 5) * ales * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} pours for ${ales} Ale${ales === 1 ? '' : 's'} (+${a}/+${h})` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   scTribeBuffImproving: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'beast') as Tribe;
     const base = num(params.attack, 2);
@@ -3257,6 +3275,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     ARENA_EFFECTS.summonBuffTribeAsym(combatArena(ctx, self), { ...params, arriver: minion });
+    // Rune of the Groveweaver (combat half, owner 2026-08-07): the grant ALSO lands on the granter — a
+    // Groveweaver grows as it buffs. Mirrors the recruit half exactly: the arena body's own arithmetic
+    // (base + this instance's summonBonus, x golden), behind the same tribe gate, so a skipped arriver
+    // pays nobody.
+    if (!ctx.groveweaverSelfFor?.(self.side)) return;
+    const tribe = str(params.tribe);
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
+    const g = mul(self);
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * g;
+    const h = (num(params.health, 4) + bonus) * g;
+    if (a > 0 || h > 0) ctx.buff(self, a, h, self.uid);
   },
 
   /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).

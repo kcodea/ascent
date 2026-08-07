@@ -273,6 +273,22 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: 'When you play a **Dwarf**, give your **Dwarves +6/+6**.',
   },
   {
+    // The Ale payoff banked a turn late (owner 2026-08-07): Start of Combat reads the Ales you cast LAST
+    // shop turn, so the fight's opening is decided by how hard you brewed before it, not during it.
+    // Rune-exclusive (`token: true`), the same shape as Quil.
+    id: 'dw_bucky',
+    name: 'Bucky',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: ['SC'],
+    token: true,
+    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerAle', params: { tribe: 'dwarf', attack: 5, health: 5 } }],
+    text: '**Start of Combat:** give your Dwarves **+5/+5** for every **Dwarven Ale** you cast last turn.',
+    goldenText: '**Start of Combat:** give your Dwarves **+10/+10** for every **Dwarven Ale** you cast last turn.',
+  },
+  {
     // The Dwarf/Kobold bridge: it pays the Ruby engine from the Dwarves' card-throughput side. The tally is
     // CUMULATIVE (`playTick`) — `playedThisTurn` clears each turn and could never reach 8 on a normal curve.
     id: 'dw_mountainbond',

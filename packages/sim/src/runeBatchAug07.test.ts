@@ -106,7 +106,7 @@ describe('the combat flags', () => {
       [{ cardId: 'stray', attack: 1, health: 4 }, { cardId: 'pack', attack: 3, health: 2 }, { cardId: 'sandbag', attack: 9, health: 9 }],
       [{ cardId: 'sandbag', attack: 0, health: 9999 }], makeRng(2), CARD_INDEX,
       combatSide({ tier: 6, questMods: { runeUnderdog: true } as never }), combatSide({ tier: 1 }));
-    const doubles = r.events.filter((e) => e.type === 'buff' && e.source === 'runeUnderdog');
+    const doubles = r.events.filter((e) => e.type === 'buff' && e.source === 'Rune of the Underdog');
     expect(doubles.length).toBe(2);
     // Each grant equals the body's own stats — a doubling, not a flat buff.
     expect(doubles.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 4)).toBe(true);

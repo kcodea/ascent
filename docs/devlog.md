@@ -34,6 +34,305 @@ hit, so its HP snapped instead of rolling (owner report). Narrowed the guard fro
 HEALTH conflict only (`heldFor(uid).health !== 0`) — an attack-only hold is orthogonal to the HP badge, so the
 hit still rolls (the attack hold is cleared so the cue owns the counter; a +1 Attack snaps regardless). A
 genuine health up-roll meeting damage still snaps, so the invariant holds.
+## 2026-08-07 — emit shapes can be squashed into ovals
+
+Owner: *"i need to add the ability to adjust the height and width of the emit shapes"* — concretely, *"so i
+can select ring and squash it to the shape of an oval."*
+
+A single `emitRadius` drove both axes, so `ring` could only ever be a circle, `disc` a filled circle and
+`box` a square. The new **Emit squash** slider scales the Y extent, turning each into its oval/rectangle
+counterpart.
+
+Deliberately NOT a second radius or a width/height pair. The shockwave primitive already ships a `squash`
+dial with exactly this meaning — "1 is a true circle, lower reads as a ring lying on the ground" — so reusing
+the name and the contract means one dial means one thing across the workbench, and it needs no migration of
+the `emitRadius` key that sits in every committed def.
+
+- **The default is an EXACT no-op.** `squash` multiplies AFTER the shape is solved, so at 1 it is an IEEE
+  identity and every def written before this spawns bit-identical positions. Asserted with `toBe`, not
+  `toBeCloseTo` — the same argument the shockwave shader makes for its own divide-by-1.
+- **Range 0.2–3, wider than shockwave's 0.2–1.** Shockwave caps at 1 because its ring is a ground-plane
+  read; an emit area has no such convention, so taller-than-wide is equally useful.
+- **Not `axis: 'scale'`**, unlike Emit radius. `scaleDef` multiplies every `scale` param by one factor, and
+  scaling a RATIO would distort the oval as the effect resized rather than resizing it.
+- Rides `emitShape`'s existing gateway (`not: 'point'`) rather than declaring a dependency on `emitRadius` —
+  the pair would deadlock, as the note on the radius already explains.
+
+Landed in all three primitives that share `emissionOffset`: burst, emitter and smoke.
+
+Two RNG guards needed their pinned call text updated (`emitter.test.ts`, `smoke.test.ts`). They assert the
+exact `emissionOffset(...)` source string so the draw ORDER cannot shift silently; appending an argument
+broke the match while leaving the two `this.rand()` draws — the half that actually governs seed replay —
+untouched. The note now says so.
+
+**Also documents a worktree trap this work walked straight into.** A fresh `git worktree` has no
+`node_modules`, so `@game/*` imports resolve through the ROOT symlinks into the PRIMARY checkout's packages —
+whatever branch that is parked on. The first typecheck here reported three `runeChef` errors from a checkout
+sitting on an unrelated branch, which reads exactly like a broken `main`; `main` was green the whole time.
+`npm install` inside the worktree fixes it. Added to the concurrency block in CLAUDE.md.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4544 tests, `build:web` — all after
+that install, so this is the first run in this worktree that was genuinely self-contained.
+
+## 2026-08-07 — Batch 4, tranche 1: nine Basic runes, plus a real combat-phase softlock
+
+**Nine new Basic runes (the pattern-reuse tranche of the owner's batch 4).** Each one leans on machinery that
+already existed, which is why they went first:
+
+- **Rune of the Empty Plate** (3) — after 3 Shop-minion Consumes, a random Shop spell. Adds a `consume` meter
+  to the existing `runeThreshold` engine.
+- **Rune of the Gem Dividend** (3, Set 2) — 5 Rubies cast in a turn banks 3 Gold into *next* turn's opening.
+  Introduces `grantGoldNextTurn`, riding the same channel Bounty Bot's next-shop Gold uses. The sheet says
+  "in a turn", so the meter is `resetEachTurn` rather than banking a remainder across turns.
+- **Rune of Carrion Coin** (3) — Avenge (4): a random Shop spell. Straight `runeAvenge` registration.
+- **Rune of the Five Banners** (4) — Start of Combat, one friendly minion of *each* type gains +6/+6. Follows
+  the Paragon rule: an all-type body always collects, and a dual-type body stands in for whichever tribe is
+  still unclaimed, so it pays per TYPE PRESENT, never per minion.
+- **Rune of the Centerline** (3) — Start of Combat, if the two end minions differ in type, the middle one gains
+  Ward and Critical Strike. Needs three bodies for "ends" and "middle" to mean anything.
+- **Rune of the Second Litter** (4) — the first Beast summoned each combat summons another copy. Latched, so a
+  Deathrattle that summons two Beasts still yields exactly one extra body.
+- **Rune of Shared Pour** (4, Set 2) — your first Dwarven Ale each turn casts an additional time. Folds into
+  the existing per-cast multiplier rather than adding a second cast path.
+- **Rune of the Aftermarket** (4) — the first minion sold each turn pushes its BASE stats (not what it grew
+  into) onto every current Shop offer.
+- **Rune of Hoardcalling** (5) — after your first Dragon Shout each turn, a random Shop spell.
+
+**A combat-phase softlock, found by the bot and fixed.** The seed-7 hard bot stalled, and the cause predates
+these runes — the new content only shifted the RNG enough to walk into it. The reducer's phase guard admits
+ONLY `settleCombat`/`resolveCombat` while `phase === 'combat'`, while the global modal guard rejected every
+action with a modal open. So a Discover raised mid-combat left no legal move at all: the transition was
+refused by one guard and the Discover by the other. A player would have hit the same dead end. The combat
+transitions are now exempt from the modal guard — safe, because the modal is untouched and presents itself in
+the next recruit phase, which is the only phase where a Discover can be answered anyway.
+
+**Verified.** 4571 tests across 267 files green, including a new 13-case `runeBatch4T1.test.ts` that measures
+each combat rune against the same board *without* its flag, and drives the shop-side ones through the real
+`reduce` rather than injected state — the gap where both of the Chef's defects hid earlier today. Typecheck,
+lint (0 errors) and `build:web` all clean. The rune-count tripwire moves 73 → 82 and Carrion Coin is
+classified in the tally coverage as an Avenge (4) rune.
+
+**Still queued from batch 4:** tranche 2 (3 minions — Ashen Heir, Runesnout Archivist, Mossmemory Colossus —
+plus their Epic grant runes), tranche 3 (8 contained-machinery Basics), tranche 4 (5 hard Epics).
+
+## 2026-08-07 — Rune of Savagery doubles LAST; all 163 rune arts re-wired
+
+**The owner found the real Savagery bug, and it was an ordering one.** It ran BEFORE the summon watchers and
+tribe auras, so it doubled a body's bare arrival stats and every summon payoff then landed on top
+un-doubled. With a Groveweaver on board a pup went 1 → 2 → 5 Attack; the rune's whole point is that it should
+go 1 → 4 → 8. Moved after `bus.emit('onSummon')` and `applyTribeAuras`, which is what makes it COMPOSE with
+the summon engines it exists to reward.
+
+My original comment argued the opposite ("doubling acts on what the body arrived with") — that reasoning was
+wrong, and it is why the rune read as dead rather than merely small.
+
+The regression test pins the exact arithmetic rather than an inequality: a pup prints 1 Attack, Groveweaver
+grants +3, so Savagery must grant exactly +4. Under the old ordering it granted +1 — one number, the whole
+bug. Verified live end to end through `reduce`: flag armed, two summons, two +4 doublings.
+
+**All 163 rune arts re-wired** from the source folder (owner redid many under the same names). Seven needed
+explicit overrides, each a deliberate attribution rather than a guess: five are "Rune of THE X" filenames for
+a "Rune of X" rune, one is a filename typo (`RuneOTheMenagerie`, shared by both Menagerie twins), one is a
+rune since renamed (`rune_scale` is now "Bulk Order" but its art tracks the id), and Pillaging's file is
+named `SpellOf…` while being the only Pillaging art there is.
+
+`typecheck` clean, lint at the 7-warning baseline, 4537 tests, `build:web` OK.
+
+## 2026-08-07 — The rune wiring audit: all 163 runes, every link checked
+
+Owner report: "Rune of Savagery is not working at all… can you audit our entire runebase?"
+
+**Savagery's wiring is correct**, verified end to end through `reduce`: buying it writes the flag, and a fight
+with a Beast-summoning board produces one doubling per summon. I could not reproduce a failure, so rather than
+guess I built the audit — which now covers the whole runebase and would have caught both of today's real
+defects.
+
+**`runeWiringAudit.test.ts` walks every rune** and checks the chain its reward kind implies, through the real
+reducer rather than by injecting `questMods` into `simulate` (the blind spot that hid the Chef's two bugs):
+
+1. buying it never throws, is recorded as owned, and changes something beyond bookkeeping — no inert rune;
+2. a `combatFlag` rune actually writes `questFlags[flag]` — the Chef's first defect;
+3. something CONSUMES that flag, in `simulate.ts` or at settle in `reducer.ts`;
+4. if combat reads it, the reducer threads it into the mods object — the Chef's second defect.
+
+**309 checks, all green.** The one initial failure was my own rule being too strict: Rune of Slaying is a
+SETTLE-time reader (it spends `playerQuestTally.slaughter` after the fight) and legitimately needs no combat
+mod. The rule now accepts either home, which is the honest contract.
+
+**A real find along the way.** `recordBuff` labelled every combat buff `names.get(source) ?? 'Combat'` — and a
+rune passes an authored LABEL, not a minion uid, so every rune buff showed up anonymously as "Combat" in the
+inspect panel. Combat uids match `m<n>`/`e<n>`, so anything else is now kept verbatim; the four new rune
+buffs also switched from raw flag ids to display names, matching Aftershocks' convention. You can now see
+which rune granted what.
+
+`typecheck` clean, lint at the 7-warning baseline, 4536 tests, `build:web` OK.
+
+## 2026-08-07 — Rune of the Chef targets ANOTHER Dwarf
+
+Owner ruling: the Chef can never feed itself. `m !== attacker` on the target filter, and the printed text
+now says "buff **another** random Dwarf".
+
+A lone Chef with no other Dwarf therefore does nothing — that is the honest reading of "another" rather than
+an edge case to paper over, and it has its own test. Two Chefs CAN still feed each other, since each is
+"another" from the other's point of view.
+
+**The end-to-end test broke on this, for a reason worth recording.** Its fixture had two Dwarves, but the
+other one died before the Chef ever swung — so with self-targeting gone there was no legal target and the
+Rally correctly did nothing. Stacking Health to 9000 did not help either: the served omens carry **Venom**,
+which kills through any amount of Health. Ward is what makes the fixture survive contact. The rule was
+right; the fixture was quietly relying on the Chef being allowed to feed itself.
+
+## 2026-08-07 — The rune tally pill gets styled, and sits above its badge
+
+Owner ask: put the Bucky and Chef counters **above** their runes, always visible when > 0.
+
+Fixing it turned up why they were hard to see at all: **`.qb-tally` had no CSS rule**. `QuestBadges` has
+emitted that span since 2026-08-03, so EVERY rune meter — not just today's two — has been rendering as
+unstyled inline text jammed against the badge: present in the DOM, effectively unreadable. (Same finding as
+the parked `feat/rune-live-values` branch, now closed here.)
+
+It now sits above the badge in `.questbadge-chip`'s pill language, centred, with `pointer-events: none` so it
+can never eat the badge's own hover tooltip. "Visible when > 0" is structural rather than a style rule:
+`runeTally` returns null at zero, so the span simply isn't in the DOM. The value change replays a one-shot
+pop — compositor-only (transform + opacity), per the no-looping-paint rule.
+
+Verified live with both runes owned: pills read "3 Ales" and "+9/+9", both fully clear of the badge rim
+(1.2px gap), centred to within 2px, and the tooltip still opens.
+
+## 2026-08-07 — Rune of the Coffers art
+
+The one rune left on the fallback frame now has its illustration (`RuneOfTheCoffers.png`, an exact name
+match — no guessing needed). **All 163 runes resolve art**; the earlier gap is closed.
+
+## 2026-08-07 — Bucky and the Chef paid a turn late; Bucky's art + Ale counter
+
+**Both were running one turn behind** (owner report: three Ales paid 0 that combat and only landed the fight
+after). The cause was mine and it was the "banking" indirection itself: `faceOmen` BUILDS the combat side,
+and `resolveCombat` does the per-turn reset — in that order. Banking the tally during `resolveCombat` meant
+every fight read a figure frozen after the PREVIOUS combat.
+
+**The fix is to delete the indirection, not to shift it.** At `faceOmen` time `alesCastThisTurn` and the
+Chef's `chefGranted` already hold exactly "the shop phase that just ended", so combat reads them live and the
+rollover simply zeroes them. `alesCastLastTurn` and the `chefGrantedLast` twin on the BoardCard are gone; the
+combat-side field keeps its name, since from the fight's perspective the shop it followed IS last turn.
+
+A regression test now casts three Ales and fights immediately, asserting +15/+15 in that combat rather than
+the next — the exact shape of the report.
+
+**Chef Gary Toast's tally is SHOP-PHASE ONLY** (owner ruling). That already held, structurally rather than by
+a check: `onTribeSummonedBuffTribe` exists only in the RECRUIT factory table, so a combat summon cannot reach
+the accrual line. A guard test pins it — if the effect is ever arena-migrated the test fails first, forcing a
+deliberate decision about whether mid-fight grants should bank.
+
+**Bucky's art wired**, and his rune's badge now counts the Ales cast this turn ("3 Ales") — the brewing you
+are banking for the fight ahead.
+
+Verified live: Bucky pays +15/+15 in the combat right after casting 3 Ales, the Chef pays +9/+9 the same
+turn it grants, both pills read correctly, and `dw_bucky.webp` fetches 200 (art count 380 → 381).
+
+`typecheck` clean, lint at the 7-warning baseline, 4225 tests, `build:web` OK.
+
+## 2026-08-07 — Rune of the Chef actually fires, gains a tracker, and 34 runes get their art
+
+**The Chef was broken in the real game** (owner report), for a second reason beyond this morning's missing
+flag: `chefGrantedLast` never reached the combat body. `minion.ts`'s board→Minion mapper carried it, but the
+REDUCER builds the player's `BoardMinion` list itself, and that list didn't. So the flag armed, the tally
+banked, and the Rally then read `undefined` and paid nothing.
+
+**Why the tests missed it, twice.** Every per-mechanism combat test injects `questMods` straight into
+`simulate` — which proves the combat behaviour but bypasses the reducer entirely, so neither the flag writer
+nor the board→BoardMinion mapper is ever exercised. Both defects lived in exactly that blind spot. There is
+now an explicit end-to-end test that drives buy → play → fight through `reduce` and nothing else, with a
+comment saying why it exists.
+
+**A tracker on the badge** (owner ask). The Chef's pill shows the buff it is actually going to hand out —
+`+N/+N`, summed across every Chef's banked total — rather than a countdown, because the rune's whole question
+is "how big is it this fight?". Nothing banked shows no pill, which correctly reads as "this fight pays
+nothing".
+
+**Rune art: 34 of the 35 missing files wired**, matched by name against the art folder with one explicit
+override (the file is `RuneOfTheDragonscale`, the rune is "Rune of Dragonscale"). Done with the same
+512×512 / webp-q90 pipeline `wire-art.ts` uses, but per-file — the real tool has no per-card flag and would
+rewrite ~1000 files. **Rune of the Coffers has no art**: nothing in the folder matches it, and
+`RuneOfBanking.png` belongs to the existing Rune of Banking, so it stays on the fallback frame rather than
+being guessed at.
+
+Verified live through the app's own module graph: the rune arms, 9 banks, the tracker reads +9/+9, and the
+Rally pays +9/+9 per swing. 163 of 163 runes now resolve art bar Coffers.
+
+`typecheck` clean, lint at the 7-warning baseline, 4221 tests, `build:web` OK.
+
+## 2026-08-07 — Bucky, his rune, and the Groveweaver rune reaches combat
+
+**Rune of the Groveweaver now works in combat too** (owner). The recruit half shipped this morning; the
+combat half mirrors it exactly — the arena body's own arithmetic (base + this instance's `summonBonus`,
+× golden) behind the same tribe gate — so a Groveweaver grows as it buffs whichever phase the summon
+happens in. Reads a new `groveweaverSelfFor` off the combat mods.
+
+**Bucky** (T6 Dwarf 6/10, rune-exclusive) — Start of Combat: your Dwarves gain +5/+5 **for every Dwarven Ale
+you cast last turn**. `alesCastThisTurn` already existed for Chef Gary Toast; the turn rollover now BANKS it
+into `alesCastLastTurn` first, which is the same shape the Chef's own grant tally uses and for the same
+reason: the fight's opening should be decided by the turn you just finished, not the one you are still
+shopping in. Threaded through the combat side state and both opponent-snapshot writers, so a served enemy
+Bucky pours at its owner's brew rather than nothing. Zero Ales is a clean no-op — no 0/0 sweep, no narration.
+
+**Rune of Bucky** (Epic, 7, Set 2) hands him over.
+
+**A gap the tests had been hiding.** Wiring this exposed that **Rune of the Chef's flag was never threaded**
+into combat mods at all — an earlier scripted edit had aborted midway and taken both the `combatFlag` writer
+and the mods line with it. The Chef's own tests passed because they inject `questMods` directly, so buying
+the rune in a real run would have done nothing. Both lines are restored.
+
+The Dwarf-roster tripwire fired (26 → 27) and was the only failure.
+
+`typecheck` clean, lint at the 7-warning baseline, 4220 tests (7 new), `build:web` OK, harness determinism ✓.
+
+## 2026-08-07 — Rune of the Chef
+
+"Your Chef Gary Toasts gain **Rally:** buff a random Dwarf for the combined stats this granted last turn."
+Two halves, because the Chef grants in the SHOP and the rune pays in COMBAT.
+
+**Banking.** `onTribeSummonedBuffTribe` now sums what it hands out into a per-INSTANCE `chefGranted` —
+summed across every recipient, so a wide Dwarf board banks far more than a narrow one, which is what ties the
+payout to how well the Chef was actually played. Accrued **unconditionally**, not gated on owning the rune:
+arming it mid-run must not depend on a tally that was never kept. The turn rollover moves `chefGranted` into
+`chefGrantedLast` and resets it, so the Rally always spends last turn's work rather than the turn you are
+still shopping in.
+
+**Spending.** `chefGrantedLast` rides the instance into combat (the same route `summonBonus` takes) and is
+threaded through BOTH opponent-snapshot writers, so a served enemy Chef pays its owner's banked tally instead
+of nothing. On the Chef's attack the rune buffs a random friendly Dwarf by that figure; a Chef that banked
+nothing pays nothing rather than emitting a 0/0.
+
+**A test trap, twice in one day.** The shop test first read "2 plays bank the same as 1". Three copies of one
+Dwarf id had tripled into a golden mid-test and eaten the very plays being counted — the same trap the Rune of
+Transcription test hit this morning. Distinct ids, noted in the test both times.
+
+`typecheck` clean, lint at the 7-warning baseline, 4213 tests (6 new), `build:web` OK. No art yet.
+
+## 2026-08-07 — Three more runes: the Badger, the Groveweaver, the Conduit
+
+**Rune of the Badger** (Basic, 5) is pure data — the `grant` reward already carried `grantKeywords`, so it is
+a Badgington handed over with Flurry (`W`) and Ward (`DS`) stamped on.
+
+**Rune of the Groveweaver** (Epic, 6) makes a Groveweaver's summon grant land on ITSELF as well. The self-buff
+recomputes the arena body's own arithmetic (base + that instance's `summonBonus`, × golden) rather than
+inventing a second formula, so the two can't drift, and it repeats the same tribe gate — a Groveweaver that
+skipped a non-Beast arriver must not pay itself either. That last rule has its own test.
+
+**Rune of the Conduit** (Epic, 5, Set 2) gives the whole side one extra Ruby bounce. Candle Conduit's per-body
+bounce loop already existed from this morning's rework; the rune folds into the same counter as "a body's worth
+of bouncing without being a body", keeping the one no-rebounce guard that stops two Idols pinging forever.
+
+**A test-fixture trap worth recording.** The Conduit test first read a bounce of +1 instead of +2 and looked
+like a bug. It wasn't: a Ruby's stats ride on the INSTANCE (it can be buffed in hand), and the fixture had
+built a 0/1 Ruby off `bm`'s defaults. The code was right; the fixture was wrong.
+
+The rune-count tripwire fired (+1 Basic, 72 → 73) and was the only thing that failed — the tally and preview
+audits passed untouched, since all three either name a card they already preview or fire per-event rather
+than on a threshold.
+
+`typecheck` clean, lint at the 7-warning baseline, 4207 tests (7 new), `build:web` OK. No art authored yet.
 
 ## 2026-08-07 — 14 new Epic runes (the Enchantment batch)
 

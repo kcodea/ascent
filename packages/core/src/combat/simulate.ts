@@ -157,6 +157,8 @@ export function simulate(
    *  a side can only be brought back once per fight. */
   const crucibleBank: Record<Side, { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[]> =
     { player: [], enemy: [] };
+  /** Rune of the Second Litter: has the once-per-combat copy already fired, per side? */
+  const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
   const runeDragonscaleLeft: Record<Side, number> = {
     player: playerState.questMods.runeDragonscale ?? 0,
@@ -840,11 +842,13 @@ export function simulate(
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read.
       if (modsFor(side).runeEnchantment) {
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'runeEnchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
+    groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
+    alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
@@ -1030,16 +1034,33 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
-    // Rune of Savagery: a Beast summoned in combat doubles its Attack. Applied BEFORE the tribe auras so the
-    // doubling acts on what the body arrived with, not on aura stats it has not received yet — the same
-    // ordering every summon-time grant uses.
-    if (modsFor(side).runeSavagery && minion.attack > 0
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
-      fireTrigger('runeSavagery', side);
-      ctx.buff(minion, minion.attack, 0, 'runeSavagery');
-    }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
+    // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
+    // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
+    // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.
+    if (modsFor(side).runeSecondLitter && !secondLitterUsed[side] && !minion.dead
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      const def = cards[minion.cardId];
+      if (def) {
+        secondLitterUsed[side] = true;
+        fireTrigger('runeSecondLitter', side);
+        summonMinion(side, def, minion.uid, [...minion.keywords], !!minion.golden, false,
+          { attack: minion.attack, health: minion.maxHealth ?? minion.health, maxHealth: minion.maxHealth ?? minion.health }, true);
+      }
+    }
+    // RUNE OF SAVAGERY: a Beast summoned in combat doubles its Attack — applied LAST, after the summon
+    // watchers and the tribe auras have paid out (owner ruling 2026-08-07).
+    //
+    // It used to run FIRST, which is why the rune read as doing nothing: the body was doubled at its bare
+    // arrival stats, then Groveweaver's +3/+3 and every aura landed on top un-doubled. A Beast arriving 1/1
+    // beside a Groveweaver went 1 → 2 → 5 Attack, when the rune's whole point is that it should go
+    // 1 → 4 → 8. Doubling last is what makes it compose with the summon payoffs it is meant to reward.
+    if (modsFor(side).runeSavagery && minion.attack > 0 && !minion.dead
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      fireTrigger('runeSavagery', side);
+      ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+    }
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
     // the placed body inline right after this returns — so the token summons, then swings, before the next
@@ -1669,6 +1690,24 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
+      // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
+      // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
+      //
+      // `m !== attacker` (owner ruling 2026-08-07): the Chef can never feed itself. A lone Chef with no other
+      // Dwarf therefore does nothing — which is the honest reading of "another", not an edge case to paper
+      // over. Two Chefs CAN feed each other, since each is "another" from the other's view.
+      {
+        const banked = attacker.chefGrantedLast ?? 0;
+        if (banked > 0 && modsFor(attacker.side).runeChef && !attacker.dead && attacker.cardId === 'dw_chef') {
+          const dwarves = boards[attacker.side].filter((m) => m !== attacker && !m.dead && m.health > 0
+            && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || !!cards[m.cardId]?.universalTribe));
+          if (dwarves.length > 0) {
+            fireTrigger('runeChef', attacker.side);
+            ctx.buff(rng.pick(dwarves), banked, banked, attacker.uid);
+          }
+        }
+      }
       // Rune of Dragonscale: an attacking Dragon earns Ward (= Divine Shield), N times per combat. The
       // allowance is decremented on the GRANT, not the attack, so a Dragon that already has a shield does not
       // burn a charge — the sheet promises 3 shields, not 3 attempts.
@@ -2290,13 +2329,56 @@ export function simulate(
         flushImmediateAttacks();
       }
     }
+    if (rmods.runeFiveBanners) {
+      // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a
+      // dual-type body can stand in for either tribe and an all-type body (Paragon itself) always collects.
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
+      const taken = new Set<string>();
+      for (const m of living) {
+        if (cards[m.cardId]?.universalTribe) continue;
+        for (const t of [m.tribe, m.tribe2]) {
+          if (!t || t === 'neutral' || taken.has(t)) continue;
+          taken.add(t);
+          if (!recipients.includes(m)) recipients.push(m);
+          break; // one banner per body: a Dragon/Demon covers whichever tribe was still open
+        }
+      }
+      if (recipients.length > 0) {
+        nextStep(); fireTrigger('runeFiveBanners', rside);
+        for (const m of recipients) ctx.buff(m, 6, 6, 'Rune of the Five Banners');
+      }
+    }
+    if (rmods.runeCenterline) {
+      // Rune of the Centerline: a positional payoff — if the two END minions are of DIFFERENT types, the
+      // middle one gains Ward + Critical Strike. Needs at least three bodies for "ends" and "middle" to mean
+      // anything, and the ends must both have a real (non-neutral) type to be different.
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      if (living.length >= 3) {
+        const left = living[0]!;
+        const right = living[living.length - 1]!;
+        const mid = living[Math.floor(living.length / 2)]!;
+        const typeOf = (m: Minion): string | undefined => (m.tribe && m.tribe !== 'neutral' ? m.tribe : undefined);
+        const lt = typeOf(left);
+        const rt = typeOf(right);
+        if (lt && rt && lt !== rt) {
+          nextStep(); fireTrigger('runeCenterline', rside);
+          if (!mid.keywords.includes('CR')) mid.keywords.push('CR');
+          if (!mid.divineShield) {
+            mid.divineShield = true;
+            if (!mid.keywords.includes('DS')) mid.keywords.push('DS');
+            emit({ type: 'shieldUp', target: mid.uid });
+          }
+        }
+      }
+    }
     if (rmods.runeTemperedTime) {
       // Rune of Tempered Time: +Health equal to HALF each minion's Attack (floored — a 5-Attack body gains 2).
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const gains = living.filter((m) => Math.floor(m.attack / 2) > 0);
       if (gains.length > 0) {
         nextStep(); fireTrigger('runeTemperedTime', rside);
-        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'runeTemperedTime');
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'Rune of Tempered Time');
       }
     }
     if (rmods.runeHerald) {
@@ -2339,7 +2421,7 @@ export function simulate(
         .slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
       if (lowest.length > 0) {
         nextStep(); fireTrigger('runeUnderdog', rside);
-        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'runeUnderdog');
+        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
       }
     }
     if (rmods.runeVanguard) {
@@ -2501,6 +2583,13 @@ export function simulate(
     if (!lead) return;
     nextStep();
     fireFreeRally(lead, side);
+  });
+  runeAvenge(4, 'runeCarrionCoin', (m) => !!m.runeCarrionCoin, (side) => {
+    // Rune of Carrion Coin: every 4th friendly death hands over a random Shop spell. `grantRandomSpell` is
+    // the shared grant Badgington's Rally uses — it already picks from the run's pinned pool, respects the
+    // hand cap and carries back at settle, and it is player-only, so a served enemy's deaths grant nothing.
+    nextStep();
+    ctx.grantRandomSpell(1, side, undefined);
   });
   runeAvenge(3, 'runeEngraving', (m) => !!m.runeEngraving, (side) => {
     // Rune of Engraving: the side's Rubies permanently give +1 more Health. Routed through gainRubyBonus —

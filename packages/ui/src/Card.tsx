@@ -342,6 +342,7 @@ export const Card = memo(function Card({
   karwind,
   pulse,
   pulseRally,
+  pulseFrame,
   glow,
   popDelay,
   refCards,
@@ -396,6 +397,9 @@ export const Card = memo(function Card({
    *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
    *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
   pulseRally?: number;
+  /** Pulse the whole card FRAME (not the medallion), light blue — a WATCHER answering an ally's attack.
+   *  A per-fire nonce used as the frame element's `key` so the CSS animation restarts each fire. */
+  pulseFrame?: number;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
@@ -691,7 +695,7 @@ export const Card = memo(function Card({
   return (
     <div
       ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${pulseFrame ? ' framepulse' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -849,7 +853,10 @@ export const Card = memo(function Card({
       {/* The arched frame: the art, the corner attack/health badges, and the mechanic medallion. Fixed
           square so the badges/medallion always ride the arch even when the text drawer drops below. */}
       <div className="archbox">
-        <div className="art">
+        {/* Keyed on `pulseFrame` (nonce), mirroring the `.cgem` medallion-pulse trick (`key={`cgem-${pulseRally ?? 0}`}`):
+            a repeat watcher-fire needs the `.framepulse` CSS animation to REPLAY even though the class is already
+            present, so the key change forces this node to remount instead of just re-adding an unchanged class. */}
+        <div className="art" key={`framepulse-${pulseFrame ?? 0}`}>
           {artUrl ? (
             /* decoding="sync": paint the art WITH the frame in the same frame. `async` let the browser
                commit the card before the (already-preloaded, cached) image finished decoding — the residual

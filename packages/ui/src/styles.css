@@ -20,6 +20,7 @@
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
+  --framepulse-color: #7fc8ff;        /* watcher frame pulse — light blue, tunable */
   /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
   --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
   /* Tier 7 — Summit rift only. Rift-purple, deliberately outside the 1-6 ramp so it reads as "beyond the ladder". */
@@ -1531,6 +1532,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)),   /* gold inner line */
               inset 0 7px 18px rgba(0, 0, 0, 0.42), 0 6px 16px rgba(0, 0, 0, 0.42),
               0 0 0 var(--hglow-ring, 0) #ffffff, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 255, 255, 0.6);
+}
+/* WATCHER frame pulse — a one-shot light-blue ring bloom around the whole card frame (NOT the medallion),
+   marking "an ally's attack triggered this unit". Lives on the arched .art box-shadow, same surface as the
+   hover glow, so it hugs the silhouette without creating a stacking context. */
+.card.compact.framepulse .art {
+  animation: framepulse 0.55s ease-out;
+}
+@keyframes framepulse {
+  0%   { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 0 0 var(--framepulse-color); }
+  35%  { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 22px 5px var(--framepulse-color); }
+  100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)), inset 0 7px 18px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.42), 0 0 0 0 transparent; }
 }
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */

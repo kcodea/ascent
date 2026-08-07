@@ -1838,7 +1838,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
         ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
         summonBonus: b.summonBonus ?? 0,
-        ...(b.chefGrantedLast ? { chefGrantedLast: b.chefGrantedLast } : {}), // Rune of the Chef: last turn's granted total, spent as a combat Rally
+        // Rune of the Chef: what this Chef granted during the shop phase that just ended, spent as a combat
+        // Rally. Same fix as Bucky's Ales — read the LIVE tally, since the reset runs after this combat.
+        ...(b.chefGranted ? { chefGrantedLast: b.chefGranted } : {}),
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
@@ -1943,7 +1945,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardBuffs: s.cardBuffs ?? {},
         // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
         handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
-        alesLastTurn: s.alesCastLastTurn ?? 0, // Bucky: Ales cast last shop turn
+        // Bucky: the Ales cast during the shop phase that JUST ENDED. Read live rather than from a banked
+        // field — `faceOmen` builds this side BEFORE `resolveCombat` does the per-turn reset, so
+        // `alesCastThisTurn` is exactly "the brewing you just did". Banking it first put the payout a whole
+        // turn late (owner report 2026-08-07: 3 Ales paid 0 that combat and only landed the combat after).
+        alesLastTurn: s.alesCastThisTurn ?? 0,
         spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
         lastSpellCastId: s.lastSpellCastId,
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
@@ -2773,10 +2779,7 @@ function advanceCombat(s: RunState): void {
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
-  // Bucky reads LAST turn's Ales, so bank the count before clearing it — the same shape the Chef's grant
-  // tally uses, and for the same reason: the fight's opening is decided by the turn you just finished.
-  s.alesCastLastTurn = s.alesCastThisTurn ?? 0;
-  s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave
+  s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
@@ -2822,14 +2825,10 @@ function advanceCombat(s: RunState): void {
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
-  // Chef Gary Toast: bank what each Chef handed out this turn, then reset — Rune of the Chef's Rally spends
-  // the BANKED figure, so the payout is always last turn's work rather than the turn you are still shopping in.
-  for (const c of s.board) {
-    if (c.chefGranted !== undefined || c.chefGrantedLast !== undefined) {
-      c.chefGrantedLast = c.chefGranted ?? 0;
-      c.chefGranted = 0;
-    }
-  }
+  // Chef Gary Toast: clear each Chef's per-turn grant tally. NOT banked into a second field — the combat that
+  // just finished already read the live figure when it was built, and banking here is precisely what made the
+  // payout arrive a turn late (owner report 2026-08-07).
+  for (const c of s.board) if (c.chefGranted) c.chefGranted = 0;
   s.rubyCastsThisTurn = 0;
   s.gemscriptRubyUsed = false;
   // Rune of the Treasure Map: tick the countdown at each new shop; pay out and retire at zero.

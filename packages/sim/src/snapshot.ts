@@ -196,7 +196,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.chosenOption !== undefined ? { chosenOption: c.chosenOption } : {}), // Choose One: which branch this body became, so a served/restored board reads the same single branch
     ...(c.taughtSpellId ? { taughtSpellId: c.taughtSpellId } : {}), // Mage-Pup: the spell it learned, so a restored/served Pup still names it
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
-    ...(c.chefGrantedLast ? { chefGrantedLast: c.chefGrantedLast } : {}), // Rune of the Chef: a served Chef pays its OWNER's banked tally
+    ...(c.chefGranted ? { chefGrantedLast: c.chefGranted } : {}), // Rune of the Chef: a served Chef pays its OWNER's tally
     ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
     ...(c.sellBonus ? { sellBonus: c.sellBonus } : {}), // Trail Forager: carry the sell bonus so a served board reads its live sell value
     ...(c.eotTick ? { eotTick: c.eotTick } : {}), // Frontdrake / Money Maker / Vineweaver: carry the cadence counter for live text
@@ -313,7 +313,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
     ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),
     ...(handSpellIds.length ? { handSpellIds } : {}),
-    ...(s.alesCastLastTurn ? { alesLastTurn: s.alesCastLastTurn } : {}),
+    ...(s.alesCastThisTurn ? { alesLastTurn: s.alesCastThisTurn } : {}),
     ...(s.frontToBackBonus || s.frontToBackBonusH
       ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),

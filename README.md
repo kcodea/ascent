@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Bucky + the Chef no longer pay a turn late** — the tally was banked after combat rather than read live at combat build; both now land in the fight right after the shop that earned them. Bucky's art is wired and his rune counts the Ales you're banking.
+
 - **Rune of the Chef fixed + tracked, and 34 runes get art** — its banked total never reached the combat body (the reducer's own mapper dropped it); its badge now shows the exact buff it will pay, and every rune but the Coffers has illustration.
 
 - **Bucky + Rune of Bucky** — a T6 Dwarf whose Start of Combat pays +5/+5 per Dwarven Ale you cast last turn; the Groveweaver rune now grows its owner in combat as well as the shop.

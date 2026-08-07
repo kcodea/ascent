@@ -46,10 +46,34 @@ describe('Bucky + Rune of Bucky', () => {
     expect(fight(0).length).toBe(0);
   });
 
-  it('the Ale tally banks at the turn rollover, so Bucky reads LAST turn', () => {
+  it('the rune badge counts the Ales you are banking THIS turn', async () => {
+    const { runeTally } = await import('../../ui/src/runeTally');
+    const base = { ...createRun(3), phase: 'recruit' } as RunState;
+    expect(runeTally({ ...base, alesCastThisTurn: 0 }, 'rune_bucky'), 'no Ales → no pill').toBeNull();
+    expect(runeTally({ ...base, alesCastThisTurn: 1 }, 'rune_bucky')).toBe('1 Ale');
+    expect(runeTally({ ...base, alesCastThisTurn: 3 }, 'rune_bucky')).toBe('3 Ales');
+  });
+
+  it('pays in the VERY NEXT combat, not the one after (owner bug report 2026-08-07)', () => {
+    // The regression this pins: the tally used to be banked in `resolveCombat`, which runs AFTER the combat
+    // side is built in `faceOmen` — so a shop's Ales only reached the fight a whole turn later. Cast, fight,
+    // and the buff must be there immediately.
+    let s: RunState = {
+      ...createRun(3), phase: 'recruit', embers: 0, shop: [], hand: [],
+      alesCastThisTurn: 3, // three Ales cast during THIS shop phase
+      board: [{ uid: 'b', cardId: 'dw_bucky', tribe: 'dwarf', attack: 6, health: 400, keywords: [], golden: false },
+              { uid: 'd', cardId: 'dw_wardkeeper', tribe: 'dwarf', attack: 1, health: 400, keywords: [], golden: false }],
+    } as RunState;
+    s = reduce(s, { type: 'faceOmen' }) as RunState;
+    const bucky = s.lastCombat!.initial.player.find((m) => m.cardId === 'dw_bucky')!;
+    const buffs = s.lastCombat!.events.filter((e) => e.type === 'buff' && e.source === bucky.uid);
+    expect(buffs.length, 'Bucky paid nothing in the combat right after the Ales were cast').toBeGreaterThan(0);
+    expect(buffs.every((b) => b.type === 'buff' && b.attack === 15 && b.health === 15), '3 Ales → +15/+15').toBe(true);
+  });
+
+  it('the Ale tally RESETS at the rollover — the combat already read the live figure', () => {
     let s: RunState = { ...createRun(3), phase: 'recruit', alesCastThisTurn: 4 };
     s = reduce({ ...s, phase: 'combat', lastCombat: win } as RunState, { type: 'resolveCombat' }) as RunState;
-    expect(s.alesCastLastTurn, 'the turn total did not bank').toBe(4);
     expect(s.alesCastThisTurn, 'the running tally did not reset').toBe(0);
   });
 });

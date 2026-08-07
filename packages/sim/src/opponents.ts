@@ -122,7 +122,7 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.chosenOption !== undefined ? { chosenOption: m.chosenOption } : {}), // Choose One: the branch it became, so a served board reads the same single branch
     ...(m.taughtSpellId ? { taughtSpellId: m.taughtSpellId } : {}), // Mage-Pup: the spell it learned
     ...(m.summonBonus ? { summonBonus: m.summonBonus } : {}),
-    ...(m.chefGrantedLast ? { chefGrantedLast: m.chefGrantedLast } : {}), // Rune of the Chef: a served Chef pays its OWNER's banked tally
+    ...(m.chefGrantedLast ? { chefGrantedLast: m.chefGrantedLast } : {}), // Rune of the Chef: a served Chef pays its OWNER's tally
     // Per-minion accruals the snapshot persisted (see `cleanBoard`): carry them ALL so a served board is as
     // strong AND reads as accurately as the board it was captured from. `instantiate` seeds each into the
     // combat Minion, and the combat snapshot re-emits them, so the enemy card shows the OPPONENT's real value

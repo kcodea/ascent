@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-07 — Bucky and the Chef paid a turn late; Bucky's art + Ale counter
+
+**Both were running one turn behind** (owner report: three Ales paid 0 that combat and only landed the fight
+after). The cause was mine and it was the "banking" indirection itself: `faceOmen` BUILDS the combat side,
+and `resolveCombat` does the per-turn reset — in that order. Banking the tally during `resolveCombat` meant
+every fight read a figure frozen after the PREVIOUS combat.
+
+**The fix is to delete the indirection, not to shift it.** At `faceOmen` time `alesCastThisTurn` and the
+Chef's `chefGranted` already hold exactly "the shop phase that just ended", so combat reads them live and the
+rollover simply zeroes them. `alesCastLastTurn` and the `chefGrantedLast` twin on the BoardCard are gone; the
+combat-side field keeps its name, since from the fight's perspective the shop it followed IS last turn.
+
+A regression test now casts three Ales and fights immediately, asserting +15/+15 in that combat rather than
+the next — the exact shape of the report.
+
+**Chef Gary Toast's tally is SHOP-PHASE ONLY** (owner ruling). That already held, structurally rather than by
+a check: `onTribeSummonedBuffTribe` exists only in the RECRUIT factory table, so a combat summon cannot reach
+the accrual line. A guard test pins it — if the effect is ever arena-migrated the test fails first, forcing a
+deliberate decision about whether mid-fight grants should bank.
+
+**Bucky's art wired**, and his rune's badge now counts the Ales cast this turn ("3 Ales") — the brewing you
+are banking for the fight ahead.
+
+Verified live: Bucky pays +15/+15 in the combat right after casting 3 Ales, the Chef pays +9/+9 the same
+turn it grants, both pills read correctly, and `dw_bucky.webp` fetches 200 (art count 380 → 381).
+
+`typecheck` clean, lint at the 7-warning baseline, 4225 tests, `build:web` OK.
+
 ## 2026-08-07 — Rune of the Chef actually fires, gains a tracker, and 34 runes get their art
 
 **The Chef was broken in the real game** (owner report), for a second reason beyond this morning's missing

@@ -113,10 +113,9 @@ export interface BoardCard {
   buffs?: CardBuff[];
   /** Extra magnitude on this card's summon-buff effect, accrued permanently across the run
    *  (Kennelmaster's Avenge improvements). Default/absent = 0. */
-  /** Chef Gary Toast: stats handed out THIS shop turn, and the total banked from LAST turn (Rune of the
-   *  Chef spends the banked figure as a combat Rally). Per-instance — two Chefs each keep their own. */
+  /** Chef Gary Toast: stats handed out this shop turn (Rune of the Chef spends it as a combat Rally in the
+   *  fight that follows). Per-instance — two Chefs each keep their own. Reset at the turn rollover. */
   chefGranted?: number;
-  chefGrantedLast?: number;
   summonBonus?: number;
   /** Flowing Monk: flat +X/+X on top of its stepped overflow grant — created by the TRIPLE combine (the
    *  golden starts at the SUM of the two highest copies' current grants). Default/absent = 0. */
@@ -397,8 +396,6 @@ export interface RunState {
   goldSpentThisTurn?: number;
   /** Set 2 — Ales CAST this turn (Chef Gary Toast scales off it). Reset with the other per-turn tallies. */
   alesCastThisTurn?: number;
-  /** Dwarven Ales cast LAST shop turn — banked at the turn rollover. Bucky's Start of Combat spends it. */
-  alesCastLastTurn?: number;
   /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
    *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
   cardsPlayedTotal?: number;

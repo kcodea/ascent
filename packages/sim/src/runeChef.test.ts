@@ -21,6 +21,36 @@ describe('the def', () => {
   });
 });
 
+describe('the tally is SHOP-PHASE ONLY (owner ruling 2026-08-07)', () => {
+  it('the Chef grant has NO combat implementation, so a combat summon can never bank stats', async () => {
+    // The ruling holds structurally, not by a runtime check: `onTribeSummonedBuffTribe` lives only in the
+    // RECRUIT factory table. If it is ever arena-migrated (the Shout/summon families have been, one by one)
+    // the Chef would start banking mid-fight grants toward next turn's payout — silently, and only visible as
+    // a payout that felt too big. This test is the tripwire: migrate the effect and it fails here first.
+    const core = await import('@game/core');
+    const combatFactories = (core as unknown as { FACTORIES?: Record<string, unknown> }).FACTORIES;
+    if (combatFactories) {
+      expect(combatFactories['onTribeSummonedBuffTribe'],
+        'onTribeSummonedBuffTribe gained a COMBAT half — decide deliberately whether combat grants bank into chefGranted').toBeUndefined();
+    }
+    // Belt and braces via the effect data: the Chef's only effect is the recruit-side summon watcher.
+    expect(CARD_INDEX['dw_chef']!.effects.map((e) => e.do)).toEqual(['onTribeSummonedBuffTribe']);
+  });
+
+  it('a combat that summons Dwarves leaves the banked tally untouched', () => {
+    // Drive a real fight from a Chef board and confirm the run's tally is unchanged by anything combat did.
+    let s: RunState = {
+      ...createRun(3), phase: 'recruit', embers: 0, shop: [], hand: [],
+      board: [{ ...bm('chef', 'dw_chef', 6, 40), chefGranted: 0 },
+              bm('brawl', 'dw_chickenbrawl', 3, 3)], // its Echo summons a Dwarf mid-combat
+    };
+    s = reduce(s, { type: 'faceOmen' }) as RunState;
+    s = reduce(s, { type: 'settleCombat' }) as RunState;
+    const chef = s.board.find((c) => c.uid === 'chef');
+    if (chef) expect(chef.chefGranted ?? 0, 'combat banked into the shop tally').toBe(0);
+  });
+});
+
 describe('the shop half — banking what the Chef handed out', () => {
   /** Play `n` Dwarves beside a Chef on a board that already holds `others` Dwarves, and report the tally. */
   // DISTINCT Dwarf ids on purpose: three copies of one id would triple into a golden mid-test and eat the
@@ -44,7 +74,7 @@ describe('the shop half — banking what the Chef handed out', () => {
     expect(two, 'a second play (onto a wider board) must bank strictly more').toBeGreaterThan(one);
   });
 
-  it('the turn rollover banks it as LAST turn and resets the running tally', () => {
+  it('the turn rollover RESETS the tally — the combat just built already read the live figure', () => {
     let s: RunState = {
       ...createRun(3), phase: 'recruit', embers: 0, shop: [],
       board: [bm('chef', 'dw_chef', 6, 7), bm('d0', 'dw_wardkeeper', 1, 1)],
@@ -55,7 +85,8 @@ describe('the shop half — banking what the Chef handed out', () => {
     expect(banked).toBeGreaterThan(0);
     s = reduce({ ...s, phase: 'combat', lastCombat: win } as RunState, { type: 'resolveCombat' }) as RunState;
     const chef = s.board.find((c) => c.uid === 'chef')!;
-    expect(chef.chefGrantedLast, 'the turn total did not carry').toBe(banked);
+    // Banking into a second field is what made the payout arrive a turn late (owner report). The next shop
+    // simply starts from zero; the combat that just ran already spent the live figure.
     expect(chef.chefGranted, 'the running tally did not reset').toBe(0);
   });
 });
@@ -74,7 +105,7 @@ describe('end to end, through the reducer', () => {
     expect(s.questFlags?.runeChef, 'the rune never armed its flag').toBe(true);
     s = {
       ...s, embers: 0, shop: [], hand: [],
-      board: [{ ...bm('chef', 'dw_chef', 6, 40), chefGrantedLast: 12 }, bm('d0', 'dw_wardkeeper', 1, 40)],
+      board: [{ ...bm('chef', 'dw_chef', 6, 40), chefGranted: 12 }, bm('d0', 'dw_wardkeeper', 1, 40)],
     } as RunState;
     s = reduce(s, { type: 'faceOmen' }) as RunState;
     const r = s.lastCombat!;

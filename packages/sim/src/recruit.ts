@@ -1653,6 +1653,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // (so a wide Dwarf board banks more than a narrow one). Per-INSTANCE, so two Chefs each keep their own.
     // Accrued unconditionally — the rune only decides whether it is ever SPENT, so arming it mid-run must not
     // depend on a tally that was never kept.
+    //
+    // SHOP-PHASE ONLY (owner ruling 2026-08-07): stats the Chef grants during COMBAT must never count toward
+    // next turn's payout. That holds today for a structural reason rather than a check — this factory lives
+    // only in the RECRUIT table; `onTribeSummonedBuffTribe` has no combat implementation at all, so a combat
+    // summon can't reach this line. `runeChef.test.ts` guards that: if the effect is ever arena-migrated, the
+    // test fails and whoever does it has to decide about the tally deliberately.
     self.chefGranted = (self.chefGranted ?? 0) + handedOut;
   },
 

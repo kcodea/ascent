@@ -44,6 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Spells wear a new bronze arch frame** — the art is clipped to the arch, the old purple tint is gone,
+  and ~1.9MB of retired frame art left the bundle.
+
 - **Balance Report derived views** — Card Demand (Wilson intervals, revision-pooled), Gold Economy and Upgrade Timing now render in-app from the banked replay derivations.
 
 - **Rune batch** — Duplication + Summit fixed, all rune Avenge effects get live combat tallies on their badges, 5 missing forge previews, 2 text corrections, Epic Forge un-no-op'd for Runeguard.

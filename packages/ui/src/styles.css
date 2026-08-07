@@ -2803,7 +2803,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    AFTER the golden / dual / venom / spell rules so its `.art` reshape reliably wins the source-order cascade.
    GEOMETRY — MEASURED from the alpha of each PNG (retune the two `--sh` knobs + these constants if the art changes):
      standard-oval.png 1059×1427 · window x16.0–83.5% / y24.2–88.6% (H/W 1.285) · banner ≈y21%
-     spell-frame.png   1122×1346 · window x13.9–86.0% / y25.2–83.1% (H/W 0.963) · banner ≈y22%
+     spell-frame-arch.webp  705×862 · window x9.6–90.4% / y18.2–94.2% (arch top) · banner ≈y15%
    Each derived multiplier below = (window metric) ÷ (window width fraction), so one `--sh` scales the whole
    composite. Expect a quick live NUDGE PASS over HMR to seat badges/tier/frame exactly (like the Taunt comments).
    ============================================================================================================ */
@@ -2902,7 +2902,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
 }
-.card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-v2.png'); mask-image: url('/frames/spell-frame-v2.png'); }
+.card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp'); }
 .card.compact.taunt .cglow {
   width: calc(var(--ccw) * 1.527 * var(--sh)); aspect-ratio: 1086 / 1448;
   left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
@@ -2934,7 +2934,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
   left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
-  -webkit-mask-image: url('/frames/spell-frame-v2.png'); mask-image: url('/frames/spell-frame-v2.png');
+  -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp');
 }
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
    the scoped `opacity:0` default above (an unscoped `.card:hover .cglow` would LOSE to it). */
@@ -3024,16 +3024,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* ---- SPELL SQUARE (regular spells) ------------------------------------------------------------------------ */
 /* Same LIVE KNOBS as the oval (see stdframe): --sh size · --fill window overfill · --dy whole composite ·
    --frameY frame+tier only · --tier pill seat · --artY portrait framing · --artZoom portrait content zoom.
-   No tint layer (spells are tribeless). Window is a rounded rectangle; measured from spell-frame.png.
+   No tint layer (spells are tribeless). Window is an ARCH, masked from spell-art-window-arch.webp.
    --artRound = the window's CORNER RADIUS (% of the box): raise for rounder corners, lower for squarer.
    --artAR = window HEIGHT (× the base): >0.963 = TALLER.   --artW = window WIDTH (× the base): <1 = LESS WIDE.
    (artAR and artW are independent, so you can make the window taller and narrower separately.) */
 /* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
    there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
    ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
-.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; --fovl-a: 0.94; --fovl: #66594d; --fovl-blend: color; }
+.card.compact.spellframe { --sh: 0.83; --fill: 1.22; --dy: -0.045; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.01; --artRound: 13%; --artAR: 1.03; --artW: 0.89; --fovl-a: 0; --fovl: #ffffff; --fovl-blend: multiply; }
 .card.compact.spellframe .art {
-  clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
+  /* ARCH window mask (2026-08-05): the illustration is clipped to the frame's real arched opening, not a
+     rounded rectangle, so it can't poke out the arch shoulders. `--artRound` no longer applies here. */
+  -webkit-mask-image: url('/frames/spell-art-window-arch.webp'); mask-image: url('/frames/spell-art-window-arch.webp');
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
   width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));
   height: calc(var(--ccw) * var(--artAR) * var(--sh) * var(--fill));
   left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh) * var(--fill) * var(--artW)));
@@ -3044,10 +3049,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .card.compact.spellframe .art .artimg,
 .card.compact.spellframe .art canvas { object-fit: cover; object-position: center var(--artY); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(var(--artZoom)); }
 .card.compact.spellframe .cframe-img {
+  /* Re-measured for the ARCH frame (spell-frame-arch.webp, 2026-08-05). Window from alpha: w/canvas 0.8071,
+     centre (0.500, 0.5621), canvas ratio 0.818. The window is placed on the card centre so `--sh` sizes it. */
   position: absolute; inset: auto; height: auto;
-  width: calc(var(--ccw) * 1.387 * var(--sh));                     /* 1.387 = 1/0.721 */
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));           /* 0.6928 = 0.4995 / 0.721 */
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));  /* 0.9009 = 0.5415 · (1346/1122) / 0.721 */
+  width: calc(var(--ccw) * 1.239 * var(--sh));                     /* 1.239 = 1/0.8071 (window w / canvas) */
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));             /* 0.6194 = 0.5 · 1.239 (centre the window) */
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));  /* 0.8517 = 0.5621 · 1.239/0.818 */
 }
 .card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
 /* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base (tracks --dy / --frameY) */
@@ -3122,6 +3129,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    spells", owner report 2026-07-19). Same bug class as the golden-arch bleed below; kill it whenever the PNG
    frame is on (the frame + its cshadow carry the presentation). Non-framed fallback spells keep the old look. */
 .card.compact.spellframe { box-shadow: none; }
+/* NEW ARCH FRAME (2026-08-05): the bronze arch carries its own look, so drop the leftover demon-PURPLE spell
+   identity that was tuned for the old gold+purple square — the radial art wash and the purple card border.
+   The box-shadow ring is already gone (above). The "✦ Spell" label stays purple as the spell's text cue. */
+.card.compact.spellframe .art { background: transparent; }
+.card.compact.spellframe { border-color: transparent; }
 .card.compact.stdframe.golden,
 .card.compact.spellframe.golden,
 .card.compact.taunt.golden {
@@ -3149,13 +3161,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
           mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
 }
 [data-zone='tavern'].frozen .card.spellframe::after {
-  inset: auto; border: none; border-radius: 0; box-shadow: none;
-  width: calc(var(--ccw) * 1.387 * var(--sh));
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh)));
-  aspect-ratio: 1122 / 1346;
-  -webkit-mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
-          mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+  width: calc(var(--ccw) * 1.239 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
+  aspect-ratio: 705 / 862;
+  -webkit-mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
+          mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
 }
 
 /* ============================ HAND CARD BACKPLATE ============================

@@ -386,6 +386,42 @@ typecheck (pkgs + web), lint (0 errors), 3846 tests, `build:web`.
 
 
 
+
+## 2026-08-05 (new spell frame — the bronze arch)
+
+### feat(ui): replace the spell frame with the bronze arch
+
+Swapped the purple-and-gold rounded-square spell frame for the owner's new **bronze gothic arch**. What the
+change actually touched:
+
+- **Asset**: `Spellframe arch.png` → `spell-frame-arch.webp` (q92, alpha, 105KB). The three references —
+  `SPELL_FRAME_SRC` in `Card.tsx` and the hover-glow + tint `mask-image` URLs in CSS — now point at it.
+- **Placement re-measured, not guessed.** The arch's window sits lower in its canvas than the old frame's
+  (centre 0.562 vs 0.517 — the arch reserves more metal up top for the banner). The `.cframe-img` constants
+  were recomputed from the arch's own alpha (window w/canvas 0.8071, centre offset), so the frame lands
+  centred on the card. Same for the frozen-shop frost overlay (`.frozen .card.spellframe::after`), whose mask
+  and constants tracked the old square — it would otherwise have rendered square frost over an arch.
+- **Art clipped to the arch.** A rounded-rectangle window can't fill an arch, so the illustration poked out
+  the shoulders. Fixed by masking `.art` with a window silhouette generated straight from the frame's alpha
+  (`spell-art-window-arch.webp`) — the exact opening, so it stays matched if the art is re-exported, and it
+  scales cleanly. The gem notches on the mask are where the opaque gems sit over the window; art there is
+  hidden anyway.
+- **Purple removed.** The old demon-purple identity (the radial art wash + the card border) is dropped for
+  framed spells — the bronze carries its own look now. The box-shadow ring was already suppressed for framed
+  spells; this finishes it. Scoped to `.spellframe`, so non-framed fallback spells keep the purple. The
+  frame colour-overlay (`--fovl`) is off. The "✦ Spell" label stays purple as a text cue.
+- **Geometry baked** from the owner's live tuning pass (🖼️ Card Frames): `--sh 0.83`, `--dy -0.045`,
+  `--artZoom 1.01`, `--artAR 1.03`, `--artW 0.89`, tint off. Both sources updated — the CSS default AND the
+  `FrameTuner` TS defaults (so its reset + modified-marks match what ships) — plus the panel title/tint/blend.
+  The `stdframe` (oval) values were provided too but are identical to the shipped defaults, so it is unchanged.
+- **Dead art culled.** `spell-frame-v2.png` (787KB) and `spell-frame.png` (1.1MB) are both unreferenced after
+  the swap; removed, cutting ~1.9MB from the bundle (`public/` ships regardless of references).
+
+**Verified:** placement + window measured from alpha, mask silhouette checked visually, arch art-clip confirmed
+against the live game by the owner. Baked values re-read from the minified production CSS. `typecheck` clean
+(pkgs + web), `lint` 0 errors, **4028 tests** / 251 files, `build:web` green with the arch assets emitted and
+both dead PNGs gone from `dist`.
+
 ## 2026-08-06 — Balance Report: the derived views land (the telemetry rebuild's last piece)
 
 The missing third phase of the 2026-08-05 telemetry rebuild — both earlier entries ended "Next: the in-app

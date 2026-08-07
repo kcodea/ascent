@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ralliesFiredIn, rallyPulseUnits, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
+import { attackSummonUids, ralliesFiredIn, rallyDamageEventIndex, rallyPulseUnits, RALLY_BEAT_MS, RALLY_GAP_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -195,5 +195,43 @@ describe('rallyPulseUnits', () => {
   it('includes both a self-rally and a watcher in the same beat, in first-seen order', () => {
     expect(rallyPulseUnits(span(0, 2), [buffE('A', 'X'), buffE('W', 'Y')], 'A'))
       .toEqual([{ uid: 'A', surface: 'medallion' }, { uid: 'W', surface: 'frame' }]);
+  });
+});
+
+describe('rallyDamageEventIndex', () => {
+  const dmg = (target: string, amount: number): CombatEvent => ({ type: 'dmg', target, amount, remainingHp: 1 } as CombatEvent);
+  const death = (target: string): CombatEvent => ({ type: 'death', target } as CombatEvent);
+
+  it('returns undefined when the attacker has no rally-damage effect, even with a dmg event present', () => {
+    expect(rallyDamageEventIndex(span(0, 1), [dmg('x', 4)], false)).toBeUndefined();
+  });
+
+  it('returns undefined when the attacker has the effect but the moment has no dmg event (empty enemy pool)', () => {
+    expect(rallyDamageEventIndex(span(0, 1), [death('someone-else')], true)).toBeUndefined();
+  });
+
+  it('returns the FIRST dmg event\'s index when the attacker has the effect', () => {
+    // Philippe's splash lands before the clash's own damage (cleave neighbour, main hit, retaliation) —
+    // simulated here as three dmg events in log order.
+    const events = [dmg('splashTarget', 4), dmg('cleaveNeighbour', 5), dmg('defender', 5), dmg('attacker', 2)];
+    expect(rallyDamageEventIndex(span(0, 4), events, true)).toBe(0);
+  });
+
+  it('does NOT pick a later dmg event as the first — index is absolute, not offset-from-zero', () => {
+    const events = [{ type: 'attack' } as CombatEvent, dmg('splashTarget', 4), dmg('defender', 5)];
+    expect(rallyDamageEventIndex(span(1, 3), events, true)).toBe(1);
+  });
+
+  it('respects the moment window and never reads outside it', () => {
+    const events = [dmg('before', 1), dmg('inside', 2), dmg('after', 3)];
+    expect(rallyDamageEventIndex(span(1, 2), events, true)).toBe(1);
+  });
+
+  it('a Cleave-only attacker (no rally-damage effect) never gets misidentified, even though its splash dmg is ALSO "not the defender"', () => {
+    // This is the misfire this discriminator is built to avoid: Cleave's neighbour-splash dmg looks
+    // identical in shape (a dmg event, not on the defender) to Philippe's rally splash — only the
+    // caller-supplied card check (false here — no rally-damage effect) tells them apart.
+    const events = [dmg('cleaveNeighbour', 5), dmg('defender', 5)];
+    expect(rallyDamageEventIndex(span(0, 2), events, false)).toBeUndefined();
   });
 });

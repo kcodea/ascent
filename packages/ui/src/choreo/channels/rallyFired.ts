@@ -133,6 +133,34 @@ export function rallyPulseUnits(moment: Moment, events: CombatEvent[], attacker:
 }
 
 /**
+ * Philippe-style Rally damage: an on-attack effect that deals damage to a random enemy
+ * (`rallyDamageRandomEnemy` — currently only Philippe). Unlike buff/summon/sc/keyword, a `dmg` event carries
+ * NO `source` (types.ts), so it can't be read off the event the way `rallyPulseUnits` reads the others — and
+ * unlike them, `dmg` is a RESULT event (`RESULT_TYPES` in combatBeats.ts), never absorbed into the attacker's
+ * wind-up moment (`absorbIntoWindup` in compile.ts has no `dmg`), so this doesn't even live in the SAME moment
+ * as the attack — it's the first event of the NEXT one (see `useCombatReplay.ts`'s Task 7 wiring, which reaches
+ * into `beats[beatIdx]` to read it before that moment becomes current).
+ *
+ * The caller supplies `attackerHasRallyDamage` — a card-index check it already knows how to do (see the
+ * `rallies`/RL-keyword pattern in `useCombatReplay.ts`) — rather than this pure channel importing @game/content.
+ * Gating on the CARD rather than the target is what keeps this from misfiring on Cleave/Mauron-splash, whose
+ * dmg events are equally "not the defender": simulate.ts's `bus.emit('onAttack', ...)` (where a Rally fires)
+ * runs to completion BEFORE any of the clash's own damage — cleave neighbours, the main hit, the retaliation
+ * (see the attack loop) — so an onAttack effect's `dmg` event is always the FIRST `dmg` event logged in the
+ * moment it lands in. That ordering, not the target, is what pins the index down.
+ *
+ * Returns the event index, or undefined if this attacker doesn't have the effect or the moment has no `dmg`
+ * event at all (its `ctx.living(foe)` pool was empty and the effect no-opped).
+ */
+export function rallyDamageEventIndex(moment: Moment, events: CombatEvent[], attackerHasRallyDamage: boolean): number | undefined {
+  if (!attackerHasRallyDamage) return undefined;
+  for (let i = moment.start; i < moment.end; i++) {
+    if (events[i]?.type === 'dmg') return i;
+  }
+  return undefined;
+}
+
+/**
  * Between distinct rallier→ally PAIRS in a cascade — the `gap`.
  *
  * 240, which is NOT the Ruby cue's 100: it is derived from the `beat` below rather than chosen, because the

@@ -17,7 +17,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
-import { attackSummonUids, rallyPulseUnits } from './choreo/channels/rallyFired';
+import { attackSummonUids, rallyDamageEventIndex, rallyPulseUnits } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -37,6 +37,29 @@ import { DEFAULT_ROLL_MS, holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
+
+/** Does this card's onAttack effects include Philippe's random-enemy Rally damage (`rallyDamageRandomEnemy`)?
+ *  The card-level check `rallyDamageEventIndex` (choreo/channels/rallyFired.ts) needs as its discriminator —
+ *  a `dmg` event carries no `source`, so identifying "this is a Rally's splash, not the clash's own damage"
+ *  has to come from the ATTACKER's card, not the event. Shared by both the withhold effect (below, the
+ *  beat-boundary cue pass) and the release effect (the wind-up-pause layout effect) so they agree on which
+ *  attacker's swing this task's early-release applies to. Same pattern as `hasDR`/`rallies`'s CARD_INDEX
+ *  keyword checks elsewhere in this file. */
+const hasRallyDamageEffect = (cardId: string): boolean =>
+  !!CARD_INDEX[cardId]?.effects?.some((f) => f.on === 'onAttack' && f.do === 'rallyDamageRandomEnemy');
+
+/** True if `target` dies within `moment` — anywhere in it, not necessarily to the event that hit it. Used to
+ *  leave a rally-damage float/burst on its natural (late, at-contact) schedule rather than the T+gap
+ *  early-release path: that path only knows how to build a plain `Float`, not the shorter-lived `DeathFloat`
+ *  a unit's slot-collapsing death needs (see `spawnFloats`'s own `dying` check, which this mirrors), and a
+ *  correct-but-late killing-blow number beats a missing one. Also doubles as the guard for the rarer
+ *  coincidence where Philippe's random pick IS the defender (so the SAME uid takes both the rally splash and
+ *  the main hit in one moment) — `dying` isn't required there, but callers additionally check
+ *  `target === meleePair.defender` for that case; see the two call sites. */
+const diesInMoment = (moment: Moment, events: CombatEvent[], target: string): boolean => {
+  for (let i = moment.start; i < moment.end; i++) { const e = events[i]; if (e?.type === 'death' && e.target === target) return true; }
+  return false;
+};
 
 /** How long a combat buff's strike-time badge roll takes, in ms (before the combat-speed divide). Starts
  *  equal to the shop's roll (`DEFAULT_ROLL_MS`) so a gem and a combat buff count up at the same pace by
@@ -1313,6 +1336,25 @@ export function useCombatReplay(
     // size stays byte-identical while its timing rides the cue offset.
     const rebornRects = new Map<string, { cx: number; cy: number; w: number; h: number } | null>();
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
+    const impactAttacker = attackerOfImpact(beats, beatIdx - 1);
+    const impactMelee = meleePairOfImpact(beats, beatIdx - 1);
+    // Task 7 (rally DAMAGE, Philippe): this "damage" moment is where a Rally's on-attack splash (dmg has no
+    // `source`, so it can't be seen from the pulse's own `attackExchange` moment — see the wind-up-pause
+    // effect below, which reaches FORWARD into this same moment to release it early instead) naturally lands,
+    // AFTER contact (this moment only becomes current once the lunge's `advance()` fires there) — measured
+    // ~724ms after the pulse in a live probe, well past `RALLY_EFFECT_GAP_MS`. Withhold its float + damage-fx
+    // burst here so the wind-up-pause effect can release both at `T + RALLY_EFFECT_GAP_MS` instead. Skipped
+    // (left on natural/late timing) for a killing blow (no delayed-DeathFloat path exists) or the rarer
+    // coincidence where the random pick IS the defender (that uid's damage-fx is already excluded by
+    // `meleePair` below, and a stacked pair of floats on one card is an edge case this task doesn't need to
+    // solve) — see `diesInMoment`'s doc.
+    const rallyDmgIdx = impactAttacker ? rallyDamageEventIndex(beat, events, hasRallyDamageEffect(cardIds.get(impactAttacker) ?? '')) : undefined;
+    const rallyDmgEvent = rallyDmgIdx !== undefined ? events[rallyDmgIdx] : undefined;
+    const rallyDmgTarget = rallyDmgEvent?.type === 'dmg' ? rallyDmgEvent.target : undefined;
+    const rallyDmgSkip = rallyDmgTarget !== undefined
+      && (diesInMoment(beat, events, rallyDmgTarget) || rallyDmgTarget === impactMelee?.defender);
+    const withheldFloatId = rallyDmgTarget !== undefined && !rallyDmgSkip ? rallyDmgIdx : undefined;
+    const withheldDamageFxUid = withheldFloatId !== undefined ? rallyDmgTarget : undefined;
     const stop = runMomentCues(beat, {
       events,
       cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
@@ -1321,11 +1363,14 @@ export function useCombatReplay(
       // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at
       // spawn — see spawnFloats' "the position snapshot" note.
       slotRectOf: rectOf,
-      attackerUid: attackerOfImpact(beats, beatIdx - 1),
-      meleePair: meleePairOfImpact(beats, beatIdx - 1),
+      attackerUid: impactAttacker,
+      meleePair: impactMelee,
       onFloats: (spawned) => {
-        setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
-        const ids = new Set(spawned.map((s) => s.id));
+        // Withhold the rally-damage float (see `withheldFloatId` above) — the wind-up-pause effect releases
+        // it at T+gap instead.
+        const visible = withheldFloatId === undefined ? spawned : spawned.filter((s) => s.id !== withheldFloatId);
+        setFloats((arr) => [...arr, ...visible.filter((s) => !arr.some((x) => x.id === s.id))]);
+        const ids = new Set(visible.map((s) => s.id));
         timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },
       onDeathFloats: (deaths) => {
@@ -1376,6 +1421,9 @@ export function useCombatReplay(
       // in score.ts): their hit FX rides the attack's own impact channel, fired once at contact on the defender.
       onDamageFx: (uids) => {
         for (const uid of uids) {
+          // Withheld rally-damage burst (see `withheldDamageFxUid` above) — released early, at T+gap, by the
+          // wind-up-pause effect instead.
+          if (uid === withheldDamageFxUid) continue;
           const el = findEl(uid);
           if (!el) continue;
           // SLOT, not the mid-flight rect — this cue also rides `death` moments, where a dying ATTACKER is
@@ -1486,6 +1534,10 @@ export function useCombatReplay(
     // beat like the summon-reveal timer below; if a beat advance or seek loses it before it fires, the
     // combat-lifetime roll registry + stat-hold TTL are the fail-open backstop against a stranded badge.
     let windupBuffTimer: number | undefined;
+    // Task 7 (rally DAMAGE, Philippe): the LAUNCH timer for a rally-damage float + burst withheld from the
+    // NEXT moment's natural (late, at-contact) firing — see `onRallyPulse` below and the withhold effect
+    // that mirrors this one's skip conditions. Same cleanup shape as `windupBuffTimer`.
+    let windupDamageFxTimer: number | undefined;
 
     // A RISE ATTACKER dying to retaliation returns HOME first: the engine's `runRiseReturn` kills the slow
     // elastic settle and pulls the unit straight back to its slot (a short hold so the contact reads, then a
@@ -1574,9 +1626,28 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
+        // Task 7 (rally DAMAGE, Philippe): a rally-damage effect's `dmg` event carries no `source`, so it
+        // can't be seen from `beatRallyPulses` (which reads `source`) — AND it isn't even in `cur` (dmg is a
+        // RESULT type, never absorbed into the wind-up moment; see `rallyDamageEventIndex`'s doc). Reach
+        // FORWARD into `beats[beatIdx]`, the moment about to become current, before it does — the same
+        // "peek at the next beat" move the SC-cast projectile code below already makes. `withheldFloatId`'s
+        // skip conditions (killing blow / random-pick-hits-the-defender coincidence) are mirrored exactly
+        // here via `diesInMoment` + comparing against `cur.primary.defender`, computed from the SAME `beats`
+        // array index both effects end up looking at — see the withhold effect's own comment for why that
+        // guarantees agreement.
+        const nextMoment = beats[beatIdx];
+        const rallyDmgIdx = nextMoment ? rallyDamageEventIndex(nextMoment, events, hasRallyDamageEffect(cardIds.get(atkUid) ?? '')) : undefined;
+        const rallyDmgEvt = rallyDmgIdx !== undefined ? events[rallyDmgIdx] : undefined;
+        const rallyDmgTarget = rallyDmgEvt?.type === 'dmg' ? rallyDmgEvt.target : undefined;
+        const rallyDmgAmount = rallyDmgEvt?.type === 'dmg' ? rallyDmgEvt.amount : undefined;
+        const rallyDmgSkip = !!nextMoment && rallyDmgTarget !== undefined
+          && (diesInMoment(nextMoment, events, rallyDmgTarget) || rallyDmgTarget === cur.primary.defender);
+        const releaseRallyDmg = rallyDmgIdx !== undefined && rallyDmgTarget !== undefined && rallyDmgAmount !== undefined && !rallyDmgSkip
+          ? { id: rallyDmgIdx, uid: rallyDmgTarget, amount: rallyDmgAmount }
+          : undefined;
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
-          onRallyPulse: (rallies || beatRallyPulses.length) ? () => {
+          onRallyPulse: (rallies || beatRallyPulses.length || releaseRallyDmg) ? () => {
             sfx.triggerPulse(); // once per pause regardless of how many units pulse (mirrors the beat-boundary cue)
             if (rallies) {
               // self-rally, attacker carries RL → the existing YELLOW token pulse. Fires unconditionally on the
@@ -1604,6 +1675,26 @@ export function useCombatReplay(
                 setFramePulse((prev) => new Map(prev).set(p.uid, n));
                 window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(p.uid) === n) m.delete(p.uid); return m; }), 1150);
               }
+            }
+            // Task 7 (rally DAMAGE, Philippe): the withhold effect (the beat-boundary `runMomentCues` pass)
+            // dropped this float + damage-fx burst from the NEXT moment's natural firing — release both
+            // here instead, delayed by the shared gap so they land at `T + RALLY_EFFECT_GAP_MS` (same
+            // delayed-launch + cleanup shape as `onWindupBuffs` below).
+            if (releaseRallyDmg) {
+              const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+              windupDamageFxTimer = window.setTimeout(() => {
+                windupDamageFxTimer = undefined;
+                const { id, uid, amount } = releaseRallyDmg;
+                const el = findEl(uid);
+                if (!el) return; // element unresolved (off-screen/gone) — graceful no-op, matches this file's other FX skip patterns
+                const { cx, cy, w, h } = layoutRectOf(el);
+                setFloats((arr) => (arr.some((x) => x.id === id) ? arr : [...arr, { id, uid, text: `${amount}`, kind: 'dmg', x: cx, y: cy, w, h }]));
+                window.setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), getChoreoConfig().floatMs / speed);
+                // The crimson hit burst + impact ring — the same pair `onDamageFx` plays for any non-melee
+                // hit (see that cue, above), just fired here instead of at the withheld moment's natural time.
+                playDef('damage-burst', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { uids: { source: uid, target: uid } });
+                pixiFx.impactPulse(cx, cy);
+              }, RALLY_EFFECT_GAP_MS / speed);
             }
           } : undefined,
           // Task 6 (rally CASTS, not just buffs) confirmed this same delayed launch already IS a rally cast's
@@ -1684,15 +1775,22 @@ export function useCombatReplay(
       }
     }
     setProjectiles(ps);
-    // Cleanup only clears the WIND-UP LAUNCH timer added in Task 5 (`windupBuffTimer`, above) — the actual
-    // buff strike timer + roll it hands off to are still NOT tracked here (Task 6): `fireBuffCasts`/
-    // `fireSelfBuffs` schedule those in the combat-lifetime roll registry (see `scheduleRoll`/
-    // `cancelPendingRolls` near `resetTo`), which this per-beat cleanup deliberately still never reaches
-    // into — clearing THAT out from under an in-flight roll is the exact bug Task 6 fixed. `windupBuffTimer`
-    // is safe to clear per-beat because it only fires the LAUNCH, well before contact could advance the
-    // beat; if it's ever lost to a fast skip/seek, the roll registry + hold TTL fail open.
+    // Cleanup only clears the WIND-UP LAUNCH timers added in Task 5 (`windupBuffTimer`) and Task 7
+    // (`windupDamageFxTimer`), above — the actual buff strike timer + roll it hands off to are still NOT
+    // tracked here (Task 6): `fireBuffCasts`/`fireSelfBuffs` schedule those in the combat-lifetime roll
+    // registry (see `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this per-beat cleanup
+    // deliberately still never reaches into — clearing THAT out from under an in-flight roll is the exact bug
+    // Task 6 fixed. Both launch timers are safe to clear per-beat because they only fire the LAUNCH, well
+    // before contact could normally advance the beat (`windupDamageFxTimer` fires at `T+300ms`; the earliest
+    // this effect's own cleanup could run first is a fast skip/seek that jumps `beatIdx` past this attack
+    // without going through its GSAP contact — in which case the damage moment this timer would have
+    // released into is ALSO skipped outright, same as every other per-beat cue in this file, so nothing is
+    // stranded: there is no natural-timing fallback left running to race against).
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
-    return () => { if (windupBuffTimer !== undefined) window.clearTimeout(windupBuffTimer); };
+    return () => {
+      if (windupBuffTimer !== undefined) window.clearTimeout(windupBuffTimer);
+      if (windupDamageFxTimer !== undefined) window.clearTimeout(windupDamageFxTimer);
+    };
   }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {

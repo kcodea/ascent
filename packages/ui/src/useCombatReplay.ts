@@ -91,7 +91,7 @@ const COMBAT_HOLD_TTL_MS = 2000;
  * shrinks with a faster replay. Kept short so the reveal stays well inside the attack beat (always longer than
  * this) — which is what lets the Imp mount while its `summoned` anim is still live and play `summonpop`.
  */
-const IMP_SUMMON_LEAD_MS = 100;
+const IMP_SUMMON_LEAD_MS = 300;
 
 /** A live combat unit, folded from the initial snapshot + the event log up to a beat. */
 export interface UnitFrame {

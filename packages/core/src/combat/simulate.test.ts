@@ -1648,7 +1648,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(4); // 2 neighbours x golden 2
   });
 
-  it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons (+1/+2), with an sc narration", () => {
+  it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons, with an sc narration", () => {
     const r = run(
       [
         { cardId: 'ryme', attack: 5, health: 1 },
@@ -1660,7 +1660,7 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // Karwind procced (+2/+2)
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true); // Karwind procced (+3/+3)
   });
 
 
@@ -1679,12 +1679,14 @@ describe('simulate (handoff A.3)', () => {
     );
     // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
-    // Karwind procs once per trigger. Since the 2026-07-25 rework the two grants differ, and this board shows
-    // all three cases at once: Karwind itself takes the BASE +2/+2 (it is never its own neighbour); the Hoard
-    // Cleric is an ADJACENT Dragon so it takes +4/+4 instead; Drakko sits on the other side but is NEUTRAL, so
-    // the adjacency clause passes it over entirely.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length).toBe(8);
+    // Karwind procs once per trigger. Since the 2026-08-07 rework the adjacency clause is GONE: every Dragon
+    // takes the same flat +3/+3, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
+    // (Drakko is NEUTRAL and is passed over, as before). A trigger whose 20% roll comes up pays TWICE, so the
+    // grant count is 8 + (one extra per crit) — pin it against the `proccrit` events the roll announces.
+    const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
+    const dragons = 2; // Karwind + the Cleric
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length)
+      .toBe((8 + crits) * dragons);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the IMP enchant back to the run", () => {
@@ -2850,8 +2852,8 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // Karwind answers a triggered Battlecry with +2/+2 to your Dragons.
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    // Karwind answers a triggered Battlecry with +3/+3 to your Dragons.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
   });
 
   it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {

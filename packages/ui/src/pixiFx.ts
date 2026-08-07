@@ -774,8 +774,8 @@ class FxController {
   /** A pre-rendered "CRIT!" text texture (canvas → Texture), cached by size|fill|edge so a run with the baked
    *  defaults builds it once; the DEV tuner rebuilds on a colour/size change. Bold with a thick dark outline so
    *  it punches over the bright cream board. */
-  private makeCritText(size: number, fill: string, edge: string): Texture {
-    const key = `${size}|${fill}|${edge}`;
+  private makeCritText(size: number, fill: string, edge: string, label = 'CRIT!'): Texture {
+    const key = `${label}|${size}|${fill}|${edge}`;
     const cached = this.critTextCache.get(key);
     if (cached) return cached;
     const pad = Math.ceil(size * 0.5);
@@ -783,7 +783,7 @@ class FxController {
     const g = c.getContext('2d')!;
     const font = `900 ${size}px "Arial Black", system-ui, sans-serif`;
     g.font = font;
-    const w = Math.ceil(g.measureText('CRIT!').width);
+    const w = Math.ceil(g.measureText(label).width);
     c.width = w + pad * 2;
     c.height = Math.ceil(size * 1.6) + pad * 2;
     g.font = font;
@@ -792,12 +792,32 @@ class FxController {
     g.lineJoin = 'round';
     g.lineWidth = Math.max(3, size * 0.13);
     g.strokeStyle = edge;
-    g.strokeText('CRIT!', c.width / 2, c.height / 2);
+    g.strokeText(label, c.width / 2, c.height / 2);
     g.fillStyle = fill;
-    g.fillText('CRIT!', c.width / 2, c.height / 2);
+    g.fillText(label, c.width / 2, c.height / 2);
     const tex = Texture.from(c);
     this.critTextCache.set(key, tex);
     return tex;
+  }
+
+  /**
+   * PROC CRIT — the text-only cousin of `critImpact`, for a chance-to-repeat effect that fires without an
+   * attack (Karwind's 20% double trigger). Same crit lettering and palette so the two read as one language,
+   * deliberately SMALLER (owner 2026-08-07) because it annotates a buff rather than punctuating a hit. It
+   * floats up off the card and dissipates. One pooled sprite on a cached texture — no per-frame list, no
+   * paint-property animation; `spawn` already owns the rise-and-fade.
+   */
+  procCritText(x: number, y: number, label: string): void {
+    if (!this.ready || !this.layer) return;
+    const c = getCritFxConfig();
+    const size = Math.round(c.textSize * 0.62); // "slightly smaller" than the strike's CRIT!
+    const tex = this.makeCritText(size, c.colorText, c.colorTextEdge, label);
+    this.spawn(tex, {
+      x, y, vx: 0, vy: -0.055, drag: 1, life: 900,
+      // The texture is already coloured; `add` blending would wash it out over the cream board, and a tint
+      // would multiply it — so draw it normally at full white.
+      fromScale: 1.18, toScale: 1, spin: 0, tint: 0xffffff, blend: 'normal',
+    });
   }
 
   /**

@@ -805,6 +805,7 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
+    crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,

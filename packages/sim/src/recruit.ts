@@ -2130,8 +2130,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 1);
     const h = num(params.health, 1);
     const flash = (ctx.state.karwindFlash ??= []);
+    // `doubleChance` (Karwind 2026-08-07): a percent roll that repeats the WHOLE grant. Drawn off the run
+    // cursor so a reloaded or replayed run resolves the same crits. The uid is published for the UI's floating
+    // "2x"; a non-crit CLEARS it, so the marker can never re-fire on a later, ordinary trigger.
+    const chance = num(params.doubleChance, 0);
+    let crit = false;
+    if (chance > 0) {
+      const rng = makeRng(ctx.state.rngCursor);
+      crit = rng.int(100) < chance;
+      ctx.state.rngCursor = rng.state();
+    }
+    ctx.state.karwindCritUid = crit ? self.uid : undefined;
     // Golden "+2/+2 twice" = the buff applied twice at base magnitude (not one doubled grant), so both pulses land.
-    for (let i = 0; i < gold(self); i++) {
+    for (let i = 0; i < gold(self) * (crit ? 2 : 1); i++) {
       for (const c of ctx.state.board) {
         if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
         addBuff(c, nameOf(self), a, h);

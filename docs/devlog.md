@@ -24,6 +24,29 @@ an untagged copy genuinely owns, still carries through.
 **Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0808c.test.ts` — each
 assertion checked against the pre-fix code and confirmed to fail there. Typecheck, lint (0 errors) and
 `build:web` all clean.
+## 2026-08-08 — Guiding Candle actually serves T6s, Undertow capped at 4, Chimerus reads max Health
+
+**1. Rune of the Guiding Candle did nothing at any tier below 6.** Its narrowed draw pool came from
+`availableOffers`, which filters `card.tier <= state.tier` — so below tier 6 the "tier 6 only" set was EMPTY
+and the code fell through to its unrestricted fallback, serving a perfectly normal shop. It now draws straight
+from the run's pinned pool for that tier, ignoring the tavern-tier ceiling (owner ruling: "full shops of T6s
+regardless of player tier") while still honouring tribe scoping and stock. The 2-refresh allowance is
+unchanged; a measured tier-2 shop went from `1,2,2,2` to all 6s.
+
+**2. Rune of the Undertow is capped at 4 Wards a combat** (owner). It was unbounded, so a token engine warded
+its entire cascade — a 5-body Alleycat board measured 10 Wards before the cap. Per side, per fight, counting
+only bodies that actually take a Ward. The flag carries the budget now (`amount: 4`); a run saved before the
+cap stored a bare `true`, which the combat half reads as the default 4, so old saves keep working.
+
+**3. Chimerus grants its MAX Health, not its damaged current Health** (owner ruling): buffed to 1500 and then
+hit for 1000, its next Rally still hands over 1500. Under the old `self.health` read the grant shrank with
+every chip — the regression test measured a grant of **1** where it should have been 40.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0809.test.ts`. Each of the
+three tests was checked against the PRE-fix code and confirmed to fail there (offered `1,2,2,2` / 10 Wards /
+a grant of 1) — they pass for the right reason, not by accident. Typecheck, lint (0 errors) and `build:web`
+all clean. A stale comment on the Undertow's mods line ("Echo summons attack immediately" — it never granted
+charge) is corrected.
 
 ## 2026-08-08 — Gemgorge's counter (and its per-instance meter), the loss-damage breakdown, Scavvers archived
 

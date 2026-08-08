@@ -1636,7 +1636,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  round, so with ≥4 Dragons it can spread to more of them; with exactly 2 they get it twice). */
   rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    const amt = self.health;
+    // MAX Health, not the damaged current value (owner ruling 2026-08-08): a Chimerus buffed to 1500 and then
+    // hit for 1000 still hands over 1500, not 500. Its Rally is "give this minion's Health", meaning the
+    // Health it HAS as a body — chip damage shouldn't quietly halve the payout mid-fight.
+    const amt = self.maxHealth;
     if (amt <= 0) return;
     for (let round = 0; round < mul(self); round++) {
       const pickable = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'dragon' || m.tribe2 === 'dragon' || ctx.getCard(m.cardId)?.universalTribe));

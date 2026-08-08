@@ -44,6 +44,17 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Card-keyed runes complete** — all 12 shipped (6 more: Moonhowl, Flooded Vault, Shared Reflection, Unbroken Vein, Battle Refraction, Living Growth), plus Matriarch's retexture, per-instance Moonhowl Mentors, and Indy's Gild recharge at 75 Gold.
+
+- **Four owner fixes** — the Recaller/Second Draft pickup loop is closed, Mend now sets Armor to 5, Voicekeeper counts from its own placement, and gilding a minion in place no longer retroactively doubles its accrued buff (a +100/+100 Sovereign stays +100/+100 and grows golden from there).
+
+- **Ashen Heir fixed** — it paid only on a newly summoned Imp, so the ordinary case (Imps alive, one dies) did nothing; a dying Imp now hands its stats to a living Imp, banking only when none is left.
+
+- **Batch 4 complete — the five hard Epics** (Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir), closing out a batch of 17 Basic runes, 8 Epics and 3 T6 minions.
+
+- **Batch 4, tranche 3 — eight more Basic runes** (Emberline, Ashen Payroll, Backbeat, Spare Chair, Spellhide, Spellmarket, Last Word, Runic Hoard); Backbeat had been hooked into the forced-Echo path, which an ordinary Deathrattle never passes through.
+
+- **Batch 4, tranche 2 — three T6 bodies** (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the Epic runes that grant them; the Colossus needed two loop guards, since a resurrected Beast that dies is fuel for the next resurrection.
 - **Batch 4, tranche 3 — eight more Basic runes** (Emberline, Ashen Payroll, Backbeat, Spare Chair, Spellhide, Spellmarket, Last Word, Runic Hoard); Backbeat had been hooked into the forced-Echo path, which an ordinary Deathrattle never passes through.
 
 - **Batch 4, tranche 2 — three T6 bodies** (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the Epic runes that grant them; the Colossus needed two loop guards, since a resurrected Beast that dies is fuel for the next resurrection.

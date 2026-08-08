@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -996,7 +996,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           // hand, no cast, no partial state. The aim UI mirrors this, but the reducer is what actually decides
           // (owner report 2026-08-03: Cupcakes was landing on non-Demons — this guard simply didn't exist on
           // the SPELL path; only the minion-Battlecry paths checked `targetTribe`).
-          if (boardTarget && def.targetTribe && !isTribe(boardTarget, def.targetTribe)) return state;
+          const aimTribe = effectiveTargetTribe(s, def); // Rune of Open Appetite can lift this restriction
+          if (boardTarget && aimTribe && !isTribe(boardTarget, aimTribe)) return state;
           // Resonance only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
           if (boardTarget && def.effects.some((e) => e.do === 'spellReplayBattlecry') &&
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
@@ -1192,8 +1193,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
-        s.chooseOne = { uid: card.uid, cardId: card.cardId };
-        return s;
+        // RUNE OF THE UNBROKEN VEIN: a Veinbreaker applies BOTH options and never prompts. The body is
+        // already on the board here, so both halves resolve through the same `applyChooseOne` path a picked
+        // option uses — each keeps its own golden scaling and buff-FX attribution, in printed order.
+        if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') {
+          for (const opt of CARD_INDEX[card.cardId]!.chooseOne!) applyChooseOne(s, card, opt.effects);
+        } else {
+          s.chooseOne = { uid: card.uid, cardId: card.cardId };
+          return s;
+        }
       }
       // Targeted Battlecry (Toxin Tender → a friendly Undead): pause for the player to pick the target
       // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
@@ -1271,8 +1279,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // option) takes precedence over the card-level `target` (Runic Beetle, whose options both target).
       const optTarget = option.target ?? def.target;
       if (optTarget === 'friendly') {
-        const hasTarget = def.targetTribe
-          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
+        const openTribe = effectiveTargetTribe(s, def);
+        const hasTarget = openTribe
+          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, openTribe))
           : s.board.some((c) => c.uid !== card.uid);
         if (hasTarget) {
           s.chooseOne = undefined;
@@ -1640,7 +1649,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card || card.golden) return state;
         gildMinion(card);
         // Indy: arm the recharge — the charge comes back after 40 more Gold is spent (see `spendGold`).
-        s.indyGildRearmAt = (s.goldSpent ?? 0) + 40;
+        s.indyGildRearmAt = (s.goldSpent ?? 0) + 75; // owner rebalance 2026-08-07: was 40
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -1818,7 +1827,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         const def = src ? CARD_INDEX[src.cardId] : undefined;
         // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
         // otherwise any friend works. No eligible target → the play resolves with no effect.
-        const pool = def?.targetTribe ? s.board.filter((c) => c !== src && isTribe(c, def.targetTribe!)) : s.board;
+        const autoTribe = effectiveTargetTribe(s, def);
+        const pool = autoTribe ? s.board.filter((c) => c !== src && isTribe(c, autoTribe)) : s.board;
         const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
         if (src && carry) {
           // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
@@ -1986,6 +1996,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         lastSpellCastId: s.lastSpellCastId,
         rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
         spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
+        growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2691,6 +2702,19 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // RUNE OF ASHEN PAYROLL: 3 Imps summoned in a fight pays 4 Gold into next turn's opening, ONCE per combat
   // however far past the threshold the fight went ("Once per combat" is printed on the rune). Settled here off
   // the carried Imp tally rather than inside the sim, the same shape Rune of Slaying uses just below.
+  // RUNE OF LIVING GROWTH, the combat half (owner ruling 2026-08-07: combat counts too). Every Growth a
+  // MUSHY created during the fight ticks the improver at settle — read off the `toHand` events, whose
+  // `source` is the granting body's uid, resolved against the starting board plus mid-fight summons so a
+  // resummoned Mushy counts. Its shop grants tick live in the grant factories; this is the missing half.
+  if (s.runeLivingGrowth) {
+    const bodies = new Map<string, string>();
+    for (const m of result.initial.player) bodies.set(m.uid, m.cardId);
+    for (const e of result.events) if (e.type === 'summon' && e.side === 'player') bodies.set(e.minion.uid, e.minion.cardId);
+    const grown = result.events.filter((e) =>
+      e.type === 'toHand' && e.side === 'player' && e.cardId === 'growth'
+      && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
+    if (grown > 0) s.growthBonus = (s.growthBonus ?? 0) + grown;
+  }
   if (s.questFlags?.runeAshenPayroll && (result.playerImpsSummoned ?? 0) >= s.questFlags.runeAshenPayroll) {
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 4;
   }
@@ -2813,6 +2837,8 @@ function advanceCombat(s: RunState): void {
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
+    if (c.soldSeen) c.soldSeen = 0; // Voicekeeper: "each turn" — its per-instance sold counter resets
+    if (c.teachTick) c.teachTick = 0; // Moonhowl Mentor: its per-instance teach latch re-arms
     if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
   }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
@@ -2847,6 +2873,7 @@ function advanceCombat(s: RunState): void {
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.spellmarketUsedThisTurn = false; // Rune of the Spellmarket feeds the Shop once per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  s.banquetUsedThisTurn = false;     // Rune of the Banquet Hall feeds the board off one buy per turn
   s.spellhidePending = [];           // …and the recorded re-casts are spent by the combat that just began
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
   s.contrabandAleUsed = undefined;
@@ -3727,6 +3754,24 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSpellmarket': s.runeSpellmarket = true; break;
     case 'runeLastWord': s.runeLastWord = true; break;
     case 'runeRunicHoard': s.runeRunicHoard = true; break;
+    case 'runeBanquetHall': s.runeBanquetHall = true; break;
+    case 'runeCrucibleChoir': s.runeCrucibleChoir = true; break;
+    case 'runeFullMeasure': s.runeFullMeasure = true; break;
+    case 'runeMountainTrade': s.runeMountainTrade = true; break;
+    case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
+    case 'runeBroodmaster': s.runeBroodmaster = true; break;
+    case 'runeSharedReflection': s.runeSharedReflection = true; break;
+    case 'runeUnbrokenVein': s.runeUnbrokenVein = true; break;
+    case 'runeLivingGrowth': s.runeLivingGrowth = true; break;
+    case 'runeSecondLife': {
+      // Taunt + Rise on every Scavver, the ones already on the board included — a rune that only reached
+      // FUTURE copies would read as doing nothing to the board you bought it for. New arrivals are covered by
+      // `applySecondLife` on the buy/play paths.
+      s.runeSecondLife = true;
+      for (const c of s.board) applySecondLife(s, c);
+      for (const c of s.hand) applySecondLife(s, c);
+      break;
+    }
     case 'runeHoardcalling': s.runeHoardcalling = true; break;
     case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
@@ -4061,8 +4106,15 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeAshenPayroll: f?.runeAshenPayroll,   // Rune of Ashen Payroll: read at SETTLE off the Imp tally
     runeBackbeat: f?.runeBackbeat,           // Rune of Backbeat: first Echo also fires the left-most Rally
     runeSpareChair: f?.runeSpareChair,       // Rune of the Spare Chair: the 7th seat arrives Warded + swinging
+    runeAncestralRoar: f?.runeAncestralRoar, // Rune of Ancestral Roar: a dying Dragon fires its own Shout
+    runeRubyShrapnel: f?.runeRubyShrapnel,   // Rune of Ruby Shrapnel: a dying Ruby body splits its stats
+    runeSharedScripture: f?.runeSharedScripture, // Rune of Shared Scripture: first combat cast → Shout + Rally
+    runeMoonhowl: f?.runeMoonhowl,           // Rune of Moonhowl: a dying Mage-Pup casts its taught spell
+    runeFloodedVault: f?.runeFloodedVault,   // Rune of the Flooded Vault: the Avenge also casts the left-most hand spell
+    runeBattleRefraction: f?.runeBattleRefraction, // Rune of Battle Refraction: Prismcasters repeat combat Rubies
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
+    runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
     runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat
     runeTemperedTime: f?.runeTemperedTime,   // Rune of Tempered Time: SoC — +Health equal to half Attack

@@ -711,7 +711,9 @@ export function archivistText(cardId: string, golden: boolean, remembered: reado
  *  (the bank is per-fight), and null at zero so the shop shows the printed rule. */
 export function ashenHeirText(cardId: string, bank: { attack: number; health: number } | undefined): string | null {
   if (cardId !== 'ashen_heir' || !bank || (bank.attack <= 0 && bank.health <= 0)) return null;
-  return `Whenever an **Imp** dies, your next Imp gains its stats. Banked: **+${bank.attack}/+${bank.health}**.`;
+  // A non-empty bank only exists when the Imps have been wiped out — so the live line says what the NEXT Imp
+  // to arrive would inherit, which is the only thing the bank can still do.
+  return `Whenever an **Imp** dies, another friendly Imp gains its stats. Waiting for the next Imp: **+${bank.attack}/+${bank.health}**.`;
 }
 
 /**

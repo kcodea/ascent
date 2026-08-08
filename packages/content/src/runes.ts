@@ -753,6 +753,54 @@ export const RUNES: RuneDef[] = [
     text: 'After you add a copy of a **Shop spell** to your hand, give your **Dragons +1/+1**.',
     reward: { kind: 'runeRunicHoard' },
   },
+
+  // ── the 2026-08-07 owner card-keyed batch (all Set 2 — each names a Set-2 card) ──
+  {
+    id: 'rune_full_measure',
+    name: 'Rune of Full Measure',
+    cost: 4,
+    text: '**Baby Gastrid** also grants **Attack** equal to the Health it grants.',
+    previewCards: ['dw_dorrin'],
+    reward: { kind: 'runeFullMeasure' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_mountain_trade',
+    name: 'Rune of Mountain Trade',
+    cost: 5,
+    text: 'Whenever **Mountainbond** plays Rubies, get a random **Dwarven Ale**.',
+    previewCards: ['dw_mountainbond'],
+    reward: { kind: 'runeMountainTrade' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_open_appetite',
+    name: 'Rune of Open Appetite',
+    cost: 5,
+    text: 'Your **Appetite Agents** can target a minion of **any type**.',
+    previewCards: ['dm_agent'],
+    reward: { kind: 'runeOpenAppetite' },
+    sets: ['set2'],
+  },
+
+  {
+    id: 'rune_flooded_vault',
+    name: 'Rune of the Flooded Vault',
+    cost: 5,
+    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
+    previewCards: ['d2_curator'],
+    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_unbroken_vein',
+    name: 'Rune of the Unbroken Vein',
+    cost: 5,
+    text: 'Your **Veinbreakers** gain **both** Choose One effects.',
+    previewCards: ['k_veinbreaker'],
+    reward: { kind: 'runeUnbrokenVein' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -855,7 +903,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Matriarch',
     cost: 5,
     epic: true,
-    text: 'Your **Runebloom Matriarchs** trigger **twice**.',
+    text: 'Your **Runebloom Matriarchs** trigger spells in combat an **additional time**.',
     previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
     reward: { kind: 'runeMatriarch' },
     sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
@@ -1623,15 +1671,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['ashen_heir'] },
   },
   {
-    id: 'rune_wild_memory',
-    name: 'Rune of Wild Memory',
-    cost: 5,
-    text: 'Get a **Runesnout Archivist**.',
-    previewCards: ['runesnout_archivist'],
-    epic: true,
-    reward: { kind: 'grant', cards: ['runesnout_archivist'] },
-  },
-  {
     id: 'rune_ancient_den',
     name: 'Rune of the Ancient Den',
     cost: 6,
@@ -1639,6 +1678,112 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['mossmemory_colossus'],
     epic: true,
     reward: { kind: 'grant', cards: ['mossmemory_colossus'] },
+  },
+
+  // ── batch 4, tranche 4 (2026-08-07): the five hard Epics ──
+  {
+    id: 'rune_ancestral_roar',
+    name: 'Rune of Ancestral Roar',
+    cost: 5,
+    text: 'Your **Dragons** with **Shout** gain "**Echo:** trigger this minion’s Shout."',
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeAncestralRoar' },
+  },
+  {
+    id: 'rune_ruby_shrapnel',
+    name: 'Rune of Ruby Shrapnel',
+    cost: 5,
+    text: 'When a **Ruby**-buffed minion dies, split its Ruby bonus stats among your surviving minions.',
+    previewCards: ['ruby'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_shared_scripture',
+    name: 'Rune of Shared Scripture',
+    cost: 6,
+    text: 'The first **Shop spell** cast by your warband in combat triggers your left-most **Shout** and **Rally**.',
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeSharedScripture' },
+  },
+  {
+    id: 'rune_banquet_hall',
+    name: 'Rune of the Banquet Hall',
+    cost: 5,
+    text: 'The first **Shop-buffed** minion you buy each turn splits its bonus stats among one friendly minion of **each type**.',
+    epic: true,
+    reward: { kind: 'runeBanquetHall' },
+  },
+  {
+    id: 'rune_crucible_choir',
+    name: 'Rune of the Crucible Choir',
+    cost: 6,
+    text: '**End of Turn:** trigger your left-most **Shout**, then your left-most **Echo**.',
+    epic: true,
+    reward: { kind: 'runeCrucibleChoir' },
+  },
+
+  {
+    id: 'rune_broodmaster',
+    name: 'Rune of the Broodmaster',
+    cost: 5,
+    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
+    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
+    epic: true,
+    reward: { kind: 'runeBroodmaster' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_second_life',
+    name: 'Rune of the Second Life',
+    cost: 4,
+    text: 'Your **Scavvers** have **Taunt** and **Rise**.',
+    previewCards: ['b2_scavenger'],
+    epic: true,
+    reward: { kind: 'runeSecondLife' },
+    sets: ['set2'],
+  },
+
+  {
+    id: 'rune_moonhowl',
+    name: 'Rune of Moonhowl',
+    cost: 5,
+    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
+    previewCards: ['b2_magepup'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_shared_reflection',
+    name: 'Rune of Shared Reflection',
+    cost: 5,
+    text: 'The first **Shop spell** cast on each **Mirrorwing** every turn also casts on adjacent **Dragons**.',
+    previewCards: ['d2_mirrorwing'],
+    epic: true,
+    reward: { kind: 'runeSharedReflection' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_battle_refraction',
+    name: 'Rune of Battle Refraction',
+    cost: 6,
+    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
+    previewCards: ['k_prismcaster'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_living_growth',
+    name: 'Rune of Living Growth',
+    cost: 5,
+    text: 'Whenever **Mushy** creates a **Growth**, improve future Growths by **+1/+1**.',
+    previewCards: ['d2_scalefeather', 'growth'],
+    epic: true,
+    reward: { kind: 'runeLivingGrowth' },
+    sets: ['set2'],
   },
 ];
 
@@ -1649,6 +1794,21 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // Archived 2026-08-07 (owner), the day it shipped. The def stays here so a saved run that already holds it
+    // still resolves through `RUNE_INDEX`; it is simply no longer stocked by the Runeforge.
+    //
+    // NOTE: this was the ONLY way to obtain a Runesnout Archivist (the card is `token: true`, so it never
+    // rolls in the tavern). With the rune out of stock the Archivist is unreachable in a new run — its card,
+    // its effects and its art all remain wired and tested, ready for whatever grants it next.
+    id: 'rune_wild_memory',
+    name: 'Rune of Wild Memory',
+    cost: 5,
+    text: 'Get a **Runesnout Archivist**.',
+    previewCards: ['runesnout_archivist'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['runesnout_archivist'] },
+  },
   {
     // Archived 2026-08-07 (owner) alongside Menagerie Mammoth's rework — its subject no longer has the
     // Attack-only grant this rune symmetrised. The def and `runeMammoth` flag stay for saved runs.

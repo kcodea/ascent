@@ -468,10 +468,34 @@ export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeB
  * the +base so the inspect breakdown still itemizes it. Flips the golden flag (which doubles combat EFFECTS —
  * Deathrattles twice, ×N multipliers). No-op if already golden. Shared by Eyes of Aresmar + Indy's Gild.
  */
+/** Cards whose payout multiplies the accrued `summonBonus` by GOLDEN at read time — `(base + bonus) × 2`.
+ *  For these, gilding a body IN PLACE (Indy's hero power, Golden Touch) would retroactively double everything
+ *  it had already earned: a Sovereign sitting on +100/+100 jumped to +200/+200 (owner report 2026-08-07).
+ *  The ruling: earned value is EARNED — it stays at face value, and only future growth runs at the golden
+ *  rate. Halving the accrual at gild time delivers exactly that through the unchanged ×2 read: the accrued
+ *  payout is identical before and after, and each future +1 tick now reads as +2×step. The halved count can
+ *  go fractional (3 → 1.5), which is fine — every payout and live text multiplies it straight back to an
+ *  integer. Scoped to a card list because `summonBonus` is a SHARED field with two conventions: the
+ *  `buffOnSummon` family (Mama Bear) reads it RAW ("no golden doubling here — a golden's bonus already
+ *  encodes the combined magnitude"), and halving those would destroy real value.
+ *  TRIPLES ARE NOT THIS: `checkTriples` builds a golden FROM three bodies and deliberately encodes their
+ *  summed grants through the ×2 read — that math is untouched. */
+const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver']);
+
+/** Spells the copy-last/first effects (Recaller, Spellvault Drake) may NOT reproduce (owner ruling
+ *  2026-08-07). Second Draft is the loop: cast it ON the Recaller, replay the Recaller, receive another
+ *  Second Draft, repeat — a 3-Gold engine that replays a Shout and mints a spell-cast trigger every lap,
+ *  forever. The cast still RECORDS normally (Steward, the Archivist's journal and the live text all still see
+ *  it); only the copy grant skips it. */
+export const NO_COPY_SPELLS: ReadonlySet<string> = new Set(['seconddraft']);
+
 export function gildMinion(card: BoardCard): void {
   if (card.golden) return;
   const def = CARD_INDEX[card.cardId];
   addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
+  if (GOLD_SCALED_ACCRUAL_CARDS.has(card.cardId) && (card.summonBonus ?? 0) > 0) {
+    card.summonBonus = card.summonBonus! / 2;
+  }
   card.golden = true;
 }
 
@@ -922,23 +946,13 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
  * silently never teach. The rune now contributes to that same ceiling, so holding a Mentor AND the rune raises
  * the cap rather than the two firing independently.
  */
-export function teachMagePup(state: RunState, spellId: string): void {
+/** Push one taught Mage-Pup into the hand (no cap logic here — each SOURCE owns its own budget). */
+function pushTaughtPup(state: RunState, spellId: string): boolean {
   const spell = CARD_INDEX[spellId];
-  if (!spell?.spell) return;
-  const boardCap = state.board.reduce(
-    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
-    0,
-  );
-  // Each White Wolf copy adds one teach, like an extra Mentor (owner ruling 2026-08-06). `=== true` keeps a
-  // legacy save (which stored a boolean) worth exactly the one teach it always was.
-  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
-  const cap = boardCap + wolves;
-  const used = state.moonhowlTeachesThisTurn ?? 0;
-  if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
-  if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land
+  if (!spell?.spell) return false;
+  if (state.hand.length >= handCap(state)) return false; // no room — don't burn the teach on a card that can't land
   const def = CARD_INDEX['b2_magepup'];
-  if (!def) return;
-  state.moonhowlTeachesThisTurn = used + 1;
+  if (!def) return false;
   state.hand.push({
     uid: `t${state.uidSeq++}`,
     cardId: def.id,
@@ -949,6 +963,26 @@ export function teachMagePup(state: RunState, spellId: string): void {
     golden: false,
     taughtSpellId: spellId,
   });
+  return true;
+}
+
+/** A specific MENTOR's teach — per-instance (owner report 2026-08-07: two Mentors + two Waking Rifts paid one
+ *  Pup, because every copy shared one run-level "once per turn" counter). Each Mentor now carries its own
+ *  latch (`teachTick`, reset each turn): with two Mentors on board, the first spell bought teaches BOTH. */
+export function teachMagePupFrom(state: RunState, mentor: BoardCard, spellId: string): void {
+  const cap = mentor.golden ? 2 : 1; // a golden Mentor teaches twice a turn, as it always did
+  if ((mentor.teachTick ?? 0) >= cap) return;
+  if (pushTaughtPup(state, spellId)) mentor.teachTick = (mentor.teachTick ?? 0) + 1;
+}
+
+/** Rune of the White Wolf's own teaches — the run-level counter now serves ONLY the rune (each copy is one
+ *  teach a turn), never the Mentors, so the rune and the bodies no longer eat each other's budget. */
+export function teachMagePup(state: RunState, spellId: string): void {
+  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
+  const used = state.moonhowlTeachesThisTurn ?? 0;
+  if (used >= wolves) return;
+  if (!pushTaughtPup(state, spellId)) return;
+  state.moonhowlTeachesThisTurn = used + 1;
 }
 
 /**
@@ -1644,6 +1678,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(c, 'Ruby', a, h);
       fireOnRubyPlayed(ctx.state, c, a, h);
     }
+    // Rune of Mountain Trade: the Ruby play also hands over a random Dwarven Ale. Once per trigger (not per
+    // minion buffed) — the rune reads "whenever Mountainbond plays Rubies", which is this one event however
+    // wide the board is. Routed through `conjureToHand` so the hand cap and every copy-watcher behave normally.
+    if (ctx.state.runeMountainTrade) {
+      const ales = ALE_IDS.map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d);
+      if (ales.length > 0) conjureToHand(ctx.state, ales, 1, true);
+    }
   },
 
   /**
@@ -1715,7 +1756,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!target) return;
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
-    if (h > 0) addBuff(target, nameOf(self), 0, h);
+    // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived
+    // from `h` rather than recomputed, so the two halves can never drift apart.
+    const a = ctx.state.runeFullMeasure ? h : 0;
+    if (h > 0 || a > 0) addBuff(target, nameOf(self), a, h);
   },
 
   /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
@@ -1772,6 +1816,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Big Huggies / Scalefeather (Echo): put a named card in hand. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params) => {
+    // Rune of Living Growth: the Echo half of Mushy's grant ticks the improver too (shop-side Echo — a
+    // Consume or a sell). The COMBAT Echo's grants tick at settle instead (see the reducer), off the fight's
+    // `toHand` events — so every Growth Mushy creates counts, whichever phase it was created in.
+    if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && str(params.cardId) === 'growth') {
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self);
+    }
     ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
   },
 
@@ -1993,8 +2043,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  tally, so two Mentors teach twice — the tally lives on the run, not the instance, because the cap is
    *  "how many spells got taught this turn", not "how many times this body acted". Respects the hand cap. */
   grantMagePupTaught: (ctx, self, _params, payload) => {
-    teachMagePup(ctx.state, payload.spellId ?? '');
-    void self;
+    teachMagePupFrom(ctx.state, self, payload.spellId ?? ''); // per-instance: this Mentor's own latch
   },
 
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
@@ -3001,6 +3050,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[str(params.spellId)];
     if (!def) return;
     const count = num(params.count, 1) * gold(self);
+    // Rune of Living Growth: every Growth MUSHY creates improves the spell run-wide, one tick per Growth —
+    // a golden Mushy hands over two and ticks twice.
+    if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && def.id === 'growth') {
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + count;
+    }
     for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -3469,11 +3523,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     const soldDef = CARD_INDEX[sold.cardId];
     if (!soldDef || (tribe && soldDef.tribe !== tribe && soldDef.tribe2 !== tribe)) return;
-    const matching = (ctx.state.soldThisTurn ?? []).filter((id) => {
-      const d = CARD_INDEX[id];
-      return !!d && (!tribe || d.tribe === tribe || d.tribe2 === tribe);
-    }).length;
-    if (matching !== 1) return; // not the first of its tribe this turn
+    // PER-INSTANCE, from its own placement (owner report 2026-08-07). It used to read the run-level
+    // `soldThisTurn` tally, so a Voicekeeper played after you'd already sold a Dragon this turn was dead for
+    // the turn — the sale it then witnessed counted as "second". This hook only fires for cards ON the board
+    // (`fireOnMinionSold` walks `state.board`), so ticking its own counter is exactly "the first Dragon sold
+    // since being on board" — the Spellkeeper Drake convention, where placement is the floor.
+    const seen = (self.soldSeen = (self.soldSeen ?? 0) + 1);
+    if (seen !== 1) return; // not the first matching sale THIS body has witnessed this turn
     conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
   },
 
@@ -3759,7 +3815,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // 'last' means last THIS TURN (the printed rule) — not the run-lifetime `lastSpellCastId` (audit 2026-07-31).
     const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
-    if (!def) return;
+    if (!def || NO_COPY_SPELLS.has(def.id)) return; // Second Draft would loop the copier itself — see the set
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
   },
 
@@ -3767,7 +3823,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnCopyCastSpell: (ctx, self, params) => {
     const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
-    if (!def) return;
+    if (!def || NO_COPY_SPELLS.has(def.id)) return; // same exclusion as the Shout copier
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
   },
 
@@ -4179,6 +4235,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.resolve = Math.min(ctx.state.maxResolve, ctx.state.resolve + num(params.amount, 5));
   },
 
+  /** Mend (owner rework 2026-08-07) — SET Armor to `amount`. A floor, not a grant: at or above it, nothing
+   *  happens (no shaving Armor down), and `maxArmor` rises with it so the bar renders the new value. */
+  setArmor: (ctx, _self, params) => {
+    const amount = num(params.amount, 5);
+    if (ctx.state.armor >= amount) return;
+    ctx.state.armor = amount;
+    ctx.state.maxArmor = Math.max(ctx.state.maxArmor ?? 0, amount);
+  },
+
   /** Lasso — cast: steal a random MINION offer from the tavern into the hand (free). Picks via the
    *  seeded rng, removes it from the shop, and adds it as a BoardCard (base + any offer buff bakes in,
    *  mirroring a buy). Fizzles gracefully on an empty shop or a full hand. */
@@ -4240,6 +4305,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (attack > 0 || health > 0) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
+      // Rune of Living Growth: the Growth spell itself has grown. Keyed by spell id (carried in `_spellId`),
+      // so only Growth pays the accrual — the Front to Back shape, permanent instead of per-cast.
+      if (str(params._spellId) === 'growth') {
+        attack += ctx.state.growthBonus ?? 0;
+        health += ctx.state.growthBonus ?? 0;
+      }
     }
     const source = str(params._source) || 'Growth';
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
@@ -5136,7 +5207,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
@@ -5145,6 +5216,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.ruby) {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
     return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
+  // Rune of Living Growth: the Growth spell's printed value must track its accrual (the live-text rule) —
+  // same shape as the Ruby line above. Spell power on top is already folded in by the generic path below
+  // for spells routed through bonusA; Growth's whole magnitude lives here instead, base + accrual + power.
+  if (def.id === 'growth' && (extra?.growthBonus ?? 0) > 0) {
+    const g = 1 + (extra!.growthBonus ?? 0);
+    return def.text.replace('+1/+1', `{{+${g + bonusA}/+${g + bonusH}}}`);
   }
   // Ruby Shipment: "your most common type" resolves against the CURRENT board, so it names the type it would
   // actually hand over right now (audit 2026-07-31 — a grant whose target shifts with cards played must say
@@ -5293,7 +5371,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
     // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
-    const params = { ...(effect.params ?? {}), _source: spellDef.name, _maxTier: spellDef.targetMaxTier };
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier };
     if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }));
   }
 }
@@ -5441,6 +5519,19 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
  */
 export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef: CardDef): void {
   card.spellsOnThisTurn = (card.spellsOnThisTurn ?? 0) + 1;
+  // RUNE OF SHARED REFLECTION: the first Shop spell cast on each Mirrorwing per turn ALSO casts on its
+  // adjacent Dragons. Runefire's spread shape, keyed by the rune instead of a printed effect — and per
+  // MIRRORWING ("on each Mirrorwing"), riding the same per-instance first-spell counter the card's own
+  // recast uses. Guarded to === 1 for the same reason that counter exists: the spread re-enters `castSpell`,
+  // and the bump above is what stops a neighbouring Mirrorwing chain from recursing forever.
+  if (state.runeSharedReflection && card.cardId === 'd2_mirrorwing' && card.spellsOnThisTurn === 1) {
+    const at = state.board.indexOf(card);
+    for (const nb of [state.board[at - 1], state.board[at + 1]]) {
+      if (!nb || nb === card) continue;
+      const nd = CARD_INDEX[nb.cardId];
+      if (nd?.tribe === 'dragon' || nd?.tribe2 === 'dragon') castSpell(state, spellDef, nb);
+    }
+  }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'spellCastOnThis')) return;
   const ctx = makeContext(state);
@@ -5841,8 +5932,65 @@ export function applyShopRefreshed(state: RunState): void {
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
+/** RUNE OF THE SECOND LIFE — stamp Taunt + Rise onto a Scavver. Idempotent, so re-running it over the board
+ *  (which the reward case does on purchase) can't duplicate a pill. Keywords are stamped onto the INSTANCE
+ *  rather than the CardDef: a shared def must never be mutated, and a saved run stores the instance. */
+export function applySecondLife(state: RunState, card: BoardCard): void {
+  if (!state.runeSecondLife || card.cardId !== 'b2_scavenger') return;
+  for (const kw of ['T', 'R'] as Keyword[]) if (!card.keywords.includes(kw)) card.keywords.push(kw);
+}
+
+/** The tribe a card's Battlecry aim is restricted to, AFTER runes. Rune of Open Appetite drops the Appetite
+ *  Agent's Demon-only rule, so every enforcement point — the reducer's target check, the "is there a legal
+ *  target at all?" probe, the auto-pick pool, and the aim UI — has to ask this rather than read `targetTribe`
+ *  directly, or the rune would half-apply and refuse the pick it just allowed. */
+export function effectiveTargetTribe(state: RunState, def: CardDef | undefined): Tribe | undefined {
+  if (!def?.targetTribe) return undefined;
+  if (state.runeOpenAppetite && def.id === 'dm_agent') return undefined;
+  return def.targetTribe;
+}
+
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
+  applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
   const ctx = makeContext(state);
+  // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
+  // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into
+  // the body as named buffs) — a plain 3/4 body bought at printed stats is not "Shop-buffed" and doesn't arm
+  // it. The one-per-type walk is the Lapidary's: board order, first uncovered tribe wins, a dual-type body
+  // covers both, so the pick is a seating decision rather than RNG. The buyer itself can be a recipient — it
+  // is a friendly minion of its own type, and excluding it would make the rune worse the fewer types you hold.
+  if (state.runeBanquetHall && !state.banquetUsedThisTurn) {
+    const base = CARD_INDEX[bought.cardId];
+    const g = bought.golden ? 2 : 1;
+    const bonusA = bought.attack - (base ? base.attack * g : bought.attack);
+    const bonusH = bought.health - (base ? base.health * g : bought.health);
+    if (bonusA > 0 || bonusH > 0) {
+      state.banquetUsedThisTurn = true;
+      const covered = new Set<string>();
+      const recipients: BoardCard[] = [];
+      for (const c of [...state.board]) {
+        const def = CARD_INDEX[c.cardId];
+        const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+        if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
+        for (const t of tribes) covered.add(t);
+        recipients.push(c);
+      }
+      // DISPERSED across the recipients, not handed to each in full (owner ruling 2026-08-07, matching Rune of
+      // Ruby Shrapnel). The bonus is dealt out one point at a time, round-robin from the left, so every point
+      // lands somewhere and the total the board gains is exactly the bonus the bought body was carrying —
+      // wide type coverage spreads it thinner rather than multiplying it. Attack and Health are dealt
+      // independently, both from the left, so a +3/+3 keeps its two halves on the same minions.
+      if (recipients.length > 0) {
+        const share = recipients.map(() => ({ attack: 0, health: 0 }));
+        for (let i = 0; i < bonusA; i++) share[i % recipients.length]!.attack += 1;
+        for (let i = 0; i < bonusH; i++) share[i % recipients.length]!.health += 1;
+        for (let i = 0; i < recipients.length; i++) {
+          const sh = share[i]!;
+          if (sh.attack > 0 || sh.health > 0) addBuff(recipients[i]!, 'Rune of the Banquet Hall', sh.attack, sh.health);
+        }
+      }
+    }
+  }
   fire(ctx, 'onBuy', { minion: bought });
 }
 
@@ -6342,6 +6490,18 @@ export function applyEndOfTurn(state: RunState): void {
       addBuff(c, 'Ruby', a, h);
       fireOnRubyPlayed(state, c, a, h);
     }
+  }
+
+  // RUNE OF THE CRUCIBLE CHOIR: End of Turn, your left-most Shout fires, then your left-most Echo. Two
+  // separate left-most picks (they are rarely the same body), and both go through the same replay paths every
+  // other re-fire uses — `replayBattlecry` for the Shout (Myra's path, so a targeted Shout auto-picks the same
+  // way) and `fireRecruitDeathrattles` for the Echo (the shop-side Echo path Gravetwin uses).
+  if (state.runeCrucibleChoir) {
+    const choirCtx = makeContext(state);
+    const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (shout) replayBattlecry(state, shout);
+    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
+    if (echo) fireRecruitDeathrattles(choirCtx, echo);
   }
 
   const ctx = makeContext(state);

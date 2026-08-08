@@ -1,5 +1,177 @@
 # ASCENT — development log
 
+## 2026-08-07 — Card-keyed runes complete (12 of 12), Matriarch retexture, Mentor independence, Indy 75g
+
+**The six remaining card-keyed runes** (all Set-2 scoped; this closes the owner's twelve-rune list, with
+Final Verse dropped earlier as a duplicate of Last Word):
+
+- **Rune of Moonhowl** (Epic 5) — Mage-Pups gain "Echo: cast the Shop spell this learned." Inlined at the
+  death site rather than through `battlecryCastTaughtSpell`, which (correctly, for the Shout re-fires it
+  serves) refuses a dead caster — and an Echo's caster is by definition dead.
+- **Rune of the Flooded Vault** (Basic 5) — Water Dragon's Avenge also CASTS the left-most hand spell.
+  Combat never touches the hand, so "without consuming it" is the natural behaviour; the free cast is the work.
+- **Rune of Shared Reflection** (Epic 5) — the first Shop spell cast on each Mirrorwing per turn also casts on
+  its adjacent Dragons. Runefire's spread shape, keyed by the rune, per Mirrorwing.
+- **Rune of the Unbroken Vein** (Basic 5) — a Veinbreaker applies BOTH Choose One options, no prompt, through
+  the same `applyChooseOne` path a picked option uses.
+- **Rune of Battle Refraction** (Epic 6) — living Prismcasters repeat combat Rubies. Folded into `per` at the
+  single `playRubyOn` chokepoint, so every combat Ruby source refracts identically and there is no recursion.
+- **Rune of Living Growth** (Epic 5) — each Growth Mushy creates improves Growth permanently, run-wide.
+  Front to Back's shape: a run-level `growthBonus`, a `CombatSideState` channel (snapshot-captured, so a
+  served board's Growth pays ITS value), and live text on every surface (the Growth card itself now prints
+  its current magnitude, spell power included). COMBAT-created Growths count too (owner ruling, same day):
+  a Mushy Echo mid-fight ticks the improver at settle, read off the fight's `toHand` events sourced to the
+  Mushy body — so every Growth it creates counts, whichever phase it was created in.
+
+**Rune of the Matriarch retextured** (owner): "trigger spells in combat an ADDITIONAL time" — the rune now
+adds one extra cast per Matriarch instead of doubling its whole contribution. Identical for a plain body
+(1→2 either way); a golden pays 3 instead of the old 4, which is what the new wording promises.
+
+**Moonhowl Mentors are independent** (owner report: two Mentors + two Waking Rifts paid ONE Pup). Every copy
+shared one run-level "once per turn" counter; each Mentor now carries its own latch (`teachTick`, reset each
+turn), so with two Mentors the first spell bought teaches BOTH. Rune of the White Wolf keeps the run-level
+counter for its own teaches only — the rune and the bodies no longer eat each other's budget.
+
+**Indy's Gild recharge: 40 → 75 Gold spent** (owner rebalance).
+
+**Verified.** 4688 tests across 272 files green, including a new 12-case `runeCardKeyed2.test.ts`. Typecheck,
+lint (0 errors) and `build:web` all clean. Rune-count tripwire 93 → 95.
+
+## 2026-08-07 — Owner fix batch: Recaller loop, Mend rework, Voicekeeper timing, gild retro-doubling
+
+Four owner reports, four fixes:
+
+**1. Recaller can no longer reproduce Second Draft.** The pair was a loop: cast Second Draft ON the Recaller
+(returning it to hand intact), replay the Recaller, and its Shout hands back another Second Draft — a 3-Gold
+engine that replays a Shout and mints a spell-cast trigger every lap, forever. A new `NO_COPY_SPELLS` set
+(just `seconddraft`) is checked by both copy effects (Recaller's Shout and Spellvault Drake's End of Turn).
+The cast still RECORDS normally — Steward, the Archivist's journal and the live "copy of {{X}}" text all still
+see it; only the copy grant skips it.
+
+**2. Mend reworked: SET your Armor to 5** (was: heal 5). A floor, not a grant — at 5+ Armor the cast fizzles
+(spell kept, Armor never shaved down). New `setArmor` factory + a fizzle rule, and `maxArmor` rises with the
+set so the bar renders it.
+
+**3. Voicekeeper counts from its own placement.** It read the run-level `soldThisTurn` tally, so a Voicekeeper
+played after you'd already sold a Dragon that turn was dead for the turn — the sale it then witnessed counted
+as "the second". It now ticks a per-instance `soldSeen` (the Spellkeeper Drake convention: placement is the
+floor, since the sold-hook only walks cards on the board), reset each `faceOmen`.
+
+**4. Gilding in place never retroactively doubles accrued progress** (Indy gilded a Thunderous Sovereign
+sitting on +100/+100 and it jumped to +200/+200). Root cause: a family of cards stores accrual as a COUNT and
+multiplies by golden at READ time — `(base + bonus×step) × 2` — so an in-place gild re-prices everything
+already earned. The ruling: earned value stays at face value; only future growth runs at the golden rate.
+Fix at the `gildMinion` chokepoint (every in-place gild routes through it: Indy, Golden Touch, golden grants):
+for the cards in the ×golden-read family (`GOLD_SCALED_ACCRUAL_CARDS`: Kennelmaster, Thunderous Sovereign,
+Pack Leader, Broodwright, Groveweaver), the accrued `summonBonus` is HALVED at gild — the unchanged ×2 read
+then reproduces the exact pre-gild value, and each future +1 tick reads as the golden step. The set is scoped
+because `summonBonus` has two conventions: the `buffOnSummon` family (Mama Bear) reads it RAW and must never
+be halved. Triples are untouched — `checkTriples`' sum-encoding deliberately rides the ×2 read.
+
+**Verified.** 4661 tests across 271 files green, including a new 7-case `ownerFixes0807b.test.ts` (the loop,
+the timing, value-preservation across a gild, the raw-read scoping, and both Mend halves). Typecheck, lint
+(0 errors) and `build:web` all clean.
+
+## 2026-08-07 — Card-keyed rune batch: five of twelve built
+
+The owner's twelve card-keyed runes — each names one specific Set-2 card and changes what that card does. All
+twelve subjects exist; five are built here, and the split is by machinery rather than by taste.
+
+**Built** (all Set-2 scoped, since every subject is a Set-2 card):
+
+- **Rune of Full Measure** (Basic 4) — Baby Gastrid also grants Attack, 1:1 with the Health. The Attack is
+  derived from the Health it just paid rather than recomputed, so the halves can't drift.
+- **Rune of Mountain Trade** (Basic 5) — a Mountainbond Ruby play also hands over a random Dwarven Ale. Once
+  per trigger, not per minion buffed: "whenever Mountainbond plays Rubies" is one event however wide the board.
+- **Rune of Open Appetite** (Basic 5) — the Appetite Agent's aim loses its Demon-only rule. `targetTribe` had
+  FOUR independent enforcement points (three in the reducer, one in the aim UI), so a new
+  `effectiveTargetTribe(state, def)` helper now owns the question and all four ask it. Patching only the
+  reducer would have left the UI refusing a pick the reducer accepts — the rune would half-apply.
+- **Rune of the Broodmaster** (Epic 5) — a Broodwright's Imp buff also lands on itself. Rune of the
+  Groveweaver's exact shape, reusing the numbers just paid out.
+- **Rune of the Second Life** (Epic 4) — your Scavvers carry Taunt and Rise. There is no run-wide keyword
+  channel (`cardBuffs` is stats only), so the keywords are stamped per instance: on the board and hand you
+  already hold when the rune is bought, and on every later arrival through `applyOnBuy`. Idempotent, so a
+  second copy can't duplicate a pill.
+
+**Not built, and why.** *Rune of the Final Verse* is a duplicate of Rune of the Last Word, shipped hours
+earlier in tranche 3 — same trigger, same effect, same cost — so it was left out rather than stocking the forge
+with twins. The other six (Moonhowl, Flooded Vault, Shared Reflection, Unbroken Vein, Battle Refraction,
+Living Growth) each need a genuinely new trigger path; Living Growth is the hardest, since "improve future
+Growths" needs a per-spell escalation channel that doesn't exist. Queued in the roadmap.
+
+**Verified.** 4654 tests across 270 files green, including a new 8-case `runeCardKeyed.test.ts`. Typecheck,
+lint (0 errors) and `build:web` all clean.
+
+A test note worth keeping: buying a rune SPENDS GOLD, so any comparison against a card that scales off Gold
+spent this turn (Baby Gastrid) has to pin `goldSpentThisTurn` after the purchase — otherwise the armed run
+starts from a bigger number and the test measures the purchase rather than the rune.
+
+## 2026-08-07 — Ashen Heir pays a LIVING Imp first (it did nothing in the ordinary case)
+
+**Owner report: "Ashen Heir is not working at all."** It wasn't, for the shape of board it exists to reward.
+The first build banked every dying Imp's stats and paid them out **only when a new Imp was summoned** — so the
+common case (several Imps on the board, one dies) produced no visible effect whatsoever, and a board with no
+summoner on it never paid at all.
+
+**The rule now** (owner ruling): a dying Imp hands its stats to **another friendly Imp that is already alive**;
+the bank is only a fallback for when none is left, collected by the next Imp to arrive. Printed text, the
+combat live text and the replay mirror all move with it — the replay only banks on a death with no living Imp,
+matching the sim, since a mirror that banked unconditionally would display a bank the fight doesn't have.
+
+**How it survived its own tests.** The tranche-2 test asserted `inherited > 0` on a board whose Imp King summons
+two Imps on death — which exercised the fallback path and nothing else, so the payout it measured was real but
+the *missing* path was never looked at. The regression test added here uses the owner's actual scenario: two
+Imps, no summoner, one dies. Under the old code it pays 0.
+
+**Verified.** 4642 tests across 270 files green. Typecheck, lint (0 errors) and `build:web` all clean.
+
+## 2026-08-07 — Batch 4, tranche 4: the five hard Epics (batch 4 complete)
+
+The last tranche of the owner's batch 4 — the five Epics that needed real machinery rather than pattern reuse:
+
+- **Rune of Ancestral Roar** (5) — your Dragons with a Shout gain "Echo: trigger this minion's Shout." Fires
+  the DYING body's own Shout, using the same firing block Rune of the War Chorus uses. Deliberately has no
+  once-per-combat latch: the rune grants an ability to every qualifying Dragon rather than firing once itself,
+  so two dying Dragons roar twice.
+- **Rune of Ruby Shrapnel** (5, Set 2) — a dying Ruby-buffed minion splits its Ruby stats among the survivors.
+  The tally is the same read the Gemheart line and Rune of the Gem Golem use (carried shop `Ruby` buff plus
+  this fight's `rubyGain`), so a Ruby counts the same whether it was played in the shop or mid-fight. The stats
+  are DISPERSED, not divided (owner ruling): points are dealt out one at a time, round-robin from the left, so
+  2 Attack across 3 survivors pays two of them +1 and the third nothing. An even floored split — the first
+  implementation — silently destroyed those leftovers, paying 0 for that same case.
+- **Rune of Shared Scripture** (6) — the warband's first Shop-spell cast in combat triggers the left-most Shout
+  and the left-most Rally. Hooked through a new `ctx.onCombatSpellCast` reported from `resolveCombatSpellCast`,
+  so it counts casts that RESOLVED: a fizzled aim (no legal target) is not a cast and must not spend the rune.
+- **Rune of the Banquet Hall** (5) — the turn's first Shop-buffed buy SPLITS its bonus stats among one friendly
+  minion of each type, using the same round-robin dispersal as Ruby Shrapnel (owner ruling): the board gains
+  exactly the bonus the bought body carried, however many types share it, rather than a multiple of it.
+  "Bonus" is the offer's own `atk`/`hp`, measured against the printed card, so a body bought at base stats
+  doesn't arm it. The one-per-type walk is the Lapidary's: board order, first uncovered tribe wins, a
+  dual-type body covers both.
+- **Rune of the Crucible Choir** (6) — End of Turn, the left-most Shout fires, then the left-most Echo. Two
+  separate left-most picks, both through the existing replay paths (`replayBattlecry` for the Shout, the same
+  path Myra's hero power uses; `fireRecruitDeathrattles` for the Echo, the shop-side path Gravetwin uses).
+
+**Two tests were rewritten before they shipped**, because both passed for the wrong reason. The Crucible Choir
+test compared a post-turn board size against a fixed number, which `lastCombat.initial` satisfies whether the
+rune fired or not; the Banquet Hall test only asserted that buying the rune set a boolean. Both are now armed
+vs unarmed differentials off the same board, and the Banquet Hall one drives a real buy through `reduce`.
+
+**Verified.** 4639 tests across 270 files green, including a new 11-case `runeBatch4T4.test.ts`. Typecheck, lint
+(0 errors) and `build:web` all clean.
+
+**Rune of Wild Memory archived the same day** (owner). It moves to `ARCHIVED_RUNES`: out of Runeforge stock,
+still resolvable through `RUNE_INDEX` so a saved run holding it loads and still pays out. Consequence worth
+noting — it was the ONLY way to obtain a Runesnout Archivist (the card is `token: true`, so it never rolls in
+the tavern), so the Archivist is unreachable in a new run. Its card, effects, live text and art all stay wired
+and tested, ready for whatever grants it next. `ARCHIVED_RUNES` is now exported from the content entrypoint so
+the archive contract (unstocked, still resolvable) is assertable.
+
+**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes (one archived) and 3 T6 minions across four tranches. Art for the
+three tranche-2 bodies landed the same day (owner dropped it in `Runes/Special Rune Rewards`, filenames
+matching the cards); their six runes are still artless.
+
 ## 2026-08-07 — Batch 4, tranche 3: the contained-machinery eight
 
 Eight more Basic runes, each built on machinery already in the engine:

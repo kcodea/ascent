@@ -107,13 +107,15 @@ describe('Rune of the White Wolf', () => {
     expect(s.hand.filter((c) => c.cardId === 'b2_magepup').length).toBe(0);
   });
 
-  it('shares the Mentor ceiling rather than owning a separate one', () => {
-    // A Mentor allows 1 and the rune adds 1, so both together teach twice — not once, and not four times.
+  it('owns its own once-per-turn budget — Mentors no longer share it (owner rework 2026-08-07)', () => {
+    // The old shared ceiling was exactly the bug that hit the Mentors themselves (two Mentors, one counter):
+    // every teach source now carries its own latch. `teachMagePup` is the RUNE's path — with one White Wolf
+    // it teaches once per turn regardless of how many Mentors stand on the board.
     const mentor = Object.values(CARD_INDEX).find((c) => c.effects.some((e) => e.do === 'grantMagePupTaught'))!;
     const s: RunState = { ...set2(), runeWhiteWolf: true, hand: [],
       board: [{ uid: 'm', cardId: mentor.id, tribe: mentor.tribe, attack: mentor.attack, health: mentor.health, keywords: [], golden: false }] };
     for (let i = 0; i < 5; i++) teachMagePup(s, 'growth');
-    expect(s.hand.filter((c) => c.cardId === 'b2_magepup').length).toBe(2);
+    expect(s.hand.filter((c) => c.cardId === 'b2_magepup').length, 'the rune teaches once, on its own budget').toBe(1);
   });
 });
 

@@ -298,13 +298,19 @@ export function computeFrame(
       // halves are mirrored here (the summon half below) so the Heir's printed text can show what the NEXT Imp
       // would actually inherit. Nothing new crosses the event boundary; the replay just applies the same rule.
       if (u && CARD_INDEX[u.cardId]?.imp) {
-        // `u.health` is already 0 by now, so the banked Health comes from the event's own side array — the
-        // Heir inherits what the Imp WAS, which is the pre-death frame the sim read (`maxHealth`).
+        // `u.health` is already 0 by now, so the banked Health comes from the max-Health track — the Heir
+        // passes on what the Imp WAS, which is the `maxHealth` the sim read.
         const arr = e.side === 'player' ? player : enemy;
         const banked = { attack: Math.max(0, u.attack), health: Math.max(0, maxHp.get(e.target) ?? 0) };
-        for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) {
-          h.impBank = { attack: (h.impBank?.attack ?? 0) + banked.attack,
-            health: (h.impBank?.health ?? 0) + banked.health };
+        // Only a death with NO living Imp left to receive it reaches the bank — otherwise the stats went
+        // straight to that Imp as a normal buff event, which the replay already applies. Mirrors the sim's
+        // rule exactly; a mirror that banked unconditionally would show a bank the fight doesn't have.
+        const anyImpAlive = arr.some((m) => m !== u && m.alive && CARD_INDEX[m.cardId]?.imp);
+        if (!anyImpAlive && (banked.attack > 0 || banked.health > 0)) {
+          for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) {
+            h.impBank = { attack: (h.impBank?.attack ?? 0) + banked.attack,
+              health: (h.impBank?.health ?? 0) + banked.health };
+          }
         }
       }
       // A RISE death counts (owner ruling 2026-07-27, and `killOrReborn` in the sim calls `emitAvenge` for it).

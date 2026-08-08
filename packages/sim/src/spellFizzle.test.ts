@@ -42,11 +42,11 @@ describe('the named cases from the audit', () => {
     expect(kept(reduce(full, { type: 'play', uid: 'sp' }))).toBe(false);
   });
 
-  it('Mend fizzles at full Resolve and casts when hurt', () => {
-    const s: RunState = { ...createRun(5), board: [], shop: [], embers: 30, hand: [spell('mend')] };
-    expect(kept(reduce(s, { type: 'play', uid: 'sp' })), 'no overhealing').toBe(true);
-    const hurt: RunState = { ...s, resolve: s.maxResolve - 5 };
-    expect(kept(reduce(hurt, { type: 'play', uid: 'sp' }))).toBe(false);
+  it('Mend fizzles at 5+ Armor and casts below it (rework 2026-08-07: sets Armor to 5)', () => {
+    const s: RunState = { ...createRun(5), board: [], shop: [], embers: 30, armor: 6, hand: [spell('mend')] };
+    expect(kept(reduce(s, { type: 'play', uid: 'sp' })), 'at/above the floor it would do nothing').toBe(true);
+    const low: RunState = { ...s, armor: 2 };
+    expect(kept(reduce(low, { type: 'play', uid: 'sp' }))).toBe(false);
   });
 
   it('Insurance Policy always casts — a non-loss pays 0 Gold, it does not fizzle (owner ruling 2026-08-04)', () => {

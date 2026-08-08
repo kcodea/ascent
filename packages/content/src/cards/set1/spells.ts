@@ -254,8 +254,10 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 4,
-    effects: [{ on: 'cast', do: 'healHero', params: { amount: 5 } }],
-    text: "Heal your hero **5** Health (can't overheal).",
+    // Owner rework 2026-08-07: heal → armor. SET to 5, not +5 — casting it on 7 Armor does nothing (it can
+    // only raise you TO 5), so it's a floor, dead while your Armor is already healthy.
+    effects: [{ on: 'cast', do: 'setArmor', params: { amount: 5 } }],
+    text: 'Set your **Armor** to **5**.',
   },
   {
     // Conjure two copies of a random buyable Undead (active tribes), into the hand.

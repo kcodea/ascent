@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, combatCastable, resolveCombatSpellCast } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -849,11 +849,39 @@ export function simulate(
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
+    broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
+    floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
+    battleRefractionRepsFor: (side) => {
+      // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
+      // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.
+      if (!modsFor(side).runeBattleRefraction) return 0;
+      return living(side).reduce((n, m) => n + (m.cardId === 'k_prismcaster' ? (m.golden ? 2 : 1) : 0), 0);
+    },
+    growthBonusFor: (side) => (side === 'player' ? playerState : enemyState).growthBonus ?? 0,
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
+    onCombatSpellCast: (side) => {
+      // RUNE OF SHARED SCRIPTURE: the warband's FIRST Shop-spell cast in a fight fires the left-most Shout and
+      // the left-most Rally. Reported from `resolveCombatSpellCast`, so it counts a cast that actually
+      // RESOLVED — a fizzled aim (no legal target) is not a cast, and must not spend the rune.
+      if (!modsFor(side).runeSharedScripture || scriptureSpent[side]) return;
+      const shout = living(side).find((m) => m.effects.some((e) => e.on === 'onPlay'));
+      const rally = living(side).find((m) => canRally(m));
+      if (!shout && !rally) return;
+      scriptureSpent[side] = true;
+      nextStep(); fireTrigger('runeSharedScripture', side);
+      if (shout) {
+        emit({ type: 'sc', source: shout.uid, text: 'Shout' });
+        for (const effect of shout.effects) {
+          if (effect.on !== 'onPlay') continue;
+          FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side });
+        }
+      }
+      if (rally) fireFreeRally(rally, side);
+    },
     rememberedSpellsFor: (side) => (side === 'player' ? playerState : enemyState).rememberedSpellIds ?? [],
     resummonDeadBeasts: (side, count, excludeUid) => {
       // Earliest-first, skipping the caller's own corpse ("other Beasts") and anything already brought back,
@@ -1509,6 +1537,69 @@ export function simulate(
     // RUNE OF EMBERLINE: the FIRST Imp to die each combat banks its stats for the next Imp summoned. The
     // Ashen Heir's rule, narrowed to one payout a fight — `maxHealth` for the same reason (what the Imp WAS,
     // not what the killing blow left). Per side, so a served board runs its own.
+    // RUNE OF MOONHOWL: a dying Mage-Pup casts the Shop spell it was taught — the taught spell rides the
+    // instance (`taughtSpellId`), and `battlecryCastTaughtSpell` is the exact combat cast the Shout re-fires
+    // use (targeted spells pick a seeded-random living friendly), so the Echo is the Shout, on death.
+    if (modsFor(minion.side).runeMoonhowl && minion.cardId === 'b2_magepup' && minion.taughtSpellId) {
+      // Not routed through `battlecryCastTaughtSpell`: that factory refuses a DEAD caster (correct for the
+      // Shout re-fires it serves), and an Echo's caster is by definition dead. Same cast, inlined — targeted
+      // spells pick a seeded-random living friendly, and the whole thing rides `castInCombat` so it is a
+      // genuine cast (a Runebloom Matriarch multiplies it).
+      const taught = cards[minion.taughtSpellId];
+      if (taught?.spell && combatCastable(taught)) {
+        nextStep(); fireTrigger('runeMoonhowl', minion.side);
+        castInCombat(ctx, minion, () => {
+          const friends = living(minion.side);
+          if (taught.target && friends.length === 0) return;
+          const targets = taught.target ? [rng.pick(friends)] : undefined;
+          if (resolveCombatSpellCast(ctx, minion, taught, targets)) {
+            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}` });
+          }
+        });
+      }
+    }
+    // RUNE OF ANCESTRAL ROAR: a dying Dragon with a Shout fires that Shout as an Echo. Same firing block the
+    // War Chorus uses, aimed at the dying body rather than the left-most one — this is the minion's OWN Shout,
+    // granted to it as an Echo, so there is no left-most pick to make and no once-per-combat latch: the rune
+    // grants an ability to every qualifying Dragon rather than firing once itself.
+    if (modsFor(minion.side).runeAncestralRoar
+        && (minion.tribe === 'dragon' || minion.tribe2 === 'dragon')
+        && minion.effects.some((e) => e.on === 'onPlay')) {
+      nextStep(); fireTrigger('runeAncestralRoar', minion.side);
+      emit({ type: 'sc', source: minion.uid, text: 'Shout' });
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onPlay') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    }
+    // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
+    // is the same read the Gemheart line and Rune of the Gem Golem use — the carried shop 'Ruby' buff plus
+    // this fight's `rubyGain` — so a Ruby counts the same whether it was played in the shop or mid-fight.
+    // Split evenly and FLOORED: 5 Attack across 2 survivors is 2 each, not 2.5, and a share that rounds to
+    // nothing simply doesn't land rather than being topped up to 1 (which would make wide boards free value).
+    if (modsFor(minion.side).runeRubyShrapnel) {
+      const carried = minion.buffs?.find((b) => b.source === 'Ruby');
+      const tally = {
+        attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
+        health: (carried?.health ?? 0) + (minion.rubyGain?.health ?? 0),
+      };
+      const survivors = living(minion.side).filter((m) => m !== minion);
+      if (survivors.length > 0 && (tally.attack > 0 || tally.health > 0)) {
+        // DISPERSE the literal stats rather than dividing them (owner ruling 2026-08-07). An even split floors,
+        // and a floor loses points: 2 Attack across 3 survivors used to pay nothing at all. Handing them out
+        // one at a time, round-robin from the left, spends every point — 2 across 3 gives the first two
+        // survivors +1 each and the third nothing. Attack and Health are dealt independently, both starting at
+        // the left, so a 2/2 body's Attack and Health land on the same two minions rather than scattering.
+        const share = survivors.map(() => ({ attack: 0, health: 0 }));
+        for (let i = 0; i < tally.attack; i++) share[i % survivors.length]!.attack += 1;
+        for (let i = 0; i < tally.health; i++) share[i % survivors.length]!.health += 1;
+        nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
+        for (let i = 0; i < survivors.length; i++) {
+          const sh = share[i]!;
+          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Rune of Ruby Shrapnel');
+        }
+      }
+    }
     if (modsFor(minion.side).runeEmberline && !emberlineBank[minion.side] && cards[minion.cardId]?.imp) {
       emberlineBank[minion.side] = { attack: Math.max(0, minion.attack), health: Math.max(0, minion.maxHealth) };
     }
@@ -1639,6 +1730,7 @@ export function simulate(
   const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
   const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {

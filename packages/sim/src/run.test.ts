@@ -3012,24 +3012,19 @@ describe('run loop (@game/sim)', () => {
     expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
   });
 
-  it('Mend heals the hero 5 (capped at max Resolve, no overheal)', () => {
-    // Below max → heals 5.
-    let s: RunState = {
-      ...createRun(1), resolve: 20, shop: [], board: [],
-      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-    };
+  it('Mend SETS Armor to 5 — a floor, never a shave (owner rework 2026-08-07)', () => {
+    const hand = [{ uid: 'sp', cardId: 'mend', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false }];
+    // Below the floor → raised to exactly 5 (not +5).
+    let s: RunState = { ...createRun(1), armor: 1, shop: [], board: [], hand: [...hand] };
     s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted
-    expect(s.resolve).toBe(25); // 20 + 5
+    expect(s.armor).toBe(5);
     expect(s.hand.some((c) => c.cardId === 'mend')).toBe(false); // consumed
-    // Near max → can't overheal past the hero's max Resolve (30).
-    let t: RunState = {
-      ...createRun(1), resolve: 28, shop: [], board: [],
-      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-    };
+    // Above the floor → the cast fizzles (kept in hand) and Armor is NOT shaved down to 5.
+    let t: RunState = { ...createRun(1), armor: 7, shop: [], board: [], hand: [...hand] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.resolve).toBe(getHero(t.heroId).resolve); // clamped to 30, not 33
+    expect(t.armor).toBe(7);
+    expect(t.hand.some((c) => c.cardId === 'mend'), 'a no-op cast is refused, spell kept').toBe(true);
   });
-
   it('Undead Army conjures 2 copies of one random Undead to the hand', () => {
     // A run always has all 5 tribes active today, so Undead is buyable.
     let s: RunState = {
@@ -3750,7 +3745,7 @@ describe('hero powers (@game/sim)', () => {
     expect(s.heroReady).toBe(true); // no board minion matched → nothing happened
   });
 
-  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, then locks until 40 Gold spent", () => {
+  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, then locks until 75 Gold spent", () => {
     // Target Dummy (base 0/4) buffed to 5/9 by a +5/+5. Gilding doubles the BASE only → 0/4 → 0/8, plus the
     // +5/+5 buff = 5/13 — NOT 10/18 (the old bug that doubled the whole current stat line).
     const buffed: BoardCard = { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 5, health: 9, keywords: [], golden: false, buffs: [{ source: 'Fortify', attack: 5, health: 5, count: 1 }] };
@@ -3760,14 +3755,14 @@ describe('hero powers (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 13]); // base 0/4 doubled + the +5/+5 buff kept
     expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 5, health: 5, count: 1 }, { source: 'Gild', attack: 0, health: 4, count: 1 }]);
     expect(s.heroPowerSpent).toBe(true);
-    expect(s.indyGildRearmAt).toBe(40); // recharges once cumulative goldSpent reaches 40
-    // Still locked after < 40 Gold spent (recharging the per-wave flag must not re-enable it either).
+    expect(s.indyGildRearmAt).toBe(75); // recharges once cumulative goldSpent reaches 75 (owner rebalance 2026-08-07, was 40)
+    // Still locked after < 75 Gold spent (recharging the per-wave flag must not re-enable it either).
     s = { ...s, heroReady: true };
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
   });
 
-  it("Indy's Gild recharges once 40 Gold has been spent, then can gild again", () => {
-    // Turn 1 tavern up (tier 1→2 costs 5) then buys — spend past 40 Gold to re-arm the used Gild.
+  it("Indy's Gild recharges once 75 Gold has been spent, then can gild again", () => {
+    // Turn 1 tavern up (tier 1→2 costs 5) then buys — spend past 75 Gold to re-arm the used Gild.
     let s: RunState = {
       ...createRun(1, 'indy'), embers: 100, board: [mk('a', 2, 2), mk('b', 3, 3)],
     };
@@ -3775,12 +3770,12 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board[0]!.golden).toBe(true);
     expect(s.heroPowerSpent).toBe(true);
     const spentAtUse = s.goldSpent ?? 0;
-    expect(s.indyGildRearmAt).toBe(spentAtUse + 40);
-    // Still locked at 39 spent.
-    s = { ...s, embers: 100, goldSpent: spentAtUse + 39, heroReady: true };
+    expect(s.indyGildRearmAt).toBe(spentAtUse + 75);
+    // Still locked at 74 spent.
+    s = { ...s, embers: 100, goldSpent: spentAtUse + 74, heroReady: true };
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
-    // Cross 40 via a real spend (a tavern reroll, 1 Gold) → the charge comes back and a second gild lands.
-    s = reduce(s, { type: 'roll' }); // goldSpent += 1 → 40 spent since last use → re-armed
+    // Cross 75 via a real spend (a tavern reroll, 1 Gold) → the charge comes back and a second gild lands.
+    s = reduce(s, { type: 'roll' }); // goldSpent += 1 → 75 spent since last use → re-armed
     expect(s.heroPowerSpent).toBe(false);
     expect(s.indyGildRearmAt).toBeUndefined();
     s = reduce(s, { type: 'heroPower', uid: 'b' });

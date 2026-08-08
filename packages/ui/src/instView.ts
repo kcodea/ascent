@@ -261,7 +261,7 @@ export function instView(
       ? ((): ReturnType<typeof stepProgress> => {
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
-            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick,
+            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick, rubyCastTick: inst.rubyCastTick,
             shoutTick: inst.shoutTick, soldProgress: inst.soldProgress, grimoireCharged: live?.grimoireCharged,
             orbitTick: inst.orbitTick, // CELESTIAL Orbit (N) — the shop-phase cadence counter
           });

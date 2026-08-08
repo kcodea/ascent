@@ -13,6 +13,29 @@ import type { CardDef } from '@game/core';
  */
 export const ARCHIVED_CARDS: CardDef[] = [
   {
+    // ARCHIVED 2026-08-08 (owner). Moved verbatim from set2/beasts.ts — belongs to no set now, so it can't be
+    // drawn, offered, Discovered or granted. Rune of the Second Life ("your Scavvers have Taunt and Rise")
+    // named this card and is archived alongside it; nothing else generates the id.
+    // Owner rework 2026-08-02 (from the Avenge tribe-buff): a token engine — every 4 friendly deaths summons
+    // a Ninja Pal that strikes out of turn order. Reuses Steadfast Champion's `avengeSummonAttack` verbatim;
+    // GOLDEN summons a GILDED Pal (the factory's golden rule), not two.
+    id: 'b2_scavenger',
+    name: 'Scavvers', // renamed 2026-08-07 (owner); id unchanged so saved runs and pool boards still resolve
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    // Owner rework 2026-08-07: the Ninja Pal Avenge is out; its Echo now fires a NEIGHBOUR's Rally through
+    // the shared free-rally primitive (tallies and quest halves ride along). Golden triggers twice — both
+    // neighbours when both have a Rally.
+    effects: [
+      { on: 'onDeath', do: 'deathrattleTriggerAdjacentRally' },
+    ],
+    text: '**Echo:** trigger an adjacent **Rally**.',
+    goldenText: '**Echo:** trigger **2** adjacent **Rallies**.',
+  },
+  {
     // Dragon/DEMON. Owner rework 2026-07-31 (second pass): from the capped friendly-Demon consume payoff to a
     // RALLY that casts a Staff of Guel — permanent (the tavern-buy enchant carries out of combat), scaled by
     // the run's spell power, and a real spell cast that feeds Guel / Groveweaver / Runebloom.

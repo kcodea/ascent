@@ -9,6 +9,7 @@ import { SETS, poolFor } from './sets';
 
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
+export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
 /**
  * Every card that has ever existed, across every set — the union, NOT the playable pool.

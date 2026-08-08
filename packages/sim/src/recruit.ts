@@ -5436,11 +5436,20 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  *  rubyCasts` contract on `RunState.rubyCasts` — per the owner 2026-07-24. Callers pass the umbrella's
  *  before/after so both cast paths measure the same number. */
 export function fireOnRubyCast(state: RunState, before: number, after: number): void {
+  const casts = Math.max(0, after - before);
+  if (casts <= 0) return;
   for (const card of state.board) {
     const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.on === 'rubyCast');
     if (!eff) continue;
     const every = Math.max(1, num(eff.params?.every, 3));
-    const fires = Math.floor(after / every) - Math.floor(before / every);
+    // PER-INSTANCE (owner rulings 2026-08-07/08, the Voicekeeper + Mentor line): this body counts the casts
+    // IT has witnessed, not the run's lifetime total. The old global-multiple test meant a Gemgorge Fiend
+    // bought at 2 casts fired on the very next one — inheriting progress from before it existed — and a
+    // counter drawn from a shared tally would have shown that as "2/3" on a card that had seen nothing.
+    const before2 = card.rubyCastTick ?? 0;
+    const nowTick = before2 + casts;
+    card.rubyCastTick = nowTick;
+    const fires = Math.floor(nowTick / every) - Math.floor(before2 / every);
     if (fires <= 0) continue;
     const ctx = makeContext(state);
     for (let f = 0; f < fires; f++) RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });

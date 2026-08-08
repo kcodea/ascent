@@ -1495,11 +1495,26 @@ export function Recruit() {
     const cy = Math.max(64, topY - 64);
 
     // Contributions: opponent tier (flies from its intel frame) + each survivor's tier (from its card).
+    //
+    // Taken from the FIGHT's own breakdown when it has one (owner report 2026-08-08: the counter read 11
+    // while Resolve dropped by more). Deriving them here from `nextOpponent()` and the replay's final frame
+    // meant the animation and the hit were computed from different inputs — a procedural fallback, a
+    // snapshot without a tier, or a body still shown mid-death is enough to make them disagree. The sim's
+    // numbers are what actually land, so they are what the counter tallies; the local derivation stays only
+    // as a fallback for a combat recorded before this field existed (a saved run mid-defeat).
     const oppRect = document.querySelector('.oppframe')?.getBoundingClientRect();
-    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = [
-      { tier: oppTier, r: oppRect ?? undefined, isOpp: true },
-      ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
-    ];
+    const bd = run0.lastCombat?.damageBreakdown;
+    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = bd
+      ? [
+        { tier: bd.oppTier, r: oppRect ?? undefined, isOpp: true },
+        // Pair each real tier with a surviving card's rect where one exists, purely so the numbers fly from
+        // somewhere sensible; the VALUES are the sim's, never the DOM's.
+        ...bd.survivorTiers.map((tier, i) => ({ tier, r: rectOf(survivors[i]?.uid ?? '') })),
+      ]
+      : [
+        { tier: oppTier, r: oppRect ?? undefined, isOpp: true },
+        ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
+      ];
     const rawTotal = contribs.reduce((s, c) => s + c.tier, 0);
 
     const STAGGER = 130, FLY = 430;

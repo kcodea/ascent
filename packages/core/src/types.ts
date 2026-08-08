@@ -1912,6 +1912,12 @@ export interface CombatResult {
   enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number };
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
+  /** The itemized contributions behind `playerDamage` — the opponent's tavern tier plus one entry per
+   *  surviving enemy minion. Present only on a loss. The defeat animation tallies THESE so the counter it
+   *  shows and the hit that lands can never be two different numbers; it used to recompute them from
+   *  `nextOpponent()` and the replay frame, which can disagree with what the fight actually used.
+   *  Sums to `playerDamage` (before the run loop's round cap). */
+  damageBreakdown?: { oppTier: number; survivorTiers: number[] };
   /** Damage the ENEMY side takes on ITS loss — the exact mirror of `playerDamage`, by the same formula.
    *  Unused by a single-player run (the enemy has no Resolve pool); the lobby needs both sides' damage out of
    *  ONE authoritative fight, since resolving it twice with the sides swapped can disagree.

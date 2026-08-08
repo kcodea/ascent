@@ -2,6 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
 import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
 
+describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
+  it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
+    // Per-instance (`rubyCastTick`), so a Fiend bought mid-run starts empty rather than inheriting the run's
+    // lifetime cast total — the counter would otherwise open at "2/3" on a card that had seen nothing.
+    expect(stepProgress('k_gemgorge', {})).toEqual({ current: 0, total: 3 });
+    expect(stepProgress('k_gemgorge', { rubyCastTick: 1 })).toEqual({ current: 1, total: 3 });
+    expect(stepProgress('k_gemgorge', { rubyCastTick: 2 })).toEqual({ current: 2, total: 3 });
+    expect(stepProgress('k_gemgorge', { rubyCastTick: 3 })).toEqual({ current: 3, total: 3 });
+    expect(stepProgress('k_gemgorge', { rubyCastTick: 4 }), 'wraps past the payout').toEqual({ current: 1, total: 3 });
+  });
+});
+
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
     expect(stepProgress('soulsman', {})).toEqual({ current: 0, total: 4 });            // Avenge (4) — shop: 0/4

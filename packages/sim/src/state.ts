@@ -239,6 +239,10 @@ export interface BoardCard {
   /** Moonhowl Mentor: taught Pups THIS body has produced this turn (per-instance — every copy owns its own
    *  "once per turn", golden = twice). Reset each `faceOmen`. */
   teachTick?: number;
+  /** Gemgorge Fiend: spell+Ruby casts THIS body has witnessed since it hit the board (per-instance, so a
+   *  freshly bought copy starts at 0/3 rather than inheriting the run's lifetime total). Run-long — the
+   *  meter is "every 3 casts", not a per-turn window. */
+  rubyCastTick?: number;
   boardFirstSpellId?: string;
   /** Set 2 — Moonhowl Mentor's Mage-Pup: the SHOP SPELL this token was taught. Its Shout casts that spell, so
    *  the token's effect is per-instance rather than baked into the CardDef. */

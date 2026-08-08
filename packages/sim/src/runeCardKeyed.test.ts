@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES } from '@game/content';
 import { createRun, effectiveTargetTribe, reduce, type BoardCard, type RunState } from './index';
 
 /**
@@ -22,7 +22,7 @@ describe('the five defs ship as specced', () => {
   it('costs, rarity, and every one scoped to Set 2 (each names a Set-2 card)', () => {
     const spec: Record<string, [number, boolean]> = {
       rune_full_measure: [4, false], rune_mountain_trade: [5, false], rune_open_appetite: [5, false],
-      rune_broodmaster: [5, true], rune_second_life: [4, true],
+      rune_broodmaster: [5, true],
     };
     for (const [id, [cost, epic]] of Object.entries(spec)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
@@ -76,8 +76,16 @@ describe('Rune of Open Appetite', () => {
   });
 });
 
-describe('Rune of the Second Life', () => {
-  it('stamps Taunt and Rise on the Scavvers you ALREADY hold, not just future ones', () => {
+describe('Rune of the Second Life (ARCHIVED 2026-08-08 with Scavvers itself)', () => {
+  it('is out of the forge but still resolvable for a saved run', () => {
+    // Scavvers was archived, so the rune had nothing left to modify — both went out together. The archive
+    // contract is the same pair as always: unstocked, yet still resolvable so a save holding it loads.
+    expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_second_life'), 'still stocked').toBe(false);
+    expect(ARCHIVED_RUNES.some((r) => r.id === 'rune_second_life'), 'not recorded as archived').toBe(true);
+    expect(RUNE_INDEX['rune_second_life'], 'a saved run holding it would fail to resolve').toBeDefined();
+  });
+
+  it('still stamps Taunt and Rise if a saved run holds both it and a Scavver', () => {
     const s = withRune('rune_second_life', { board: [bm('s', 'b2_scavenger', 3, 3)], hand: [bm('h', 'b2_scavenger', 3, 3)] });
     for (const c of [s.board[0]!, s.hand[0]!]) {
       expect(c.keywords, 'Taunt missing').toContain('T');

@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-08 — 32 missing rune arts wired
+
+Every rune from batch 4 and the card-keyed batch now has its art, matched by filename against
+`C:\Game Assets\Ascent Art\Runes` and converted (512px WebP q85) for exactly the 32 new files — the repo's
+leftover PNG masters were deliberately NOT re-swept. Verified in the dev server through the app's own
+`runeArt()` after a restart (the eager-glob rule: new art files need a server restart, not a reload).
+
+Five were near-miss filenames wired on a words-match basis: `RuneOfTheBackbeat` / `TheCarrionCoin` /
+`TheEmberline` / `TheRubyShrapnel` carry a leading "The" the rune names lack, and `RunrOfTheGemDividend`
+has a "Runr" typo. Same words, unambiguous.
+
+**Still artless, deliberately:**
+- **Rune of the Aftermarket** — the only candidate is `RuneOfTheAftermath.png`, which is a DIFFERENT word;
+  the art rule is filename match, never a guess. If Aftermath is the Aftermarket art, rename the master
+  (or confirm) and it wires in a minute.
+- **Rune of the Empty Plate**, **Rune of Moonhowl** — no file at all yet.
+- **Rune of Wild Memory** — archived, and no file.
+
 ## 2026-08-07 — Card-keyed runes complete (12 of 12), Matriarch retexture, Mentor independence, Indy 75g
 
 **The six remaining card-keyed runes** (all Set-2 scoped; this closes the owner's twelve-rune list, with

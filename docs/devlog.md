@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-08 — Gemgorge's counter (and its per-instance meter), the loss-damage breakdown, Scavvers archived
+
+**1. Gemgorge Fiend has a counter — and it needed a rule change to be honest.** Its Consume fired on the RUN's
+global cast multiples, so a Fiend bought at 2 casts fired on the very next one, inheriting progress from
+before it existed. A counter drawn from that would have opened at "2/3" on a card that had witnessed nothing.
+The meter is now per-instance (`rubyCastTick`, casts seen while on the board), matching the Voicekeeper and
+Moonhowl Mentor rulings, and the counter reads 0/3 → 3/3 → wraps.
+
+**2. The defeat counter and the hit that lands are now one number.** The animation recomputed the damage from
+`nextOpponent()?.tier` and the replay's final frame, while the actual hit is `playerDamage` from the sim
+(opponent tier + surviving enemy tiers). Two derivations from different inputs — a procedural fallback, a
+snapshot without a tier, or a body still shown mid-death is enough to make them disagree, which is exactly the
+"counter said 11, took 15-16 to die" report. `CombatResult` now carries the fight's own `damageBreakdown`
+(itemized, summing to `playerDamage` by construction) and the animation tallies THAT; the old local
+derivation stays only as a fallback for a combat recorded before the field existed.
+
+**3. Scavvers archived** (owner) — moved verbatim to `ARCHIVED_CARDS`, so it belongs to no set and can never be
+drawn, offered, Discovered or granted, while saved runs and pinned boards still resolve the id. **Rune of the
+Second Life went with it**: "your Scavvers have Taunt and Rise" had nothing left to modify once the card left
+every pool. `ARCHIVED_CARDS` is now exported from the content entrypoint so the archive contract is assertable
+without reaching past the package boundary.
+
+**Verified.** 4717 tests across 274 files green, including a new 6-case `ownerFixes0808b.test.ts` (the
+per-instance meter, the breakdown summing to `playerDamage`, and Scavvers' absence from every set pool) plus a
+UI-side counter test in `cardText.test.ts`. The counter was also checked live in the dev server. Typecheck,
+lint (0 errors) and `build:web` all clean.
+
 ## 2026-08-08 — Rise resets, combat Discovers auto-pick, Reinforcing Ale in combat, Veinstorm preview
 
 Four owner reports:

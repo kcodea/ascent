@@ -830,7 +830,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -891,6 +891,10 @@ export function stepProgress(
   // `goldTick` is a recruit accrual (undefined in combat, where no Gold is spent), so it shows on the shop board.
   const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
+  // Gemgorge Fiend: its Consume re-fires every N spell+Ruby casts witnessed WHILE ON THE BOARD — a
+  // per-instance meter (`rubyCastTick`), so a freshly bought copy reads 0/3 instead of inheriting the run.
+  const rubyCast = def.effects.find((e) => e.on === 'rubyCast');
+  if (rubyCast) return cyc(p.rubyCastTick ?? 0, Math.max(1, n((rubyCast.params as { every?: number })?.every, 3)));
   // Korok / Banksly: their payoff re-fires every N cards BOUGHT while on the board (the `buyTick` meter) —
   // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
   const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);

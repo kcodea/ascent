@@ -109,26 +109,6 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: 'When you summon a Beast in combat, **triple** its stats.',
   },
   {
-    // Owner rework 2026-08-02 (from the Avenge tribe-buff): a token engine — every 4 friendly deaths summons
-    // a Ninja Pal that strikes out of turn order. Reuses Steadfast Champion's `avengeSummonAttack` verbatim;
-    // GOLDEN summons a GILDED Pal (the factory's golden rule), not two.
-    id: 'b2_scavenger',
-    name: 'Scavvers', // renamed 2026-08-07 (owner); id unchanged so saved runs and pool boards still resolve
-    tribe: 'beast',
-    tier: 4,
-    attack: 4,
-    health: 5,
-    keywords: [],
-    // Owner rework 2026-08-07: the Ninja Pal Avenge is out; its Echo now fires a NEIGHBOUR's Rally through
-    // the shared free-rally primitive (tallies and quest halves ride along). Golden triggers twice — both
-    // neighbours when both have a Rally.
-    effects: [
-      { on: 'onDeath', do: 'deathrattleTriggerAdjacentRally' },
-    ],
-    text: '**Echo:** trigger an adjacent **Rally**.',
-    goldenText: '**Echo:** trigger **2** adjacent **Rallies**.',
-  },
-  {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the
     // Baby to gilded instead (matching "summon a Gilded T-Rex Baby"). Taunt is granted at summon time.
     id: 'b2_trex',

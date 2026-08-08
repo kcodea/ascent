@@ -1734,16 +1734,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeBroodmaster' },
     sets: ['set2'],
   },
-  {
-    id: 'rune_second_life',
-    name: 'Rune of the Second Life',
-    cost: 4,
-    text: 'Your **Scavvers** have **Taunt** and **Rise**.',
-    previewCards: ['b2_scavenger'],
-    epic: true,
-    reward: { kind: 'runeSecondLife' },
-    sets: ['set2'],
-  },
 
   {
     id: 'rune_moonhowl',
@@ -1794,6 +1784,18 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // Archived 2026-08-08 (owner) alongside Scavvers itself — with the card out of every set pool the rune
+    // had nothing left to modify. The def stays so a saved run holding it still resolves through `RUNE_INDEX`.
+    id: 'rune_second_life',
+    name: 'Rune of the Second Life',
+    cost: 4,
+    text: 'Your **Scavvers** have **Taunt** and **Rise**.',
+    previewCards: ['b2_scavenger'],
+    epic: true,
+    reward: { kind: 'runeSecondLife' },
+    sets: ['set2'],
+  },
   {
     // Archived 2026-08-07 (owner), the day it shipped. The def stays here so a saved run that already holds it
     // still resolves through `RUNE_INDEX`; it is simply no longer stocked by the Runeforge.

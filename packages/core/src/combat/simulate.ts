@@ -2973,6 +2973,16 @@ export function simulate(
     result === 'lose'
       ? enemyState.tier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
+  // The SAME numbers, itemized, so the defeat animation can tally the real contributions instead of
+  // recomputing them from its own inputs. It used to derive the counter from `nextOpponent()?.tier` and the
+  // replay's final frame — two sources that can disagree with what the fight actually used (a procedural
+  // fallback, a snapshot without a tier, a body still shown mid-death), and any disagreement read as the
+  // counter saying one number while Resolve dropped by another (owner report 2026-08-08). Sums to
+  // `playerDamage` by construction; the run loop's round cap is applied on top, by the caller.
+  const damageBreakdown =
+    result === 'lose'
+      ? { oppTier: enemyState.tier, survivorTiers: survivorsE.map((m) => cards[m.cardId]?.tier ?? 1) }
+      : undefined;
   // The MIRROR: what the enemy side would take, by the identical formula. A single-run fight never needed it
   // (only the player has a Resolve pool), but a lobby round has two sides that both take damage from ONE
   // authoritative combat — resolving the same fight twice with the sides swapped can disagree, so the number
@@ -3043,6 +3053,7 @@ export function simulate(
     events,
     result,
     playerDamage,
+    ...(damageBreakdown ? { damageBreakdown } : {}),
     enemyDamage,
     playerDeathrattles,
     playerRallies: playerRallies > 0 ? playerRallies : undefined,

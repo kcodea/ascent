@@ -467,7 +467,10 @@ describe('set 2 — regressions from the effect-param audit', () => {
     s.pool['dm_hungerling'] = 3;
     const poolBefore = s.pool['dm_clerk']! + s.pool['dm_hungerling']!;
 
-    fireOnRubyCast(s, 2, 3); // cross the "every 3" step
+    // PER-INSTANCE since 2026-08-08: the Fiend counts the casts IT witnessed, so crossing the run's global
+    // 2→3 boundary is no longer what fires it — three casts seen by THIS body is. (That change is the point:
+    // a freshly bought Fiend used to inherit the run's progress and fire on its first cast.)
+    fireOnRubyCast(s, 0, 3);
 
     expect(s.shop.length, 'the offer really leaves the shop').toBe(eaten - 1);
     expect(s.board[0]!.attack, 'and its stats land on the eater').toBeGreaterThan(6);

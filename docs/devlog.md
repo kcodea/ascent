@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-07 — Owner fix batch: Recaller loop, Mend rework, Voicekeeper timing, gild retro-doubling
+
+Four owner reports, four fixes:
+
+**1. Recaller can no longer reproduce Second Draft.** The pair was a loop: cast Second Draft ON the Recaller
+(returning it to hand intact), replay the Recaller, and its Shout hands back another Second Draft — a 3-Gold
+engine that replays a Shout and mints a spell-cast trigger every lap, forever. A new `NO_COPY_SPELLS` set
+(just `seconddraft`) is checked by both copy effects (Recaller's Shout and Spellvault Drake's End of Turn).
+The cast still RECORDS normally — Steward, the Archivist's journal and the live "copy of {{X}}" text all still
+see it; only the copy grant skips it.
+
+**2. Mend reworked: SET your Armor to 5** (was: heal 5). A floor, not a grant — at 5+ Armor the cast fizzles
+(spell kept, Armor never shaved down). New `setArmor` factory + a fizzle rule, and `maxArmor` rises with the
+set so the bar renders it.
+
+**3. Voicekeeper counts from its own placement.** It read the run-level `soldThisTurn` tally, so a Voicekeeper
+played after you'd already sold a Dragon that turn was dead for the turn — the sale it then witnessed counted
+as "the second". It now ticks a per-instance `soldSeen` (the Spellkeeper Drake convention: placement is the
+floor, since the sold-hook only walks cards on the board), reset each `faceOmen`.
+
+**4. Gilding in place never retroactively doubles accrued progress** (Indy gilded a Thunderous Sovereign
+sitting on +100/+100 and it jumped to +200/+200). Root cause: a family of cards stores accrual as a COUNT and
+multiplies by golden at READ time — `(base + bonus×step) × 2` — so an in-place gild re-prices everything
+already earned. The ruling: earned value stays at face value; only future growth runs at the golden rate.
+Fix at the `gildMinion` chokepoint (every in-place gild routes through it: Indy, Golden Touch, golden grants):
+for the cards in the ×golden-read family (`GOLD_SCALED_ACCRUAL_CARDS`: Kennelmaster, Thunderous Sovereign,
+Pack Leader, Broodwright, Groveweaver), the accrued `summonBonus` is HALVED at gild — the unchanged ×2 read
+then reproduces the exact pre-gild value, and each future +1 tick reads as the golden step. The set is scoped
+because `summonBonus` has two conventions: the `buffOnSummon` family (Mama Bear) reads it RAW and must never
+be halved. Triples are untouched — `checkTriples`' sum-encoding deliberately rides the ×2 read.
+
+**Verified.** 4661 tests across 271 files green, including a new 7-case `ownerFixes0807b.test.ts` (the loop,
+the timing, value-preservation across a gild, the raw-read scoping, and both Mend halves). Typecheck, lint
+(0 errors) and `build:web` all clean.
+
 ## 2026-08-07 — Card-keyed rune batch: five of twelve built
 
 The owner's twelve card-keyed runes — each names one specific Set-2 card and changes what that card does. All

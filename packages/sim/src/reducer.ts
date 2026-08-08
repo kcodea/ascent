@@ -2816,6 +2816,7 @@ function advanceCombat(s: RunState): void {
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
+    if (c.soldSeen) c.soldSeen = 0; // Voicekeeper: "each turn" — its per-instance sold counter resets
     if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
   }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn

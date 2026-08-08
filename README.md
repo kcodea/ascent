@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Four owner fixes** — the Recaller/Second Draft pickup loop is closed, Mend now sets Armor to 5, Voicekeeper counts from its own placement, and gilding a minion in place no longer retroactively doubles its accrued buff (a +100/+100 Sovereign stays +100/+100 and grows golden from there).
+
 - **Ashen Heir fixed** — it paid only on a newly summoned Imp, so the ordinary case (Imps alive, one dies) did nothing; a dying Imp now hands its stats to a living Imp, banking only when none is left.
 
 - **Batch 4 complete — the five hard Epics** (Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir), closing out a batch of 17 Basic runes, 8 Epics and 3 T6 minions.

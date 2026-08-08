@@ -3012,24 +3012,19 @@ describe('run loop (@game/sim)', () => {
     expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
   });
 
-  it('Mend heals the hero 5 (capped at max Resolve, no overheal)', () => {
-    // Below max → heals 5.
-    let s: RunState = {
-      ...createRun(1), resolve: 20, shop: [], board: [],
-      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-    };
+  it('Mend SETS Armor to 5 — a floor, never a shave (owner rework 2026-08-07)', () => {
+    const hand = [{ uid: 'sp', cardId: 'mend', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false }];
+    // Below the floor → raised to exactly 5 (not +5).
+    let s: RunState = { ...createRun(1), armor: 1, shop: [], board: [], hand: [...hand] };
     s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted
-    expect(s.resolve).toBe(25); // 20 + 5
+    expect(s.armor).toBe(5);
     expect(s.hand.some((c) => c.cardId === 'mend')).toBe(false); // consumed
-    // Near max → can't overheal past the hero's max Resolve (30).
-    let t: RunState = {
-      ...createRun(1), resolve: 28, shop: [], board: [],
-      hand: [{ uid: 'sp', cardId: 'mend', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
-    };
+    // Above the floor → the cast fizzles (kept in hand) and Armor is NOT shaved down to 5.
+    let t: RunState = { ...createRun(1), armor: 7, shop: [], board: [], hand: [...hand] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.resolve).toBe(getHero(t.heroId).resolve); // clamped to 30, not 33
+    expect(t.armor).toBe(7);
+    expect(t.hand.some((c) => c.cardId === 'mend'), 'a no-op cast is refused, spell kept').toBe(true);
   });
-
   it('Undead Army conjures 2 copies of one random Undead to the hand', () => {
     // A run always has all 5 tribes active today, so Undead is buyable.
     let s: RunState = {

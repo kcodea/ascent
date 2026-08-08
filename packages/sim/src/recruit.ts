@@ -468,10 +468,34 @@ export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeB
  * the +base so the inspect breakdown still itemizes it. Flips the golden flag (which doubles combat EFFECTS —
  * Deathrattles twice, ×N multipliers). No-op if already golden. Shared by Eyes of Aresmar + Indy's Gild.
  */
+/** Cards whose payout multiplies the accrued `summonBonus` by GOLDEN at read time — `(base + bonus) × 2`.
+ *  For these, gilding a body IN PLACE (Indy's hero power, Golden Touch) would retroactively double everything
+ *  it had already earned: a Sovereign sitting on +100/+100 jumped to +200/+200 (owner report 2026-08-07).
+ *  The ruling: earned value is EARNED — it stays at face value, and only future growth runs at the golden
+ *  rate. Halving the accrual at gild time delivers exactly that through the unchanged ×2 read: the accrued
+ *  payout is identical before and after, and each future +1 tick now reads as +2×step. The halved count can
+ *  go fractional (3 → 1.5), which is fine — every payout and live text multiplies it straight back to an
+ *  integer. Scoped to a card list because `summonBonus` is a SHARED field with two conventions: the
+ *  `buffOnSummon` family (Mama Bear) reads it RAW ("no golden doubling here — a golden's bonus already
+ *  encodes the combined magnitude"), and halving those would destroy real value.
+ *  TRIPLES ARE NOT THIS: `checkTriples` builds a golden FROM three bodies and deliberately encodes their
+ *  summed grants through the ×2 read — that math is untouched. */
+const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver']);
+
+/** Spells the copy-last/first effects (Recaller, Spellvault Drake) may NOT reproduce (owner ruling
+ *  2026-08-07). Second Draft is the loop: cast it ON the Recaller, replay the Recaller, receive another
+ *  Second Draft, repeat — a 3-Gold engine that replays a Shout and mints a spell-cast trigger every lap,
+ *  forever. The cast still RECORDS normally (Steward, the Archivist's journal and the live text all still see
+ *  it); only the copy grant skips it. */
+export const NO_COPY_SPELLS: ReadonlySet<string> = new Set(['seconddraft']);
+
 export function gildMinion(card: BoardCard): void {
   if (card.golden) return;
   const def = CARD_INDEX[card.cardId];
   addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
+  if (GOLD_SCALED_ACCRUAL_CARDS.has(card.cardId) && (card.summonBonus ?? 0) > 0) {
+    card.summonBonus = card.summonBonus! / 2;
+  }
   card.golden = true;
 }
 
@@ -3479,11 +3503,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     const soldDef = CARD_INDEX[sold.cardId];
     if (!soldDef || (tribe && soldDef.tribe !== tribe && soldDef.tribe2 !== tribe)) return;
-    const matching = (ctx.state.soldThisTurn ?? []).filter((id) => {
-      const d = CARD_INDEX[id];
-      return !!d && (!tribe || d.tribe === tribe || d.tribe2 === tribe);
-    }).length;
-    if (matching !== 1) return; // not the first of its tribe this turn
+    // PER-INSTANCE, from its own placement (owner report 2026-08-07). It used to read the run-level
+    // `soldThisTurn` tally, so a Voicekeeper played after you'd already sold a Dragon this turn was dead for
+    // the turn — the sale it then witnessed counted as "second". This hook only fires for cards ON the board
+    // (`fireOnMinionSold` walks `state.board`), so ticking its own counter is exactly "the first Dragon sold
+    // since being on board" — the Spellkeeper Drake convention, where placement is the floor.
+    const seen = (self.soldSeen = (self.soldSeen ?? 0) + 1);
+    if (seen !== 1) return; // not the first matching sale THIS body has witnessed this turn
     conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
   },
 
@@ -3769,7 +3795,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // 'last' means last THIS TURN (the printed rule) — not the run-lifetime `lastSpellCastId` (audit 2026-07-31).
     const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
-    if (!def) return;
+    if (!def || NO_COPY_SPELLS.has(def.id)) return; // Second Draft would loop the copier itself — see the set
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
   },
 
@@ -3777,7 +3803,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   endOfTurnCopyCastSpell: (ctx, self, params) => {
     const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellThisTurnId;
     const def = id ? CARD_INDEX[id] : undefined;
-    if (!def) return;
+    if (!def || NO_COPY_SPELLS.has(def.id)) return; // same exclusion as the Shout copier
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
   },
 
@@ -4187,6 +4213,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  heals to the right ceiling. Untargeted (acts on the run). */
   healHero: (ctx, _self, params) => {
     ctx.state.resolve = Math.min(ctx.state.maxResolve, ctx.state.resolve + num(params.amount, 5));
+  },
+
+  /** Mend (owner rework 2026-08-07) — SET Armor to `amount`. A floor, not a grant: at or above it, nothing
+   *  happens (no shaving Armor down), and `maxArmor` rises with it so the bar renders the new value. */
+  setArmor: (ctx, _self, params) => {
+    const amount = num(params.amount, 5);
+    if (ctx.state.armor >= amount) return;
+    ctx.state.armor = amount;
+    ctx.state.maxArmor = Math.max(ctx.state.maxArmor ?? 0, amount);
   },
 
   /** Lasso — cast: steal a random MINION offer from the tavern into the hand (free). Picks via the

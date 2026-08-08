@@ -233,6 +233,9 @@ export interface BoardCard {
    *  stamps the REAL grant from `pendingCombatKeywords` and clears these. */
   tempGrants?: { label: string; keyword: string }[];
   boardSpellCount?: number;
+  /** Voicekeeper: matching sales THIS body has witnessed this turn (per-instance, so a copy played mid-turn
+   *  counts from its own placement, not from turn start). Reset each `faceOmen`. */
+  soldSeen?: number;
   boardFirstSpellId?: string;
   /** Set 2 — Moonhowl Mentor's Mage-Pup: the SHOP SPELL this token was taught. Its Shout casts that spell, so
    *  the token's effect is per-instance rather than baked into the CardDef. */

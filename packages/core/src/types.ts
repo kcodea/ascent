@@ -529,6 +529,7 @@ export type EffectFactoryId =
   | 'impInheritOnSummon' // Ashen Heir: the next Imp to arrive inherits the bank
   | 'echoCastRememberedSpells' // Runesnout Archivist: cast the whole journal on random friendly Beasts
   | 'echoResummonDeadBeasts' // Mossmemory Colossus: bring back the first 3 other dead Beasts
+  | 'setArmor' // Mend (2026-08-07): set Armor to N — a floor, not a grant
   | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond

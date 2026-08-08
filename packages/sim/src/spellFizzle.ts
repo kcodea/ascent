@@ -61,7 +61,8 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   },
 
   // ── Conditional / stateful ───────────────────────────────────────────────────────────────────────────
-  healHero: (s) => s.resolve >= s.maxResolve,                        // Mend can't overheal
+  healHero: (s) => s.resolve >= s.maxResolve,                        // heal spells can't overheal
+  setArmor: (s, _def, params) => s.armor >= (typeof params.amount === 'number' ? params.amount : 5), // Mend: a floor — at/above it, nothing would happen
   // Insurance Policy is DELIBERATELY absent (owner ruling 2026-08-04): "you should be able to play it, it
   // just gives 0 Gold if you did not lose." Casting into a win is a legal, informed dud — not a fizzle.
   spellScoutNextOpponent: (s) => {

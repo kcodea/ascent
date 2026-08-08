@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-08 — The workbench says what its knobs do (language pass)
+
+Every one of the 173 FX parameters already carried a `help` string — an earlier note in this session claimed
+seven shipped empty, which is no longer true of the current tree. The gap was quality, not coverage: 37 helps
+were under 70 characters and about fifteen of those only restated the label in units ("Motes per second.",
+"px/sec initial.", "Ring band width.", "soft outer halo"), which tells an author nothing they could not read
+off the control itself.
+
+**What changed:**
+
+- **Seven truncated labels spelled out** — `Speed var` → Speed variance, `Size var` → Size variance,
+  `Spin var` → Spin variance, `Turb scale` → Turbulence scale, `Inherit vel` → Inherit motion,
+  `Wave amp` → Wave depth, `Wave freq` → Wave frequency. Labels are pure presentation, but they are named
+  inside other params' help ("Size var jitters it per shard") and inside `paramDisabledReason`'s generated
+  sentence ("Needs Wave amp above 0"), so every cross-reference, `params.test.ts` and the workbench guide
+  moved with them.
+- **~25 thin helps rewritten** across shockwave, emitter, burst, smoke and ribbon to say what the control DOES
+  and what the ends of its range look like, matching the standard burst's Emit/Motion groups already set.
+- **Vocabulary normalised** — "posterization levels" (the shader's word, in three different phrasings across
+  four primitives) is now "How many flat colour steps … is cut into, instead of a smooth gradient", and the
+  two spellings of the inert-control note ("Only bites once X is above 0" / "Does nothing while X is 0") are
+  now one.
+
+**Deliberately NOT renamed:** Plateau, Bands, Erode, Gain, Field mix, Core bias. These are engine words, but
+they are also the vocabulary the owner uses in conversation and the words the workbench guide is written in;
+renaming them would cost more in shared vocabulary than the labels are worth, and each one's help now explains
+it in a sentence.
+
+Verified: typecheck (pkgs + web), `npx eslint packages apps` 0 errors, 4717 tests, build:web. (The root
+`npm run lint` reports errors from the untracked `impeccable` skill's vendored scripts under `.agents/` and
+`.github/skills/` — not repo source, and unrelated to this branch.)
 ## 2026-08-09 — Rune of Aftershocks fired per WATCHER, not per Echo
 
 **Owner report: "broken and continuously triggers after attacks."** Aftershocks reads "triggering an Echo

@@ -233,8 +233,8 @@ const SPECS = {
     axis: 'scale', help: 'How fast a shard leaves the anchor, in px/sec. 260 is a normal spray; past ~1500 shards clear the card in a couple of frames, which is what sells a hit as violent (pair it with a short Life or they just leave).',
   },
   speedVar: {
-    kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
-    help: 'Randomises speed ± this fraction.',
+    kind: 'slider', label: 'Speed variance', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
+    help: 'How much shard speeds differ from each other, as a fraction of Speed — 0 fires every shard at exactly the same pace (a clean expanding ring), 0.5 spreads them between half and one-and-a-half speed so the spray reads scattered.',
   },
   drag: {
     kind: 'slider', label: 'Drag', group: 'Motion', min: 0.7, max: 1, step: 0.005, default: 0.9,
@@ -262,9 +262,9 @@ const SPECS = {
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
-    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    kind: 'slider', label: 'Turbulence scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
     enabledWhen: { param: 'turbulence', above: 0 },
-    help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
+    help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Does nothing while Turbulence is 0.',
   },
   emitShape: {
     kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point', essential: true,
@@ -290,7 +290,7 @@ const SPECS = {
     help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
   },
   inheritVel: {
-    kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    kind: 'slider', label: 'Inherit motion', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
     help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
   },
 
@@ -300,10 +300,10 @@ const SPECS = {
   },
   size: {
     kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 9, essential: true, axis: 'scale',
-    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size var jitters it per shard and the Size / life curve rescales it as the shard ages.',
+    help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size variance jitters it per shard and the Size / life curve rescales it as the shard ages.',
   },
   sizeVar: {
-    kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5,
+    kind: 'slider', label: 'Size variance', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'How much shard sizes differ from each other, as a fraction of Size — 0 makes every shard identical, 0.5 (the default) spreads them between half and one-and-a-half size.',
   },
   stretchX: {
@@ -312,7 +312,7 @@ const SPECS = {
   },
   stretchY: {
     kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
-    help: 'Per-particle height multiplier on top of Size.',
+    help: 'Stretches every shard vertically on top of Size — above 1 makes them tall and needle-like, below 1 squat. Pair with Stretch X to turn a round shape into a streak.',
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
@@ -345,7 +345,7 @@ const SPECS = {
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
-    help: 'posterization levels — 3-4 is the cel look, higher washes out',
+    help: 'How many flat colour steps each shard is cut into, instead of a smooth gradient — 3-4 gives the hand-drawn cel look, 1 is a single flat colour, 6 washes back toward a blur.',
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
@@ -370,7 +370,7 @@ const SPECS = {
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
-    help: 'Soft additive halo behind each particle.',
+    help: 'A soft halo of light behind each shard, tinted by the palette\'s core colour. 0 leaves them crisp; higher makes the spray bloom and bleed into what it crosses.',
   },
 
   noiseScale: {

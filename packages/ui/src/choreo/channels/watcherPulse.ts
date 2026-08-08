@@ -27,9 +27,9 @@ export function watcherPulseUids(
   for (let i = beat.start; i < beat.end; i++) {
     const e = events[i];
     if (!e) continue;
-    if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && (e as { source?: string }).source) take((e as { source?: string }).source);
-    else if ((e.type === 'summon' || e.type === 'toHand') && (e as { source?: string }).source) take((e as { source?: string }).source);
-    else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') take((e as { target?: string }).target);
+    if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) take(e.source);
+    else if ((e.type === 'summon' || e.type === 'toHand') && e.source) take(e.source);
+    else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') take(e.target);
   }
   return out;
 }

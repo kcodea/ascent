@@ -32,6 +32,9 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
+import { getDef } from './fx/fxDefs';
+import { WATCHER_PULSE_DEF_ID, useWatcherPixi } from './fx/watcherPulse';
+import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
 import { heldFor, holdStat, releaseStat } from './fx/statHold';
 
@@ -571,6 +574,11 @@ export interface CombatReplay {
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
   rallyPulseUids: Map<string, number>;
+  /** uid → a per-fire nonce for watchers (units, other than the attacker, that fired an effect on an
+   *  attack beat) — the medallion `key` so each light-blue pulse restarts. */
+  watcherPulseUids: Map<string, number>;
+  /** uid → a per-fire nonce for the watcher's card-frame bloom (CSS fallback when the Pixi def can't play). */
+  framePulseUids: Map<string, number>;
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
@@ -790,6 +798,13 @@ export function useCombatReplay(
   // re-add wouldn't replay the CSS animation (that's why the 2nd Rally in a combat pinged sound but no visual).
   const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
   const rallyNonceRef = useRef(0);
+  // Watcher pulse: same nonce mechanism as rallyPulse, but for the light-blue medallion (a non-attacker
+  // friendly unit that fired an effect on an attack beat). Frame pulse mirrors it for the CSS card-frame
+  // bloom fallback (used only when the Pixi `watcher-pulse` def can't play — see the trigger effect below).
+  const [watcherPulse, setWatcherPulse] = useState<Map<string, number>>(new Map());
+  const watcherNonceRef = useRef(0);
+  const [framePulse, setFramePulse] = useState<Map<string, number>>(new Map());
+  const frameNonceRef = useRef(0);
   // ONE flash, used by both pulse owners: the lunge fires the attacker's opener from inside its GSAP
   // timeline, and the `rallyFx` cue fires every proc after it (owner call 2026-08-05 — the medallion pulses
   // once per proc, not once per Rally). Sharing the function is what guarantees the 2nd pulse is identical
@@ -1000,6 +1015,8 @@ export function useCombatReplay(
     pulseTimersRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
+    setWatcherPulse(new Map());
+    setFramePulse(new Map());
     setFinished(false);
     setAttackUid(null);
     // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
@@ -1216,6 +1233,33 @@ export function useCombatReplay(
       else if (e.type === 'death') {
         const effs = CARD_INDEX[cardIds.get(e.target) ?? '']?.effects;
         if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
+      }
+    }
+    // WATCHER pulse: on an attack beat, a friendly unit OTHER than the attacker that fired an effect this beat
+    // is a watcher answering the swing (Crypt Drake, Mineral Master, …). Give it the distinct light-blue look
+    // — medallion recolored + a card-frame bloom — instead of the generic white medallion pulse. Additive: it
+    // keeps a medallion pulse (now blue) and gains the frame. Purely presentation; timed to the same beat the
+    // white pulse would have fired.
+    if (beat.primary.type === 'attack') {
+      const watchers = watcherPulseUids(beat, events, beat.primary.attacker);
+      for (const uid of watchers) {
+        trig.delete(uid); // take the light-blue medallion class, not white
+        // light-blue medallion (nonce → remount → animation restarts, mirroring firePulse/rallyPulse)
+        const wn = ++watcherNonceRef.current;
+        setWatcherPulse((prev) => new Map(prev).set(uid, wn));
+        window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+        // card-frame bloom: Pixi ring-bloom when the def is committed + playable, else the CSS overlay
+        if (useWatcherPixi(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
+          const a = anchorsForUnits(uid, uid); // source = target = the watcher's own card
+          // Literal id (not WATCHER_PULSE_DEF_ID) so the directCalls scanner — a text pass over literal
+          // playDef calls, see fx/directCallScan.ts — can attribute this site; keep in sync with
+          // WATCHER_PULSE_DEF_ID in fx/watcherPulse.ts.
+          if (a) playDef('watcher-pulse', a, { uids: { source: uid, target: uid } });
+        } else {
+          const fn = ++frameNonceRef.current;
+          setFramePulse((prev) => new Map(prev).set(uid, fn));
+          window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(uid) === fn) m.delete(uid); return m; }), 1150);
+        }
       }
     }
     // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
@@ -2059,6 +2103,8 @@ export function useCombatReplay(
     frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
+    watcherPulseUids: watcherPulse,
+    framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight

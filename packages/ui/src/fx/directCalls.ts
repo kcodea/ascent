@@ -35,6 +35,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
   'ruby-gem-apply': ['Recruit.tsx', 'choreo/score.ts'],
   'strike-impact': ['choreo/channels/impact.ts'],
+  'watcher-pulse': ['useCombatReplay.ts'],
 };
 
 /**

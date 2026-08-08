@@ -21,13 +21,17 @@ interface UnitProps {
    *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`.
    *  A per-fire nonce (not a bool) so a repeat Rally in the same combat restarts the pulse (used as a `key`). */
   rallyPulse?: number;
+  /** Pulse the trigger medallion LIGHT BLUE — this unit is a watcher that answered an ally's attack. Nonce. */
+  watcherPulse?: number;
+  /** Bloom this unit's card frame light blue — the watcher's frame surface (CSS fallback). Nonce. */
+  framePulse?: number;
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
-function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
+function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePulse }: UnitProps) {
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
@@ -125,7 +129,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse }: UnitProps) {
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
           the replay itself drives via `driveRoll`) is the only thing that rolls. See `useCombatReplay`. */}
-      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} />
+      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} pulseWatcher={watcherPulse} pulseFrame={framePulse} />
     </div>
   );
 }
@@ -142,6 +146,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.anim === b.anim &&
   a.triggered === b.triggered &&
   a.rallyPulse === b.rallyPulse &&
+  a.watcherPulse === b.watcherPulse &&
+  a.framePulse === b.framePulse &&
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&

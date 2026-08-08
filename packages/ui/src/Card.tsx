@@ -342,6 +342,8 @@ export const Card = memo(function Card({
   karwind,
   pulse,
   pulseRally,
+  pulseWatcher,
+  pulseFrame,
   glow,
   popDelay,
   refCards,
@@ -396,6 +398,13 @@ export const Card = memo(function Card({
    *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
    *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
   pulseRally?: number;
+  /** Pulse the trigger medallion LIGHT BLUE — a watcher answered an ally's attack. Same ring as `pulse`,
+   *  forced light blue; sits between `pulseRally` (yellow) and `pulse` (white) in precedence. A per-fire NONCE
+   *  (used as the medallion `key`, like `pulseRally`) so a repeat watcher pulse restarts the animation. */
+  pulseWatcher?: number;
+  /** Bloom the CARD FRAME light blue — the watcher's frame surface (CSS fallback when the Pixi `watcher-pulse`
+   *  def can't play). A per-fire nonce keyed onto the `.framepulsering` overlay so each fire replays. */
+  pulseFrame?: number;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
@@ -1035,9 +1044,13 @@ export const Card = memo(function Card({
               <span className="value">{shownHealth}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseRally ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span key={`cgem-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
+        {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the
+            Pixi `watcher-pulse` def). A direct child of `.archbox` (sibling to the frame/art layers) so its
+            `inset: 0` rings the whole card; keyed on the nonce so React remounts + replays each fire. */}
+        {pulseFrame ? <span key={`framepulse-${pulseFrame}`} className="framepulsering" aria-hidden="true" /> : null}
       </div>
       {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
           click inspect, or the always-on-text setting): name, rules text, tribe. Rendered ONLY when the

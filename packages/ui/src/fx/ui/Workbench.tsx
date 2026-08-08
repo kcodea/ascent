@@ -1888,6 +1888,40 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   return (
     <div className={`fxwb${railMode ? ' fxwb-rail' : ''}`}>
+      {/* THE PIPELINE RAIL.
+          The tool's own guide describes a ten-step journey from "nothing" to "playing in a real fight", but only
+          the middle of it was ever on screen: Save sat at the bottom of a long scroll, "Watch in combat" was a
+          plain link mid-rail, and nothing said whether the effect you were tuning reaches players at all.
+
+          Every stage below is DERIVED from state the tool already keeps — it invents nothing. Compose reads the
+          layer list; Name reads the same slug check the Save button uses; Bind reads the harness selection; Ship
+          is exactly `commitMissing === null`, the gate the commit button already enforces. So the rail cannot
+          disagree with the buttons: it is those gates, drawn.
+
+          Deliberately NOT a wizard. Every stage stays reachable in any order — this reports where you are, it
+          does not march you. */}
+      <div className="fxwb-pipe" role="status" aria-label="Effect progress">
+        {([
+          ['Compose', layers.length > 0, `${layers.length} layer${layers.length === 1 ? '' : 's'}`],
+          ['Name', isValidSlug(slugify(defName)), isValidSlug(slugify(defName)) ? slugify(defName) : 'unnamed'],
+          ['Bind', harnessKind !== null && harnessCard !== '',
+            harnessKind === null ? 'no moment' : harnessCard === '' ? 'no card' : 'ready'],
+          ['Ship', commitMissing === null, commitMissing === null ? 'ready to commit' : 'blocked'],
+        ] as const).map(([label, done, detail], i) => (
+          <span key={label} className={`fxwb-pipe-step${done ? ' done' : ''}`} title={detail}>
+            <span className="fxwb-pipe-dot">{done ? '✓' : i + 1}</span>
+            {label}
+            <span className="fxwb-pipe-detail">{detail}</span>
+          </span>
+        ))}
+        <span className="fxwb-pipe-state">
+          <span className={`fxwb-pipe-chip${seedLocked ? ' on' : ''}`}>
+            {seedLocked ? 'seed locked' : 'seed rolling'}
+          </span>
+          <span className="fxwb-pipe-chip">{slot === 'over' ? 'over cards' : 'under cards'}</span>
+        </span>
+      </div>
+
       <div className="fxwb-top">
         <div className="fxwb-title">🎨 FX Workbench</div>
         {/* Undo/redo sits first because it is the safety net for everything to its right — above all the

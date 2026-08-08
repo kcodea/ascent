@@ -69,10 +69,24 @@ describe('Ashen Heir', () => {
     sim(p, killer).events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Ashen Heir')
       .reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
 
-  it('an Imp that dies passes its stats to the next Imp to arrive', () => {
-    // Without the Heir nothing is inherited at all — the baseline that makes the number below mean something.
+  it('an Imp that dies with ANOTHER IMP ALIVE hands its stats straight over', () => {
+    // The case the first build silently did nothing for (owner report 2026-08-07): two Imps on the board, one
+    // dies, and the survivor should grow immediately — no summon required. This is the ordinary shape of an
+    // Imp board, so a version that only paid on a new summon read as completely broken.
+    const twoImps: BoardMinion[] = [
+      { cardId: 'impscrap', attack: 3, health: 1 },  // dies first, worth 3/4 (maxHealth 4 after the token base)
+      { cardId: 'impscrap', attack: 1, health: 60 }, // the survivor that should inherit
+      { cardId: 'ashen_heir', attack: 5, health: 60 },
+    ];
+    expect(inherited(twoImps.slice(0, 2)), 'no Heir, no inheritance').toBe(0);
+    expect(inherited(twoImps), 'a living Imp should have been paid on the spot').toBeGreaterThan(0);
+  });
+
+  it('with no Imp left alive it banks instead, and the next Imp to arrive collects', () => {
+    // Only the fallback path: the lone Imp dies with nothing to receive its stats, and the Imp King's death
+    // later summons the Imps that collect. Without the fallback this board would pay nothing at all.
     expect(inherited(board.slice(0, 2)), 'no Heir, no inheritance').toBe(0);
-    expect(inherited(board), 'the Heir should have paid a bank out at least once').toBeGreaterThan(0);
+    expect(inherited(board), 'the banked stats never reached an arriving Imp').toBeGreaterThan(0);
   });
 
   it('the bank empties on payout rather than paying the same stats twice', () => {

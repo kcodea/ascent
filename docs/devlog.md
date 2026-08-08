@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-07 — Ashen Heir pays a LIVING Imp first (it did nothing in the ordinary case)
+
+**Owner report: "Ashen Heir is not working at all."** It wasn't, for the shape of board it exists to reward.
+The first build banked every dying Imp's stats and paid them out **only when a new Imp was summoned** — so the
+common case (several Imps on the board, one dies) produced no visible effect whatsoever, and a board with no
+summoner on it never paid at all.
+
+**The rule now** (owner ruling): a dying Imp hands its stats to **another friendly Imp that is already alive**;
+the bank is only a fallback for when none is left, collected by the next Imp to arrive. Printed text, the
+combat live text and the replay mirror all move with it — the replay only banks on a death with no living Imp,
+matching the sim, since a mirror that banked unconditionally would display a bank the fight doesn't have.
+
+**How it survived its own tests.** The tranche-2 test asserted `inherited > 0` on a board whose Imp King summons
+two Imps on death — which exercised the fallback path and nothing else, so the payout it measured was real but
+the *missing* path was never looked at. The regression test added here uses the owner's actual scenario: two
+Imps, no summoner, one dies. Under the old code it pays 0.
+
+**Verified.** 4642 tests across 270 files green. Typecheck, lint (0 errors) and `build:web` all clean.
+
 ## 2026-08-07 — Batch 4, tranche 4: the five hard Epics (batch 4 complete)
 
 The last tranche of the owner's batch 4 — the five Epics that needed real machinery rather than pattern reuse:

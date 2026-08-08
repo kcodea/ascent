@@ -1210,12 +1210,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!ctx.getCard(dead.cardId)?.imp) return;
     // Its CURRENT stats — a 1/1 Imp that grew to 6/6 hands on 6/6. `maxHealth` rather than live Health so a
     // chipped Imp still passes on what it was, not what the last hit left it at.
+    const attack = Math.max(0, dead.attack);
+    const health = Math.max(0, dead.maxHealth);
+    if (attack <= 0 && health <= 0) return;
+    // PAY A LIVING IMP FIRST (owner ruling 2026-08-07). The stats go to another Imp that is already on the
+    // board, and only bank for a future arrival when there is no Imp left to receive them. The first version
+    // banked unconditionally and paid solely on the next SUMMON, which meant the ordinary case — several Imps
+    // alive, one dies — did visibly nothing at all, and the card read as broken.
+    const heir = ctx.living(self.side).find((m) => m !== dead && m !== self && !!ctx.getCard(m.cardId)?.imp);
+    if (heir) { ctx.buff(heir, attack, health, self.name); return; }
     const bank = (self.impBank ??= { attack: 0, health: 0 });
-    bank.attack += Math.max(0, dead.attack);
-    bank.health += Math.max(0, dead.maxHealth);
+    bank.attack += attack;
+    bank.health += health;
   },
 
-  /** ASHEN HEIR, the paying half — the next friendly Imp to arrive inherits the bank, which then empties. */
+  /** ASHEN HEIR, the fallback half — when an Imp died with no Imp left to take its stats, the bank waits here
+   *  and the next Imp to ARRIVE inherits it, emptying it. Deaths that happened while a living Imp was available
+   *  never reach the bank at all (see `impInheritOnDeath`), so this only fires for a wiped-out Imp board. */
   impInheritOnSummon: (ctx, self, _params, payload) => {
     const born = (payload as MinionPayload).minion;
     if (!born || born === self || born.side !== self.side || self.dead) return;

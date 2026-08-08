@@ -141,6 +141,12 @@ async function runWatcher(page) {
     const drakeUid = lc0?.initial.player.find((u) => u.cardId === 'cryptdrake')?.uid;
     const frontUids = lc0?.initial.player.filter((u) => u.cardId === 'frontdrake').map((u) => u.uid) ?? [];
     if (!drakeUid) return { ok: false, reason: 'no cryptdrake uid resolved from lastCombat.initial' };
+    // Guard the attacker side exactly like the Drake side above: an empty frontUids would make every
+    // `fronts` sample array [] below, and every `.some()` the attacker-clean check runs over an empty
+    // array is vacuously false — i.e. `attackerCleanOk` would pass WITHOUT ever inspecting an attacker
+    // card. Failing closed here (rather than trusting the `frontdrake` string to keep matching) is what
+    // makes that assertion a real check instead of a silent no-op if the cardId/selector ever drifts.
+    if (frontUids.length === 0) return { ok: false, reason: 'no frontdrake uids resolved' };
 
     const samples = [];
     let running = true;

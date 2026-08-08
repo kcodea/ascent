@@ -55,6 +55,20 @@
  * For each channel: `pulse_t < effect_t`, and `effect_t - pulse_t` falls in `[gap*0.6, gap*1.8]` — loose
  * bounds absorbing rAF/sampling jitter and combat-speed rounding, the same tolerance the imp probe used.
  *
+ * ── Task 4 additions: Demon Horse coverage + watcher accepts Pixi-or-CSS ────────────────────────────────────
+ * Two additions on top of the original five-channel merge gate, proving out the rest of the rally-pulse work
+ * (Tasks 1-3):
+ *   - COVERAGE — Demon Horse (`dm_hungerling`, an economy self-rally with NO combat-board FX — it buffs the
+ *     SHOP, not the battlefield) now pulses its plain medallion via the `rallyPulse` sim marker (Task 2). This
+ *     is the scenario Piece A exists for: before the marker, an economy rally had no FX to hang a pulse on and
+ *     never pulsed at all. It's a pulse-PRESENCE check, not a pulse->effect gap check (there is no board effect
+ *     to gap against).
+ *   - WATCHER now accepts the frame pulse via EITHER surface: the CSS `.framepulsering` rising edge (today,
+ *     since `watcher-pulse.json` doesn't exist yet) OR a `watcher-pulse` entry in `window.__fxFires` (the
+ *     DEV-only fire log Task 3's `playDef` writes to) once the owner's Pixi def lands and gets registered.
+ *     `pulseT` is computed as the earlier of the two. No product behavior changed by this — the harness just
+ *     stops being coupled to which surface is live.
+ *
  * ── combat-invariant.mjs (Step 3) ────────────────────────────────────────────────────────────────────────
  * Run separately (`node docs/superpowers/harness/combat-invariant.mjs`), not embedded here — it's the
  * existing per-frame "no badge ever prints outside its true range" merge gate from the Combat-T4 work, and
@@ -465,11 +479,65 @@ function analyzeDamageTrial(res) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// COVERAGE — Demon Horse (economy self-rally: "+N/+N Shop" on itself, no combat-board FX at all — the rally
+// buffs the SHOP, not anything on the battlefield). `dm_hungerling` has `keywords: []` (no RL), so like Errand
+// Fiend its self-pulse takes the PLAIN medallion path (`.cgem.pulsing`, no `.rally` class). This is the
+// scenario that did NOT pulse before Piece A (the `rallyPulse` sim marker, Task 2): an economy rally with no
+// board FX had nothing to hang a pulse off of. This is a pulse-PRESENCE check only (no gap/effect_t pairing —
+// there is no combat-board effect for a shop buff to gap against), unlike every other channel above.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+async function runDemonHorse(page) {
+  return page.evaluate(async () => {
+    const G = () => window.useGame.getState();
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    G().startSceneBuilder();
+    await sleep(300);
+    window.useGame.setState({ combatSpeed: 1 });
+    window.useGame.setState((s) => ({ run: { ...s.run, shop: [{ uid: 'dh0', cardId: 'dm_hungerling' }] } }));
+    await sleep(80);
+    G().dispatch({ type: 'buy', uid: 'dh0' });
+    await sleep(80);
+    const h = G().run.hand;
+    G().dispatch({ type: 'play', uid: h[h.length - 1].uid });
+    await sleep(150);
+    // Tanky, low-attack dummy so Demon Horse survives to swing repeatedly (its rally logs a `sc '+N/+N Shop'`).
+    window.useGame.setState((s) => ({
+      run: { ...s.run, servedBoards: { ...(s.run.servedBoards ?? {}), [s.run.wave]: { minions: [{ cardId: 'b2_packstrider', attack: 1, health: 40, keywords: [] }], tier: 1 } } },
+    }));
+    const t0 = performance.now();
+    G().dispatch({ type: 'faceOmen' });
+    const lc0 = G().run.lastCombat;
+    const dhUid = lc0?.initial.player.find((u) => u.cardId === 'dm_hungerling')?.uid;
+    if (!dhUid) return { ok: false, reason: 'no demon horse uid resolved from lastCombat.initial' };
+    const samples = [];
+    let running = true;
+    const read = () => {
+      const t = Math.round(performance.now() - t0);
+      const gem = document.querySelector(`.unit[data-uid="${dhUid}"] .card .cgem`);
+      samples.push({ t, gemClass: gem?.className ?? null });
+    };
+    const tick = () => { read(); if (running) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    await sleep(6000);
+    running = false;
+    const lc = G().run.lastCombat;
+    const attacked = (lc?.events ?? []).some((e) => e.type === 'attack' && e.attacker === dhUid);
+    return { ok: true, dhUid, samples, attacked };
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // WATCHER — Crypt Drake (buffs ALL friendly minions incl. itself every 2 ally attacks). Pulse lands on the
 // FRAME (`.framepulsering`, light blue), never the medallion — because the buff's SOURCE (the Drake) isn't
 // the attacker. Its own portion of the buff is a SELF-buff (source===target), which rides `fireSelfBuffs`'s
 // short `pulseHoldMs` preset (~60ms) rather than a multi-hundred-ms tendril travel, so its badge roll lands
 // well inside the gap band and is a clean DOM-only effect signal (no timer instrumentation needed).
+//
+// Accepts CSS OR Pixi for the frame pulse itself (Task 3/4): the frame pulse fires `playDef('watcher-pulse')`
+// when a def is registered for it, else falls back to the CSS `.framepulsering` class. The owner's
+// `watcher-pulse.json` def doesn't exist yet, so `window.__fxFires` (a DEV-only fire log `playDef` writes to)
+// has no `watcher-pulse` entry today and the CSS rising edge drives `pulseT` exactly as before. Once the def
+// lands, `fxFires` will carry the Pixi fire and this channel keeps passing without a harness change.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 async function runWatcher(page) {
   return page.evaluate(async () => {
@@ -523,12 +591,12 @@ async function runWatcher(page) {
     await sleep(9000);
     running = false;
 
-    return { ok: true, drakeUid, samples };
+    return { ok: true, drakeUid, samples, fxFires: (window.__fxFires ?? []).slice(), t0perf: t0 };
   });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// RUN — all five channels, one PASS/FAIL line each.
+// RUN — five gap channels + the Demon Horse coverage scenario, one PASS/FAIL line each.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) — gap band [${GAP_LO},${GAP_HI}]ms\n`);
@@ -642,7 +710,12 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
   for (let n = 1; n <= MAX_TRIALS && !found; n++) {
     const res = await withFreshPage((page) => runWatcher(page));
     if (!res.ok) { trialLog.push(`trial ${n}: ${res.reason}`); continue; }
-    const pulseT = firstRisingPulse(res.samples, 'frameClass', undefined);
+    // pulseT is the earlier of the CSS `.framepulsering` rising edge and the first `watcher-pulse` Pixi fire
+    // (relative to t0perf) — CSS today (def absent), either surface once the owner's def lands.
+    const cssPulseT = firstRisingPulse(res.samples, 'frameClass', undefined);
+    const pixiFire = (res.fxFires ?? []).find((f) => f.id === 'watcher-pulse');
+    const pixiPulseT = pixiFire ? Math.round(pixiFire.t - res.t0perf) : null;
+    const pulseT = [cssPulseT, pixiPulseT].filter((x) => x !== null).sort((a, b) => a - b)[0] ?? null;
     const gemPulses = (() => {
       let prev = false, cnt = 0;
       for (const s of res.samples) {
@@ -669,9 +742,9 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
   if (!found) {
     report('WATCHER — Crypt Drake (FRAME pulse, light blue -> board buff)', false, trialLog);
   } else {
-    report('WATCHER — Crypt Drake (FRAME pulse, light blue -> board buff)', true, [
+    report('WATCHER — Crypt Drake (FRAME pulse, CSS or Pixi -> board buff)', true, [
       ...trialLog,
-      `pulse_t=${found.pulseT}ms (.framepulsering.pulsing rising edge)`,
+      `pulse_t=${found.pulseT}ms (earlier of .framepulsering.pulsing rising edge and a 'watcher-pulse' fxFires entry — CSS today, def absent)`,
       `effect_t=${found.effectT}ms (Crypt Drake's own atk badge rolling, base=${found.baseAtk})`,
       `gap=${found.gap}ms, band=[${GAP_LO},${GAP_HI}]ms`,
       'medallion (.cgem.pulsing) rising edges: 0 (must be 0 — pulse belongs on the frame, not the medallion)',
@@ -679,5 +752,20 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
   }
 }
 
-console.log(`\n${failures === 0 ? 'ALL 5 CHANNELS PASS' : `${failures} CHECK(S) FAILED`}`);
+// ── COVERAGE — Demon Horse (economy rally now pulses its medallion via the sim marker) ─────────────────────
+{
+  const res = await withFreshPage((page) => runDemonHorse(page));
+  if (!res.ok || !res.attacked) {
+    report('COVERAGE — Demon Horse medallion pulse', false, [res.reason ?? 'Demon Horse never attacked this run']);
+  } else {
+    const pulseT = firstRisingPulse(res.samples, 'gemClass', undefined); // plain medallion, no `.rally` class
+    report('COVERAGE — Demon Horse (economy rally now pulses its medallion via the sim marker)', pulseT !== null, [
+      `pulse_t=${pulseT}ms (.cgem.pulsing rising edge)`,
+      pulseT === null ? 'FAIL — no medallion pulse: the rallyPulse marker is not reaching the wind-up (Piece A regression)' : 'medallion pulsed — coverage gap closed',
+    ]);
+  }
+}
+
+const CHANNEL_COUNT = 6;
+console.log(`\n${failures === 0 ? `ALL ${CHANNEL_COUNT} CHANNELS PASS` : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

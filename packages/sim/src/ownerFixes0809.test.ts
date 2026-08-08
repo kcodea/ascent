@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { createRun, reduce, type RunState } from './index';
+import { createRun, type RunState } from './index';
 import { rollShop } from './shop';
 
 /** Owner batch 2026-08-08 (third pass): the Guiding Candle, the Undertow's cap, Chimerus's max Health. */

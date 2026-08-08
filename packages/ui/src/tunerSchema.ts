@@ -101,7 +101,7 @@ export type TunerUnit =
   | 'cards';  // a count of card widths
 
 /** How a control is presented. `range` is the overwhelming majority; the rest exist so the odd ones fit too. */
-export type TunerControlKind = 'range' | 'color' | 'toggle' | 'select';
+export type TunerControlKind = 'range' | 'color' | 'toggle' | 'select' | 'text';
 
 export interface TunerControl<K extends string = string> {
   /** The config key this control writes. */
@@ -147,6 +147,10 @@ export interface TunerControl<K extends string = string> {
    * are written through `writeText`, not `write`, because the value is not a number.
    */
   options?: readonly string[];
+  /** `text` only — placeholder shown when the field is empty, and the max length accepted. A text control
+   *  writes a STRING through `writeColor` (the schema's string channel), the same route `select` uses. */
+  placeholder?: string;
+  maxLength?: number;
   /** Display text per option value, when the value is an id rather than something readable (the Card Art
    *  picker stores cardIds but must show the card's actual NAME). Absent => the value is shown as-is. */
   optionLabels?: Readonly<Record<string, string>>;

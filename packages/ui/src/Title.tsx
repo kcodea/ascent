@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { activeRift } from '@game/sim';
 import { avatarSrc } from './art';
+import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -56,6 +57,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
 
+  // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
+  // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
+  const [, bumpText] = useState(0);
+  useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
+  const txt = getTitleText();
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
@@ -92,7 +99,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           />
         ) : (
           <button className="acctname" onClick={beginEdit} title="Click to set your name">
-            {playerName || 'Set your name'}
+            {playerName || txt.namePrompt}
           </button>
         )}
       </div>
@@ -100,7 +107,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       <div className="titlemenu">
         <div className="titlelogo">
           <Crest />
-          <h1 className="disp titleword">ASCENT</h1>
+          <h1 className="disp titleword">{txt.wordmark}</h1>
         </div>
 
         {/* The down-stroke "thock" that used to live here is now one app-wide delegated listener in Game.tsx,
@@ -111,8 +118,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="continuerow">
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
                 <span className="mbicon"><Crest /></span>
-                <span className="mblabel">Continue</span>
-                <span className="mbnote">Round {savedRun.wave}</span>
+                <span className="mblabel">{txt.continueLabel}</span>
+                <span className="mbnote">{titleContinueNote(savedRun.wave)}</span>
               </button>
               <button
                 className={`clearrun${confirmClear ? ' armed' : ''}`}
@@ -130,23 +137,23 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           )}
           <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setModePick(true); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
-            <span className="mblabel">Play</span>
+            <span className="mblabel">{txt.play}</span>
           </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} title="Your match history + per-hero stats">
             <span className="mbicon"><IconHelm /></span>
-            <span className="mblabel">Career</span>
+            <span className="mblabel">{txt.career}</span>
           </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} title="Top players by rating">
             <span className="mbicon"><IconTrophy /></span>
-            <span className="mblabel">Leaderboard</span>
+            <span className="mblabel">{txt.leaderboard}</span>
           </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="The latest victory runs + their warbands">
             <span className="mbicon"><Icon name="crown" /></span>
-            <span className="mblabel">Hall of Champions</span>
+            <span className="mblabel">{txt.champions}</span>
           </button>
           <button className="menubtn" onClick={onSettings}>
             <span className="mbicon"><Icon name="gear" /></span>
-            <span className="mblabel">Settings</span>
+            <span className="mblabel">{txt.settings}</span>
           </button>
         </nav>
 

@@ -2526,11 +2526,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // A combat-refired "get N Rubies" Shout: the REAL mint (rubyBonus baked in — the bonus gain above lands
   // first deliberately — Candle Conduit fired, hand cap respected), not a plain hand grant.
   if (result.playerRubyMints) mintRubies(s, result.playerRubyMints);
-  // Rope Wrangler's Echo summoned these OUT of the hand mid-fight — the card fought, so it is spent
-  // (win or lose, alive or dead; the survivors' fates settle like any other combat body).
-  if (result.playerHandSummoned) {
-    s.hand = s.hand.filter((c) => !result.playerHandSummoned!.includes(c.uid));
-  }
+  // ROPE WRANGLER no longer EATS the card it summons (owner report 2026-08-08: "summons a minion and then
+  // you don't have it next turn"). Its printed text is "Echo: summon a random minion from your hand" — it
+  // never says the card is spent, and the summoned body is a combat-only body like every other summon, so
+  // the hand card survives the fight. `playerHandSummoned` still rides back (the replay and any future
+  // consumer can see WHICH cards fought); it simply no longer deletes them.
+  void result.playerHandSummoned;
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
   // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin

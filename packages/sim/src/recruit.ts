@@ -1213,6 +1213,17 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
 
 export function conjureToHand(state: RunState, pool: CardDef[], reps: number, overflow = false): void {
   if (pool.length === 0) return;
+  // RUNE OF THE RUNIC HOARD: every Shop spell copied into your hand gives your Dragons +1/+1. Hooked at the
+  // shared conjure chokepoint, so it pays for a Steward copy, a Recaller copy and a rune grant alike. Gated on
+  // the pool being spells: `conjureToHand` also hands over minions, which the rune says nothing about.
+  if (state.runeRunicHoard && pool.every((c) => c.spell)) {
+    for (let i = 0; i < reps; i++) {
+      for (const c of state.board) {
+        const d = CARD_INDEX[c.cardId];
+        if (d?.tribe === 'dragon' || d?.tribe2 === 'dragon') addBuff(c, 'Rune of the Runic Hoard', 1, 1);
+      }
+    }
+  }
   const rng = makeRng(state.rngCursor);
   // `overflow` (quest / rune reward grants) bypasses the hand cap so an earned reward is never dropped.
   //
@@ -5398,6 +5409,17 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
  */
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
+  // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
+  // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
+  {
+    const def = CARD_INDEX[sold.cardId];
+    const isDragon = def?.tribe === 'dragon' || def?.tribe2 === 'dragon';
+    if (state.runeLastWord && !state.lastWordUsedThisTurn && isDragon && def && hasBattlecry(def)) {
+      state.lastWordUsedThisTurn = true;
+      replayBattlecry(state, sold);
+    }
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -6090,7 +6112,33 @@ export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCar
 
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
+  // SPELLHIDE + SPELLMARKET both key off "the first STAT-GRANTING Shop spell you cast on a minion this turn",
+  // so "stat-granting" is measured across the cast rather than inferred from the card: the spell qualifies
+  // when the target actually ended up bigger. Snapshot each stat before, diff after.
+  const preAtk = target?.attack ?? 0;
+  const preHp = target?.health ?? 0;
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  if (target && state.board.includes(target)) {
+    const dAtk = target.attack - preAtk;
+    const dHp = target.health - preHp;
+    if (dAtk > 0 || dHp > 0) {
+      // RUNE OF SPELLHIDE: the turn's first stat spell landed on a BEAST is remembered and cast on that same
+      // Beast AGAIN at Start of Combat. Stored as {spellId, uid} rather than as stats, so the re-cast runs the
+      // real spell in combat — a spell whose value scales with run state pays its live value, not this one.
+      const def = CARD_INDEX[target.cardId];
+      if (state.runeSpellhide && !state.spellhideUsedThisTurn && (def?.tribe === 'beast' || def?.tribe2 === 'beast')) {
+        state.spellhideUsedThisTurn = true;
+        (state.spellhidePending ??= []).push({ spellId: spellDef.id, uid: target.uid });
+      }
+      // RUNE OF THE SPELLMARKET: the turn's first stat spell on ANY friendly minion also hands the same stats
+      // to the RIGHT-MOST Shop offer. The DELTA is what moves, so a spell that scales with run state feeds the
+      // Shop exactly what it just granted rather than its printed number.
+      if (state.runeSpellmarket && !state.spellmarketUsedThisTurn && state.shop.length > 0) {
+        state.spellmarketUsedThisTurn = true;
+        addOfferBuff(state.shop[state.shop.length - 1]!, 'Rune of the Spellmarket', dAtk, dHp);
+      }
+    }
+  }
   // Set 2 — tell the TARGET a spell landed on it (Mirrorwing re-casts, Runefire spreads). Fired after the
   // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
   // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.

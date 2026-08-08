@@ -35,6 +35,7 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
 const NOT_A_METER: Record<string, string> = {
   rune_motherlode: 'the 2 is how many minions a Ruby copies onto, not a count-up',
   rune_finality: 'the 7 is how many Imps arrive; the trigger is "your last minion dies"',
+  rune_ashen_payroll: 'combat-local — the Imps-summoned count ticks during the replay, not across turns',
   rune_blood_and_coin: 'combat-local — covered by runeCombatTally (the badge ticks during the replay)',
   rune_remains: 'combat-local — covered by runeCombatTally',
   q_umbral_energy: 'a multiplier ("+2/+2 for every Shop spell cast"), not a threshold',

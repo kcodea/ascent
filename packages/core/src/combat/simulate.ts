@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn } from '../effects/factories';
+import { FACTORIES, playRubyOn, combatCastable, resolveCombatSpellCast } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -293,6 +293,7 @@ export function simulate(
     if (gain.health > 0) { m.health += gain.health; m.maxHealth += gain.health; }
   };
 
+  const startCount: Record<Side, number> = { player: player.length, enemy: enemy.length };
   const boards: Record<Side, Minion[]> = {
     player: player.map((b) => instantiate(b, 'player', cards, mkUid)),
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
@@ -957,6 +958,15 @@ export function simulate(
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
+    // RUNE OF THE SPARE CHAIR: a board that started FULL-but-one (exactly 6) has kept a seat open, and the
+    // first body to take it arrives Warded and swinging. `startCount` is the start-of-combat size, so a board
+    // that reaches 6 by losing a minion mid-fight doesn't qualify — "begin combat with exactly 6".
+    if (modsFor(side).runeSpareChair && !spareChairUsed[side] && startCount[side] === 6) {
+      spareChairUsed[side] = true;
+      attackNow = true;
+      grantKeywords = [...(grantKeywords ?? []), 'DS'];
+      fireTrigger('runeSpareChair', side);
+    }
     // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
     // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
     // Rune of the Food Chain: the FIRST body summoned this combat inherits the captured Demon stats.
@@ -1055,6 +1065,14 @@ export function simulate(
         }
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
+    }
+    // RUNE OF EMBERLINE, the paying half: the next Imp to arrive inherits the banked stats, once per combat.
+    if (modsFor(side).runeEmberline && !emberlinePaid[side] && emberlineBank[side] && cards[minion.cardId]?.imp
+        && !minion.dead) {
+      const bank = emberlineBank[side]!;
+      emberlinePaid[side] = true;
+      fireTrigger('runeEmberline', side);
+      ctx.buff(minion, bank.attack, bank.health, 'Rune of Emberline');
     }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
@@ -1488,6 +1506,26 @@ export function simulate(
     // fuel: it is itself a Beast, so two of them resurrect each other, each new copy dies, enters the
     // graveyard under a fresh uid and is raised again — 134 bodies in the two-Colossi test before this guard.
     // "The first 3 other Beasts that died this combat" means three corpses, not three per resurrection.
+    // RUNE OF EMBERLINE: the FIRST Imp to die each combat banks its stats for the next Imp summoned. The
+    // Ashen Heir's rule, narrowed to one payout a fight — `maxHealth` for the same reason (what the Imp WAS,
+    // not what the killing blow left). Per side, so a served board runs its own.
+    if (modsFor(minion.side).runeEmberline && !emberlineBank[minion.side] && cards[minion.cardId]?.imp) {
+      emberlineBank[minion.side] = { attack: Math.max(0, minion.attack), health: Math.max(0, minion.maxHealth) };
+    }
+    // RUNE OF BACKBEAT: the first Echo triggered each combat also fires your LEFT-MOST Rally. Hooked at the
+    // real death site — a Deathrattle is dispatched through the `onDeath` bus, so `fireOwnDeathrattles` (the
+    // FORCED-Echo path used by Echoing Coop and Bone Throne) is not where an ordinary Echo passes. Gated on
+    // the dying body actually HAVING an Echo, so a plain death can't spend the rune, and on a living Rally
+    // body, since a free Rally on a corpse pays nothing.
+    if (modsFor(minion.side).runeBackbeat && !backbeatUsed[minion.side]
+        && minion.effects.some((e) => e.on === 'onDeath')) {
+      const lead = living(minion.side).find((m) => m.keywords.includes('RL') && m.effects.some((e) => e.on === 'onAttack'));
+      if (lead) {
+        backbeatUsed[minion.side] = true;
+        fireTrigger('runeBackbeat', minion.side);
+        fireFreeRally(lead, minion.side);
+      }
+    }
     if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
         && !raisedBodies.has(minion.uid)) {
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden });
@@ -1597,6 +1635,10 @@ export function simulate(
   // was killed from, so the copy comes back in (or next to) its original slot.
   const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean }[]> = { player: [], enemy: [] };
   const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
+  const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
+  const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
+  const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {
@@ -2366,6 +2408,19 @@ export function simulate(
         ctx.attackNow?.(front, false);
         flushImmediateAttacks();
       }
+    }
+    // RUNE OF SPELLHIDE: re-cast the turn's remembered stat spell onto the very Beast it was cast on in the
+    // shop. The spell RUNS again rather than its stats being copied, so anything that scales with run state
+    // pays its live value here. The uid is the run board card's, which `instantiate` carries onto the combat
+    // body, so the same Beast is found; if it isn't on the board any more, the re-cast is simply skipped.
+    const hide = (rside === 'player' ? playerState : enemyState).spellhide ?? [];
+    for (const rec of hide) {
+      const def = cards[rec.spellId];
+      const onto = boards[rside].find((m) => m.uid === rec.uid && !m.dead);
+      if (!def?.spell || !onto || !combatCastable(def)) continue;
+      nextStep();
+      fireTrigger('runeSpellhide', rside);
+      resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined);
     }
     if (rmods.runeFiveBanners) {
       // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a

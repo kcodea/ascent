@@ -45,6 +45,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
 - **Batch 4, tranche 2 — three T6 bodies** (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the Epic runes that grant them; the Colossus needed two loop guards, since a resurrected Beast that dies is fuel for the next resurrection.
+- **Badge value rolls ease out** — stat counters (shop + combat) now decelerate onto their final number instead of ticking linearly, tuned for a slow, visible settle. And **combat damage now counts the HP badge down** on a hit (the mirror of a buff rolling up), contact-timed; a unit buffed *and* hit in the same beat nets both into one roll to its true HP. A killing blow still snaps.
+- **Effect spawn areas can be ovals** — the workbench's emit shapes were locked to circles and squares; a new Emit squash slider flattens or stretches them vertically, so a ring can now spawn particles around an oval. Existing effects are untouched.
 
 - **Batch 4, tranche 1 — nine new Basic runes** (Empty Plate, Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling), plus a real combat-phase softlock: a Discover raised mid-fight left no legal action, since the phase guard and the modal guard each refused what the other allowed.
 

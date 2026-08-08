@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceRollProgress, combatBuffDeltas } from './combatBuffRoll';
+import { advanceRollProgress, combatBuffDeltas, combatDamageDeltas } from './combatBuffRoll';
 
 const frame = { player: [{ uid: 'a', attack: 5, health: 6 }], enemy: [] } as never;
 
@@ -15,6 +15,40 @@ describe('combatBuffDeltas', () => {
   it('skips a zero net delta and a target not on the frame', () => {
     const events = [{ type: 'buff', target: 'ghost', attack: 2, health: 0 }] as never[];
     expect(combatBuffDeltas({ start: 0, end: 1 }, events, frame)).toEqual([]);
+  });
+});
+
+/**
+ * The mirror of `combatBuffDeltas` for the badge counting DOWN on a hit (owner ask 2026-08-07). It reports
+ * how much HP a SURVIVING target lost this beat, so the install effect can roll that off the badge the way a
+ * buff rolls it on. Two exclusions keep the roll off the cases that must stay a snap: a target that DIES this
+ * beat (its death collapse + float own that moment) and a target already at 0 on the live frame.
+ */
+describe('combatDamageDeltas', () => {
+  it('sums a beat\'s damage per surviving target', () => {
+    const events = [
+      { type: 'dmg', target: 'a', amount: 2, remainingHp: 4 },
+      { type: 'dmg', target: 'a', amount: 1, remainingHp: 3 },
+    ] as never[];
+    expect(combatDamageDeltas({ start: 0, end: 2 }, events, frame)).toEqual([{ uid: 'a', health: 3 }]);
+  });
+
+  it('excludes a target that DIES this beat — the death path owns that snap', () => {
+    const events = [
+      { type: 'dmg', target: 'a', amount: 6, remainingHp: 0 },
+      { type: 'death', target: 'a', side: 'player' },
+    ] as never[];
+    expect(combatDamageDeltas({ start: 0, end: 2 }, events, frame)).toEqual([]);
+  });
+
+  it('excludes a target gone from the frame (or at 0 HP)', () => {
+    const events = [{ type: 'dmg', target: 'ghost', amount: 3, remainingHp: 1 }] as never[];
+    expect(combatDamageDeltas({ start: 0, end: 1 }, events, frame)).toEqual([]);
+  });
+
+  it('ignores non-damage events', () => {
+    const events = [{ type: 'buff', target: 'a', attack: 2, health: 2 }] as never[];
+    expect(combatDamageDeltas({ start: 0, end: 1 }, events, frame)).toEqual([]);
   });
 });
 

@@ -42,6 +42,100 @@ Typecheck, lint (0 errors) and `build:web` all clean.
 the standing rule is to wire art only on a filename match, never a guess.
 
 **Still queued from batch 4:** tranche 3 (8 contained-machinery Basics), tranche 4 (5 hard Epics).
+## 2026-08-07 — a same-beat buff + hit nets into one HP roll
+
+Follow-up to the damage-roll work below. A unit **buffed and hit in the same beat** used to snap its HP: the
+down-roll's below-floor guard (`heldFor(uid).health !== 0`) refused to net a live health up-roll against a
+down-roll, since a naive overlap can print an HP the unit never had.
+
+The fix nets at the SOURCE instead of at delivery. The install effect's buff-place pass now subtracts the
+beat's same-beat damage from each buffed unit's HEALTH delta (`combatDamageDeltas` → `dmgByUid`), so the unit
+gets ONE hold — `{attack, health: buffHealth - damage}` — that rolls once from its pre-beat HP to `frame`'s
+true HP on the buff's own strike clock. Both endpoints are values the unit actually had, so no frame prints
+below the floor; a net of 0 stores nothing, so a buff and a hit that cancel simply don't move the number. The
+damage pass then skips any uid buffed this beat (`buffedThisBeat`) so it isn't rolled twice. As a bonus this
+unifies Target Dummy: its +Attack now rolls up while its HP rolls down, together, instead of the Attack
+snapping.
+
+Still snaps (rarer, logged): an EARLIER-beat health buff still mid-roll when a LATER beat's hit lands — the
+cross-beat baselines differ, so that one keeps the safe snap.
+
+**Verified.** `npm test` (4585) green; typecheck + lint + build:web green. Live-verified in combat by the
+owner (Target Dummy + a Start-of-Combat health buff traded into).
+
+## 2026-08-07 — badge value rolls ease out, and combat damage counts the HP down
+
+**Ease-out on the value roll.** The badge roll (`fx/statHold.ts`) revealed its withheld delta linearly — the
+digits ticked at a constant rate. They now ease out: `withheldFraction(revealed)` maps the reveal fraction to
+what is still withheld, so the counter sprints out of the gate and settles slowly onto its final number. It is
+the ONLY place the curve lives — `revealed` still advances with real time (the shared ticker and combat's
+`driveRoll` are untouched), and `holdStat`'s mid-roll top-up reads the same curve so a buff landing on a
+rolling counter owes exactly what the badge is showing (no backward tick). The reel wobble deliberately keeps
+the LINEAR remainder, so a +1/+1's spin is unchanged; only the main value eases. Owner-tuned the exponent from
+cubic to **quad** (`t * t`) for a slower, more visible settle at the end. One curve, so shop and combat inherit
+it together.
+
+**Combat damage now ROLLS the HP badge down** (owner ask), the mirror of a buff rolling it up. On a hit, the
+install effect places a self-delivering `cue`-origin hold of the beat's total damage per target; the shared
+ticker counts the badge down from the pre-hit number, and because the damage RESULT beat is already scheduled
+to land on contact (`lungeConfig.ts`), a `startAt: 0` roll starts exactly as the blow lands — no strike
+registry needed. Two targets deliberately still SNAP, preserving the below-floor invariant the old
+unconditional `cancelRollForUid` protected: a target with a HEALTH change already in flight
+(`heldFor(uid).health !== 0` — netting a live health up-roll against this down-roll is the exact
+never-had-number case), and a target that dies this beat (`combatDamageDeltas` excludes it, so the death
+collapse + float own that moment). Every other clean, survivable hit rolls. `COMBAT_ROLL_MS` bumped 420 → 650
+so the fight-paced count reads clearly.
+
+**Verified.** `npm test` (4207) green; new `combatDamageDeltas` coverage (sums per surviving target; excludes
+a dying target and one gone from the frame); the `statHold` ease tests rewritten property-based (front-loaded +
+monotonic + exact endpoints) so future settle tuning won't churn them. typecheck + lint + build:web all green.
+Live-verified in combat by the owner (own units perfect).
+
+**Same-beat self-buffer, caught in the same pass.** The overlap guard first snapped ANY unit with a hold in
+flight, which caught Target Dummy (`sandbag`, +1 Attack when hit): its self-buff lands in the same beat as the
+hit, so its HP snapped instead of rolling (owner report). Narrowed the guard from `holdOrigin != null` to a
+HEALTH conflict only (`heldFor(uid).health !== 0`) — an attack-only hold is orthogonal to the HP badge, so the
+hit still rolls (the attack hold is cleared so the cue owns the counter; a +1 Attack snaps regardless). A
+genuine health up-roll meeting damage still snaps, so the invariant holds.
+## 2026-08-07 — emit shapes can be squashed into ovals
+
+Owner: *"i need to add the ability to adjust the height and width of the emit shapes"* — concretely, *"so i
+can select ring and squash it to the shape of an oval."*
+
+A single `emitRadius` drove both axes, so `ring` could only ever be a circle, `disc` a filled circle and
+`box` a square. The new **Emit squash** slider scales the Y extent, turning each into its oval/rectangle
+counterpart.
+
+Deliberately NOT a second radius or a width/height pair. The shockwave primitive already ships a `squash`
+dial with exactly this meaning — "1 is a true circle, lower reads as a ring lying on the ground" — so reusing
+the name and the contract means one dial means one thing across the workbench, and it needs no migration of
+the `emitRadius` key that sits in every committed def.
+
+- **The default is an EXACT no-op.** `squash` multiplies AFTER the shape is solved, so at 1 it is an IEEE
+  identity and every def written before this spawns bit-identical positions. Asserted with `toBe`, not
+  `toBeCloseTo` — the same argument the shockwave shader makes for its own divide-by-1.
+- **Range 0.2–3, wider than shockwave's 0.2–1.** Shockwave caps at 1 because its ring is a ground-plane
+  read; an emit area has no such convention, so taller-than-wide is equally useful.
+- **Not `axis: 'scale'`**, unlike Emit radius. `scaleDef` multiplies every `scale` param by one factor, and
+  scaling a RATIO would distort the oval as the effect resized rather than resizing it.
+- Rides `emitShape`'s existing gateway (`not: 'point'`) rather than declaring a dependency on `emitRadius` —
+  the pair would deadlock, as the note on the radius already explains.
+
+Landed in all three primitives that share `emissionOffset`: burst, emitter and smoke.
+
+Two RNG guards needed their pinned call text updated (`emitter.test.ts`, `smoke.test.ts`). They assert the
+exact `emissionOffset(...)` source string so the draw ORDER cannot shift silently; appending an argument
+broke the match while leaving the two `this.rand()` draws — the half that actually governs seed replay —
+untouched. The note now says so.
+
+**Also documents a worktree trap this work walked straight into.** A fresh `git worktree` has no
+`node_modules`, so `@game/*` imports resolve through the ROOT symlinks into the PRIMARY checkout's packages —
+whatever branch that is parked on. The first typecheck here reported three `runeChef` errors from a checkout
+sitting on an unrelated branch, which reads exactly like a broken `main`; `main` was green the whole time.
+`npm install` inside the worktree fixes it. Added to the concurrency block in CLAUDE.md.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4544 tests, `build:web` — all after
+that install, so this is the first run in this worktree that was genuinely self-contained.
 
 ## 2026-08-07 — Batch 4, tranche 1: nine Basic runes, plus a real combat-phase softlock
 

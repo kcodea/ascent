@@ -1654,6 +1654,10 @@ export interface Minion {
   /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
    *  A fresh Minion per fight, so it resets naturally between combats. */
   rubyRecvTick?: number;
+  /** A RISEN body's Avenge floor: friendly deaths tallied BEFORE its Rise no longer count as its progress
+   *  (owner ruling 2026-08-08 — a risen 1/3 Avenge restarts at 0/3). Every avenge factory reads its count
+   *  through `avengeCountFor`, which subtracts this. Absent = 0 = the whole side tally counts. */
+  avengeBaseline?: number;
   /** Ashen Heir: stats banked from friendly Imps that have died, waiting for the next Imp to inherit them.
    *  Per-instance and per-combat, so two Heirs each keep their own bank and both pay out. */
   impBank?: { attack: number; health: number };

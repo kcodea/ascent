@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-08 — Rise resets, combat Discovers auto-pick, Reinforcing Ale in combat, Veinstorm preview
+
+Four owner reports:
+
+**1. A risen body RESETS** — nothing granted to the instance mid-fight rides through a Rise any more.
+Two halves:
+- *Granted rallies* (Sunmane's `rallySpreadAtk`, Better Bot's `rallyMechAtk`, `rallySpellWeld`,
+  Empty Graves, Bloodlust) are cleared where the Rise already resets stats and keywords.
+- *Avenge progress restarts at 0/N.* Avenge is a SIDE-level deaths tally, so the reset is a per-instance
+  `avengeBaseline` stamped on Rise (after the body's own rise-death is tallied); a new `avengeCountFor`
+  helper subtracts it, and all 20 minion-level avenge factories now count through it. The replay mirrors
+  the same rule per uid, so the displayed N/threshold counter restarts too.
+
+**2. A Discover spell cast mid-combat grants a RANDOM pick from its pool** — it no longer opens the Discover
+UI at settle. The offer is still built by the real `openDiscover` (same pools, tier rules and rng stream), but
+the choice is rolled, and the pick lands through the exact take path a clicked Discover uses — extracted into
+a shared `takeDiscoverPick` so the two paths can't drift.
+
+**3. Reinforcing Ale casts in combat.** Sporebat's Echo cast it and nothing happened: `spellGrantTopTypeMinion`
+was simply missing from the combat resolver, so the cast fizzled. It now grants a minion of the side's most
+common LIVING type (both tribes counted), through the same settle-time carry every combat hand-grant uses.
+
+**4. Storm Chaser's Veinstorm preview reads live.** Veinstorm's live-value branch existed, but the spell
+PREVIEW path (hovering a card that names a spell) never passed `rubyBonus` — so the hover promised +1/+1 while
+the cast paid more. The bag now rides through; at rubyBonus 0/+1 the preview reads +1/+2, exactly the report.
+
+**Verified.** 4710 tests across 273 files green, including a new 5-case `ownerFixes0808.test.ts`. Typecheck,
+lint (0 errors) and `build:web` all clean.
+
 ## 2026-08-08 — the last three rune arts: every rune now has art
 
 The owner dropped the three missing masters (`RuneOfTheAftermarket` — the real name this time, replacing the

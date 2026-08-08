@@ -932,6 +932,29 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   }, []);
 
   /**
+   * THE WORKBENCH CLAIMS ESCAPE WHILE IT IS OPEN.
+   *
+   * The tool takes over the screen, but the game keeps running underneath — and FOUR separate global `Escape`
+   * handlers live down there (`Game`'s pause menu, the dev menu, the inspect overlay, the lobby rail). Pressing
+   * Escape with the workbench focused opened the game's Settings modal ON TOP of the authoring tool.
+   *
+   * Claimed in the CAPTURE phase so the event stops before reaching any of them, rather than teaching each one
+   * about the workbench — there are four today, and the next one added would reintroduce the bug.
+   *
+   * A text field still gets its Escape: `isTextEntry` lets the layer-rename input cancel as it always has.
+   * Escape deliberately does NOT close the workbench — losing a tuning session to a stray keypress is a worse
+   * failure than reaching for the ✕.
+   */
+  useEffect(() => {
+    const claimEscape = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || isTextEntry(e.target)) return;
+      e.stopPropagation();
+    };
+    window.addEventListener('keydown', claimEscape, true);
+    return () => window.removeEventListener('keydown', claimEscape, true);
+  }, []);
+
+  /**
    * Transport shortcuts: Space = play/pause, F = fire once, L = loop on/off. Every tool in this category has
    * them, and tuning is a two-handed job — one on the mouse holding a slider, one that shouldn't have to
    * travel back to the transport bar to replay what just changed.

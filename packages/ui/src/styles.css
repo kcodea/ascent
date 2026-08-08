@@ -2115,7 +2115,7 @@ body.modalup .statusbar .questbadges {
    two different systems and the taller nodes fattened the row). Only the stone colouring differs now. */
 .questbadge.runebadge { border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
-.questbadge-tip-reward b { color: #a8d8ef; }
+.questbadge-tip-reward b { color: var(--gl-accent, #a8d8ef); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
    The resting (weakest) glow sits STATICALLY on the slot; the brighter crest lives on a ::before whose
    OPACITY breathes via kwglow — an animated box-shadow repainted the slot every frame (see performance.md). */
@@ -2625,10 +2625,10 @@ body.modalup .statusbar .questbadges {
    The blur is DELIBERATE and safe here, unlike the one dropped from `.discover-ov`: that was a full-viewport
    backdrop pass sampling the whole framebuffer every composite. This is a ~220px box that appears on hover
    and holds still — bounded area, no looping animation, one composite on open. */
-.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, rgba(46, 56, 72, 0.86), rgba(20, 25, 34, 0.9)); -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15); border: 1px solid rgba(190, 214, 240, 0.22); border-top-color: rgba(226, 240, 255, 0.42); color: #eef4fb; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.questbadge-tip b { color: #a8d8ef; font-weight: 800; } /* ice accent — the old orange fought the glass */
-.questbadge-tip .questbadge-tip-reward { color: #dbe7f4; }
-.questbadge-tip .questbadge-tip-state { color: var(--gold-lt); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.questbadge-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; } /* ice accent — the old orange fought the glass */
+.questbadge-tip .questbadge-tip-reward { color: var(--gl-text, #dbe7f4); }
+.questbadge-tip .questbadge-tip-state { color: var(--gl-value, var(--gold-lt)); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
 .questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
 /* The badges and the board-floated hero-power panel (z-index 41) are SIBLINGS inside `.statusbar`, and the tip's
    own z-index (60) is trapped inside `.questbadges`' transform stacking context — so the power icon painted over a
@@ -3851,9 +3851,9 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
    screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
-.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, rgba(46, 56, 72, 0.86), rgba(20, 25, 34, 0.9)); -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15); border: 1px solid rgba(190, 214, 240, 0.22); border-top-color: rgba(226, 240, 255, 0.42); color: #eef4fb; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
-.riftpill-tip b { color: #a8d8ef; font-weight: 800; }
-.riftpill-tip .riftpill-tip-body { color: #dbe7f4; }
+.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
+.riftpill-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; }
+.riftpill-tip .riftpill-tip-body { color: var(--gl-text, #dbe7f4); }
 .riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }

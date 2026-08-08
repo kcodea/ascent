@@ -12,6 +12,20 @@ The `backdrop-filter: blur(10px)` here is deliberate and NOT the pattern dropped
 a full-viewport backdrop pass sampling the whole framebuffer on every composite. This is a ~220px box that
 appears on hover and holds still — bounded area, no looping animation, one composite on open.
 
+**1b. `UI Theme` dev tuner — ten stock colour schemes for the glass surfaces.** The tooltip palette is no
+longer hard-coded: `uiThemeConfig.ts` pushes a token set (`--gl-top/-bot/-blur/-border/-border-top/-text/
+-accent/-value/-radius`) onto `:root`, and both tooltips read them with CSS fallbacks equal to the shipped
+values — so no override is byte-identical and production is untouched.
+
+The tuner leads with a PRESET dropdown of ten schemes (Glass Slate = shipped, Obsidian, Frostbite,
+**Emberforge** = the old brown/orange kept as a one-click way back, Verdant, Amethyst, Bloodmoon, Sunspire,
+Abyss, Parchment); picking one rewrites every field. Below it: four colour pickers (surface / accent / value /
+text) and four surface sliders (opacity, blur, rim brightness, radius). Touching any control flips the
+dropdown to `custom`, so it never claims a stock scheme is intact after you have moved away from it. Setting
+blur to 0 removes the backdrop pass entirely, for anyone who wants it cheaper still.
+
+Any surface can opt in by reading the same vars — the two tooltips are just the first consumers.
+
 **2. `Title Text` dev tuner — reword the front page without touching code.** Every string on the title screen
 (wordmark, all six menu plaques, the Continue sub-line, the name prompt) moves to `titleTextConfig.ts` and is
 editable live from the dev menu. `Title.tsx` subscribes and re-renders on change.

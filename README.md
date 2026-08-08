@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **Glass hover tooltips** for quests/runes (the brown-and-orange face is gone), and a **Title Text dev tuner** that rewords the whole front page live — including a new `text` control kind for the tuner framework.
+- **Glass hover tooltips** for quests/runes, a **UI Theme tuner** with 10 stock colour schemes driving them, and a **Title Text dev tuner** that rewords the whole front page live — plus a new `text` control kind for the tuner framework.
 
 - **`npm run report:export`** dumps the balance report in full (JSON + per-table CSV) — and exporting it exposed that the report never counted the tavern's spell slot, so its spells table went from 1 row to 74.
 

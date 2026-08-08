@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-07 — a same-beat buff + hit nets into one HP roll
+
+Follow-up to the damage-roll work below. A unit **buffed and hit in the same beat** used to snap its HP: the
+down-roll's below-floor guard (`heldFor(uid).health !== 0`) refused to net a live health up-roll against a
+down-roll, since a naive overlap can print an HP the unit never had.
+
+The fix nets at the SOURCE instead of at delivery. The install effect's buff-place pass now subtracts the
+beat's same-beat damage from each buffed unit's HEALTH delta (`combatDamageDeltas` → `dmgByUid`), so the unit
+gets ONE hold — `{attack, health: buffHealth - damage}` — that rolls once from its pre-beat HP to `frame`'s
+true HP on the buff's own strike clock. Both endpoints are values the unit actually had, so no frame prints
+below the floor; a net of 0 stores nothing, so a buff and a hit that cancel simply don't move the number. The
+damage pass then skips any uid buffed this beat (`buffedThisBeat`) so it isn't rolled twice. As a bonus this
+unifies Target Dummy: its +Attack now rolls up while its HP rolls down, together, instead of the Attack
+snapping.
+
+Still snaps (rarer, logged): an EARLIER-beat health buff still mid-roll when a LATER beat's hit lands — the
+cross-beat baselines differ, so that one keeps the safe snap.
+
+**Verified.** `npm test` (4585) green; typecheck + lint + build:web green. Live-verified in combat by the
+owner (Target Dummy + a Start-of-Combat health buff traded into).
+
 ## 2026-08-07 — badge value rolls ease out, and combat damage counts the HP down
 
 **Ease-out on the value roll.** The badge roll (`fx/statHold.ts`) revealed its withheld delta linearly — the

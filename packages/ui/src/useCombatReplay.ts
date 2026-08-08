@@ -1725,6 +1725,12 @@ export function useCombatReplay(
     // Computed once and reused for both the release pass and the place pass below, rather than calling
     // `combatBuffDeltas` twice for the same beat.
     const deltas = combatBuffDeltas(beat, events, frame);
+    // Same-beat damage per SURVIVING target. A unit buffed AND hit in one beat NETS into a single roll from
+    // its pre-beat HP to `frame`'s true HP — both real values, so never a below-floor print — instead of a
+    // health buff hold and a separate health down-roll fighting over the badge. Built once; read by the place
+    // pass here and the damage pass below (`buffedThisBeat` tells that pass which uids are already handled).
+    const dmgByUid = new Map(combatDamageDeltas(beat, events, frame).map((d) => [d.uid, d.health]));
+    const buffedThisBeat = new Set(deltas.map((d) => d.uid));
     // Release THIS beat's own targets too, even the ones no longer in `combatHeldRef` because their strike
     // already fired and `driveRoll` took over — see THE INVARIANT above. Safe/cheap when nothing is held
     // (`releaseStat` no-ops), which covers the ordinary forward-playback case where nothing has fired yet.
@@ -1736,7 +1742,14 @@ export function useCombatReplay(
       // (`fx/statHold`), so a lost release (skip / speed change / unmount mid-beat) can't freeze a badge.
       // `ttlMs` explicit (Task 6): the default TTL floor is too tight for combat's own wind-up+travel+roll
       // chain — see `COMBAT_HOLD_TTL_MS`'s own comment for the browser-traced race this closes.
-      holdStat(d.uid, { attack: d.attack, health: d.health }, {
+      //
+      // Net the same-beat damage into HEALTH only (a hit never moves Attack): a self-buffer met by counter-
+      // damage in one beat rolls both stats together on the buff's own strike clock and lands exactly on
+      // `frame`. The badge holds `frame - netHealth` = the pre-beat HP and rolls to `frame` — no intermediate
+      // value the unit never had. A net of 0 stores nothing (`holdStat` drops a zero delta), so the number
+      // simply doesn't move, which is correct when a buff and a hit cancel out.
+      const netHealth = d.health - (dmgByUid.get(d.uid) ?? 0);
+      holdStat(d.uid, { attack: d.attack, health: netHealth }, {
         origin: 'effect',
         ttlMs: COMBAT_HOLD_TTL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1),
       });
@@ -1763,20 +1776,22 @@ export function useCombatReplay(
     // ticker delivers it with no strike registry, and the ease-out (`fx/statHold`) settles it onto the true
     // HP. `rollMs` is speed-scaled so a sped-up replay tightens the count exactly as `driveRoll` does for buffs.
     //
-    // TWO targets still SNAP, which is what keeps the below-floor invariant this scan has always protected:
-    //  - one with a HEALTH change already in flight (`heldFor(uid).health !== 0`) — netting a live health
-    //    up-roll against this down-roll is the exact case that can print an HP the unit never had, so it snaps.
-    //    An attack-only hold does NOT count: it is orthogonal to the HP badge, so a Target Dummy that gains
-    //    +Attack in the SAME beat it is hit still rolls its HP — the attack hold is cleared first so the cue
-    //    owns the counter cleanly (its +1 Attack just snaps, which a one-point change does regardless); and
+    // Three targets do NOT take this cue path:
+    //  - one BUFFED this same beat — already NETTED into the buff-place pass above (its health delta had the
+    //    same-beat damage subtracted), so it rolls once from pre-beat HP to `frame` on the buff's own clock;
+    //    a second roll here would double it, so it's marked handled and skipped;
+    //  - one with an EARLIER-beat HEALTH roll still live (`heldFor(uid).health !== 0`, and NOT buffed this
+    //    beat) — netting a prior beat's live health up-roll against this down-roll is the below-floor case, so
+    //    it SNAPS. An attack-only hold does not count (attack is orthogonal to the HP badge), so its HP rolls;
     //  - one that DIES this beat — excluded inside `combatDamageDeltas`, so the death collapse + float own that
     //    moment rather than a counter racing toward 0 under a dissolving card.
     // Every other (clean, survivable) hit rolls.
     const dmgRollMs = COMBAT_ROLL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
     const rolledDown = new Set<string>();
     for (const d of combatDamageDeltas(beat, events, frame)) {
+      if (buffedThisBeat.has(d.uid)) { rolledDown.add(d.uid); continue; } // netted into the buff roll above
       const held = heldFor(d.uid);
-      if (held && held.health !== 0) continue;   // a HEALTH buff/debuff is mid-roll → fall through to the snap
+      if (held && held.health !== 0) continue;   // an EARLIER-beat health roll is live → fall through to snap
       cancelRollForUid(d.uid);                   // clear any attack-only hold so the cue owns the counter
       holdStat(d.uid, { health: -d.health }, { origin: 'cue', startAt: 0, rollMs: dmgRollMs });
       rolledDown.add(d.uid);

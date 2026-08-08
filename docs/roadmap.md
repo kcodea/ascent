@@ -50,9 +50,10 @@ The five buckets below are ordered by when we intend to act, not by size:
   - A carrying `react` layer can only `claimStat` from the moment it SPAWNS, so one armed with an `at` past
     the cue's roll completion can't (fail-open); and `revealStat`'s rejected-call reel ordering is correct but
     pinned by no test.
-  - A same-beat HEALTH buff + damage on one unit still SNAPS (the down-roll's below-floor guard). Only the
-    attack-buff + damage overlap was unblocked (Target Dummy, 2026-08-07); netting a live health up-roll into
-    one clean down-roll from the shown value to `frame`'s true HP is the remaining, rarer case.
+  - An EARLIER-beat HEALTH buff still mid-roll when a LATER beat's hit lands still SNAPS (the down-roll's
+    below-floor guard). Same-beat buff + damage now nets into one roll from the pre-beat HP to `frame`'s true
+    HP (2026-08-07); the cross-beat case has different baselines, so netting it cleanly is the remaining,
+    rarer case.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

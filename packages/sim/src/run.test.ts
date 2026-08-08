@@ -3745,7 +3745,7 @@ describe('hero powers (@game/sim)', () => {
     expect(s.heroReady).toBe(true); // no board minion matched → nothing happened
   });
 
-  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, then locks until 40 Gold spent", () => {
+  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, then locks until 75 Gold spent", () => {
     // Target Dummy (base 0/4) buffed to 5/9 by a +5/+5. Gilding doubles the BASE only → 0/4 → 0/8, plus the
     // +5/+5 buff = 5/13 — NOT 10/18 (the old bug that doubled the whole current stat line).
     const buffed: BoardCard = { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 5, health: 9, keywords: [], golden: false, buffs: [{ source: 'Fortify', attack: 5, health: 5, count: 1 }] };
@@ -3755,14 +3755,14 @@ describe('hero powers (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 13]); // base 0/4 doubled + the +5/+5 buff kept
     expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 5, health: 5, count: 1 }, { source: 'Gild', attack: 0, health: 4, count: 1 }]);
     expect(s.heroPowerSpent).toBe(true);
-    expect(s.indyGildRearmAt).toBe(40); // recharges once cumulative goldSpent reaches 40
-    // Still locked after < 40 Gold spent (recharging the per-wave flag must not re-enable it either).
+    expect(s.indyGildRearmAt).toBe(75); // recharges once cumulative goldSpent reaches 75 (owner rebalance 2026-08-07, was 40)
+    // Still locked after < 75 Gold spent (recharging the per-wave flag must not re-enable it either).
     s = { ...s, heroReady: true };
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
   });
 
-  it("Indy's Gild recharges once 40 Gold has been spent, then can gild again", () => {
-    // Turn 1 tavern up (tier 1→2 costs 5) then buys — spend past 40 Gold to re-arm the used Gild.
+  it("Indy's Gild recharges once 75 Gold has been spent, then can gild again", () => {
+    // Turn 1 tavern up (tier 1→2 costs 5) then buys — spend past 75 Gold to re-arm the used Gild.
     let s: RunState = {
       ...createRun(1, 'indy'), embers: 100, board: [mk('a', 2, 2), mk('b', 3, 3)],
     };
@@ -3770,12 +3770,12 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board[0]!.golden).toBe(true);
     expect(s.heroPowerSpent).toBe(true);
     const spentAtUse = s.goldSpent ?? 0;
-    expect(s.indyGildRearmAt).toBe(spentAtUse + 40);
-    // Still locked at 39 spent.
-    s = { ...s, embers: 100, goldSpent: spentAtUse + 39, heroReady: true };
+    expect(s.indyGildRearmAt).toBe(spentAtUse + 75);
+    // Still locked at 74 spent.
+    s = { ...s, embers: 100, goldSpent: spentAtUse + 74, heroReady: true };
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
-    // Cross 40 via a real spend (a tavern reroll, 1 Gold) → the charge comes back and a second gild lands.
-    s = reduce(s, { type: 'roll' }); // goldSpent += 1 → 40 spent since last use → re-armed
+    // Cross 75 via a real spend (a tavern reroll, 1 Gold) → the charge comes back and a second gild lands.
+    s = reduce(s, { type: 'roll' }); // goldSpent += 1 → 75 spent since last use → re-armed
     expect(s.heroPowerSpent).toBe(false);
     expect(s.indyGildRearmAt).toBeUndefined();
     s = reduce(s, { type: 'heroPower', uid: 'b' });

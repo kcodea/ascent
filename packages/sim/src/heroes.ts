@@ -9,7 +9,7 @@
 
 export type HeroPowerKind =
   | 'fortify' // (unused by default) give a minion +Tier/+Tier (scales with Tavern Tier)
-  | 'gild' // Indy: make a friendly minion Golden (recharges after every 40 Gold spent)
+  | 'gild' // Indy: make a friendly minion Golden (recharges after every 75 Gold spent)
   | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
   | 'replayEndOfTurn' // (legacy) proc a single friendly minion's End of Turn now
   | 'replayAllEndOfTurn' // Djinn: trigger EVERY friendly minion's End of Turn effect now (untargeted)
@@ -109,8 +109,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Masterwork',
       kind: 'gild',
-      oncePerGame: true, // one charge at a time; the charge recharges after every 40 Gold spent (see reducer)
-      text: 'Make a friendly minion **Gilded**. Recharges after you spend 40 Gold.',
+      oncePerGame: true, // one charge at a time; the charge recharges after every 75 Gold spent (see reducer)
+      text: 'Make a friendly minion **Gilded**. Recharges after you spend 75 Gold.',
     },
   },
   {

@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, combatCastable, resolveCombatSpellCast } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -850,6 +850,14 @@ export function simulate(
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
     broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
+    floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
+    battleRefractionRepsFor: (side) => {
+      // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
+      // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.
+      if (!modsFor(side).runeBattleRefraction) return 0;
+      return living(side).reduce((n, m) => n + (m.cardId === 'k_prismcaster' ? (m.golden ? 2 : 1) : 0), 0);
+    },
+    growthBonusFor: (side) => (side === 'player' ? playerState : enemyState).growthBonus ?? 0,
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
@@ -1529,6 +1537,27 @@ export function simulate(
     // RUNE OF EMBERLINE: the FIRST Imp to die each combat banks its stats for the next Imp summoned. The
     // Ashen Heir's rule, narrowed to one payout a fight — `maxHealth` for the same reason (what the Imp WAS,
     // not what the killing blow left). Per side, so a served board runs its own.
+    // RUNE OF MOONHOWL: a dying Mage-Pup casts the Shop spell it was taught — the taught spell rides the
+    // instance (`taughtSpellId`), and `battlecryCastTaughtSpell` is the exact combat cast the Shout re-fires
+    // use (targeted spells pick a seeded-random living friendly), so the Echo is the Shout, on death.
+    if (modsFor(minion.side).runeMoonhowl && minion.cardId === 'b2_magepup' && minion.taughtSpellId) {
+      // Not routed through `battlecryCastTaughtSpell`: that factory refuses a DEAD caster (correct for the
+      // Shout re-fires it serves), and an Echo's caster is by definition dead. Same cast, inlined — targeted
+      // spells pick a seeded-random living friendly, and the whole thing rides `castInCombat` so it is a
+      // genuine cast (a Runebloom Matriarch multiplies it).
+      const taught = cards[minion.taughtSpellId];
+      if (taught?.spell && combatCastable(taught)) {
+        nextStep(); fireTrigger('runeMoonhowl', minion.side);
+        castInCombat(ctx, minion, () => {
+          const friends = living(minion.side);
+          if (taught.target && friends.length === 0) return;
+          const targets = taught.target ? [rng.pick(friends)] : undefined;
+          if (resolveCombatSpellCast(ctx, minion, taught, targets)) {
+            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}` });
+          }
+        });
+      }
+    }
     // RUNE OF ANCESTRAL ROAR: a dying Dragon with a Shout fires that Shout as an Echo. Same firing block the
     // War Chorus uses, aimed at the dying body rather than the left-most one — this is the minion's OWN Shout,
     // granted to it as an Echo, so there is no left-most pick to make and no once-per-combat latch: the rune

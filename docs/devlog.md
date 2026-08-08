@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-07 — Card-keyed runes complete (12 of 12), Matriarch retexture, Mentor independence, Indy 75g
+
+**The six remaining card-keyed runes** (all Set-2 scoped; this closes the owner's twelve-rune list, with
+Final Verse dropped earlier as a duplicate of Last Word):
+
+- **Rune of Moonhowl** (Epic 5) — Mage-Pups gain "Echo: cast the Shop spell this learned." Inlined at the
+  death site rather than through `battlecryCastTaughtSpell`, which (correctly, for the Shout re-fires it
+  serves) refuses a dead caster — and an Echo's caster is by definition dead.
+- **Rune of the Flooded Vault** (Basic 5) — Water Dragon's Avenge also CASTS the left-most hand spell.
+  Combat never touches the hand, so "without consuming it" is the natural behaviour; the free cast is the work.
+- **Rune of Shared Reflection** (Epic 5) — the first Shop spell cast on each Mirrorwing per turn also casts on
+  its adjacent Dragons. Runefire's spread shape, keyed by the rune, per Mirrorwing.
+- **Rune of the Unbroken Vein** (Basic 5) — a Veinbreaker applies BOTH Choose One options, no prompt, through
+  the same `applyChooseOne` path a picked option uses.
+- **Rune of Battle Refraction** (Epic 6) — living Prismcasters repeat combat Rubies. Folded into `per` at the
+  single `playRubyOn` chokepoint, so every combat Ruby source refracts identically and there is no recursion.
+- **Rune of Living Growth** (Epic 5) — each Growth Mushy creates improves Growth permanently, run-wide.
+  Front to Back's shape: a run-level `growthBonus`, a `CombatSideState` channel (snapshot-captured, so a
+  served board's Growth pays ITS value), and live text on every surface (the Growth card itself now prints
+  its current magnitude, spell power included).
+
+**Rune of the Matriarch retextured** (owner): "trigger spells in combat an ADDITIONAL time" — the rune now
+adds one extra cast per Matriarch instead of doubling its whole contribution. Identical for a plain body
+(1→2 either way); a golden pays 3 instead of the old 4, which is what the new wording promises.
+
+**Moonhowl Mentors are independent** (owner report: two Mentors + two Waking Rifts paid ONE Pup). Every copy
+shared one run-level "once per turn" counter; each Mentor now carries its own latch (`teachTick`, reset each
+turn), so with two Mentors the first spell bought teaches BOTH. Rune of the White Wolf keeps the run-level
+counter for its own teaches only — the rune and the bodies no longer eat each other's budget.
+
+**Indy's Gild recharge: 40 → 75 Gold spent** (owner rebalance).
+
+**Verified.** 4688 tests across 272 files green, including a new 12-case `runeCardKeyed2.test.ts`. Typecheck,
+lint (0 errors) and `build:web` all clean. Rune-count tripwire 93 → 95.
+
 ## 2026-08-07 — Owner fix batch: Recaller loop, Mend rework, Voicekeeper timing, gild retro-doubling
 
 Four owner reports, four fixes:

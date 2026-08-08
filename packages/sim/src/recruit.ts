@@ -946,23 +946,13 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
  * silently never teach. The rune now contributes to that same ceiling, so holding a Mentor AND the rune raises
  * the cap rather than the two firing independently.
  */
-export function teachMagePup(state: RunState, spellId: string): void {
+/** Push one taught Mage-Pup into the hand (no cap logic here — each SOURCE owns its own budget). */
+function pushTaughtPup(state: RunState, spellId: string): boolean {
   const spell = CARD_INDEX[spellId];
-  if (!spell?.spell) return;
-  const boardCap = state.board.reduce(
-    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'grantMagePupTaught') ? (c.golden ? 2 : 1) : 0),
-    0,
-  );
-  // Each White Wolf copy adds one teach, like an extra Mentor (owner ruling 2026-08-06). `=== true` keeps a
-  // legacy save (which stored a boolean) worth exactly the one teach it always was.
-  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
-  const cap = boardCap + wolves;
-  const used = state.moonhowlTeachesThisTurn ?? 0;
-  if (used >= cap) return; // "once per turn" (twice for a golden Mentor, +1 for the rune)
-  if (state.hand.length >= handCap(state)) return; // no room — don't burn the teach on a card that can't land
+  if (!spell?.spell) return false;
+  if (state.hand.length >= handCap(state)) return false; // no room — don't burn the teach on a card that can't land
   const def = CARD_INDEX['b2_magepup'];
-  if (!def) return;
-  state.moonhowlTeachesThisTurn = used + 1;
+  if (!def) return false;
   state.hand.push({
     uid: `t${state.uidSeq++}`,
     cardId: def.id,
@@ -973,6 +963,26 @@ export function teachMagePup(state: RunState, spellId: string): void {
     golden: false,
     taughtSpellId: spellId,
   });
+  return true;
+}
+
+/** A specific MENTOR's teach — per-instance (owner report 2026-08-07: two Mentors + two Waking Rifts paid one
+ *  Pup, because every copy shared one run-level "once per turn" counter). Each Mentor now carries its own
+ *  latch (`teachTick`, reset each turn): with two Mentors on board, the first spell bought teaches BOTH. */
+export function teachMagePupFrom(state: RunState, mentor: BoardCard, spellId: string): void {
+  const cap = mentor.golden ? 2 : 1; // a golden Mentor teaches twice a turn, as it always did
+  if ((mentor.teachTick ?? 0) >= cap) return;
+  if (pushTaughtPup(state, spellId)) mentor.teachTick = (mentor.teachTick ?? 0) + 1;
+}
+
+/** Rune of the White Wolf's own teaches — the run-level counter now serves ONLY the rune (each copy is one
+ *  teach a turn), never the Mentors, so the rune and the bodies no longer eat each other's budget. */
+export function teachMagePup(state: RunState, spellId: string): void {
+  const wolves: number = state.runeWhiteWolf === true ? 1 : (typeof state.runeWhiteWolf === 'number' ? state.runeWhiteWolf : 0);
+  const used = state.moonhowlTeachesThisTurn ?? 0;
+  if (used >= wolves) return;
+  if (!pushTaughtPup(state, spellId)) return;
+  state.moonhowlTeachesThisTurn = used + 1;
 }
 
 /**
@@ -1806,6 +1816,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Big Huggies / Scalefeather (Echo): put a named card in hand. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params) => {
+    // Rune of Living Growth: the Echo half of Mushy's grant ticks the improver too (shop-side Echo — a
+    // Consume or a sell). The combat Echo's grant carries back a Growth but ticks nothing; noted limitation.
+    if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && str(params.cardId) === 'growth') {
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self);
+    }
     ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
   },
 
@@ -2027,8 +2042,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  tally, so two Mentors teach twice — the tally lives on the run, not the instance, because the cap is
    *  "how many spells got taught this turn", not "how many times this body acted". Respects the hand cap. */
   grantMagePupTaught: (ctx, self, _params, payload) => {
-    teachMagePup(ctx.state, payload.spellId ?? '');
-    void self;
+    teachMagePupFrom(ctx.state, self, payload.spellId ?? ''); // per-instance: this Mentor's own latch
   },
 
   /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
@@ -3035,6 +3049,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[str(params.spellId)];
     if (!def) return;
     const count = num(params.count, 1) * gold(self);
+    // Rune of Living Growth: every Growth MUSHY creates improves the spell run-wide, one tick per Growth —
+    // a golden Mushy hands over two and ticks twice.
+    if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && def.id === 'growth') {
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + count;
+    }
     for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
@@ -4285,6 +4304,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (attack > 0 || health > 0) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
+      // Rune of Living Growth: the Growth spell itself has grown. Keyed by spell id (carried in `_spellId`),
+      // so only Growth pays the accrual — the Front to Back shape, permanent instead of per-cast.
+      if (str(params._spellId) === 'growth') {
+        attack += ctx.state.growthBonus ?? 0;
+        health += ctx.state.growthBonus ?? 0;
+      }
     }
     const source = str(params._source) || 'Growth';
     for (const card of ctx.state.board) addBuff(card, source, attack, health);
@@ -5181,7 +5206,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
@@ -5190,6 +5215,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.ruby) {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
     return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
+  // Rune of Living Growth: the Growth spell's printed value must track its accrual (the live-text rule) —
+  // same shape as the Ruby line above. Spell power on top is already folded in by the generic path below
+  // for spells routed through bonusA; Growth's whole magnitude lives here instead, base + accrual + power.
+  if (def.id === 'growth' && (extra?.growthBonus ?? 0) > 0) {
+    const g = 1 + (extra!.growthBonus ?? 0);
+    return def.text.replace('+1/+1', `{{+${g + bonusA}/+${g + bonusH}}}`);
   }
   // Ruby Shipment: "your most common type" resolves against the CURRENT board, so it names the type it would
   // actually hand over right now (audit 2026-07-31 — a grant whose target shifts with cards played must say
@@ -5338,7 +5370,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
     // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
-    const params = { ...(effect.params ?? {}), _source: spellDef.name, _maxTier: spellDef.targetMaxTier };
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier };
     if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }));
   }
 }
@@ -5486,6 +5518,19 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
  */
 export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef: CardDef): void {
   card.spellsOnThisTurn = (card.spellsOnThisTurn ?? 0) + 1;
+  // RUNE OF SHARED REFLECTION: the first Shop spell cast on each Mirrorwing per turn ALSO casts on its
+  // adjacent Dragons. Runefire's spread shape, keyed by the rune instead of a printed effect — and per
+  // MIRRORWING ("on each Mirrorwing"), riding the same per-instance first-spell counter the card's own
+  // recast uses. Guarded to === 1 for the same reason that counter exists: the spread re-enters `castSpell`,
+  // and the bump above is what stops a neighbouring Mirrorwing chain from recursing forever.
+  if (state.runeSharedReflection && card.cardId === 'd2_mirrorwing' && card.spellsOnThisTurn === 1) {
+    const at = state.board.indexOf(card);
+    for (const nb of [state.board[at - 1], state.board[at + 1]]) {
+      if (!nb || nb === card) continue;
+      const nd = CARD_INDEX[nb.cardId];
+      if (nd?.tribe === 'dragon' || nd?.tribe2 === 'dragon') castSpell(state, spellDef, nb);
+    }
+  }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'spellCastOnThis')) return;
   const ctx = makeContext(state);

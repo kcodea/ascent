@@ -1193,8 +1193,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
-        s.chooseOne = { uid: card.uid, cardId: card.cardId };
-        return s;
+        // RUNE OF THE UNBROKEN VEIN: a Veinbreaker applies BOTH options and never prompts. The body is
+        // already on the board here, so both halves resolve through the same `applyChooseOne` path a picked
+        // option uses — each keeps its own golden scaling and buff-FX attribution, in printed order.
+        if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') {
+          for (const opt of CARD_INDEX[card.cardId]!.chooseOne!) applyChooseOne(s, card, opt.effects);
+        } else {
+          s.chooseOne = { uid: card.uid, cardId: card.cardId };
+          return s;
+        }
       }
       // Targeted Battlecry (Toxin Tender → a friendly Undead): pause for the player to pick the target
       // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
@@ -1642,7 +1649,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card || card.golden) return state;
         gildMinion(card);
         // Indy: arm the recharge — the charge comes back after 40 more Gold is spent (see `spendGold`).
-        s.indyGildRearmAt = (s.goldSpent ?? 0) + 40;
+        s.indyGildRearmAt = (s.goldSpent ?? 0) + 75; // owner rebalance 2026-08-07: was 40
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -1989,6 +1996,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         lastSpellCastId: s.lastSpellCastId,
         rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
         spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
+        growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2817,6 +2825,7 @@ function advanceCombat(s: RunState): void {
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
     if (c.soldSeen) c.soldSeen = 0; // Voicekeeper: "each turn" — its per-instance sold counter resets
+    if (c.teachTick) c.teachTick = 0; // Moonhowl Mentor: its per-instance teach latch re-arms
     if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
   }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
@@ -3738,6 +3747,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeMountainTrade': s.runeMountainTrade = true; break;
     case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
     case 'runeBroodmaster': s.runeBroodmaster = true; break;
+    case 'runeSharedReflection': s.runeSharedReflection = true; break;
+    case 'runeUnbrokenVein': s.runeUnbrokenVein = true; break;
+    case 'runeLivingGrowth': s.runeLivingGrowth = true; break;
     case 'runeSecondLife': {
       // Taunt + Rise on every Scavver, the ones already on the board included — a rune that only reached
       // FUTURE copies would read as doing nothing to the board you bought it for. New arrivals are covered by
@@ -4084,6 +4096,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeAncestralRoar: f?.runeAncestralRoar, // Rune of Ancestral Roar: a dying Dragon fires its own Shout
     runeRubyShrapnel: f?.runeRubyShrapnel,   // Rune of Ruby Shrapnel: a dying Ruby body splits its stats
     runeSharedScripture: f?.runeSharedScripture, // Rune of Shared Scripture: first combat cast → Shout + Rally
+    runeMoonhowl: f?.runeMoonhowl,           // Rune of Moonhowl: a dying Mage-Pup casts its taught spell
+    runeFloodedVault: f?.runeFloodedVault,   // Rune of the Flooded Vault: the Avenge also casts the left-most hand spell
+    runeBattleRefraction: f?.runeBattleRefraction, // Rune of Battle Refraction: Prismcasters repeat combat Rubies
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright

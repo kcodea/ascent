@@ -993,6 +993,9 @@ export type QuestReward =
   | { kind: 'runeOpenAppetite' } // Appetite Agent's aim loses its Demon restriction
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
   | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
+  | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
+  | { kind: 'runeUnbrokenVein' } // Veinbreaker applies both Choose One options
+  | { kind: 'runeLivingGrowth' } // each Growth Mushy creates improves Growth permanently
   | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
@@ -1144,6 +1147,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeAncestralRoar' // your Dragons with a Shout gain "Echo: trigger this minion's Shout"
   | 'runeRubyShrapnel' // a dying Ruby-buffed minion splits its Ruby stats among the survivors
   | 'runeSharedScripture'
+  | 'runeMoonhowl' // Mage-Pups gain "Echo: cast the Shop spell this learned"
+  | 'runeFloodedVault' // Water Dragon's Avenge also casts the left-most hand spell, unconsumed
+  | 'runeBattleRefraction'
   // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
   | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
@@ -1367,6 +1373,12 @@ export interface QuestCombatMods {
   runeSharedScripture?: boolean;
   /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half). */
   runeBroodmaster?: boolean;
+  /** Rune of Moonhowl: a dying Mage-Pup casts its taught spell (Echo). */
+  runeMoonhowl?: boolean;
+  /** Rune of the Flooded Vault: Water Dragon's Avenge also casts the left-most hand spell, unconsumed. */
+  runeFloodedVault?: boolean;
+  /** Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too. */
+  runeBattleRefraction?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
@@ -1832,6 +1844,8 @@ export interface CombatSideState {
   rememberedSpellIds?: string[];
   /** Rune of Spellhide: {spellId, uid} pairs re-cast at Start of Combat onto the Beast that was buffed. */
   spellhide?: { spellId: string; uid: string }[];
+  /** Rune of Living Growth: the run's accrued Growth improvement, added to every combat Growth cast. */
+  growthBonus?: number;
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
@@ -2274,6 +2288,12 @@ export interface CombatContext {
   onCombatSpellCast?(side: Side): void;
   /** Rune of the Broodmaster — does a Broodwright on this side also buff itself? (mirrors `groveweaverSelfFor`) */
   broodmasterSelfFor?(side: Side): boolean;
+  /** Rune of the Flooded Vault — does Water Dragon's Avenge also cast the left-most hand spell? */
+  floodedVaultFor?(side: Side): boolean;
+  /** Rune of Battle Refraction — extra combat-Ruby repeats this side's living Prismcasters grant. */
+  battleRefractionRepsFor?(side: Side): number;
+  /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
+  growthBonusFor?(side: Side): number;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
   rememberedSpellsFor?(side: Side): readonly string[];
   /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,

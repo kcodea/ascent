@@ -46,6 +46,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     spellEscalation: snap.spellEscalation ?? { attack: 0, health: 0 }, // enemy Quil casting Front to Back
     lastSpellCastId: snap.lastSpellCastId, // enemy Sporebat's stored spell
     rememberedSpellIds: snap.rememberedSpellIds ?? [], // enemy Runesnout Archivist's journal
+    growthBonus: snap.growthBonus ?? 0, // enemy Rune of Living Growth
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
     beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)

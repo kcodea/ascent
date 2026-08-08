@@ -66,6 +66,11 @@ export function castInCombat(ctx: CombatContext, self: Minion, body: () => void)
  *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
 export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
+  // RUNE OF BATTLE REFRACTION: living Prismcasters repeat Rubies played during combat, exactly as they repeat
+  // hand-played Rubies in the shop (`rubyExtraCast`). Folded into `per` at this single chokepoint, so every
+  // combat Ruby source (Candle Conduit, Geode Guardian, Distillation) refracts identically — and since the
+  // repeats ride the SAME call, there is no recursion to guard.
+  per += ctx.battleRefractionRepsFor?.(self.side) ?? 0;
   const rb = ctx.rubyBonusFor(self.side);
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
   const a = (1 + rb.attack) * per * mult;
@@ -430,10 +435,13 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
   if (def.discoverOnPlay) { ctx.queueDiscoverCast?.(def.id, side); return true; }
 
   let did = false;
+  // Rune of Living Growth: the Growth spell has permanently grown — the accrual rides the side state
+  // (snapshot-captured, so a served board's Growth pays ITS run's value, not the player's).
+  const growthPlus = def.id === 'growth' ? (ctx.growthBonusFor?.(side) ?? 0) : 0;
   for (const eff of def.effects) {
     if (eff.on !== 'cast') continue;
-    const a = num(eff.params?.attack, 0);
-    const h = num(eff.params?.health, 0);
+    const a = num(eff.params?.attack, 0) + growthPlus;
+    const h = num(eff.params?.health, 0) + growthPlus;
     switch (eff.do) {
       // ── stat family ──
       case 'spellBuffTarget': {
@@ -1388,6 +1396,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const id = ctx.leftmostHandSpellFor(self.side);
     if (!id) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+    // RUNE OF THE FLOODED VAULT: the same proc ALSO CASTS that left-most spell, without consuming it — combat
+    // never touches the hand, so "unconsumed" is the natural behaviour; the rune's work is the free cast.
+    // Sporebat's conventions: castability gate, and a targeted spell picks a seeded-random living friendly.
+    if (ctx.floodedVaultFor?.(self.side)) {
+      const def = ctx.getCard(id);
+      if (def?.spell && combatCastable(def)) {
+        castInCombat(ctx, self, () => {
+          const pool = ctx.living(self.side);
+          const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
+          if (def.target && (!targets || targets.length === 0)) return;
+          if (resolveCombatSpellCast(ctx, self, def, targets)) {
+            ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+          }
+        });
+      }
+    }
   },
 
   /** Set 2 — Ashen Broodlord: Avenge (X) improves your SPELLS by +atk/+hp (spell power), carried back to the
@@ -2210,11 +2234,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * keeps the count a plain number rather than a per-cast board scan.
    */
   scGrantSpellCastExtra: (ctx, self, params) => {
-    // Rune of the Matriarch ("your Runebloom Matriarchs trigger twice") lands here now that the trigger IS
-    // this grant — twice the trigger is twice the extra casts. The card-id check is deliberate and matches
-    // the rune's own wording; it moved from `onSpellCastBuffRandomTribe`, whose Runebloom branch is now dead.
-    const runeReps = self.cardId === 'b2_runebloom' ? ctx.matriarchRepsFor(self.side) : 1;
-    const extra = num(params.extra, 1) * mul(self) * runeReps;
+    // Rune of the Matriarch, retextured 2026-08-07: "trigger spells in combat an ADDITIONAL time" — the rune
+    // now ADDS one extra cast per Matriarch rather than doubling its whole contribution. Same number for a
+    // plain body (1→2 either way); a GOLDEN Matriarch pays 3 instead of the old 4, which is what the new
+    // wording actually promises.
+    const runeExtra = self.cardId === 'b2_runebloom' && ctx.matriarchRepsFor(self.side) > 1 ? 1 : 0;
+    const extra = num(params.extra, 1) * mul(self) + runeExtra;
     if (extra <= 0) return;
     ctx.grantSpellCastExtra?.(self.side, extra);
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: your Shop Spells cast ${extra} extra time${extra === 1 ? '' : 's'}` });

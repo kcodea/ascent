@@ -125,6 +125,8 @@ export interface BoardSnapshot {
   lastSpellCastId?: string;
   /** Runesnout Archivist's journal, so a served Archivist replays its own rather than the player's. */
   rememberedSpellIds?: string[];
+  /** Rune of Living Growth: the run's Growth improvement, so a served board's Growth casts at its own value. */
+  growthBonus?: number;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -320,6 +322,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
       ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),
     ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
+    ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
     ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),

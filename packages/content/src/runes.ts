@@ -782,6 +782,25 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeOpenAppetite' },
     sets: ['set2'],
   },
+
+  {
+    id: 'rune_flooded_vault',
+    name: 'Rune of the Flooded Vault',
+    cost: 5,
+    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
+    previewCards: ['d2_curator'],
+    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_unbroken_vein',
+    name: 'Rune of the Unbroken Vein',
+    cost: 5,
+    text: 'Your **Veinbreakers** gain **both** Choose One effects.',
+    previewCards: ['k_veinbreaker'],
+    reward: { kind: 'runeUnbrokenVein' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -884,7 +903,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Matriarch',
     cost: 5,
     epic: true,
-    text: 'Your **Runebloom Matriarchs** trigger **twice**.',
+    text: 'Your **Runebloom Matriarchs** trigger spells in combat an **additional time**.',
     previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
     reward: { kind: 'runeMatriarch' },
     sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
@@ -1723,6 +1742,47 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['b2_scavenger'],
     epic: true,
     reward: { kind: 'runeSecondLife' },
+    sets: ['set2'],
+  },
+
+  {
+    id: 'rune_moonhowl',
+    name: 'Rune of Moonhowl',
+    cost: 5,
+    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
+    previewCards: ['b2_magepup'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_shared_reflection',
+    name: 'Rune of Shared Reflection',
+    cost: 5,
+    text: 'The first **Shop spell** cast on each **Mirrorwing** every turn also casts on adjacent **Dragons**.',
+    previewCards: ['d2_mirrorwing'],
+    epic: true,
+    reward: { kind: 'runeSharedReflection' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_battle_refraction',
+    name: 'Rune of Battle Refraction',
+    cost: 6,
+    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
+    previewCards: ['k_prismcaster'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_living_growth',
+    name: 'Rune of Living Growth',
+    cost: 5,
+    text: 'Whenever **Mushy** creates a **Growth**, improve future Growths by **+1/+1**.',
+    previewCards: ['d2_scalefeather', 'growth'],
+    epic: true,
+    reward: { kind: 'runeLivingGrowth' },
     sets: ['set2'],
   },
 ];

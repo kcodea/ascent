@@ -1007,7 +1007,12 @@ export function simulate(
     }
     // Rune of the Undertow (owner sheet 2026-07-31): minions summoned in combat arrive with Ward. Granted
     // BEFORE the summon event is emitted, so the snapshot carries the shield from the first frame.
-    if (modsFor(side).runeUndertow && !minion.divineShield) {
+    // RUNE OF THE UNDERTOW — capped at 4 Wards a combat (owner ruling 2026-08-08; it was unbounded, so a
+    // token engine warded its whole cascade). Per side and per fight, counting only the bodies that actually
+    // TAKE a Ward: a summon that already had one costs nothing from the allowance.
+    const undertow = modsFor(side).runeUndertow;
+    if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
+      undertowUsed[side] += 1;
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
     }
@@ -1743,6 +1748,7 @@ export function simulate(
   const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
   const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
+  const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {

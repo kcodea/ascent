@@ -15,6 +15,7 @@
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
+  --watcher-pulse-color: #7fc8ff; /* light-blue medallion + card-frame bloom for the watcher pulse (see .cgem.pulsing.watcher / .framepulsering) */
   /* Sunward */
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
@@ -1745,6 +1746,17 @@ img.tierbadge.tierstars,
   background: radial-gradient(circle, #fff2ad 0%, rgba(255, 210, 58, 0.85) 45%, transparent 72%);
   box-shadow: 0 0 26px 10px rgba(255, 249, 220, 1), 0 0 56px 26px rgba(255, 208, 52, 0.95), 0 0 92px 46px rgba(255, 190, 30, 0.55);
 }
+/* Watcher pulse — the same flash + ring as a normal trigger pulse, forced LIGHT BLUE (a friendly unit fired
+   in answer to an ally's attack). Mirrors .cgem.pulsing.rally's structure exactly, swapping the yellow hue
+   for --watcher-pulse-color via color-mix so opacity/stop shape stay identical. */
+.card.compact .cgem.pulsing.watcher::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--watcher-pulse-color) 20%, #fff) 0%, var(--watcher-pulse-color) 52%, transparent 76%);
+  box-shadow: 0 0 20px 7px color-mix(in srgb, var(--watcher-pulse-color) 40%, #fff), 0 0 40px 16px var(--watcher-pulse-color), 0 0 66px 28px color-mix(in srgb, var(--watcher-pulse-color) 75%, transparent);
+}
+.card.compact .cgem.pulsing.watcher::after {
+  background: radial-gradient(circle, color-mix(in srgb, var(--watcher-pulse-color) 30%, #fff) 0%, color-mix(in srgb, var(--watcher-pulse-color) 85%, transparent) 45%, transparent 72%);
+  box-shadow: 0 0 26px 10px color-mix(in srgb, var(--watcher-pulse-color) 40%, #fff), 0 0 56px 26px color-mix(in srgb, var(--watcher-pulse-color) 95%, transparent), 0 0 92px 46px color-mix(in srgb, var(--watcher-pulse-color) 55%, transparent);
+}
 @keyframes cgemglow {
   0% { opacity: 0; transform: scale(0.9); }
   35% { opacity: 1; transform: scale(1.15); }
@@ -1755,6 +1767,22 @@ img.tierbadge.tierstars,
   15% { opacity: 1; }
   40% { opacity: 0.85; }
   100% { opacity: 0; transform: scale(3.4); }
+}
+/* WATCHER card-frame bloom — a one-shot light-blue ring on the whole card, the CSS fallback for the Pixi def
+   (see fx/watcherPulse.ts). Direct child of .archbox (position: relative), so inset: 0 rings the whole frame. */
+.framepulsering {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  animation: framepulse 1s ease-out forwards;
+  box-shadow: 0 0 0 2px var(--watcher-pulse-color), 0 0 16px 4px color-mix(in srgb, var(--watcher-pulse-color) 60%, transparent);
+}
+@keyframes framepulse {
+  0%   { opacity: 0; transform: scale(0.92); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.06); }
 }
 /* spell label — a readable white banner over the arch base (spells have no stat badges) */
 /* The type pill's seat is owned by the 🏷️ Card Pills tuner, not by this `bottom` — `--cpl-spell-t` composes a

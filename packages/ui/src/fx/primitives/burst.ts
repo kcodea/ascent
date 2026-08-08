@@ -267,11 +267,11 @@ const SPECS = {
     help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
   },
   emitShape: {
-    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point',
+    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point', essential: true,
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 0, axis: 'scale', essential: true,
     // `emitShape` and `emitRadius` are mutually dead at these defaults (point + 0), so only ONE of the pair
     // may declare the dependency — disabling both would be a deadlock with no way back in. Shape is the
     // gateway you pick first; picking anything but `point` unlocks the radius.
@@ -279,7 +279,7 @@ const SPECS = {
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   emitSquash: {
-    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1,
+    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
     // Rides the same gateway as the radius above: with `point` there is no area to squash. It does NOT
     // declare a dependency on `emitRadius` — the pair would deadlock (see the note there), and shape is the
     // single gateway both hang off.

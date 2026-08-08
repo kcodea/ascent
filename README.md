@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of the Guiding Candle works at last** — its tier-6 lock was filtered through the tavern-tier ceiling, so below tier 6 it served an ordinary shop; plus the Undertow is capped at 4 Wards and Chimerus grants its max Health rather than its chipped current Health.
+
 - **The defeat counter now shows the damage that actually lands** — it was recomputed from different inputs than the hit; plus Gemgorge Fiend gains a per-instance cast counter, and Scavvers (with Rune of the Second Life) is archived.
 
 - **Rise now resets a body properly** — granted rallies and Avenge progress no longer ride through a Rise; plus combat-cast Discover spells grant a random pick instead of opening the UI, Reinforcing Ale works mid-fight, and Veinstorm's hover preview reads its live Ruby value.

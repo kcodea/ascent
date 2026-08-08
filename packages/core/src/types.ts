@@ -1391,7 +1391,9 @@ export interface QuestCombatMods {
   runeCrucible?: number;
   runeHerald?: boolean;
   /** Rune of the Undertow: minions summoned by your Echoes (Deathrattles) attack immediately. */
-  runeUndertow?: boolean;
+  /** Rune of the Undertow — how many combat summons may take a Ward (4). `boolean` is accepted because a
+   *  run saved before the cap stored a bare `true`; the combat half reads that as the default 4. */
+  runeUndertow?: number | boolean;
   /** Rune of the Mirror March: at Start of Combat, if your board has room, summon a copy of your leftmost
    *  minion (current combat stats). */
   runeMirrorMarch?: boolean;

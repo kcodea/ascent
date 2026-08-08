@@ -84,9 +84,22 @@ export function rollShop(state: RunState): void {
   // Read here (the single draw site) rather than by post-filtering offers, so the pool bookkeeping stays honest.
   const candle = state.runeGuidingCandle;
   const lockTier = candle && candle.left > 0 ? candle.tier : undefined;
+  // The lock IGNORES the tavern-tier ceiling (owner ruling 2026-08-08: "full shops of T6s regardless of player
+  // tier"). `availableOffers` filters to `card.tier <= state.tier`, so below tier 6 the narrowed set was always
+  // EMPTY and the code fell through to the unrestricted pool — the rune read as doing nothing at every tier it
+  // was actually worth buying at. Drawn straight from the run's pinned pool instead, keeping only the tribe and
+  // stock rules (a card you can't stock still can't appear).
+  const candlePool = lockTier === undefined ? [] : poolOf(state).buyable.filter(
+    (card) =>
+      card.tier === lockTier &&
+      (card.tribe === 'neutral' || state.tribes.includes(card.tribe)) &&
+      (state.pool[card.id] ?? 0) > 0,
+  );
   for (let i = kept.length; i < slots; i++) {
     const pool = availableOffers(state);
-    const narrowed = lockTier === undefined ? pool : pool.filter((c) => c.tier === lockTier);
+    // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
+    // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
+    const narrowed = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
     const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.tier);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;

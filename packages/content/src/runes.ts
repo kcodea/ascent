@@ -1101,8 +1101,8 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Undertow',
     cost: 4,
     epic: true,
-    text: 'Minions summoned in combat gain **Ward**.',
-    reward: { kind: 'combatFlag', flag: 'runeUndertow' },
+    text: 'The first **4** minions summoned in combat gain **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeUndertow', amount: 4 },
   },
   {
     id: 'rune_mastery',

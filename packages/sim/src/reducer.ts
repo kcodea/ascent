@@ -3502,6 +3502,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
       else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
+      else if (r.flag === 'runeUndertow') s.questFlags.runeUndertow = add(typeof s.questFlags.runeUndertow === 'number' ? s.questFlags.runeUndertow : 0, r.amount ?? 4); // amount = the Ward budget
       else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
@@ -4146,7 +4147,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSavagery: f?.runeSavagery,           // Rune of Savagery: a summoned Beast doubles its Attack
     runeCrucible: f?.runeCrucible,           // Rune of the Crucible: sacrifice N left-most, resummon at the end
     runeHerald: f?.runeHerald,               // Rune of the Herald: SoC — trigger all your Echoes
-    runeUndertow: f?.runeUndertow, // Rune of the Undertow: Echo summons attack immediately
+    runeUndertow: f?.runeUndertow, // Rune of the Undertow: the first N combat summons gain Ward (stale comment fixed 2026-08-08 — it never granted charge)
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
     runeMastery: s.runeMastery, // Rune of Mastery: your Improve steps apply twice (combat half)

@@ -1006,7 +1006,8 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(buyRune('rune_recurrence').questRecurringEndOfTurn).toContain('recastFirstSpell');
     expect(buyRune('rune_replication').runeReplication).toBe(true);
     expect(buyRune('rune_conductor').endOfTurnExtra).toBe(2); // rides the permanent EoT-repeat counter now
-    expect(buyRune('rune_undertow').questFlags?.runeUndertow).toBe(true);
+    // Capped at 4 Wards a combat since 2026-08-08 (owner), so the flag carries the budget rather than a bare true.
+    expect(buyRune('rune_undertow').questFlags?.runeUndertow).toBe(4);
     expect(buyRune('rune_endless_appetite').runeEndlessAppetite).toBe(true);
   });
 

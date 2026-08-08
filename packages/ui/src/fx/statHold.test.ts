@@ -134,9 +134,9 @@ describe('claiming — handing a live hold to the layer that will drive it', () 
     holdStat('a', { attack: 4, health: 0 }, { origin: 'cue', startAt: 0, rollMs: 400 });
     vi.spyOn(performance, 'now').mockReturnValue(t0 + 200);
     stepHolds();
-    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // half walked by the ticker
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });    // half the TIME, but eased shows all but one
     claimStat('a');
-    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });    // the handover shows nothing new
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });    // the handover shows nothing new
   });
 
   it('is safe on a uid with nothing held', () => {
@@ -326,13 +326,12 @@ describe('rolling the counter', () => {
   });
 
   it('steps through whole numbers as it rolls', () => {
-    holdStat('a', { attack: 4, health: 0 });
-    revealStat('a', 0.25);
-    expect(heldFor('a')).toEqual({ attack: 3, health: 0 });
-    revealStat('a', 0.5);
-    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
-    revealStat('a', 0.75);
-    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+    // It shows intermediate integers rather than snapping. Which stops appear depends on the ease-out power
+    // (`withheldFraction`, a tuned feel knob), so assert that SEVERAL distinct values show, not which ones.
+    holdStat('a', { attack: 9, health: 0 });
+    const seen = new Set<number>();
+    for (let i = 0; i <= 10; i++) { revealStat('a', i / 10); seen.add(heldFor('a')?.attack ?? 0); }
+    expect(seen.size).toBeGreaterThan(3);
   });
 
   it('shows the NEW number at 1, leaving no entry behind', () => {
@@ -345,16 +344,21 @@ describe('rolling the counter', () => {
   it('is MONOTONIC — a counter never ticks backwards', () => {
     // Two effects can be mid-flight on one unit. A number that went forward then back would read as a bug
     // in the game's arithmetic, not as an animation.
-    holdStat('a', { attack: 4, health: 0 });
-    revealStat('a', 0.75);
-    revealStat('a', 0.25);
-    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });
+    holdStat('a', { attack: 8, health: 0 });
+    revealStat('a', 0.4);
+    const held = heldFor('a')?.attack;              // whatever the eased remainder is at 0.4
+    revealStat('a', 0.1);                           // a LOWER fraction than already shown
+    // Ignored, so the badge is unchanged. Were the backward step honoured, 0.1 would show strictly MORE
+    // withheld — asserting the value didn't move is what proves the counter didn't tick back.
+    expect(heldFor('a')?.attack).toBe(held);
   });
 
   it('rolls a DEBUFF down as happily as a buff up', () => {
-    holdStat('a', { attack: -4, health: 0 });
+    holdStat('a', { attack: -8, health: 0 });
     revealStat('a', 0.5);
-    expect(heldFor('a')).toEqual({ attack: -2, health: 0 });
+    const a = heldFor('a')?.attack ?? 0;
+    expect(a).toBeLessThan(0);        // a debuff withholds a NEGATIVE remainder — the badge rolls DOWN
+    expect(a).toBeGreaterThan(-8);    // …and part of it has already been revealed by half-way
   });
 
   it('reads as fully revealed once rounding leaves nothing — a +1 never sticks mid-step', () => {
@@ -377,12 +381,53 @@ describe('rolling the counter', () => {
     holdStat('a', { attack: 4, health: 0 });
     revealStat('a', 0.5);
     holdStat('a', { attack: 4, health: 0 });
-    expect(heldFor('a')).toEqual({ attack: 6, health: 0 }); // 2 still owed + 4 new, none revealed
+    // The owed carry is the EASED remainder the badge is showing (round(4 · withheldFraction(0.5)) = 1), not
+    // the linear half, so the top-up never ticks the counter backward: 1 still owed + 4 new, none revealed.
+    expect(heldFor('a')).toEqual({ attack: 5, health: 0 });
   });
 
   it('is a no-op for a unit with nothing held', () => {
     expect(() => revealStat('nobody', 0.5)).not.toThrow();
     expect(heldFor('nobody')).toBeNull();
+  });
+});
+
+/**
+ * EASE-OUT on the value roll. The badge counts fast out of the gate and settles slowly onto the final digit
+ * instead of ticking at a constant rate — ease-out cubic on the withheld remainder, `(1 - revealed)³`. One
+ * path, so both shop and combat rolls inherit it. `revealed` still advances with real time (the ticker and
+ * `driveRoll` are unchanged); the curve lives purely in how `heldFor` turns that fraction into a number.
+ */
+describe('ease-out on the value roll', () => {
+  // Curve-agnostic on purpose: the exponent in `withheldFraction` is a feel knob that gets tuned (cubic →
+  // quad and beyond), so these assert the SHAPE — front-loaded, monotonic, exact at both ends — rather than a
+  // magic number pinned to one power that would churn every time the settle is retuned.
+  it('front-loads the reveal — a mid-roll counter is further along than a linear one', () => {
+    holdStat('a', { attack: 8, health: 0 });
+    revealStat('a', 0.5);
+    const withheld = heldFor('a')?.attack ?? 0;
+    // Linear withholds exactly half (4) at the half-way point; any ease-out (power > 1) has shown MORE by now.
+    expect(withheld).toBeGreaterThan(0);
+    expect(withheld).toBeLessThan(4);
+  });
+
+  it('never runs backward as it rolls, and stays short of the finish until the end', () => {
+    holdStat('a', { attack: 8, health: 0 });
+    let prev = 8;
+    for (let i = 1; i <= 9; i++) {
+      revealStat('a', i / 10);
+      const withheld = heldFor('a')?.attack ?? 0;   // null (fully revealed by rounding) reads as 0 withheld
+      expect(withheld).toBeLessThanOrEqual(prev);   // monotonic: the counter only climbs toward the target
+      prev = withheld;
+    }
+  });
+
+  it('still starts on the old number and lands exactly on the new one', () => {
+    holdStat('a', { attack: 8, health: 0 });
+    revealStat('a', 0);
+    expect(heldFor('a')).toEqual({ attack: 8, health: 0 });
+    revealStat('a', 1);
+    expect(heldFor('a')).toBeNull();
   });
 });
 
@@ -423,8 +468,8 @@ describe('the reel', () => {
 
   it('a negative reel is treated as none rather than inverting the swing', () => {
     holdStat('a', { attack: 3, health: 0 });
-    revealStat('a', 0.5, -9);
-    expect(heldFor('a')?.attack).toBe(2); // the plain odometer value at halfway
+    revealStat('a', 0.2, -9);
+    expect(heldFor('a')?.attack).toBe(2); // the plain (eased) odometer value at this point, no wobble
   });
 });
 
@@ -515,9 +560,9 @@ describe('the shared ticker', () => {
   it('walks the reveal once startAt has passed', () => {
     const t0 = performance.now();
     holdStat('a', { attack: 4, health: 0 }, { origin: 'intrinsic', startAt: 100, rollMs: 400 });
-    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300);   // 200ms into a 400ms roll
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + 300);   // 200ms into a 400ms roll (half the time)
     stepHolds();
-    expect(heldFor('a')).toEqual({ attack: 2, health: 0 });
+    expect(heldFor('a')).toEqual({ attack: 1, health: 0 });  // eased: half the time has shown all but one
   });
 
   it('releases when the roll completes', () => {

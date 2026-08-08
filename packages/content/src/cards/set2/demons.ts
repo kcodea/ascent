@@ -55,7 +55,7 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 2,
     attack: 1,
     health: 3,
-    keywords: ['W'],
+    keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallySummonImpBuffImps', params: { amount: 1 } }],
     text: '**Flurry. Rally:** summon an **Imp** and give your **Imps +1/+1**.',
     goldenText: '**Flurry. Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
@@ -84,7 +84,7 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 3,
     attack: 3,
     health: 3,
-    keywords: [],
+    keywords: ['RL'],
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
     // what it actually does, and the gild doubles (the factory already scales on `gold(self)`).

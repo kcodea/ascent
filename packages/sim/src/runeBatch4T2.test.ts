@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+<<<<<<< HEAD
 import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES } from '@game/content';
+=======
+import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+>>>>>>> origin/main
 import { createRun, reduce, type RunState } from './index';
 
 /**
@@ -22,6 +26,10 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the three grant runes hand over the right body', () => {
   it.each([
     ['rune_ashen_heir', 'ashen_heir', 5],
+<<<<<<< HEAD
+=======
+    ['rune_wild_memory', 'runesnout_archivist', 5],
+>>>>>>> origin/main
     ['rune_ancient_den', 'mossmemory_colossus', 6],
   ] as const)('%s grants %s', (runeId, cardId, cost) => {
     expect([rune(runeId).cost, rune(runeId).epic]).toEqual([cost, true]);
@@ -29,6 +37,7 @@ describe('the three grant runes hand over the right body', () => {
     expect(s.hand.some((c) => c.cardId === cardId), `${runeId} handed over nothing`).toBe(true);
   });
 
+<<<<<<< HEAD
   it('Rune of Wild Memory is ARCHIVED — out of the forge, but still honoured for a saved run', () => {
     // Archived 2026-08-07 (owner) the same day it shipped. The archive contract is exactly these two halves:
     // no longer offerable, yet still resolvable, so a run that already holds it doesn't break on load.
@@ -44,6 +53,8 @@ describe('the three grant runes hand over the right body', () => {
     expect(CARD_INDEX['runesnout_archivist']?.effects.some((e) => e.do === 'echoCastRememberedSpells')).toBe(true);
   });
 
+=======
+>>>>>>> origin/main
   it('all three bodies are T6 with the specced stats, and none of them roll in the Shop', () => {
     expect([CARD_INDEX['ashen_heir']!.tier, CARD_INDEX['ashen_heir']!.attack, CARD_INDEX['ashen_heir']!.health]).toEqual([6, 5, 9]);
     expect([CARD_INDEX['runesnout_archivist']!.tier, CARD_INDEX['runesnout_archivist']!.attack, CARD_INDEX['runesnout_archivist']!.health]).toEqual([6, 6, 9]);
@@ -69,6 +80,7 @@ describe('Ashen Heir', () => {
     sim(p, killer).events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Ashen Heir')
       .reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
 
+<<<<<<< HEAD
   it('an Imp that dies with ANOTHER IMP ALIVE hands its stats straight over', () => {
     // The case the first build silently did nothing for (owner report 2026-08-07): two Imps on the board, one
     // dies, and the survivor should grow immediately — no summon required. This is the ordinary shape of an
@@ -87,6 +99,12 @@ describe('Ashen Heir', () => {
     // later summons the Imps that collect. Without the fallback this board would pay nothing at all.
     expect(inherited(board.slice(0, 2)), 'no Heir, no inheritance').toBe(0);
     expect(inherited(board), 'the banked stats never reached an arriving Imp').toBeGreaterThan(0);
+=======
+  it('an Imp that dies passes its stats to the next Imp to arrive', () => {
+    // Without the Heir nothing is inherited at all — the baseline that makes the number below mean something.
+    expect(inherited(board.slice(0, 2)), 'no Heir, no inheritance').toBe(0);
+    expect(inherited(board), 'the Heir should have paid a bank out at least once').toBeGreaterThan(0);
+>>>>>>> origin/main
   });
 
   it('the bank empties on payout rather than paying the same stats twice', () => {

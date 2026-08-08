@@ -49,6 +49,42 @@ export function combatBuffDeltas(
 }
 
 /**
+ * The mirror of `combatBuffDeltas` for a hit: how much HP each SURVIVING target lost this beat, so the badge
+ * can count DOWN the same way a buff counts it up (owner ask 2026-08-07). Sums every `dmg` amount per target.
+ *
+ * Two targets are deliberately excluded so the roll never fights a snap that must stay a snap:
+ *  - one that DIES this beat (a `death` event) — the death collapse and the death float own that moment, and
+ *    a badge counting toward 0 underneath a dissolving card reads as two clocks on one number;
+ *  - one gone from the live `frame` or already at 0 there — there is nothing survivable left to roll.
+ *
+ * The caller applies the OTHER guard (a target with a buff/roll already in flight snaps instead), because
+ * that one needs the live hold store, which this pure function deliberately does not touch.
+ */
+export function combatDamageDeltas(
+  beat: { start: number; end: number },
+  events: CombatEvent[],
+  frame: { player: FrameUnit[]; enemy: FrameUnit[] },
+): { uid: string; health: number }[] {
+  const totals = new Map<string, number>();
+  const dying = new Set<string>();
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (!e) continue;
+    if (e.type === 'dmg') totals.set(e.target, (totals.get(e.target) ?? 0) + e.amount);
+    else if (e.type === 'death') dying.add(e.target);
+  }
+  const out: { uid: string; health: number }[] = [];
+  for (const [uid, health] of totals) {
+    if (health <= 0) continue;      // a heal or a no-op — nothing to roll down
+    if (dying.has(uid)) continue;   // killed this beat → the death path snaps it
+    const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
+    if (!u || u.health <= 0) continue; // off the board this frame, or dead on it → not a survivable hit
+    out.push({ uid, health });
+  }
+  return out;
+}
+
+/**
  * One frame's worth of reveal progress: `prevProgress` plus this frame's `dtMs` scaled by the CURRENT
  * `speed` and divided by `rollMs`, clamped to `[0,1]`. Pulled out of `driveRoll` so the accumulation
  * arithmetic is headlessly testable — `driveRoll` itself only adds a live `requestAnimationFrame` loop

@@ -1,5 +1,107 @@
 # ASCENT — development log
 
+## 2026-08-08 — Full balance-report export, and the spells table finally has data
+
+**`npm run report:export`** writes the balance report in full — every row, no top-N truncation, every raw
+counter — as `balance-report.json` (the whole report plus a header: games, pilot, totals, timestamp, caveats)
+and one CSV per table (heroes / quests / runes / minions / spells). It shares `computeBalanceReport` with the
+CLI and the in-app dev panel, so the exported numbers ARE those numbers; a divergent export would be worse
+than none. Output goes to `balance-export/`, which is gitignored — it is a simulation snapshot, not source.
+
+**Two blind spots in the shared report, found by exporting it.** The tavern's SPELL offer lives in its own
+`state.spell` slot rather than in `state.shop`, and `computeBalanceReport` read only the shop — on both sides:
+
+- OFFERS: the spells table was built from near-zero offers. **1 row across 1900 runs.**
+- PICKS: a spell purchase matched no shop uid, so it registered as no pick at all — `pickRate` was a
+  permanent 0% for every spell.
+
+Both now read the slot too. The same table goes from **1 row to 74**, with real offer AND pick rates
+(Fleeting Vigor 43% take-up, Growth 16%, …). `balance-analysis.ts` hit this exact blind spot on its own side
+back in 2026-07-21 and fixed it there; the shared report never got the matching fix, so the CLI, the export
+and the dev panel were all reporting an empty spell table.
+
+Recorded in the export's own caveats: spells still have **no winRate by construction** — win credit goes to
+the FINAL BOARD and a cast spell is never on it, so read a spell's offered/picked columns, not its wins.
+
+**Verified.** 4722 tests across 275 files green; typecheck, lint (0 errors) and `build:web` clean. Exported
+1900 runs (100 games/hero × 19 heroes) in ~25s.
+
+## 2026-08-08 — Rope Wrangler keeps its card; the Career panel speaks lobby
+
+**1. Rope Wrangler no longer eats the minion it summons.** Its Echo took a card OUT of the hand and settle
+deleted it — but the printed text is "Echo: summon a random minion from your hand" and never says the card is
+spent, so losing it read as a bug (owner report). The summoned body is a combat-only body like every other
+summon; the hand card now survives the fight. `playerHandSummoned` still rides back (the replay can still see
+WHICH cards fought) — it simply no longer deletes them. The per-fight dedup stays, so a golden Wrangler still
+can't summon the same card twice. The SHOP half is unchanged and still correct: a Ryme-fired Echo genuinely
+MOVES the card hand → board, which is a play, not a consume.
+
+**2. The Career panel was reporting course stats for lobby play.** `Completed`, `Flawless` and the Oath-based
+`Win Rate` / `Streak` are all 17-round-course concepts — a lobby has no course and no Oath, so they read as a
+structural 0 or answer a question the lobby never asks (the owner's profile showed 0 Completed / 0 Flawless
+across 28 games). `careerStats` now also computes the battle-royale equivalents from the `placement` already
+recorded on every lobby entry:
+
+- **1st Place** / **Top 4** / **Top-4 Streak** replace Completed / Flawless / Streak
+- **Avg. Placement** (the genre's headline number) and **Top 4 %** replace Best Run / Win Rate
+- **Best Finish** as an ordinal
+
+The Career switches to that set whenever any entry carries a placement, and keeps the course set otherwise —
+so a pure-course history is untouched. The lobby streak walks lobby entries only: a course run in between
+neither breaks nor extends it, because it isn't a lobby result.
+
+**Verified.** 4722 tests across 275 files green, including 4 new lobby-stats cases and a Rope Wrangler
+regression test **pinned to seed 1, where the Echo provably fires** — an earlier version of that test passed
+against the broken code because the Echo never fired on its seed, making the assertion vacuous. Typecheck,
+lint (0 errors) and `build:web` all clean.
+## 2026-08-08 — Jensen & Fi through a Rise; a triple no longer makes a temporary keyword permanent
+
+**1. Jensen & Fi didn't destroy its killer when it Rose.** The Rise branch fires the dying body's own Echo
+via `fireOwnDeathrattles(minion)` and THEN emits `onDeath` with `ownAlreadyFired`, so the bus that carries the
+`killer` deliberately skips the body's own handler — and `fireOwnDeathrattles` never took a killer parameter.
+Jensen's "destroy the minion that killed this" therefore had nothing to destroy on a rise-death. It now
+threads the killer through; the forced-Echo callers (Echoing Coop, Bone Throne) legitimately pass none.
+
+Worth recording how nearly this shipped mis-tested: a first test asserting "the killer eventually died"
+PASSED against the broken code, because a risen Jensen dies a SECOND time through the normal path, which does
+pass the killer — the destroy merely landed one death late. The test now pins the ORDERING (the kill must
+resolve before the `reborn` event), and against the pre-fix code it reports the destroy at event 13 instead
+of before the Rise at 5.
+
+**2. A triple laundered a one-combat keyword into a permanent one.** Maw of the Pit's Ward and Lord of the
+Risen's Rise are marked on the INSTANCE (`tempShield` / `tempReborn`) and stripped at the end of the fight
+they were granted for. `combineIntoGolden` built its keyword set as the plain union of the copies' `keywords`
+and left the markers behind — so tripling a temporarily-Risen minion produced a golden with permanent Rise.
+The union now drops a `DS`/`R` that EVERY contributing copy held only temporarily; a printed keyword, or one
+an untagged copy genuinely owns, still carries through.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0808c.test.ts` — each
+assertion checked against the pre-fix code and confirmed to fail there. Typecheck, lint (0 errors) and
+`build:web` all clean.
+## 2026-08-08 — Guiding Candle actually serves T6s, Undertow capped at 4, Chimerus reads max Health
+
+**1. Rune of the Guiding Candle did nothing at any tier below 6.** Its narrowed draw pool came from
+`availableOffers`, which filters `card.tier <= state.tier` — so below tier 6 the "tier 6 only" set was EMPTY
+and the code fell through to its unrestricted fallback, serving a perfectly normal shop. It now draws straight
+from the run's pinned pool for that tier, ignoring the tavern-tier ceiling (owner ruling: "full shops of T6s
+regardless of player tier") while still honouring tribe scoping and stock. The 2-refresh allowance is
+unchanged; a measured tier-2 shop went from `1,2,2,2` to all 6s.
+
+**2. Rune of the Undertow is capped at 4 Wards a combat** (owner). It was unbounded, so a token engine warded
+its entire cascade — a 5-body Alleycat board measured 10 Wards before the cap. Per side, per fight, counting
+only bodies that actually take a Ward. The flag carries the budget now (`amount: 4`); a run saved before the
+cap stored a bare `true`, which the combat half reads as the default 4, so old saves keep working.
+
+**3. Chimerus grants its MAX Health, not its damaged current Health** (owner ruling): buffed to 1500 and then
+hit for 1000, its next Rally still hands over 1500. Under the old `self.health` read the grant shrank with
+every chip — the regression test measured a grant of **1** where it should have been 40.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0809.test.ts`. Each of the
+three tests was checked against the PRE-fix code and confirmed to fail there (offered `1,2,2,2` / 10 Wards /
+a grant of 1) — they pass for the right reason, not by accident. Typecheck, lint (0 errors) and `build:web`
+all clean. A stale comment on the Undertow's mods line ("Echo summons attack immediately" — it never granted
+charge) is corrected.
+
 ## 2026-08-08 — Gemgorge's counter (and its per-instance meter), the loss-damage breakdown, Scavvers archived
 
 **1. Gemgorge Fiend has a counter — and it needed a rule change to be honest.** Its Consume fired on the RUN's

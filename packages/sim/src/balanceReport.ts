@@ -73,14 +73,27 @@ export function playAndRecordInto(acc: ReportAccumulator, seed: number, heroId: 
     // Observe offers in the CURRENT state (before acting).
     if (s.questOffer) for (const id of s.questOffer) offeredQuests.add(id);
     if (s.runeforgeOffer) for (const id of s.runeforgeOffer) offeredRunes.add(id);
-    if (s.phase === 'recruit' && !s.discover && !s.chooseOne && !s.pendingTarget) for (const o of s.shop) offeredCards.add(o.cardId);
+    if (s.phase === 'recruit' && !s.discover && !s.chooseOne && !s.pendingTarget) {
+      for (const o of s.shop) offeredCards.add(o.cardId);
+      // The tavern's SPELL offer lives in its own slot, not in `s.shop` — reading only the shop meant the
+      // report's whole spells table was built from near-zero offers (1 row across 1900 runs before this).
+      // `balance-analysis.ts` hit and fixed the same blind spot on its own side in 2026-07-21; this is the
+      // matching fix for the shared report the CLI, the export and the in-app dev panel all consume.
+      if (s.spell) offeredCards.add(s.spell.cardId);
+    }
 
     const action = policy.act(s);
 
     // Record the pick implied by this action.
     if (action.type === 'buyQuest' && s.questOffer?.[action.index]) pickedQuests.add(s.questOffer[action.index]!);
     else if (action.type === 'buyRune' && s.runeforgeOffer?.[action.index]) pickedRunes.add(s.runeforgeOffer[action.index]!);
-    else if (action.type === 'buy') { const o = s.shop.find((x) => x.uid === action.uid); if (o) boughtCards.add(o.cardId); }
+    else if (action.type === 'buy') {
+      // …and the same slot on the PICK side: a spell is bought by uid like any offer, but it never appears in
+      // `s.shop`, so a spell purchase used to register as no pick at all — the offer half was fixed above and
+      // this is its mirror. Without both, `pickRate` for every spell is a permanent 0%.
+      const o = s.shop.find((x) => x.uid === action.uid) ?? (s.spell?.uid === action.uid ? s.spell : undefined);
+      if (o) boughtCards.add(o.cardId);
+    }
 
     const n = reduce(s, action);
     if (n !== s) { s = n; continue; }

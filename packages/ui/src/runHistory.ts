@@ -188,12 +188,23 @@ export interface CareerStats {
   favoriteMechanic: string | null; // the mechanic most often a run's most-triggered
   favoriteMinion: string | null; // the minion most often on the final board across runs (display name)
   perHero: HeroStat[]; // sorted by runs desc
+  // ── LOBBY stats (owner 2026-08-08: the course-shaped numbers above read as nonsense for lobby play) ──
+  // A lobby has no 17-round course and no Oath, so `completions` / `flawless` / the line-based `winRate` are
+  // structurally 0 or meaningless there. These are the battle-royale equivalents, computed only over entries
+  // that actually recorded a `placement`; the Career shows them whenever `lobbyRuns > 0`.
+  lobbyRuns: number;         // entries with a recorded placement
+  firsts: number;            // placement === 1
+  topFours: number;          // placement <= 4 — the genre's real "win"
+  top4Rate: number;          // topFours / lobbyRuns, 0–100 integer percent
+  avgPlacement: number | null;  // the single most meaningful lobby number
+  bestPlacement: number | null; // best (lowest) finish
+  lobbyStreak: number;       // consecutive newest lobby runs that finished top 4
 }
 
 /** Aggregate the match history into overall + per-hero career stats. Pure. */
 export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const runs = entries.length;
-  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, favoriteMinion: null, perHero: [] };
+  const empty: CareerStats = { runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, favoriteMinion: null, perHero: [], lobbyRuns: 0, firsts: 0, topFours: 0, top4Rate: 0, avgPlacement: null, bestPlacement: null, lobbyStreak: 0 };
   if (runs === 0) return empty;
   let bestWins = 0, totalWins = 0, completions = 0, flawless = 0, triples = 0, totalGold = 0, goldRuns = 0, totalApt = 0, aptRuns = 0, lineWins = 0;
   let bestRun: { wins: number; losses: number } | null = null;
@@ -201,7 +212,15 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const tribes = new Map<Tribe, number>();
   const mechanics = new Map<string, number>();
   const minions = new Map<string, number>(); // cardId → times on a final board (favorite minion)
+  let lobbyRuns = 0, firsts = 0, topFours = 0, placementSum = 0, bestPlacement: number | null = null;
   for (const e of entries) {
+    if (typeof e.placement === 'number' && e.placement > 0) {
+      lobbyRuns++;
+      placementSum += e.placement;
+      if (e.placement === 1) firsts++;
+      if (e.placement <= 4) topFours++;
+      if (bestPlacement === null || e.placement < bestPlacement) bestPlacement = e.placement;
+    }
     if (e.wins > bestWins || bestRun === null) { bestWins = Math.max(bestWins, e.wins); bestRun = { wins: e.wins, losses: e.losses }; }
     totalWins += e.wins;
     if (e.completed) completions++;
@@ -232,6 +251,13 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   // Current streak: consecutive newest runs (entries are newest-first) that met their line.
   let streak = 0;
   for (const e of entries) { if (metLine(e.lineStatus)) streak++; else break; }
+  // The lobby streak walks the newest LOBBY entries only (a course run in between neither breaks nor extends
+  // it — it simply isn't a lobby result) and counts top-4 finishes, the genre's unit of success.
+  let lobbyStreak = 0;
+  for (const e of entries) {
+    if (typeof e.placement !== 'number' || e.placement <= 0) continue;
+    if (e.placement <= 4) lobbyStreak++; else break;
+  }
   return {
     runs, bestWins, avgWins: Math.round((totalWins / runs) * 10) / 10, completions, flawless, triples,
     avgGold: goldRuns ? Math.round(totalGold / goldRuns) : 0,
@@ -239,5 +265,9 @@ export function careerStats(entries: RunHistoryEntry[]): CareerStats {
     winRate: runs ? Math.round((lineWins / runs) * 100) : 0,
     streak, bestRun,
     topTribes, favoriteMechanic, favoriteMinion, perHero,
+    lobbyRuns, firsts, topFours,
+    top4Rate: lobbyRuns ? Math.round((topFours / lobbyRuns) * 100) : 0,
+    avgPlacement: lobbyRuns ? Math.round((placementSum / lobbyRuns) * 10) / 10 : null,
+    bestPlacement, lobbyStreak,
   };
 }

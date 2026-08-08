@@ -19,10 +19,12 @@
  *
  * THE LIMIT, stated rather than hidden. The scan reads string LITERALS. A call whose id is an expression
  * cannot be resolved without running the game, so those sites are listed in `DYNAMIC_CALL_SITES` below and
- * surfaced in the library's by-event lens instead of being quietly dropped. Today every one of them is
+ * surfaced in the library's by-event lens instead of being quietly dropped. Four of the five are
  * `choreo/score.ts` playing `binding.def` — i.e. the binding path, which the coverage map already shows in
- * full — so nothing is currently under-reported. The test pins that set, so a NEW dynamic call site fails CI
- * and has to be looked at rather than silently shrinking the map.
+ * full — so nothing is under-reported there. The fifth, `useCombatReplay.ts`, is the frame-pulse
+ * `watcher-pulse` fire, whose def isn't committed yet (see the local doc-block below for why it's held in a
+ * constant instead of a literal). The test pins that set, so a NEW dynamic call site fails CI and has to be
+ * looked at rather than silently shrinking the map.
  */
 
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */

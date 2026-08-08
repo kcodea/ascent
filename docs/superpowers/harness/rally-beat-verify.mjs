@@ -715,7 +715,7 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
     const cssPulseT = firstRisingPulse(res.samples, 'frameClass', undefined);
     const pixiFire = (res.fxFires ?? []).find((f) => f.id === 'watcher-pulse');
     const pixiPulseT = pixiFire ? Math.round(pixiFire.t - res.t0perf) : null;
-    const pulseT = [cssPulseT, pixiPulseT].filter((x) => x !== null).sort((a, b) => a - b)[0] ?? null;
+    const pulseT = [cssPulseT, pixiPulseT].filter((x) => x != null).sort((a, b) => a - b)[0] ?? null;
     const gemPulses = (() => {
       let prev = false, cnt = 0;
       for (const s of res.samples) {
@@ -766,6 +766,5 @@ console.log(`RALLY_EFFECT_GAP_MS=${RALLY_EFFECT_GAP_MS}ms (read from source) —
   }
 }
 
-const CHANNEL_COUNT = 6;
-console.log(`\n${failures === 0 ? `ALL ${CHANNEL_COUNT} CHANNELS PASS` : `${failures} CHECK(S) FAILED`}`);
+console.log(`\n${failures === 0 ? 'ALL CHECKS PASS' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

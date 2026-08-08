@@ -112,6 +112,8 @@ export interface UnitFrame {
   overflowBonus?: number;
   /** Crypt Drake: ally attacks seen this combat — drives the live "current buff / N to go" text. */
   attackSeen?: number;
+  /** Ashen Heir: stats banked from dead Imps, waiting for the next one (live during the fight). */
+  impBank?: { attack: number; health: number };
   /** Avenge units: this side's running FRIENDLY-death tally this combat (drives the "N/threshold" Avenge counter).
    *  Combat-only (set by `computeFrame`); undefined outside a fight → no shop counter. */
   avengeSeen?: number;
@@ -217,6 +219,12 @@ export function computeFrame(
 ): { player: UnitFrame[]; enemy: UnitFrame[] } {
   const player = initial.player.map(fromSnap);
   const enemy = initial.enemy.map(fromSnap);
+  // ASHEN HEIR banks a dying Imp's MAX Health, not the 0 it has left after the killing blow — so the replay
+  // has to know each body's max. `UnitFrame` doesn't carry one, and adding it would widen a hot per-beat
+  // structure for one card, so it is tracked here instead: seeded from the starting/summoned body and grown
+  // by every Health buff, which is exactly how the sim's `maxHealth` moves.
+  const maxHp = new Map<string, number>();
+  for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
   // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
@@ -285,6 +293,20 @@ export function computeFrame(
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }
+      // ASHEN HEIR's bank, re-derived from the log exactly the way Crypt Drake's `attackSeen` is. The sim banks
+      // a dying friendly Imp's stats onto each friendly Heir, and empties the bank when an Imp arrives — both
+      // halves are mirrored here (the summon half below) so the Heir's printed text can show what the NEXT Imp
+      // would actually inherit. Nothing new crosses the event boundary; the replay just applies the same rule.
+      if (u && CARD_INDEX[u.cardId]?.imp) {
+        // `u.health` is already 0 by now, so the banked Health comes from the event's own side array — the
+        // Heir inherits what the Imp WAS, which is the pre-death frame the sim read (`maxHealth`).
+        const arr = e.side === 'player' ? player : enemy;
+        const banked = { attack: Math.max(0, u.attack), health: Math.max(0, maxHp.get(e.target) ?? 0) };
+        for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) {
+          h.impBank = { attack: (h.impBank?.attack ?? 0) + banked.attack,
+            health: (h.impBank?.health ?? 0) + banked.health };
+        }
+      }
       // A RISE death counts (owner ruling 2026-07-27, and `killOrReborn` in the sim calls `emitAvenge` for it).
       // This skipped `e.rise`, so the DISPLAYED Avenge counter disagreed with the tally that actually fires the
       // effect — a Kennelmaster/Solaris behind a Rise minion looked stuck while its Avenge really was advancing
@@ -296,6 +318,7 @@ export function computeFrame(
       if (u) {
         u.attack += e.attack;
         u.health += e.health;
+        if (e.health > 0) maxHp.set(u.uid, (maxHp.get(u.uid) ?? u.health) + e.health); // Ashen Heir's max-Health track
         // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
         if (e.attack !== 0 || e.health !== 0) {
           u.buffs ??= [];
@@ -336,6 +359,11 @@ export function computeFrame(
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
+      maxHp.set(e.minion.uid, e.minion.health);
+      // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
+      if (CARD_INDEX[e.minion.cardId]?.imp) {
+        for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;
+      }
     } else if (e.type === 'ascend') {
       // A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen): adopt the new form's identity so
       // the card's art / name / tribe / rule text / new-form keyword pills update live, exactly as the sim does

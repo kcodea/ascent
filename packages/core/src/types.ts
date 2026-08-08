@@ -525,6 +525,10 @@ export type EffectFactoryId =
   | 'combatGrantAle' // Set 2 Dwarves (combat)
   | 'rallyGiveAttackToOthers' // Set 2 Dwarves (combat)
   | 'echoSummonCopyNoEcho' // Set 2 Dwarves (combat)
+  | 'impInheritOnDeath' // Ashen Heir: bank a dying friendly Imp's stats
+  | 'impInheritOnSummon' // Ashen Heir: the next Imp to arrive inherits the bank
+  | 'echoCastRememberedSpells' // Runesnout Archivist: cast the whole journal on random friendly Beasts
+  | 'echoResummonDeadBeasts' // Mossmemory Colossus: bring back the first 3 other dead Beasts
   | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
@@ -1603,6 +1607,9 @@ export interface Minion {
   /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
    *  A fresh Minion per fight, so it resets naturally between combats. */
   rubyRecvTick?: number;
+  /** Ashen Heir: stats banked from friendly Imps that have died, waiting for the next Imp to inherit them.
+   *  Per-instance and per-combat, so two Heirs each keep their own bank and both pay out. */
+  impBank?: { attack: number; health: number };
   /** Multiplier on every combat stat-gain this minion receives (golden Taurus doubles its neighbors'
    *  combat gains). Applied at the top of `ctx.buff`; absent/1 = normal. */
   gainMult?: number;
@@ -1784,6 +1791,10 @@ export interface CombatSideState {
   spellEscalation?: { attack: number; health: number };
   /** The LAST Shop spell this side's owner cast, by card id (Sporebat's stored spell). */
   lastSpellCastId?: string;
+  /** Runesnout Archivist: the FIRST Shop spell cast on each turn an Archivist was on the board, in order.
+   *  Run-level and snapshot-captured (like `lastSpellCastId`) so a served Archivist replays its own journal
+   *  rather than borrowing the player's. */
+  rememberedSpellIds?: string[];
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
@@ -2222,6 +2233,12 @@ export interface CombatContext {
   grantSpellCastExtra?(side: Side, n: number): void;
   /** The card id of the LAST Shop spell this side's owner cast, if any (Sporebat's stored spell). */
   lastSpellCastFor?(side: Side): string | undefined;
+  /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
+  rememberedSpellsFor?(side: Side): readonly string[];
+  /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,
+   *  excluding `excludeUid` (the Colossus itself: the printed rule says "other Beasts"). Returns how many
+   *  actually came back — the board cap can refuse some. */
+  resummonDeadBeasts?(side: Side, count: number, excludeUid: string): number;
   /** Fire one minion's Rally WITHOUT an attack (Scavvers' Echo) — the shared free-rally primitive, so the
    *  tally bump and quest halves ride along exactly as an attack-path rally would. */
   triggerRally?(m: Minion): void;

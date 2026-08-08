@@ -123,6 +123,8 @@ export interface BoardSnapshot {
   spellEscalation?: { attack: number; health: number };
   /** The owner's LAST-cast Shop spell, so a served Sporebat casts what its owner had stored. */
   lastSpellCastId?: string;
+  /** Runesnout Archivist's journal, so a served Archivist replays its own rather than the player's. */
+  rememberedSpellIds?: string[];
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -317,6 +319,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.frontToBackBonus || s.frontToBackBonusH
       ? { spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH } } : {}),
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),
+    ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
     ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),

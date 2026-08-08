@@ -1552,6 +1552,34 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['dw_bucky'] },
     sets: ['set2'], // Dwarven Ales
   },
+  // ── batch 4, tranche 2 (2026-08-07): the three grant runes for the new T6 bodies ──
+  {
+    id: 'rune_ashen_heir',
+    name: 'Rune of the Ashen Heir',
+    cost: 5,
+    text: 'Get an **Ashen Heir**.',
+    previewCards: ['ashen_heir'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['ashen_heir'] },
+  },
+  {
+    id: 'rune_wild_memory',
+    name: 'Rune of Wild Memory',
+    cost: 5,
+    text: 'Get a **Runesnout Archivist**.',
+    previewCards: ['runesnout_archivist'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['runesnout_archivist'] },
+  },
+  {
+    id: 'rune_ancient_den',
+    name: 'Rune of the Ancient Den',
+    cost: 6,
+    text: 'Get a **Mossmemory Colossus**.',
+    previewCards: ['mossmemory_colossus'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['mossmemory_colossus'] },
+  },
 ];
 
 /**

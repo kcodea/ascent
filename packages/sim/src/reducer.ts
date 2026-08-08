@@ -1984,6 +1984,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         alesLastTurn: s.alesCastThisTurn ?? 0,
         spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
         lastSpellCastId: s.lastSpellCastId,
+        rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
         // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
         handMinions: s.hand
           .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
@@ -2835,6 +2836,7 @@ function advanceCombat(s: RunState): void {
   s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
   s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
   s.lastSpellThisTurnId = undefined; // Recaller's last-spell-this-turn record resets each wave
+  s.rememberedThisTurn = false; // Runesnout Archivist may record one entry again next turn
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
   s.contrabandAleUsed = undefined;
   s.gemscriptSpellUsed = undefined; // Rune of Gemscript's two first-each-turn latches

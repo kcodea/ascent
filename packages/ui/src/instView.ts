@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -45,6 +45,10 @@ export interface LiveTextParams {
   goldPouchValue?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  /** Runesnout Archivist's journal, resolved to spell NAMES. */
+  rememberedSpellNames?: readonly string[];
+  /** Ashen Heir's banked Imp stats (combat only). */
+  impBank?: { attack: number; health: number };
   /** The first / last Shop spell cast THIS TURN (names) — Spellvault Drake and Recaller print what they copy. */
   firstSpellThisTurnName?: string;
   lastSpellThisTurnName?: string;
@@ -126,6 +130,8 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
             sporebatText(c.id, p.golden, p.lastSpellName) ?? // Sporebat: name the stored spell it will cast
+            archivistText(c.id, p.golden, p.rememberedSpellNames) ?? // Runesnout Archivist: name its whole journal
+            ashenHeirText(c.id, p.impBank) ?? // Ashen Heir: what the next Imp actually inherits
             copyCastSpellText(c.id, p.golden, { firstThisTurn: p.firstSpellThisTurnName, lastThisTurn: p.lastSpellThisTurnName, keeperFirst: p.keeperFirstSpellName }) ?? // the Dragon copiers name the spell they will give
             improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
@@ -179,7 +185,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -198,6 +204,7 @@ export function instView(
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
+    rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
     keeperFirstSpellName: inst.boardFirstSpellId ? CARD_INDEX[inst.boardFirstSpellId]?.name : undefined,
     topTribe: live?.topTribe,
@@ -285,6 +292,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
+      rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),

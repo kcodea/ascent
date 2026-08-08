@@ -35,7 +35,14 @@ vs unarmed differentials off the same board, and the Banquet Hall one drives a r
 **Verified.** 4639 tests across 270 files green, including a new 11-case `runeBatch4T4.test.ts`. Typecheck, lint
 (0 errors) and `build:web` all clean.
 
-**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes and 3 T6 minions across four tranches. Art for the
+**Rune of Wild Memory archived the same day** (owner). It moves to `ARCHIVED_RUNES`: out of Runeforge stock,
+still resolvable through `RUNE_INDEX` so a saved run holding it loads and still pays out. Consequence worth
+noting — it was the ONLY way to obtain a Runesnout Archivist (the card is `token: true`, so it never rolls in
+the tavern), so the Archivist is unreachable in a new run. Its card, effects, live text and art all stay wired
+and tested, ready for whatever grants it next. `ARCHIVED_RUNES` is now exported from the content entrypoint so
+the archive contract (unstocked, still resolvable) is assertable.
+
+**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes (one archived) and 3 T6 minions across four tranches. Art for the
 three tranche-2 bodies landed the same day (owner dropped it in `Runes/Special Rune Rewards`, filenames
 matching the cards); their six runes are still artless.
 

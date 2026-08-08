@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES } from '@game/content';
 import { createRun, reduce, type RunState } from './index';
 
 /**
@@ -22,12 +22,26 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the three grant runes hand over the right body', () => {
   it.each([
     ['rune_ashen_heir', 'ashen_heir', 5],
-    ['rune_wild_memory', 'runesnout_archivist', 5],
     ['rune_ancient_den', 'mossmemory_colossus', 6],
   ] as const)('%s grants %s', (runeId, cardId, cost) => {
     expect([rune(runeId).cost, rune(runeId).epic]).toEqual([cost, true]);
     const s = withRune(runeId);
     expect(s.hand.some((c) => c.cardId === cardId), `${runeId} handed over nothing`).toBe(true);
+  });
+
+  it('Rune of Wild Memory is ARCHIVED — out of the forge, but still honoured for a saved run', () => {
+    // Archived 2026-08-07 (owner) the same day it shipped. The archive contract is exactly these two halves:
+    // no longer offerable, yet still resolvable, so a run that already holds it doesn't break on load.
+    expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_wild_memory'), 'still stocked by the forge').toBe(false);
+    expect(ARCHIVED_RUNES.some((r) => r.id === 'rune_wild_memory'), 'not recorded as archived').toBe(true);
+    expect(RUNE_INDEX['rune_wild_memory'], 'a saved run holding it would fail to resolve').toBeDefined();
+    // And it still pays out if a saved run does hold it — archived means unstocked, not disabled.
+    expect(withRune('rune_wild_memory').hand.some((c) => c.cardId === 'runesnout_archivist')).toBe(true);
+  });
+
+  it('the Archivist itself stays wired, even with no rune left to grant it', () => {
+    // The card, its effects and its art are all still in place — only the door to it closed.
+    expect(CARD_INDEX['runesnout_archivist']?.effects.some((e) => e.do === 'echoCastRememberedSpells')).toBe(true);
   });
 
   it('all three bodies are T6 with the specced stats, and none of them roll in the Shop', () => {

@@ -1623,15 +1623,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['ashen_heir'] },
   },
   {
-    id: 'rune_wild_memory',
-    name: 'Rune of Wild Memory',
-    cost: 5,
-    text: 'Get a **Runesnout Archivist**.',
-    previewCards: ['runesnout_archivist'],
-    epic: true,
-    reward: { kind: 'grant', cards: ['runesnout_archivist'] },
-  },
-  {
     id: 'rune_ancient_den',
     name: 'Rune of the Ancient Den',
     cost: 6,
@@ -1693,6 +1684,21 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // Archived 2026-08-07 (owner), the day it shipped. The def stays here so a saved run that already holds it
+    // still resolves through `RUNE_INDEX`; it is simply no longer stocked by the Runeforge.
+    //
+    // NOTE: this was the ONLY way to obtain a Runesnout Archivist (the card is `token: true`, so it never
+    // rolls in the tavern). With the rune out of stock the Archivist is unreachable in a new run — its card,
+    // its effects and its art all remain wired and tested, ready for whatever grants it next.
+    id: 'rune_wild_memory',
+    name: 'Rune of Wild Memory',
+    cost: 5,
+    text: 'Get a **Runesnout Archivist**.',
+    previewCards: ['runesnout_archivist'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['runesnout_archivist'] },
+  },
   {
     // Archived 2026-08-07 (owner) alongside Menagerie Mammoth's rework — its subject no longer has the
     // Attack-only grant this rune symmetrised. The def and `runeMammoth` flag stay for saved runs.

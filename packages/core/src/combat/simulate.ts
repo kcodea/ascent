@@ -1417,11 +1417,16 @@ export function simulate(
     return extra;
   }
 
-  function fireOwnDeathrattles(minion: Minion): void {
+  /** Fire a body's OWN Echo. `killer` is the minion that landed the lethal blow, when there was one —
+   *  Jensen & Fi's "destroy the minion that killed this" needs it, and a RISE death used to drop it on the
+   *  floor (owner report 2026-08-08): the Rise branch calls this directly and then emits `onDeath` with
+   *  `ownAlreadyFired`, so the bus carrying the killer never reaches the dying body's own handler. A forced
+   *  Echo (Echoing Coop, Bone Throne) legitimately has no killer and passes none. */
+  function fireOwnDeathrattles(minion: Minion, killer?: Minion): void {
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer }));
       }
     };
     fireOnce();
@@ -1460,7 +1465,7 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
-      fireOwnDeathrattles(minion);
+      fireOwnDeathrattles(minion, killer); // a Rise death still has a killer — Jensen & Fi must reach it
       // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
       // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
       // play before returning — "minions that die and then rise should still count as a death".

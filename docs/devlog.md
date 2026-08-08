@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-08 — Jensen & Fi through a Rise; a triple no longer makes a temporary keyword permanent
+
+**1. Jensen & Fi didn't destroy its killer when it Rose.** The Rise branch fires the dying body's own Echo
+via `fireOwnDeathrattles(minion)` and THEN emits `onDeath` with `ownAlreadyFired`, so the bus that carries the
+`killer` deliberately skips the body's own handler — and `fireOwnDeathrattles` never took a killer parameter.
+Jensen's "destroy the minion that killed this" therefore had nothing to destroy on a rise-death. It now
+threads the killer through; the forced-Echo callers (Echoing Coop, Bone Throne) legitimately pass none.
+
+Worth recording how nearly this shipped mis-tested: a first test asserting "the killer eventually died"
+PASSED against the broken code, because a risen Jensen dies a SECOND time through the normal path, which does
+pass the killer — the destroy merely landed one death late. The test now pins the ORDERING (the kill must
+resolve before the `reborn` event), and against the pre-fix code it reports the destroy at event 13 instead
+of before the Rise at 5.
+
+**2. A triple laundered a one-combat keyword into a permanent one.** Maw of the Pit's Ward and Lord of the
+Risen's Rise are marked on the INSTANCE (`tempShield` / `tempReborn`) and stripped at the end of the fight
+they were granted for. `combineIntoGolden` built its keyword set as the plain union of the copies' `keywords`
+and left the markers behind — so tripling a temporarily-Risen minion produced a golden with permanent Rise.
+The union now drops a `DS`/`R` that EVERY contributing copy held only temporarily; a printed keyword, or one
+an untagged copy genuinely owns, still carries through.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0808c.test.ts` — each
+assertion checked against the pre-fix code and confirmed to fail there. Typecheck, lint (0 errors) and
+`build:web` all clean.
 ## 2026-08-08 — Guiding Candle actually serves T6s, Undertow capped at 4, Chimerus reads max Health
 
 **1. Rune of the Guiding Candle did nothing at any tier below 6.** Its narrowed draw pool came from

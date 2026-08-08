@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-08 — Full balance-report export, and the spells table finally has data
+
+**`npm run report:export`** writes the balance report in full — every row, no top-N truncation, every raw
+counter — as `balance-report.json` (the whole report plus a header: games, pilot, totals, timestamp, caveats)
+and one CSV per table (heroes / quests / runes / minions / spells). It shares `computeBalanceReport` with the
+CLI and the in-app dev panel, so the exported numbers ARE those numbers; a divergent export would be worse
+than none. Output goes to `balance-export/`, which is gitignored — it is a simulation snapshot, not source.
+
+**Two blind spots in the shared report, found by exporting it.** The tavern's SPELL offer lives in its own
+`state.spell` slot rather than in `state.shop`, and `computeBalanceReport` read only the shop — on both sides:
+
+- OFFERS: the spells table was built from near-zero offers. **1 row across 1900 runs.**
+- PICKS: a spell purchase matched no shop uid, so it registered as no pick at all — `pickRate` was a
+  permanent 0% for every spell.
+
+Both now read the slot too. The same table goes from **1 row to 74**, with real offer AND pick rates
+(Fleeting Vigor 43% take-up, Growth 16%, …). `balance-analysis.ts` hit this exact blind spot on its own side
+back in 2026-07-21 and fixed it there; the shared report never got the matching fix, so the CLI, the export
+and the dev panel were all reporting an empty spell table.
+
+Recorded in the export's own caveats: spells still have **no winRate by construction** — win credit goes to
+the FINAL BOARD and a cast spell is never on it, so read a spell's offered/picked columns, not its wins.
+
+**Verified.** 4722 tests across 275 files green; typecheck, lint (0 errors) and `build:web` clean. Exported
+1900 runs (100 games/hero × 19 heroes) in ~25s.
+
 ## 2026-08-08 — Rope Wrangler keeps its card; the Career panel speaks lobby
 
 **1. Rope Wrangler no longer eats the minion it summons.** Its Echo took a card OUT of the hand and settle

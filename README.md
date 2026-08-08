@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **`npm run report:export`** dumps the balance report in full (JSON + per-table CSV) — and exporting it exposed that the report never counted the tavern's spell slot, so its spells table went from 1 row to 74.
+
 - **Rope Wrangler keeps the card it summons**, and the Career panel now reports lobby stats (1st Place / Top 4 / Avg. Placement) instead of course stats that are structurally 0 in a lobby.
 
 - **The defeat counter now shows the damage that actually lands** — it was recomputed from different inputs than the hit; plus Gemgorge Fiend gains a per-instance cast counter, and Scavvers (with Rune of the Second Life) is archived.

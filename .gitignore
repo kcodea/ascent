@@ -27,3 +27,7 @@ vitest.config.ts.timestamp-*
 # `npm run package:desktop`. `dist/` above already covers apps/web/dist.
 apps/desktop/release/
 packages/tools/.cache/
+
+# `npm run report:export` output — regenerated on demand, never committed (it is a
+# simulation snapshot, not source).
+balance-export/

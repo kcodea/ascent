@@ -54,6 +54,53 @@ neither breaks nor extends it, because it isn't a lobby result.
 regression test **pinned to seed 1, where the Echo provably fires** — an earlier version of that test passed
 against the broken code because the Echo never fired on its seed, making the assertion vacuous. Typecheck,
 lint (0 errors) and `build:web` all clean.
+## 2026-08-08 — Jensen & Fi through a Rise; a triple no longer makes a temporary keyword permanent
+
+**1. Jensen & Fi didn't destroy its killer when it Rose.** The Rise branch fires the dying body's own Echo
+via `fireOwnDeathrattles(minion)` and THEN emits `onDeath` with `ownAlreadyFired`, so the bus that carries the
+`killer` deliberately skips the body's own handler — and `fireOwnDeathrattles` never took a killer parameter.
+Jensen's "destroy the minion that killed this" therefore had nothing to destroy on a rise-death. It now
+threads the killer through; the forced-Echo callers (Echoing Coop, Bone Throne) legitimately pass none.
+
+Worth recording how nearly this shipped mis-tested: a first test asserting "the killer eventually died"
+PASSED against the broken code, because a risen Jensen dies a SECOND time through the normal path, which does
+pass the killer — the destroy merely landed one death late. The test now pins the ORDERING (the kill must
+resolve before the `reborn` event), and against the pre-fix code it reports the destroy at event 13 instead
+of before the Rise at 5.
+
+**2. A triple laundered a one-combat keyword into a permanent one.** Maw of the Pit's Ward and Lord of the
+Risen's Rise are marked on the INSTANCE (`tempShield` / `tempReborn`) and stripped at the end of the fight
+they were granted for. `combineIntoGolden` built its keyword set as the plain union of the copies' `keywords`
+and left the markers behind — so tripling a temporarily-Risen minion produced a golden with permanent Rise.
+The union now drops a `DS`/`R` that EVERY contributing copy held only temporarily; a printed keyword, or one
+an untagged copy genuinely owns, still carries through.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0808c.test.ts` — each
+assertion checked against the pre-fix code and confirmed to fail there. Typecheck, lint (0 errors) and
+`build:web` all clean.
+## 2026-08-08 — Guiding Candle actually serves T6s, Undertow capped at 4, Chimerus reads max Health
+
+**1. Rune of the Guiding Candle did nothing at any tier below 6.** Its narrowed draw pool came from
+`availableOffers`, which filters `card.tier <= state.tier` — so below tier 6 the "tier 6 only" set was EMPTY
+and the code fell through to its unrestricted fallback, serving a perfectly normal shop. It now draws straight
+from the run's pinned pool for that tier, ignoring the tavern-tier ceiling (owner ruling: "full shops of T6s
+regardless of player tier") while still honouring tribe scoping and stock. The 2-refresh allowance is
+unchanged; a measured tier-2 shop went from `1,2,2,2` to all 6s.
+
+**2. Rune of the Undertow is capped at 4 Wards a combat** (owner). It was unbounded, so a token engine warded
+its entire cascade — a 5-body Alleycat board measured 10 Wards before the cap. Per side, per fight, counting
+only bodies that actually take a Ward. The flag carries the budget now (`amount: 4`); a run saved before the
+cap stored a bare `true`, which the combat half reads as the default 4, so old saves keep working.
+
+**3. Chimerus grants its MAX Health, not its damaged current Health** (owner ruling): buffed to 1500 and then
+hit for 1000, its next Rally still hands over 1500. Under the old `self.health` read the grant shrank with
+every chip — the regression test measured a grant of **1** where it should have been 40.
+
+**Verified.** 4723 tests across 275 files green, including a new 6-case `ownerFixes0809.test.ts`. Each of the
+three tests was checked against the PRE-fix code and confirmed to fail there (offered `1,2,2,2` / 10 Wards /
+a grant of 1) — they pass for the right reason, not by accident. Typecheck, lint (0 errors) and `build:web`
+all clean. A stale comment on the Undertow's mods line ("Echo summons attack immediately" — it never granted
+charge) is corrected.
 
 ## 2026-08-08 — Gemgorge's counter (and its per-instance meter), the loss-damage breakdown, Scavvers archived
 

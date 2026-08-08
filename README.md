@@ -47,6 +47,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **`npm run report:export`** dumps the balance report in full (JSON + per-table CSV) — and exporting it exposed that the report never counted the tavern's spell slot, so its spells table went from 1 row to 74.
 
 - **Rope Wrangler keeps the card it summons**, and the Career panel now reports lobby stats (1st Place / Top 4 / Avg. Placement) instead of course stats that are structurally 0 in a lobby.
+- **Rise no longer eats a Deathrattle's killer, and a triple no longer makes a temporary keyword permanent** — Jensen & Fi destroys its killer on a rise-death, and tripling a one-combat Rise/Ward no longer grants it forever.
+- **Rune of the Guiding Candle works at last** — its tier-6 lock was filtered through the tavern-tier ceiling, so below tier 6 it served an ordinary shop; plus the Undertow is capped at 4 Wards and Chimerus grants its max Health rather than its chipped current Health.
 
 - **The defeat counter now shows the damage that actually lands** — it was recomputed from different inputs than the hit; plus Gemgorge Fiend gains a per-instance cast counter, and Scavvers (with Rune of the Second Life) is archived.
 

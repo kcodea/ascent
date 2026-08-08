@@ -1,4 +1,4 @@
-import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -2212,7 +2212,18 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // aura), but that must NOT carry into its triple: a golden Moe / Beatboxer is a normal minion, not an
   // Attachment, so it should never magnetize when played. Keep 'M' only if the BASE card is genuinely Magnetic
   // (Better Bot / Money Bot / Cling Drone / …).
-  const keywords = [...new Set(combined.flatMap((c) => c.keywords))].filter((k) => k !== 'M' || def.keywords.includes('M'));
+  // TEMPORARY keywords do not survive a triple (owner report 2026-08-08: a one-combat Rise came out of the
+  // combine permanent). Maw of the Pit's Ward and Lord of the Risen's Rise are marked on the INSTANCE
+  // (`tempShield` / `tempReborn`) and stripped at the end of the fight they were granted for — but the union
+  // below reads only `keywords`, so a triple copied the pill and left the marker behind, making it permanent.
+  // A temp keyword is kept only when some combined copy holds it for real (the base card prints it, or an
+  // untagged copy carries it).
+  const tempOnly = (k: Keyword): boolean =>
+    !def.keywords.includes(k)
+    && combined.every((c) => !c.keywords.includes(k) || (k === 'DS' ? c.tempShield : k === 'R' ? c.tempReborn : false));
+  const keywords = [...new Set(combined.flatMap((c) => c.keywords))]
+    .filter((k) => k !== 'M' || def.keywords.includes('M'))
+    .filter((k) => !((k === 'DS' || k === 'R') && tempOnly(k)));
   // A summon-buff card (Kennelmaster / Bristleback Matron) carries its accrued buff
   // through the triple: the golden's summonBonus = its base buff + the two highest
   // bonuses combined, so the granted magnitude (base + summonBonus) is the SUM of the
@@ -3503,6 +3514,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
       else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
+      else if (r.flag === 'runeUndertow') s.questFlags.runeUndertow = add(typeof s.questFlags.runeUndertow === 'number' ? s.questFlags.runeUndertow : 0, r.amount ?? 4); // amount = the Ward budget
       else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
@@ -4147,7 +4159,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSavagery: f?.runeSavagery,           // Rune of Savagery: a summoned Beast doubles its Attack
     runeCrucible: f?.runeCrucible,           // Rune of the Crucible: sacrifice N left-most, resummon at the end
     runeHerald: f?.runeHerald,               // Rune of the Herald: SoC — trigger all your Echoes
-    runeUndertow: f?.runeUndertow, // Rune of the Undertow: Echo summons attack immediately
+    runeUndertow: f?.runeUndertow, // Rune of the Undertow: the first N combat summons gain Ward (stale comment fixed 2026-08-08 — it never granted charge)
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
     runeMastery: s.runeMastery, // Rune of Mastery: your Improve steps apply twice (combat half)

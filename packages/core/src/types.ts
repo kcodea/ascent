@@ -985,6 +985,8 @@ export type QuestReward =
   | { kind: 'runeSpellmarket' } // …and also feeds the right-most Shop minion
   | { kind: 'runeLastWord' } // selling a Dragon with a Shout triggers it first
   | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
+  | { kind: 'runeBanquetHall' } // the turn's first Shop-buffed buy feeds one minion of each type
+  | { kind: 'runeCrucibleChoir' } // End of Turn: the left-most Shout, then the left-most Echo
   | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
@@ -1133,6 +1135,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeAshenPayroll' // 3 Imps summoned in a combat pays Gold next turn (once per combat)
   | 'runeBackbeat' // the first Echo each combat also fires the left-most Rally
   | 'runeSpareChair'
+  | 'runeAncestralRoar' // your Dragons with a Shout gain "Echo: trigger this minion's Shout"
+  | 'runeRubyShrapnel' // a dying Ruby-buffed minion splits its Ruby stats among the survivors
+  | 'runeSharedScripture'
   // Rune of the Mammoth: Menagerie Mammoths give Health too (1:1 with the Attack grant).
   | 'runeMammoth'
   // foodChain = your first summon inherits your left-most Demon's stats; attackingGems = every friendly attack
@@ -1348,6 +1353,12 @@ export interface QuestCombatMods {
   runeBackbeat?: boolean;
   /** Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now. */
   runeSpareChair?: boolean;
+  /** Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo. */
+  runeAncestralRoar?: boolean;
+  /** Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors. */
+  runeRubyShrapnel?: boolean;
+  /** Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally. */
+  runeSharedScripture?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
@@ -2251,6 +2262,8 @@ export interface CombatContext {
   grantSpellCastExtra?(side: Side, n: number): void;
   /** The card id of the LAST Shop spell this side's owner cast, if any (Sporebat's stored spell). */
   lastSpellCastFor?(side: Side): string | undefined;
+  /** Rune of Shared Scripture's hook — every resolved combat Shop-spell cast reports itself here. */
+  onCombatSpellCast?(side: Side): void;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
   rememberedSpellsFor?(side: Side): readonly string[];
   /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,

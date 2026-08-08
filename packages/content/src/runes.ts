@@ -1640,6 +1640,50 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     reward: { kind: 'grant', cards: ['mossmemory_colossus'] },
   },
+
+  // ── batch 4, tranche 4 (2026-08-07): the five hard Epics ──
+  {
+    id: 'rune_ancestral_roar',
+    name: 'Rune of Ancestral Roar',
+    cost: 5,
+    text: 'Your **Dragons** with **Shout** gain "**Echo:** trigger this minion’s Shout."',
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeAncestralRoar' },
+  },
+  {
+    id: 'rune_ruby_shrapnel',
+    name: 'Rune of Ruby Shrapnel',
+    cost: 5,
+    text: 'When a **Ruby**-buffed minion dies, split its Ruby bonus stats among your surviving minions.',
+    previewCards: ['ruby'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    id: 'rune_shared_scripture',
+    name: 'Rune of Shared Scripture',
+    cost: 6,
+    text: 'The first **Shop spell** cast by your warband in combat triggers your left-most **Shout** and **Rally**.',
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeSharedScripture' },
+  },
+  {
+    id: 'rune_banquet_hall',
+    name: 'Rune of the Banquet Hall',
+    cost: 5,
+    text: 'The first **Shop-buffed** minion you buy each turn gives its bonus stats to one friendly minion of **each type**.',
+    epic: true,
+    reward: { kind: 'runeBanquetHall' },
+  },
+  {
+    id: 'rune_crucible_choir',
+    name: 'Rune of the Crucible Choir',
+    cost: 6,
+    text: '**End of Turn:** trigger your left-most **Shout**, then your left-most **Echo**.',
+    epic: true,
+    reward: { kind: 'runeCrucibleChoir' },
+  },
 ];
 
 /**

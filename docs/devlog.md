@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-07 — Batch 4, tranche 4: the five hard Epics (batch 4 complete)
+
+The last tranche of the owner's batch 4 — the five Epics that needed real machinery rather than pattern reuse:
+
+- **Rune of Ancestral Roar** (5) — your Dragons with a Shout gain "Echo: trigger this minion's Shout." Fires
+  the DYING body's own Shout, using the same firing block Rune of the War Chorus uses. Deliberately has no
+  once-per-combat latch: the rune grants an ability to every qualifying Dragon rather than firing once itself,
+  so two dying Dragons roar twice.
+- **Rune of Ruby Shrapnel** (5, Set 2) — a dying Ruby-buffed minion splits its Ruby stats among the survivors.
+  The tally is the same read the Gemheart line and Rune of the Gem Golem use (carried shop `Ruby` buff plus
+  this fight's `rubyGain`), so a Ruby counts the same whether it was played in the shop or mid-fight. Split
+  evenly and FLOORED — a share that rounds to nothing simply doesn't land, rather than being topped up to 1,
+  which would have made a wide board free value.
+- **Rune of Shared Scripture** (6) — the warband's first Shop-spell cast in combat triggers the left-most Shout
+  and the left-most Rally. Hooked through a new `ctx.onCombatSpellCast` reported from `resolveCombatSpellCast`,
+  so it counts casts that RESOLVED: a fizzled aim (no legal target) is not a cast and must not spend the rune.
+- **Rune of the Banquet Hall** (5) — the turn's first Shop-buffed buy hands its bonus stats to one friendly
+  minion of each type. "Bonus" is the offer's own `atk`/`hp`, measured against the printed card, so a body
+  bought at base stats doesn't arm it. The one-per-type walk is the Lapidary's: board order, first uncovered
+  tribe wins, a dual-type body covers both.
+- **Rune of the Crucible Choir** (6) — End of Turn, the left-most Shout fires, then the left-most Echo. Two
+  separate left-most picks, both through the existing replay paths (`replayBattlecry` for the Shout, the same
+  path Myra's hero power uses; `fireRecruitDeathrattles` for the Echo, the shop-side path Gravetwin uses).
+
+**Two tests were rewritten before they shipped**, because both passed for the wrong reason. The Crucible Choir
+test compared a post-turn board size against a fixed number, which `lastCombat.initial` satisfies whether the
+rune fired or not; the Banquet Hall test only asserted that buying the rune set a boolean. Both are now armed
+vs unarmed differentials off the same board, and the Banquet Hall one drives a real buy through `reduce`.
+
+**Verified.** 4639 tests across 270 files green, including a new 11-case `runeBatch4T4.test.ts`. Typecheck, lint
+(0 errors) and `build:web` all clean.
+
+**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes and 3 T6 minions across four tranches. The three
+tranche-2 bodies and their runes still ship without art.
+
 ## 2026-08-07 — Batch 4, tranche 3: the contained-machinery eight
 
 Eight more Basic runes, each built on machinery already in the engine:

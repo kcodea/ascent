@@ -2847,6 +2847,7 @@ function advanceCombat(s: RunState): void {
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.spellmarketUsedThisTurn = false; // Rune of the Spellmarket feeds the Shop once per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  s.banquetUsedThisTurn = false;     // Rune of the Banquet Hall feeds the board off one buy per turn
   s.spellhidePending = [];           // …and the recorded re-casts are spent by the combat that just began
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
   s.contrabandAleUsed = undefined;
@@ -3727,6 +3728,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSpellmarket': s.runeSpellmarket = true; break;
     case 'runeLastWord': s.runeLastWord = true; break;
     case 'runeRunicHoard': s.runeRunicHoard = true; break;
+    case 'runeBanquetHall': s.runeBanquetHall = true; break;
+    case 'runeCrucibleChoir': s.runeCrucibleChoir = true; break;
     case 'runeHoardcalling': s.runeHoardcalling = true; break;
     case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
@@ -4061,6 +4064,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeAshenPayroll: f?.runeAshenPayroll,   // Rune of Ashen Payroll: read at SETTLE off the Imp tally
     runeBackbeat: f?.runeBackbeat,           // Rune of Backbeat: first Echo also fires the left-most Rally
     runeSpareChair: f?.runeSpareChair,       // Rune of the Spare Chair: the 7th seat arrives Warded + swinging
+    runeAncestralRoar: f?.runeAncestralRoar, // Rune of Ancestral Roar: a dying Dragon fires its own Shout
+    runeRubyShrapnel: f?.runeRubyShrapnel,   // Rune of Ruby Shrapnel: a dying Ruby body splits its stats
+    runeSharedScripture: f?.runeSharedScripture, // Rune of Shared Scripture: first combat cast → Shout + Rally
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)

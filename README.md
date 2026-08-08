@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Batch 4 complete — the five hard Epics** (Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir), closing out a batch of 17 Basic runes, 8 Epics and 3 T6 minions.
+
 - **Batch 4, tranche 3 — eight more Basic runes** (Emberline, Ashen Payroll, Backbeat, Spare Chair, Spellhide, Spellmarket, Last Word, Runic Hoard); Backbeat had been hooked into the forced-Echo path, which an ordinary Deathrattle never passes through.
 
 - **Batch 4, tranche 2 — three T6 bodies** (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and the Epic runes that grant them; the Colossus needed two loop guards, since a resurrected Beast that dies is fuel for the next resurrection.

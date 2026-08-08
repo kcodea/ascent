@@ -5843,6 +5843,29 @@ export function applyShopRefreshed(state: RunState): void {
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);
+  // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
+  // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into
+  // the body as named buffs) — a plain 3/4 body bought at printed stats is not "Shop-buffed" and doesn't arm
+  // it. The one-per-type walk is the Lapidary's: board order, first uncovered tribe wins, a dual-type body
+  // covers both, so the pick is a seating decision rather than RNG. The buyer itself can be a recipient — it
+  // is a friendly minion of its own type, and excluding it would make the rune worse the fewer types you hold.
+  if (state.runeBanquetHall && !state.banquetUsedThisTurn) {
+    const base = CARD_INDEX[bought.cardId];
+    const g = bought.golden ? 2 : 1;
+    const bonusA = bought.attack - (base ? base.attack * g : bought.attack);
+    const bonusH = bought.health - (base ? base.health * g : bought.health);
+    if (bonusA > 0 || bonusH > 0) {
+      state.banquetUsedThisTurn = true;
+      const covered = new Set<string>();
+      for (const c of [...state.board]) {
+        const def = CARD_INDEX[c.cardId];
+        const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+        if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
+        for (const t of tribes) covered.add(t);
+        addBuff(c, 'Rune of the Banquet Hall', Math.max(0, bonusA), Math.max(0, bonusH));
+      }
+    }
+  }
   fire(ctx, 'onBuy', { minion: bought });
 }
 
@@ -6342,6 +6365,18 @@ export function applyEndOfTurn(state: RunState): void {
       addBuff(c, 'Ruby', a, h);
       fireOnRubyPlayed(state, c, a, h);
     }
+  }
+
+  // RUNE OF THE CRUCIBLE CHOIR: End of Turn, your left-most Shout fires, then your left-most Echo. Two
+  // separate left-most picks (they are rarely the same body), and both go through the same replay paths every
+  // other re-fire uses — `replayBattlecry` for the Shout (Myra's path, so a targeted Shout auto-picks the same
+  // way) and `fireRecruitDeathrattles` for the Echo (the shop-side Echo path Gravetwin uses).
+  if (state.runeCrucibleChoir) {
+    const choirCtx = makeContext(state);
+    const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (shout) replayBattlecry(state, shout);
+    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
+    if (echo) fireRecruitDeathrattles(choirCtx, echo);
   }
 
   const ctx = makeContext(state);

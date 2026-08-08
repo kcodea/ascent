@@ -854,6 +854,25 @@ export function simulate(
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
+    onCombatSpellCast: (side) => {
+      // RUNE OF SHARED SCRIPTURE: the warband's FIRST Shop-spell cast in a fight fires the left-most Shout and
+      // the left-most Rally. Reported from `resolveCombatSpellCast`, so it counts a cast that actually
+      // RESOLVED — a fizzled aim (no legal target) is not a cast, and must not spend the rune.
+      if (!modsFor(side).runeSharedScripture || scriptureSpent[side]) return;
+      const shout = living(side).find((m) => m.effects.some((e) => e.on === 'onPlay'));
+      const rally = living(side).find((m) => canRally(m));
+      if (!shout && !rally) return;
+      scriptureSpent[side] = true;
+      nextStep(); fireTrigger('runeSharedScripture', side);
+      if (shout) {
+        emit({ type: 'sc', source: shout.uid, text: 'Shout' });
+        for (const effect of shout.effects) {
+          if (effect.on !== 'onPlay') continue;
+          FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side });
+        }
+      }
+      if (rally) fireFreeRally(rally, side);
+    },
     rememberedSpellsFor: (side) => (side === 'player' ? playerState : enemyState).rememberedSpellIds ?? [],
     resummonDeadBeasts: (side, count, excludeUid) => {
       // Earliest-first, skipping the caller's own corpse ("other Beasts") and anything already brought back,
@@ -1509,6 +1528,41 @@ export function simulate(
     // RUNE OF EMBERLINE: the FIRST Imp to die each combat banks its stats for the next Imp summoned. The
     // Ashen Heir's rule, narrowed to one payout a fight — `maxHealth` for the same reason (what the Imp WAS,
     // not what the killing blow left). Per side, so a served board runs its own.
+    // RUNE OF ANCESTRAL ROAR: a dying Dragon with a Shout fires that Shout as an Echo. Same firing block the
+    // War Chorus uses, aimed at the dying body rather than the left-most one — this is the minion's OWN Shout,
+    // granted to it as an Echo, so there is no left-most pick to make and no once-per-combat latch: the rune
+    // grants an ability to every qualifying Dragon rather than firing once itself.
+    if (modsFor(minion.side).runeAncestralRoar
+        && (minion.tribe === 'dragon' || minion.tribe2 === 'dragon')
+        && minion.effects.some((e) => e.on === 'onPlay')) {
+      nextStep(); fireTrigger('runeAncestralRoar', minion.side);
+      emit({ type: 'sc', source: minion.uid, text: 'Shout' });
+      for (const effect of minion.effects) {
+        if (effect.on !== 'onPlay') continue;
+        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+      }
+    }
+    // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
+    // is the same read the Gemheart line and Rune of the Gem Golem use — the carried shop 'Ruby' buff plus
+    // this fight's `rubyGain` — so a Ruby counts the same whether it was played in the shop or mid-fight.
+    // Split evenly and FLOORED: 5 Attack across 2 survivors is 2 each, not 2.5, and a share that rounds to
+    // nothing simply doesn't land rather than being topped up to 1 (which would make wide boards free value).
+    if (modsFor(minion.side).runeRubyShrapnel) {
+      const carried = minion.buffs?.find((b) => b.source === 'Ruby');
+      const tally = {
+        attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
+        health: (carried?.health ?? 0) + (minion.rubyGain?.health ?? 0),
+      };
+      const survivors = living(minion.side).filter((m) => m !== minion);
+      if (survivors.length > 0 && (tally.attack > 0 || tally.health > 0)) {
+        const a = Math.floor(tally.attack / survivors.length);
+        const h = Math.floor(tally.health / survivors.length);
+        if (a > 0 || h > 0) {
+          nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
+          for (const m of survivors) ctx.buff(m, a, h, 'Rune of Ruby Shrapnel');
+        }
+      }
+    }
     if (modsFor(minion.side).runeEmberline && !emberlineBank[minion.side] && cards[minion.cardId]?.imp) {
       emberlineBank[minion.side] = { attack: Math.max(0, minion.attack), health: Math.max(0, minion.maxHealth) };
     }
@@ -1639,6 +1693,7 @@ export function simulate(
   const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
   const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {

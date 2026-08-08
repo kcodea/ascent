@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rise now resets a body properly** — granted rallies and Avenge progress no longer ride through a Rise; plus combat-cast Discover spells grant a random pick instead of opening the UI, Reinforcing Ale works mid-fight, and Veinstorm's hover preview reads its live Ruby value.
+
 - **Card-keyed runes complete** — all 12 shipped (6 more: Moonhowl, Flooded Vault, Shared Reflection, Unbroken Vein, Battle Refraction, Living Growth), plus Matriarch's retexture, per-instance Moonhowl Mentors, and Indy's Gild recharge at 75 Gold.
 
 - **Four owner fixes** — the Recaller/Second Draft pickup loop is closed, Mend now sets Armor to 5, Voicekeeper counts from its own placement, and gilding a minion in place no longer retroactively doubles its accrued buff (a +100/+100 Sovereign stays +100/+100 and grows golden from there).

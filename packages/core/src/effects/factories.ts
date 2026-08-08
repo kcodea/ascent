@@ -52,6 +52,13 @@ const RALLY_SPREAD_CAP = 1_000_000_000;
  * NOT routed through here: Rune of the Spellstone counting a RUBY as a cast (see `playRubyOn`). A Ruby is not
  * a Shop Spell, so a "your Shop Spells cast again" grant must not multiply it.
  */
+/** A minion's OWN view of the side's Avenge tally — the run total minus its post-Rise baseline (owner ruling
+ *  2026-08-08: a risen body's Avenge progress restarts at 0). Every minion-level avenge factory must count
+ *  through this rather than reading the payload count raw, or a Rise carries the old progress through. */
+export function avengeCountFor(self: Minion, count: number): number {
+  return count - (self.avengeBaseline ?? 0);
+}
+
 export function castInCombat(ctx: CombatContext, self: Minion, body: () => void): void {
   const reps = mul(self) * Math.max(1, ctx.spellCastRepsFor?.(self.side) ?? 1);
   for (let i = 0; i < reps; i++) {
@@ -452,6 +459,20 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
         for (const t of alive()) ctx.buff(t, a + sp.attack, h + sp.health, self.uid);
         did = true; break;
       }
+      // Reinforcing Ale (owner report 2026-08-08: Sporebat's Echo cast it and nothing happened — the id was
+      // simply missing here, so the cast fizzled). "Your most common type" resolves against this side's
+      // LIVING board, both tribes counted, ties to the left-most seen — then the grant rides the same
+      // settle-time carry every combat hand-grant uses.
+      case 'spellGrantTopTypeMinion': {
+        const counts = new Map<string, number>();
+        for (const m of alive()) {
+          for (const t of [m.tribe, m.tribe2]) if (t && t !== 'neutral') counts.set(t, (counts.get(t) ?? 0) + 1);
+        }
+        let top: string | undefined; let best = 0;
+        for (const [t, n] of counts) if (n > best) { top = t; best = n; }
+        if (top) { ctx.grantRandomMinion(1, top as never, side, undefined, self.uid); did = true; }
+        break;
+      }
       case 'spellBuffRandomFriendlies': {
         const pool = [...alive()];
         for (let i = 0; i < num(eff.params?.count, 2) && pool.length > 0; i++) {
@@ -518,7 +539,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
-  'spellGainRandomMinion',
+  'spellGainRandomMinion', 'spellGrantTopTypeMinion',
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
@@ -748,7 +769,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 4));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const mechs = ctx
       .living(self.side)
       .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
@@ -1133,7 +1155,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
@@ -1369,7 +1392,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const every = Math.max(1, num(params.count, 3));
-    if (count % every !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % every !== 0) return;
     const pool = (ctx.handSpellsFor?.(self.side) ?? [])
       .map((id) => ctx.getCard(id))
       .filter((d): d is CardDef => !!d?.spell && combatCastable(d));
@@ -1392,7 +1416,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const every = Math.max(1, num(params.count, 4));
-    if (count % every !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % every !== 0) return;
     const id = ctx.leftmostHandSpellFor(self.side);
     if (!id) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
@@ -1422,7 +1447,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const every = Math.max(1, num(params.count, 4));
-    if (count % every !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % every !== 0) return;
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
   },
 
@@ -1433,7 +1459,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.grantRandomSpell(mul(self), self.side, self.uid); // 1 random spell per proc (golden 2)
   },
 
@@ -1446,7 +1473,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const card = ctx.getCard(str(params.cardId));
     if (!card) return;
     ctx.summon(self.side, card, self.uid, undefined, self.golden, true);
@@ -1535,7 +1563,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const perShop = num(params.fodder, 1) * mul(self);
     const shops = Math.max(1, num(params.shops, 1));
     if (shops > 1) ctx.scheduleFodder(Array(shops).fill(perShop), self.side);
@@ -1549,7 +1578,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 4));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side, self.uid);
   },
 
@@ -1725,7 +1755,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe));
   },
 
@@ -1824,7 +1855,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
   },
 
@@ -1833,7 +1865,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.grantRubies(num(params.rubies, 1) * mul(self), self.side, self.uid);
   },
 
@@ -1843,7 +1876,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const target = ctx.living(self.side)[0]; // left-most living friend
     if (target) playRubyOn(ctx, self, target, num(params.rubies, 1) * mul(self));
   },
@@ -2139,7 +2173,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
   },
 
@@ -2151,7 +2186,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const avengeInc = ctx.improveRepsFor(self.side); // Rune of Mastery: the Improve applies twice
     self.summonBonus += avengeInc;
     ctx.log({ type: 'improve', target: self.uid, amount: avengeInc });
@@ -2165,7 +2201,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 4));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const gain = mul(self);
     ctx.grantMaxGold(gain, self.side);
     if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
@@ -2177,7 +2214,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 4));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     ctx.grantBonusGold(num(params.amount, 2) * mul(self), self.side);
   },
 
@@ -2197,7 +2235,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     const amount = self.attack;
     if (amount <= 0) return;
     const targets = num(params.targets, 2);
@@ -2773,7 +2812,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const every = Math.max(1, num(params.count, 3));
-    if (count % every !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % every !== 0) return;
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
@@ -3443,7 +3483,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
-    if (count % x !== 0) return;
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
     // Gain a Ward and attack immediately. Golden strikes twice AND gains a fresh Ward before each strike (so
     // both go in shielded) — the Ward is paired with the strike in the immediate-attack queue.
     for (let i = 0; i < mul(self); i++) ctx.attackNow?.(self, true);

@@ -225,6 +225,9 @@ export function computeFrame(
   // by every Health buff, which is exactly how the sim's `maxHealth` moves.
   const maxHp = new Map<string, number>();
   for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
+  // Per-uid Avenge floors, stamped on Rise — a risen body's counter restarts at 0 (mirrors the sim's
+  // `avengeBaseline`; assigned where `avengeSeen` is stamped at the bottom).
+  const avengeBase = new Map<string, number>();
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
   // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
@@ -255,6 +258,10 @@ export function computeFrame(
         u.attack = e.attack;
         u.keywords = [...e.keywords];
         u.divineShield = e.keywords.includes('DS');
+        // A risen body's Avenge restarts (owner ruling 2026-08-08) — the sim stamps its baseline AFTER its
+        // own rise-death was tallied, and the reborn event lands after that death here too, so the current
+        // side tally IS the baseline. The counter below subtracts it, mirroring `avengeCountFor`.
+        avengeBase.set(u.uid, player.includes(u) ? deaths.player : deaths.enemy);
         u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
         u.baseHealth = e.hp;
         u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
@@ -388,8 +395,8 @@ export function computeFrame(
   }
   // Stamp the live step-counter tallies onto every frame: each unit sees its OWN side's death count (Avenge) and
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
-  for (const u of player) { u.avengeSeen = deaths.player; u.bleedAttacks = attackCount; }
-  for (const u of enemy) { u.avengeSeen = deaths.enemy; u.bleedAttacks = attackCount; }
+  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
+  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 

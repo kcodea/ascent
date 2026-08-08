@@ -391,7 +391,10 @@ function tokenRefView(
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack, health: c.health, keywords: c.keywords,
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier }),
+      // `rubyBonus` rides along so a previewed Veinstorm (Storm Chaser's hover) prints the LIVE Ruby value —
+      // this path fed the Ruby branch above but starved the spell branch, so Veinstorm previewed at +1/+1
+      // while the real cast paid more (owner report 2026-08-08).
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };

@@ -265,6 +265,44 @@ const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = 
 // The odds probe (200 Monte Carlo sims) moved to `odds.ts` (`computeCombatOdds`) — deferred to UI idle
 // time since 2026-08-01; faceOmen only stashes `oddsInput` now.
 
+/** Take Discover option `index` into the hand — the ONE take path, shared by the player's click
+ *  (`case 'discover'`) and the combat auto-pick (a Discover spell cast mid-fight grants a random choice,
+ *  owner ruling 2026-08-08). Returns false when the pick can't resolve (bad index / unknown card); the
+ *  full hand is a legitimate forfeit and still counts as taken. */
+function takeDiscoverPick(s: RunState, index: number): boolean {
+  const id = s.discover?.[index];
+  const def = id ? CARD_INDEX[id] : undefined;
+  if (!def) return false;
+  const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
+  // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
+  // than over-capping). Only claim a pool copy when the card is actually taken.
+  if (s.hand.length < handCap(s)) {
+    const taken: BoardCard = {
+      uid: `b${s.uidSeq++}`,
+      cardId: def.id,
+      tribe: def.tribe,
+      // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
+      ...conjuredStats(s, def, dcb),
+      keywords: [...def.keywords],
+      golden: false,
+      // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
+      ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
+      ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
+      ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
+      ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
+    };
+    // Rune of the Second Path: the pick's stats are SET to the authored line (20/20), replacing the
+    // conjured stats entirely — an override, not a buff.
+    if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
+    // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
+    // transform a triple applies, so the stats/keywords stay consistent with every other golden.
+    if (s.discoverGolden) gildMinion(taken);
+    s.hand.push(taken);
+    takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
+  }
+  return true;
+}
+
 export function reduce(state: RunState, action: Action): RunState {
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
@@ -1765,36 +1803,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'discover': {
       if (!s.discover) return state;
-      const id = s.discover[action.index];
-      const def = id ? CARD_INDEX[id] : undefined;
-      if (!def) return state;
-      const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
-      // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
-      // than over-capping). Only claim a pool copy when the card is actually taken.
-      if (s.hand.length < handCap(s)) {
-        const taken: BoardCard = {
-          uid: `b${s.uidSeq++}`,
-          cardId: def.id,
-          tribe: def.tribe,
-          // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-          ...conjuredStats(s, def, dcb),
-          keywords: [...def.keywords],
-          golden: false,
-          // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
-          ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-          ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
-          ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
-          ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
-        };
-        // Rune of the Second Path: the pick's stats are SET to the authored line (20/20), replacing the
-        // conjured stats entirely — an override, not a buff.
-        if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
-        // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
-        // transform a triple applies, so the stats/keywords stay consistent with every other golden.
-        if (s.discoverGolden) gildMinion(taken);
-        s.hand.push(taken);
-        takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
-      }
+      if (!takeDiscoverPick(s, action.index)) return state;
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
       s.discoverLockGold = undefined;
       s.discoverLockWave = undefined;
@@ -2642,11 +2651,27 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // Discover spells cast mid-fight (Quil / Sporebat / a taught Pup): the modal can't open in combat, so the
   // cast carried back and the real pick queues here, exactly as a hand cast would have queued it.
+  // A DISCOVER spell cast mid-combat grants a RANDOM pick from its pool (owner ruling 2026-08-08) — it no
+  // longer opens the Discover UI at settle. The offer is still BUILT by the real `openDiscover` (same pools,
+  // same tier rules, same rng stream), but the choice is rolled rather than asked, and the pick lands through
+  // the exact take path a clicked Discover uses (`takeDiscoverPick`), so stat conjury and pool bookkeeping
+  // can't drift from the interactive path.
   if (result.playerDiscoverCasts) {
     for (const id of result.playerDiscoverCasts) {
       const d = CARD_INDEX[id];
       const spec = d ? discoverSpecFor(s, d) : undefined;
-      if (spec) queueDiscover(s, { ...spec });
+      if (!spec) continue;
+      openDiscover(s, { ...spec });
+      if (s.discover && s.discover.length > 0) {
+        const rng = makeRng(s.rngCursor);
+        const pick = rng.int(s.discover.length);
+        s.rngCursor = rng.state();
+        takeDiscoverPick(s, pick);
+      }
+      // Clear the offer state whether or not a pick landed — nothing here may leave a modal open.
+      s.discover = undefined;
+      s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
+      s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined;
     }
   }
   // Shop-buff spells cast mid-fight: a one-time buff for the NEXT shop (the `nextShopBuff` channel).

@@ -1502,6 +1502,18 @@ export function simulate(
       // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
       // carry-back no longer records (display-vs-persist divergence).
       minion.gainMult = undefined;
+      // A RISEN BODY IS THE PRINTED BODY (owner ruling 2026-08-08): everything GRANTED to this instance
+      // during the fight resets with its stats. The Sunmane/Better-Bot/Spell-Weld/Empty-Graves rallies were
+      // riding through the Rise — a body came back "fresh" yet still carried another minion's gift.
+      minion.rallySpreadAtk = undefined;
+      minion.rallyMechAtk = undefined;
+      minion.rallySpellWeld = undefined;
+      minion.emptyGravesRally = undefined;
+      minion.bloodlustRally = undefined;
+      // …and its AVENGE progress restarts (owner: "1/3 should reset to 0/3"). Avenge counts are a side-level
+      // deaths tally, so the reset is a per-instance BASELINE: everything before this moment no longer counts
+      // for this body. Stamped AFTER its own rise-death was tallied, so that death isn't "progress" either.
+      minion.avengeBaseline = deaths[minion.side];
       applyAuras(minion, true); // Reborn reset stats to base — re-apply every run-wide aura on top
       // Re-slot the risen body to just after the contiguous block its Deathrattle summoned into its old slot
       // (each freshly-summoned token isn't in `before`) → it returns to their RIGHT. No summons → it stays put.

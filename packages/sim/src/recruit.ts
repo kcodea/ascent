@@ -5857,12 +5857,27 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
     if (bonusA > 0 || bonusH > 0) {
       state.banquetUsedThisTurn = true;
       const covered = new Set<string>();
+      const recipients: BoardCard[] = [];
       for (const c of [...state.board]) {
         const def = CARD_INDEX[c.cardId];
         const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
         if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
         for (const t of tribes) covered.add(t);
-        addBuff(c, 'Rune of the Banquet Hall', Math.max(0, bonusA), Math.max(0, bonusH));
+        recipients.push(c);
+      }
+      // DISPERSED across the recipients, not handed to each in full (owner ruling 2026-08-07, matching Rune of
+      // Ruby Shrapnel). The bonus is dealt out one point at a time, round-robin from the left, so every point
+      // lands somewhere and the total the board gains is exactly the bonus the bought body was carrying —
+      // wide type coverage spreads it thinner rather than multiplying it. Attack and Health are dealt
+      // independently, both from the left, so a +3/+3 keeps its two halves on the same minions.
+      if (recipients.length > 0) {
+        const share = recipients.map(() => ({ attack: 0, health: 0 }));
+        for (let i = 0; i < bonusA; i++) share[i % recipients.length]!.attack += 1;
+        for (let i = 0; i < bonusH; i++) share[i % recipients.length]!.health += 1;
+        for (let i = 0; i < recipients.length; i++) {
+          const sh = share[i]!;
+          if (sh.attack > 0 || sh.health > 0) addBuff(recipients[i]!, 'Rune of the Banquet Hall', sh.attack, sh.health);
+        }
       }
     }
   }

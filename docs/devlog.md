@@ -10,16 +10,19 @@ The last tranche of the owner's batch 4 — the five Epics that needed real mach
   so two dying Dragons roar twice.
 - **Rune of Ruby Shrapnel** (5, Set 2) — a dying Ruby-buffed minion splits its Ruby stats among the survivors.
   The tally is the same read the Gemheart line and Rune of the Gem Golem use (carried shop `Ruby` buff plus
-  this fight's `rubyGain`), so a Ruby counts the same whether it was played in the shop or mid-fight. Split
-  evenly and FLOORED — a share that rounds to nothing simply doesn't land, rather than being topped up to 1,
-  which would have made a wide board free value.
+  this fight's `rubyGain`), so a Ruby counts the same whether it was played in the shop or mid-fight. The stats
+  are DISPERSED, not divided (owner ruling): points are dealt out one at a time, round-robin from the left, so
+  2 Attack across 3 survivors pays two of them +1 and the third nothing. An even floored split — the first
+  implementation — silently destroyed those leftovers, paying 0 for that same case.
 - **Rune of Shared Scripture** (6) — the warband's first Shop-spell cast in combat triggers the left-most Shout
   and the left-most Rally. Hooked through a new `ctx.onCombatSpellCast` reported from `resolveCombatSpellCast`,
   so it counts casts that RESOLVED: a fizzled aim (no legal target) is not a cast and must not spend the rune.
-- **Rune of the Banquet Hall** (5) — the turn's first Shop-buffed buy hands its bonus stats to one friendly
-  minion of each type. "Bonus" is the offer's own `atk`/`hp`, measured against the printed card, so a body
-  bought at base stats doesn't arm it. The one-per-type walk is the Lapidary's: board order, first uncovered
-  tribe wins, a dual-type body covers both.
+- **Rune of the Banquet Hall** (5) — the turn's first Shop-buffed buy SPLITS its bonus stats among one friendly
+  minion of each type, using the same round-robin dispersal as Ruby Shrapnel (owner ruling): the board gains
+  exactly the bonus the bought body carried, however many types share it, rather than a multiple of it.
+  "Bonus" is the offer's own `atk`/`hp`, measured against the printed card, so a body bought at base stats
+  doesn't arm it. The one-per-type walk is the Lapidary's: board order, first uncovered tribe wins, a
+  dual-type body covers both.
 - **Rune of the Crucible Choir** (6) — End of Turn, the left-most Shout fires, then the left-most Echo. Two
   separate left-most picks, both through the existing replay paths (`replayBattlecry` for the Shout, the same
   path Myra's hero power uses; `fireRecruitDeathrattles` for the Echo, the shop-side path Gravetwin uses).

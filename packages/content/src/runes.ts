@@ -1672,7 +1672,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_banquet_hall',
     name: 'Rune of the Banquet Hall',
     cost: 5,
-    text: 'The first **Shop-buffed** minion you buy each turn gives its bonus stats to one friendly minion of **each type**.',
+    text: 'The first **Shop-buffed** minion you buy each turn splits its bonus stats among one friendly minion of **each type**.',
     epic: true,
     reward: { kind: 'runeBanquetHall' },
   },

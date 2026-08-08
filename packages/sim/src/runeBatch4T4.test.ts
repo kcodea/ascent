@@ -87,13 +87,22 @@ describe('Rune of Ruby Shrapnel', () => {
     expect(scattered(board, { runeRubyShrapnel: true })).toBe(0);
   });
 
-  it('a share that floors to nothing simply does not land', () => {
-    // 1 Attack of Ruby across 3 survivors is 0 each. Topping that up to 1 would make a wide board free value.
+  it('spends every point — a stat that does not divide evenly is still fully handed out', () => {
+    // Owner ruling 2026-08-07: DISPERSE the literal stats, never round a share down to nothing. 2 Attack over
+    // 3 survivors pays two of them +1 and the third nothing — total 2, not 0 (which an even floored split gave).
+    const board: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 1, buffs: [{ source: 'Ruby', attack: 2, health: 0, count: 1 }] },
+      ...Array.from({ length: 3 }, () => ({ cardId: 'sandbag', attack: 0, health: 60 })),
+    ];
+    expect(scattered(board, { runeRubyShrapnel: true }), 'every point should land somewhere').toBe(2);
+  });
+
+  it('a single point still lands, on one survivor', () => {
     const board: BoardMinion[] = [
       { cardId: 'sandbag', attack: 0, health: 1, buffs: [{ source: 'Ruby', attack: 1, health: 0, count: 1 }] },
       ...Array.from({ length: 3 }, () => ({ cardId: 'sandbag', attack: 0, health: 60 })),
     ];
-    expect(scattered(board, { runeRubyShrapnel: true })).toBe(0);
+    expect(scattered(board, { runeRubyShrapnel: true })).toBe(1);
   });
 });
 
@@ -137,11 +146,17 @@ describe('Rune of the Banquet Hall', () => {
     return after - before;
   };
 
-  it('a Shop-buffed buy feeds one friendly minion of each type', () => {
+  it('a Shop-buffed buy SPLITS its bonus among one friendly minion of each type', () => {
     const buffed = { uid: 'o', cardId: 'stray', atk: 3, hp: 3 };
     expect(buyAndMeasure(buffed, false), 'baseline: a plain buy feeds nobody').toBe(0);
-    // Two types on the board (Dragon, Beast), each taking the offer's +3/+3 bonus = 12 total stats.
-    expect(buyAndMeasure(buffed, true)).toBe(12);
+    // Owner ruling 2026-08-07: DISPERSED, not handed to each in full. The +3/+3 bonus is 6 stats, and 6 stats
+    // is exactly what the board gains however many types share it — the Dragon takes 2/2, the Beast 1/1.
+    expect(buyAndMeasure(buffed, true), 'the board should gain the bonus, not a multiple of it').toBe(6);
+  });
+
+  it('every point of the bonus lands, even when it does not divide evenly', () => {
+    // +1/+1 across two types: one recipient takes it, the other nothing — the point is never rounded away.
+    expect(buyAndMeasure({ uid: 'o', cardId: 'stray', atk: 1, hp: 1 }, true)).toBe(2);
   });
 
   it('an UNBUFFED buy does not arm it — "Shop-buffed" is the condition', () => {

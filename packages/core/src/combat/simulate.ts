@@ -1555,11 +1555,18 @@ export function simulate(
       };
       const survivors = living(minion.side).filter((m) => m !== minion);
       if (survivors.length > 0 && (tally.attack > 0 || tally.health > 0)) {
-        const a = Math.floor(tally.attack / survivors.length);
-        const h = Math.floor(tally.health / survivors.length);
-        if (a > 0 || h > 0) {
-          nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
-          for (const m of survivors) ctx.buff(m, a, h, 'Rune of Ruby Shrapnel');
+        // DISPERSE the literal stats rather than dividing them (owner ruling 2026-08-07). An even split floors,
+        // and a floor loses points: 2 Attack across 3 survivors used to pay nothing at all. Handing them out
+        // one at a time, round-robin from the left, spends every point — 2 across 3 gives the first two
+        // survivors +1 each and the third nothing. Attack and Health are dealt independently, both starting at
+        // the left, so a 2/2 body's Attack and Health land on the same two minions rather than scattering.
+        const share = survivors.map(() => ({ attack: 0, health: 0 }));
+        for (let i = 0; i < tally.attack; i++) share[i % survivors.length]!.attack += 1;
+        for (let i = 0; i < tally.health; i++) share[i % survivors.length]!.health += 1;
+        nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
+        for (let i = 0; i < survivors.length; i++) {
+          const sh = share[i]!;
+          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Rune of Ruby Shrapnel');
         }
       }
     }

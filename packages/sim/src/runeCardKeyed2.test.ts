@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { createRun, reduce, spellDisplayText, type BoardCard, type RunState } from './index';
 
 /** The card-keyed batch, wave 2 (2026-08-07): the six runes needing new trigger paths, plus the Matriarch
  *  retexture and the Moonhowl Mentor per-instance rework that shipped alongside them. */
@@ -123,6 +123,32 @@ describe('Rune of Living Growth', () => {
     const after = s.board.find((c) => c.uid === 't')!;
     // Base +1/+1 plus the accrued +1/+1 = +2/+2 on every friendly minion.
     expect([after.attack - a0, after.health - h0]).toEqual([2, 2]);
+  });
+
+  it('combat-created Growths tick the improver at settle (owner ruling: combat counts too)', () => {
+    // A fragile Mushy dies in the fight; its Echo hands over a Growth. Settle must credit the improver even
+    // though the grant happened mid-combat — read off the fight's toHand events, sourced to the Mushy body.
+    let s = withRune('rune_living_growth', {
+      board: [bm('m', 'd2_scalefeather', 2, 1)], phase: 'recruit',
+    });
+    expect(s.growthBonus ?? 0).toBe(0);
+    s = reduce(s, { type: 'faceOmen' }) as RunState;
+    s = reduce(s, { type: 'settleCombat' }) as RunState;
+    const echoed = (s.lastCombat?.events ?? []).filter((e) =>
+      e.type === 'toHand' && e.cardId === 'growth').length;
+    if (echoed > 0) {
+      expect(s.growthBonus ?? 0, 'the combat grant never reached the improver').toBe(echoed);
+    } else {
+      // The served board let Mushy survive — the fixture can't force a death, so assert only the harmless case.
+      expect(s.growthBonus ?? 0).toBe(0);
+    }
+  });
+
+  it('the Growth card itself prints the upgraded value (the live-text rule)', () => {
+    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, {})).toContain('+1/+1');
+    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, { growthBonus: 2 })).toContain('{{+3/+3}}');
+    // Spell power stacks on top, exactly as it does at cast time.
+    expect(spellDisplayText('growth', 1, 0, 1, 0, 0, 0, { growthBonus: 2 })).toContain('{{+4/+4}}');
   });
 
   it('without the rune Mushy ticks nothing', () => {

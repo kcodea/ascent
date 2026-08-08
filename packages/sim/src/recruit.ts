@@ -1817,7 +1817,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantSpell: (ctx, self, params) => {
     // Rune of Living Growth: the Echo half of Mushy's grant ticks the improver too (shop-side Echo — a
-    // Consume or a sell). The combat Echo's grant carries back a Growth but ticks nothing; noted limitation.
+    // Consume or a sell). The COMBAT Echo's grants tick at settle instead (see the reducer), off the fight's
+    // `toHand` events — so every Growth Mushy creates counts, whichever phase it was created in.
     if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && str(params.cardId) === 'growth') {
       ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self);
     }

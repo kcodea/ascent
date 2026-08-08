@@ -19,7 +19,9 @@ Final Verse dropped earlier as a duplicate of Last Word):
 - **Rune of Living Growth** (Epic 5) — each Growth Mushy creates improves Growth permanently, run-wide.
   Front to Back's shape: a run-level `growthBonus`, a `CombatSideState` channel (snapshot-captured, so a
   served board's Growth pays ITS value), and live text on every surface (the Growth card itself now prints
-  its current magnitude, spell power included).
+  its current magnitude, spell power included). COMBAT-created Growths count too (owner ruling, same day):
+  a Mushy Echo mid-fight ticks the improver at settle, read off the fight's `toHand` events sourced to the
+  Mushy body — so every Growth it creates counts, whichever phase it was created in.
 
 **Rune of the Matriarch retextured** (owner): "trigger spells in combat an ADDITIONAL time" — the rune now
 adds one extra cast per Matriarch instead of doubling its whole contribution. Identical for a plain body

@@ -2702,6 +2702,19 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // RUNE OF ASHEN PAYROLL: 3 Imps summoned in a fight pays 4 Gold into next turn's opening, ONCE per combat
   // however far past the threshold the fight went ("Once per combat" is printed on the rune). Settled here off
   // the carried Imp tally rather than inside the sim, the same shape Rune of Slaying uses just below.
+  // RUNE OF LIVING GROWTH, the combat half (owner ruling 2026-08-07: combat counts too). Every Growth a
+  // MUSHY created during the fight ticks the improver at settle — read off the `toHand` events, whose
+  // `source` is the granting body's uid, resolved against the starting board plus mid-fight summons so a
+  // resummoned Mushy counts. Its shop grants tick live in the grant factories; this is the missing half.
+  if (s.runeLivingGrowth) {
+    const bodies = new Map<string, string>();
+    for (const m of result.initial.player) bodies.set(m.uid, m.cardId);
+    for (const e of result.events) if (e.type === 'summon' && e.side === 'player') bodies.set(e.minion.uid, e.minion.cardId);
+    const grown = result.events.filter((e) =>
+      e.type === 'toHand' && e.side === 'player' && e.cardId === 'growth'
+      && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
+    if (grown > 0) s.growthBonus = (s.growthBonus ?? 0) + grown;
+  }
   if (s.questFlags?.runeAshenPayroll && (result.playerImpsSummoned ?? 0) >= s.questFlags.runeAshenPayroll) {
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 4;
   }

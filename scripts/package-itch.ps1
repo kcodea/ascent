@@ -38,4 +38,21 @@ try {
 }
 
 $kb = (Get-Item $zipPath).Length / 1KB
-Write-Host ("Created {0} ({1:N0} KB) - upload this to itch.io (HTML, 'play in browser')." -f $zipPath, $kb)
+
+# ITCH'S HARD LIMITS, checked HERE so a bad package is caught at build time rather than at upload time.
+# itch rejects an HTML5 zip with more than 1000 entries outright ("Too many files in zip (1094 > 1000)",
+# owner report 2026-08-08). That upload failed because 166 PNG art MASTERS were still committed beside their
+# .webp builds: `indexArt` prefers the .webp, so every one of them shipped unused - 172 PNGs, 104 MB, and the
+# 94 files that broke the cap. `npm run optimize-art` deletes a master once it has converted it; the ones
+# that survived were re-added by hand. The unit test `artNoRedundantMasters` guards the root cause; this
+# guards the OUTPUT, so any other source of file bloat is caught too.
+$fileCount = $archive_count
+if (-not $fileCount) { $fileCount = (Get-ChildItem -Recurse -File $distFull).Count }
+$LIMIT = 1000
+Write-Host ("Created {0} ({1:N0} KB, {2} files)." -f $zipPath, $kb, $fileCount)
+if ($fileCount -gt $LIMIT) {
+  Write-Error ("ITCH WILL REJECT THIS: {0} files, limit is {1}. Look for un-optimized art masters " +
+    "(run 'npm run optimize-art') or other duplicate assets in apps/web/dist." -f $fileCount, $LIMIT)
+  exit 1
+}
+Write-Host ("Under itch's {0}-file cap with {1} to spare - upload this (HTML, 'play in browser')." -f $LIMIT, ($LIMIT - $fileCount))

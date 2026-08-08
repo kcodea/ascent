@@ -32,6 +32,23 @@ describe('simulate (handoff A.3)', () => {
     expect(lantern).toBe(true);
   });
 
+  it('Demon Horse now counts as a true Rally — its swing triggers a watcher (Mineral Master plays Rubies)', () => {
+    // dm_hungerling / dm_errand say "Rally:" on the card but historically lacked the RL keyword, so
+    // "when you trigger a Rally" watchers (Mineral Master, Paragon) never saw them. RL was added so the
+    // keyword matches the text. Mineral Master plays 2 Rubies on your Kobolds each Rally; it is itself a
+    // Kobold with no RL, so it can only fire off ANOTHER unit's Rally — here Demon Horse's swing.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_hungerling', attack: 3, health: 20 },   // the rallier (RL) — tanky so it survives to swing
+      { cardId: 'k_mineralmaster', attack: 1, health: 20 },  // the watcher — receives its own Rubies (a Kobold)
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 60 }];
+    const r = run(p, e, 3);
+    // A Ruby lands as a `buff` event tagged `ruby: true`. Nothing else on this board plays Rubies, so any
+    // ruby buff is proof Mineral Master's Rally-watch fired off Demon Horse's now-RL swing.
+    const rubyBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.ruby === true);
+    expect(rubyBuffs.length).toBeGreaterThan(0);
+  });
+
   it('is deterministic for the same seed', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 2, health: 2 },

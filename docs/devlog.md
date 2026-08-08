@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-08 — the last three rune arts: every rune now has art
+
+The owner dropped the three missing masters (`RuneOfTheAftermarket` — the real name this time, replacing the
+ambiguous `Aftermath` file that was deliberately skipped — plus `RuneOfTheEmptyPlate` and `RuneOfMoonhowl`).
+Exact filename matches, wired and converted per-file, verified through `runeArt()` after a dev-server restart:
+all three resolve and decode at 512px. The entire runebase is now art-complete.
+
 ## 2026-08-08 — 32 missing rune arts wired
 
 Every rune from batch 4 and the card-keyed batch now has its art, matched by filename against

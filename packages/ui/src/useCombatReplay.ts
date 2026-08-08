@@ -33,7 +33,7 @@ import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
-import { WATCHER_PULSE_DEF_ID, useWatcherPixi } from './fx/watcherPulse';
+import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
 import { heldFor, holdStat, releaseStat } from './fx/statHold';
@@ -1215,6 +1215,7 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const trig = new Set<string>();
+    const beatWatchers: string[] = [];
     // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
     // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
@@ -1235,21 +1236,22 @@ export function useCombatReplay(
         if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
       }
     }
-    // WATCHER pulse: on an attack beat, a friendly unit OTHER than the attacker that fired an effect this beat
-    // is a watcher answering the swing (Crypt Drake, Mineral Master, …). Give it the distinct light-blue look
-    // — medallion recolored + a card-frame bloom — instead of the generic white medallion pulse. Additive: it
-    // keeps a medallion pulse (now blue) and gains the frame. Purely presentation; timed to the same beat the
-    // white pulse would have fired.
+    // WATCHER pulse: on an attack beat, a non-attacker unit (any side, mirroring the trigger scan) that fired
+    // an effect this beat is a watcher answering the swing (Crypt Drake, Mineral Master, …). Give it the distinct
+    // light-blue look — medallion recolored + a card-frame bloom — instead of the generic white medallion pulse.
+    // Additive: it keeps a medallion pulse (now blue) and gains the frame. Purely presentation; timed to the same
+    // beat the white pulse would have fired.
     if (beat.primary.type === 'attack') {
       const watchers = watcherPulseUids(beat, events, beat.primary.attacker);
       for (const uid of watchers) {
         trig.delete(uid); // take the light-blue medallion class, not white
+        beatWatchers.push(uid); // still feed the SFX gate below so watcher-only beats keep their sound
         // light-blue medallion (nonce → remount → animation restarts, mirroring firePulse/rallyPulse)
         const wn = ++watcherNonceRef.current;
         setWatcherPulse((prev) => new Map(prev).set(uid, wn));
         window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
         // card-frame bloom: Pixi ring-bloom when the def is committed + playable, else the CSS overlay
-        if (useWatcherPixi(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
+        if (watcherPixiReady(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
           const a = anchorsForUnits(uid, uid); // source = target = the watcher's own card
           // Literal id (not WATCHER_PULSE_DEF_ID) so the directCalls scanner — a text pass over literal
           // playDef calls, see fx/directCallScan.ts — can attribute this site; keep in sync with
@@ -1367,13 +1369,14 @@ export function useCombatReplay(
       washedTribes.add(e.tribe);
       fireCombatAuraWave(e.tribe);
     }
-    if (trig.size === 0) return;
+    if (trig.size === 0 && beatWatchers.length === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
     // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the
     // per-card effect sound (the shop half fires from store.ts on a Battlecry). Deduped by cardId so a beat with
-    // several copies of one card firing plays that clip once. Silent until the clip is recorded.
+    // several copies of one card firing plays that clip once. Silent until the clip is recorded. Watchers are
+    // included here (though rerouted out of `trig` above) so a watcher-only beat still plays its trigger sound.
     const firedEffect = new Set<string>();
-    for (const uid of trig) {
+    for (const uid of [...trig, ...beatWatchers]) {
       const cid = cardIds.get(uid);
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }

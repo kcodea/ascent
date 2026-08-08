@@ -1,10 +1,10 @@
 import type { CombatEvent } from '@game/core';
 
 /**
- * WATCHER-PULSE channel. Which units — OTHER than the beat's attacker — fired an effect inside this attack
- * beat, i.e. the "watchers" that answered an ally's swing (Crypt Drake, Mineral Master, Traveling Skald,
- * Raptor). They earn the distinct light-blue pulse (medallion + card frame) rather than the generic white
- * medallion pulse a Battlecry gets.
+ * WATCHER-PULSE channel. Which units — a non-attacker unit (any side, mirroring the trigger scan) — fired an
+ * effect inside this attack beat, i.e. the "watchers" that answered the attacker's swing (Crypt Drake, Mineral
+ * Master, Traveling Skald, Raptor). They earn the distinct light-blue pulse (medallion + card frame) rather
+ * than the generic white medallion pulse a Battlecry gets.
  *
  * The signal mirrors `useCombatReplay`'s trigger-medallion scan exactly — a unit is "acting" when it is the
  * `source` of an sc/buff/keyword/summon/toHand event, or the `target` of an improve/maxGold/hpGrant/reborn

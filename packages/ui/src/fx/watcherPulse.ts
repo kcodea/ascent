@@ -5,6 +5,6 @@
  */
 export const WATCHER_PULSE_DEF_ID = 'watcher-pulse';
 
-export function useWatcherPixi(defAvailable: boolean, canPlay: boolean): boolean {
+export function watcherPixiReady(defAvailable: boolean, canPlay: boolean): boolean {
   return defAvailable && canPlay;
 }

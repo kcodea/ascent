@@ -1191,6 +1191,79 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * Beast. The stored spell is run-level (`lastSpellCastFor`, snapshot-captured so a served Sporebat casts
    * its owner's). An untargeted spell simply casts (owner ruling); no spell stored is a clean no-op.
    */
+  /**
+   * ASHEN HEIR (Demon, T6 5/9) — "Whenever an Imp dies, your next Imp gains its stats. If that Imp dies, it
+   * passes all accumulated stats onward."
+   *
+   * One rule produces the whole snowball: bank a dying friendly Imp's CURRENT stats, and hand the bank to the
+   * next Imp that arrives. An inheriting Imp's stats already include everything it inherited, so when it dies
+   * the bank simply refills with the larger number — the "passes all accumulated stats onward" clause needs no
+   * separate accounting. The bank lives on the Heir (`impBank`), so two Heirs each keep one and both pay out.
+   */
+  impInheritOnDeath: (ctx, self, _params, payload) => {
+    const dead = (payload as MinionPayload).minion;
+    if (!dead || dead === self || dead.side !== self.side || self.dead) return;
+    if (!ctx.getCard(dead.cardId)?.imp) return;
+    // Its CURRENT stats — a 1/1 Imp that grew to 6/6 hands on 6/6. `maxHealth` rather than live Health so a
+    // chipped Imp still passes on what it was, not what the last hit left it at.
+    const bank = (self.impBank ??= { attack: 0, health: 0 });
+    bank.attack += Math.max(0, dead.attack);
+    bank.health += Math.max(0, dead.maxHealth);
+  },
+
+  /** ASHEN HEIR, the paying half — the next friendly Imp to arrive inherits the bank, which then empties. */
+  impInheritOnSummon: (ctx, self, _params, payload) => {
+    const born = (payload as MinionPayload).minion;
+    if (!born || born === self || born.side !== self.side || self.dead) return;
+    if (!ctx.getCard(born.cardId)?.imp) return;
+    const bank = self.impBank;
+    if (!bank || (bank.attack <= 0 && bank.health <= 0)) return;
+    self.impBank = { attack: 0, health: 0 };
+    ctx.buff(born, bank.attack, bank.health, self.name);
+  },
+
+  /**
+   * RUNESNOUT ARCHIVIST (Beast, T6 6/9) — "Remember the first Shop spell you cast each turn. Echo: cast every
+   * remembered spell on random friendly Beasts."
+   *
+   * The journal is run-level (`rememberedSpellsFor`, snapshot-captured so a served Archivist replays its own),
+   * and this is `deathrattleCastLastSpell` widened from one spell to the whole list: each remembered spell is
+   * cast in the order it was learned, each picking its own random friendly Beast.
+   */
+  echoCastRememberedSpells: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const ids = ctx.rememberedSpellsFor?.(self.side) ?? [];
+    if (ids.length === 0) return;
+    const beastPool = (): Minion[] => ctx.living(self.side).filter((m) =>
+      m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe);
+    for (const id of ids) {
+      const def = ctx.getCard(id);
+      if (!def?.spell || !combatCastable(def)) continue;
+      // Same fizzle gate as Sporebat: an aimed spell with no living Beast left isn't a cast at all, so the
+      // watchers must not see one. Checked per spell, since earlier casts in this loop can kill the pool.
+      if (def.target && beastPool().length === 0) continue;
+      castInCombat(ctx, self, () => {
+        const beasts = beastPool();
+        const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+        if (def.target && (!targets || targets.length === 0)) return;
+        if (resolveCombatSpellCast(ctx, self, def, targets)) {
+          ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+        }
+      });
+    }
+  },
+
+  /**
+   * MOSSMEMORY COLOSSUS (Beast, T6 5/10) — "Echo: resummon the first 3 other Beasts that died this combat."
+   * Earliest-first off the sim's death-ordered Beast graveyard; the printed bodies come back (the Rise
+   * precedent), never the grown corpses. Golden brings back six.
+   */
+  echoResummonDeadBeasts: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const count = (typeof params.count === 'number' ? params.count : 3) * (self.golden ? 2 : 1);
+    ctx.resummonDeadBeasts?.(self.side, count, self.uid);
+  },
+
   deathrattleCastLastSpell: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const id = ctx.lastSpellCastFor?.(self.side);

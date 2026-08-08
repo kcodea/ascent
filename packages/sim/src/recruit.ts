@@ -6184,6 +6184,15 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  // RUNESNOUT ARCHIVIST's journal: the FIRST Shop spell of each turn, and only on turns an Archivist is
+  // actually on the board — so the card records what it witnessed rather than inheriting a history that
+  // predates it. `rememberedThisTurn` is the once-per-turn latch (cleared at `faceOmen` with the other
+  // per-turn state). Rubies aren't Shop spells for this purpose, matching every other "Shop spell" rule.
+  if (!state.rememberedThisTurn && !spellDef.ruby
+      && state.board.some((c) => c.cardId === 'runesnout_archivist')) {
+    state.rememberedThisTurn = true;
+    (state.rememberedSpellIds ??= []).push(spellDef.id);
+  }
   state.lastSpellThisTurnId = spellDef.id; // Recaller copies the last Shop spell cast THIS TURN
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
   // "improve your Imps" applies twice under Rune of Mastery).

@@ -405,4 +405,36 @@ export const BEASTS: CardDef[] = [
     text: '**Rally:** also deal its **Attack** to a random enemy (takes no damage back).',
     goldenText: '**Rally:** also deal its **Attack + 2** to a random enemy (takes no damage back).',
   },
+  {
+    // RUNESNOUT ARCHIVIST (owner batch 4, 2026-08-07) — Sporebat's stored-spell Echo widened to a JOURNAL: one
+    // entry per turn (the turn's first Shop spell), all of them cast on death. The journal is run-level and
+    // only records while an Archivist is on the board. Reached through Rune of Wild Memory.
+    id: 'runesnout_archivist',
+    name: 'Runesnout Archivist',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 9,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'onDeath', do: 'echoCastRememberedSpells' }],
+    text: 'Remember the first **Shop spell** you cast each turn. **Echo:** cast every remembered spell on random friendly **Beasts**.',
+    goldenText: 'Remember the first **Shop spell** you cast each turn. **Echo:** cast every remembered spell on random friendly **Beasts** **twice**.',
+  },
+  {
+    // MOSSMEMORY COLOSSUS (owner batch 4, 2026-08-07) — a late-fight rebuild. The three Beasts that died
+    // EARLIEST come back, as their printed bodies (the Rise precedent), so it rewards a wide Beast board that
+    // has already been ground down rather than a single fat survivor. Reached through Rune of the Ancient Den.
+    id: 'mossmemory_colossus',
+    name: 'Mossmemory Colossus',
+    tribe: 'beast',
+    tier: 6,
+    attack: 5,
+    health: 10,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'onDeath', do: 'echoResummonDeadBeasts', params: { count: 3 } }],
+    text: '**Echo:** resummon the first **3** other **Beasts** that died this combat.',
+    goldenText: '**Echo:** resummon the first **6** other **Beasts** that died this combat.',
+  },
 ];

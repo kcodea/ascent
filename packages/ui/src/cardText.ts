@@ -697,6 +697,23 @@ export function sporebatText(cardId: string, golden: boolean, lastSpellName: str
     : `**Taunt.** Store the last spell you cast. **Echo:** cast ${name} on a random friendly Beast.`;
 }
 
+/** RUNESNOUT ARCHIVIST — its Echo casts the WHOLE journal, so the text has to name what is actually in it
+ *  right now (the live-value rule), not the abstract "every remembered spell". Base text while the journal is
+ *  empty, since then the printed line is already accurate. */
+export function archivistText(cardId: string, golden: boolean, remembered: readonly string[] | undefined): string | null {
+  if (cardId !== 'runesnout_archivist' || !remembered || remembered.length === 0) return null;
+  const names = remembered.map((n) => `{{${n}}}`).join(', ');
+  const twice = golden ? ' **twice**' : '';
+  return `Remember the first **Shop spell** you cast each turn. **Echo:** cast ${names} on random friendly **Beasts**${twice}.`;
+}
+
+/** ASHEN HEIR — the bank is the whole card, so print what the next Imp would actually inherit. Combat-only
+ *  (the bank is per-fight), and null at zero so the shop shows the printed rule. */
+export function ashenHeirText(cardId: string, bank: { attack: number; health: number } | undefined): string | null {
+  if (cardId !== 'ashen_heir' || !bank || (bank.attack <= 0 && bank.health <= 0)) return null;
+  return `Whenever an **Imp** dies, your next Imp gains its stats. Banked: **+${bank.attack}/+${bank.health}**.`;
+}
+
 /**
  * Squirl Scout's grant snowballs: each played raises the run-wide `squirlScoutBuff` by 3 (×2 golden). Surface
  * the grant a play NOW would make — (squirlScoutBuff + step) — green, in place of the FIRST printed "+N/+N"

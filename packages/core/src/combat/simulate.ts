@@ -853,6 +853,28 @@ export function simulate(
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
+    rememberedSpellsFor: (side) => (side === 'player' ? playerState : enemyState).rememberedSpellIds ?? [],
+    resummonDeadBeasts: (side, count, excludeUid) => {
+      // Earliest-first, skipping the caller's own corpse ("other Beasts") and anything already brought back,
+      // so a second Colossus Echo doesn't re-raise the same three. `summonMinion` is the shared placement
+      // chokepoint, so each returning body fires onSummon, collects tribe auras and respects the 7-slot cap.
+      let brought = 0;
+      // SNAPSHOT the graveyard before summoning. A resummoned body can die again inside this very loop (it
+      // lands in front of a lethal attacker), which pushes a fresh corpse onto `deadBeasts[side]` — iterating
+      // the live array therefore feeds itself and never terminates. Caught by the two-Colossi test, which
+      // raised 66 bodies instead of 2.
+      for (const rec of [...deadBeasts[side]]) {
+        if (brought >= count) break;
+        if (rec.uid === excludeUid || resummonedUids.has(rec.uid)) continue;
+        if (living(side).length >= 7) break;
+        const def = cards[rec.cardId];
+        if (!def) continue;
+        resummonedUids.add(rec.uid);
+        raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden).uid);
+        brought += 1;
+      }
+      return brought;
+    },
     triggerRally: (m) => fireFreeRally(m, m.side),
     queueDiscoverCast: (spellId, side) => { if (side === 'player') discoverCasts.push(spellId); },
     gainNextShopBuff: (attack, health, side) => {
@@ -1457,6 +1479,19 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     emit({ type: 'death', target: minion.uid, side: minion.side });
+    // MOSSMEMORY COLOSSUS's graveyard: every Beast that dies is recorded in DEATH ORDER, so its Echo can bring
+    // back the three that fell earliest. The PRINTED body is what's recorded (cardId + golden), matching the
+    // Rise precedent — "Rise resummons the PRINTED body" — rather than whatever the corpse had grown into.
+    // Recorded here at the real death site so a Rise death (handled above, and a real death by the 2026-07-27
+    // ruling) still counts. Both sides record: a served Colossus resummons its OWN dead.
+    // A body that ALREADY came back this way is not recorded again. Without this the Colossus is its own
+    // fuel: it is itself a Beast, so two of them resurrect each other, each new copy dies, enters the
+    // graveyard under a fresh uid and is raised again — 134 bodies in the two-Colossi test before this guard.
+    // "The first 3 other Beasts that died this combat" means three corpses, not three per resurrection.
+    if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
+        && !raisedBodies.has(minion.uid)) {
+      deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden });
+    }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
@@ -1560,6 +1595,9 @@ export function simulate(
   // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
   // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
   // was killed from, so the copy comes back in (or next to) its original slot.
+  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean }[]> = { player: [], enemy: [] };
+  const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
+  const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
   function flushResummons(): void {
     // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the

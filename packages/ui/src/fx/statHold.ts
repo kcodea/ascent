@@ -182,9 +182,13 @@ export function holdStat(
   // Carry the UNREVEALED remainder, not the whole previous delta. A hold half-way through its roll has
   // already shown half its change; adding the full old delta back would put the badge further behind than
   // it ever was — printing a number the unit never had. (Caught by test, not by eye.)
+  //
+  // The remainder is the EASED one (`withheldFraction`, same curve the badge is printing), not the linear
+  // `1 - revealed`. `heldFor` shows the eased amount, so a mid-roll top-up that added back the linear
+  // remainder would owe MORE than the badge is currently showing and tick it backward on the new buff.
   const carry = live && !supersedes;
-  const owedAttack = carry ? Math.round(prev.attack * (1 - prev.revealed)) : 0;
-  const owedHealth = carry ? Math.round(prev.health * (1 - prev.revealed)) : 0;
+  const owedAttack = carry ? Math.round(prev.attack * withheldFraction(prev.revealed)) : 0;
+  const owedHealth = carry ? Math.round(prev.health * withheldFraction(prev.revealed)) : 0;
   // The TTL has to outlast the SCHEDULE, or the failsafe force-delivers the tail of a long cascade before
   // its own gem arrives — the exact desync this feature exists to remove, reintroduced by the safety net.
   // `HOLD_TTL_MS` stays the floor: an unscheduled effect hold still needs room for a react layer to peak.
@@ -362,6 +366,28 @@ export function stepHolds(): void {
 export const REEL_TURNS = 3;
 
 /**
+ * EASE-OUT on the value roll: given how much of a change has been REVEALED (0..1), what fraction is still
+ * WITHHELD. Linear would be `1 - revealed`; raising it to a power front-loads the reveal so the counter
+ * sprints out of the gate and settles slowly onto its final digit — "the number roll slows down as it nears
+ * the display value". Zero at `revealed = 1` by construction, so the badge still lands exactly on the true
+ * number, and monotonic in `revealed`, so the counter never ticks backward.
+ *
+ * The EXPONENT is the settle knob (owner-tuned 2026-08-07, cubic → quad): a HIGHER power front-loads harder
+ * and settles EARLIER (the digits reach the final value in the first third, then sit still); a LOWER power is
+ * gentler and keeps the count MOVING later into the roll — a slower, more visible settle at the end. `t * t`
+ * (quad) is the current tuning; `t * t * t` (cubic) is snappier, `t` is a plain linear odometer.
+ *
+ * This is the ONLY place the curve lives. `revealed` itself still advances with real time (the shared ticker
+ * and combat's `driveRoll` are untouched), so a mid-roll speed change still re-scales cleanly; only the
+ * mapping from that fraction to a printed number eases. `holdStat` reads the same curve so a mid-roll top-up
+ * owes exactly what the badge is showing.
+ */
+export function withheldFraction(revealed: number): number {
+  const t = 1 - Math.max(0, Math.min(1, revealed));
+  return t * t;
+}
+
+/**
  * What is currently withheld for a unit, or `null`.
  *
  * Expired holds read as absent AND are swept here, so a unit that scrolled off screen (or a def that never
@@ -378,12 +404,16 @@ export function heldFor(uid: string): StatDelta | null {
   // What is STILL withheld: the part not yet revealed, rounded so the badge only ever prints whole numbers
   // and steps through them one at a time. A hold fully revealed by rounding reads as absent, which is what
   // stops a 1-point buff from sitting visibly stuck at 0.4 revealed.
-  const t = 1 - h.revealed;
-  // The wobble is scaled by `t`, so it is exactly 0 at both ends: the counter starts on the old number and
-  // lands on the new one no matter how wild the reel. Everything in between is motion, not a readout.
-  const wobble = h.reel * t * Math.sin(2 * Math.PI * REEL_TURNS * h.revealed);
-  const attack = Math.round(h.attack * t + wobble * Math.sign(h.attack || 1));
-  const health = Math.round(h.health * t + wobble * Math.sign(h.health || 1));
+  //
+  // The value uses the EASED remainder so the counter decelerates into its final digit; the reel keeps the
+  // LINEAR remainder so a +1/+1 buff's spin is exactly as before — only the main roll eases.
+  const tLinear = 1 - h.revealed;
+  const tEased = withheldFraction(h.revealed);
+  // The wobble is scaled by `tLinear`, so it is exactly 0 at both ends: the counter starts on the old number
+  // and lands on the new one no matter how wild the reel. Everything in between is motion, not a readout.
+  const wobble = h.reel * tLinear * Math.sin(2 * Math.PI * REEL_TURNS * h.revealed);
+  const attack = Math.round(h.attack * tEased + wobble * Math.sign(h.attack || 1));
+  const health = Math.round(h.health * tEased + wobble * Math.sign(h.health || 1));
   return attack === 0 && health === 0 ? null : { attack, health };
 }
 

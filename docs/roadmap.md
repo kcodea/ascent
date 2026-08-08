@@ -26,6 +26,8 @@ The five buckets below are ordered by when we intend to act, not by size:
   and tranche 2 (the three T6 bodies + their Epic grant runes) both shipped 2026-08-07. Still queued, in order:
   - **Art for tranche 2** — the three new bodies (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and
     their three runes ship without art; nothing matching those names exists in the art folder yet.
+  - **Tranche 3** — 8 contained-machinery Basics: Spellhide, Spellmarket, Last Word, Runic Hoard, Backbeat,
+    Spare Chair, Ashen Payroll, Emberline.
   - **Tranche 4** — 5 hard Epics: Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir.
 
 - **Stat readout choreography — hardening follow-ups (both halves SHIPPED).** The shop half
@@ -48,6 +50,10 @@ The five buckets below are ordered by when we intend to act, not by size:
   - A carrying `react` layer can only `claimStat` from the moment it SPAWNS, so one armed with an `at` past
     the cue's roll completion can't (fail-open); and `revealStat`'s rejected-call reel ordering is correct but
     pinned by no test.
+  - An EARLIER-beat HEALTH buff still mid-roll when a LATER beat's hit lands still SNAPS (the down-roll's
+    below-floor guard). Same-beat buff + damage now nets into one roll from the pre-beat HP to `frame`'s true
+    HP (2026-08-07); the cross-beat case has different baselines, so netting it cleanly is the remaining,
+    rarer case.
 
 - **Bind an `under`-slot effect to a real moment.** The canvas slot shipped 2026-07-30 with one worked
   example (`ground-slam`, unbound). The obvious candidates are the landing dust, the melee impact dust and

@@ -327,7 +327,10 @@ describe('smoke seeded randomness', () => {
   it('still draws exactly 9 values per puff, in the original order', () => {
     // If this count moves, every previously saved seed replays a different column.
     expect(codeOf(SMOKE_SRC).match(/this\.rand\(\)/g)).toHaveLength(9);
-    expect(SMOKE_SRC).toContain('emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch)');
+    // The pinned call text tracks the two `this.rand()` draws and their ORDER, which is what a saved
+    // seed replays. `emitSquash` was appended after the scratch (2026-08-07) and consumes no randomness,
+    // so the stream is untouched — the count assertion above is the half that guards determinism.
+    expect(SMOKE_SRC).toContain('emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch, p.emitSquash)');
     expect(SMOKE_SRC).toContain('rotation: this.rand() * Math.PI * 2,');
   });
 });

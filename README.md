@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rope Wrangler keeps the card it summons**, and the Career panel now reports lobby stats (1st Place / Top 4 / Avg. Placement) instead of course stats that are structurally 0 in a lobby.
+
 - **The defeat counter now shows the damage that actually lands** — it was recomputed from different inputs than the hit; plus Gemgorge Fiend gains a per-instance cast counter, and Scavvers (with Rune of the Second Life) is archived.
 
 - **Rise now resets a body properly** — granted rallies and Avenge progress no longer ride through a Rise; plus combat-cast Discover spells grant a random pick instead of opening the UI, Reinforcing Ale works mid-fight, and Veinstorm's hover preview reads its live Ruby value.

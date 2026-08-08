@@ -54,7 +54,10 @@ describe("Rope Wrangler — Echo summons a random minion from your hand (consume
     expect(r.playerHandSummoned).toBeUndefined();
   });
 
-  it('settle removes the summoned card from the run hand', () => {
+  it('settle KEEPS the summoned card in the run hand (owner ruling 2026-08-08)', () => {
+    // Reversed from the original "consumed" rule: the card's text is "Echo: summon a random minion from your
+    // hand" and never says the card is spent, so losing it read as a bug in play. The summoned body is a
+    // combat-only body like every other summon; the hand card survives the fight.
     let s: RunState = {
       ...createRun(1), phase: 'combat',
       hand: [card('h1', 'pack'), card('h2', 'alley')],
@@ -62,7 +65,7 @@ describe("Rope Wrangler — Echo summons a random minion from your hand (consume
         initial: { player: [], enemy: [] }, playerHandSummoned: ['h1'] },
     };
     s = reduce(s, { type: 'settleCombat' });
-    expect(s.hand.map((c) => c.uid)).toEqual(['h2']);
+    expect(s.hand.map((c) => c.uid)).toEqual(['h1', 'h2']);
   });
 
   it('the SHOP half (a Ryme/borrow-fired Echo) moves the hand card to the board, same card, same buffs', () => {

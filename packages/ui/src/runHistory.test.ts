@@ -47,7 +47,7 @@ describe('careerStats (A7)', () => {
   });
 
   it('returns zeros for an empty history', () => {
-    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, perHero: [] });
+    expect(careerStats([])).toMatchObject({ runs: 0, bestWins: 0, avgWins: 0, completions: 0, flawless: 0, triples: 0, avgGold: 0, avgApt: 0, winRate: 0, streak: 0, bestRun: null, topTribes: [], favoriteMechanic: null, perHero: [], lobbyRuns: 0, firsts: 0, topFours: 0, top4Rate: 0, avgPlacement: null, bestPlacement: null, lobbyStreak: 0 });
   });
 
   it('picks the favorite mechanic (most common per-run top mechanic)', () => {
@@ -162,5 +162,42 @@ describe('ordinal', () => {
   it('handles the teens, which a naive last-digit rule gets wrong', () => {
     expect([11, 12, 13].map(ordinal)).toEqual(['11th', '12th', '13th']);
     expect([21, 22, 23, 111].map(ordinal)).toEqual(['21st', '22nd', '23rd', '111th']);
+  });
+});
+
+describe('lobby career stats (owner recalibration 2026-08-08)', () => {
+  // The course-shaped numbers are structurally 0 for lobby play, so the Career shows these instead.
+  const lob = (placement: number, wins = 3): RunHistoryEntry => ({
+    v: 1, date: '2026-08-08', seed: 1, heroId: 'indy', wins, losses: 2, draws: 0, line: 0,
+    lineStatus: 'missed', completed: false, wave: 9, tags: [], tribes: [], boardsContributed: 0, board: null,
+    placement, mode: 'lobby',
+  });
+
+  it('counts 1sts, top-4s and the average placement over lobby entries only', () => {
+    // Newest-first: 1st, 3rd, 6th, 1st. Four lobby runs; three of them top 4.
+    const s = careerStats([lob(1), lob(3), lob(6), lob(1)]);
+    expect(s.lobbyRuns).toBe(4);
+    expect(s.firsts).toBe(2);
+    expect(s.topFours).toBe(3);
+    expect(s.top4Rate).toBe(75);
+    expect(s.avgPlacement).toBe(2.8); // (1+3+6+1)/4 = 2.75 → 2.8
+    expect(s.bestPlacement).toBe(1);
+  });
+
+  it('the top-4 streak walks the newest entries and stops at the first miss', () => {
+    expect(careerStats([lob(2), lob(4), lob(7), lob(1)]).lobbyStreak).toBe(2);
+    expect(careerStats([lob(5), lob(1)]).lobbyStreak).toBe(0);
+  });
+
+  it('a course run neither breaks nor extends the lobby streak — it is not a lobby result', () => {
+    const course: RunHistoryEntry = { ...lob(1), placement: undefined };
+    expect(careerStats([lob(2), course, lob(3)]).lobbyStreak).toBe(2);
+  });
+
+  it('a history with no placements reports zero lobby runs, so the Career keeps the course stats', () => {
+    const course: RunHistoryEntry = { ...lob(1), placement: undefined };
+    const s = careerStats([course, course]);
+    expect(s.lobbyRuns).toBe(0);
+    expect(s.avgPlacement).toBeNull();
   });
 });

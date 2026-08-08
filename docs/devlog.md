@@ -35,8 +35,9 @@ vs unarmed differentials off the same board, and the Banquet Hall one drives a r
 **Verified.** 4639 tests across 270 files green, including a new 11-case `runeBatch4T4.test.ts`. Typecheck, lint
 (0 errors) and `build:web` all clean.
 
-**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes and 3 T6 minions across four tranches. The three
-tranche-2 bodies and their runes still ship without art.
+**Batch 4 is now complete** — 17 Basic runes, 8 Epic runes and 3 T6 minions across four tranches. Art for the
+three tranche-2 bodies landed the same day (owner dropped it in `Runes/Special Rune Rewards`, filenames
+matching the cards); their six runes are still artless.
 
 ## 2026-08-07 — Batch 4, tranche 3: the contained-machinery eight
 

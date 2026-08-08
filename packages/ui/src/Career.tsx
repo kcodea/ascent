@@ -71,6 +71,10 @@ export function Career() {
     return () => { live = false; };
   }, [show, careerVersion, careerOf?.userId]);
   const stats = useMemo(() => careerStats(entries ?? []), [entries]);
+  // Any recorded placement means these are lobby results, and the course-shaped headline numbers below
+  // (Completed / Flawless / the Oath-based Win Rate) would read as a flat 0 or as an answer to a question
+  // the lobby never asks. Owner report 2026-08-08.
+  const lobbyMode = stats.lobbyRuns > 0;
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
   if (!show) return null;
 
@@ -148,18 +152,45 @@ export function Career() {
                     ? (highestSeen ? `Highest seen: Rating ${highestSeen}` : 'Highest: unknown')
                     : `Highest: Rating ${profile.highestRating} · Oath ${profile.highestLine}`}
                 </div>
+                {/* LOBBY vs COURSE (owner 2026-08-08): a lobby has no 17-round course and no Oath, so
+                    "Completed" / "Flawless" are structurally 0 there and the line-based streak means nothing.
+                    Once any lobby result exists, show the battle-royale trio instead — 1sts, top-4s, and a
+                    top-4 streak — which is what those runs actually produced. */}
                 <div className="carprofmeta">
-                  <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
-                  <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
-                  <div><Icon name="flame" /><b>{stats.streak}</b><span>Streak</span></div>
+                  {lobbyMode ? (
+                    <>
+                      <div><Icon name="sword" /><b>{stats.firsts}</b><span>1st Place</span></div>
+                      <div><Icon name="shield" /><b>{stats.topFours}</b><span>Top 4</span></div>
+                      <div><Icon name="flame" /><b>{stats.lobbyStreak}</b><span>Top-4 Streak</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
+                      <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
+                      <div><Icon name="flame" /><b>{stats.streak}</b><span>Streak</span></div>
+                    </>
+                  )}
                 </div>
 
                 <div className="carsec">Insights</div>
                 <div className="carinsights">
                   <Insight icon="refresh" label="Runs" value={String(stats.runs)} />
-                  <Insight icon="star" label="Best Run" value={stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'} />
-                  <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
-                  <Insight icon="sword" label="Avg. Wins" value={String(stats.avgWins)} />
+                  {lobbyMode ? (
+                    <>
+                      {/* Average placement is the genre's headline number, and "Top 4 %" is its win rate —
+                          the old line-based Win Rate answered a question a lobby never asks. */}
+                      <Insight icon="star" label="Avg. Placement" value={stats.avgPlacement !== null ? String(stats.avgPlacement) : '—'} />
+                      <Insight icon="up" label="Top 4" value={`${stats.top4Rate}%`} />
+                      <Insight icon="crown" label="Best Finish" value={stats.bestPlacement !== null ? ordinal(stats.bestPlacement) : '—'} />
+                      <Insight icon="sword" label="Avg. Wins" value={String(stats.avgWins)} />
+                    </>
+                  ) : (
+                    <>
+                      <Insight icon="star" label="Best Run" value={stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'} />
+                      <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
+                      <Insight icon="sword" label="Avg. Wins" value={String(stats.avgWins)} />
+                    </>
+                  )}
                   <Insight icon="windfury" label="Avg. Actions / Round" value={String(stats.avgApt)} />
                   <Insight icon="ember" label="Avg. Gold Spent" value={String(stats.avgGold)} />
                   <Insight icon="crown" label="Favorite Hero" value={favHeroName} />

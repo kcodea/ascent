@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-08 — Rope Wrangler keeps its card; the Career panel speaks lobby
+
+**1. Rope Wrangler no longer eats the minion it summons.** Its Echo took a card OUT of the hand and settle
+deleted it — but the printed text is "Echo: summon a random minion from your hand" and never says the card is
+spent, so losing it read as a bug (owner report). The summoned body is a combat-only body like every other
+summon; the hand card now survives the fight. `playerHandSummoned` still rides back (the replay can still see
+WHICH cards fought) — it simply no longer deletes them. The per-fight dedup stays, so a golden Wrangler still
+can't summon the same card twice. The SHOP half is unchanged and still correct: a Ryme-fired Echo genuinely
+MOVES the card hand → board, which is a play, not a consume.
+
+**2. The Career panel was reporting course stats for lobby play.** `Completed`, `Flawless` and the Oath-based
+`Win Rate` / `Streak` are all 17-round-course concepts — a lobby has no course and no Oath, so they read as a
+structural 0 or answer a question the lobby never asks (the owner's profile showed 0 Completed / 0 Flawless
+across 28 games). `careerStats` now also computes the battle-royale equivalents from the `placement` already
+recorded on every lobby entry:
+
+- **1st Place** / **Top 4** / **Top-4 Streak** replace Completed / Flawless / Streak
+- **Avg. Placement** (the genre's headline number) and **Top 4 %** replace Best Run / Win Rate
+- **Best Finish** as an ordinal
+
+The Career switches to that set whenever any entry carries a placement, and keeps the course set otherwise —
+so a pure-course history is untouched. The lobby streak walks lobby entries only: a course run in between
+neither breaks nor extends it, because it isn't a lobby result.
+
+**Verified.** 4722 tests across 275 files green, including 4 new lobby-stats cases and a Rope Wrangler
+regression test **pinned to seed 1, where the Echo provably fires** — an earlier version of that test passed
+against the broken code because the Echo never fired on its seed, making the assertion vacuous. Typecheck,
+lint (0 errors) and `build:web` all clean.
+
 ## 2026-08-08 — Gemgorge's counter (and its per-instance meter), the loss-damage breakdown, Scavvers archived
 
 **1. Gemgorge Fiend has a counter — and it needed a rule change to be honest.** Its Consume fired on the RUN's

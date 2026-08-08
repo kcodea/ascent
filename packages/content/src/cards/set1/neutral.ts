@@ -305,8 +305,9 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } },
-      // Owner add 2026-08-04: the wrangled stock stampedes out when it dies. The summoned minion LEAVES the
-      // hand (consumed) — combat reads the hand snapshot and settle removes the card; golden summons 2.
+      // Owner add 2026-08-04: the wrangled stock stampedes out when it dies. The summoned body is combat-only
+      // and the HAND CARD SURVIVES (owner ruling 2026-08-08 — the text never said it was spent, and losing it
+      // read as a bug); a golden summons 2, never the same card twice in one fight.
       { on: 'onDeath', do: 'deathrattleSummonRandomHandMinion', params: {} },
     ],
     text: '**End of Turn:** Cast **Lasso**. **Echo:** summon a random minion from your hand.',

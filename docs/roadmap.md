@@ -23,8 +23,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
-  - **Art for the tranche-2 RUNES** — the three bodies (Ashen Heir, Runesnout Archivist, Mossmemory Colossus)
-    have their art; Rune of the Ashen Heir / Wild Memory / the Ancient Den do not.
+  - **Art: three runes left** — Rune of the Aftermarket (only `RuneOfTheAftermath.png` exists — a different
+    word; confirm or rename and it wires), Rune of the Empty Plate and Rune of Moonhowl (no masters yet).
 - **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,
   Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling)
   and tranche 2 (the three T6 bodies + their Epic grant runes) both shipped 2026-08-07. Still queued, in order:

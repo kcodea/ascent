@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-07 — the emit-area trio is Essential
+
+Owner, after Emit squash shipped: *"why dont i see the effect in the fx workshop"* — and the honest answer
+was that you had to get past two independent pieces of Inspector state to reach it.
+
+The param was there the whole time; the group header proved it, reading `Physics 6` where it had read 5. But:
+
+1. The Inspector opens on the **Essentials** tier, which shows only params flagged `essential`. None of
+   `emitShape` / `emitRadius` / `emitSquash` was, so the whole emit-area block was invisible by default.
+2. Even on **All**, `Physics` is in `ADVANCED_GROUPS`, so it renders collapsed on first open.
+
+All three are now `essential`, taking each particle primitive (burst, emitter, smoke) from 6 to 9. That
+stretches the "~5-7 params that carry this primitive's read" note in `params.ts`, and it is worth being
+honest about why it is still right: a squash dial you cannot find is not a dial, and shipping the shape and
+its radius behind a tier switch was already the wrong default — the trio reads as one control, not three.
+
+`Physics` is deliberately left in `ADVANCED_GROUPS`. The Essentials tier renders a FLAT list with no group
+folding, so the three surface there regardless; removing Physics from that set would change the All-tier
+layout for every primitive, which is a separate decision nobody asked for.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4585 tests, `build:web`.
+
 ## 2026-08-08 — the last three rune arts: every rune now has art
 
 The owner dropped the three missing masters (`RuneOfTheAftermarket` — the real name this time, replacing the

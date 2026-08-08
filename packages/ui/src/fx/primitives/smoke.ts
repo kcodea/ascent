@@ -108,18 +108,18 @@ const SPECS = {
     help: 'How tight the billowing is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites while Turbulence is above 0 (smoke ships with it on).',
   },
   emitShape: {
-    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'disc',
+    kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'disc', essential: true,
     help: 'Where puffs are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc (the default — a soft-edged smoke source), or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
   },
   emitRadius: {
-    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 8, axis: 'scale',
+    kind: 'slider', label: 'Emit radius', group: 'Physics', min: 0, max: 400, step: 1, default: 8, axis: 'scale', essential: true,
     // Only one half of the mutually-dead shape/radius pair may declare the dependency (see burst.ts) —
     // shape is the gateway, radius the thing it unlocks. Smoke ships with both live (disc + 8px).
     enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer smoke source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
   emitSquash: {
-    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1,
+    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
     // Rides the same gateway as the radius above: with `point` there is no area to squash. It does NOT
     // declare a dependency on `emitRadius` — the pair would deadlock (see the note there), and shape is the
     // single gateway both hang off.

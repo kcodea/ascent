@@ -6182,6 +6182,28 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    markup or the component looks wrong, and no test can see it. */
 .fxwb-top, .fxwb-pipe, .fxwb-transport, .fxwb-side, .fxlib { pointer-events: auto; }
 
+/* ---- THE STAGE ---------------------------------------------------------------------------------------
+   The workbench's own 3v3 board (see `stageBoard.ts`). Portalled to `<body>`, NOT nested in `.fxwb` — see
+   the note on `FxStage` — so these three z-indexes are the whole point of the element:
+     `.app` z1  <  `.pixifx-below` z0 … the stage z100  <  `.pixifx` z110  <  `.fxwb` z500
+   i.e. it hides the live game, sits under every over-slot effect, and stays under the workbench chrome.
+   Opaque on purpose: an authoring tool whose backdrop is "whatever screen you happened to leave the game
+   on" cannot show the same effect twice.
+
+   `pointer-events: none` throughout: the stage is scenery. Nothing here is buyable, draggable or
+   inspectable, and a card that swallowed the pointer would break the `cursor` scenario, which needs the
+   pointer to keep reaching the page underneath. */
+.fxwb-stage {
+  position: fixed; inset: 0; z-index: 100; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  /* The same deep board ground the combat screen sits on, so a blend mode composites against what it will
+     actually meet in the game rather than against black. */
+  background: radial-gradient(ellipse at 50% 45%, #241a12 0%, #14100b 62%, #0c0906 100%);
+  /* The gap between the two rows is the combat screen's, expressed in the same scaled unit the board uses,
+     so an effect crossing from one row to the other travels the real distance. */
+  gap: calc(96 * var(--u));
+}
+
 /* ---- THE PIPELINE RAIL --------------------------------------------------------------------------------
    Drawn in the workshop-slate language the 46 dev tuner panels now share (DESIGN.md, "The dev tooling
    surface"), so the toolset reads as one product rather than three. The rest of the workbench is still violet;
@@ -6421,6 +6443,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer; max-width: 190px;
 }
 .fxwb-select:disabled { opacity: 0.5; cursor: default; }
+/* The stage's six card pickers. Narrower than the toolbar's other selects because there are six of them in a
+   bar that already carries the scenario, the subject and the backdrop — a card name truncates gracefully,
+   another wrapped toolbar line does not (the pipeline rail's height is a fixed variable, see `--fxwb-pipe-h`). */
+.fxwb-stage-group { flex-wrap: wrap; }
+.fxwb-stage-row { display: flex; align-items: center; gap: 4px; }
+.fxwb-stage-pick { max-width: 104px; }
 .fxwb-row select {
   grid-column: 2 / span 2; background: #241f17; border: 1px solid #4a4136; color: #efe7db; border-radius: 6px;
   padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;

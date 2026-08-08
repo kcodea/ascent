@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-08 — The FX workbench gets its own board
+
+The workbench authored effects over **whatever the game happened to be showing**. That is fine for judging a
+burst in isolation and wrong for everything else: a shop screen has no enemy row at all, a mid-run board has
+however many units you happen to own, and neither is the same twice — so the one thing an authoring tool must
+be able to do, show the same effect on the same layout on two different days, it could not. Worse, it made
+whole CLASSES of effect unjudgeable. A watcher, a rally, an area buff, a hit landing on the other side are all
+about the RELATIONSHIP between several units across two rows; with one row on screen there is nothing for them
+to relate to.
+
+**The stage.** Three units a side, on by default, using the real `Unit` component and the real
+`[data-zone]` / `.row` / `[data-uid]` DOM contract that `boardAnchors.ts` and `reactTargets.ts` read. Nothing
+here mimics the game's markup — it IS the game's markup, which is the only way a preview can be trusted to
+predict a real fire. Six units is the smallest board that can express every `react` reach: `neighbours` needs
+a unit with a unit on each side (hence three, not two), and a cross-side effect needs the far row to exist.
+
+- **Portalled to `<body>`, not nested in the workbench** — a layering requirement, not a preference. `.fxwb`
+  is `position: fixed; z-index: 500`, a stacking context, so anything inside it paints ABOVE the FX canvas
+  (`.pixifx`, z110) and would cover the effects it exists to show. Portalled out at z100 it sits in the same
+  sandwich the real board does: over the game (`.app`, z1), under the over-slot canvas, above the under-slot
+  one. An `under` effect lands beneath these cards and an `over` effect in front of them, exactly as in a fight.
+- **Six card pickers**, because "how does this read on a taunt" is a real question and the old answer was
+  "go and build that board in a run first". Defaults are pool-derived and deterministic, reaching for a taunt
+  and a shielded unit before a plain one so the row has variety without anyone choosing it.
+- **`boardRoot()`** — found by the first live run of the stage, which anchored "your first unit" to a **shop
+  offer hidden behind it**. The game's rows are still in the DOM under an opaque stage and still match every
+  selector; `querySelector` takes the first match in document order and the game renders first. The two
+  positional reads now start from `.fxwb-stage` when one is up. Scoping by ROOT rather than by selector is
+  deliberate: the selectors stay character-for-character the shipping ones, which is the invariant those
+  modules exist to hold.
+- **The stage steps aside for the harness.** Staging a card puts a real minion on the real board so an effect
+  can be watched firing on a real moment — the one workflow whose whole point IS the live game. The toggle
+  goes inert and says why rather than hiding what you asked to watch.
+- `realBoard` is now the default scenario, since with the stage up it reads six real cards at their real size
+  and spacing.
+
+Verified in a browser on a dedicated port: stage portalled to `<body>` at z100 with `.app` at z1 and
+`.pixifx` at z110; six cards rendered; rows centred (row centre 643 of a 1280 viewport); anchors resolving to
+`fxs-you-0` / `fxs-foe-0` rather than to the hidden shop. Gates: typecheck (pkgs + web),
+`npx eslint packages apps` 0 errors, 4725 tests, build:web.
+
 ## 2026-08-08 — The workbench says what its knobs do (language pass)
 
 Every one of the 173 FX parameters already carried a `help` string — an earlier note in this session claimed

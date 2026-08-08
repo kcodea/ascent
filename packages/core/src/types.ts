@@ -987,6 +987,11 @@ export type QuestReward =
   | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
   | { kind: 'runeBanquetHall' } // the turn's first Shop-buffed buy feeds one minion of each type
   | { kind: 'runeCrucibleChoir' } // End of Turn: the left-most Shout, then the left-most Echo
+  | { kind: 'runeFullMeasure' } // Baby Gastrid also grants Attack, 1:1 with the Health
+  | { kind: 'runeMountainTrade' } // a Mountainbond Ruby play also hands over an Ale
+  | { kind: 'runeOpenAppetite' } // Appetite Agent's aim loses its Demon restriction
+  | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
+  | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
   | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
@@ -1359,6 +1364,8 @@ export interface QuestCombatMods {
   runeRubyShrapnel?: boolean;
   /** Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally. */
   runeSharedScripture?: boolean;
+  /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half). */
+  runeBroodmaster?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
@@ -2264,6 +2271,8 @@ export interface CombatContext {
   lastSpellCastFor?(side: Side): string | undefined;
   /** Rune of Shared Scripture's hook — every resolved combat Shop-spell cast reports itself here. */
   onCombatSpellCast?(side: Side): void;
+  /** Rune of the Broodmaster — does a Broodwright on this side also buff itself? (mirrors `groveweaverSelfFor`) */
+  broodmasterSelfFor?(side: Side): boolean;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
   rememberedSpellsFor?(side: Side): readonly string[];
   /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,

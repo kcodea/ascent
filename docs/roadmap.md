@@ -21,6 +21,20 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Card-keyed rune batch — 6 of 12 still to build** (owner list 2026-08-07). Five shipped the same day (Full
+  Measure, Mountain Trade, Open Appetite, Broodmaster, Second Life); *Final Verse* was dropped as a duplicate
+  of Rune of the Last Word. Remaining, each needing a new trigger path:
+  - **Rune of Moonhowl** (Epic 5) — your Mage-Pups gain "Echo: cast the Shop spell this learned".
+  - **Rune of the Flooded Vault** (Basic 5) — Water Dragon's Avenge also casts the left-most spell in hand
+    without consuming it.
+  - **Rune of Shared Reflection** (Epic 5) — the first Shop spell cast on each Mirrorwing each turn also casts
+    on adjacent Dragons.
+  - **Rune of the Unbroken Vein** (Basic 5) — your Veinbreakers gain BOTH Choose One effects.
+  - **Rune of Battle Refraction** (Epic 6) — your Prismcasters also repeat Rubies played during COMBAT (the
+    `rubyExtraCast` channel is shop-side only today).
+  - **Rune of Living Growth** (Epic 5) — the hard one: "whenever Mushy creates a Growth, improve future
+    Growths by +1/+1" needs a per-spell escalation channel that doesn't exist yet.
+
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
   - **Art for the tranche-2 RUNES** — the three bodies (Ashen Heir, Runesnout Archivist, Mossmemory Colossus)

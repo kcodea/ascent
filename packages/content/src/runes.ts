@@ -753,6 +753,35 @@ export const RUNES: RuneDef[] = [
     text: 'After you add a copy of a **Shop spell** to your hand, give your **Dragons +1/+1**.',
     reward: { kind: 'runeRunicHoard' },
   },
+
+  // ── the 2026-08-07 owner card-keyed batch (all Set 2 — each names a Set-2 card) ──
+  {
+    id: 'rune_full_measure',
+    name: 'Rune of Full Measure',
+    cost: 4,
+    text: '**Baby Gastrid** also grants **Attack** equal to the Health it grants.',
+    previewCards: ['dw_dorrin'],
+    reward: { kind: 'runeFullMeasure' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_mountain_trade',
+    name: 'Rune of Mountain Trade',
+    cost: 5,
+    text: 'Whenever **Mountainbond** plays Rubies, get a random **Dwarven Ale**.',
+    previewCards: ['dw_mountainbond'],
+    reward: { kind: 'runeMountainTrade' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_open_appetite',
+    name: 'Rune of Open Appetite',
+    cost: 5,
+    text: 'Your **Appetite Agents** can target a minion of **any type**.',
+    previewCards: ['dm_agent'],
+    reward: { kind: 'runeOpenAppetite' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -1674,6 +1703,27 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** trigger your left-most **Shout**, then your left-most **Echo**.',
     epic: true,
     reward: { kind: 'runeCrucibleChoir' },
+  },
+
+  {
+    id: 'rune_broodmaster',
+    name: 'Rune of the Broodmaster',
+    cost: 5,
+    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
+    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
+    epic: true,
+    reward: { kind: 'runeBroodmaster' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_second_life',
+    name: 'Rune of the Second Life',
+    cost: 4,
+    text: 'Your **Scavvers** have **Taunt** and **Rise**.',
+    previewCards: ['b2_scavenger'],
+    epic: true,
+    reward: { kind: 'runeSecondLife' },
+    sets: ['set2'],
   },
 ];
 

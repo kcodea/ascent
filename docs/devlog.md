@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-07 — Card-keyed rune batch: five of twelve built
+
+The owner's twelve card-keyed runes — each names one specific Set-2 card and changes what that card does. All
+twelve subjects exist; five are built here, and the split is by machinery rather than by taste.
+
+**Built** (all Set-2 scoped, since every subject is a Set-2 card):
+
+- **Rune of Full Measure** (Basic 4) — Baby Gastrid also grants Attack, 1:1 with the Health. The Attack is
+  derived from the Health it just paid rather than recomputed, so the halves can't drift.
+- **Rune of Mountain Trade** (Basic 5) — a Mountainbond Ruby play also hands over a random Dwarven Ale. Once
+  per trigger, not per minion buffed: "whenever Mountainbond plays Rubies" is one event however wide the board.
+- **Rune of Open Appetite** (Basic 5) — the Appetite Agent's aim loses its Demon-only rule. `targetTribe` had
+  FOUR independent enforcement points (three in the reducer, one in the aim UI), so a new
+  `effectiveTargetTribe(state, def)` helper now owns the question and all four ask it. Patching only the
+  reducer would have left the UI refusing a pick the reducer accepts — the rune would half-apply.
+- **Rune of the Broodmaster** (Epic 5) — a Broodwright's Imp buff also lands on itself. Rune of the
+  Groveweaver's exact shape, reusing the numbers just paid out.
+- **Rune of the Second Life** (Epic 4) — your Scavvers carry Taunt and Rise. There is no run-wide keyword
+  channel (`cardBuffs` is stats only), so the keywords are stamped per instance: on the board and hand you
+  already hold when the rune is bought, and on every later arrival through `applyOnBuy`. Idempotent, so a
+  second copy can't duplicate a pill.
+
+**Not built, and why.** *Rune of the Final Verse* is a duplicate of Rune of the Last Word, shipped hours
+earlier in tranche 3 — same trigger, same effect, same cost — so it was left out rather than stocking the forge
+with twins. The other six (Moonhowl, Flooded Vault, Shared Reflection, Unbroken Vein, Battle Refraction,
+Living Growth) each need a genuinely new trigger path; Living Growth is the hardest, since "improve future
+Growths" needs a per-spell escalation channel that doesn't exist. Queued in the roadmap.
+
+**Verified.** 4654 tests across 270 files green, including a new 8-case `runeCardKeyed.test.ts`. Typecheck,
+lint (0 errors) and `build:web` all clean.
+
+A test note worth keeping: buying a rune SPENDS GOLD, so any comparison against a card that scales off Gold
+spent this turn (Baby Gastrid) has to pin `goldSpentThisTurn` after the purchase — otherwise the armed run
+starts from a bigger number and the test measures the purchase rather than the rune.
+
 ## 2026-08-07 — Ashen Heir pays a LIVING Imp first (it did nothing in the ordinary case)
 
 **Owner report: "Ashen Heir is not working at all."** It wasn't, for the shape of board it exists to reward.

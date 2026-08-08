@@ -849,6 +849,7 @@ export function simulate(
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
+    broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],

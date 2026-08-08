@@ -1644,6 +1644,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(c, 'Ruby', a, h);
       fireOnRubyPlayed(ctx.state, c, a, h);
     }
+    // Rune of Mountain Trade: the Ruby play also hands over a random Dwarven Ale. Once per trigger (not per
+    // minion buffed) — the rune reads "whenever Mountainbond plays Rubies", which is this one event however
+    // wide the board is. Routed through `conjureToHand` so the hand cap and every copy-watcher behave normally.
+    if (ctx.state.runeMountainTrade) {
+      const ales = ALE_IDS.map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d);
+      if (ales.length > 0) conjureToHand(ctx.state, ales, 1, true);
+    }
   },
 
   /**
@@ -1715,7 +1722,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!target) return;
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
-    if (h > 0) addBuff(target, nameOf(self), 0, h);
+    // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived
+    // from `h` rather than recomputed, so the two halves can never drift apart.
+    const a = ctx.state.runeFullMeasure ? h : 0;
+    if (h > 0 || a > 0) addBuff(target, nameOf(self), a, h);
   },
 
   /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
@@ -5841,7 +5851,26 @@ export function applyShopRefreshed(state: RunState): void {
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
+/** RUNE OF THE SECOND LIFE — stamp Taunt + Rise onto a Scavver. Idempotent, so re-running it over the board
+ *  (which the reward case does on purchase) can't duplicate a pill. Keywords are stamped onto the INSTANCE
+ *  rather than the CardDef: a shared def must never be mutated, and a saved run stores the instance. */
+export function applySecondLife(state: RunState, card: BoardCard): void {
+  if (!state.runeSecondLife || card.cardId !== 'b2_scavenger') return;
+  for (const kw of ['T', 'R'] as Keyword[]) if (!card.keywords.includes(kw)) card.keywords.push(kw);
+}
+
+/** The tribe a card's Battlecry aim is restricted to, AFTER runes. Rune of Open Appetite drops the Appetite
+ *  Agent's Demon-only rule, so every enforcement point — the reducer's target check, the "is there a legal
+ *  target at all?" probe, the auto-pick pool, and the aim UI — has to ask this rather than read `targetTribe`
+ *  directly, or the rune would half-apply and refuse the pick it just allowed. */
+export function effectiveTargetTribe(state: RunState, def: CardDef | undefined): Tribe | undefined {
+  if (!def?.targetTribe) return undefined;
+  if (state.runeOpenAppetite && def.id === 'dm_agent') return undefined;
+  return def.targetTribe;
+}
+
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
+  applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
   const ctx = makeContext(state);
   // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
   // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into

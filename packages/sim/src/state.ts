@@ -870,6 +870,16 @@ export interface RunState {
   banquetUsedThisTurn?: boolean;
   /** Rune of the Crucible Choir: End of Turn, the left-most Shout then the left-most Echo. */
   runeCrucibleChoir?: boolean;
+  /** Rune of Full Measure: Baby Gastrid's grant also pays Attack, 1:1 with the Health. */
+  runeFullMeasure?: boolean;
+  /** Rune of Mountain Trade: a Mountainbond Ruby play also hands over a random Dwarven Ale. */
+  runeMountainTrade?: boolean;
+  /** Rune of Open Appetite: Appetite Agent's aim loses its Demon-only restriction. */
+  runeOpenAppetite?: boolean;
+  /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on the Broodwright. */
+  runeBroodmaster?: boolean;
+  /** Rune of the Second Life: your Scavvers carry Taunt + Rise. */
+  runeSecondLife?: boolean;
   /** Rune of Hoardcalling: the first Dragon Shout each turn grants a random Shop spell. */
   runeHoardcalling?: boolean;
   /** Per-turn gates for the three above — reset at the turn rollover. */

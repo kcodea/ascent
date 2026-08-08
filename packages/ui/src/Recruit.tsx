@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -2630,10 +2630,14 @@ export function Recruit() {
     if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false;
     // `targetNotSelf` (Graverobber) excludes the source from an otherwise-unrestricted pick.
     if (def?.targetNotSelf && uid === pendingTarget.uid) return false;
-    if (!def?.targetTribe) return true;
+    // Runes can LIFT a tribe restriction (Rune of Open Appetite frees the Appetite Agent's aim), so the aim UI
+    // asks the same helper the reducer's target check does. Reading `def.targetTribe` here directly would let
+    // the UI refuse a pick the reducer would have accepted — the rune would half-apply and read as broken.
+    const aimTribe = effectiveTargetTribe(run, def);
+    if (!aimTribe) return true;
     if (uid === pendingTarget.uid) return false;
     const c = run.board.find((b) => b.uid === uid);
-    return c ? isTribe(c, def.targetTribe) : false; // dual-types (Bane = Dragon/Demon) are valid picks
+    return c ? isTribe(c, aimTribe) : false; // dual-types (Bane = Dragon/Demon) are valid picks
   };
   useEffect(() => {
     if (!pendingTarget || inCombat) {

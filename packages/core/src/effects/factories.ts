@@ -3128,7 +3128,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (!minion || minion.side !== self.side || minion.cardId !== 'impscrap' || minion.dead) return;
     const bonus = self.summonBonus ?? 0;
-    ctx.buff(minion, (num(params.attack, 2) + bonus) * mul(self), (num(params.health, 2) + bonus) * mul(self), self.uid);
+    const a = (num(params.attack, 2) + bonus) * mul(self);
+    const h = (num(params.health, 2) + bonus) * mul(self);
+    ctx.buff(minion, a, h, self.uid);
+    // Rune of the Broodmaster: the same grant also lands on the Broodwright. Reuses the numbers just paid out
+    // rather than recomputing them, so the two can never drift — the Groveweaver rune's shape exactly.
+    if (ctx.broodmasterSelfFor?.(self.side) && !self.dead) ctx.buff(self, a, h, self.uid);
   },
 
   /** Set 2 — Endless Overseer: your first `count` IMPS that die each combat summon an Imp (owner change

@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -996,7 +996,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           // hand, no cast, no partial state. The aim UI mirrors this, but the reducer is what actually decides
           // (owner report 2026-08-03: Cupcakes was landing on non-Demons — this guard simply didn't exist on
           // the SPELL path; only the minion-Battlecry paths checked `targetTribe`).
-          if (boardTarget && def.targetTribe && !isTribe(boardTarget, def.targetTribe)) return state;
+          const aimTribe = effectiveTargetTribe(s, def); // Rune of Open Appetite can lift this restriction
+          if (boardTarget && aimTribe && !isTribe(boardTarget, aimTribe)) return state;
           // Resonance only fires on a Battlecry minion — a non-Battlecry target fizzles (spell kept in hand).
           if (boardTarget && def.effects.some((e) => e.do === 'spellReplayBattlecry') &&
               !CARD_INDEX[boardTarget.cardId]?.effects.some((e) => e.on === 'onPlay')) return state;
@@ -1271,8 +1272,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // option) takes precedence over the card-level `target` (Runic Beetle, whose options both target).
       const optTarget = option.target ?? def.target;
       if (optTarget === 'friendly') {
-        const hasTarget = def.targetTribe
-          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
+        const openTribe = effectiveTargetTribe(s, def);
+        const hasTarget = openTribe
+          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, openTribe))
           : s.board.some((c) => c.uid !== card.uid);
         if (hasTarget) {
           s.chooseOne = undefined;
@@ -1818,7 +1820,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         const def = src ? CARD_INDEX[src.cardId] : undefined;
         // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
         // otherwise any friend works. No eligible target → the play resolves with no effect.
-        const pool = def?.targetTribe ? s.board.filter((c) => c !== src && isTribe(c, def.targetTribe!)) : s.board;
+        const autoTribe = effectiveTargetTribe(s, def);
+        const pool = autoTribe ? s.board.filter((c) => c !== src && isTribe(c, autoTribe)) : s.board;
         const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
         if (src && carry) {
           // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
@@ -3730,6 +3733,19 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeRunicHoard': s.runeRunicHoard = true; break;
     case 'runeBanquetHall': s.runeBanquetHall = true; break;
     case 'runeCrucibleChoir': s.runeCrucibleChoir = true; break;
+    case 'runeFullMeasure': s.runeFullMeasure = true; break;
+    case 'runeMountainTrade': s.runeMountainTrade = true; break;
+    case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
+    case 'runeBroodmaster': s.runeBroodmaster = true; break;
+    case 'runeSecondLife': {
+      // Taunt + Rise on every Scavver, the ones already on the board included — a rune that only reached
+      // FUTURE copies would read as doing nothing to the board you bought it for. New arrivals are covered by
+      // `applySecondLife` on the buy/play paths.
+      s.runeSecondLife = true;
+      for (const c of s.board) applySecondLife(s, c);
+      for (const c of s.hand) applySecondLife(s, c);
+      break;
+    }
     case 'runeHoardcalling': s.runeHoardcalling = true; break;
     case 'runeConduit': s.runeConduit = true; break;
     case 'runeVault': s.runeVault = true; break;
@@ -4069,6 +4085,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSharedScripture: f?.runeSharedScripture, // Rune of Shared Scripture: first combat cast → Shout + Rally
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
+    runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright
     runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
     runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat
     runeTemperedTime: f?.runeTemperedTime,   // Rune of Tempered Time: SoC — +Health equal to half Attack

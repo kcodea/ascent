@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-09 — Rune of Aftershocks fired per WATCHER, not per Echo
+
+**Owner report: "broken and continuously triggers after attacks."** Aftershocks reads "triggering an Echo
+gives your minions +4/+4 this combat", and it was paying that whole-board buff on two separate multipliers:
+
+- **The `onDeath` bus broadcasts to every watcher.** `asEcho` wrapped every one of those handler calls, so a
+  board of N rattle-bodies granted N times per death — N−1 of them from watchers that self-filtered and did
+  nothing at all. A minion merely *observing* a friend's death (Brood Matron) paid the rune.
+- **The doubler and Empty-Graves loops wrapped PER EFFECT**, so a body carrying two Echo effects granted
+  twice for one trigger. Empty Graves fires on attacks, which is exactly the "after attacks" the report named.
+
+**Fix:** `asEcho` now wraps one Echo **trigger**. The bus handler wraps only when the death being announced is
+the minion's *own* (`ownEcho`); the doubler and Empty-Graves loops wrap once *outside* their per-effect `for`.
+The comment on `asEcho` now states the invariant — one trigger, never one effect and never one watcher —
+since all three regressions were the same mistake made in three places.
+
+**Verified by reverting the fix and re-running:** the bus-handler revert alone produced **117 grant events
+where the test allows under 60**, plus 7 phantom fires from the observing Matron. `runeAftershocks.test.ts`
+counts the rune's own buff events by source label (armed vs unarmed), so it measures the rune and not whatever
+else the board was doing. Gates: 4743 tests / 281 files, typecheck clean, lint at its 7-warning baseline,
+`build:web` green.
+
 ## 2026-08-08 — itch rejected the upload: 166 unused PNG masters were shipping
 
 **"Too many files in zip (1094 > 1000)."** itch caps an HTML5 zip at 1000 entries. The package held **172

@@ -30,6 +30,8 @@ import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
+import { TitleTextTuner } from './TitleTextTuner';
+import { UiThemeTuner } from './UiThemeTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
 import { BookTuner } from './BookTuner';
@@ -160,6 +162,8 @@ const GROUPS: Group[] = [
     items: [
       { key: 'stepprocfx', icon: '🧮', label: 'Step Proc', C: StepProcFxTuner, hint: 'The flourish when a step counter fills' },
       { key: 'stepcounter', icon: '📈', label: 'Step Counter', C: StepCounterTuner, hint: 'The X/N numbers under a step-scaler card' },
+      { key: 'titletext', icon: '🔤', label: 'Title Text', C: TitleTextTuner, hint: 'Reword the front page — wordmark and every menu plaque' },
+      { key: 'uitheme', icon: '🎨', label: 'UI Theme', C: UiThemeTuner, hint: 'Colour scheme for the glass surfaces — 10 stock presets' },
       { key: 'questtendril', icon: '🏆', label: 'Quest Tendril', C: QuestTendrilTuner, hint: 'The gold ribbon a quest or rune reward throws' },
       { key: 'chargeglyph', icon: '🔋', label: 'Charge Glyph', C: ChargeGlyphTuner, hint: 'The end-of-turn charge glyph' },
     ],

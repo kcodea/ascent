@@ -1,5 +1,50 @@
 # ASCENT — development log
 
+## 2026-08-08 — Glass hover tooltips, and a dev tuner for the front-page copy
+
+**1. The quest/rune hover tooltips are glass now.** `.questbadge-tip` was a flat `--ink` face (`#2a2017`, a
+dark brown) with `--acc` bold text (`#f0902e`, orange) — the owner's "brown/orange looks kinda gross". Both it
+and `.riftpill-tip` (which the CSS says explicitly mirrors it) now use the cool translucent slate + lit top
+edge of the `.hmn-btn` glass idiom, with an ice-blue accent and `--gold-lt` for the state line, which reads as
+a VALUE against cool glass where the darker `--gold` went muddy.
+
+The `backdrop-filter: blur(10px)` here is deliberate and NOT the pattern dropped from `.discover-ov`: that was
+a full-viewport backdrop pass sampling the whole framebuffer on every composite. This is a ~220px box that
+appears on hover and holds still — bounded area, no looping animation, one composite on open.
+
+**1b. `UI Theme` dev tuner — ten stock colour schemes for the glass surfaces.** The tooltip palette is no
+longer hard-coded: `uiThemeConfig.ts` pushes a token set (`--gl-top/-bot/-blur/-border/-border-top/-text/
+-accent/-value/-radius`) onto `:root`, and both tooltips read them with CSS fallbacks equal to the shipped
+values — so no override is byte-identical and production is untouched.
+
+The tuner leads with a PRESET dropdown of ten schemes (Glass Slate = shipped, Obsidian, Frostbite,
+**Emberforge** = the old brown/orange kept as a one-click way back, Verdant, Amethyst, Bloodmoon, Sunspire,
+Abyss, Parchment); picking one rewrites every field. Below it: four colour pickers (surface / accent / value /
+text) and four surface sliders (opacity, blur, rim brightness, radius). Touching any control flips the
+dropdown to `custom`, so it never claims a stock scheme is intact after you have moved away from it. Setting
+blur to 0 removes the backdrop pass entirely, for anyone who wants it cheaper still.
+
+Any surface can opt in by reading the same vars — the two tooltips are just the first consumers.
+
+**2. `Title Text` dev tuner — reword the front page without touching code.** Every string on the title screen
+(wordmark, all six menu plaques, the Continue sub-line, the name prompt) moves to `titleTextConfig.ts` and is
+editable live from the dev menu. `Title.tsx` subscribes and re-renders on change.
+
+This needed a new control kind: the tuner schema had `range | color | toggle | select` and no way to type a
+string, so `text` was added to `tunerSchema` + `TunerPanel`. It commits on blur/Enter rather than per
+keystroke (per-keystroke would re-render the live surface on every letter) and routes through the schema's
+existing string channel, so no config module needs a second setter.
+
+LOCKING IT IN is the deliberate two-step the owner asked for: the tuner writes localStorage — per-browser,
+invisible to the other dev and to the packaged exe — and Copy gives the JSON to paste into `DEFAULTS` in
+`titleTextConfig.ts`, which is what makes a wording ship for everyone. The Continue sub-line keeps a `{round}`
+placeholder; an unknown placeholder is left as literal text so a typo is visible rather than silently gone.
+
+**Verified.** 4738 tests across 279 files green; typecheck clean, lint back to its 7 pre-existing warnings,
+`build:web` clean. Checked live in the dev server: driving the tuner renamed the wordmark and the Play plaque
+on screen and `reset` restored them, and the tooltip's computed style is the glass gradient + blur with the
+ice accent — no brown or orange left in either.
+
 ## 2026-08-08 — Full balance-report export, and the spells table finally has data
 
 **`npm run report:export`** writes the balance report in full — every row, no top-N truncation, every raw

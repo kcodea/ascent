@@ -2115,7 +2115,7 @@ body.modalup .statusbar .questbadges {
    two different systems and the taller nodes fattened the row). Only the stone colouring differs now. */
 .questbadge.runebadge { border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
-.questbadge-tip-reward b { color: var(--acc); }
+.questbadge-tip-reward b { color: var(--gl-accent, #a8d8ef); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
    The resting (weakest) glow sits STATICALLY on the slot; the brighter crest lives on a ::before whose
    OPACITY breathes via kwglow — an animated box-shadow repainted the slot every frame (see performance.md). */
@@ -2619,10 +2619,16 @@ body.modalup .statusbar .questbadges {
 .questbadge-chip { position: absolute; bottom: calc(-4 * var(--u)); right: calc(-6 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: calc(9 * var(--u)); line-height: 1; padding: calc(2 * var(--u)) calc(5 * var(--u)); border-radius: calc(8 * var(--u)); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) -2px var(--shadow); }
 /* Anchored to the badge's LEFT (opening up-and-right), NOT centered — the badges sit flush against the left
    screen edge (bottom-left), so a centered tooltip ran its left half off-screen (clipping the quest text). */
-.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.questbadge-tip b { color: var(--acc); font-weight: 800; }
-.questbadge-tip .questbadge-tip-reward { color: #f4f0e6; }
-.questbadge-tip .questbadge-tip-state { color: var(--gold); font-weight: 800; }
+/* GLASS TOOLTIP (owner 2026-08-08: the flat brown `--ink` face with orange `--acc` bold read as muddy).
+   Cool translucent slate + a lit top edge, matching the `.hmn-btn` glass idiom in the status bar.
+
+   The blur is DELIBERATE and safe here, unlike the one dropped from `.discover-ov`: that was a full-viewport
+   backdrop pass sampling the whole framebuffer every composite. This is a ~220px box that appears on hover
+   and holds still — bounded area, no looping animation, one composite on open. */
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.questbadge-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; } /* ice accent — the old orange fought the glass */
+.questbadge-tip .questbadge-tip-reward { color: var(--gl-text, #dbe7f4); }
+.questbadge-tip .questbadge-tip-state { color: var(--gl-value, var(--gold-lt)); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
 .questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
 /* The badges and the board-floated hero-power panel (z-index 41) are SIBLINGS inside `.statusbar`, and the tip's
    own z-index (60) is trapped inside `.questbadges`' transform stacking context — so the power icon painted over a
@@ -3845,9 +3851,9 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
    screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
-.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
-.riftpill-tip b { color: var(--acc); font-weight: 800; }
-.riftpill-tip .riftpill-tip-body { color: #f4f0e6; }
+.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
+.riftpill-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; }
+.riftpill-tip .riftpill-tip-body { color: var(--gl-text, #dbe7f4); }
 .riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
@@ -4486,6 +4492,12 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-row-toggle { grid-template-columns: minmax(96px, 1.3fr) minmax(70px, 1fr) 82px; }
 .tunerpanel .tuner-row-toggle input[type="checkbox"] { margin: 0; justify-self: start; accent-color: var(--acc); }
 .tunerpanel .tuner-toggleval { font-size: 10px; color: var(--acc-dk); font-weight: 800; text-align: left; }
+/* TEXT control (Title Text tuner) — the field spans the value column, since a string needs the room a slider
+   readout doesn't. Commits on blur/Enter, so it reads like a normal input rather than a live-typing surface. */
+.tunerpanel .tuner-row-text { grid-template-columns: 1fr; gap: 3px; }
+.tunerpanel .tuner-textin { width: 100%; box-sizing: border-box; font: inherit; font-size: 11px; font-weight: 700; padding: 4px 7px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.07); color: inherit; }
+.tunerpanel .tuner-textin:focus { outline: none; border-color: rgba(168, 216, 239, 0.7); background: rgba(255, 255, 255, 0.12); }
+.tunerpanel .tuner-textin::placeholder { color: rgba(255, 255, 255, 0.35); font-weight: 600; }
 /* A named choice (a blend mode, which flourish to play) — a slider cannot express it. */
 .tunerpanel .tuner-row-select { grid-template-columns: minmax(96px, 1.3fr) 1fr 28px; }
 .tunerpanel .tuner-row-select select { width: 100%; min-width: 0; padding: 2px 4px; border: 1px solid var(--line);

@@ -280,6 +280,41 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
             </button>
           )}
           {open && hits.map((c) => {
+            // TEXT — a free string (the title-screen copy). Writes through the same string channel `select`
+            // uses, so the config module needs no second setter. `defaultValue` + onBlur/Enter rather than a
+            // controlled onChange: committing per keystroke would re-render the live surface on every letter.
+            if (c.kind === 'text') {
+              const current = String(cfg[c.key] ?? '');
+              const shippedTxt = spec.defaults ? String(spec.defaults[c.key] ?? '') : undefined;
+              const modTxt = shippedTxt !== undefined && current !== shippedTxt;
+              return (
+                <div className={`sfxmix-row tuner-row tuner-row-text${modTxt ? ' tuner-row-mod' : ''}`} key={c.key}>
+                  <span className="sfxmix-name" title={c.hint}>
+                    {c.label}
+                    {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
+                    {modTxt && shippedTxt !== undefined && (
+                      <button
+                        className="tuner-mod"
+                        onClick={() => spec.writeColor?.(c.key, shippedTxt)}
+                        title="Changed from the shipped value — click to put it back"
+                        aria-label={`Revert ${c.label}`}
+                      >●</button>
+                    )}
+                  </span>
+                  <input
+                    className="tuner-textin"
+                    type="text"
+                    defaultValue={current}
+                    key={`${c.key}:${current}`}
+                    placeholder={c.placeholder}
+                    maxLength={c.maxLength ?? 120}
+                    aria-label={c.label}
+                    onBlur={(e) => spec.writeColor?.(c.key, e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  />
+                </div>
+              );
+            }
             if (c.kind === 'select') {
               const current = String(cfg[c.key]);
               const shippedSel = spec.defaults ? String(spec.defaults[c.key]) : undefined;

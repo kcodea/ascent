@@ -889,7 +889,9 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
 - **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
   (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when
-  `auth.uid() = user_id`. The rating column is locked against self-edits. Remaining:
+  `auth.uid() = user_id`. The rating column is locked against self-edits. **The `schema.sql` C1 block was run
+  against the live project** (owner, 2026-08-09) — so the `to authenticated` policies are real, not just
+  committed. Remaining:
   - **C2 — real accounts** (~2.5 d): sign-up/sign-in UI, `Kevin#4821` handles, anonymous→email upgrade in
     place, offline queue + unrated tagging. Makes identity portable across devices and survivable past a
     site-data wipe.

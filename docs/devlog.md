@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-08 — The UI Theme drives the whole HUD, not just the tooltips
+
+The theme tuner reached the hover tooltips only, so a scheme left the HUD half-changed — slate tooltips over
+brown-and-gold plaques (owner: "they should all be uniform in theme"). The four opaque HUD surfaces from the
+screenshot now read the same palette: the ROUND bar (`.alt`, shared with the buff/quest frames), the
+Gold·Tier·Setup-Time strip (`.statstrip`) and the opponent frame (`.oppframe`).
+
+They get their OWN two tokens rather than reusing the glass ones. `--ui-panel-top/-bot` is a solid face and
+`--ui-trim` the metal rim, because a plaque sits over busy board art and has to stay legible — a translucent
+tint that works for a small floating tooltip cannot promise that. Both are new tuner controls (`Plaque face`,
+`Plaque trim`) under a "HUD plaques" group, and all ten presets carry a matching pair.
+
+**This changes the shipped look, deliberately.** `Glass Slate` — the default — now has SLATE plaques
+(`#202836` face, `#7f93ad` trim) instead of the old brown/gold. Leaving them gold would have preserved exactly
+the split the owner asked to close. **`Emberforge` keeps the previous brown/gold plaques exactly**, so the old
+HUD is one dropdown pick away.
+
+**Verified live**, per preset, by reading the computed style of all four surfaces plus a tooltip: Glass Slate,
+Frostbite and Bloodmoon each move every plaque's face AND trim together, and the default now renders the whole
+HUD in one slate family. (First check showed stale values — the browser had the old module cached; the reading
+above is after a server restart and a localStorage clear.)
+
+4740 tests across 280 files green; typecheck clean, lint at its 7 pre-existing warnings, `build:web` clean.
+
 ## 2026-08-08 — itch rejected the upload: 166 unused PNG masters were shipping
 
 **"Too many files in zip (1094 > 1000)."** itch caps an HTML5 zip at 1000 entries. The package held **172

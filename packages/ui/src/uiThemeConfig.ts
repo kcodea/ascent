@@ -32,6 +32,13 @@ export interface UiThemeConfig {
   border: number;
   /** Corner radius in px. */
   radius: number;
+  /** HUD PLAQUE trim — the metal rim on the round bar, stat strip, buff/quest frames and opponent frame.
+   *  Shipped gold (`#c8922e`); a scheme changes it so the plaques match the tooltips rather than staying
+   *  gold-on-brown while everything else moved (owner: "they should all be uniform in theme"). */
+  trim: string;
+  /** HUD PLAQUE face — the solid panel these opaque surfaces use, kept separate from the translucent glass
+   *  `surface` because a plaque must stay readable over busy board art. */
+  panel: string;
 }
 
 /** A stock scheme = every field except `preset`. */
@@ -43,16 +50,20 @@ export type ThemePreset = Omit<UiThemeConfig, 'preset'>;
  * you would have to reconstruct by hand.
  */
 export const THEME_PRESETS: Record<string, ThemePreset> = {
-  'Glass Slate':  { surface: '#2e3848', accent: '#a8d8ef', text: '#eef4fb', value: '#e6b45a', alpha: 88, blur: 10, border: 22, radius: 12 },
-  'Obsidian':     { surface: '#14161a', accent: '#c9d3e0', text: '#f2f5f9', value: '#d8c48a', alpha: 92, blur: 8,  border: 18, radius: 10 },
-  'Frostbite':    { surface: '#22384a', accent: '#9fe8ff', text: '#eaf8ff', value: '#bfe9ff', alpha: 84, blur: 14, border: 30, radius: 14 },
-  'Emberforge':   { surface: '#2a2017', accent: '#f0902e', text: '#f6efe2', value: '#e6b45a', alpha: 95, blur: 0,  border: 14, radius: 12 },
-  'Verdant':      { surface: '#1e3327', accent: '#8fe3a4', text: '#eefaf1', value: '#d9e88a', alpha: 88, blur: 10, border: 24, radius: 13 },
-  'Amethyst':     { surface: '#2b2340', accent: '#c6a0ff', text: '#f3eeff', value: '#e6b45a', alpha: 88, blur: 12, border: 26, radius: 14 },
-  'Bloodmoon':    { surface: '#331a1e', accent: '#ff9aa6', text: '#fceef0', value: '#ffc98a', alpha: 90, blur: 8,  border: 22, radius: 11 },
-  'Sunspire':     { surface: '#3a2f18', accent: '#ffd98a', text: '#fbf4e4', value: '#ffe9b0', alpha: 90, blur: 9,  border: 24, radius: 12 },
-  'Abyss':        { surface: '#0f2b2e', accent: '#7fe3d4', text: '#e8fbf7', value: '#bfe9d8', alpha: 90, blur: 12, border: 20, radius: 14 },
-  'Parchment':    { surface: '#e8dcc4', accent: '#7a4a1c', text: '#2a2017', value: '#9a5f18', alpha: 96, blur: 6,  border: 40, radius: 10 },
+  // Glass Slate's plaques are SLATE, not the old brown/gold. Keeping them gold would have left the HUD
+  // half-themed — tooltips slate, plaques brown — which is exactly the split the owner asked to close
+  // ("they should all be uniform in theme"). This is therefore a real change to the shipped look, not just a
+  // new option; `Emberforge` below preserves the previous brown/gold plaques exactly.
+  'Glass Slate':  { surface: '#2e3848', accent: '#a8d8ef', text: '#eef4fb', value: '#e6b45a', alpha: 88, blur: 10, border: 22, radius: 12, trim: '#7f93ad', panel: '#202836' },
+  'Obsidian':     { surface: '#14161a', accent: '#c9d3e0', text: '#f2f5f9', value: '#d8c48a', alpha: 92, blur: 8,  border: 18, radius: 10 , trim: '#8e97a4', panel: '#15171b' },
+  'Frostbite':    { surface: '#22384a', accent: '#9fe8ff', text: '#eaf8ff', value: '#bfe9ff', alpha: 84, blur: 14, border: 30, radius: 14 , trim: '#7fc4e8', panel: '#16283a' },
+  'Emberforge':   { surface: '#2a2017', accent: '#f0902e', text: '#f6efe2', value: '#e6b45a', alpha: 95, blur: 0,  border: 14, radius: 12 , trim: '#c8922e', panel: '#241a13' },
+  'Verdant':      { surface: '#1e3327', accent: '#8fe3a4', text: '#eefaf1', value: '#d9e88a', alpha: 88, blur: 10, border: 24, radius: 13 , trim: '#7fbf8a', panel: '#16281d' },
+  'Amethyst':     { surface: '#2b2340', accent: '#c6a0ff', text: '#f3eeff', value: '#e6b45a', alpha: 88, blur: 12, border: 26, radius: 14 , trim: '#a98bd8', panel: '#211a33' },
+  'Bloodmoon':    { surface: '#331a1e', accent: '#ff9aa6', text: '#fceef0', value: '#ffc98a', alpha: 90, blur: 8,  border: 22, radius: 11 , trim: '#d2707c', panel: '#2a1216' },
+  'Sunspire':     { surface: '#3a2f18', accent: '#ffd98a', text: '#fbf4e4', value: '#ffe9b0', alpha: 90, blur: 9,  border: 24, radius: 12 , trim: '#e8bd6a', panel: '#2e2413' },
+  'Abyss':        { surface: '#0f2b2e', accent: '#7fe3d4', text: '#e8fbf7', value: '#bfe9d8', alpha: 90, blur: 12, border: 20, radius: 14 , trim: '#5fbfae', panel: '#0c2124' },
+  'Parchment':    { surface: '#e8dcc4', accent: '#7a4a1c', text: '#2a2017', value: '#9a5f18', alpha: 96, blur: 6,  border: 40, radius: 10 , trim: '#9a5f18', panel: '#f0e6d2' },
 };
 export const THEME_PRESET_NAMES = ['custom', ...Object.keys(THEME_PRESETS)] as const;
 
@@ -104,6 +115,16 @@ export function applyUiThemeConfig(): void {
   s.setProperty('--gl-accent', cfg.accent);
   s.setProperty('--gl-value', cfg.value);
   s.setProperty('--gl-radius', `${cfg.radius}px`);
+  // HUD PLAQUES — the opaque surfaces (round bar, stat strip, buff/quest frames, opponent frame). They share
+  // the scheme's trim and text so the whole HUD reads as one theme, but keep their own solid face: a plaque
+  // sits over busy board art and has to stay legible, which a translucent glass tint cannot promise.
+  const prgb = rgbTriplet(cfg.panel);
+  s.setProperty('--ui-panel-top', `rgb(${prgb})`);
+  s.setProperty('--ui-panel-bot', `rgba(${prgb}, 0.92)`);
+  s.setProperty('--ui-trim', cfg.trim);
+  s.setProperty('--ui-text', cfg.text);
+  s.setProperty('--ui-accent', cfg.accent);
+  s.setProperty('--ui-value', cfg.value);
 }
 
 export function getUiThemeConfig(): UiThemeConfig {

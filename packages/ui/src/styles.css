@@ -358,9 +358,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* Dark pill/glass restyle of the round bar (`.alt`) + the buff / active-quest side panels — matches the hero,
    opponent and round-HUD panels; inner text lightened to read on the dark fill (was tuned for the cream boxes). */
+/* HUD PLAQUES read the UI Theme tokens (owner 2026-08-08: "they should all be uniform in theme") — the round
+   bar, buff/quest frames, stat strip and opponent frame move together with the tooltips. Fallbacks equal the
+   shipped brown/gold, so no override is byte-identical. */
 .alt, .buffsframe, .questframe {
-  background: linear-gradient(180deg, #241a13, #17110c);
-  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  background: linear-gradient(180deg, var(--ui-panel-top, #241a13), var(--ui-panel-bot, #17110c));
+  border-color: var(--ui-trim, color-mix(in srgb, var(--gold) 55%, #000));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
 }
 .alt .w { color: var(--acc); }
@@ -2767,7 +2770,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .herotip-live:empty { display: none; }
 /* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
    the dark fill (they were tuned for the old cream boxes). */
-.oppframe { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); }
+.oppframe { background: linear-gradient(180deg, var(--ui-panel-top, #241a13), var(--ui-panel-bot, #17110c)); border-color: var(--ui-trim, color-mix(in srgb, var(--gold) 55%, #000)); }
 .oppframe .opp-hero { color: #f4ecdb; }
 .oppframe .opp-stat { color: #d8ccb6; }
 .oppframe .opp-stat.label { color: #b7a98f; }
@@ -2778,7 +2781,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .oppframe .opp-preview { border-top-color: rgba(255, 255, 255, 0.1); }
 .oppframe .opp-pic { background: #17110c; border-color: color-mix(in srgb, var(--gold) 55%, #000); }
 .oppframe .opp-pic svg { color: #c9bca3; }
-.statstrip { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
+.statstrip { background: linear-gradient(180deg, var(--ui-panel-top, #241a13), var(--ui-panel-bot, #17110c)); border-color: var(--ui-trim, color-mix(in srgb, var(--gold) 55%, #000)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .statcell + .statcell { border-left-color: color-mix(in srgb, var(--gold) 32%, transparent); }
 .statcell .sc-l { color: #b7a98f; }
 .statcell .sc-v { color: #f4ecdb; }

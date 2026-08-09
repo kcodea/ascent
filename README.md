@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The UI Theme now drives the whole HUD** — round bar, stat strip, buff/quest frames and opponent frame follow the scheme alongside the tooltips. The default `Glass Slate` gives them slate plaques; `Emberforge` restores the old brown/gold.
+
 - **The itch package fits again** — 166 unused PNG art masters were shipping alongside their WebP builds (1094 files / 159 MB, over itch's 1000-file cap). Now 929 files / 58 MB, with a test and a packaging guard so it can't recur.
 
 - **Glass hover tooltips** for quests/runes, a **UI Theme tuner** with 10 stock colour schemes driving them, and a **Title Text dev tuner** that rewords the whole front page live — plus a new `text` control kind for the tuner framework.

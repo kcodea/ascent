@@ -24,6 +24,8 @@ const SPECS: Record<keyof UiThemeConfig, [string, TunerUnit | undefined, string,
   accent:  ['Accent', undefined, 'Bold values inside a tooltip — card names, numbers called out in the text.', 'Colour'],
   value:   ['Value / state', undefined, 'The "state" line (quest progress, rift status) — the gold-role colour.', 'Colour'],
   text:    ['Body text', undefined, 'Ordinary tooltip prose.', 'Colour'],
+  panel:   ['Plaque face', undefined, 'The SOLID panel behind the HUD plaques — round bar, stat strip, buff/quest frames, opponent frame. Kept opaque on purpose: a plaque sits over busy board art and has to stay legible.', 'HUD plaques'],
+  trim:    ['Plaque trim', undefined, 'The metal rim around those plaques. Shipped gold — change it so the HUD matches the tooltips instead of staying gold-on-brown.', 'HUD plaques'],
   alpha:   ['Opacity', '%', 'How solid the surface is. Lower lets more of the board show through.', 'Surface'],
   blur:    ['Backdrop blur', 'px', 'Frosting behind the surface. 0 turns the blur off entirely, which is the cheapest option — these are small boxes, so the cost is bounded either way.', 'Surface'],
   border:  ['Rim brightness', '%', 'How visible the border and its lit top edge are. The top edge is most of what reads as "glass".', 'Surface'],
@@ -31,8 +33,8 @@ const SPECS: Record<keyof UiThemeConfig, [string, TunerUnit | undefined, string,
 };
 
 /** Declaration order IS render order: the preset first, then colours, then the surface feel. */
-const ORDER: (keyof UiThemeConfig)[] = ['preset', 'surface', 'accent', 'value', 'text', 'alpha', 'blur', 'border', 'radius'];
-const COLOR_KEYS = new Set<keyof UiThemeConfig>(['surface', 'accent', 'value', 'text']);
+const ORDER: (keyof UiThemeConfig)[] = ['preset', 'surface', 'accent', 'value', 'text', 'panel', 'trim', 'alpha', 'blur', 'border', 'radius'];
+const COLOR_KEYS = new Set<keyof UiThemeConfig>(['surface', 'accent', 'value', 'text', 'panel', 'trim']);
 
 const controls: TunerControl<Extract<keyof UiThemeConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];

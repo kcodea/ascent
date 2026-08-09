@@ -1157,6 +1157,13 @@ export function simulate(
   const asEcho = (side: Side, run: () => void): void => {
     {
       run();
+      // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
+      // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
+      // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
+      //   · a body with TWO onDeath effects paid twice per trigger (the loops below now wrap once, outside);
+      //   · every board minion holding any onDeath effect paid on EVERY death, because the bus broadcasts to
+      //     all watchers and each factory self-filters AFTER being called — so N rattle-bodies meant N grants
+      //     per death, of which N-1 did nothing at all.
       // Rune of Aftershocks (reworked 2026-07-21): TRIGGERING an Echo gives your minions +4/+4 (it used to
       // bake +4/+4 into Echo-summoned bodies instead). Fires after the Echo resolves, so a body it summoned is
       // already on the board and shares the grant. Per side; a nested Echo is its own trigger.
@@ -1285,8 +1292,11 @@ export function simulate(
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
           ? { ...(effect.params ?? {}), tribe: '' }
           : effect.params ?? {};
-      // An Echo (onDeath) effect resolving marks its summons as Echo summons (Aftershocks / Undertow).
-      if (effect.on === 'onDeath') asEcho(minion.side, () => fn(ctx, minion, params, payload));
+      // An Echo counts as TRIGGERED only for the body whose Echo it is. The bus broadcasts `onDeath` to every
+      // watcher, and a watcher reacting to someone else's death (Brood Matron, Endless Overseer) is not its
+      // own Echo firing — wrapping those made Aftershocks pay once per rattle-body per death.
+      const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;
+      if (ownEcho) asEcho(minion.side, () => fn(ctx, minion, params, payload));
       else fn(ctx, minion, params, payload);
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
@@ -1692,10 +1702,13 @@ export function simulate(
     // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
     const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
     for (let r = 0; r < extra; r++) {
-      for (const effect of minion.effects) {
-        if (effect.on !== 'onDeath') continue;
-        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
-      }
+      // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
+      asEcho(minion.side, () => {
+        for (const effect of minion.effects) {
+          if (effect.on !== 'onDeath') continue;
+          FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        }
+      });
     }
     // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
     // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
@@ -2023,10 +2036,14 @@ export function simulate(
         if (echo) {
           nextStep();
           fireTrigger('emptyGraves', attacker.side);
-          for (const effect of echo.effects) {
-            if (effect.on !== 'onDeath') continue;
-            asEcho(attacker.side, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
-          }
+          // One wrap for the whole body, for the same reason as the doubler loop above — this fires on EVERY
+          // attack, so a two-Echo body was paying Aftershocks twice a swing.
+          asEcho(attacker.side, () => {
+            for (const effect of echo.effects) {
+              if (effect.on !== 'onDeath') continue;
+              FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side });
+            }
+          });
         }
       }
       // A Rally (RL minion attacking) re-runs this attacker's OWN on-attack effects once per additive doubler

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-08 — itch rejected the upload: 166 unused PNG masters were shipping
+
+**"Too many files in zip (1094 > 1000)."** itch caps an HTML5 zip at 1000 entries. The package held **172
+PNGs totalling 104 MB that no player ever saw**: `art.ts` globs `*.{png,webp}` and `indexArt` prefers the
+`.webp` when both exist, so every art master still committed beside its build was bundled and served to
+nobody. 166 of them were in the art tree (163 runes, 2 minions, 1 spell); the other 6 are legitimate public
+icons.
+
+Every one was verified to have a `.webp` sibling — **zero orphans** — before deletion, so no art was lost.
+`npm run optimize-art` deletes a master once it converts it, so these were re-added by hand at some point.
+
+Result: **1094 → 929 files, 159 MB → 58 MB.**
+
+**Two guards, because catching this at upload time is far too late:**
+- `artNoRedundantMasters.test.ts` fails the moment a PNG appears next to its `.webp`, and holds the art tree
+  under a 900-file budget.
+- `package-itch.ps1` now counts the zip and **exits non-zero above 1000**, naming the likely cause. A bad
+  package can no longer be produced silently.
+
+**Verified.** Zip integrity OK, `index.html` at root, all 836 webp entries still present (only PNGs left), and
+a live dev-server check confirmed sampled rune/minion/spell art still resolves and decodes after the deletion.
+4740 tests across 280 files green; typecheck clean, lint at its 7 pre-existing warnings.
+
 ## 2026-08-08 — Glass hover tooltips, and a dev tuner for the front-page copy
 
 **1. The quest/rune hover tooltips are glass now.** `.questbadge-tip` was a flat `--ink` face (`#2a2017`, a

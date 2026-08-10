@@ -959,13 +959,22 @@ export const useGame = create<GameStore>((set, get) => ({
    * settles Resolve, the wave, quests, telemetry and the autosave; a second `faceOmen` would reach all of
    * that, and the run would silently advance behind a button labelled "watch that again".
    *
+   * `combatSettled` is left exactly as it is (already `true` — a fight only reaches `recruit`, where this is
+   * callable, once `settleCombat` has run). Recruit.tsx's own "settle once the replay finishes" effect
+   * (~line 1422) and its loss-damage sequence (~line 1478) both re-check `!run.combatSettled` before doing
+   * anything, so leaving it `true` is what stops the replay from resolving a second combat. It is NOT what
+   * restarts the animation: `useCombatReplay`'s beat index only resets on `[combat]` — i.e. on `run.lastCombat`
+   * changing OBJECT IDENTITY, not on the phase flipping — so the fight is reshuffled into a shallow clone
+   * below purely to trip that effect. Same events, same frames — a clone reads identically, it just isn't
+   * `===` the last one.
+   *
    * Sandbox-gated, and a no-op with no stored fight — the button is hidden in that state, but a store action
    * must not depend on its caller's guard.
    */
   replayLastCombat: () => {
     const s = get();
     if (!s.run.sandbox || !s.run.lastCombat) return;
-    set({ run: { ...s.run, phase: 'combat', combatSettled: false } });
+    set({ run: { ...s.run, phase: 'combat', lastCombat: { ...s.run.lastCombat } } });
   },
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.

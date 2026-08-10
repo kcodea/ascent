@@ -1778,7 +1778,10 @@ export function Recruit() {
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
   // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
   const dragCardRef = useRef<HTMLDivElement>(null);
-  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0 }); // rx/ry = smoothed position; ax/ay = anchor (grab→centre)
+  // rx/ry = render position; ax/ay = anchor (grab point, → centre only in weighted mode); px/py = last pointer
+  // sample + vx/vy = its smoothed velocity, which drives the TILT independently of the position lag (so a
+  // fully locked grab still leans when you move).
+  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0, px: 0, py: 0, vx: 0, vy: 0 });
   // Touch drags stick to the FINGER (near-1 catch-up), not the mouse-tuned weighted lag: a card trailing the
   // cursor reads as pleasant "weight" with a mouse, but under a fingertip the same lag reads as stutter/low-FPS.
   const dragIsTouchRef = useRef(false);
@@ -1810,6 +1813,7 @@ export function Recruit() {
     if (d0) {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
       m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
+      m.px = d0.x; m.py = d0.y; m.vx = 0; m.vy = 0; // no velocity at pickup → the card starts flat, not pre-leaned
       const f = getDragFeel();
       el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
       el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
@@ -1826,10 +1830,12 @@ export function Recruit() {
       // On touch, override the mouse-tuned weighted lag with a near-instant catch-up so the card tracks the
       // fingertip (trailing under a finger reads as stutter, not weight). Mouse keeps the dialed `follow`.
       const follow = dragIsTouchRef.current ? Math.max(f.follow, 0.9) : f.follow;
-      const k = follow >= 1 ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
-      // recentre the anchor from the grab point toward the card centre — but only once the pointer has dragged
-      // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
-      if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
+      const locked = follow >= 1;
+      const k = locked ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
+      // recentre the anchor from the grab point toward the card centre — SKIPPED when LOCKED, so the exact spot
+      // you grabbed stays pinned under the cursor (a recentring slide is the "art drifts past my pointer" feel).
+      // In the weighted (follow < 1) mode it still glides, gated on `recenterAfter` at the `recenter` rate.
+      if (!locked && Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
         const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
         m.ax += (d.w / 2 - m.ax) * kc;
         m.ay += (d.h / 2 - m.ay) * kc;
@@ -1837,16 +1843,21 @@ export function Recruit() {
       // Chase the EXACT pointer, not the coarse committed state — `drag.x/y` only advances in quantum steps
       // (each one is a re-render), so following it here would make the card visibly stair-step.
       const live = dragPosRef.current ?? d;
-      const gx = live.x - m.rx;
-      const gy = live.y - m.ry;
-      m.rx += gx * k;
-      m.ry += gy * k;
+      m.rx += (live.x - m.rx) * k;
+      m.ry += (live.y - m.ry) * k;
+      // TILT is driven by cursor VELOCITY (smoothed), NOT the position lag — decoupled so a fully locked grab
+      // (k = 1, zero lag) STILL leans when you move or fling, while the grab itself stays snappy and precise.
+      // Velocity is normalised to px-per-60fps-frame and eased so a single jittery sample can't snap the lean.
+      const step = dt / 16.667;
+      const nvx = (live.x - m.px) / (step || 1);
+      const nvy = (live.y - m.py) / (step || 1);
+      m.px = live.x; m.py = live.y;
+      m.vx += (nvx - m.vx) * 0.35;
+      m.vy += (nvy - m.vy) * 0.35;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      // Lean INTO the drag direction: each axis tilts by its signed lag-gap (cursor − card). Direction-driven,
-      // so left/right (and up/down) lean opposite ways; when the cursor stops the gap closes and it sits flat.
-      const rotY = clamp(f.tiltPerPx * f.hLean * gx); // horizontal lean
-      const rotX = clamp(f.tiltPerPx * f.vLean * gy); // vertical lean
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
+      const rotY = clamp(f.tiltPerPx * f.hLean * m.vx); // horizontal lean into motion
+      const rotX = clamp(f.tiltPerPx * f.vLean * m.vy); // vertical lean into motion
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the anchor (grab point when locked)
       el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
     };
     raf = requestAnimationFrame(tick);

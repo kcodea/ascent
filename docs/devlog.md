@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-10 — drag: a locked, precise grab with a decoupled velocity lean
+
+Owner report: the card drag felt like "grabbing a short string attached to the card" — it eased toward the
+cursor instead of locking to it. Two mechanics caused it, both now addressed:
+
+- **Positional lag** — `follow: 0.54` meant the card closed only ~54% of the gap to the cursor each frame (an
+  exponential ease = the string). Default is now **`follow: 1`** — the card tracks the cursor 1:1, zero lag.
+- **Recentring** — even locked, the anchor glided from the grab point to the card CENTRE (`recenter`/
+  `recenterAfter`), sliding the art under the pointer ("I can see different parts of the card as it catches
+  up"). The drag loop now **skips recentring entirely when locked** (`follow >= 1`), so the exact spot you
+  grabbed stays pinned under the cursor.
+
+The catch was that the 3D lean was computed from that same lag gap, so a locked grab would have gone flat. So
+the **tilt is now driven by the cursor's smoothed VELOCITY**, decoupled from position: a fully locked grab
+still leans into motion and settles flat when the cursor stops. New `px/py/vx/vy` fields on the drag-motion
+ref track it; the existing `tiltPerPx`/`tiltMax`/`hLean`/`vLean` dials now apply to velocity (px/frame) rather
+than the lag gap, and remain live in the DEV Drag tuner. Lowering `follow` below 1 restores the old
+weighted/recentring feel.
+
+`DRAG_DEFAULTS_VERSION` bumped 1→2 (clears stale local tuner overrides on sync) + the `dragFeel.test.ts`
+fingerprint updated. Gates: typecheck clean, full `npm test` 4786/285, lint at the 7-warning baseline,
+`build:web` green. Feel is subjective — dial `follow`/`tiltPerPx` in the tuner and re-bake if you want it
+different.
+
 ## 2026-08-10 — Compendium palette baked in (dark face, peach ink)
 
 Owner-tuned Compendium (Minion Book) palette, locked in from the DEV Compendium tuner. The shared surface

@@ -1,10 +1,12 @@
 /**
- * Tunable parameters for the weighted card-drag feel (the floating `.dragcard` in Recruit). A dragged card
- * lags slightly behind the cursor (weight) and tilts in 3D toward its motion (a perspective lean, à la the
- * PixiJS perspective-mesh example) — both driven off the SAME signal: the gap between the cursor (target) and
- * the card's smoothed render position. Bigger gap ⇒ faster motion ⇒ more lean; when the cursor stops the gap
- * closes and the card settles flat. Held in one mutable, localStorage-persisted config so the feel can be
- * dialed by eye via the DEV Drag tuner (`DragTuner.tsx`); Recruit's drag rAF reads `getDragFeel()` each frame.
+ * Tunable parameters for the card-drag feel (the floating `.dragcard` in Recruit). By default the card is
+ * LOCKED to the cursor (`follow: 1`) — a snappy, precise grab that keeps the exact spot you grabbed pinned
+ * under the pointer — and tilts in 3D toward its motion (a perspective lean, à la the PixiJS perspective-mesh
+ * example). The lean is driven by the cursor's smoothed VELOCITY, decoupled from position, so a fully locked
+ * grab still leans when you move or fling and settles flat when the cursor stops. Lower `follow` below 1 for a
+ * weighted/laggy grab instead (the card then eases toward the cursor and recentres onto it). Held in one
+ * mutable, localStorage-persisted config so the feel can be dialed by eye via the DEV Drag tuner
+ * (`DragTuner.tsx`); Recruit's drag rAF reads `getDragFeel()` each frame.
  */
 export interface DragFeel {
   /** Catch-up fraction per 60 fps frame toward the cursor (1 = instant/no lag; lower = heavier/laggier). */
@@ -62,8 +64,8 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.54,     // owner-tuned 2026-07-21: a touch heavier catch-up
-  tiltPerPx: 0.6,   // strong lean per px of lag
+  follow: 1,        // owner-tuned 2026-08-10: LOCKED — the card tracks the cursor 1:1 (snappy, precise grab)
+  tiltPerPx: 0.6,   // strong lean per px/frame of cursor velocity
   tiltMax: 11,      // owner-tuned 2026-07-21: tighter tilt ceiling (was 20)
   hLean: 0.5,       // owner-tuned 2026-07-21: stronger lean into horizontal motion (was 0.3)
   vLean: -0.2,      // lean into vertical motion
@@ -112,8 +114,8 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
 export const DRAG_DESC: Record<keyof DragFeel, string> = {
-  follow: 'How fast the card catches up to the cursor. Lower = heavier/laggier; 1 = instant (no lag).',
-  tiltPerPx: 'Degrees of 3D lean per pixel the card trails the cursor. Higher = leans harder when moving.',
+  follow: 'How fast the card catches up to the cursor. 1 = LOCKED (no lag, grab point pinned); lower = heavier/laggier + recentres onto the cursor.',
+  tiltPerPx: 'Degrees of 3D lean per px/frame of cursor speed. Higher = leans harder when moving; independent of the grab lock.',
   tiltMax: 'Ceiling on the tilt (degrees) so a fast fling can’t over-rotate.',
   hLean: 'Lean into left/right motion. Magnitude = how much; flip the SIGN if left/right feel backwards; 0 = off.',
   vLean: 'Lean into up/down motion. Magnitude = how much; flip the SIGN if up/down feel backwards; 0 = off.',
@@ -154,7 +156,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 1;
+export const DRAG_DEFAULTS_VERSION = 2;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

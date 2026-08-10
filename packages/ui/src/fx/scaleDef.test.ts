@@ -366,7 +366,11 @@ describe('scaling a seeded burst does not disturb its random draws', () => {
     // locked seed replays differently. `count` must appear under intensity and nowhere else.
     const geometric = Object.keys(axisTransform(BURST_SPECS, 2, 1));
     expect(geometric).not.toContain('count');
-    expect(geometric).toEqual(['speed', 'gravity', 'turbulence', 'emitRadius', 'size']);
+    // `offsetX`/`offsetY` joined 2026-08-08: a placement in px is a LENGTH, so it has to ride the same
+    // resize as the emit radius — a scaled-down effect keeping a full-size displacement would drift off
+    // its anchor. The squash pair is deliberately absent: those are RATIOS, and scaling a ratio would
+    // reshape the effect as it resized instead of resizing it.
+    expect(geometric).toEqual(['speed', 'gravity', 'turbulence', 'emitRadius', 'offsetX', 'offsetY', 'size']);
     expect(Object.keys(axisTransform(BURST_SPECS, 1, 2))).toEqual(['count']);
   });
 

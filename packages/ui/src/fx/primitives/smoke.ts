@@ -16,7 +16,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
-import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
+import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES } from '../motion';
 import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
@@ -118,16 +118,27 @@ const SPECS = {
     enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer smoke source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
-  emitSquash: {
-    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
-    // Rides the same gateway as the radius above: with `point` there is no area to squash. It does NOT
-    // declare a dependency on `emitRadius` — the pair would deadlock (see the note there), and shape is the
-    // single gateway both hang off.
-    enabledWhen: { param: 'emitShape', not: 'point' },
-    // NOT `axis: 'scale'`, unlike Emit radius: this is a RATIO, not a length. `scaleDef` multiplies every
-    // `scale` param by the same factor, and scaling a ratio would distort the oval as the effect resized
-    // rather than resizing it — the shape would change, not just its size.
-    help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
+  squashX: {
+    kind: 'slider', label: 'Squash X', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
+    // NOT gated on `emitShape`. The pair was, while squash only moved the spawn area — meaningless without
+    // one. They now scale spawn VELOCITY too, so they shape a `point` emitter's spray, which is the common
+    // case. Not `axis: 'scale'` either: a RATIO scaled by `scaleDef` would distort the shape as the effect
+    // resized instead of resizing it.
+    help: 'Horizontal scale of the plume — 1 is untouched, lower squeezes it narrow, higher stretches it wide. Scales BOTH the spawn area and the speed particles fly at, so it holds its shape at any speed.',
+  },
+  squashY: {
+    kind: 'slider', label: 'Squash Y', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
+    help: 'Vertical scale of the plume — 1 is untouched, lower flattens it into an oval, higher makes it taller than it is wide. Pair this with Squash X: equal values resize, unequal values reshape.',
+  },
+  offsetX: {
+    kind: 'slider', label: 'Offset X', group: 'Physics', min: -200, max: 200, step: 1, default: 0, axis: 'scale', essential: true,
+    // `axis: 'scale'` unlike the squash pair: this IS a length, so it must ride the same resize as the emit
+    // radius — otherwise a scaled-down effect keeps a full-size displacement and drifts off its anchor.
+    help: 'Shifts the plume sideways from its anchor, in px. Placement only — it moves where the effect sits without changing its shape or motion.',
+  },
+  offsetY: {
+    kind: 'slider', label: 'Offset Y', group: 'Physics', min: -200, max: 200, step: 1, default: 0, axis: 'scale', essential: true,
+    help: 'Shifts the plume up or down from its anchor, in px. Negative is up. Placement only — it moves where the effect sits without changing its shape or motion.',
   },
   inheritVel: {
     kind: 'slider', label: 'Inherit motion', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
@@ -374,6 +385,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   private headVy = 0;
   // Reused scratch for `emissionOffset` so a shaped spawn allocates nothing (mirrors `budgetState` below).
   private readonly emitScratch = { ox: 0, oy: 0 };
+  private readonly velScratch = { vx: 0, vy: 0 };
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `smokeWithinEmitWindow`) instead of streaming forever.
@@ -574,7 +586,8 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     const spinRad = p.spin * DEG_TO_RAD * spinJitter * spinSign;
 
     // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-    emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch, p.emitSquash);
+    emissionOffset(p, this.rand(), this.rand(), this.emitScratch);
+    spawnVelocity(angle, speed, p.squashX, p.squashY, this.velScratch);
     const particle = new Particle({
       texture: this.texture,
       x: this.originX + this.emitScratch.ox,
@@ -593,8 +606,8 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     return {
       p: particle,
       // Base emission velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
-      vx: Math.cos(angle) * speed + p.inheritVel * this.headVx,
-      vy: Math.sin(angle) * speed + p.inheritVel * this.headVy,
+      vx: this.velScratch.vx + p.inheritVel * this.headVx,
+      vy: this.velScratch.vy + p.inheritVel * this.headVy,
       age: 0,
       maxLife: p.life,
       fadeIn: p.fadeIn,

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EMIT_SHAPES, emissionOffset, turbulenceX, turbulenceY, type EmitShape } from './motion';
+import {
+  EMIT_SHAPES, emissionOffset, spawnVelocity, turbulenceX, turbulenceY,
+  type EmissionParams, type EmitShape,
+} from './motion';
 
 describe('turbulence', () => {
   it('is finite and bounded to ~[-1.5, 1.5] across a wide sample', () => {
@@ -35,129 +38,195 @@ describe('turbulence', () => {
 
 describe('emissionOffset', () => {
   const out = { ox: 0, oy: 0 };
+  /** The params object the primitives hand in; every dial past the shape defaults to its no-op. */
+  const P = (o: Partial<EmissionParams> = {}): EmissionParams => ({ emitShape: 'point', emitRadius: 0, ...o });
 
-  /**
-   * SQUASH — the owner's ask (2026-08-07): "so i can select ring and squash it to the shape of an oval".
-   *
-   * Deliberately the same name and contract as the shockwave primitive's `squash`: 1 is a true circle, and
-   * scaling Y only is what turns each shape into its oval/rectangle counterpart.
-   */
+  it('covers every declared shape', () => {
+    for (const shape of EMIT_SHAPES) {
+      const s: EmitShape = shape;
+      emissionOffset(P({ emitShape: s, emitRadius: 10 }), 0.3, 0.6, out);
+      expect(Number.isFinite(out.ox)).toBe(true);
+      expect(Number.isFinite(out.oy)).toBe(true);
+    }
+  });
+
+  it('point sits on the anchor regardless of radius or randoms', () => {
+    emissionOffset(P({ emitShape: 'point', emitRadius: 100 }), 0.1, 0.9, out);
+    expect(out).toEqual({ ox: 0, oy: 0 });
+  });
+
+  it('ring points lie on the circle of radius r (ox² + oy² ≈ r²)', () => {
+    for (let a = 0; a < 1; a += 0.05) {
+      emissionOffset(P({ emitShape: 'ring', emitRadius: 37 }), a, 0, out);
+      expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(37);
+    }
+  });
+
+  it('disc points lie within r, area-uniform (√rand: 1 reaches the rim, 0 the centre)', () => {
+    for (let a = 0; a < 1; a += 0.1) {
+      for (let b = 0; b < 1; b += 0.1) {
+        emissionOffset(P({ emitShape: 'disc', emitRadius: 50 }), a, b, out);
+        expect(Math.hypot(out.ox, out.oy)).toBeLessThanOrEqual(50 + 1e-9);
+      }
+    }
+    emissionOffset(P({ emitShape: 'disc', emitRadius: 50 }), 0, 1, out);
+    expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(50);
+    emissionOffset(P({ emitShape: 'disc', emitRadius: 50 }), 0.3, 0, out);
+    expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(0);
+  });
+
+  it('box points fill [-r, r]² and reach the corners at the extremes', () => {
+    for (let a = 0; a < 1; a += 0.1) {
+      for (let b = 0; b < 1; b += 0.1) {
+        emissionOffset(P({ emitShape: 'box', emitRadius: 20 }), a, b, out);
+        expect(Math.abs(out.ox)).toBeLessThanOrEqual(20 + 1e-9);
+        expect(Math.abs(out.oy)).toBeLessThanOrEqual(20 + 1e-9);
+      }
+    }
+    emissionOffset(P({ emitShape: 'box', emitRadius: 20 }), 1, 1, out);
+    expect(out.ox).toBeCloseTo(20);
+    expect(out.oy).toBeCloseTo(20);
+  });
+
+  it('a zero radius collapses every shape to the anchor', () => {
+    for (const emitShape of ['ring', 'disc', 'box'] as const) {
+      emissionOffset(P({ emitShape, emitRadius: 0 }), 0.4, 0.6, out);
+      expect(out.ox).toBeCloseTo(0);
+      expect(out.oy).toBeCloseTo(0);
+    }
+  });
+
   describe('squash', () => {
     it('defaults to an EXACT no-op, so every def written before it is bit-identical', () => {
       const before = { ox: 0, oy: 0 };
       const after = { ox: 0, oy: 0 };
-      for (const shape of ['ring', 'disc', 'box'] as const) {
+      for (const emitShape of ['ring', 'disc', 'box'] as const) {
         for (let a = 0; a < 1; a += 0.13) {
           for (let b = 0; b < 1; b += 0.17) {
-            emissionOffset(shape, 40, a, b, before);          // the old 5-arg call
-            emissionOffset(shape, 40, a, b, after, 1);        // explicitly at the default
-            expect(after.ox).toBe(before.ox);                 // toBe, not toBeCloseTo — bit-identical
+            emissionOffset(P({ emitShape, emitRadius: 40 }), a, b, before);
+            emissionOffset(P({ emitShape, emitRadius: 40, squashX: 1, squashY: 1 }), a, b, after);
+            expect(after.ox).toBe(before.ox);   // toBe, not toBeCloseTo — bit-identical
             expect(after.oy).toBe(before.oy);
           }
         }
       }
     });
 
-    it('flattens a ring into an ellipse: X untouched, Y scaled', () => {
+    it('scales the two axes INDEPENDENTLY', () => {
       const round = { ox: 0, oy: 0 };
-      const oval = { ox: 0, oy: 0 };
       for (let a = 0; a < 1; a += 0.05) {
-        emissionOffset('ring', 100, a, 0, round);
-        emissionOffset('ring', 100, a, 0, oval, 0.5);
-        expect(oval.ox).toBeCloseTo(round.ox);                // width is preserved…
-        expect(oval.oy).toBeCloseTo(round.oy * 0.5);          // …only height is squashed
+        emissionOffset(P({ emitShape: 'ring', emitRadius: 100 }), a, 0, round);
+        emissionOffset(P({ emitShape: 'ring', emitRadius: 100, squashX: 0.5, squashY: 2 }), a, 0, out);
+        expect(out.ox).toBeCloseTo(round.ox * 0.5);
+        expect(out.oy).toBeCloseTo(round.oy * 2);
       }
     });
 
-    it('an ellipse ring still satisfies (x/r)² + (y/(r·squash))² ≈ 1', () => {
-      const r = 60;
-      const sq = 0.35;
+    it('an ellipse ring satisfies (x/rx)² + (y/ry)² ≈ 1', () => {
+      const r = 60, sx = 1.4, sy = 0.35;
       for (let a = 0; a < 1; a += 0.05) {
-        emissionOffset('ring', r, a, 0, out, sq);
-        expect((out.ox / r) ** 2 + (out.oy / (r * sq)) ** 2).toBeCloseTo(1);
+        emissionOffset(P({ emitShape: 'ring', emitRadius: r, squashX: sx, squashY: sy }), a, 0, out);
+        expect((out.ox / (r * sx)) ** 2 + (out.oy / (r * sy)) ** 2).toBeCloseTo(1);
       }
     });
 
-    it('above 1 makes the area TALLER than it is wide', () => {
-      emissionOffset('ring', 50, 0.25, 0, out, 2);            // randA 0.25 → straight up
-      expect(Math.abs(out.oy)).toBeCloseTo(100);
-      expect(Math.abs(out.ox)).toBeCloseTo(0);
+    it('equal values RESIZE rather than reshape', () => {
+      emissionOffset(P({ emitShape: 'ring', emitRadius: 80, squashX: 0.5, squashY: 0.5 }), 0.125, 0, out);
+      expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(40);   // still a circle, half the size
     });
 
-    it('squashes disc and box on the same axis', () => {
-      emissionOffset('disc', 80, 0.25, 1, out, 0.25);         // rim, straight up
-      expect(Math.abs(out.oy)).toBeCloseTo(20);
-      emissionOffset('box', 80, 1, 1, out, 0.25);             // the far corner
-      expect(out.ox).toBeCloseTo(80);
-      expect(out.oy).toBeCloseTo(20);
-    });
-
-    /** `point` has no area, so there is nothing to squash — it must stay pinned whatever the dial says. */
-    it('leaves point alone', () => {
-      emissionOffset('point', 100, 0.4, 0.6, out, 0.2);
+    it('leaves point alone — there is no area to squash', () => {
+      emissionOffset(P({ emitShape: 'point', emitRadius: 100, squashX: 0.2, squashY: 3 }), 0.4, 0.6, out);
       expect(out).toEqual({ ox: 0, oy: 0 });
     });
+  });
 
-    /** A 0 radius collapses every shape to the anchor, squash or not — the existing contract.
-     *  Compared numerically rather than with `toEqual`: `cos(0.4·2π) * 0` is NEGATIVE zero, which
-     *  `toEqual` treats as distinct from +0. That predates squash (any radius of 0 does it) and means
-     *  nothing to a spawn position, so the assertion should not care either. */
-    it('cannot resurrect a zero radius', () => {
-      emissionOffset('ring', 0, 0.4, 0.6, out, 3);
-      expect(out.ox).toBeCloseTo(0);
-      expect(out.oy).toBeCloseTo(0);
+  describe('offset', () => {
+    it('translates the whole shape without changing it', () => {
+      const base = { ox: 0, oy: 0 };
+      for (let a = 0; a < 1; a += 0.07) {
+        emissionOffset(P({ emitShape: 'ring', emitRadius: 30 }), a, 0, base);
+        emissionOffset(P({ emitShape: 'ring', emitRadius: 30, offsetX: 25, offsetY: -40 }), a, 0, out);
+        expect(out.ox).toBeCloseTo(base.ox + 25);
+        expect(out.oy).toBeCloseTo(base.oy - 40);
+      }
+    });
+
+    /** The case the owner asked for: nudge an effect that spawns from a single spot. */
+    it('moves a POINT spawn, which is the whole reason it applies there', () => {
+      emissionOffset(P({ emitShape: 'point', offsetX: -18, offsetY: 12 }), 0.5, 0.5, out);
+      expect(out).toEqual({ ox: -18, oy: 12 });
+    });
+
+    it('does not interact with squash — placement is applied last', () => {
+      emissionOffset(P({ emitShape: 'ring', emitRadius: 100, squashY: 0.5, offsetY: 10 }), 0.25, 0, out);
+      expect(out.oy).toBeCloseTo(100 * 0.5 + 10);   // squashed THEN moved, not (100 + 10) × 0.5
+    });
+
+    it('still displaces a zero-radius shape, so offset alone can place an effect', () => {
+      emissionOffset(P({ emitShape: 'ring', emitRadius: 0, offsetX: 7, offsetY: -3 }), 0.4, 0.6, out);
+      expect(out.ox).toBeCloseTo(7);
+      expect(out.oy).toBeCloseTo(-3);
+    });
+
+    it('defaults to an exact no-op', () => {
+      const bare = { ox: 0, oy: 0 };
+      emissionOffset(P({ emitShape: 'box', emitRadius: 20, offsetX: 0, offsetY: 0 }), 0.9, 0.2, out);
+      emissionOffset(P({ emitShape: 'box', emitRadius: 20 }), 0.9, 0.2, bare);
+      expect(out).toEqual(bare);
     });
   });
+});
 
-  it('point is always (0, 0) regardless of radius or randoms', () => {
-    emissionOffset('point', 100, 0.1, 0.9, out);
-    expect(out).toEqual({ ox: 0, oy: 0 });
-    emissionOffset('point', 0, 0.5, 0.5, out);
-    expect(out).toEqual({ ox: 0, oy: 0 });
-  });
+/**
+ * SPAWN VELOCITY — the other half of squash.
+ *
+ * Squashing only the birth area reads as a perfect circle on anything fast: the birth ellipse is a fixed
+ * number of px while travel is `speed × life`, so the shape you see is where particles FLEW (owner report
+ * 2026-08-07).
+ */
+describe('spawnVelocity', () => {
+  const out = { vx: 0, vy: 0 };
 
-  it('ring points lie on the circle of radius r (ox² + oy² ≈ r²)', () => {
-    const r = 37;
-    for (let a = 0; a < 1; a += 0.05) {
-      emissionOffset('ring', r, a, 0, out);
-      expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(r);
+  it('is an EXACT no-op at (1, 1), so every existing def keeps bit-identical velocities', () => {
+    for (let a = 0; a < Math.PI * 2; a += 0.21) {
+      spawnVelocity(a, 640, 1, 1, out);
+      expect(out.vx).toBe(Math.cos(a) * 640);   // toBe, not toBeCloseTo
+      expect(out.vy).toBe(Math.sin(a) * 640);
     }
   });
 
-  it('disc points lie within radius r (and use area-uniform sqrt sampling)', () => {
-    const r = 50;
-    for (let a = 0; a < 1; a += 0.1) {
-      for (let b = 0; b < 1; b += 0.1) {
-        emissionOffset('disc', r, a, b, out);
-        expect(Math.hypot(out.ox, out.oy)).toBeLessThanOrEqual(r + 1e-9);
-      }
+  it('scales each axis independently', () => {
+    for (let a = 0; a < Math.PI * 2; a += 0.21) {
+      spawnVelocity(a, 500, 1, 1, out);
+      const rvx = out.vx;
+      const rvy = out.vy;
+      spawnVelocity(a, 500, 1.5, 0.4, out);
+      expect(out.vx).toBeCloseTo(rvx * 1.5);
+      expect(out.vy).toBeCloseTo(rvy * 0.4);
     }
-    // sqrt sampling: randB=1 reaches the rim, randB=0 sits at the centre.
-    emissionOffset('disc', r, 0, 1, out);
-    expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(r);
-    emissionOffset('disc', r, 0.3, 0, out);
-    expect(Math.hypot(out.ox, out.oy)).toBeCloseTo(0);
   });
 
-  it('box points lie within [-r, r]² and reach the corners at the extremes', () => {
-    const r = 20;
-    for (let a = 0; a < 1; a += 0.1) {
-      for (let b = 0; b < 1; b += 0.1) {
-        emissionOffset('box', r, a, b, out);
-        expect(Math.abs(out.ox)).toBeLessThanOrEqual(r);
-        expect(Math.abs(out.oy)).toBeLessThanOrEqual(r);
-      }
+  /** The whole point as a number: at combat speeds the FAN is the shape, not the spawn ring. */
+  it('flattens the swept FIELD, which is what a fast burst actually shows', () => {
+    const speed = 2600;
+    const secs = 1.9;
+    const sy = 0.25;
+    let maxX = 0;
+    let maxY = 0;
+    for (let a = 0; a < Math.PI * 2; a += 0.05) {
+      spawnVelocity(a, speed, 1, sy, out);
+      maxX = Math.max(maxX, Math.abs(out.vx * secs));
+      maxY = Math.max(maxY, Math.abs(out.vy * secs));
     }
-    emissionOffset('box', r, 0, 1, out);
-    expect(out).toEqual({ ox: -r, oy: r });
+    expect(maxX).toBeGreaterThan(4000);        // travel dwarfs any emit radius (max 400)
+    expect(maxY / maxX).toBeCloseTo(sy, 2);    // …and the field carries the squash
   });
 
-  it('radius 0 collapses every shape to (0, 0)', () => {
-    // Magnitude check (not toEqual) so a harmless signed-zero from e.g. box's (rand*2-1)*0 still counts as
-    // the origin — Math.hypot(-0, 0) === 0, and a -0 offset adds identically to a +0 one at the call site.
-    for (const shape of EMIT_SHAPES as readonly EmitShape[]) {
-      emissionOffset(shape, 0, 0.42, 0.73, out);
-      expect(Math.hypot(out.ox, out.oy)).toBe(0);
-    }
+  /** Directions are SCALED, never re-derived: a particle fired left still goes exactly left. */
+  it('leaves a purely horizontal shot on its heading', () => {
+    spawnVelocity(Math.PI, 800, 1, 0.2, out);
+    expect(out.vx).toBeCloseTo(-800);
+    expect(out.vy).toBeCloseTo(0);
   });
 });

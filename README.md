@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Effects can be reshaped and repositioned in the workbench** — independent Squash X / Squash Y dials (unequal values reshape, equal ones resize) plus Offset X / Offset Y to nudge an effect off its anchor. Squash scales the spray as well as the spawn area, so a shape holds at any speed rather than washing out on a fast burst.
+
 - **Accounts C2 + C3** — a magic-link sign-in turns the anonymous device session into a permanent, portable account (same boards/runs/rating, no password); players carry a `Kevin#4821` handle; offline runs queue and upload on reconnect (tagged unrated); and **rating is now server-authoritative** — a Supabase Edge Function is the only writer of `profiles.rating`, deriving it from the run's placement so a client can't inflate it.
 
 - **The FX workbench has its own board** — three units a side instead of whatever screen the game was left on, so watchers, rallies, area buffs and cross-side hits finally have something to play across. Plus a language pass over all 173 effect parameters: truncated labels spelled out, and every help string that only restated its own label rewritten.

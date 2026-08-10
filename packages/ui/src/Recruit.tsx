@@ -1812,9 +1812,14 @@ export function Recruit() {
     const d0 = dragRef.current;
     if (d0) {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
-      m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
-      m.px = d0.x; m.py = d0.y; m.vx = 0; m.vy = 0; // no velocity at pickup → the card starts flat, not pre-leaned
       const f = getDragFeel();
+      // Anchor = the card-local point that sits under the cursor. A LOCKED grab (follow ≥ 1) recentres
+      // INSTANTLY at pickup — the card snaps centred under the cursor the moment you grab it, so you're never
+      // holding a corner, and it then stays locked at centre with no per-frame slide. A weighted grab
+      // (follow < 1) starts at the actual grab point and glides to centre over the drag (the old feel).
+      if (f.follow >= 1) { m.ax = d0.w / 2; m.ay = d0.h / 2; }
+      else { m.ax = d0.grabOx; m.ay = d0.grabOy; }
+      m.px = d0.x; m.py = d0.y; m.vx = 0; m.vy = 0; // no velocity at pickup → the card starts flat, not pre-leaned
       el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
       el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
     }
@@ -1832,9 +1837,9 @@ export function Recruit() {
       const follow = dragIsTouchRef.current ? Math.max(f.follow, 0.9) : f.follow;
       const locked = follow >= 1;
       const k = locked ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
-      // recentre the anchor from the grab point toward the card centre — SKIPPED when LOCKED, so the exact spot
-      // you grabbed stays pinned under the cursor (a recentring slide is the "art drifts past my pointer" feel).
-      // In the weighted (follow < 1) mode it still glides, gated on `recenterAfter` at the `recenter` rate.
+      // recentre the anchor toward the card centre — only in WEIGHTED mode (follow < 1). A locked grab already
+      // recentred INSTANTLY at pickup (see the setup above), so gliding here would just make the art slide past
+      // the pointer mid-drag (the "grabbing a short string" feel). Weighted glides, gated on `recenterAfter`.
       if (!locked && Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
         const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
         m.ax += (d.w / 2 - m.ax) * kc;

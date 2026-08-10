@@ -2,6 +2,12 @@
 
 ## 2026-08-10 — drag: a locked, precise grab with a decoupled velocity lean
 
+**Correction (same day):** recentring is WANTED — it's what stops you holding a corner — it just has to happen
+AT PICKUP, not glide while you drag. So a locked grab (follow ≥ 1) now sets the anchor to the card centre
+**instantly at pickup** (the card snaps centred under the cursor the moment you grab it), then stays locked
+there with no per-frame slide. The weighted mode (follow < 1) keeps the old glide via `recenter`/
+`recenterAfter`. No dragFeel defaults changed.
+
 Owner report: the card drag felt like "grabbing a short string attached to the card" — it eased toward the
 cursor instead of locking to it. Two mechanics caused it, both now addressed:
 

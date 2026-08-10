@@ -114,7 +114,12 @@ export function Inspector({
       key={key}
       paramKey={key}
       spec={specs[key]}
-      value={values[key]}
+      // FALL BACK TO THE SPEC'S DEFAULT. A def only stores params it actually sets, so any param left at its
+      // default arrives here `undefined` — and the slider row printed `String(undefined)`, putting the literal
+      // word "undefined" on screen where a number belongs (seen on `Emit squash` in `coins`). The range input
+      // also went uncontrolled and snapped to its minimum, so the control lied about the value it was editing.
+      // The palette, enum and curve rows already defaulted inline; doing it once here covers every kind.
+      value={values[key] ?? specs[key].default}
       enabled={isParamEnabled(specs[key], values)}
       reason={paramDisabledReason(specs, key, values)}
       onChange={onChange}

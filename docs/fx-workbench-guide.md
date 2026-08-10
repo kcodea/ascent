@@ -256,11 +256,11 @@ ribbons reach **2400 px** long, **600 px** wide, with a **300 px** wave amplitud
 
 Some sliders are deliberately *not* wide, and it is worth knowing which so you don't go looking:
 
-- **Ratios and fractions** — Spread, Speed var, Size var, Inherit vel, Core bias, Field mix, Glow, Alpha,
+- **Ratios and fractions** — Spread, Speed variance, Size variance, Inherit motion, Core bias, Field mix, Glow, Alpha,
   Plateau, Squash, Fade in. `0..1` is the whole meaning; there is nothing past it.
 - **Drag** (`0.7..1`) is a per-frame retention factor. Above 1 a shard accelerates forever; 0.7 already stops
   one in about a frame.
-- **The Texture/Noise group** (Bands, Noise scale, Warp, Scroll, Erode, Gain, Turb scale) is a tuned window —
+- **The Texture/Noise group** (Bands, Noise scale, Warp, Scroll, Erode, Gain, Turbulence scale) is a tuned window —
   both ends are already extreme, and past them it stops reading as material and starts reading as noise.
 - **Shockwave Thickness** (`≤0.3`) has a real geometric ceiling: the ring is drawn on a quad 1.45× its radius,
   and a thicker band clips flat against that boundary along with its glow. Want a fatter ring? Raise
@@ -304,7 +304,7 @@ error and fall back to `1`.
 
 A param responds to a dial only if its spec says so (`axis: 'scale'` / `'intensity'` / `'time'` /
 `'timeInverse'` in the primitive's `SPECS`, sliders only). Ratios, colours and style params ride none of them
-on purpose, and so do spatial *frequencies* like Turb scale and Noise scale — those are `1/px`, so they would
+on purpose, and so do spatial *frequencies* like Turbulence scale and Noise scale — those are `1/px`, so they would
 have to scale *inversely*, which one multiplier can't do. Adding a dial to a param is a one-line spec change;
 adding a whole new dial is not, and should be argued for rather than assumed.
 

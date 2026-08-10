@@ -187,7 +187,7 @@ const SPECS = {
   rings: {
     kind: 'slider', label: 'Rings', group: 'Ring', min: 1, max: 12, step: 1, default: 2, essential: true,
     axis: 'intensity',
-    help: 'Concurrent expanding rings.',
+    help: 'How many rings are expanding at once. 1 is a single clean pulse; higher stacks them into a repeating ripple, evenly spaced unless Ring delay staggers them.',
   },
   speed: {
     kind: 'slider', label: 'Speed', group: 'Ring', min: 0.1, max: 12, step: 0.05, default: 0.9, essential: true,
@@ -197,7 +197,7 @@ const SPECS = {
     // (or, looping, run extra cycles); ×1/time lengthens the period with everything else, which is exactly
     // what `impactPulse`'s per-call `life` multiplier meant.
     axis: 'timeInverse',
-    help: 'Expansions per second.',
+    help: 'How many times a ring expands per second — this is the effect’s whole clock, since a shockwave has no lifetime of its own. 0.9 is one unhurried expansion; higher pulses faster and tighter.',
   },
   thickness: {
     kind: 'slider', label: 'Thickness', group: 'Ring', min: 0.01, max: 0.3, step: 0.005, default: 0.06, essential: true,
@@ -208,16 +208,16 @@ const SPECS = {
     // mesh boundary (the exact artefact QUAD_SCALE exists to prevent, owner-reported with a screenshot). The
     // quad cannot simply grow either: fragment area scales with its square, and `shockwave.test.ts` caps it.
     // A thicker ring wants a bigger `radius` (now up to 2000) or a second ring, not a wider band.
-    help: 'Ring band width.',
+    help: 'How thick the bright band of the ring is, as a fraction of its radius — thin reads as a sharp edge racing outward, thick as a heavy rolling wall. Past ~0.35 the outer half is clipped by the mesh it draws on, so reach for a bigger Radius or a second ring instead.',
   },
   fade: {
     kind: 'slider', label: 'Fade', group: 'Ring', min: 0.3, max: 8, step: 0.05, default: 1.2,
-    help: 'How fast a ring fades as it grows.',
+    help: 'How fast a ring fades as it grows. Low holds it bright all the way to full Radius; high snuffs it out early, so the ring reads as a flash near the impact rather than a wave that travels.',
   },
   radius: {
     kind: 'slider', label: 'Radius', group: 'Ring', min: 40, max: 2000, step: 5, default: 160, essential: true,
     axis: 'scale',
-    help: 'Max ring radius, px.',
+    help: 'How far out the ring reaches before it is done, in px. Roughly card-width (160) reads as a hit; several hundred reads as a blast that takes in the neighbours.',
   },
   squash: {
     kind: 'slider', label: 'Squash', group: 'Ring', min: 0.2, max: 1, step: 0.01, default: 1,
@@ -236,7 +236,7 @@ const SPECS = {
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
-    help: 'Posterization levels (the cel look).',
+    help: 'How many flat colour steps the ring is cut into, instead of a smooth gradient — 3-4 gives the hand-drawn cel look, 1 is a single flat colour, 6 washes back toward a blur.',
   },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style', essential: true,
@@ -253,7 +253,7 @@ const SPECS = {
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
-    help: 'soft outer halo',
+    help: 'A soft halo bleeding outside the ring, tinted by the palette\'s core colour. 0 leaves a crisp band; higher sells heat and light spill.',
   },
 
   plateau: {

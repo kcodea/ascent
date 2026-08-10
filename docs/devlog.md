@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-09 — self-buff-gold retuned on the new stage
+
+The owner's first authoring pass on the workbench stage. `self-buff-gold` goes from a slow, wide, mottled
+cloud to a fast snap: the burst is ~7× quicker (speed 150 → 1050) and less than half as long-lived
+(1270 → 590 ms), its motes shrink from 22px to 6px with the fade envelope turned off entirely (`fade: 0`, so
+the alpha curve is the whole opacity story) and the noise/erode texture dialled out (`erode: 0` — which also
+makes the whole Texture group inert, as its help now says). A **shockwave ring** is added on the same anchor
+at t=0: one fast, thick ring (speed 5.45, thickness 0.265) easing out hard, so the gold reads as a pop with a
+shell rather than a drift.
+
+Def-only; validated by the def/schema suites.
+
 ## 2026-08-09 — Rune of Aftershocks fired per WATCHER, not per Echo
 
 **Owner report: "broken and continuously triggers after attacks."** Aftershocks reads "triggering an Echo
@@ -22,6 +34,78 @@ counts the rune's own buff events by source label (armed vs unarmed), so it meas
 else the board was doing. Gates: 4743 tests / 281 files, typecheck clean, lint at its 7-warning baseline,
 `build:web` green.
 
+## 2026-08-08 — The FX workbench gets its own board
+
+The workbench authored effects over **whatever the game happened to be showing**. That is fine for judging a
+burst in isolation and wrong for everything else: a shop screen has no enemy row at all, a mid-run board has
+however many units you happen to own, and neither is the same twice — so the one thing an authoring tool must
+be able to do, show the same effect on the same layout on two different days, it could not. Worse, it made
+whole CLASSES of effect unjudgeable. A watcher, a rally, an area buff, a hit landing on the other side are all
+about the RELATIONSHIP between several units across two rows; with one row on screen there is nothing for them
+to relate to.
+
+**The stage.** Three units a side, on by default, using the real `Unit` component and the real
+`[data-zone]` / `.row` / `[data-uid]` DOM contract that `boardAnchors.ts` and `reactTargets.ts` read. Nothing
+here mimics the game's markup — it IS the game's markup, which is the only way a preview can be trusted to
+predict a real fire. Six units is the smallest board that can express every `react` reach: `neighbours` needs
+a unit with a unit on each side (hence three, not two), and a cross-side effect needs the far row to exist.
+
+- **Portalled to `<body>`, not nested in the workbench** — a layering requirement, not a preference. `.fxwb`
+  is `position: fixed; z-index: 500`, a stacking context, so anything inside it paints ABOVE the FX canvas
+  (`.pixifx`, z110) and would cover the effects it exists to show. Portalled out at z100 it sits in the same
+  sandwich the real board does: over the game (`.app`, z1), under the over-slot canvas, above the under-slot
+  one. An `under` effect lands beneath these cards and an `over` effect in front of them, exactly as in a fight.
+- **Six card pickers**, because "how does this read on a taunt" is a real question and the old answer was
+  "go and build that board in a run first". Defaults are pool-derived and deterministic, reaching for a taunt
+  and a shielded unit before a plain one so the row has variety without anyone choosing it.
+- **`boardRoot()`** — found by the first live run of the stage, which anchored "your first unit" to a **shop
+  offer hidden behind it**. The game's rows are still in the DOM under an opaque stage and still match every
+  selector; `querySelector` takes the first match in document order and the game renders first. The two
+  positional reads now start from `.fxwb-stage` when one is up. Scoping by ROOT rather than by selector is
+  deliberate: the selectors stay character-for-character the shipping ones, which is the invariant those
+  modules exist to hold.
+- **The stage steps aside for the harness.** Staging a card puts a real minion on the real board so an effect
+  can be watched firing on a real moment — the one workflow whose whole point IS the live game. The toggle
+  goes inert and says why rather than hiding what you asked to watch.
+- `realBoard` is now the default scenario, since with the stage up it reads six real cards at their real size
+  and spacing.
+
+Verified in a browser on a dedicated port: stage portalled to `<body>` at z100 with `.app` at z1 and
+`.pixifx` at z110; six cards rendered; rows centred (row centre 643 of a 1280 viewport); anchors resolving to
+`fxs-you-0` / `fxs-foe-0` rather than to the hidden shop. Gates: typecheck (pkgs + web),
+`npx eslint packages apps` 0 errors, 4725 tests, build:web.
+
+## 2026-08-08 — The workbench says what its knobs do (language pass)
+
+Every one of the 173 FX parameters already carried a `help` string — an earlier note in this session claimed
+seven shipped empty, which is no longer true of the current tree. The gap was quality, not coverage: 37 helps
+were under 70 characters and about fifteen of those only restated the label in units ("Motes per second.",
+"px/sec initial.", "Ring band width.", "soft outer halo"), which tells an author nothing they could not read
+off the control itself.
+
+**What changed:**
+
+- **Seven truncated labels spelled out** — `Speed var` → Speed variance, `Size var` → Size variance,
+  `Spin var` → Spin variance, `Turb scale` → Turbulence scale, `Inherit vel` → Inherit motion,
+  `Wave amp` → Wave depth, `Wave freq` → Wave frequency. Labels are pure presentation, but they are named
+  inside other params' help ("Size var jitters it per shard") and inside `paramDisabledReason`'s generated
+  sentence ("Needs Wave amp above 0"), so every cross-reference, `params.test.ts` and the workbench guide
+  moved with them.
+- **~25 thin helps rewritten** across shockwave, emitter, burst, smoke and ribbon to say what the control DOES
+  and what the ends of its range look like, matching the standard burst's Emit/Motion groups already set.
+- **Vocabulary normalised** — "posterization levels" (the shader's word, in three different phrasings across
+  four primitives) is now "How many flat colour steps … is cut into, instead of a smooth gradient", and the
+  two spellings of the inert-control note ("Only bites once X is above 0" / "Does nothing while X is 0") are
+  now one.
+
+**Deliberately NOT renamed:** Plateau, Bands, Erode, Gain, Field mix, Core bias. These are engine words, but
+they are also the vocabulary the owner uses in conversation and the words the workbench guide is written in;
+renaming them would cost more in shared vocabulary than the labels are worth, and each one's help now explains
+it in a sentence.
+
+Verified: typecheck (pkgs + web), `npx eslint packages apps` 0 errors, 4717 tests, build:web. (The root
+`npm run lint` reports errors from the untracked `impeccable` skill's vendored scripts under `.agents/` and
+`.github/skills/` — not repo source, and unrelated to this branch.)
 ## 2026-08-08 — itch rejected the upload: 166 unused PNG masters were shipping
 
 **"Too many files in zip (1094 > 1000)."** itch caps an HTML5 zip at 1000 entries. The package held **172

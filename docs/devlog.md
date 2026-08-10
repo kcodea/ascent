@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-10 — fix: the sign-in code input truncated codes longer than 6 digits
+
+**Owner testing caught it live:** Supabase sent an 8-digit email OTP (`48319089`), but the account panel's
+code input had `maxLength={6}`, so it silently truncated to `483190` and never matched. Supabase's email OTP
+length is CONFIGURABLE (6–10 digits), so hard-coding 6 was wrong. Raised the cap to 10, made the copy
+length-agnostic ("a code" rather than "a 6-digit code") and the placeholder generic. The verify button still
+enables at the 6-digit minimum, so a 6- or 8-digit project both work.
+
+First real end-to-end proof of the accounts flow, too: with Resend wired as the Supabase SMTP provider and
+`{{ .Token }}` added to the Change-Email + Magic-Link templates, the code now arrives and (with this fix)
+verifies. Gates: typecheck clean, identity/queue suites green, lint at the 7-warning baseline, `build:web`
+green.
+
 ## 2026-08-09 — Accounts: email-CODE sign-in for the desktop exe
 
 **Owner realisation: the primary target is the packaged exe, where a magic LINK has nowhere to bounce back

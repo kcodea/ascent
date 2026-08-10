@@ -1,5 +1,159 @@
 # ASCENT — development log
 
+## 2026-08-09 — Accounts: email-CODE sign-in for the desktop exe
+
+**Owner realisation: the primary target is the packaged exe, where a magic LINK has nowhere to bounce back
+to** (no web origin). Added the code path so sign-in works in the exe with zero web hosting — same accounts,
+same email, the player just TYPES a 6-digit code instead of clicking a link.
+
+- **`AuthProvider.verifyEmailCode(email, code)`** — completes sign-in from the emailed token via
+  `verifyOtp`. We don't track which send path ran, so it tries both token types: `email_change` (an
+  anonymous→email upgrade via `updateUser`) then `email` (a `signInWithOtp` existing-account sign-in); the
+  wrong type just errors with no side effect. On success the identity lands through `onChange`, exactly as a
+  clicked link does.
+- **`signInWithEmail` now guards `emailRedirectTo` to real http(s) origins.** In the exe the origin is
+  `file://`, which isn't a whitelistable redirect — so we omit it there (no invalid-redirect send failure) and
+  rely on the code. On the web the link still works too.
+- **`AccountPanel`** — the post-send state is now a **code-entry form** (6-digit input → "Verify & sign in")
+  instead of a "check your inbox" dead end; on success `onChange` flips the panel to signed-in. Copy changed
+  from "link" to "code" ("Email me a code"). The web link path is mentioned as an alternative.
+- **`store`** gains `verifyEmailCode`; the identity test mock implements it.
+
+**Verified:** typecheck clean, identity seam tests green, live browser shows the new "Email me a code" prompt
+and the graceful invalid-email error (the code-entry state itself needs a real send, so it's covered by
+typecheck + review rather than a live email to a real inbox). Gates: **4755 tests / 283 files**, lint at the
+7-warning baseline, `build:web` green.
+
+**Owner action (email templates):** for the CODE to arrive, the Supabase email templates must include the
+token. In Authentication → Emails, add `{{ .Token }}` to both the **Magic Link** and **Change Email Address**
+templates (the latter is what the anonymous→email upgrade uses). Snippet + placement in `supabase/README.md`.
+
+## 2026-08-09 — Accounts C3: server-authoritative rating
+
+**Folded into the C2 branch** (owner: "go ahead with C3, fold it into 943"). Closes the last rating hole: the
+CLIENT used to compute its own rating and push the absolute value through the `submit_own_rating` RPC, which
+trusted whatever number it got — anyone with devtools could set any rating. This is the gate the roadmap names
+before the ladder is shown to strangers.
+
+**The `submit-rating` Edge Function is now the only writer of `profiles.rating`.** A client sends
+`{ runId, placement }` — never a rating. The function (service role) reads the caller's STORED rating and
+computes the new one itself: `max(0, stored + LOBBY_PLACEMENT_DELTAS[placement-1])`. The key simplification is
+that the server needs ONLY the rating — Line + high-water marks are a local display concept the client
+re-derives from the adopted rating, so there are no line columns to keep server-side, and the whole authoritative
+computation is one line sharing ONE constant with the client.
+
+- **`supabase/functions/submit-rating/index.ts`** (Deno) — auth via the caller's JWT; dedupe by inserting a
+  `rated_runs` ledger row first (a unique violation = already rated → returns the current rating, idempotent);
+  a per-player rate limit off that same ledger; then the authoritative compute + upsert.
+- **`supabase/functions/_shared/lobbyRating.ts`** — the placement-delta table + `lobbyRatingAfter`, kept
+  dependency-free. **`lobbyRatingParity.test.ts`** reads this file and asserts its deltas equal the sim's
+  `LOBBY_PLACEMENT_DELTAS` and that the formula reproduces `resolveLobbyRating(...).ratingAfter` for every
+  placement — so a one-sided re-tune fails CI instead of silently diverging server from client.
+- **`schema.sql` C3 block** — `rated_runs (user_id, run_id)` PK with RLS on and NO policies (service-role only,
+  so a client can't read or forge rating history); and `revoke execute on submit_own_rating from authenticated`
+  — the client's legacy door, removed once the function is live.
+- **Client (`remoteBoards.ts`)** — `uploadPlayerProfile` no longer persists a client-computed rating: it
+  upserts the DISPLAY columns and inserts a rating-0 placeholder for a new row, then `submitRating` calls the
+  Edge Function with `{runId, placement}`. It falls back to the `submit_own_rating` RPC ONLY while the function
+  isn't deployed. The store passes `runId = String(seed)` + the lobby placement; non-lobby runs pass no
+  placement and don't move the ladder.
+
+**Deploy story (owner, both together — function FIRST):** `supabase functions deploy submit-rating`, then run
+the C3 SQL block (which revokes the client fallback). Until then the client uses the RPC fallback and nothing
+breaks — C3 just isn't enforcing. **The Edge Function can't be run or deployed from here** (no Deno / project
+auth), so its pure logic is unit-tested (parity) and the runtime path is owner-deployed — same shape as the C2
+dashboard/SQL owner-actions. Full deploy notes in `supabase/README.md`.
+
+**Verified:** `lobbyRatingParity.test.ts` (3) pins server↔client parity; `playerProfileWrite.test.ts` rewritten
+for C3 (rating rides the function with `{runId, placement}`; RPC only as the pre-deploy fallback; a rating-0
+placeholder insert; non-lobby + unrated runs submit no rating). `supabase/**` is excluded from the Node
+tsc/eslint. Gates: typecheck clean, **4755 tests / 283 files**, lint at its 7-warning baseline, `build:web`
+green.
+
+## 2026-08-09 — Accounts C2b: handles (`Kevin#4821`) + offline queue + unrated tag
+
+**Folded the two deferred halves of C2 into the same branch** (owner: "fold both in C2"), on top of the C2a
+magic-link work. C2 is now complete.
+
+**Handles — the `#4821` discriminator.** `author` (display name) is mutable and not unique, so two players may
+both be "Kevin"; the discriminator is what tells them apart on the leaderboard. `schema.sql` gains
+`profiles.discriminator` + a partial UNIQUE index on `(lower(author), discriminator)`, plus a denormalised
+`profiles.email` (the natural join key for a future Steam merge). `claimHandle(name)` (client-side) assigns a
+tag with retry-on-conflict against that index — keeping the current tag stable across renames, reassigning
+only on a genuine collision; server-side assignment can move into the C3 Edge Function later without a
+reshape. The handle renders through one `formatHandle` helper on the leaderboard and the account panel.
+
+**Offline queue.** C1 signs in anonymously at boot, so a session is normally live by run-end — but not if
+Supabase was unreachable or the run finished before the handshake, and those uploads used to no-op and the run
+was LOST. Now every write path (boards, victory, telemetry, profile, run history, fight results) QUEUES to
+`localStorage` when there is no session and replays when one lands (`flushUploadQueue`, wired into the store's
+identity boot + onChange). Capped at 100 items; fire-and-forget like the rest of the seam.
+
+**Unrated tag.** A run finished with no live session is UNRATED — on flush its ladder rating is not submitted
+(`uploadPlayerProfile` skips the `submit_own_rating` RPC), and its `boards`/`runs` rows carry `unrated = true`
+for the eventual C3 rating recompute / replay audit. New `unrated` columns on `boards`/`runs`/`run_telemetry`/
+`board_results` (default false, so every existing row and every online upload stays rated). The column writes
+use the file's established "insert with the new column, retry without it" fallback, so they DON'T break on a DB
+that hasn't run the C2b migration yet — boards keep uploading, just untagged, until the ALTER is applied.
+(Telemetry's own multi-rung fallback ladder was left untouched; its `unrated` column exists but the client
+doesn't set it — analytics rows aren't rating-critical and destabilising that ladder wasn't worth it.)
+
+**Verified:** `uploadQueue.test.ts` (5) pins the behaviour with a fake client + switchable identity — no
+session → queue not insert; session lands → replay tagged unrated + queue cleared; a queued profile skips the
+rating RPC; flush is a no-op with no session. `playerProfileWrite.test.ts` updated for the new `email` read.
+Live browser: panel renders, no console errors. Gates: typecheck clean, **4750 tests / 282 files**, lint at
+its 7-warning baseline, `build:web` green.
+
+**Owner action:** run the C2b block in `schema.sql` against the project (the `discriminator`/`email`/`unrated`
+columns + the handle unique index). Until then handles fall back to the bare name and offline rows upload
+untagged — no breakage either way.
+
+## 2026-08-09 — Accounts C2a: real, portable accounts via magic link
+
+
+**The second accounts ticket, scoped down to its high-value half.** C1 gave every install a real but
+DEVICE-BOUND `user_id` (anonymous sign-in). C2a makes that account permanent and portable: the player enters
+an email, we send a one-time link, and opening it upgrades the SAME account in place — same `user_id`, so
+every board / run / rating carries over — and on another device the same email signs back into that one
+account. No password, so nothing to store, reset, or leak.
+
+**Purely client-side — no schema change.** The email lives in Supabase's `auth.users`; nothing in the game's
+own tables moves. That is what let C2a ship without touching `schema.sql`.
+
+- **`identity.ts`** — the seam grew two members. `Identity` gains `email` (the portable identifier, and the
+  natural join key for an eventual Steam merge). `AuthProvider` gains `signInWithEmail(email)` (sends the
+  link; resolves only whether it was SENT, since the upgrade lands later) and `onChange(fn)` (backend-driven
+  transitions the app didn't ask for — the redirect landing, a token refresh, a sign-out in another tab).
+- **`supabaseAuthProvider`** — `signInWithEmail` picks the right Supabase call by session state: an anonymous
+  session calls `updateUser({ email })` (convert in place, keep `user_id`); a session whose email is ALREADY
+  registered — a returning player on a fresh device — falls back to `signInWithOtp({ shouldCreateUser: false })`
+  to sign into the existing account. The fallback fires ONLY on "email already registered"; every other
+  `updateUser` error is surfaced as-is (an earlier draft fell through blindly and mislabelled a "signups
+  disabled" config as an OTP problem — caught in live browser testing). `onChange` maps the auth event to an
+  `Identity` and keeps the display name across the transition.
+- **`store.ts`** — an `account` mirror (`{ userId, email, anonymous }`), `sendMagicLink` / `signOutAccount`
+  actions, and `initAccounts()` (wired after `useGame` exists) that seeds the mirror at boot and subscribes to
+  `onChange` — so "check your inbox → click → you're signed in" completes when the redirect reloads the app.
+- **`AccountPanel.tsx` + Title "Sign in" chip** — a plain, glass-themed overlay: the save-your-progress prompt
+  with an email field, a "check your inbox" state, and the signed-in state (email + sign out). Presentation is
+  Mike's seam, so it is deliberately minimal for him to restyle; it reads the shared `--gl-*` theme vars so the
+  UI Theme tuner already reaches it.
+
+**Verified** in the live browser: the panel renders every state, no console errors, and the error path
+degrades cleanly (with no email backend configured it shows "Email sign-in isn't enabled for this build yet";
+`@example.com` correctly shows "That doesn't look like a valid email address" — Supabase's own validation,
+now surfaced instead of the misleading fallback). Gates: typecheck clean, 4745 tests / 281 files, lint at its
+7-warning baseline, `build:web` green.
+
+**DASHBOARD CONFIG REQUIRED** (like C1's anonymous-sign-in toggle): the Supabase project must have Email
+sign-ins (magic links) enabled and new-user signups allowed, and the app's deployed origin whitelisted under
+Auth → URL Configuration so the emailed link returns to the running app. Until then the flow degrades to the
+"not enabled" message and play is unaffected.
+
+**Deferred to C2b, deliberately** (flagged for the owner): the `Kevin#4821` discriminator (needs the
+`profiles` schema change) and the offline queue + unrated tagging (only meaningful once C3 makes rating
+server-authoritative — today any authenticated user, anonymous included, can already submit rating, so an
+"unrated" flag would be advisory-only). C2a is complete and playable without either.
 ## 2026-08-09 — self-buff-gold retuned on the new stage
 
 The owner's first authoring pass on the workbench stage. `self-buff-gold` goes from a slow, wide, mottled

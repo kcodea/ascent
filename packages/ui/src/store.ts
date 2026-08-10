@@ -29,8 +29,8 @@ import { clearAllSpellBuffs } from './spellBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory } from './remoteBoards';
-import { initIdentity } from './identity';
+import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { initIdentity, currentIdentity } from './identity';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -60,7 +60,8 @@ if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 // friction; it persists across reloads, and C2 upgrades it in place to a real account keeping the same
 // `user_id`. Never blocks boot: a failure just means this session uploads nothing, exactly as an
 // unconfigured backend already behaves.
-void initIdentity(supabaseAuthProvider, loadPlayerName());
+// ACCOUNTS C1/C2: establish identity first, and seed + subscribe the account mirror. Wired at the bottom of
+// this module (after `useGame` exists) — see `initAccounts()`.
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 // Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
 void fetchAndRegisterBoardRecords();
@@ -214,6 +215,22 @@ interface GameStore {
    *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
   playerName: string;
   setPlayerName: (name: string) => void;
+  /** ACCOUNTS C2 — the live account state, mirrored from the identity seam. `anonymous` true = a device-bound
+   *  session that is lost if site data clears; once a magic link is confirmed, `email` fills in and
+   *  `anonymous` flips false, and the SAME account (boards, runs, rating) becomes portable across devices. */
+  account: { userId: string | null; email: string | null; anonymous: boolean; discriminator: string | null };
+  /** Whether the account panel overlay is open (from the Title/Settings). */
+  accountPanelOpen: boolean;
+  openAccountPanel: () => void;
+  closeAccountPanel: () => void;
+  /** Send a sign-in email (a 6-digit code + a link). Resolves whether it WAS SENT. The player then either
+   *  types the code (`verifyEmailCode`, works in the exe) or clicks the link on web (lands via `onChange`). */
+  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Finish sign-in by entering the emailed 6-digit code — the desktop path (no web origin needed). On success
+   *  the account state updates through the identity `onChange` subscription. */
+  verifyEmailCode: (email: string, code: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Sign out of a real account (drops back to a fresh anonymous session on next load). */
+  signOutAccount: () => Promise<void>;
   /** The player's chosen profile avatar — an art id (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`),
    *  or null for the default initial glyph. Cosmetic, local, persisted. Set via the avatar picker. */
   playerAvatar: string | null;
@@ -339,6 +356,11 @@ function loadPlayerAvatar(): string | null {
 function loadPlayerName(): string {
   try { return localStorage.getItem('ascent.playername') ?? ''; } catch { return ''; }
 }
+
+/** ACCOUNTS C2b — the display handle: `Kevin#4821` when a discriminator is known, else the bare name. One
+ *  place so the leaderboard, the account panel and anywhere else render a handle identically. */
+export const formatHandle = (name: string, discriminator?: string | null): string =>
+  name && discriminator ? `${name}#${discriminator}` : name;
 
 /** Persisted PRACTICE shop-timer multiplier (1–4×), defaulting to 3 — the fixed multiplier practice used before
  *  it was made choosable (owner 2026-07-25), so an existing player's practice runs feel unchanged. 1× is exactly
@@ -552,10 +574,25 @@ export const useGame = create<GameStore>((set, get) => ({
     const playerName = name.slice(0, 24).trim();
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
-    // Keep the identity's display name in step. In C1 this is display-only (it rides on rows as `author`);
-    // C2 moves it onto the profile with a server-assigned discriminator, and this call is already the seam.
+    // Keep the identity's display name in step (rides on rows as `author`).
     void supabaseAuthProvider.setDisplayName(playerName);
+    // C2b: claim/keep the `#tag` for this name, and mirror the resulting handle into `account`.
+    if (playerName) void claimHandle(playerName).then((h) => { if (h) set((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
     syncProfileFromServer(playerName); // the server row (if any) is authoritative — now keyed on user_id
+  },
+  // ACCOUNTS C2 — mirrored from the identity seam; seeded at boot + updated by the onChange subscription above.
+  // `discriminator` (the `#4821` tag) comes from the profile row, not auth — filled in by `claimHandle`.
+  account: { userId: currentIdentity()?.userId ?? null, email: currentIdentity()?.email ?? null, anonymous: currentIdentity()?.anonymous ?? true, discriminator: null },
+  accountPanelOpen: false,
+  openAccountPanel: () => set({ accountPanelOpen: true }),
+  closeAccountPanel: () => set({ accountPanelOpen: false }),
+  sendMagicLink: (email) => supabaseAuthProvider.signInWithEmail(email),
+  verifyEmailCode: (email, code) => supabaseAuthProvider.verifyEmailCode(email, code),
+  signOutAccount: async () => {
+    await supabaseAuthProvider.signOut();
+    // Sign-out drops the session; a fresh anonymous one is minted on next load (restore()). Reflect the
+    // signed-out state immediately so the panel updates without a reload.
+    set({ account: { userId: null, email: null, anonymous: true, discriminator: null } });
   },
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
@@ -708,6 +745,10 @@ export const useGame = create<GameStore>((set, get) => ({
               void uploadPlayerProfile({
                 author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
                 favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+                // C3: the SERVER derives the rating from the placement — `rating` above is only the pre-deploy
+                // fallback. `runId` (the run seed) dedupes so one lobby run rates exactly once. Non-lobby runs
+                // pass no placement and don't move the ladder.
+                runId: String(next.seed), placement: lobbyPlacement ?? undefined,
               });
               set((st) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
             });
@@ -900,6 +941,38 @@ export function syncProfileFromServer(name: string): void {
   });
 }
 if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
+
+// ACCOUNTS C1/C2 — identity boot, wired here (after `useGame` + `syncProfileFromServer` exist).
+//   C1: establish the session (anonymous, no login screen) so every upload path has a `user_id`.
+//   C2: mirror the identity into `account`, and subscribe to backend-driven changes — the magic-link upgrade
+//       landing after the redirect, a token refresh, or a sign-out in another tab. The "check your inbox →
+//       click the link" flow completes HERE: the click reloads the app, Supabase parses the session out of the
+//       URL, `onChange` fires with the now-permanent user, and we pull that account's authoritative profile.
+function initAccounts(): void {
+  const name = loadPlayerName();
+  void initIdentity(supabaseAuthProvider, name).then((id) => {
+    if (!id) return;
+    useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
+    void flushUploadQueue(); // a session now exists — replay anything queued while offline
+    // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
+    if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
+  });
+  supabaseAuthProvider.onChange((id) => {
+    useGame.setState((st) => ({
+      account: id
+        ? { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous }
+        : { userId: null, email: null, anonymous: true, discriminator: null },
+    }));
+    if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
+    if (id && !id.anonymous) {
+      syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
+      // Re-claim so the now-known email is written onto the profile, and mirror the tag back.
+      const nm = loadPlayerName();
+      if (nm) void claimHandle(nm).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
+    }
+  });
+}
+initAccounts();
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

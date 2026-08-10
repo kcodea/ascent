@@ -896,12 +896,25 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
   `auth.uid() = user_id`. The rating column is locked against self-edits. **The `schema.sql` C1 block was run
   against the live project** (owner, 2026-08-09) — so the `to authenticated` policies are real, not just
   committed. Remaining:
-  - **C2 — real accounts** (~2.5 d): sign-up/sign-in UI, `Kevin#4821` handles, anonymous→email upgrade in
-    place, offline queue + unrated tagging. Makes identity portable across devices and survivable past a
-    site-data wipe.
-  - **C3 — server-authoritative rating** (~1.5 d): an Edge Function becomes the ONLY writer of
-    `profiles.rating`, dedupes `runId`, rate-limits, and computes the delta with the shared
-    `resolveLobbyRating`. **This is the real gate before the ladder is visible to strangers.**
+  - **C2a — real accounts (email code / magic link) SHIPPED 2026-08-09.** Sign-in/account UI + email:
+    `updateUser({email})` converts the anonymous session in place (same `user_id`, history intact),
+    `signInWithOtp` signs a returning player into their existing account on a fresh device. Completion works by
+    a typed 6-digit CODE (`verifyEmailCode`, the desktop/exe path — no web origin needed) OR a clicked link on
+    the web. Identity is now portable across devices and survives a site-data wipe. Purely client-side (email
+    lives in `auth.users`), so no schema change. **Needs the Supabase email templates to include `{{ .Token }}`**
+    (Magic Link + Change Email Address) so the code is delivered.
+  - **C2b — handles + offline queue SHIPPED 2026-08-09.** The `Kevin#4821` discriminator (`profiles` gains
+    `discriminator` + a unique `(lower(author), discriminator)` index, assigned client-side with
+    retry-on-conflict) + denormalised `profiles.email`; the offline upload queue (queues every write path to
+    localStorage when no session is live, flushes when one lands) + the `unrated` tag (a run finished offline
+    doesn't submit ladder rating and its rows carry `unrated = true` for the C3 audit). **Needs the C2b block
+    in `schema.sql` run** — the new columns + index; column writes degrade gracefully until then.
+  - **C3 — server-authoritative rating SHIPPED 2026-08-09.** The `submit-rating` Edge Function
+    (`supabase/functions/submit-rating`) is the ONLY writer of `profiles.rating`: a client sends
+    `{runId, placement}`, the function derives the rating server-side from the stored value + the shared
+    placement table (parity-tested), dedupes via `rated_runs`, and rate-limits. Client falls back to the legacy
+    RPC only until deploy. **Needs the owner to deploy the function + run the C3 SQL block** (see
+    `supabase/README.md`) — until then it isn't enforcing and the client uses the fallback.
   - **C4 — deferred replay audit** (~2 d): out-of-band re-simulation of the top of the ladder + a random
     sample, patch-pinned, flagging for review. Catches the false-placement claim C3 leaves open.
   - **C5 — Steam provider**: slots into the existing `AuthProvider` seam without touching C1–C4.

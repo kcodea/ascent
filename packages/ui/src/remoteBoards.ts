@@ -15,7 +15,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
-import { currentIdentity, currentUserId, setIdentity, type AuthProvider } from './identity';
+import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -41,13 +41,51 @@ function client(): SupabaseClient | null {
   return cachedClient;
 }
 
+/** A Supabase auth user → our provider-agnostic `Identity`. `is_anonymous` flips false once an email is
+ *  confirmed on the account, so it is the single source of truth for "real account vs device-bound session".
+ *  `displayName` is left to the caller (it comes from local storage / the profile, never from auth). */
+type SbUser = { id: string; is_anonymous?: boolean; email?: string };
+const toIdentity = (user: SbUser, displayName = ''): Identity => ({
+  userId: user.id,
+  displayName,
+  anonymous: user.is_anonymous ?? false,
+  email: user.email ?? null,
+});
+
+/** Raw Supabase auth errors are terse and sometimes leak internals; map the ones a player can actually hit to
+ *  something calm. Anything unrecognised falls through verbatim so we never hide a real signal in dev. */
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — wait a minute and try again.';
+  if (m.includes('invalid') && m.includes('email')) return 'That doesn’t look like a valid email address.';
+  // "Signups not allowed for otp" / "not authorized" / "disabled" all mean the Supabase project hasn't enabled
+  // email sign-in (or has signups off) — a config the PLAYER can't fix, so don't imply they did something wrong.
+  if (m.includes('signups not allowed') || m.includes('not authorized') || m.includes('disabled')) {
+    return 'Email sign-in isn’t enabled for this build yet.';
+  }
+  return message;
+}
+
+/** True when an `updateUser({ email })` failure means the email already belongs to ANOTHER account — the one
+ *  case where "convert in place" must give way to "sign into the existing account". Every other failure is a
+ *  real error to surface, not a reason to fall through. */
+const emailAlreadyRegistered = (message: string): boolean => {
+  const m = message.toLowerCase();
+  return m.includes('already registered') || m.includes('already been registered') || m.includes('already exists');
+};
+
 /**
- * ACCOUNTS C1 — the Supabase implementation of the `AuthProvider` seam.
+ * ACCOUNTS C1 + C2 — the Supabase implementation of the `AuthProvider` seam.
  *
- * `restore()` reuses a persisted session when there is one and otherwise signs in ANONYMOUSLY, so every
- * install has a real `user_id` without a login screen. Anonymous sign-in must be enabled in the Supabase
- * dashboard (Authentication → Providers → Anonymous); if it is not, this resolves null and the app simply
- * uploads nothing — the same graceful degradation as an unconfigured backend.
+ * C1: `restore()` reuses a persisted session or signs in ANONYMOUSLY, so every install has a real `user_id`
+ * with no login screen. Anonymous sign-in must be enabled in the Supabase dashboard (Authentication →
+ * Providers → Anonymous); if it is not, this resolves null and the app uploads nothing — the same graceful
+ * degradation as an unconfigured backend.
+ *
+ * C2: `signInWithEmail()` turns that anonymous session into a permanent, portable account via a MAGIC LINK,
+ * and `onChange()` reports the upgrade landing after the emailed link is opened. The player never sees a
+ * password (there isn't one), and the upgrade keeps the same `user_id`, so all their boards / runs / rating
+ * carry over. "Email sign-ins" (magic links) must be enabled in the dashboard for C2 to work.
  */
 export const supabaseAuthProvider: AuthProvider = {
   async restore() {
@@ -56,22 +94,90 @@ export const supabaseAuthProvider: AuthProvider = {
     try {
       const existing = await c.auth.getSession();
       const user = existing.data.session?.user;
-      if (user) return { userId: user.id, displayName: '', anonymous: user.is_anonymous ?? true };
+      if (user) return toIdentity(user);
       const fresh = await c.auth.signInAnonymously();
       if (fresh.error || !fresh.data.user) return null;
-      return { userId: fresh.data.user.id, displayName: '', anonymous: true };
+      return toIdentity(fresh.data.user);
     } catch {
       return null; // no session → uploads skip for the session; play is unaffected
     }
   },
   async setDisplayName(name) {
-    // C1 keeps the display name LOCAL (it rides on rows as `author`, for rendering only). C2 moves it onto
-    // the profile with a server-assigned discriminator; this shape is here so callers don't change then.
+    // The display name is local (it rides on rows as `author`, for rendering). C2b moves it onto the profile
+    // with a server-assigned discriminator; this shape is here so callers don't change then.
     const id = currentIdentity();
     if (!id) return null;
     const next = { ...id, displayName: name };
     setIdentity(next);
     return next;
+  },
+  async signInWithEmail(email) {
+    const c = client();
+    if (!c) return { ok: false, error: 'No account backend is configured for this build.' };
+    const trimmed = email.trim();
+    if (!trimmed) return { ok: false, error: 'Enter your email address.' };
+    // The emailed LINK returns the player to THIS running app — but only a real http(s) origin can be a valid
+    // redirect. In the packaged exe the origin is `file://` (no server), which isn't a whitelistable redirect,
+    // so we omit it there and the player completes sign-in with the CODE instead (`verifyEmailCode`).
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const emailRedirectTo = /^https?:\/\//.test(origin) ? origin : undefined;
+    try {
+      const cur = await c.auth.getUser();
+      const anonymous = cur.data.user?.is_anonymous ?? true;
+      if (anonymous) {
+        // PRIMARY PATH — convert this anonymous session in place. Same `user_id`, so nothing is orphaned.
+        const upd = await c.auth.updateUser({ email: trimmed }, { emailRedirectTo });
+        if (!upd.error) return { ok: true };
+        // ONLY when the email already belongs to another account do we switch tactics: this is a RETURNING
+        // player on a fresh device, so sign into that existing account. The throwaway anonymous user on this
+        // device is abandoned; its local-only data was never uploaded, so nothing the player expects is lost.
+        // Any OTHER updateUser error (config, network, invalid email) is surfaced as-is — falling through
+        // blindly used to mislabel a "signups disabled" config as an OTP problem.
+        if (!emailAlreadyRegistered(upd.error.message)) return { ok: false, error: friendlyAuthError(upd.error.message) };
+        const otp = await c.auth.signInWithOtp({ email: trimmed, options: { shouldCreateUser: false, emailRedirectTo } });
+        return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+      }
+      // Already a real account (re-auth, or switching accounts on this device).
+      const otp = await c.auth.signInWithOtp({ email: trimmed, options: { emailRedirectTo } });
+      return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Check your connection and try again.' };
+    }
+  },
+  async verifyEmailCode(email, code) {
+    const c = client();
+    if (!c) return { ok: false, error: 'No account backend is configured for this build.' };
+    const trimmed = email.trim();
+    const token = code.replace(/\D/g, ''); // the email shows a 6-digit code; tolerate spaces the player types
+    if (!token) return { ok: false, error: 'Enter the code from your email.' };
+    // We don't track WHICH send path ran, so try both token types: `email_change` is what an anonymous→email
+    // upgrade (`updateUser`) issues; `email` is what a `signInWithOtp` (existing-account sign-in) issues. The
+    // wrong type just errors with no side effect, so trying both is safe. On success `onAuthStateChange` fires
+    // and the identity updates exactly as it does for a clicked link.
+    try {
+      for (const type of ['email_change', 'email'] as const) {
+        const res = await c.auth.verifyOtp({ email: trimmed, token, type });
+        if (!res.error) return { ok: true };
+      }
+      return { ok: false, error: 'That code didn’t match. Check it and try again, or resend.' };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Check your connection and try again.' };
+    }
+  },
+  onChange(fn) {
+    const c = client();
+    if (!c) return () => {};
+    // Supabase fires this on the magic-link redirect (SIGNED_IN / USER_UPDATED), on token refresh, and on a
+    // sign-out in another tab. We keep the live display name across the transition — it comes from local
+    // state, never from auth — and push the mapped identity into the module so `currentUserId()` stays fresh
+    // for every fire-and-forget upload path.
+    const { data } = c.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      const next = user ? toIdentity(user, currentIdentity()?.displayName ?? '') : null;
+      setIdentity(next);
+      fn(next);
+    });
+    return () => data.subscription.unsubscribe();
   },
   async signOut() {
     const c = client();
@@ -79,6 +185,63 @@ export const supabaseAuthProvider: AuthProvider = {
     try { await c?.auth.signOut(); } catch { /* best-effort */ }
   },
 };
+
+// ── ACCOUNTS C2 — offline upload queue ────────────────────────────────────────────────────────────────────
+// C1 establishes an anonymous session at boot, so `currentUserId()` is almost always set by the time a run
+// ends — but not if Supabase was unreachable at boot, or a run finished in the split second before the
+// handshake. Those uploads used to silently no-op and the run was lost. Now they QUEUE to localStorage and
+// replay when a session next establishes, tagged UNRATED (a run finished with no live session doesn't move the
+// ladder — see `uploadPlayerProfile`). Fire-and-forget throughout, like the rest of this seam.
+type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight';
+interface QueuedItem { kind: QueueKind; payload: unknown; at: string }
+const QUEUE_KEY = 'ascent.uploadqueue';
+const QUEUE_MAX = 100; // a hard cap so a long offline stretch can't grow localStorage without bound
+
+function loadQueue(): QueuedItem[] {
+  try { const raw = localStorage.getItem(QUEUE_KEY); const a: unknown = raw ? JSON.parse(raw) : []; return Array.isArray(a) ? (a as QueuedItem[]) : []; }
+  catch { return []; }
+}
+function saveQueue(q: QueuedItem[]): void {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-QUEUE_MAX))); } catch { /* ignore */ }
+}
+/** Persist an upload that had no session to run under. Only meaningful with a backend configured. */
+function enqueueUpload(kind: QueueKind, payload: unknown): void {
+  if (!remoteEnabled() || typeof localStorage === 'undefined') return;
+  const q = loadQueue();
+  q.push({ kind, payload, at: new Date().toISOString() });
+  saveQueue(q);
+}
+
+let flushing = false;
+/**
+ * Replay every queued upload now that a session exists — each tagged UNRATED, since it happened offline. Takes
+ * ownership of the queue up front (clears it) so a concurrent finish can't double-send; matches the module's
+ * fire-and-forget norm (no per-item retry — flush only runs right after a successful handshake, so the network
+ * is up). Called from the identity boot + onChange in the store.
+ */
+export async function flushUploadQueue(): Promise<void> {
+  if (flushing || !remoteEnabled() || !currentUserId()) return;
+  const q = loadQueue();
+  if (q.length === 0) return;
+  flushing = true;
+  saveQueue([]);
+  try {
+    for (const item of q) {
+      try {
+        switch (item.kind) {
+          case 'boards':    await uploadBoards(item.payload as BoardSnapshot[], { unrated: true }); break;
+          case 'victory':   await uploadVictory({ ...(item.payload as Parameters<typeof uploadVictory>[0]), unrated: true }); break;
+          case 'telemetry': { const p = item.payload as { t: RunTelemetry; meta: Parameters<typeof uploadRunTelemetry>[1] }; await uploadRunTelemetry(p.t, p.meta); break; }
+          case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
+          case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
+          case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
+        }
+      } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
+    }
+  } finally {
+    flushing = false;
+  }
+}
 
 /** A DB row: the full `BoardSnapshot` lives in the `snapshot` jsonb column; the rest are denormalized so the
  *  dashboard can index / sort / patch-prune (`delete from boards where patch <> '…'`). */
@@ -100,13 +263,19 @@ const toRow = (b: BoardSnapshot) => ({
 });
 
 /** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
-export async function uploadBoards(boards: BoardSnapshot[]): Promise<void> {
+export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: boolean }): Promise<void> {
   const c = client();
-  // No identity → skip. An unowned row would be rejected by RLS anyway; skipping keeps the failure quiet and
-  // local instead of burning a round-trip on every finished run while offline.
-  if (!c || !currentUserId() || boards.length === 0) return;
+  if (!c || boards.length === 0) return;
+  // No session yet (offline / pre-handshake) → QUEUE rather than lose the boards; flushed when one lands.
+  if (!currentUserId()) { enqueueUpload('boards', boards); return; }
   try {
-    await c.from(TABLE).insert(boards.map(toRow));
+    const rows = boards.map((b) => toRow(b));
+    const tagged = rows.map((r) => ({ ...r, unrated: opts?.unrated ?? false }));
+    const res = await c.from(TABLE).insert(tagged);
+    // `unrated` is a C2b column; on a DB that hasn't run that migration the insert fails, so retry WITHOUT it
+    // — boards keep uploading, they just aren't tagged until the ALTER is applied. Same discipline as the
+    // telemetry fallback ladder below.
+    if (res.error) await c.from(TABLE).insert(rows);
   } catch {
     /* best-effort — capture must never disrupt play */
   }
@@ -207,19 +376,25 @@ export async function uploadVictory(v: {
   /** 'lobby' — the only mode that logs a victory since 2026-07-31. Carried INSIDE the board jsonb (as
    *  `board.mode`) so no schema migration is needed; the reader filters on it. */
   mode?: string;
+  /** C2 offline queue — a victory logged offline is tagged unrated (forward-looking for the C3 audit). */
+  unrated?: boolean;
 }): Promise<void> {
   const c = client();
-  if (!c || !currentUserId()) return;
+  if (!c) return;
+  if (!currentUserId()) { enqueueUpload('victory', v); return; }
   try {
     const board = v.board ? { ...v.board, mode: v.mode } : v.board;
-    await c.from('runs').insert([{
+    const row = {
       user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
       wins: v.wins, result: 'victory', seed: v.seed, board, captured_at: v.capturedAt,
       history: v.history ?? null,
       // The leaderboard slot's fight-ledger id lives inside board.id (the jsonb) — no separate column, so this
       // insert stays compatible with a pre-migration `runs` table (only the new board_results table is required).
-    }]);
+    };
+    // `unrated` is a C2b column — send it, and retry WITHOUT it on a DB that hasn't run the migration.
+    const res = await c.from('runs').insert([{ ...row, unrated: v.unrated ?? false }]);
+    if (res.error) await c.from('runs').insert([row]);
   } catch {
     /* best-effort — leaderboard logging must never disrupt the end screen */
   }
@@ -295,7 +470,8 @@ export async function uploadRunTelemetry(
   meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown },
 ): Promise<void> {
   const c = client();
-  if (!c || !currentUserId()) return;
+  if (!c) return;
+  if (!currentUserId()) { enqueueUpload('telemetry', { t, meta }); return; }
   const base = {
     user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
     patch: meta.patch, author: meta.author ?? null,
@@ -425,53 +601,117 @@ export interface PlayerRow {
    *  the leaderboard; `author` is a mutable display name and must never be used to look anything up. */
   userId: string;
   author: string;
+  /** The `#4821` half of the handle (C2b). Undefined for a legacy/untagged row; the UI shows the bare name. */
+  discriminator?: string;
   rating: number;
   gamesPlayed: number;
   /** Hero id of the most-played hero (resolved to a name + portrait in the UI). Undefined if none recorded. */
   favoriteHero?: string;
 }
 
-/** Upsert a player's leaderboard row (keyed by author). Fire-and-forget; never throws / blocks. Skipped for
+/**
+ * ACCOUNTS C2b — ensure this account has a stable `#tag`, and keep `author`/`email` on the profile current.
+ *
+ * The tag STAYS THE SAME across renames whenever it remains unique under the new name, and is only reassigned
+ * on a genuine collision (another account already holds that exact `name#tag`). Returns the live handle, or
+ * null when offline / no backend. `Math.random` is legitimate here — a UI concern, never the seeded sim.
+ */
+export async function claimHandle(name: string): Promise<{ author: string; discriminator: string } | null> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return null;
+  const author = name.trim().slice(0, 24);
+  if (!author) return null;
+  try {
+    const existing = await c.from('profiles').select('discriminator').eq('user_id', userId).limit(1);
+    if (existing.error) return null;
+    const rowExists = !!existing.data && existing.data.length > 0;
+    const currentTag = (existing.data?.[0] as { discriminator?: string | null } | undefined)?.discriminator ?? null;
+    const email = currentIdentity()?.email ?? null;
+    // Prefer the current tag (stable across renames); fall back to fresh random tags on collision.
+    const candidates: string[] = [
+      ...(currentTag ? [currentTag] : []),
+      ...Array.from({ length: 8 }, () => String(1000 + Math.floor(Math.random() * 9000))),
+    ];
+    for (const tag of candidates) {
+      const patch = { author, discriminator: tag, email, updated_at: new Date().toISOString() };
+      const res = rowExists
+        ? await c.from('profiles').update(patch).eq('user_id', userId).select('user_id')
+        : await c.from('profiles').insert({ user_id: userId, rating: 0, ...patch }).select('user_id');
+      if (!res.error) return { author, discriminator: tag };
+      if (res.error.code !== '23505') return null; // a real error, not a `name#tag` uniqueness collision
+    }
+    return null; // every candidate collided — astronomically unlikely at any real player count
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ACCOUNTS C3 — submit a finished LOBBY run's placement for an AUTHORITATIVE rating.
+ *
+ * The `submit-rating` Edge Function reads the caller's STORED rating and computes the delta itself from the
+ * same placement table the client uses, so a client can't inflate it; `runId` dedupes so one run rates once.
+ * Falls back to the legacy `submit_own_rating` RPC (the client-computed absolute value) ONLY while the function
+ * isn't deployed — once C3 is live the schema revokes that RPC and the function path is the only one that runs.
+ * Fire-and-forget, like the rest of this seam.
+ */
+async function submitRating(opts: { runId: string; placement: number; fallbackRating: number }): Promise<void> {
+  const c = client();
+  if (!c) return;
+  try {
+    const { error } = await c.functions.invoke('submit-rating', { body: { runId: opts.runId, placement: opts.placement } });
+    if (!error) return; // the server set the authoritative rating
+  } catch { /* function absent (pre-deploy) / offline → fall through to the legacy RPC */ }
+  try { await c.rpc('submit_own_rating', { new_rating: opts.fallbackRating }); } catch { /* best-effort */ }
+}
+
+/** Upsert a player's leaderboard row (keyed by user). Fire-and-forget; never throws / blocks. Skipped for
  *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
 export async function uploadPlayerProfile(p: {
   author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
+  /** C2 offline queue: a run finished with no live session is UNRATED — its ladder rating is not submitted
+   *  (the local rating still moved; only the server ladder skips it). The rest of the profile still upserts. */
+  unrated?: boolean;
+  /** C3: the finished LOBBY's placement (1–8) + a stable run id, so the SERVER derives the rating. Absent for
+   *  non-lobby runs, which don't move the ladder. */
+  runId?: string; placement?: number;
 }): Promise<void> {
   const c = client();
   const userId = currentUserId();
-  if (!c || !userId) return;
+  if (!c) return;
+  if (!userId) { enqueueUpload('profile', p); return; }
   try {
     // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
     // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
     //
-    // ── WHY THIS IS TWO STATEMENTS AND NOT ONE UPSERT ────────────────────────────────────────────────────
-    // The C1 RLS policy makes `rating` WRITE-ONCE from the client: its `with check` requires the incoming
-    // rating to equal the row's currently stored value. A single upsert sends every column, so as soon as the
-    // player's rating moved, the incoming rating no longer matched and Postgres rejected THE WHOLE ROW — not
-    // just the rating. `games_played`, `author` and `favorite_hero` all silently froze at whatever they were
-    // on the first insert, and the failure was swallowed by the best-effort catch below.
-    //
-    // That is the leaderboard reading "1 game" for a player with four runs in their Career (owner report
-    // 2026-08-04): the count was never wrong, it was never written after run one.
-    //
-    // So: UPDATE the mutable columns WITHOUT touching rating (leaving it equal to itself, which the policy
-    // permits), and fall back to an INSERT — which may set rating — only when no row exists yet. `select()`
-    // is what tells the two apart: an UPDATE matching nothing is a success with zero rows, not an error.
+    // ── DISPLAY COLUMNS vs RATING ────────────────────────────────────────────────────────────────────────
+    // The write-once RLS policy rejects a `rating` change on a row UPDATE (its `with check` requires the
+    // incoming rating to equal the stored one), so the display columns and the rating travel by DIFFERENT
+    // doors. Here we upsert ONLY the display columns; the rating goes through `submitRating` (C3), which is the
+    // Edge Function. The client therefore NEVER persists a rating it computed itself — a brand-new row gets a
+    // rating-0 PLACEHOLDER and the server fills in the real value. (History: a single `upsert()` sent rating on
+    // every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author at run
+    // one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; C3 removes client rating
+    // authority entirely.)
     const now = new Date().toISOString();
+    // `email` is denormalised from `auth.users` (C2b) — kept current here so "signed in as …" and a future
+    // Steam merge can read it off the profile row. Null while anonymous.
     const mutable = {
       author: p.author ?? null, games_played: p.gamesPlayed,
       favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
+      email: currentIdentity()?.email ?? null,
     };
+    // UPDATE the display columns; INSERT a rating-0 placeholder row only when none exists yet (an UPDATE
+    // matching nothing is a 0-row success, not an error — that is how we tell the two apart).
     const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
-    if (!updated.error && updated.data && updated.data.length > 0) {
-      // RATING moves through its own RPC (`submit_own_rating`, schema.sql 2026-08-06) — the ONLY path the
-      // policy design leaves open. The "C3 Edge Function" the write-once policy deferred to was never built,
-      // so from the C1 migration until this call existed NOTHING could move a stored rating and the MMR
-      // leaderboard froze at first-insert values (owner report 2026-08-06). Fire-and-forget like the rest of
-      // this seam: on a DB that hasn't run the migration the RPC 404s and the catch above swallows it.
-      await c.rpc('submit_own_rating', { new_rating: p.rating });
-      return;
+    if (updated.error || !updated.data || updated.data.length === 0) {
+      await c.from('profiles').insert({ user_id: userId, rating: 0, ...mutable });
     }
-    await c.from('profiles').insert({ user_id: userId, rating: p.rating, ...mutable });
+    // RATING: LOBBY runs only (a placement is present), never for an unrated (offline) run.
+    if (!p.unrated && p.placement != null && p.runId) {
+      await submitRating({ runId: p.runId, placement: p.placement, fallbackRating: p.rating });
+    }
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
   }
@@ -484,14 +724,14 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('profiles').select('user_id, author, rating, games_played, favorite_hero')
+      c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
         .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ user_id: string; author: string; rating: number; games_played: number; favorite_hero: string | null }>)
-      .map((r) => ({ userId: r.user_id, author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+    return (result.data as Array<{ user_id: string; author: string; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
   } catch {
     return [];
   }
@@ -508,7 +748,10 @@ export async function uploadRunHistory(entry: {
 } & Record<string, unknown>): Promise<void> {
   const c = client();
   const userId = currentUserId();
-  if (!c || !userId) return;
+  if (!c) return;
+  // Career is personal history (not the ladder), so it carries no `unrated` tag — but it must not be LOST
+  // offline either, so it queues like the rest and replays when a session lands.
+  if (!userId) { enqueueUpload('history', entry); return; }
   try {
     await c.from('run_history').insert([{
       user_id: userId,
@@ -565,7 +808,8 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
 /** Record one fight against a served board, from the BOARD's perspective (you lose to it → 'win'). */
 export async function recordFightResult(r: { boardId: string; round: number; outcome: 'win' | 'loss' | 'tie'; patch: string }): Promise<void> {
   const c = client();
-  if (!c || !currentUserId() || !r.boardId) return;
+  if (!c || !r.boardId) return;
+  if (!currentUserId()) { enqueueUpload('fight', r); return; }
   try {
     await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
   } catch {

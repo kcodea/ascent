@@ -352,3 +352,80 @@ as $$
 $$;
 revoke all on function public.submit_own_rating(int) from public;
 grant execute on function public.submit_own_rating(int) to authenticated;
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- ACCOUNTS C2b — handles (`Kevin#4821`) + email + the "unrated" tag  (2026-08-09)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- C2a (client-only) made accounts permanent + portable via a magic link; the email itself lives in
+-- `auth.users`, so nothing here was needed for it. C2b adds the two DISPLAY/LEDGER pieces that DO touch the
+-- schema:
+--
+--   * a DISCRIMINATOR — the `#4821` half of a handle. `author` (display name) is mutable and NOT unique, so
+--     two players may both be "Kevin"; the discriminator is what tells them apart on the leaderboard. Assigned
+--     client-side with retry-on-conflict against the unique index below (server-side assignment can move into
+--     the C3 Edge Function later without a reshape). A friend-scale collision is near-zero; the retry makes it
+--     correct regardless.
+--   * `email` DENORMALISED onto the profile — a convenience for rendering "signed in as …" and, more
+--     importantly, the natural JOIN KEY for an eventual cross-platform (Steam, C5) account merge. `auth.users`
+--     stays the source of truth; this is a copy the client keeps in step.
+--   * an `unrated` flag on the content tables — set on rows a client uploads while it had NO live authenticated
+--     session (the C2 offline queue flushing later). Today its only ENFORCED effect is that a queued run does
+--     not submit ladder rating (the client skips `submit_own_rating` for it); on the other tables it is a
+--     forward-looking tag for the C3 rating recompute / replay audit to honour. Reads ignore it for now.
+alter table public.profiles add column if not exists discriminator text;
+alter table public.profiles add column if not exists email        text;
+
+-- A (display name, tag) pair is unique, case-insensitively — so "Kevin#4821" identifies exactly one account.
+-- Partial: legacy rows with no discriminator yet (pre-C2b, or an anonymous player who never named themselves)
+-- don't collide with each other on a null tag.
+create unique index if not exists profiles_handle
+  on public.profiles (lower(author), discriminator)
+  where author is not null and discriminator is not null;
+
+-- The offline-queue tag. Default false, so every existing row and every online upload is rated as before.
+alter table public.boards        add column if not exists unrated boolean not null default false;
+alter table public.runs          add column if not exists unrated boolean not null default false;
+alter table public.run_telemetry add column if not exists unrated boolean not null default false;
+alter table public.board_results add column if not exists unrated boolean not null default false;
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- ACCOUNTS C3 — server-authoritative rating  (2026-08-09)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- THE HOLE C3 CLOSES. Until now the CLIENT computed its own rating and pushed the absolute value through the
+-- `submit_own_rating` RPC — which trusts whatever number it is handed. Anyone with devtools could set any
+-- rating. That was tolerable at friend-scale; it is the real gate before the ladder is shown to strangers.
+--
+-- THE FIX. The `submit-rating` EDGE FUNCTION (supabase/functions/submit-rating) becomes the ONLY writer of
+-- `profiles.rating`. A client sends `{ runId, placement }` — NOT a rating. The function, running as the service
+-- role, reads the player's CURRENT stored rating and computes the delta itself from the same
+-- `LOBBY_PLACEMENT_DELTAS` table the client uses (parity is pinned by `lobbyRatingParity.test.ts`), so the
+-- number is server-derived and unforgeable. Note the server needs ONLY `rating`: the Line + high-water marks
+-- are a LOCAL display concept re-derived from the adopted rating, so there are no line columns here to keep.
+--
+-- DEDUPE + RATE LIMIT. One rating per (player, run): the function inserts a `rated_runs` ledger row first and
+-- treats a unique-violation as "already rated" (idempotent — a retried submit can't double-count). The same
+-- ledger backs a simple per-player rate limit (N ratings per window).
+--
+-- ORDER OF OPERATIONS (owner, done together): 1) `supabase functions deploy submit-rating`; 2) run THIS block.
+-- The revoke below removes the client's legacy door, so run it only AFTER the function is deployed and
+-- verified — until both are done the client keeps using the `submit_own_rating` fallback and nothing breaks.
+
+-- The dedupe / rate-limit ledger. RLS on with NO policies → only the service role (the Edge Function) can
+-- touch it; a client can neither read another player's rating history nor forge a ledger row.
+create table if not exists public.rated_runs (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  run_id     text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, run_id)
+);
+alter table public.rated_runs enable row level security;
+create index if not exists rated_runs_user_time on public.rated_runs (user_id, created_at desc);
+
+-- Close the client's rating door. After this, ONLY the service-role Edge Function can move a rating — the
+-- write-once profiles UPDATE policy already blocks a row update, and this removes the RPC that was the sole
+-- sanctioned client path. RUN ONLY ONCE THE FUNCTION IS DEPLOYED (see order of operations above).
+revoke execute on function public.submit_own_rating(int) from authenticated;

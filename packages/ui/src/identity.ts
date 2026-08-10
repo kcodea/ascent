@@ -25,11 +25,15 @@
 export interface Identity {
   /** The real identity — `auth.users.id`. Never shown to the player. */
   userId: string;
-  /** Mutable, NOT unique. The `#tag` that disambiguates duplicates arrives with accounts in C2. */
+  /** Mutable, NOT unique. The `#tag` that disambiguates duplicates arrives with the discriminator in C2b. */
   displayName: string;
   /** True while this is an anonymous (device-bound) session — i.e. it is lost if site data is cleared.
-   *  C2's sign-up converts it in place, keeping `userId`. */
+   *  C2's magic-link sign-in converts it in place, keeping `userId`, and flips this false. */
   anonymous: boolean;
+  /** The email a REAL (linked) account is keyed to; null while anonymous. This is the portable identifier —
+   *  it survives a site-data wipe and moves the account across devices, and it is the natural join key for an
+   *  eventual cross-platform (Steam, C5) merge. Added in C2. */
+  email: string | null;
 }
 
 /**
@@ -43,8 +47,32 @@ export interface AuthProvider {
   /** Restore a persisted session, or establish an anonymous one. Runs at boot and MUST NOT block it —
    *  callers treat a null result as "play offline, upload nothing". */
   restore(): Promise<Identity | null>;
-  /** Rename. Display-only in C1 (the handle/discriminator model lands with accounts in C2). */
+  /** Rename. Display-only in C1 (the handle/discriminator model lands with accounts in C2b). */
   setDisplayName(name: string): Promise<Identity | null>;
+  /**
+   * Begin a magic-link sign-in for `email`. This does NOT complete the sign-in — it sends an email whose link
+   * the player opens, and the session upgrades on the way back in (reported through `onChange`, not this
+   * promise). The promise only says whether the LINK WAS SENT, so the UI can show "check your inbox" vs. an
+   * error. Added in C2.
+   *
+   * The provider decides between "convert this anonymous session in place" (keeps `userId` + all history) and
+   * "sign into the existing account this email already owns" (a returning player on a fresh device); the
+   * caller does not, and never sees a password.
+   */
+  signInWithEmail(email: string): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Complete an email sign-in by CODE — the 6-digit token from the same email. This is the DESKTOP-friendly
+   * path: it needs no redirect and no web origin, so it works inside the packaged exe (where a magic *link*
+   * has nowhere to bounce back to). On the web the link still works too; this just also lets the player type
+   * the code. On success the identity updates through `onChange`, same as the link flow. Added in C2.
+   */
+  verifyEmailCode(email: string, code: string): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Subscribe to identity changes the BACKEND drives rather than the app: the magic-link upgrade landing after
+   * the redirect, a token refresh, or a sign-out in another tab. Returns an unsubscribe. Added in C2 — C1 had
+   * no backend-driven transition, since an anonymous session only ever changed when the app asked it to.
+   */
+  onChange(fn: (id: Identity | null) => void): () => void;
   signOut(): Promise<void>;
 }
 

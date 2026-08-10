@@ -4059,6 +4059,17 @@ body:has(.titlescreen) .version { visibility: hidden; }
   background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .acctname:hover { border-color: rgba(230, 200, 130, 0.95); color: #f4ecda; }
+/* First-time nudge: the temp-name chip pulses an accent ring so the player notices it's editable. Perf-safe —
+   the shadow is STATIC on a pseudo-element and only its OPACITY animates (compositor-only), never a looping
+   paint property (see the kwglow pattern + docs/performance.md). */
+.acctname-nudge { position: relative; }
+.acctname-nudge::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(236, 200, 120, 0.95), 0 0 16px 2px rgba(236, 200, 120, 0.55);
+  opacity: 0; animation: acctnudge 1.25s ease-in-out infinite;
+}
+@keyframes acctnudge { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .acctname-nudge::after { animation: none; opacity: 0.7; } }
 .acctinput { outline: none; text-align: right; min-width: 220px; cursor: text; }
 .acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 

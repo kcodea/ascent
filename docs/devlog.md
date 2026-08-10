@@ -2,6 +2,11 @@
 
 ## 2026-08-10 — anonymous players get a friendly temp handle, not "Unnamed Climber"
 
+**Follow-up (same day):** the Title account chip now shows that temp handle for a first-time/unnamed player
+(instead of a bare "Set your name") and PULSES an accent ring so they notice it's theirs to rename. The pulse
+is compositor-safe — a static shadow on a `::after` whose OPACITY animates (the kwglow pattern), with a
+`prefers-reduced-motion` opt-out. Verified live: the chip reads e.g. `ShadowNewt96` with the ring active.
+
 Owner ask: an unnamed (anonymous) player should show a randomized name, not a bland "Unnamed Climber". Added
 `tempHandle(userId)` — a stable adjective+noun+number (`StormFalcon21`) DERIVED FROM the account's `user_id`
 via a hash, so it never re-rolls between renders and is unique-ish per account (never `Math.random`).

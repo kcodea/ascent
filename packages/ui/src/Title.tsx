@@ -4,7 +4,7 @@ import { avatarSrc } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame } from './store';
+import { useGame, tempHandle } from './store';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -73,6 +73,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   if (!showTitle) return null;
 
   const rift = activeRift(); // the live registry is correct HERE — this is a pre-run choice, not a pinned run
+  // A first-time player with no name yet: show the auto-assigned temp handle (the same one on the leaderboard)
+  // and NUDGE the chip so they notice it's theirs to change, rather than a bare "Set your name".
+  const unnamed = !playerName;
+  const effectiveName = playerName || tempHandle(account.userId);
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
   const commit = () => { setPlayerName(draft); setEditing(false); };
 
@@ -86,7 +90,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <button className="titleavatar" onClick={openAvatarPicker} title="Change your avatar" aria-label="Change your avatar">
           {avatarSrc(playerAvatar)
             ? <img src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
-            : <span className="titleavatar-ph">{(playerName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+            : <span className="titleavatar-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
         </button>
         {editing ? (
           <input
@@ -100,8 +104,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
           />
         ) : (
-          <button className="acctname" onClick={beginEdit} title="Click to set your name">
-            {playerName || txt.namePrompt}
+          <button
+            className={`acctname${unnamed ? ' acctname-nudge' : ''}`}
+            onClick={beginEdit}
+            title={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
+          >
+            {effectiveName}
           </button>
         )}
         {/* ACCOUNTS C2 — sign-in status / entry. Signed in = a portable account; otherwise an invite to save. */}

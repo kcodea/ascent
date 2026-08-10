@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Card-drag feel, retuned** — the owner's latest Drag-tuner values are now the shipped defaults (near-instant catch-up, a stronger tilt, a flatter resting angle, an instant recentre). New with it: a **hand grab point** — a card lifted from the hand now hangs from below mid-art (near its stat badges) instead of from its centre, with a "Hand grab point" slider to place it exactly. Shop and board drags still ride centred.
+
 - **Shop-phase effects can be authored now** — the effects system only ever reached combat, so every shop visual was hand-written code with its effect baked in. Shop moments can now be bound in the workbench like combat ones. That matters because the most common mechanic in Set 2 — Shout, on 31 cards — happens in the shop, along with roughly 60% of the set's triggers.
 
 - **Effects can be reshaped and repositioned in the workbench** — independent Squash X / Squash Y dials (unequal values reshape, equal ones resize) plus Offset X / Offset Y to nudge an effect off its anchor. Squash scales the spray as well as the spawn area, so a shape holds at any speed rather than washing out on a fast burst.

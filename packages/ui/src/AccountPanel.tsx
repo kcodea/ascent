@@ -77,9 +77,8 @@ export function AccountPanel() {
           <div className="acctpanel-body">
             <p className="acctpanel-lead">Enter your code.</p>
             <p className="acctpanel-note">
-              We emailed a 6-digit code to <b>{email}</b>. Type it below to finish — your current progress
-              upgrades to that account, nothing is lost. (On the web you can click the link in the email
-              instead.)
+              We emailed a code to <b>{email}</b>. Type it below to finish — your current progress upgrades to
+              that account, nothing is lost. (On the web you can click the link in the email instead.)
             </p>
             <input
               className="acctinput acctpanel-input acctpanel-code"
@@ -87,8 +86,10 @@ export function AccountPanel() {
               autoFocus
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
-              placeholder="123456"
+              // Supabase's email OTP length is configurable (6–10 digits) — don't cap at 6, or a longer code
+              // gets silently truncated and can never match (owner hit an 8-digit code, 2026-08-10).
+              maxLength={10}
+              placeholder="Your code"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               onKeyDown={(e) => { if (e.key === 'Enter') void verify(); }}

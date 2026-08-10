@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-10 — anonymous players get a friendly temp handle, not "Unnamed Climber"
+
+Owner ask: an unnamed (anonymous) player should show a randomized name, not a bland "Unnamed Climber". Added
+`tempHandle(userId)` — a stable adjective+noun+number (`StormFalcon21`) DERIVED FROM the account's `user_id`
+via a hash, so it never re-rolls between renders and is unique-ish per account (never `Math.random`).
+
+- `displayHandle(author, discriminator, userId)` = the real `name#tag` if set, else `tempHandle(userId)`. The
+  leaderboard and its row titles use it; nameless rows now read `StormFalcon21` instead of blank / "Unnamed
+  Climber", and this is RETROACTIVE — existing null-author rows get a name at render with no DB write.
+- `Career` shows the same temp handle for a viewed (or your own) unnamed account — and it fixes the last of
+  the null-name crash surface (the header, avatar initial and empty state all key off it).
+- The run-end upload now writes the temp handle as `author` when no name is set, so future leaderboard rows +
+  captured boards carry it server-side too. Overwritten the instant the player sets a real name.
+
+Verified live: the two previously-"Unnamed" rows render as `StormFalcon21` / `BoldNewt82`, and opening one's
+Career (the path that crashed on null) renders cleanly. Gates: full `npm test` **4771 / 284 files**, typecheck
+clean, lint at the 7-warning baseline, `build:web` green.
+
 ## 2026-08-10 — fix: leaderboard ghost rows, double-"YOU", null-name career crash
 
 **Owner spotted a stray `Orangez#4040` (0 rating / 0 games) on the leaderboard, both it and the real

@@ -362,6 +362,26 @@ function loadPlayerName(): string {
 export const formatHandle = (name: string, discriminator?: string | null): string =>
   name && discriminator ? `${name}#${discriminator}` : name;
 
+// A friendly temp name for a player who never set one. DERIVED FROM the account's `user_id`, so it is stable
+// (the same account always gets the same name) and unique-ish per account — never `Math.random`, which would
+// re-roll every render. The trailing number widens the space so two anonymous players rarely collide.
+const TEMP_ADJ = ['Swift', 'Brave', 'Crimson', 'Silent', 'Golden', 'Fabled', 'Iron', 'Ember', 'Frost', 'Storm', 'Shadow', 'Verdant', 'Ivory', 'Rapid', 'Lucky', 'Grim', 'Bold', 'Amber', 'Cobalt', 'Wild'];
+const TEMP_NOUN = ['Fox', 'Otter', 'Badger', 'Falcon', 'Wyrm', 'Golem', 'Raven', 'Marmot', 'Boar', 'Lynx', 'Drake', 'Stag', 'Owl', 'Wolf', 'Bear', 'Hare', 'Heron', 'Ibex', 'Moth', 'Newt'];
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+/** e.g. `SwiftMarmot42` — a stable temporary handle for an unnamed (anonymous) account, keyed on its id. */
+export function tempHandle(userId: string | null | undefined): string {
+  const h = hashStr(userId || 'anon');
+  return `${TEMP_ADJ[h % TEMP_ADJ.length]}${TEMP_NOUN[(h >>> 8) % TEMP_NOUN.length]}${(h >>> 16) % 90 + 10}`;
+}
+
+/** The name to SHOW for a leaderboard/career row: the real handle if set, else the account's temp handle. */
+export const displayHandle = (author: string | null | undefined, discriminator: string | null | undefined, userId: string | null | undefined): string =>
+  formatHandle(author ?? '', discriminator) || tempHandle(userId);
+
 /** Persisted PRACTICE shop-timer multiplier (1–4×), defaulting to 3 — the fixed multiplier practice used before
  *  it was made choosable (owner 2026-07-25), so an existing player's practice runs feel unchanged. 1× is exactly
  *  the scored mode's clock. Best-effort, like the combat speed. */
@@ -675,7 +695,10 @@ export const useGame = create<GameStore>((set, get) => ({
         // replaying re-simulates seven opponent seats and froze the end screen for ~20 s.
         const lobbyBoards = next.mode === 'lobby' ? capturedBoards : null;
         const setId = next.setId;
-        const author = s.playerName || undefined;
+        // An unnamed (anonymous) player is ASSIGNED a stable temp handle keyed on their account id, so their
+        // leaderboard row + captured boards carry a friendly name instead of a blank (owner ask 2026-08-10).
+        // It's overwritten the moment they set a real name.
+        const author = s.playerName || tempHandle(s.account.userId);
         const heroOffer = s.lastHeroOffer;
         // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
         // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches

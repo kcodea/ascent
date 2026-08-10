@@ -3,7 +3,7 @@ import { getHero } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame, formatHandle } from './store';
+import { useGame, displayHandle } from './store';
 import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 
 /**
@@ -79,10 +79,10 @@ export function Rankings() {
                   className={`rankrow rankrow-btn${mine ? ' me' : ''}`}
                   key={r.userId || r.author}
                   onClick={openTheirs}
-                  title={`View ${r.author}'s career`}
+                  title={`View ${displayHandle(r.author, r.discriminator, r.userId)}'s career`}
                 >
                   <span className={`rankrank r${i + 1}`}>{i + 1}</span>
-                  <span className="rankname">{formatHandle(r.author, r.discriminator) || 'Unnamed Climber'}{mine && <span className="rankyou">you</span>}</span>
+                  <span className="rankname">{displayHandle(r.author, r.discriminator, r.userId)}{mine && <span className="rankyou">you</span>}</span>
                   <span className="ranknum rankrating">{r.rating}</span>
                   <span className="ranknum">{r.gamesPlayed}</span>
                   <span className="rankfav">

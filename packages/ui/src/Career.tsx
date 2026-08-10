@@ -7,7 +7,7 @@ import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame } from './store';
+import { useGame, tempHandle } from './store';
 import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
@@ -55,6 +55,7 @@ export function Career() {
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const profile = useGame((s) => s.profile);
   const careerOf = useGame((s) => s.careerOf); // null = your own career
+  const myId = useGame((s) => s.account.userId);
   const careerVersion = useGame((s) => s.careerVersion);
   // The career lives on the SERVER now (owner call 2026-08-03), so this is a fetch rather than a synchronous
   // localStorage read. `careerVersion` bumps after a finished run or a career reset, re-fetching so an open
@@ -89,9 +90,9 @@ export function Career() {
   // THEIR profile row, and all we were handed is the leaderboard line. So rating/games come from that row, and
   // "highest" is derived from their run history (`ratingAfter`) rather than invented — omitted when unknowable.
   const viewing = careerOf;
-  // A player who never set a name has a NULL author on their row — coalesce so nothing here (`.trim()`, the
-  // header, the empty-state) ever touches null (owner report 2026-08-10: crash opening such a row's career).
-  const shownName = (viewing ? viewing.author : playerName) || 'Unnamed Climber';
+  // A player who never set a name shows a stable temp handle keyed on their account id (never null — that
+  // crashed `.trim()`; owner ask 2026-08-10: show a randomized name rather than "Unnamed Climber").
+  const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
   const shownRating = viewing ? viewing.rating : profile.rating;
   const highestSeen = viewing
     ? (entries ?? []).reduce((m, e) => Math.max(m, e.ratingAfter ?? 0), 0) || null

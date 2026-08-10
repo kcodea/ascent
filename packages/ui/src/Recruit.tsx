@@ -72,6 +72,14 @@ const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
 const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
 const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
 
+// SANDBOX ONLY: excludes the pinned-opponent cards (`sbfoe-N`, rendered in the tavern row when
+// `sbTavernShowsEnemy` is on) from any selector that resolves an arbitrary DOM point/rect to a `data-uid`
+// destined for a dispatch, a drag, or a spell/hero-power target. Those cards are edited through their own
+// popover (`onSbEnemyPointerDown`), never through the real shop's interaction paths — a selector that can
+// still reach one is a bug (see the Fortify hero-power leak this constant was extracted to fix in one place
+// instead of three). A no-op outside the sandbox: no element ever carries this uid prefix in a normal run.
+const SB_FOE_EXCLUDE = ':not([data-uid^="sbfoe-"])';
+
 /** Fodder-keyword card ids — a constant of the card corpus, computed once so `cardBuffsLive` doesn't walk
  *  the whole CARD_INDEX on every shop action (perf audit 2026-08-06). */
 const FODDER_CARD_IDS: readonly string[] = Object.values(CARD_INDEX)
@@ -1913,7 +1921,7 @@ export function Recruit() {
   const shopUidAt = (x: number, y: number): string | null => {
     const cached = targetRectsRef.current;
     if (cached) return hitCachedUid(cached.shop, x, y);
-    const el = document.elementFromPoint(x, y)?.closest('[data-zone="tavern"] .card[data-uid]:not(.spellcard):not([data-uid^="sbfoe-"])');
+    const el = document.elementFromPoint(x, y)?.closest(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`);
     return el?.getAttribute('data-uid') ?? null;
   };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
@@ -2322,7 +2330,7 @@ export function Recruit() {
       (drag.view.spell || drag.view.ruby) && (drag.view.target === 'friendly' || drag.view.target === 'any')
         ? {
             board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
-            shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard):not([data-uid^="sbfoe-"])') : [],
+            shop: drag.view.target === 'any' ? measureCards(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : [],
           }
         : null;
     // Cache the resting insertion slots (left + width) for the reorder/magnetize gap, so warbandIndexAt/
@@ -2620,7 +2628,7 @@ export function Recruit() {
     // Fortify may buff a tavern offer; Gild / Encore are warband-only (you can't gild or replay an
     // unbought offer), so they only accept warband targets.
     const sel = heroTargetsTavern
-      ? '[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]'
+      ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
       : '[data-zone="warband"] .row .card[data-uid]';
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = document.elementFromPoint(x, y)?.closest(sel);

@@ -16,7 +16,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
-import { turbulenceX, turbulenceY, emissionOffset, EMIT_SHAPES } from '../motion';
+import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES } from '../motion';
 import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
@@ -278,16 +278,27 @@ const SPECS = {
     enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
-  emitSquash: {
-    kind: 'slider', label: 'Emit squash', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
-    // Rides the same gateway as the radius above: with `point` there is no area to squash. It does NOT
-    // declare a dependency on `emitRadius` — the pair would deadlock (see the note there), and shape is the
-    // single gateway both hang off.
-    enabledWhen: { param: 'emitShape', not: 'point' },
-    // NOT `axis: 'scale'`, unlike Emit radius: this is a RATIO, not a length. `scaleDef` multiplies every
-    // `scale` param by the same factor, and scaling a ratio would distort the oval as the effect resized
-    // rather than resizing it — the shape would change, not just its size.
-    help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
+  squashX: {
+    kind: 'slider', label: 'Squash X', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
+    // NOT gated on `emitShape`. The pair was, while squash only moved the spawn area — meaningless without
+    // one. They now scale spawn VELOCITY too, so they shape a `point` emitter's spray, which is the common
+    // case. Not `axis: 'scale'` either: a RATIO scaled by `scaleDef` would distort the shape as the effect
+    // resized instead of resizing it.
+    help: 'Horizontal scale of the burst — 1 is untouched, lower squeezes it narrow, higher stretches it wide. Scales BOTH the spawn area and the speed particles fly at, so it holds its shape at any speed.',
+  },
+  squashY: {
+    kind: 'slider', label: 'Squash Y', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
+    help: 'Vertical scale of the burst — 1 is untouched, lower flattens it into an oval, higher makes it taller than it is wide. Pair this with Squash X: equal values resize, unequal values reshape.',
+  },
+  offsetX: {
+    kind: 'slider', label: 'Offset X', group: 'Physics', min: -200, max: 200, step: 1, default: 0, axis: 'scale', essential: true,
+    // `axis: 'scale'` unlike the squash pair: this IS a length, so it must ride the same resize as the emit
+    // radius — otherwise a scaled-down effect keeps a full-size displacement and drifts off its anchor.
+    help: 'Shifts the burst sideways from its anchor, in px. Placement only — it moves where the effect sits without changing its shape or motion.',
+  },
+  offsetY: {
+    kind: 'slider', label: 'Offset Y', group: 'Physics', min: -200, max: 200, step: 1, default: 0, axis: 'scale', essential: true,
+    help: 'Shifts the burst up or down from its anchor, in px. Negative is up. Placement only — it moves where the effect sits without changing its shape or motion.',
   },
   inheritVel: {
     kind: 'slider', label: 'Inherit motion', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
@@ -457,6 +468,7 @@ class BurstInstance implements FxInstance<BurstParams> {
   // Reused scratch for `emissionOffset` so a shaped spawn allocates nothing per particle (mirrors the
   // emitter's `budgetState` discipline).
   private readonly emitScratch = { ox: 0, oy: 0 };
+  private readonly velScratch = { vx: 0, vy: 0 };
   // `setHead` has landed at least once with a real anchor position. Gates the very first wave — see the
   // constructor comment below for why we can't just emit on construction.
   private headSet = false;
@@ -561,7 +573,8 @@ class BurstInstance implements FxInstance<BurstParams> {
       const bias0 = p.coreBias * this.rand();
       const tint = biasTint(bias0);
       // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
-      emissionOffset(p.emitShape, p.emitRadius, this.rand(), this.rand(), this.emitScratch, p.emitSquash);
+      emissionOffset(p, this.rand(), this.rand(), this.emitScratch);
+      spawnVelocity(angle, speed, p.squashX, p.squashY, this.velScratch);
       const particle = new Particle({
         texture: this.texture,
         x: this.headX + this.emitScratch.ox,
@@ -577,8 +590,8 @@ class BurstInstance implements FxInstance<BurstParams> {
       this.live.push({
         particle,
         // Base radial velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
-        vx: Math.cos(angle) * speed + p.inheritVel * this.headVx,
-        vy: Math.sin(angle) * speed + p.inheritVel * this.headVy,
+        vx: this.velScratch.vx + p.inheritVel * this.headVx,
+        vy: this.velScratch.vy + p.inheritVel * this.headVy,
         spin: (this.rand() * 2 - 1) * 6,
         age: 0,
         maxLife: Math.max(1, p.life),

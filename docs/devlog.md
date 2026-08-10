@@ -21,6 +21,58 @@
 Existing 0-game rows already in the table are hidden by the filter; an optional one-time
 `delete from public.profiles where games_played = 0;` clears them for good. Gates: typecheck clean,
 `playerProfileWrite` green, lint at the 7-warning baseline, `build:web` green.
+## 2026-08-08 — squash becomes an X/Y pair that shapes the whole effect, plus placement offsets
+
+Three owner asks over two days, landing as one change because each exposed the next.
+
+**1. Squash had to reach VELOCITY.** It shipped scaling only where particles are BORN, and read as a perfect
+circle on anything quick: the birth ellipse is a fixed number of px while travel is `speed × life`. A def at
+speed 2600 over 1.9s throws particles thousands of px against an emit radius capped at 400, so the shape you
+see is entirely where they FLEW. A new `spawnVelocity` in `motion.ts`, the sibling of `emissionOffset`, scales
+the spawn fan by the same factor. Both halves together are what make an effect an oval at any speed.
+
+**2. Width and height, separately** (*"we need a squash height dial separate"*). The single dial scaled Y
+only — my compression of the original ask, which was width AND height on day one. Now `squashX` / `squashY`,
+both defaulting to 1: unequal values reshape, equal values resize.
+
+**3. Placement** (*"an x and y axis placement option so i can adjust its position"*). `offsetX` / `offsetY`
+translate the whole spawn area in px, applied LAST so they never interact with the squash. They apply to
+`emitShape: point` too — the case where "just move it a bit" is usually what is wanted, and exactly what a
+shape-only offset would have missed.
+
+Design notes worth keeping:
+
+- **The direction is SCALED, never re-derived.** Rotating each heading toward the ellipse normal would change
+  WHICH way particles go and re-roll every seeded look. Scaling the components leaves each particle on its
+  own heading and merely reshapes the field.
+- **Offsets declare `axis: 'scale'`; the squash pair deliberately does not.** An offset is a LENGTH and must
+  ride the same resize as the emit radius, or a scaled-down effect keeps a full-size displacement and drifts
+  off its anchor. A squash is a RATIO — scaling it would reshape the effect as it resized. `scaleDef`'s
+  golden list of scale-axis params grew accordingly and now carries that reasoning inline; its real invariant
+  (no COUNT-like param on the scale axis, or seeds replay differently) is untouched.
+- **`emissionOffset` now takes the params OBJECT.** Six related dials would have been nine positional
+  arguments; the primitives already own exactly that shape, so passing `p` allocates nothing.
+- **`inheritVel` is added by the CALLER, after the squash** — the anchor's own movement through the world is
+  not part of the burst's shape, and squashing it would tilt a moving emitter's trail.
+- **Exact IEEE no-op at the defaults** (1, 1, 0, 0), asserted with `toBe`: every committed def spawns
+  bit-identical positions and velocities.
+
+The key was renamed twice along the way (`emitSquash` → `squash` → the `squashX`/`squashY` pair). The first
+was free; the second was NOT — `watcher-pulse.json` (#937) adopted `emitSquash` while this branch was in
+flight — and `self-buff-gold.json` adopted it during a later rebase. Both are migrated here to `squashY`,
+which is faithful since the old dial scaled Y only. Caught by
+`defs.test.ts`'s "every param key exists in its primitive's SPECS", which is exactly the guard that should
+catch it. The window I kept saying would close, closed mid-change; the key is now load-bearing.
+
+Tested as pure rules, the way this file's other spawn maths is — the primitives need Pixi and cannot be
+instantiated in the suite. One test states the argument as a number: a full circle at 2600px/s over 1.9s
+sweeps past 4000px, and the swept FIELD carries the squash ratio.
+
+The three particle primitives now carry **12 essential params each**, up from 9. That is past the "~5-7" note
+in `params.ts` and worth a look when the tier is next revisited — though each addition was individually asked
+for, and a dial nobody can find is not a dial.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4742 tests, `build:web`.
 
 ## 2026-08-10 — fix: the sign-in code input truncated codes longer than 6 digits
 

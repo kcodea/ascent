@@ -23,7 +23,7 @@
         "turbScale": 0.09,
         "emitShape": "ring",
         "emitRadius": 25,
-        "emitSquash": 1,
+        "squashY": 1,
         "inheritVel": 0,
         "shape": "circle",
         "size": 6,

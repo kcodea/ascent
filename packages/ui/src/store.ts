@@ -223,9 +223,12 @@ interface GameStore {
   accountPanelOpen: boolean;
   openAccountPanel: () => void;
   closeAccountPanel: () => void;
-  /** Send a magic-link sign-in email. Resolves whether the LINK WAS SENT — the actual upgrade lands later,
-   *  through the identity `onChange` subscription, when the player opens the emailed link. */
+  /** Send a sign-in email (a 6-digit code + a link). Resolves whether it WAS SENT. The player then either
+   *  types the code (`verifyEmailCode`, works in the exe) or clicks the link on web (lands via `onChange`). */
   sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Finish sign-in by entering the emailed 6-digit code — the desktop path (no web origin needed). On success
+   *  the account state updates through the identity `onChange` subscription. */
+  verifyEmailCode: (email: string, code: string) => Promise<{ ok: boolean; error?: string }>;
   /** Sign out of a real account (drops back to a fresh anonymous session on next load). */
   signOutAccount: () => Promise<void>;
   /** The player's chosen profile avatar — an art id (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`),
@@ -584,6 +587,7 @@ export const useGame = create<GameStore>((set, get) => ({
   openAccountPanel: () => set({ accountPanelOpen: true }),
   closeAccountPanel: () => set({ accountPanelOpen: false }),
   sendMagicLink: (email) => supabaseAuthProvider.signInWithEmail(email),
+  verifyEmailCode: (email, code) => supabaseAuthProvider.verifyEmailCode(email, code),
   signOutAccount: async () => {
     await supabaseAuthProvider.signOut();
     // Sign-out drops the session; a fresh anonymous one is minted on next load (restore()). Reflect the

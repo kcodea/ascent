@@ -116,8 +116,11 @@ export const supabaseAuthProvider: AuthProvider = {
     if (!c) return { ok: false, error: 'No account backend is configured for this build.' };
     const trimmed = email.trim();
     if (!trimmed) return { ok: false, error: 'Enter your email address.' };
-    // The emailed link must return the player to THIS running app; anywhere else and the session never lands.
-    const emailRedirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
+    // The emailed LINK returns the player to THIS running app — but only a real http(s) origin can be a valid
+    // redirect. In the packaged exe the origin is `file://` (no server), which isn't a whitelistable redirect,
+    // so we omit it there and the player completes sign-in with the CODE instead (`verifyEmailCode`).
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const emailRedirectTo = /^https?:\/\//.test(origin) ? origin : undefined;
     try {
       const cur = await c.auth.getUser();
       const anonymous = cur.data.user?.is_anonymous ?? true;
@@ -137,6 +140,26 @@ export const supabaseAuthProvider: AuthProvider = {
       // Already a real account (re-auth, or switching accounts on this device).
       const otp = await c.auth.signInWithOtp({ email: trimmed, options: { emailRedirectTo } });
       return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Check your connection and try again.' };
+    }
+  },
+  async verifyEmailCode(email, code) {
+    const c = client();
+    if (!c) return { ok: false, error: 'No account backend is configured for this build.' };
+    const trimmed = email.trim();
+    const token = code.replace(/\D/g, ''); // the email shows a 6-digit code; tolerate spaces the player types
+    if (!token) return { ok: false, error: 'Enter the code from your email.' };
+    // We don't track WHICH send path ran, so try both token types: `email_change` is what an anonymous→email
+    // upgrade (`updateUser`) issues; `email` is what a `signInWithOtp` (existing-account sign-in) issues. The
+    // wrong type just errors with no side effect, so trying both is safe. On success `onAuthStateChange` fires
+    // and the identity updates exactly as it does for a clicked link.
+    try {
+      for (const type of ['email_change', 'email'] as const) {
+        const res = await c.auth.verifyOtp({ email: trimmed, token, type });
+        if (!res.error) return { ok: true };
+      }
+      return { ok: false, error: 'That code didn’t match. Check it and try again, or resend.' };
     } catch {
       return { ok: false, error: 'Could not reach the server. Check your connection and try again.' };
     }

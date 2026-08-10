@@ -2,6 +2,27 @@
 
 The game is a client-first app; the only server code lives here.
 
+## Email sign-in — CODE delivery (required for the desktop exe)
+
+The exe has no web origin, so a magic *link* can't return to it — the player types a **6-digit code** from the
+email instead. For that code to arrive, the email templates must include the token. In the dashboard under
+**Authentication → Emails**, make sure **both** of these templates contain `{{ .Token }}`:
+
+- **Magic Link** — used when a returning player signs in on a fresh device.
+- **Change Email Address** — used when an anonymous session is upgraded to an email account (the common case).
+
+A minimal body that shows the code (keep or drop the link line as you like):
+
+```html
+<p>Your ASCENT sign-in code is:</p>
+<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>Or, on the web, you can <a href="{{ .ConfirmationURL }}">click here</a> instead.</p>
+```
+
+No Site URL / redirect allow-list is needed for the exe path (that's only for the web link). Everything else
+(Email provider enabled, signups allowed, anonymous sign-ins on) is the standard C1/C2 dashboard state.
+
+
 ## `functions/submit-rating` — authoritative rating (C3)
 
 The **only** writer of `profiles.rating`. A client sends `{ runId, placement }` (never a rating); the function,

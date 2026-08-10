@@ -19,29 +19,39 @@ export function AccountPanel() {
   const account = useGame((s) => s.account);
   const playerName = useGame((s) => s.playerName);
   const sendMagicLink = useGame((s) => s.sendMagicLink);
+  const verifyEmailCode = useGame((s) => s.verifyEmailCode);
   const signOutAccount = useGame((s) => s.signOutAccount);
   // Only ever over the Title — never over gameplay (same defensive gate as AvatarPicker).
   const onTitle = useGame((s) => s.showTitle);
 
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [code, setCode] = useState('');
+  // 'idle' → 'sending' → 'sent' (enter the code) → 'verifying'. On success the account flips to signed-in via
+  // the identity onChange subscription, so this component just re-renders into the signed-in branch.
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
 
   if (!open || !onTitle) return null;
 
   const signedIn = !account.anonymous && !!account.email;
 
-  const submit = async (): Promise<void> => {
+  const send = async (): Promise<void> => {
     if (status === 'sending') return;
     setError(null);
     setStatus('sending');
     const res = await sendMagicLink(email);
-    if (res.ok) {
-      setStatus('sent');
-    } else {
-      setStatus('idle');
-      setError(res.error ?? 'Something went wrong. Try again.');
-    }
+    if (res.ok) { setStatus('sent'); setCode(''); }
+    else { setStatus('idle'); setError(res.error ?? 'Something went wrong. Try again.'); }
+  };
+
+  const verify = async (): Promise<void> => {
+    if (status === 'verifying' || !code.trim()) return;
+    setError(null);
+    setStatus('verifying');
+    const res = await verifyEmailCode(email, code);
+    // On success we stay in 'sent'/'verifying' until onChange flips `account` to signed-in and re-renders us
+    // into that branch; only surface an error on failure.
+    if (!res.ok) { setStatus('sent'); setError(res.error ?? 'That code didn’t work. Try again.'); }
   };
 
   return (
@@ -63,14 +73,35 @@ export function AccountPanel() {
             </p>
             <button className="acctpanel-btn ghost pressable" onClick={() => void signOutAccount()}>Sign out</button>
           </div>
-        ) : status === 'sent' ? (
+        ) : status === 'sent' || status === 'verifying' ? (
           <div className="acctpanel-body">
-            <p className="acctpanel-lead">Check your inbox.</p>
+            <p className="acctpanel-lead">Enter your code.</p>
             <p className="acctpanel-note">
-              We sent a sign-in link to <b>{email}</b>. Open it on this device to finish — your current progress
-              upgrades to that account, nothing is lost.
+              We emailed a 6-digit code to <b>{email}</b>. Type it below to finish — your current progress
+              upgrades to that account, nothing is lost. (On the web you can click the link in the email
+              instead.)
             </p>
-            <button className="acctpanel-btn ghost pressable" onClick={() => { setStatus('idle'); setError(null); }}>
+            <input
+              className="acctinput acctpanel-input acctpanel-code"
+              type="text"
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={(e) => { if (e.key === 'Enter') void verify(); }}
+            />
+            {error && <p className="acctpanel-error" role="alert">{error}</p>}
+            <button
+              className="acctpanel-btn primary pressable"
+              onClick={() => void verify()}
+              disabled={status === 'verifying' || code.length < 6}
+            >
+              {status === 'verifying' ? 'Verifying…' : 'Verify & sign in'}
+            </button>
+            <button className="acctpanel-btn ghost pressable" onClick={() => { setStatus('idle'); setError(null); setCode(''); }}>
               Use a different email
             </button>
           </div>
@@ -78,8 +109,8 @@ export function AccountPanel() {
           <div className="acctpanel-body">
             <p className="acctpanel-lead">Save your progress.</p>
             <p className="acctpanel-note">
-              Right now your run history and rating live only in this browser — clearing site data or switching
-              devices loses them. Add your email and we’ll send a one-time link; no password needed.
+              Right now your run history and rating live only on this device — clearing data or switching
+              machines loses them. Add your email and we’ll send a one-time code; no password needed.
             </p>
             <input
               className="acctinput acctpanel-input"
@@ -90,15 +121,15 @@ export function AccountPanel() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void send(); }}
             />
             {error && <p className="acctpanel-error" role="alert">{error}</p>}
             <button
               className="acctpanel-btn primary pressable"
-              onClick={() => void submit()}
+              onClick={() => void send()}
               disabled={status === 'sending' || !email.trim()}
             >
-              {status === 'sending' ? 'Sending…' : 'Send sign-in link'}
+              {status === 'sending' ? 'Sending…' : 'Email me a code'}
             </button>
           </div>
         )}

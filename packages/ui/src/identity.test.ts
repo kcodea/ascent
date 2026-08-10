@@ -25,6 +25,7 @@ const provider = (restore: () => Promise<Identity | null>): AuthProvider => ({
     return next;
   },
   signInWithEmail: async () => ({ ok: true }),
+  verifyEmailCode: async () => ({ ok: true }),
   onChange: () => () => {},
   signOut: async () => setIdentity(null),
 });

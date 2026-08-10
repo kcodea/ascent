@@ -61,6 +61,13 @@ export interface AuthProvider {
    */
   signInWithEmail(email: string): Promise<{ ok: boolean; error?: string }>;
   /**
+   * Complete an email sign-in by CODE — the 6-digit token from the same email. This is the DESKTOP-friendly
+   * path: it needs no redirect and no web origin, so it works inside the packaged exe (where a magic *link*
+   * has nowhere to bounce back to). On the web the link still works too; this just also lets the player type
+   * the code. On success the identity updates through `onChange`, same as the link flow. Added in C2.
+   */
+  verifyEmailCode(email: string, code: string): Promise<{ ok: boolean; error?: string }>;
+  /**
    * Subscribe to identity changes the BACKEND drives rather than the app: the magic-link upgrade landing after
    * the redirect, a token refresh, or a sign-out in another tab. Returns an unsubscribe. Added in C2 — C1 had
    * no backend-driven transition, since an anonymous session only ever changed when the app asked it to.

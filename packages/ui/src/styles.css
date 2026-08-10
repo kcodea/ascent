@@ -4086,6 +4086,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-note { font-size: 13px; line-height: 1.5; color: rgba(238, 244, 251, 0.82); margin: 0; }
 .acctpanel-note b { color: var(--gl-accent, #a8d8ef); }
 .acctpanel-input { text-align: left; min-width: 0; width: 100%; font-size: 16px; padding: 10px 14px; }
+.acctpanel-code { text-align: center; font-size: 26px; letter-spacing: 0.4em; font-weight: 800; text-indent: 0.4em; }
 .acctpanel-error { font-size: 13px; font-weight: 700; color: #ff9aa6; margin: 0; }
 .acctpanel-btn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; padding: 11px 16px; border-radius: 10px; border: 1.5px solid transparent;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: filter 0.1s, opacity 0.1s; }

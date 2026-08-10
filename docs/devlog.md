@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-09 — Accounts: email-CODE sign-in for the desktop exe
+
+**Owner realisation: the primary target is the packaged exe, where a magic LINK has nowhere to bounce back
+to** (no web origin). Added the code path so sign-in works in the exe with zero web hosting — same accounts,
+same email, the player just TYPES a 6-digit code instead of clicking a link.
+
+- **`AuthProvider.verifyEmailCode(email, code)`** — completes sign-in from the emailed token via
+  `verifyOtp`. We don't track which send path ran, so it tries both token types: `email_change` (an
+  anonymous→email upgrade via `updateUser`) then `email` (a `signInWithOtp` existing-account sign-in); the
+  wrong type just errors with no side effect. On success the identity lands through `onChange`, exactly as a
+  clicked link does.
+- **`signInWithEmail` now guards `emailRedirectTo` to real http(s) origins.** In the exe the origin is
+  `file://`, which isn't a whitelistable redirect — so we omit it there (no invalid-redirect send failure) and
+  rely on the code. On the web the link still works too.
+- **`AccountPanel`** — the post-send state is now a **code-entry form** (6-digit input → "Verify & sign in")
+  instead of a "check your inbox" dead end; on success `onChange` flips the panel to signed-in. Copy changed
+  from "link" to "code" ("Email me a code"). The web link path is mentioned as an alternative.
+- **`store`** gains `verifyEmailCode`; the identity test mock implements it.
+
+**Verified:** typecheck clean, identity seam tests green, live browser shows the new "Email me a code" prompt
+and the graceful invalid-email error (the code-entry state itself needs a real send, so it's covered by
+typecheck + review rather than a live email to a real inbox). Gates: **4755 tests / 283 files**, lint at the
+7-warning baseline, `build:web` green.
+
+**Owner action (email templates):** for the CODE to arrive, the Supabase email templates must include the
+token. In Authentication → Emails, add `{{ .Token }}` to both the **Magic Link** and **Change Email Address**
+templates (the latter is what the anonymous→email upgrade uses). Snippet + placement in `supabase/README.md`.
+
 ## 2026-08-09 — Accounts C3: server-authoritative rating
 
 **Folded into the C2 branch** (owner: "go ahead with C3, fold it into 943"). Closes the last rating hole: the

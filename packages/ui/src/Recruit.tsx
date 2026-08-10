@@ -1835,8 +1835,10 @@ export function Recruit() {
       // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
       if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
         const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
+        // Hand cards hang from a lower point (`handGrabY`, near their stat badges); shop/board ride centred.
+        const tgtY = d.source === 'hand' ? d.h * f.handGrabY : d.h / 2;
         m.ax += (d.w / 2 - m.ax) * kc;
-        m.ay += (d.h / 2 - m.ay) * kc;
+        m.ay += (tgtY - m.ay) * kc;
       }
       // Chase the EXACT pointer, not the coarse committed state — `drag.x/y` only advances in quantum steps
       // (each one is a re-render), so following it here would make the card visibly stair-step.

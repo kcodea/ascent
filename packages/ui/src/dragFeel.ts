@@ -31,6 +31,11 @@ export interface DragFeel {
   recenter: number;
   /** Pixels the pointer must drag from the grab point before the recentre onto the cursor begins. */
   recenterAfter: number;
+  /** HAND drag grab point — where the cursor sits on a card lifted FROM THE HAND, as a fraction of the card's
+   *  (compact) height: 0 = top edge, 0.5 = centre, 1 = bottom edge. Shop/board drags always ride centred; this
+   *  moves ONLY the hand anchor, so a fanned hand card can hang from a lower point (near its stat badges) rather
+   *  than from mid-art. Drop/insertion math is unchanged — this is purely where the floating card sits. */
+  handGrabY: number;
   /** How fast an invalid drop springs back to its slot (ms). */
   snapMs: number;
   /** Duration of the Mech 'absorb' slide on a magnetic merge (ms). */
@@ -62,23 +67,24 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.54,     // owner-tuned 2026-07-21: a touch heavier catch-up
-  tiltPerPx: 0.6,   // strong lean per px of lag
-  tiltMax: 11,      // owner-tuned 2026-07-21: tighter tilt ceiling (was 20)
-  hLean: 0.5,       // owner-tuned 2026-07-21: stronger lean into horizontal motion (was 0.3)
+  follow: 0.95,     // owner-tuned 2026-08-10: near-instant catch-up (was 0.54)
+  tiltPerPx: 2,     // owner-tuned 2026-08-10: much stronger lean per px (was 0.6)
+  tiltMax: 20,      // owner-tuned 2026-08-10: looser tilt ceiling (was 11)
+  hLean: 0.5,       // lean into horizontal motion
   vLean: -0.2,      // lean into vertical motion
-  perspective: 1550,// gentle 3D depth
+  perspective: 4000,// owner-tuned 2026-08-10: gentler foreshortening (was 1550)
   scale: 1.21,      // clearly lifted off the table
-  staticRotate: -1.5,// a slight fixed tilt while held
+  staticRotate: 0,  // owner-tuned 2026-08-10: sits flat while held (was -1.5)
   threshold: 0,     // drag engages immediately
-  recenter: 0.28,   // owner-tuned 2026-07-21: quicker glide onto the cursor (was 0.18)
-  recenterAfter: 0, // owner-tuned 2026-07-21: recentre immediately (was 400ms)
+  recenter: 1,      // owner-tuned 2026-08-10: instant glide onto the cursor (was 0.28)
+  recenterAfter: 0, // recentre immediately
+  handGrabY: 0.72,  // owner-tuned 2026-08-10: a hand card hangs from below mid-art (near its stat badges)
   snapMs: 110,
   magSlideMs: 390,
   magWeldLeadMs: 130,
-  collapseY: 20,    // lift only a little before the row fills the gap
+  collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
-  handPop: 0.2,    // owner-tuned 2026-07-20: a modest upward pop (× --ch); replaces the old -100% self-height term
+  handPop: 0.28,    // owner-tuned 2026-08-10: a slightly stronger upward pop (× --ch)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
@@ -88,16 +94,17 @@ const DEFAULTS: DragFeel = {
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   follow: [0.1, 1, 0.02],
-  tiltPerPx: [0, 0.6, 0.01],
+  tiltPerPx: [0, 3, 0.05],
   tiltMax: [0, 20, 0.5],
   hLean: [-1, 1, 0.1],
   vLean: [-1, 1, 0.1],
-  perspective: [200, 1600, 50],
+  perspective: [200, 5000, 50],
   scale: [1, 1.3, 0.01],
   staticRotate: [-8, 8, 0.5],
   threshold: [0, 30, 1],
   recenter: [0.02, 1, 0.02],
   recenterAfter: [0, 500, 5],
+  handGrabY: [0, 1, 0.02],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
   magWeldLeadMs: [0, 300, 10],
@@ -123,6 +130,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   threshold: 'Pixels the pointer must move before a click turns into a drag.',
   recenter: 'How fast the card glides to sit centred on the cursor (per frame; lower = slower slide).',
   recenterAfter: 'Pixels you must drag from the grab point before the card starts recentring onto the cursor.',
+  handGrabY: 'Where a card lifted FROM HAND hangs from the cursor (fraction of card height; 0.5 = centre, higher = lower/nearer the stat badges). Hand only — shop and board always ride centred.',
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   magWeldLeadMs: 'How early (ms before the slide ends) the weld commits, so the ring OVERLAPS the tail of the slide instead of starting after it. 0 = the old back-to-back timing.',
@@ -154,7 +162,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 1;
+export const DRAG_DEFAULTS_VERSION = 2;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

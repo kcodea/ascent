@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-10 — card-drag feel: owner-tuned defaults + a hand grab point
+
+Baked the owner's latest card-drag feel from the DEV Drag tuner into `DEFAULTS` (`dragFeel.ts`) and bumped
+`DRAG_DEFAULTS_VERSION` 1→2 (so every dev's stale local override self-clears on sync; `dragFeel.test.ts`
+fingerprint updated in the same commit). The changed values: `follow` 0.54→0.95 (near-instant catch-up),
+`tiltPerPx` 0.6→2, `tiltMax` 11→20, `perspective` 1550→4000 (gentler foreshortening), `staticRotate` -1.5→0
+(sits flat), `recenter` 0.28→1 (instant recentre), `collapseY` 20→50, `handPop` 0.2→0.28. Two tuner slider
+ranges were widened so the new defaults are reachable: `tiltPerPx` max 0.6→3, `perspective` max 1600→5000.
+
+New param **`handGrabY`** (default 0.72): where a card lifted FROM THE HAND hangs off the cursor, as a fraction
+of the card's compact height (0.5 = centre, higher = lower / nearer the stat badges). Owner wanted a hand card
+to hang from below mid-art rather than from its centre; shop and board drags still ride centred. Wired into the
+drag rAF's recentre target in `Recruit.tsx` (`d.source === 'hand' ? d.h * handGrabY : d.h/2`) — drop/insertion
+math is untouched, it's purely where the floating card sits. Exposed as a "Hand grab point" slider in the Drag
+tuner (Settle group) so the exact spot is dialable by eye. Verified: typecheck + lint + test + build:web green.
+
 ## 2026-08-10 — fix: crisp card on pickup (lift via `zoom`, not `transform: scale`)
 
 Owner report: a dragged card zooms ~20% on pickup and the WHOLE card goes blurry (art, frame, numbers all

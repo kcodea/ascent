@@ -32,6 +32,7 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
 
   recenter:      ['Recentre speed', '×', 'How quickly the card levels out when the cursor stops moving.', 'Settle'],
   recenterAfter: ['Recentre after', 'px', 'How far the cursor must travel before recentring kicks in.', 'Settle'],
+  handGrabY:     ['Hand grab point', '×', 'Where a HAND card hangs from the cursor, as a fraction of card height. 0.5 is centre; higher hangs it lower, nearer the stat badges. Hand only — shop and board ride centred.', 'Settle'],
   snapMs:        ['Snap-back time', 'ms', 'How long the card takes to snap home on an invalid drop.', 'Settle'],
 
   collapseY:     ['Row collapse lift', 'px', 'How far you must lift a card out of its row before the others slide in to fill the gap.', 'Row behaviour'],
@@ -51,7 +52,7 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
 const ORDER: (keyof DragFeel)[] = [
   'follow', 'scale', 'threshold',
   'tiltPerPx', 'tiltMax', 'hLean', 'vLean', 'perspective', 'staticRotate',
-  'recenter', 'recenterAfter', 'snapMs',
+  'recenter', 'recenterAfter', 'handGrabY', 'snapMs',
   'collapseY', 'handFloor', 'handPop',
   'magSlideMs', 'magWeldLeadMs',
   'shGrow', 'shLift', 'shBlur', 'shFade',

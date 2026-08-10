@@ -52,7 +52,7 @@ const SPECS = {
   rate: {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 40, essential: true,
     axis: 'intensity',
-    help: 'Motes per second — smoke is sparse and lingering, so this runs low.',
+    help: 'How many puffs are born each second. Smoke is sparse and lingering, so this runs far lower than a spark stream — 40 is a steady plume, and much above that reads as a solid cloud.',
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 1500, essential: true,
@@ -60,25 +60,25 @@ const SPECS = {
     // (`smokeWithinEmitWindow`), so a stretched plume emits proportionally more puffs at the same `rate`.
     // See `FxScaleAxes.time` for why `rate` deliberately stays off this axis.
     axis: 'time',
-    help: 'Mote lifetime in ms — long, so puffs linger and billow.',
+    help: 'How long each puff lives, in ms. Long is the point — a puff needs time to swell, drift and fade. It also doubles as how long the plume keeps emitting in a one-shot, so raising it makes more smoke as well as slower smoke.',
   },
   spread: {
     kind: 'slider', label: 'Spread', group: 'Emit', min: 0, max: 1, step: 0.01, default: 0.5,
-    help: '1 = emit in all directions, lower = a tighter upward cone.',
+    help: 'How wide the plume fans out. 1 pushes puffs in every direction like a burst of dust; 0.5 (the default) is a leaning column, and 0 a single narrow chimney.',
   },
 
   speed: {
     kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 3000, step: 5, default: 30, axis: 'scale',
     help: 'px/sec initial — gentle drift.' },
   speedVar: {
-    kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
+    kind: 'slider', label: 'Speed variance', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much puffs differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, essential: true,
     axis: 'scale',
-    help: 'px/sec² (negative = rise, like smoke/embers).',
+    help: 'Constant pull on every puff, in px/sec². Negative makes smoke rise (the default, and what reads as heat); positive lets heavy dust settle, 0 leaves it hanging where it was born.',
   },
   spin: {
     kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 1440, step: 1, default: 25,
@@ -86,7 +86,7 @@ const SPECS = {
     help: 'Degrees/sec each puff slowly rotates — 25 is a lazy tumble, 0 leaves every puff frozen at the angle it was born with. Ignored entirely while Orient to velocity is on.',
   },
   spinVar: {
-    kind: 'slider', label: 'Spin var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.6,
+    kind: 'slider', label: 'Spin variance', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.6,
     // Two dependencies (Spin > 0 as well as this one), and the shape only carries one — so it declares the
     // HARD override, which greys the whole Spin pair together the moment Orient to velocity goes on. The
     // "nothing to vary at Spin 0" half stays in the help text below.
@@ -103,7 +103,7 @@ const SPECS = {
     help: 'Swirling lateral force (px/sec²) that makes the column billow and wander — 0 = straight lines.',
   },
   turbScale: {
-    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    kind: 'slider', label: 'Turbulence scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
     enabledWhen: { param: 'turbulence', above: 0 },
     help: 'How tight the billowing is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites while Turbulence is above 0 (smoke ships with it on).',
   },
@@ -130,7 +130,7 @@ const SPECS = {
     help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
   },
   inheritVel: {
-    kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    kind: 'slider', label: 'Inherit motion', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
     help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
   },
 
@@ -140,10 +140,10 @@ const SPECS = {
   },
   size: {
     kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 14, essential: true, axis: 'scale',
-    help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size var jitters it per puff and the Size / life curve grows it as the puff rises.',
+    help: 'How big a puff is across, in px, at birth — 14 gives a chunky column, low values a thin wispy one. Size variance jitters it per puff and the Size / life curve grows it as the puff rises.',
   },
   sizeVar: {
-    kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
+    kind: 'slider', label: 'Size variance', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
     help: 'How much puff sizes differ from each other, as a fraction of Size — 0 makes every puff identical (and the column read mechanical), 0.4 (the default) spreads them between 0.6x and 1.4x.',
   },
   stretchX: {
@@ -152,7 +152,7 @@ const SPECS = {
   },
   stretchY: {
     kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
-    help: 'Per-particle height multiplier on top of Size.',
+    help: 'Stretches every puff vertically on top of Size — above 1 makes them tall and column-like, below 1 squat and spreading. Pair with Stretch X to shape a plume.',
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
@@ -181,7 +181,7 @@ const SPECS = {
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
-    help: 'posterization levels — 3-4 is the cel look, higher washes out',
+    help: 'How many flat colour steps each mote is cut into, instead of a smooth gradient — 3-4 gives the hand-drawn cel look, 1 is a single flat colour, 6 washes back toward a blur.',
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,

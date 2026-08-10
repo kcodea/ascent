@@ -475,7 +475,11 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
   internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,
-  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery; undo/redo
+  shipped, and the **stage** — the workbench's own 3v3 board, so watchers/rallies/area buffs/cross-side hits have
+  something to play across — shipped 2026-08-08.) Now that the stage exists, the queue behind it is: **fire a real
+  combat MOMENT on it** (an attack, a death, a buff wave) rather than only the def in isolation, and let the author
+  pick which of the six units is source vs target instead of always the first of each row.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
   aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the

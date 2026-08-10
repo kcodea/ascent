@@ -47,7 +47,9 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
-import { rubyLandSchedule, rubyLandHolds } from './choreo/channels/rubyLanded';
+import { rubyLandHolds } from './choreo/channels/rubyLanded';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf } from './choreo/recruitMoments';
+import { runRecruitMomentCues } from './choreo/recruitCues';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -921,6 +923,13 @@ export function Recruit() {
   // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
   // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
   const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  /** The recruit-cue runner's own counter snapshot — see `recruitMoments.ts`. Separate from
+   *  `prevRubyLandedSeq`, which the stat-HOLD effect below owns and advances on its own schedule. */
+  const prevRecruitSeqs = useRef(recruitSeqsOf(run));
+  /** Live `run` for the cue runner's lookups, so the effect below can depend on the two counters
+   *  alone. Assigned every render (a property write, no effect) — see `combatSpeedRef`. */
+  const runRef = useRef(run);
+  runRef.current = run;
   /**
    * WITHHOLD the stat change so the gem's effect can deliver it (`fx/statHold.ts`) — the shop half of what
    * `score.ts` does for combat.
@@ -967,40 +976,43 @@ export function Recruit() {
     // moving it would make this effect silently swallow the cue.
   }, [run.rubyLandedFxSeq, run.rubyLandedFx, run.board]);
 
+  /**
+   * THE SHOP CUE RUNNER — what used to be ~35 lines of bespoke React per shop effect (diff a counter, wait a
+   * frame, walk a cascade, measure each card, `playDef` a HARDCODED id) is now one loop over
+   * `recruitMomentsSince`, with WHICH def plays coming from `bindings.json`.
+   *
+   * That is the point rather than the line saving: a shop effect is now re-bindable from the workbench, like
+   * a combat one. Moments are still DERIVED from the counters the reducer already emits — see
+   * `recruitMoments.ts` for why emission stays out of `reducer.ts` for now.
+   */
   useEffect(() => {
-    const seq = run.rubyLandedFxSeq;
-    if (seq === undefined || seq === prevRubyLandedSeq.current) return;
-    prevRubyLandedSeq.current = seq;
-    const lands = run.rubyLandedFx ?? [];
-    if (lands.length === 0) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    // One rAF first, for the same reason the cues above take one: the buffed cards re-render this commit, and
-    // measuring before the browser has laid them out reads the PREVIOUS geometry.
-    const raf = requestAnimationFrame(() => {
-      // The SAME schedule the hold above used — see `rubyLandSchedule`. Two `scheduleLands` calls would be
-      // two schedules that merely agree today.
-      for (const land of rubyLandSchedule(lands)) {
-        // Measured inside the timer so a stagger that outlives a re-render (a triple collapsing three bodies
-        // into one) misses cleanly instead of firing at a stale rect.
-        const fire = (): void => {
-          const el = document.querySelector<HTMLElement>(`[data-uid="${land.uid}"]`);
-          if (!el) return;
-          const p = restingCenterOf(el);
-          if (!p) return;
-          // Both anchors are the minion itself: the Ruby lands ON it, with nothing to travel between.
-          // `uids` names the minion the gem landed on. Without it a `react` layer has no subject and plays
-          // on nobody — this SHOP path was the one that had no uid to give (owner report, 2026-08-04).
-          playDef('ruby-gem-apply', { source: p, target: p }, { uids: { source: land.uid, target: land.uid } }); // literal, not the constant — see RUBY_LANDED_DEF
-          sfx.gemApply(); // one play per gem, matching the cascade the eye sees
-        };
-        // The traversal arithmetic lives in `scheduleLands` (see `fx/land.ts`); this site only says what a
-        // land DOES. A cascade of N-stacks: `gap` between recipients, `beat` within one.
-        if (land.at <= 0) fire();
-        else timers.push(setTimeout(fire, land.at));
-      }
-    });
-    return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
-  }, [run.rubyLandedFxSeq, run.rubyLandedFx]);
+    // MEASURED, not argued: "this body does not run on unrelated dispatches" is a claim about a count, so a
+    // `?perf=1` capture reads `recruit:moment scan` against `recruit renders` (line ~643) and sees it directly.
+    // Both are no-ops when the monitor is off. See docs/performance.md §5.
+    perfMonitor.count('recruit:moment scan');
+    const cur = runRef.current;
+    const moments = recruitMomentsSince(cur, prevRecruitSeqs.current);
+    captureRecruitSeqs(cur, prevRecruitSeqs.current);   // in place — no allocation on the per-action path
+    if (moments.length === 0) return;
+    perfMonitor.count('recruit:moment fired', moments.length);
+    // The synchronous half of a real moment — binding lookup + cascade scheduling — on the clock, so
+    // "a moment costs one `bindingFor` lookup more than the old code" is a hotspot line, not a belief.
+    const stops = perfMonitor.measure('recruit:moment cues', () => moments.map((m) => runRecruitMomentCues(m, {
+      // Read through the REF, not a captured `run`: a cascade outlives the action that started it, so a card
+      // sold or tripled mid-sweep should resolve against the board as it is THEN, not as it was at dispatch.
+      cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+      measure: (uid) => {
+        const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+        return el ? restingCenterOf(el) : null;
+      },
+      // One play per gem, matching the cascade the eye sees.
+      onLand: m.kind === 'rubyLanded' ? () => sfx.gemApply() : undefined,
+    })));
+    return () => { for (const stop of stops) stop(); };
+    // ONLY the two counters. Depending on `run` would re-run this on every dispatch — buy, sell, freeze,
+    // refresh, drop — to discover it had nothing to do, which is strictly worse than the per-effect code it
+    // replaced (that watched its own seq). The board is read through `runRef` instead, so it is not a dep.
+  }, [run.rubyLandedFxSeq, run.recruitFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

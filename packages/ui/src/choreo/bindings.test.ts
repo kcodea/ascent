@@ -15,6 +15,7 @@ import {
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
+import { RECRUIT_MOMENT_KINDS } from './recruitMoments';
 
 // The session patch is module-level shared state — a `setBinding` in one test would otherwise leak into
 // every test that runs after it in this file, including the FILE-baseline assertions below that predate the
@@ -149,6 +150,8 @@ const BINDINGS: Record<string, { def: string }> = {
   shieldGain: { def: 'ward-gained' }, venomSpent: { def: 'venom-spent' }, scCast: { def: 'spell-cast' },
   reveal: { def: 'stealth-break' }, keyword: { def: 'keyword-gain' }, keywordLost: { def: 'keyword-lost' },
   toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
+  // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
+  rubyLanded: { def: 'ruby-gem-apply' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
@@ -235,7 +238,8 @@ describe('binding integrity', () => {
   });
 
   it('every key is a real moment kind and a real card id', () => {
-    const kinds = new Set(Object.keys(SCORE_DEFAULTS));
+    // Both phases: combat kinds come from the score table, shop kinds from the recruit vocabulary.
+    const kinds = new Set<string>([...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS]);
     const t = effectiveTables();
     const bad: string[] = [];
     for (const kind of Object.keys(t.kinds)) if (!kinds.has(kind)) bad.push(`kinds.${kind}`);

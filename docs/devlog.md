@@ -1,6 +1,6 @@
 # ASCENT — development log
 
-## 2026-08-10 — fix: leaderboard ghost rows + double-"YOU"
+## 2026-08-10 — fix: leaderboard ghost rows, double-"YOU", null-name career crash
 
 **Owner spotted a stray `Orangez#4040` (0 rating / 0 games) on the leaderboard, both it and the real
 `Orangez#1799` tagged "YOU".** Three related bugs:
@@ -11,6 +11,10 @@
   tags an EXISTING row; the tag lands on the next boot after the first run.
 - **`fetchTopPlayers` didn't exclude 0-game rows.** Added `.gt('games_played', 0)` — only ranked players show,
   defensive alongside the fix above.
+- **Opening a nameless player's Career crashed.** A player who never set a name has a NULL `author`; `Career`
+  did `shownName.trim()` on it → `Cannot read properties of null`. `shownName` now coalesces to "Unnamed
+  Climber" (used by the avatar initial, the header, and the empty state), and the leaderboard shows the same
+  fallback instead of a blank cell.
 - **"YOU" matched by display NAME (`r.author === me`).** Two accounts can share a name (that's what the tag
   disambiguates), so both Orangez rows lit up. Now matches by `user_id` (`r.userId === account.userId`).
 

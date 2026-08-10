@@ -82,7 +82,7 @@ export function Rankings() {
                   title={`View ${r.author}'s career`}
                 >
                   <span className={`rankrank r${i + 1}`}>{i + 1}</span>
-                  <span className="rankname">{formatHandle(r.author, r.discriminator)}{mine && <span className="rankyou">you</span>}</span>
+                  <span className="rankname">{formatHandle(r.author, r.discriminator) || 'Unnamed Climber'}{mine && <span className="rankyou">you</span>}</span>
                   <span className="ranknum rankrating">{r.rating}</span>
                   <span className="ranknum">{r.gamesPlayed}</span>
                   <span className="rankfav">

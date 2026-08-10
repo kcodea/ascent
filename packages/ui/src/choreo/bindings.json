@@ -23,6 +23,10 @@
     },
     "bloodbinder": {
       "scCast": { "def": "ruby-lance", "fanOut": "damaged" }
+    },
+    "karwind": {
+      "buffWave": { "def": "flame-ring", "fanOut": "buffed" },
+      "minionBuffed": { "def": "flame-ring" }
     }
   }
 }

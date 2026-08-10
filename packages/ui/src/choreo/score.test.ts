@@ -711,6 +711,32 @@ describe('fxDef channel — self-buff fan-out', () => {
   });
 });
 
+/** The cross-buff fan-out: one play per unit the SOURCE empowered, anchored source→each target (Karwind → flame-ring). */
+describe('fxDef channel — buffed (cross-buff) fan-out', () => {
+  const buffOther = (src: string, tgt: string): CombatEvent =>
+    ({ type: 'buff', source: src, target: tgt, attack: 3, health: 3 }) as CombatEvent;
+  const selfBuff = (uid: string): CombatEvent =>
+    ({ type: 'buff', source: uid, target: uid, attack: 1, health: 0 }) as CombatEvent;
+
+  beforeEach(() => { mockPlayDef.mockClear(); mockAnchors.mockClear(); mockCanPlayDefs.mockReturnValue(true); });
+
+  it("plays the card's def once per unit it buffed, anchored source→each target", () => {
+    const events = [buffOther('k', 'd1'), buffOther('k', 'd2')];
+    runMomentCues(moment('buffWave', events), baseCtx(events, withCard('k', 'karwind')));
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'flame-ring')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('k', 'd1');
+    expect(mockAnchors).toHaveBeenCalledWith('k', 'd2');
+  });
+
+  // A self-buff is the OTHER channel's job — the buffed fan-out rides only source→target (cross) buffs.
+  it('ignores a self-buff in the same moment', () => {
+    const events = [selfBuff('k')];
+    runMomentCues(moment('buffWave', events), baseCtx(events, withCard('k', 'karwind')));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * The `rallyFx` channel — a Rally's authored flourish, resolved PER RALLY EVENT.
  *

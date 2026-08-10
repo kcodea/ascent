@@ -146,6 +146,11 @@ it to a moment kind in `score.ts`. Blocking-ish for a serious run: `fxScale` isn
 primitives (a def is the same pixel size on every screen), `playDef` takes no per-call params, and anchors
 are points rather than rectangles.
 
+- **Source-attributed buff FX now exist** (shipped 2026-08-10, first used by Karwind → `flame-ring`): a combat
+  `buffed` fan-out plays a def on every unit the source empowered, and shop buff moments are split per source so a
+  binding keys to the *buffer*. Reusable for other source-driven buffers (Bathing Matriarch, Den Mother auras, …)
+  — brief + author a def, then bind `cards.<id>.buffWave` (fanOut `buffed`) and `cards.<id>.minionBuffed`.
+
 ### Two aura FX don't fire — rebuild them in the workbench (owner ruling 2026-07-31)
 Found while verifying the Pixi aura-bubble removal in game. **The Ward-break shatter and the Rise re-form on
 respawn never play.** Not caused by that removal: calling the survivors directly spawns particles normally

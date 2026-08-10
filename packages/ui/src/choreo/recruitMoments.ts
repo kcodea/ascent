@@ -58,6 +58,12 @@ export interface RecruitMoment {
   kind: RecruitMomentKind;
   /** In board order where the source provides one, so a cascade sweeps the line left to right. */
   recipients: RecruitRecipient[];
+  /** The card that CAUSED this moment, when it is source-attributed (a `minionBuffed` wave names the buffer).
+   *  Present → the cue runner resolves the binding by THIS card rather than by each recipient, which is what
+   *  lets Karwind ring every Dragon it pumps (`cards.karwind.minionBuffed`) instead of every Dragon carrying
+   *  its own binding. Absent (rubyLanded) → recipient-keyed, as before. `''` is a sourceless wave (a spell or
+   *  a dead Deathrattle) — it keys nothing and so only ever resolves a kind-level binding. */
+  sourceCardId?: string;
 }
 
 /**
@@ -113,22 +119,34 @@ export function recruitMomentsSince(
     if (recipients.length > 0) out.push({ kind: 'rubyLanded', recipients });
   }
 
-  // A buff wave names one target per event and can name the same one twice (two sources in one action), so
-  // repeats are COUNTED into a stack rather than emitted as duplicate recipients — otherwise the cascade
-  // would visit the same card twice as if they were different minions.
+  // A buff wave is split into ONE moment per SOURCE card, mirroring how combat gives each buff wave its own
+  // source-keyed moment — so a source-attributed binding (Karwind → flame-ring on every Dragon it pumps)
+  // resolves by the BUFFER rather than by each buffed card. Two sources buffing in one action are two moments;
+  // a source that hits the same target twice is a STACK on that target (a cascade over duplicate recipients
+  // would visit one card twice as if they were different bodies). Source order and per-source target order are
+  // both first-appearance, so the cascade sweeps the board the way the events arrived.
   if (run.recruitFxSeq !== undefined && run.recruitFxSeq !== prev.recruitFx) {
-    const byUid = new Map<string, RecruitRecipient>();
-    const order: string[] = [];
+    const bySource = new Map<string, { byUid: Map<string, RecruitRecipient>; order: string[] }>();
+    const sourceOrder: string[] = [];
     for (const e of run.recruitBuffFx ?? []) {
       if (e.attack === 0 && e.health === 0) continue; // a zero buff changes no digit and reads as nothing
-      const seen = byUid.get(e.targetUid);
+      let group = bySource.get(e.sourceCardId);
+      if (!group) {
+        group = { byUid: new Map(), order: [] };
+        bySource.set(e.sourceCardId, group);
+        sourceOrder.push(e.sourceCardId);
+      }
+      const seen = group.byUid.get(e.targetUid);
       if (seen) seen.count += 1;
       else {
-        byUid.set(e.targetUid, { uid: e.targetUid, count: 1 });
-        order.push(e.targetUid);
+        group.byUid.set(e.targetUid, { uid: e.targetUid, count: 1 });
+        group.order.push(e.targetUid);
       }
     }
-    if (order.length > 0) out.push({ kind: 'minionBuffed', recipients: order.map((u) => byUid.get(u)!) });
+    for (const sourceCardId of sourceOrder) {
+      const group = bySource.get(sourceCardId)!;
+      out.push({ kind: 'minionBuffed', sourceCardId, recipients: group.order.map((u) => group.byUid.get(u)!) });
+    }
   }
 
   return out;

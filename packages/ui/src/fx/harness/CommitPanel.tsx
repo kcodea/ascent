@@ -76,6 +76,7 @@ export function CommitPanel({
         <option value="primary">once, between the moment&apos;s two units</option>
         <option value="damaged">once per enemy damaged</option>
         <option value="selfBuffed">once per unit that buffed itself</option>
+        <option value="buffed">once per unit the source buffed</option>
       </select>
 
       {plan !== null && (

@@ -31,6 +31,7 @@ vi.mock('@supabase/supabase-js', () => ({
       const chain = {
         select: (sel: string) => { q.select = sel; return chain; },
         eq: (col: string, val: unknown) => { q.eqs.push([col, val]); return chain; },
+        gt: () => chain, // fetchTopPlayers filters `games_played > 0` (leaderboard omits 0-game rows)
         order: () => chain,
         limit: () => Promise.resolve({ data: rows, error: null }),
         then: (res: (v: unknown) => unknown) => res({ data: rows, error: null }),

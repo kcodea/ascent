@@ -89,7 +89,9 @@ export function Career() {
   // THEIR profile row, and all we were handed is the leaderboard line. So rating/games come from that row, and
   // "highest" is derived from their run history (`ratingAfter`) rather than invented — omitted when unknowable.
   const viewing = careerOf;
-  const shownName = viewing ? viewing.author : (playerName || 'Unnamed Climber');
+  // A player who never set a name has a NULL author on their row — coalesce so nothing here (`.trim()`, the
+  // header, the empty-state) ever touches null (owner report 2026-08-10: crash opening such a row's career).
+  const shownName = (viewing ? viewing.author : playerName) || 'Unnamed Climber';
   const shownRating = viewing ? viewing.rating : profile.rating;
   const highestSeen = viewing
     ? (entries ?? []).reduce((m, e) => Math.max(m, e.ratingAfter ?? 0), 0) || null
@@ -110,7 +112,7 @@ export function Career() {
         <div className="lbtitle">
           <Icon name="taunt" />
           <div>
-            <div className="esch disp">{viewing ? `${viewing.author}'s Career` : 'Career'}</div>
+            <div className="esch disp">{viewing ? `${shownName}'s Career` : 'Career'}</div>
             <div className="lbsub">{viewing ? 'Their record of climbs' : 'Your record of climbs'}</div>
           </div>
         </div>
@@ -121,7 +123,7 @@ export function Career() {
           <>
             <div className="lbempty">
               <div className="carempty-rating">Rating {shownRating}{viewing ? '' : ` · Oath ${profile.currentLine}`}</div>
-              {viewing ? `No runs to show for ${viewing.author}.` : 'No runs yet — play a run to start your career.'}
+              {viewing ? `No runs to show for ${shownName}.` : 'No runs yet — play a run to start your career.'}
             </div>
           </>
         ) : (

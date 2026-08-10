@@ -15,7 +15,7 @@ import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
   const close = useGame((s) => s.closeRankings);
-  const me = useGame((s) => s.playerName);
+  const myId = useGame((s) => s.account.userId);
   const openCareer = useGame((s) => s.openCareer);
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
 
@@ -63,7 +63,10 @@ export function Rankings() {
             {rows.map((r, i) => {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
               const art = r.favoriteHero ? heroArt(r.favoriteHero) : null;
-              const mine = !!me && r.author === me;
+              // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
+              // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
+              // duplicates as "YOU" (owner report 2026-08-10).
+              const mine = !!myId && r.userId === myId;
               // The row OPENS THEIR CAREER. Rankings stays mounted underneath, so Back returns here rather
               // than to the title — the Career overlay renders after it and simply covers it.
               const openTheirs = (): void => {
@@ -79,7 +82,7 @@ export function Rankings() {
                   title={`View ${r.author}'s career`}
                 >
                   <span className={`rankrank r${i + 1}`}>{i + 1}</span>
-                  <span className="rankname">{formatHandle(r.author, r.discriminator)}{mine && <span className="rankyou">you</span>}</span>
+                  <span className="rankname">{formatHandle(r.author, r.discriminator) || 'Unnamed Climber'}{mine && <span className="rankyou">you</span>}</span>
                   <span className="ranknum rankrating">{r.rating}</span>
                   <span className="ranknum">{r.gamesPlayed}</span>
                   <span className="rankfav">

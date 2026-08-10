@@ -23,6 +23,89 @@ Verified live: the two previously-"Unnamed" rows render as `StormFalcon21` / `Bo
 Career (the path that crashed on null) renders cleanly. Gates: full `npm test` **4771 / 284 files**, typecheck
 clean, lint at the 7-warning baseline, `build:web` green.
 
+## 2026-08-10 — the shop gets a binding surface
+
+The friction log's #2 blocker, closed for a first slice: *"the shop phase has no binding surface at all."*
+
+**Why it mattered more than it looked.** Counting Set 2's content by trigger: `onPlay` (Shout) is its single
+most common at **31 cards**, and with the shop-economy tail (`goldSpent`, `minionSold`, `shopRefreshed`,
+`onSell`, `cardsBought`, `onConsume`, `rubyCast`, `endOfTurn`…) roughly **60% of Set 2's trigger instances
+fire in the shop** — where the effects system did not reach. The most common mechanic in the set could not
+have an authored effect attached to it, which is the concrete reason "tie this effect to this card when they
+do X" had no answer for most cards.
+
+**The tax already paid.** Run state carries ~16 one-shot FX counters — `rubyLandedFxSeq`, `weldFxSeq`,
+`karwindFlashSeq`, `swapFxSeq`, `buffGustSeq`, `auraFxSeq`, `questTendrilSeq`, `fodderEatenSeq` and more.
+Each is one effect that cost a reducer field, a bump site and ~35-50 lines of bespoke React, and each called
+`playDef` with a HARDCODED id — so none of it was re-bindable from the workbench.
+
+Three pieces, split by testability:
+
+- **`choreo/recruitMoments.ts`** — the shop vocabulary (`rubyLanded`, `minionBuffed`) plus a pure adapter that
+  DERIVES moments from the counters the reducer already emits. Named in game terms rather than for the
+  counters it reads, because those are what this file exists to hide.
+- **`choreo/recruitCues.ts`** — the runner: one rAF so the re-rendered cards are laid out, a cascade over
+  recipients, measure at fire time, play. The one thing it does differently from the code it replaces is the
+  whole point — WHICH def plays comes from `bindings.json`.
+- **`BindingKind = MomentKind | RecruitMomentKind`** — one table across both phases. Kept as a union rather
+  than by widening `MomentKind`, which carries a second obligation: `SCORE_DEFAULTS` is a
+  `Record<MomentKind, Cue[]>`, so widening would force a meaningless combat cue row per shop kind and make
+  the exhaustive-score test lie.
+
+**Emission stays out of `reducer.ts` deliberately**, and that is the part to revisit. `reducer.ts` and
+`state.ts` are the repo's hottest conflict files with another session landing content through them
+continuously; an adapter buys the entire binding surface without touching either. The follow-up is to emit
+`RecruitMoment`s at the real sites and retire the ad-hoc counters — at which point `recruitMoments.ts` keeps
+its vocabulary and loses its adapter.
+
+Proved end to end by migrating the shop Ruby cue: ~35 lines of bespoke React deleted, replaced by one
+`bindings.json` row (`"rubyLanded": { "def": "ruby-gem-apply" }`). `directCalls.test.ts` noticed exactly that
+— `ruby-gem-apply` dropped off `DIRECT_CALL_SITES` for `Recruit.tsx`, and `recruitCues.ts` joined
+`DYNAMIC_CALL_SITES` — which is the architectural change stated as data: that effect is no longer played
+from code. The stat-HOLD half stays where it is; only the cue moved.
+
+**Shop-phase cost, since the shop is the hot phase.** The first cut of the runner depended on `run`
+wholesale, which would have re-run its body on EVERY dispatch — buy, sell, freeze, refresh, drop — to
+discover it had nothing to do. That is strictly worse than the per-effect code it replaced, each of which
+watched its own counter. Corrected before merge (owner asked): the effect depends on the two counters alone
+and reads the board through a `runRef` (the `combatSpeedRef` pattern), so
+
+- an action that fires no shop moment does not run the effect at all;
+- the per-action bookkeeping allocates nothing — `captureRecruitSeqs` writes the snapshot in place, pinned
+  with a `toBe` identity assertion;
+- when a moment DOES fire, the binding is resolved ONCE up front rather than per land, behind the existing
+  `canPlayDefs()` guard, and the rAF + timers are the same ones the replaced code used.
+
+**Measured, not argued (owner asked for the capture).** The effect body now carries
+`perfMonitor.count('recruit:moment scan')` and the cue scheduling runs inside
+`perfMonitor.measure('recruit:moment cues', …)`, so "it doesn't run on unrelated dispatches" is a number the
+HUD prints rather than a claim about a dependency array. Both are no-ops when the monitor is off.
+
+A/B on the **prod build** (`build:web` + `preview`, `?perf=1`), same scripted 40 freeze dispatches — freeze
+moves neither counter, so every scan it provokes is pure waste:
+
+| 40 × freeze | `reduce:freeze` | `recruit renders` | `recruit:moment scan` |
+|---|---|---|---|
+| deps = `[run]` (the regression) | 40 | 80 | **40** |
+| deps = the two counters (shipped) | 40 | 80 | **0** |
+
+Exactly one wasted scan per dispatch before, none after — the counter never appears in the bucket at all.
+`reduce:freeze` and `render:recruit` are unchanged between the two, which is the control: the fix removes the
+added work and touches nothing else.
+
+**What this capture does NOT cover, and why.** Frame-level numbers (fps, p95, `worst`) are absent, not
+omitted: the capture ran in a background tab, which suspends rAF, so every frame percentile it produced was
+the hidden-tab artefact (`worst: 105136.9 ms`) that `perfMonitor` flags and `summarize()` discards. Counts and
+`measure()` spans survive that because they read `performance.now()` directly and never touch the frame path —
+the same rAF-free console technique §3b already documents. And the cost of a REAL moment
+(`recruit:moment cues`) is still unmeasured: firing one needs a Ruby dragged onto a minion, and drag flushes
+its moves through rAF, so it cannot be driven in the one environment available here. What is bounded by
+reading the code stands: one `bindingFor` lookup, resolved once up front, ahead of the same rAF and timers the
+replaced code used. Judged against §0 that leaves the *idle* shop path measured at zero added work and the
+**firing** path reasoned, not profiled.
+
+Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4786 tests, `build:web`.
+
 ## 2026-08-10 — fix: leaderboard ghost rows, double-"YOU", null-name career crash
 
 **Owner spotted a stray `Orangez#4040` (0 rating / 0 games) on the leaderboard, both it and the real

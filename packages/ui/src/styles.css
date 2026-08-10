@@ -5411,11 +5411,15 @@ svg { width: 18px; height: 18px; }
    is deliberately NOT overridden here — the book uses the game's standard cream surface (`--card`/`--ink`/
    `--line` from `:root`). A blue scheme was tried and reverted (owner call); the `📖 Compendium Palette` dev
    tuner is the way to explore another one, and its defaults mirror these shipped values. */
-.book { width: min(2300px, 95vw); height: min(1450px, 93vh); display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--acc)) 0%, var(--card) 16%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Compendium palette (owner-tuned, baked from the DEV Compendium tuner 2026-08-10): the shared surface tokens
+   are RE-DECLARED on `.book` so every child rule reading var(--card)/--line/--ink/… reskins from this one
+   block — a dark face with a cream rule and a warm peach ink. The three surfaces below (body/head/rail) carry
+   explicit fills the tokens can't express as a gradient. */
+.book { --card: #000000; --line: #e7dcc7; --ink: #f5c6ad; --ink3: #d1c3ad; --bg2: #ffe5b8; --bg3: #ffe5b8; width: min(2300px, 95vw); height: min(1450px, 93vh); display: flex; flex-direction: column; background: linear-gradient(180deg, #e8f1fd 0%, #000000 14%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
-.book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 10%, var(--card)); flex: none; }
+.book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: #1b1a21; flex: none; }
 .book-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 27.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
 .book-title svg { width: 27.5px; height: 27.5px; color: var(--acc); }
 .book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15.4px; color: var(--ink3); }
@@ -5432,7 +5436,7 @@ svg { width: 18px; height: 18px; }
 .book-tier:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-tier.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
 .book-main { flex: 1; display: flex; min-height: 0; }
-.book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: color-mix(in srgb, var(--card) 90%, var(--bg)); overflow-y: auto; flex: none; }
+.book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: #2c2320; overflow-y: auto; flex: none; }
 .book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }
 .book-cat svg { width: 18px; height: 18px; color: var(--c); flex: none; }
 .book-cat:hover { border-color: var(--c); }

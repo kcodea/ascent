@@ -7430,3 +7430,43 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb .fxwb-def-sub, .fxwb .fxwb-layer-meta, .fxwb .fxwb-def-meta, .fxwb .fxwb-hint {
   font-size: var(--t-meta); font-weight: 700; letter-spacing: 0.01em;
 }
+
+/* ---- SANDBOX UNIT EDITOR (dev) ----
+   A popover seated under the card being edited. Portalled to <body>, so it is positioned in viewport
+   coordinates by the component; everything here is appearance only. Workshop-slate, matching the tuner
+   panels and the FX workbench (DESIGN.md, "The dev tooling surface"). */
+.uned {
+  position: fixed; z-index: 600; display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; border-radius: 8px;
+  background: #100d08; border: 1px solid #4a4136; color: #efe7db;
+  font-family: var(--font-ui); font-size: 12px;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.8);
+}
+.uned select, .uned input {
+  background: #241f17; border: 1px solid #4a4136; color: #efe7db;
+  border-radius: 6px; padding: 4px 6px; font-family: var(--font-ui); font-size: 12px;
+}
+.uned-card { width: 100%; }
+.uned-stats { display: flex; gap: 6px; }
+.uned-num { display: flex; align-items: center; gap: 4px; flex: 1; }
+.uned-num span { color: #8a7f6d; }
+.uned-num input { width: 100%; min-width: 0; }
+.uned-kw { display: flex; flex-wrap: wrap; gap: 4px; }
+.uned-kwbtn {
+  background: #241f17; border: 1px solid #4a4136; color: #8a7f6d;
+  border-radius: 6px; padding: 3px 6px; font-family: var(--font-ui); font-size: 11px;
+}
+.uned-kwbtn.on { color: #100d08; background: #c8a45c; border-color: #c8a45c; }
+.uned-remove {
+  background: #241f17; border: 1px solid #4a4136; color: #efe7db;
+  border-radius: 6px; padding: 4px 6px; font-family: var(--font-ui); font-size: 11px;
+}
+/* The game cursor, like every other dev surface — without this the popover flickers to the OS hand.
+   Doubled `.uned.uned` raises specificity above any later same-file rule of equal weight (the file-order
+   trap this repo has hit seven times); nothing existing is being superseded here, this is just following
+   the established `.fxwb.fxwb` convention above. */
+.uned.uned, .uned.uned * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.uned.uned button, .uned.uned select, .uned.uned input {
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+.uned.uned input[type="number"] { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }

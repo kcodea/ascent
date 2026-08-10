@@ -30,7 +30,7 @@ import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
 import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory } from './remoteBoards';
-import { initIdentity } from './identity';
+import { initIdentity, currentIdentity } from './identity';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -60,7 +60,8 @@ if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 // friction; it persists across reloads, and C2 upgrades it in place to a real account keeping the same
 // `user_id`. Never blocks boot: a failure just means this session uploads nothing, exactly as an
 // unconfigured backend already behaves.
-void initIdentity(supabaseAuthProvider, loadPlayerName());
+// ACCOUNTS C1/C2: establish identity first, and seed + subscribe the account mirror. Wired at the bottom of
+// this module (after `useGame` exists) — see `initAccounts()`.
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 // Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
 void fetchAndRegisterBoardRecords();
@@ -214,6 +215,19 @@ interface GameStore {
    *  and when exported for a friend's pool. Persisted; set in Settings. Empty = anonymous. */
   playerName: string;
   setPlayerName: (name: string) => void;
+  /** ACCOUNTS C2 — the live account state, mirrored from the identity seam. `anonymous` true = a device-bound
+   *  session that is lost if site data clears; once a magic link is confirmed, `email` fills in and
+   *  `anonymous` flips false, and the SAME account (boards, runs, rating) becomes portable across devices. */
+  account: { userId: string | null; email: string | null; anonymous: boolean };
+  /** Whether the account panel overlay is open (from the Title/Settings). */
+  accountPanelOpen: boolean;
+  openAccountPanel: () => void;
+  closeAccountPanel: () => void;
+  /** Send a magic-link sign-in email. Resolves whether the LINK WAS SENT — the actual upgrade lands later,
+   *  through the identity `onChange` subscription, when the player opens the emailed link. */
+  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Sign out of a real account (drops back to a fresh anonymous session on next load). */
+  signOutAccount: () => Promise<void>;
   /** The player's chosen profile avatar — an art id (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`),
    *  or null for the default initial glyph. Cosmetic, local, persisted. Set via the avatar picker. */
   playerAvatar: string | null;
@@ -553,9 +567,21 @@ export const useGame = create<GameStore>((set, get) => ({
     try { localStorage.setItem('ascent.playername', playerName); } catch { /* ignore */ }
     set({ playerName });
     // Keep the identity's display name in step. In C1 this is display-only (it rides on rows as `author`);
-    // C2 moves it onto the profile with a server-assigned discriminator, and this call is already the seam.
+    // C2b moves it onto the profile with a server-assigned discriminator, and this call is already the seam.
     void supabaseAuthProvider.setDisplayName(playerName);
     syncProfileFromServer(playerName); // the server row (if any) is authoritative — now keyed on user_id
+  },
+  // ACCOUNTS C2 — mirrored from the identity seam; seeded at boot + updated by the onChange subscription above.
+  account: { userId: currentIdentity()?.userId ?? null, email: currentIdentity()?.email ?? null, anonymous: currentIdentity()?.anonymous ?? true },
+  accountPanelOpen: false,
+  openAccountPanel: () => set({ accountPanelOpen: true }),
+  closeAccountPanel: () => set({ accountPanelOpen: false }),
+  sendMagicLink: (email) => supabaseAuthProvider.signInWithEmail(email),
+  signOutAccount: async () => {
+    await supabaseAuthProvider.signOut();
+    // Sign-out drops the session; a fresh anonymous one is minted on next load (restore()). Reflect the
+    // signed-out state immediately so the panel updates without a reload.
+    set({ account: { userId: null, email: null, anonymous: true } });
   },
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
@@ -900,6 +926,25 @@ export function syncProfileFromServer(name: string): void {
   });
 }
 if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
+
+// ACCOUNTS C1/C2 — identity boot, wired here (after `useGame` + `syncProfileFromServer` exist).
+//   C1: establish the session (anonymous, no login screen) so every upload path has a `user_id`.
+//   C2: mirror the identity into `account`, and subscribe to backend-driven changes — the magic-link upgrade
+//       landing after the redirect, a token refresh, or a sign-out in another tab. The "check your inbox →
+//       click the link" flow completes HERE: the click reloads the app, Supabase parses the session out of the
+//       URL, `onChange` fires with the now-permanent user, and we pull that account's authoritative profile.
+function initAccounts(): void {
+  void initIdentity(supabaseAuthProvider, loadPlayerName()).then((id) => {
+    if (id) useGame.setState({ account: { userId: id.userId, email: id.email, anonymous: id.anonymous } });
+  });
+  supabaseAuthProvider.onChange((id) => {
+    useGame.setState({
+      account: id ? { userId: id.userId, email: id.email, anonymous: id.anonymous } : { userId: null, email: null, anonymous: true },
+    });
+    if (id && !id.anonymous) syncProfileFromServer(loadPlayerName()); // a real account just landed
+  });
+}
+initAccounts();
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

@@ -4062,6 +4062,38 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctinput { outline: none; text-align: right; min-width: 220px; cursor: text; }
 .acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 
+/* ACCOUNTS C2 — the Title sign-in chip + the account overlay. Themed off the shared glass vars so the UI
+   Theme tuner reaches it; PRESENTATION IS MIKE'S SEAM, this is a plain functional shell for him to restyle. */
+.acctsignin { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--gl-accent, #a8d8ef); padding: 6px 12px; border-radius: 10px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4));
+  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9)));
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: border-color 0.1s, color 0.1s; }
+.acctsignin:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); color: var(--gl-text, #eef4fb); }
+.acctsignin.linked { color: #8fe3a4; }
+
+.acctpanel { position: fixed; inset: 0; z-index: 540; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
+.acctpanel-box { display: flex; flex-direction: column; width: min(440px, 92vw); border-radius: var(--gl-radius, 16px);
+  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.96)), var(--gl-bot, rgba(20, 25, 34, 0.98)));
+  -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
+  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+.acctpanel-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 22px 10px; }
+.acctpanel-title { font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gl-text, #f6efe2); }
+.acctpanel-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 22px 24px; color: var(--gl-text, #eef4fb); }
+.acctpanel-lead { font-family: var(--font-ui); font-weight: 800; font-size: 17px; margin: 0; }
+.acctpanel-email { font-weight: 700; font-size: 15px; color: var(--gl-accent, #a8d8ef); margin: -6px 0 0; word-break: break-all; }
+.acctpanel-note { font-size: 13px; line-height: 1.5; color: rgba(238, 244, 251, 0.82); margin: 0; }
+.acctpanel-note b { color: var(--gl-accent, #a8d8ef); }
+.acctpanel-input { text-align: left; min-width: 0; width: 100%; font-size: 16px; padding: 10px 14px; }
+.acctpanel-error { font-size: 13px; font-weight: 700; color: #ff9aa6; margin: 0; }
+.acctpanel-btn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; padding: 11px 16px; border-radius: 10px; border: 1.5px solid transparent;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: filter 0.1s, opacity 0.1s; }
+.acctpanel-btn.primary { color: #0d1420; background: var(--gl-accent, #a8d8ef); }
+.acctpanel-btn.primary:hover { filter: brightness(1.08); }
+.acctpanel-btn.primary:disabled { opacity: 0.45; cursor: default; }
+.acctpanel-btn.ghost { color: var(--gl-text, #eef4fb); background: transparent; border-color: var(--gl-border, rgba(190, 214, 240, 0.4)); align-self: flex-start; }
+.acctpanel-btn.ghost:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+
 /* The left menu column. */
 .titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }

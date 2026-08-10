@@ -12,7 +12,8 @@ import {
  * rather than write an unowned row.
  */
 
-const id = (userId: string, displayName = '', anonymous = true): Identity => ({ userId, displayName, anonymous });
+const id = (userId: string, displayName = '', anonymous = true, email: string | null = null): Identity =>
+  ({ userId, displayName, anonymous, email });
 
 const provider = (restore: () => Promise<Identity | null>): AuthProvider => ({
   restore,
@@ -23,6 +24,8 @@ const provider = (restore: () => Promise<Identity | null>): AuthProvider => ({
     setIdentity(next);
     return next;
   },
+  signInWithEmail: async () => ({ ok: true }),
+  onChange: () => () => {},
   signOut: async () => setIdentity(null),
 });
 
@@ -79,5 +82,27 @@ describe('rename + sign out', () => {
     await initIdentity(p, 'K');
     await p.signOut();
     expect(currentUserId()).toBeNull();
+  });
+});
+
+describe('C2 — magic-link upgrade in place', () => {
+  it('the upgrade keeps the same user_id, flips anonymous off, and records the email', async () => {
+    // This is the whole point of starting anonymous: the account becomes permanent WITHOUT a new user_id, so
+    // every board / run / rating the anonymous session accumulated carries over untouched.
+    const p = provider(async () => id('u-1', 'Kevin', true, null));
+    await initIdentity(p, 'Kevin');
+    expect(currentIdentity()).toMatchObject({ userId: 'u-1', anonymous: true, email: null });
+
+    // Simulate the backend-driven transition the provider reports after the emailed link is opened.
+    setIdentity({ userId: 'u-1', displayName: 'Kevin', anonymous: false, email: 'kevin@example.com' });
+    expect(currentIdentity(), 'same account, now permanent').toMatchObject({
+      userId: 'u-1', anonymous: false, email: 'kevin@example.com',
+    });
+  });
+
+  it('initIdentity preserves an email carried by a restored (already-linked) session', async () => {
+    // A returning player whose persisted session is a real account must come back linked, not re-anonymised.
+    await initIdentity(provider(async () => id('u-1', 'Kevin', false, 'kevin@example.com')), 'Local');
+    expect(currentIdentity()).toMatchObject({ anonymous: false, email: 'kevin@example.com', displayName: 'Kevin' });
   });
 });

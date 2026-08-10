@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-08-09 — Accounts C2a: real, portable accounts via magic link
+
+**The second accounts ticket, scoped down to its high-value half.** C1 gave every install a real but
+DEVICE-BOUND `user_id` (anonymous sign-in). C2a makes that account permanent and portable: the player enters
+an email, we send a one-time link, and opening it upgrades the SAME account in place — same `user_id`, so
+every board / run / rating carries over — and on another device the same email signs back into that one
+account. No password, so nothing to store, reset, or leak.
+
+**Purely client-side — no schema change.** The email lives in Supabase's `auth.users`; nothing in the game's
+own tables moves. That is what let C2a ship without touching `schema.sql`.
+
+- **`identity.ts`** — the seam grew two members. `Identity` gains `email` (the portable identifier, and the
+  natural join key for an eventual Steam merge). `AuthProvider` gains `signInWithEmail(email)` (sends the
+  link; resolves only whether it was SENT, since the upgrade lands later) and `onChange(fn)` (backend-driven
+  transitions the app didn't ask for — the redirect landing, a token refresh, a sign-out in another tab).
+- **`supabaseAuthProvider`** — `signInWithEmail` picks the right Supabase call by session state: an anonymous
+  session calls `updateUser({ email })` (convert in place, keep `user_id`); a session whose email is ALREADY
+  registered — a returning player on a fresh device — falls back to `signInWithOtp({ shouldCreateUser: false })`
+  to sign into the existing account. The fallback fires ONLY on "email already registered"; every other
+  `updateUser` error is surfaced as-is (an earlier draft fell through blindly and mislabelled a "signups
+  disabled" config as an OTP problem — caught in live browser testing). `onChange` maps the auth event to an
+  `Identity` and keeps the display name across the transition.
+- **`store.ts`** — an `account` mirror (`{ userId, email, anonymous }`), `sendMagicLink` / `signOutAccount`
+  actions, and `initAccounts()` (wired after `useGame` exists) that seeds the mirror at boot and subscribes to
+  `onChange` — so "check your inbox → click → you're signed in" completes when the redirect reloads the app.
+- **`AccountPanel.tsx` + Title "Sign in" chip** — a plain, glass-themed overlay: the save-your-progress prompt
+  with an email field, a "check your inbox" state, and the signed-in state (email + sign out). Presentation is
+  Mike's seam, so it is deliberately minimal for him to restyle; it reads the shared `--gl-*` theme vars so the
+  UI Theme tuner already reaches it.
+
+**Verified** in the live browser: the panel renders every state, no console errors, and the error path
+degrades cleanly (with no email backend configured it shows "Email sign-in isn't enabled for this build yet";
+`@example.com` correctly shows "That doesn't look like a valid email address" — Supabase's own validation,
+now surfaced instead of the misleading fallback). Gates: typecheck clean, 4745 tests / 281 files, lint at its
+7-warning baseline, `build:web` green.
+
+**DASHBOARD CONFIG REQUIRED** (like C1's anonymous-sign-in toggle): the Supabase project must have Email
+sign-ins (magic links) enabled and new-user signups allowed, and the app's deployed origin whitelisted under
+Auth → URL Configuration so the emailed link returns to the running app. Until then the flow degrades to the
+"not enabled" message and play is unaffected.
+
+**Deferred to C2b, deliberately** (flagged for the owner): the `Kevin#4821` discriminator (needs the
+`profiles` schema change) and the offline queue + unrated tagging (only meaningful once C3 makes rating
+server-authoritative — today any authenticated user, anonymous included, can already submit rating, so an
+"unrated" flag would be advisory-only). C2a is complete and playable without either.
+
 ## 2026-08-09 — Rune of Aftershocks fired per WATCHER, not per Echo
 
 **Owner report: "broken and continuously triggers after attacks."** Aftershocks reads "triggering an Echo

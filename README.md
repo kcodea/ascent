@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Real accounts (C2a)** — a magic-link sign-in turns the anonymous device session into a permanent, portable account. Enter your email, click the link, and the SAME account (boards, runs, rating) upgrades in place and follows you across devices — no password. Reachable from the Title "Sign in" chip.
+
 - **The itch package fits again** — 166 unused PNG art masters were shipping alongside their WebP builds (1094 files / 159 MB, over itch's 1000-file cap). Now 929 files / 58 MB, with a test and a packaging guard so it can't recur.
 
 - **Glass hover tooltips** for quests/runes, a **UI Theme tuner** with 10 stock colour schemes driving them, and a **Title Text dev tuner** that rewords the whole front page live — plus a new `text` control kind for the tuner framework.

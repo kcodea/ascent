@@ -15,7 +15,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
-import { currentIdentity, currentUserId, setIdentity, type AuthProvider } from './identity';
+import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -41,13 +41,51 @@ function client(): SupabaseClient | null {
   return cachedClient;
 }
 
+/** A Supabase auth user → our provider-agnostic `Identity`. `is_anonymous` flips false once an email is
+ *  confirmed on the account, so it is the single source of truth for "real account vs device-bound session".
+ *  `displayName` is left to the caller (it comes from local storage / the profile, never from auth). */
+type SbUser = { id: string; is_anonymous?: boolean; email?: string };
+const toIdentity = (user: SbUser, displayName = ''): Identity => ({
+  userId: user.id,
+  displayName,
+  anonymous: user.is_anonymous ?? false,
+  email: user.email ?? null,
+});
+
+/** Raw Supabase auth errors are terse and sometimes leak internals; map the ones a player can actually hit to
+ *  something calm. Anything unrecognised falls through verbatim so we never hide a real signal in dev. */
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — wait a minute and try again.';
+  if (m.includes('invalid') && m.includes('email')) return 'That doesn’t look like a valid email address.';
+  // "Signups not allowed for otp" / "not authorized" / "disabled" all mean the Supabase project hasn't enabled
+  // email sign-in (or has signups off) — a config the PLAYER can't fix, so don't imply they did something wrong.
+  if (m.includes('signups not allowed') || m.includes('not authorized') || m.includes('disabled')) {
+    return 'Email sign-in isn’t enabled for this build yet.';
+  }
+  return message;
+}
+
+/** True when an `updateUser({ email })` failure means the email already belongs to ANOTHER account — the one
+ *  case where "convert in place" must give way to "sign into the existing account". Every other failure is a
+ *  real error to surface, not a reason to fall through. */
+const emailAlreadyRegistered = (message: string): boolean => {
+  const m = message.toLowerCase();
+  return m.includes('already registered') || m.includes('already been registered') || m.includes('already exists');
+};
+
 /**
- * ACCOUNTS C1 — the Supabase implementation of the `AuthProvider` seam.
+ * ACCOUNTS C1 + C2 — the Supabase implementation of the `AuthProvider` seam.
  *
- * `restore()` reuses a persisted session when there is one and otherwise signs in ANONYMOUSLY, so every
- * install has a real `user_id` without a login screen. Anonymous sign-in must be enabled in the Supabase
- * dashboard (Authentication → Providers → Anonymous); if it is not, this resolves null and the app simply
- * uploads nothing — the same graceful degradation as an unconfigured backend.
+ * C1: `restore()` reuses a persisted session or signs in ANONYMOUSLY, so every install has a real `user_id`
+ * with no login screen. Anonymous sign-in must be enabled in the Supabase dashboard (Authentication →
+ * Providers → Anonymous); if it is not, this resolves null and the app uploads nothing — the same graceful
+ * degradation as an unconfigured backend.
+ *
+ * C2: `signInWithEmail()` turns that anonymous session into a permanent, portable account via a MAGIC LINK,
+ * and `onChange()` reports the upgrade landing after the emailed link is opened. The player never sees a
+ * password (there isn't one), and the upgrade keeps the same `user_id`, so all their boards / runs / rating
+ * carry over. "Email sign-ins" (magic links) must be enabled in the dashboard for C2 to work.
  */
 export const supabaseAuthProvider: AuthProvider = {
   async restore() {
@@ -56,22 +94,67 @@ export const supabaseAuthProvider: AuthProvider = {
     try {
       const existing = await c.auth.getSession();
       const user = existing.data.session?.user;
-      if (user) return { userId: user.id, displayName: '', anonymous: user.is_anonymous ?? true };
+      if (user) return toIdentity(user);
       const fresh = await c.auth.signInAnonymously();
       if (fresh.error || !fresh.data.user) return null;
-      return { userId: fresh.data.user.id, displayName: '', anonymous: true };
+      return toIdentity(fresh.data.user);
     } catch {
       return null; // no session → uploads skip for the session; play is unaffected
     }
   },
   async setDisplayName(name) {
-    // C1 keeps the display name LOCAL (it rides on rows as `author`, for rendering only). C2 moves it onto
-    // the profile with a server-assigned discriminator; this shape is here so callers don't change then.
+    // The display name is local (it rides on rows as `author`, for rendering). C2b moves it onto the profile
+    // with a server-assigned discriminator; this shape is here so callers don't change then.
     const id = currentIdentity();
     if (!id) return null;
     const next = { ...id, displayName: name };
     setIdentity(next);
     return next;
+  },
+  async signInWithEmail(email) {
+    const c = client();
+    if (!c) return { ok: false, error: 'No account backend is configured for this build.' };
+    const trimmed = email.trim();
+    if (!trimmed) return { ok: false, error: 'Enter your email address.' };
+    // The emailed link must return the player to THIS running app; anywhere else and the session never lands.
+    const emailRedirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
+    try {
+      const cur = await c.auth.getUser();
+      const anonymous = cur.data.user?.is_anonymous ?? true;
+      if (anonymous) {
+        // PRIMARY PATH — convert this anonymous session in place. Same `user_id`, so nothing is orphaned.
+        const upd = await c.auth.updateUser({ email: trimmed }, { emailRedirectTo });
+        if (!upd.error) return { ok: true };
+        // ONLY when the email already belongs to another account do we switch tactics: this is a RETURNING
+        // player on a fresh device, so sign into that existing account. The throwaway anonymous user on this
+        // device is abandoned; its local-only data was never uploaded, so nothing the player expects is lost.
+        // Any OTHER updateUser error (config, network, invalid email) is surfaced as-is — falling through
+        // blindly used to mislabel a "signups disabled" config as an OTP problem.
+        if (!emailAlreadyRegistered(upd.error.message)) return { ok: false, error: friendlyAuthError(upd.error.message) };
+        const otp = await c.auth.signInWithOtp({ email: trimmed, options: { shouldCreateUser: false, emailRedirectTo } });
+        return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+      }
+      // Already a real account (re-auth, or switching accounts on this device).
+      const otp = await c.auth.signInWithOtp({ email: trimmed, options: { emailRedirectTo } });
+      return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Check your connection and try again.' };
+    }
+  },
+  onChange(fn) {
+    const c = client();
+    if (!c) return () => {};
+    // Supabase fires this on the magic-link redirect (SIGNED_IN / USER_UPDATED), on token refresh, and on a
+    // sign-out in another tab. We keep the live display name across the transition — it comes from local
+    // state, never from auth — and push the mapped identity into the module so `currentUserId()` stays fresh
+    // for every fire-and-forget upload path.
+    const { data } = c.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      const next = user ? toIdentity(user, currentIdentity()?.displayName ?? '') : null;
+      setIdentity(next);
+      fn(next);
+    });
+    return () => data.subscription.unsubscribe();
   },
   async signOut() {
     const c = client();

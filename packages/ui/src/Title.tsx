@@ -53,6 +53,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
+  const account = useGame((s) => s.account);
+  const openAccountPanel = useGame((s) => s.openAccountPanel);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
@@ -102,6 +104,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             {playerName || txt.namePrompt}
           </button>
         )}
+        {/* ACCOUNTS C2 — sign-in status / entry. Signed in = a portable account; otherwise an invite to save. */}
+        <button
+          className={`acctsignin${account.anonymous ? '' : ' linked'}`}
+          onClick={() => { sfx.pulse(); openAccountPanel(); }}
+          title={account.anonymous ? 'Save your progress — sign in with your email' : `Signed in as ${account.email ?? ''}`}
+        >
+          {account.anonymous ? 'Sign in' : 'Account ✓'}
+        </button>
       </div>
 
       <div className="titlemenu">

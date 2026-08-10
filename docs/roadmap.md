@@ -890,9 +890,16 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 - **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
   (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when
   `auth.uid() = user_id`. The rating column is locked against self-edits. Remaining:
-  - **C2 — real accounts** (~2.5 d): sign-up/sign-in UI, `Kevin#4821` handles, anonymous→email upgrade in
-    place, offline queue + unrated tagging. Makes identity portable across devices and survivable past a
-    site-data wipe.
+  - **C2a — real accounts (magic link) SHIPPED 2026-08-09.** Sign-in/account UI + email magic link:
+    `updateUser({email})` converts the anonymous session in place (same `user_id`, history intact),
+    `signInWithOtp` signs a returning player into their existing account on a fresh device. Identity is now
+    portable across devices and survives a site-data wipe. Purely client-side (email lives in `auth.users`),
+    so no schema change. **Needs the Supabase dashboard configured**: Email sign-ins enabled, signups allowed,
+    deployed origin whitelisted under Auth → URL Configuration.
+  - **C2b — handles + offline queue** (~1 d): the `Kevin#4821` discriminator (a `profiles` schema change) and
+    the offline upload queue + unrated tagging. The latter only bites once C3 makes rating server-authoritative
+    — today any authenticated user (anonymous included) can already submit rating — so it is paired here rather
+    than blocking C2a.
   - **C3 — server-authoritative rating** (~1.5 d): an Edge Function becomes the ONLY writer of
     `profiles.rating`, dedupes `runId`, rate-limits, and computes the delta with the shared
     `resolveLobbyRating`. **This is the real gate before the ladder is visible to strangers.**

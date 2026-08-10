@@ -58,7 +58,11 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-vi.mock('./identity', () => ({ currentUserId: () => 'u-1' }));
+// `currentIdentity` is read for the denormalised `email` column (C2b); a real account here.
+vi.mock('./identity', () => ({
+  currentUserId: () => 'u-1',
+  currentIdentity: () => ({ userId: 'u-1', displayName: 'Orangez', anonymous: false, email: 'o@x.com' }),
+}));
 
 const load = async () => (await import('./remoteBoards')).uploadPlayerProfile;
 const profile = { author: 'Orangez', rating: 548, gamesPlayed: 4, favoriteHero: 'guardian', patch: 'test' };

@@ -4081,7 +4081,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-title { font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gl-text, #f6efe2); }
 .acctpanel-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 22px 24px; color: var(--gl-text, #eef4fb); }
 .acctpanel-lead { font-family: var(--font-ui); font-weight: 800; font-size: 17px; margin: 0; }
-.acctpanel-email { font-weight: 700; font-size: 15px; color: var(--gl-accent, #a8d8ef); margin: -6px 0 0; word-break: break-all; }
+.acctpanel-handle { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: var(--gl-value, #e6b45a); margin: -6px 0 0; }
+.acctpanel-email { font-weight: 700; font-size: 15px; color: var(--gl-accent, #a8d8ef); margin: -4px 0 0; word-break: break-all; }
 .acctpanel-note { font-size: 13px; line-height: 1.5; color: rgba(238, 244, 251, 0.82); margin: 0; }
 .acctpanel-note b { color: var(--gl-accent, #a8d8ef); }
 .acctpanel-input { text-align: left; min-width: 0; width: 100%; font-size: 16px; padding: 10px 14px; }

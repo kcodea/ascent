@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **Real accounts (C2a)** — a magic-link sign-in turns the anonymous device session into a permanent, portable account. Enter your email, click the link, and the SAME account (boards, runs, rating) upgrades in place and follows you across devices — no password. Reachable from the Title "Sign in" chip.
+- **Real accounts (C2)** — a magic-link sign-in turns the anonymous device session into a permanent, portable account (same boards/runs/rating, no password) via the Title "Sign in" chip; players carry a `Kevin#4821` handle; and runs finished offline queue up and upload when you reconnect (tagged unrated so they don't move the ladder).
 
 - **The itch package fits again** — 166 unused PNG art masters were shipping alongside their WebP builds (1094 files / 159 MB, over itch's 1000-file cap). Now 929 files / 58 MB, with a test and a packaging guard so it can't recur.
 

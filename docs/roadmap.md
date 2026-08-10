@@ -896,10 +896,12 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
     portable across devices and survives a site-data wipe. Purely client-side (email lives in `auth.users`),
     so no schema change. **Needs the Supabase dashboard configured**: Email sign-ins enabled, signups allowed,
     deployed origin whitelisted under Auth → URL Configuration.
-  - **C2b — handles + offline queue** (~1 d): the `Kevin#4821` discriminator (a `profiles` schema change) and
-    the offline upload queue + unrated tagging. The latter only bites once C3 makes rating server-authoritative
-    — today any authenticated user (anonymous included) can already submit rating — so it is paired here rather
-    than blocking C2a.
+  - **C2b — handles + offline queue SHIPPED 2026-08-09.** The `Kevin#4821` discriminator (`profiles` gains
+    `discriminator` + a unique `(lower(author), discriminator)` index, assigned client-side with
+    retry-on-conflict) + denormalised `profiles.email`; the offline upload queue (queues every write path to
+    localStorage when no session is live, flushes when one lands) + the `unrated` tag (a run finished offline
+    doesn't submit ladder rating and its rows carry `unrated = true` for the C3 audit). **Needs the C2b block
+    in `schema.sql` run** — the new columns + index; column writes degrade gracefully until then.
   - **C3 — server-authoritative rating** (~1.5 d): an Edge Function becomes the ONLY writer of
     `profiles.rating`, dedupes `runId`, rate-limits, and computes the delta with the shared
     `resolveLobbyRating`. **This is the real gate before the ladder is visible to strangers.**

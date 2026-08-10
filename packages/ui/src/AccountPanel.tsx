@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGame } from './store';
+import { useGame, formatHandle } from './store';
 
 /**
  * ACCOUNTS C2 — the sign-in / account overlay (magic link).
@@ -17,6 +17,7 @@ export function AccountPanel() {
   const open = useGame((s) => s.accountPanelOpen);
   const close = useGame((s) => s.closeAccountPanel);
   const account = useGame((s) => s.account);
+  const playerName = useGame((s) => s.playerName);
   const sendMagicLink = useGame((s) => s.sendMagicLink);
   const signOutAccount = useGame((s) => s.signOutAccount);
   // Only ever over the Title — never over gameplay (same defensive gate as AvatarPicker).
@@ -54,6 +55,7 @@ export function AccountPanel() {
         {signedIn ? (
           <div className="acctpanel-body">
             <p className="acctpanel-lead">You’re signed in.</p>
+            {playerName && account.discriminator && <p className="acctpanel-handle">{formatHandle(playerName, account.discriminator)}</p>}
             <p className="acctpanel-email">{account.email}</p>
             <p className="acctpanel-note">
               Your progress is saved to this account and follows you to any device — just sign in with this

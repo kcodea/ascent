@@ -1,6 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-09 — Accounts C2b: handles (`Kevin#4821`) + offline queue + unrated tag
+
+**Folded the two deferred halves of C2 into the same branch** (owner: "fold both in C2"), on top of the C2a
+magic-link work. C2 is now complete.
+
+**Handles — the `#4821` discriminator.** `author` (display name) is mutable and not unique, so two players may
+both be "Kevin"; the discriminator is what tells them apart on the leaderboard. `schema.sql` gains
+`profiles.discriminator` + a partial UNIQUE index on `(lower(author), discriminator)`, plus a denormalised
+`profiles.email` (the natural join key for a future Steam merge). `claimHandle(name)` (client-side) assigns a
+tag with retry-on-conflict against that index — keeping the current tag stable across renames, reassigning
+only on a genuine collision; server-side assignment can move into the C3 Edge Function later without a
+reshape. The handle renders through one `formatHandle` helper on the leaderboard and the account panel.
+
+**Offline queue.** C1 signs in anonymously at boot, so a session is normally live by run-end — but not if
+Supabase was unreachable or the run finished before the handshake, and those uploads used to no-op and the run
+was LOST. Now every write path (boards, victory, telemetry, profile, run history, fight results) QUEUES to
+`localStorage` when there is no session and replays when one lands (`flushUploadQueue`, wired into the store's
+identity boot + onChange). Capped at 100 items; fire-and-forget like the rest of the seam.
+
+**Unrated tag.** A run finished with no live session is UNRATED — on flush its ladder rating is not submitted
+(`uploadPlayerProfile` skips the `submit_own_rating` RPC), and its `boards`/`runs` rows carry `unrated = true`
+for the eventual C3 rating recompute / replay audit. New `unrated` columns on `boards`/`runs`/`run_telemetry`/
+`board_results` (default false, so every existing row and every online upload stays rated). The column writes
+use the file's established "insert with the new column, retry without it" fallback, so they DON'T break on a DB
+that hasn't run the C2b migration yet — boards keep uploading, just untagged, until the ALTER is applied.
+(Telemetry's own multi-rung fallback ladder was left untouched; its `unrated` column exists but the client
+doesn't set it — analytics rows aren't rating-critical and destabilising that ladder wasn't worth it.)
+
+**Verified:** `uploadQueue.test.ts` (5) pins the behaviour with a fake client + switchable identity — no
+session → queue not insert; session lands → replay tagged unrated + queue cleared; a queued profile skips the
+rating RPC; flush is a no-op with no session. `playerProfileWrite.test.ts` updated for the new `email` read.
+Live browser: panel renders, no console errors. Gates: typecheck clean, **4750 tests / 282 files**, lint at
+its 7-warning baseline, `build:web` green.
+
+**Owner action:** run the C2b block in `schema.sql` against the project (the `discriminator`/`email`/`unrated`
+columns + the handle unique index). Until then handles fall back to the bare name and offline rows upload
+untagged — no breakage either way.
+
 ## 2026-08-09 — Accounts C2a: real, portable accounts via magic link
+
 
 **The second accounts ticket, scoped down to its high-value half.** C1 gave every install a real but
 DEVICE-BOUND `user_id` (anonymous sign-in). C2a makes that account permanent and portable: the player enters

@@ -163,6 +163,63 @@ export const supabaseAuthProvider: AuthProvider = {
   },
 };
 
+// ── ACCOUNTS C2 — offline upload queue ────────────────────────────────────────────────────────────────────
+// C1 establishes an anonymous session at boot, so `currentUserId()` is almost always set by the time a run
+// ends — but not if Supabase was unreachable at boot, or a run finished in the split second before the
+// handshake. Those uploads used to silently no-op and the run was lost. Now they QUEUE to localStorage and
+// replay when a session next establishes, tagged UNRATED (a run finished with no live session doesn't move the
+// ladder — see `uploadPlayerProfile`). Fire-and-forget throughout, like the rest of this seam.
+type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight';
+interface QueuedItem { kind: QueueKind; payload: unknown; at: string }
+const QUEUE_KEY = 'ascent.uploadqueue';
+const QUEUE_MAX = 100; // a hard cap so a long offline stretch can't grow localStorage without bound
+
+function loadQueue(): QueuedItem[] {
+  try { const raw = localStorage.getItem(QUEUE_KEY); const a: unknown = raw ? JSON.parse(raw) : []; return Array.isArray(a) ? (a as QueuedItem[]) : []; }
+  catch { return []; }
+}
+function saveQueue(q: QueuedItem[]): void {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-QUEUE_MAX))); } catch { /* ignore */ }
+}
+/** Persist an upload that had no session to run under. Only meaningful with a backend configured. */
+function enqueueUpload(kind: QueueKind, payload: unknown): void {
+  if (!remoteEnabled() || typeof localStorage === 'undefined') return;
+  const q = loadQueue();
+  q.push({ kind, payload, at: new Date().toISOString() });
+  saveQueue(q);
+}
+
+let flushing = false;
+/**
+ * Replay every queued upload now that a session exists — each tagged UNRATED, since it happened offline. Takes
+ * ownership of the queue up front (clears it) so a concurrent finish can't double-send; matches the module's
+ * fire-and-forget norm (no per-item retry — flush only runs right after a successful handshake, so the network
+ * is up). Called from the identity boot + onChange in the store.
+ */
+export async function flushUploadQueue(): Promise<void> {
+  if (flushing || !remoteEnabled() || !currentUserId()) return;
+  const q = loadQueue();
+  if (q.length === 0) return;
+  flushing = true;
+  saveQueue([]);
+  try {
+    for (const item of q) {
+      try {
+        switch (item.kind) {
+          case 'boards':    await uploadBoards(item.payload as BoardSnapshot[], { unrated: true }); break;
+          case 'victory':   await uploadVictory({ ...(item.payload as Parameters<typeof uploadVictory>[0]), unrated: true }); break;
+          case 'telemetry': { const p = item.payload as { t: RunTelemetry; meta: Parameters<typeof uploadRunTelemetry>[1] }; await uploadRunTelemetry(p.t, p.meta); break; }
+          case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
+          case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
+          case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
+        }
+      } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
+    }
+  } finally {
+    flushing = false;
+  }
+}
+
 /** A DB row: the full `BoardSnapshot` lives in the `snapshot` jsonb column; the rest are denormalized so the
  *  dashboard can index / sort / patch-prune (`delete from boards where patch <> '…'`). */
 const toRow = (b: BoardSnapshot) => ({
@@ -183,13 +240,19 @@ const toRow = (b: BoardSnapshot) => ({
 });
 
 /** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
-export async function uploadBoards(boards: BoardSnapshot[]): Promise<void> {
+export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: boolean }): Promise<void> {
   const c = client();
-  // No identity → skip. An unowned row would be rejected by RLS anyway; skipping keeps the failure quiet and
-  // local instead of burning a round-trip on every finished run while offline.
-  if (!c || !currentUserId() || boards.length === 0) return;
+  if (!c || boards.length === 0) return;
+  // No session yet (offline / pre-handshake) → QUEUE rather than lose the boards; flushed when one lands.
+  if (!currentUserId()) { enqueueUpload('boards', boards); return; }
   try {
-    await c.from(TABLE).insert(boards.map(toRow));
+    const rows = boards.map((b) => toRow(b));
+    const tagged = rows.map((r) => ({ ...r, unrated: opts?.unrated ?? false }));
+    const res = await c.from(TABLE).insert(tagged);
+    // `unrated` is a C2b column; on a DB that hasn't run that migration the insert fails, so retry WITHOUT it
+    // — boards keep uploading, they just aren't tagged until the ALTER is applied. Same discipline as the
+    // telemetry fallback ladder below.
+    if (res.error) await c.from(TABLE).insert(rows);
   } catch {
     /* best-effort — capture must never disrupt play */
   }
@@ -290,19 +353,25 @@ export async function uploadVictory(v: {
   /** 'lobby' — the only mode that logs a victory since 2026-07-31. Carried INSIDE the board jsonb (as
    *  `board.mode`) so no schema migration is needed; the reader filters on it. */
   mode?: string;
+  /** C2 offline queue — a victory logged offline is tagged unrated (forward-looking for the C3 audit). */
+  unrated?: boolean;
 }): Promise<void> {
   const c = client();
-  if (!c || !currentUserId()) return;
+  if (!c) return;
+  if (!currentUserId()) { enqueueUpload('victory', v); return; }
   try {
     const board = v.board ? { ...v.board, mode: v.mode } : v.board;
-    await c.from('runs').insert([{
+    const row = {
       user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
       wins: v.wins, result: 'victory', seed: v.seed, board, captured_at: v.capturedAt,
       history: v.history ?? null,
       // The leaderboard slot's fight-ledger id lives inside board.id (the jsonb) — no separate column, so this
       // insert stays compatible with a pre-migration `runs` table (only the new board_results table is required).
-    }]);
+    };
+    // `unrated` is a C2b column — send it, and retry WITHOUT it on a DB that hasn't run the migration.
+    const res = await c.from('runs').insert([{ ...row, unrated: v.unrated ?? false }]);
+    if (res.error) await c.from('runs').insert([row]);
   } catch {
     /* best-effort — leaderboard logging must never disrupt the end screen */
   }
@@ -378,7 +447,8 @@ export async function uploadRunTelemetry(
   meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown },
 ): Promise<void> {
   const c = client();
-  if (!c || !currentUserId()) return;
+  if (!c) return;
+  if (!currentUserId()) { enqueueUpload('telemetry', { t, meta }); return; }
   const base = {
     user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
     patch: meta.patch, author: meta.author ?? null,
@@ -508,20 +578,64 @@ export interface PlayerRow {
    *  the leaderboard; `author` is a mutable display name and must never be used to look anything up. */
   userId: string;
   author: string;
+  /** The `#4821` half of the handle (C2b). Undefined for a legacy/untagged row; the UI shows the bare name. */
+  discriminator?: string;
   rating: number;
   gamesPlayed: number;
   /** Hero id of the most-played hero (resolved to a name + portrait in the UI). Undefined if none recorded. */
   favoriteHero?: string;
 }
 
+/**
+ * ACCOUNTS C2b — ensure this account has a stable `#tag`, and keep `author`/`email` on the profile current.
+ *
+ * The tag STAYS THE SAME across renames whenever it remains unique under the new name, and is only reassigned
+ * on a genuine collision (another account already holds that exact `name#tag`). Returns the live handle, or
+ * null when offline / no backend. `Math.random` is legitimate here — a UI concern, never the seeded sim.
+ */
+export async function claimHandle(name: string): Promise<{ author: string; discriminator: string } | null> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return null;
+  const author = name.trim().slice(0, 24);
+  if (!author) return null;
+  try {
+    const existing = await c.from('profiles').select('discriminator').eq('user_id', userId).limit(1);
+    if (existing.error) return null;
+    const rowExists = !!existing.data && existing.data.length > 0;
+    const currentTag = (existing.data?.[0] as { discriminator?: string | null } | undefined)?.discriminator ?? null;
+    const email = currentIdentity()?.email ?? null;
+    // Prefer the current tag (stable across renames); fall back to fresh random tags on collision.
+    const candidates: string[] = [
+      ...(currentTag ? [currentTag] : []),
+      ...Array.from({ length: 8 }, () => String(1000 + Math.floor(Math.random() * 9000))),
+    ];
+    for (const tag of candidates) {
+      const patch = { author, discriminator: tag, email, updated_at: new Date().toISOString() };
+      const res = rowExists
+        ? await c.from('profiles').update(patch).eq('user_id', userId).select('user_id')
+        : await c.from('profiles').insert({ user_id: userId, rating: 0, ...patch }).select('user_id');
+      if (!res.error) return { author, discriminator: tag };
+      if (res.error.code !== '23505') return null; // a real error, not a `name#tag` uniqueness collision
+    }
+    return null; // every candidate collided — astronomically unlikely at any real player count
+  } catch {
+    return null;
+  }
+}
+
 /** Upsert a player's leaderboard row (keyed by author). Fire-and-forget; never throws / blocks. Skipped for
  *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
 export async function uploadPlayerProfile(p: {
   author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
+  /** C2 offline queue: a run finished with no live session is UNRATED — its ladder rating is not submitted
+   *  (the local rating still moved; only the server ladder skips it). The rest of the profile still upserts. */
+  unrated?: boolean;
 }): Promise<void> {
   const c = client();
   const userId = currentUserId();
-  if (!c || !userId) return;
+  if (!c) return;
+  if (!userId) { enqueueUpload('profile', p); return; }
   try {
     // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
     // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
@@ -540,9 +654,12 @@ export async function uploadPlayerProfile(p: {
     // permits), and fall back to an INSERT — which may set rating — only when no row exists yet. `select()`
     // is what tells the two apart: an UPDATE matching nothing is a success with zero rows, not an error.
     const now = new Date().toISOString();
+    // `email` is denormalised from `auth.users` (C2b) — kept current here so "signed in as …" and a future
+    // Steam merge can read it off the profile row. Null while anonymous.
     const mutable = {
       author: p.author ?? null, games_played: p.gamesPlayed,
       favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
+      email: currentIdentity()?.email ?? null,
     };
     const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
     if (!updated.error && updated.data && updated.data.length > 0) {
@@ -551,10 +668,11 @@ export async function uploadPlayerProfile(p: {
       // so from the C1 migration until this call existed NOTHING could move a stored rating and the MMR
       // leaderboard froze at first-insert values (owner report 2026-08-06). Fire-and-forget like the rest of
       // this seam: on a DB that hasn't run the migration the RPC 404s and the catch above swallows it.
-      await c.rpc('submit_own_rating', { new_rating: p.rating });
+      // C2 UNRATED: a run finished offline (queued) does not move the ladder — skip the rating RPC for it.
+      if (!p.unrated) await c.rpc('submit_own_rating', { new_rating: p.rating });
       return;
     }
-    await c.from('profiles').insert({ user_id: userId, rating: p.rating, ...mutable });
+    await c.from('profiles').insert({ user_id: userId, rating: p.unrated ? 0 : p.rating, ...mutable });
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
   }
@@ -567,14 +685,14 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('profiles').select('user_id, author, rating, games_played, favorite_hero')
+      c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
         .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ user_id: string; author: string; rating: number; games_played: number; favorite_hero: string | null }>)
-      .map((r) => ({ userId: r.user_id, author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+    return (result.data as Array<{ user_id: string; author: string; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
   } catch {
     return [];
   }
@@ -591,7 +709,10 @@ export async function uploadRunHistory(entry: {
 } & Record<string, unknown>): Promise<void> {
   const c = client();
   const userId = currentUserId();
-  if (!c || !userId) return;
+  if (!c) return;
+  // Career is personal history (not the ladder), so it carries no `unrated` tag — but it must not be LOST
+  // offline either, so it queues like the rest and replays when a session lands.
+  if (!userId) { enqueueUpload('history', entry); return; }
   try {
     await c.from('run_history').insert([{
       user_id: userId,
@@ -648,7 +769,8 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
 /** Record one fight against a served board, from the BOARD's perspective (you lose to it → 'win'). */
 export async function recordFightResult(r: { boardId: string; round: number; outcome: 'win' | 'loss' | 'tie'; patch: string }): Promise<void> {
   const c = client();
-  if (!c || !currentUserId() || !r.boardId) return;
+  if (!c || !r.boardId) return;
+  if (!currentUserId()) { enqueueUpload('fight', r); return; }
   try {
     await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
   } catch {

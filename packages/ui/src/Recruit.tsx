@@ -1811,8 +1811,12 @@ export function Recruit() {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
       m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
       const f = getDragFeel();
+      // LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a 3D-transformed layer rasterises
+      // at 1× and the scale then upscales that one texture, blurring the whole card. `zoom` re-rasterises at the
+      // enlarged size. Because zoom also scales the transform's translate, divide it by the lift (`liftTx`).
+      el.style.setProperty('zoom', String(f.scale));
       el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
-      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, 0, 0, f.scale, f.staticRotate); // before-paint, no flash
+      el.style.transform = dragTransform(f.perspective, m.rx / f.scale - m.ax, m.ry / f.scale - m.ay, 0, 0, 1, f.staticRotate); // before-paint, no flash
     }
     let raf = 0;
     let last = performance.now();
@@ -1846,8 +1850,10 @@ export function Recruit() {
       // so left/right (and up/down) lean opposite ways; when the cursor stops the gap closes and it sits flat.
       const rotY = clamp(f.tiltPerPx * f.hLean * gx); // horizontal lean
       const rotX = clamp(f.tiltPerPx * f.vLean * gy); // vertical lean
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt/scale around the (recentring) anchor
-      el.style.transform = dragTransform(f.perspective, m.rx - m.ax, m.ry - m.ay, rotX, rotY, f.scale, f.staticRotate);
+      el.style.setProperty('zoom', String(f.scale)); // crisp layout lift (see the setup block) — not transform scale
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt around the (recentring) anchor
+      // Translate divided by the zoom so the anchor still lands under the cursor; no `scale()` in the transform.
+      el.style.transform = dragTransform(f.perspective, m.rx / f.scale - m.ax, m.ry / f.scale - m.ay, rotX, rotY, 1, f.staticRotate);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -4501,6 +4507,10 @@ export function Recruit() {
           style={{
             width: drag.w,
             height: drag.h,
+            // Normal drag lifts via `zoom` (crisp), written by the rAF — leave it undefined here so React
+            // doesn't fight it. The React-driven release animations (snap / magnet-slide) keep `transform:
+            // scale`, so force zoom back to 1 for them or the rAF's leftover zoom would stack (double-size).
+            zoom: reactDrivesDrag ? 1 : undefined,
             // Normal drag: the rAF (above) owns `transform` + `transform-origin` (a weighted lag, a recentre
             // onto the cursor, and a tilt-toward-motion), written straight to this node so React re-renders
             // don't fight it. Snap-back / magnet-slide use a CSS transition, so React drives those here — the

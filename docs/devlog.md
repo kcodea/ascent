@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-10 — fix: crisp card on pickup (lift via `zoom`, not `transform: scale`)
+
+Owner report: a dragged card zooms ~20% on pickup and the WHOLE card goes blurry (art, frame, numbers all
+soften uniformly). Cause: the drag transform is 3D (`perspective` + `rotateX/rotateY`) with `scale(1.21)`. A
+3D-transformed element is flattened into ONE GPU texture rasterised at 1×, and the scale then upscales that
+single bitmap — a uniform blur, not a low-res art source (the crisp gold frame blurs too, the tell).
+
+Fix: apply the lift as CSS **`zoom`** (a layout scale that re-rasterises at the enlarged size) instead of
+`transform: scale`. The card can only be scaled uniformly by `scale`/`zoom` anyway — its badges mix `--u`,
+fixed-px and `--ccw` units, so a plain width/height layout scale would distort them; `zoom` scales the whole
+coordinate system crisply. `zoom` also scales the transform's translate, so the drag rAF divides the translate
+by the lift (`m.rx / f.scale − m.ax`); verified in-browser that the anchor lands EXACTLY on the cursor
+(no-tilt) and within the same sub-pixel the old scale had once the perspective tilt is applied. The
+React-driven release animations (snap / magnet-slide) keep `transform: scale` and now force `zoom: 1` so the
+rAF's zoom can't stack. Drag FEEL is untouched (follow/recenter/tilt unchanged).
+
+Verified: positioning math exact (synthetic transform probe), typecheck clean, full `npm test` 4786/285, lint
+at the 7-warning baseline, `build:web` green. The actual crispness is best judged by eye on a real drag —
+mechanism + math are sound.
+
 ## 2026-08-10 — Compendium palette baked in (dark face, peach ink)
 
 Owner-tuned Compendium (Minion Book) palette, locked in from the DEV Compendium tuner. The shared surface

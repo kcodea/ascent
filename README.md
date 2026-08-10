@@ -44,6 +44,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Sandbox board editor** — click any minion on your board (or the pinned next opponent, via a new
+  Shop ⇄ Next-enemy toggle) to edit its base stats, keywords, or swap the card outright, then "run it again"
+  to replay the fight. Replaces the FX workbench's synthetic 3v3 stage, which shipped and was deleted 11 days
+  later: it was scenery that nothing could fight. The authored board is now the FOUGHT board, read verbatim
+  through the same `servedBoards` channel a real run uses.
+- **Card-drag feel, retuned** — the owner's latest Drag-tuner values are now the shipped defaults (near-instant catch-up, a stronger tilt, a flatter resting angle, an instant recentre). New with it: a **hand grab point** — a card lifted from the hand now hangs from below mid-art (near its stat badges) instead of from its centre, with a "Hand grab point" slider to place it exactly. Shop and board drags still ride centred.
 - **A card's buff can carry its own authored effect** — Karwind now blooms a fire ring (`flame-ring`) on every Dragon it pumps, in the shop and in combat. Getting there added source-attributed buff effects: a new `buffed` fan-out for combat and per-source shop buff moments, so an effect can be keyed to the *buffer* rather than to each buffed card.
 
 - **Card-drag feel, retuned** — the owner's latest Drag-tuner values are now the shipped defaults (near-instant catch-up, a stronger tilt, a flatter resting angle, an instant recentre). New with it: a **hand grab point** — a card lifted from the hand now hangs from its bottom edge instead of from its centre, with a "Hand grab point" slider to place it exactly. Shop and board drags still ride centred.

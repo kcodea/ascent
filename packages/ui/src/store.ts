@@ -326,6 +326,19 @@ interface GameStore {
    *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
    *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
   startSceneBuilder: (heroId?: string, setId?: SetId) => void;
+  /** SANDBOX ONLY (dev). Click-to-edit is armed: a click on a board minion opens the unit editor instead of
+   *  starting a drag / a buy. A MODE rather than a modifier because a bare click already means something on
+   *  both rows, and the rig has to leave normal play intact — the shop phase is where some of the
+   *  interactions under test only ever happen. */
+  sbEditMode: boolean;
+  setSbEditMode: (on: boolean) => void;
+  /** SANDBOX ONLY (dev). What the tavern row renders: the shop offers (false, the default and exactly the
+   *  shipped behaviour) or the opponent pinned for the coming fight (true). A RENDER switch — flipping it
+   *  changes no run state, so returning to the shop leaves it precisely as it was. */
+  sbTavernShowsEnemy: boolean;
+  setSbTavernShowsEnemy: (on: boolean) => void;
+  /** SANDBOX ONLY (dev). Watch the last fight again: same boards, same seed, same beats. */
+  replayLastCombat: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
@@ -933,6 +946,26 @@ export const useGame = create<GameStore>((set, get) => ({
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
       return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [] };
     });
+  },
+  sbEditMode: false,
+  setSbEditMode: (on) => set({ sbEditMode: on }),
+  sbTavernShowsEnemy: false,
+  setSbTavernShowsEnemy: (on) => set({ sbTavernShowsEnemy: on }),
+  /**
+   * Re-enter the combat phase on the CombatResult already stored, so `useCombatReplay` remounts and animates
+   * it from beat 0. Byte-identical by construction rather than by luck: nothing re-simulates.
+   *
+   * Deliberately NOT a re-dispatch of the action that produced the fight. Resolving a real combat also
+   * settles Resolve, the wave, quests, telemetry and the autosave; a second `faceOmen` would reach all of
+   * that, and the run would silently advance behind a button labelled "watch that again".
+   *
+   * Sandbox-gated, and a no-op with no stored fight — the button is hidden in that state, but a store action
+   * must not depend on its caller's guard.
+   */
+  replayLastCombat: () => {
+    const s = get();
+    if (!s.run.sandbox || !s.run.lastCombat) return;
+    set({ run: { ...s.run, phase: 'combat', combatSettled: false } });
   },
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.

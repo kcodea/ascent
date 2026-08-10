@@ -9,6 +9,7 @@
     "questComplete": { "def": "quest-complete" },
     "questTrigger": { "def": "quest-trigger" },
     "rally": null,
+    "rubyLanded": { "def": "ruby-gem-apply" },
     "reveal": { "def": "stealth-break" },
     "scCast": { "def": "spell-cast" },
     "shieldGain": { "def": "ward-gained" },

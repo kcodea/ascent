@@ -76,6 +76,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const setSbEditMode = useGame((s) => s.setSbEditMode);
   const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
   const setSbTavernShowsEnemy = useGame((s) => s.setSbTavernShowsEnemy);
+  const replayLastCombat = useGame((s) => s.replayLastCombat);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
@@ -265,6 +266,16 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   + add enemy
                 </button>
                 <span className="sb-mini">{run?.servedBoards?.[run.wave]?.minions.length ?? 0} / {MAX_BOARD}</span>
+              </div>
+            )}
+            {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
+                CombatResult already stored — same boards, same seed, same beats — and resolves nothing, so
+                the wave stays pinned and the boards you authored survive. */}
+            {run?.lastCombat !== undefined && (
+              <div className="sb-row">
+                <button className="sb-btn sb-primary" onClick={replayLastCombat} title="Watch the last fight again — nothing advances">
+                  ↻ run it again
+                </button>
               </div>
             )}
           </div>

@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-10 — Compendium palette baked in (dark face, peach ink)
+
+Owner-tuned Compendium (Minion Book) palette, locked in from the DEV Compendium tuner. The shared surface
+tokens are re-declared on `.book` — `--card: #000000`, `--line: #e7dcc7`, `--ink: #f5c6ad`, `--ink3: #d1c3ad`,
+`--bg2/--bg3: #ffe5b8` — so every child rule reading them reskins from one block. Plus explicit fills the
+tokens can't express: the book body gradient (`#e8f1fd → #000000` at 14%), the header (`#1b1a21`) and the rail
+(`#2c2320`). CSS-only; verified live that the computed tokens + the three surfaces match the tuned values.
+`build:web` green, lint at its 7-warning baseline.
+
 ## 2026-08-10 — anonymous players get a friendly temp handle, not "Unnamed Climber"
 
 **Follow-up (same day):** the Title account chip now shows that temp handle for a first-time/unnamed player

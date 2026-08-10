@@ -358,6 +358,15 @@ export interface Replay {
    *  Load-bearing: a lobby run replayed as an Ascent run diverges from its first combat, so its captured boards
    *  were wrong — the bug behind "lobby runs don't save snapshots" (owner 2026-07-29). */
   mode?: RunMode;
+  /** REPLAY VIEWER (2026-08-10): per-action wall-clock DELTAS — ms since the previous recorded action, one per
+   *  entry in `actions`. UI-captured metadata, NEVER fed to the reducer, so replays stay deterministic; it just
+   *  lets a viewer play each action at the cadence the player actually took (their hesitations + snap buys).
+   *  Absent on replays recorded before timing capture landed — a viewer falls back to a synthetic pace. */
+  timings?: number[];
+  /** The exact opponent board fought at each wave (the live run's `servedBoards` matchmaking pin). Lets a
+   *  viewer animate the REAL fights without re-deriving opponents — which a cross-session/spectator replay
+   *  can't reproduce for pool-sourced seats. Absent on older replays. */
+  servedBoards?: Record<number, BoardSnapshot | null>;
 }
 
 /**

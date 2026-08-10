@@ -36,7 +36,7 @@ const KEYWORD_LABEL: Record<string, string> = {
 };
 
 export function UnitEditor({
-  value, anchor, onChange, onToggleKeyword, onRemove, onClose,
+  value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp,
 }: {
   value: UnitEditorValue;
   /** The edited card's rect, in viewport coordinates — the popover seats itself under it. */
@@ -46,11 +46,21 @@ export function UnitEditor({
   /** Present only for opponent slots, which can be removed; your own row is edited, never emptied here. */
   onRemove?: () => void;
   onClose: () => void;
+  /**
+   * The cards offered in the swap dropdown. When provided, replaces the internal `BUYABLE_CARDS` fallback —
+   * that list is `@deprecated` and pinned to set 1, so a sandbox run on another set would otherwise be offered
+   * the wrong cards. Callers that know the run's own pool (e.g. via `poolOf(run)`) should pass it.
+   */
+  cards?: { id: string; name: string }[];
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const cards = useMemo(
+  const fallbackCards = useMemo(
     () => [...BUYABLE_CARDS].sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, name: c.name })),
     [],
+  );
+  const cards = useMemo(
+    () => (cardsProp !== undefined ? [...cardsProp].sort((a, b) => a.name.localeCompare(b.name)) : fallbackCards),
+    [cardsProp, fallbackCards],
   );
 
   // Escape closes, and a pointerdown anywhere outside closes. Both on the CAPTURE phase: the board beneath

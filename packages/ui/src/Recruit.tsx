@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
 import { createPortal } from 'react-dom';
+import { setCardId, setCardStats, toggleCardKeyword } from './sandboxEdit';
+import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -733,6 +735,10 @@ export function Recruit() {
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // SANDBOX ONLY: which board minion the unit editor is open on, and the rect it is seated under. Held as a
+  // uid + rect rather than an element so a re-render (a stat edit is a re-render) can't leave a stale node.
+  const sbEditMode = useGame((s) => s.sbEditMode);
+  const [sbEditing, setSbEditing] = useState<{ uid: string; rect: DOMRect } | null>(null);
   // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
   // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
@@ -2184,6 +2190,24 @@ export function Recruit() {
   const onCardPointerDown = useCallback(
     (e: ReactPointerEvent): void => {
       if (e.button !== 0 || inCombat || useGame.getState().endTurnAnimating) return; // no dragging in combat / mid end-of-turn
+      // Edit mode claims the click outright: a bare pointerdown on a board card otherwise starts a drag, and a
+      // drag that begins under an open editor would move the card you are editing. Read sbEditMode/run LIVE
+      // from the store (not the component-scope `sbEditMode`/`run` closed over here) — this callback's deps
+      // are [timeUp, inCombat], so those closures can be stale by the time a click lands (same reasoning as
+      // the Disco Dan `liveRun` read just below).
+      {
+        const { sbEditMode: liveEditMode, run: liveRun } = useGame.getState();
+        if (liveEditMode && liveRun.sandbox) {
+          const editEl = (e.currentTarget as HTMLElement).closest('[data-uid]');
+          const editUid = editEl?.getAttribute('data-uid');
+          if (editUid !== null && editUid !== undefined && liveRun.board.some((c) => c.uid === editUid)) {
+            e.preventDefault();
+            e.stopPropagation();
+            setSbEditing({ uid: editUid, rect: (editEl as HTMLElement).getBoundingClientRect() });
+            return;
+          }
+        }
+      }
       const el = e.currentTarget as HTMLElement;
       const uid = el.dataset.uid;
       if (!uid) return;
@@ -4866,6 +4890,35 @@ export function Recruit() {
           </div>
         </div>
       )}
+
+      {/* SANDBOX ONLY: the unit editor popover, opened by the click intercept in onCardPointerDown. Every
+          apply reads and writes the LIVE store run rather than this render's `run` — a stat edit is itself a
+          re-render, so a stale closure here could otherwise drop a fast second keystroke's edit. */}
+      {sbEditMode && sbEditing !== null && (() => {
+        const card = run.board.find((c) => c.uid === sbEditing.uid);
+        if (card === undefined) return null; // it left the board under us — close rather than crash
+        const apply = (compute: (liveBoard: typeof run.board) => typeof run.board): void => {
+          const liveRun = useGame.getState().run;
+          useGame.setState({ run: { ...liveRun, board: compute(liveRun.board) } });
+        };
+        return (
+          <UnitEditor
+            value={{ cardId: card.cardId, attack: card.attack, health: card.health, keywords: card.keywords }}
+            anchor={sbEditing.rect}
+            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
+            onChange={(patch) => {
+              if (patch.cardId !== undefined) {
+                const cardId = patch.cardId;
+                apply((liveBoard) => setCardId(liveBoard, card.uid, cardId, (id) => CARD_INDEX[id]));
+              } else {
+                apply((liveBoard) => setCardStats(liveBoard, card.uid, patch));
+              }
+            }}
+            onToggleKeyword={(kw) => apply((liveBoard) => toggleCardKeyword(liveBoard, card.uid, kw))}
+            onClose={() => setSbEditing(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

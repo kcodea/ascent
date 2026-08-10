@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-09 — self-buff-gold retuned on the new stage
+
+The owner's first authoring pass on the workbench stage. `self-buff-gold` goes from a slow, wide, mottled
+cloud to a fast snap: the burst is ~7× quicker (speed 150 → 1050) and less than half as long-lived
+(1270 → 590 ms), its motes shrink from 22px to 6px with the fade envelope turned off entirely (`fade: 0`, so
+the alpha curve is the whole opacity story) and the noise/erode texture dialled out (`erode: 0` — which also
+makes the whole Texture group inert, as its help now says). A **shockwave ring** is added on the same anchor
+at t=0: one fast, thick ring (speed 5.45, thickness 0.265) easing out hard, so the gold reads as a pop with a
+shell rather than a drift.
+
+Def-only; validated by the def/schema suites.
+
 ## 2026-08-08 — The FX workbench gets its own board
 
 The workbench authored effects over **whatever the game happened to be showing**. That is fine for judging a

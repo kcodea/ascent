@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-10 — Replay Phase 1a: capture per-action timing + served boards
+
+First slice of the replay-viewer feature — the DATA foundation. The fidelity groundwork checked out (a cold
+replay of a lobby run's action log reproduces the player's board every round — see `replayFidelity.test.ts`,
+now a permanent guard), so the reducer-replay approach is confirmed. This PR records the two things a viewer
+needs that we weren't capturing:
+
+- **Per-action timing.** The store stamps each recorded action with a delta (ms since the previous one) into a
+  new `replayTimings` array, parallel to `replayActions`. `performance.now()` is UI-only wall-clock — it never
+  touches the deterministic sim — so replays stay byte-identical; it just lets a viewer play back the player's
+  REAL cadence (their hesitations, rapid rerolls, last-second buys) rather than a synthetic pace. The run's
+  first action records a 0 delta (empty-list check), so no per-run clock reset is needed.
+- **Served boards.** The exact opponent fought each wave (`servedBoards`) now rides in the exported/uploaded
+  replay, so a spectator can animate the real fights without re-deriving opponents (which a cross-session
+  replay can't reproduce for pool-sourced seats).
+
+`Replay` gains `timings?: number[]` + `servedBoards?` (both optional — old replays fall back to synthetic
+pacing / re-derivation). Threaded through `exportReplay` and the run-end telemetry upload; the upload's `replay`
+column is opaque jsonb, so it carries the new fields with no schema change. Verified live: three rerolls 420ms
+and 260ms apart recorded `timings: [0, 421, 263]`. Gates: typecheck (web + pkgs) clean, full `npm test`
+4787/286, lint at the 7-warning baseline, `build:web` green.
+
+Next: Phase 1b — the replay DRIVER + a minimal play/pause/speed viewer (steps the action log on a timer at
+`timings × speed`, injects the served boards at each combat). Touches the store + combat-replay clock (Mike's
+seam), so it'll be built carefully.
+
 ## 2026-08-10 — card-drag feel: owner-tuned defaults + a hand grab point
 
 Baked the owner's latest card-drag feel from the DEV Drag tuner into `DEFAULTS` (`dragFeel.ts`) and bumped

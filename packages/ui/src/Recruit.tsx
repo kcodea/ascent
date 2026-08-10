@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
-import { setCardId, setCardStats, toggleCardKeyword } from './sandboxEdit';
+import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
 import { SYM_KINDS } from './choreo/channels/float';
@@ -739,6 +739,10 @@ export function Recruit() {
   // uid + rect rather than an element so a re-render (a stat edit is a re-render) can't leave a stale node.
   const sbEditMode = useGame((s) => s.sbEditMode);
   const [sbEditing, setSbEditing] = useState<{ uid: string; rect: DOMRect } | null>(null);
+  // SANDBOX ONLY: the toggle that swaps the tavern row from shop offers to the board pinned for the coming
+  // fight, and the same index+rect pattern as `sbEditing` for whichever pinned enemy slot is being edited.
+  const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
+  const [sbEditingFoe, setSbEditingFoe] = useState<{ index: number; rect: DOMRect } | null>(null);
   // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
   // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
@@ -1909,7 +1913,7 @@ export function Recruit() {
   const shopUidAt = (x: number, y: number): string | null => {
     const cached = targetRectsRef.current;
     if (cached) return hitCachedUid(cached.shop, x, y);
-    const el = document.elementFromPoint(x, y)?.closest('[data-zone="tavern"] .card[data-uid]:not(.spellcard)');
+    const el = document.elementFromPoint(x, y)?.closest('[data-zone="tavern"] .card[data-uid]:not(.spellcard):not([data-uid^="sbfoe-"])');
     return el?.getAttribute('data-uid') ?? null;
   };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
@@ -2318,7 +2322,7 @@ export function Recruit() {
       (drag.view.spell || drag.view.ruby) && (drag.view.target === 'friendly' || drag.view.target === 'any')
         ? {
             board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
-            shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard)') : [],
+            shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard):not([data-uid^="sbfoe-"])') : [],
           }
         : null;
     // Cache the resting insertion slots (left + width) for the reorder/magnetize gap, so warbandIndexAt/
@@ -3333,6 +3337,33 @@ export function Recruit() {
   );
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = run.shop;
+  // SANDBOX ONLY: the pinned opponent board (if any) for the CURRENT wave, and the click handler that opens
+  // the unit editor on one of its slots. Mirrors `sbEditing`'s uid+rect pattern, but keyed by index — a
+  // `BoardSnapshot`'s minions are a plain array with no uid of their own.
+  const sbEnemySnap: BoardSnapshot | null = run.servedBoards?.[run.wave] ?? null;
+  const applyFoe = (next: BoardSnapshot): void => {
+    // Never persist a zero-minion pin: an empty served board ends combat before it starts, which reads as a
+    // broken rig rather than an authored one. `removeEnemy` already refuses at one minion, so this is
+    // belt-and-braces against any future caller of `applyFoe` that isn't as careful.
+    if (next.minions.length === 0) return;
+    const liveRun = useGame.getState().run;
+    useGame.setState({ run: { ...liveRun, servedBoards: { ...(liveRun.servedBoards ?? {}), [liveRun.wave]: next } } });
+  };
+  const onSbEnemyPointerDown = (e: React.PointerEvent): void => {
+    // Read live: this handler is recreated every render (not a useCallback), so `sbEditMode`/`run` ARE
+    // fresh here — but the live read is kept anyway to match the one established pattern in this file
+    // (`onCardPointerDown`'s own live read a few thousand lines up) rather than have two conventions for
+    // the same problem.
+    const { sbEditMode: liveEditMode, run: liveRun } = useGame.getState();
+    if (!liveEditMode || !liveRun.sandbox) return;
+    const el = (e.currentTarget as HTMLElement).closest('[data-uid]');
+    const foeUid = el?.getAttribute('data-uid') ?? '';
+    const index = Number(foeUid.replace('sbfoe-', ''));
+    if (!Number.isInteger(index) || index < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setSbEditingFoe({ index, rect: (el as HTMLElement).getBoundingClientRect() });
+  };
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
   // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
   const spellShown = run.spell?.uid ?? '';
@@ -4274,6 +4305,29 @@ export function Recruit() {
                 framePulse={replay.framePulseUids.get(u.uid)}
               />
             ))
+          ) : sbTavernShowsEnemy && run.sandbox ? (
+            /* SANDBOX: the board pinned for the coming fight, shown in the row enemies actually occupy — so
+               the on-screen distance an effect travels here is the distance it will travel in the real fight.
+               Gated on `run.sandbox` (belt-and-braces alongside the store flag) and nested INSIDE the
+               non-fighting branch, so a live combat can never be affected by this toggle. */
+            (sbEnemySnap?.minions ?? []).map((m, i) => (
+              <Card
+                key={`sbfoe-${i}`}
+                uid={`sbfoe-${i}`}
+                card={{
+                  name: CARD_INDEX[m.cardId]?.name ?? m.cardId,
+                  cardId: m.cardId,
+                  tribe: CARD_INDEX[m.cardId]?.tribe ?? 'neutral',
+                  attack: m.attack,
+                  health: m.health,
+                  keywords: m.keywords ?? [],
+                  golden: m.golden ?? false,
+                  text: CARD_INDEX[m.cardId]?.text ?? '',
+                  tier: CARD_INDEX[m.cardId]?.tier,
+                }}
+                onPointerDown={sbEditMode ? onSbEnemyPointerDown : undefined}
+              />
+            ))
           ) : (
           <>
           {displayShop.map((o, i) => (
@@ -4916,6 +4970,40 @@ export function Recruit() {
             }}
             onToggleKeyword={(kw) => apply((liveBoard) => toggleCardKeyword(liveBoard, card.uid, kw))}
             onClose={() => setSbEditing(null)}
+          />
+        );
+      })()}
+
+      {/* SANDBOX ONLY: the unit editor popover for the pinned opponent, opened by `onSbEnemyPointerDown`.
+          `applyFoe` re-reads the live store (see its definition above) for the same stale-closure reason as
+          the player editor's `apply`. */}
+      {sbEditMode && sbEditingFoe !== null && sbEnemySnap !== null && sbEnemySnap.minions[sbEditingFoe.index] !== undefined && (() => {
+        const m = sbEnemySnap.minions[sbEditingFoe.index]!;
+        const i = sbEditingFoe.index;
+        return (
+          <UnitEditor
+            value={{ cardId: m.cardId, attack: m.attack, health: m.health, keywords: m.keywords ?? [] }}
+            anchor={sbEditingFoe.rect}
+            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
+            onChange={(patch) => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              if (patch.cardId !== undefined) {
+                const cardId = patch.cardId;
+                applyFoe(setEnemyCardId(liveSnap, i, cardId, (id) => CARD_INDEX[id]));
+              } else {
+                applyFoe(setEnemyStats(liveSnap, i, patch));
+              }
+            }}
+            onToggleKeyword={(kw) => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(toggleEnemyKeyword(liveSnap, i, kw));
+            }}
+            onRemove={() => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(removeEnemy(liveSnap, i));
+              setSbEditingFoe(null);
+            }}
+            onClose={() => setSbEditingFoe(null)}
           />
         );
       })()}

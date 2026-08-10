@@ -5,6 +5,7 @@ import type { Keyword } from '@game/core';
 import { useGame } from './store';
 import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
 import { turnClock } from './turnClock';
+import { addEnemy, stagedBoard, MAX_BOARD } from './sandboxEdit';
 
 /**
  * DEV-only SCENE BUILDER control panel — the sandbox rig launched from the title (its own mode, see
@@ -71,6 +72,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const [enemyN, setEnemyN] = useState(5);
   const [refill, setRefill] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const sbEditMode = useGame((s) => s.sbEditMode);
+  const setSbEditMode = useGame((s) => s.setSbEditMode);
+  const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
+  const setSbTavernShowsEnemy = useGame((s) => s.setSbTavernShowsEnemy);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
@@ -145,6 +150,18 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: board } };
   });
 
+  // "+ add enemy" writes through `mutate` too, but composes `stagedBoard` + `addEnemy` from `sandboxEdit.ts`
+  // rather than hand-building a `BoardSnapshot` (unlike `setEnemies` above, which predates that module) — this
+  // is the same envelope + clamp rules the tavern-row editor uses, so a card added here and one added by
+  // editing an existing slot are indistinguishable. `stagedBoard(wave, [])`'s zero-minion result is never
+  // itself written: `addEnemy` fills it in the same call, so the store never observes an empty pin.
+  const addEnemyFromPanel = (): void => mutate((r) => {
+    const snap = r.servedBoards?.[r.wave] ?? stagedBoard(r.wave, []);
+    const first = pool.buyable[0];
+    if (first === undefined) return r; // this set has no buyable cards — nothing to add
+    return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: addEnemy(snap, first.id, (id) => CARD_INDEX[id]) } };
+  });
+
   return (
     <>
     <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
@@ -215,6 +232,41 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               <button className="sb-btn" onClick={clearBoard}>clear board</button>
               <button className="sb-btn" onClick={clearAll}>clear all</button>
             </div>
+          </div>
+
+          {/* EDITING — the two rig modes. Edit mode arms click-to-edit on both rows; the row toggle decides
+              whether the top row shows the shop or the opponent you are about to fight. Both are sandbox-only
+              and neither changes run state, so the shop is exactly as you left it when you flip back. */}
+          <div className="sb-sec">
+            <div className="sb-label">Editing</div>
+            <div className="sb-row">
+              <button
+                className={`sb-btn${sbEditMode ? ' sb-primary' : ''}`}
+                onClick={() => setSbEditMode(!sbEditMode)}
+                title="Click a minion on either row to set its card, attack, health and keywords"
+              >
+                {sbEditMode ? '✎ edit mode ON' : 'edit mode'}
+              </button>
+              <button
+                className={`sb-btn${sbTavernShowsEnemy ? ' sb-primary' : ''}`}
+                onClick={() => setSbTavernShowsEnemy(!sbTavernShowsEnemy)}
+                title="Swap the top row between the shop and the opponent pinned for the coming fight"
+              >
+                {sbTavernShowsEnemy ? 'showing: enemy' : 'showing: shop'}
+              </button>
+            </div>
+            {sbTavernShowsEnemy && (
+              <div className="sb-row">
+                <button
+                  className="sb-btn"
+                  disabled={(run?.servedBoards?.[run.wave]?.minions.length ?? 0) >= MAX_BOARD}
+                  onClick={addEnemyFromPanel}
+                >
+                  + add enemy
+                </button>
+                <span className="sb-mini">{run?.servedBoards?.[run.wave]?.minions.length ?? 0} / {MAX_BOARD}</span>
+              </div>
+            )}
           </div>
 
           {/* ENEMIES */}

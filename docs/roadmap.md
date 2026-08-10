@@ -475,7 +475,11 @@ considering a lint rule or a convention — `styles.css` is ~6000 lines and this
   resets its params); **A/B compare** of two tunings (now genuinely meaningful, since a locked seed makes the
   randomness controlled); a **perf readout** beyond fps (the primitives already track live particle counts
   internally); layer **naming** and solo; and a **timeline-track** visualization over the layers panel. P3 = A/B compare,
-  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
+  perf HUD. (The **preset library** half of that P3 line shipped 2026-07-29 as the ＋ New effect gallery; undo/redo
+  shipped, and the **stage** — the workbench's own 3v3 board, so watchers/rallies/area buffs/cross-side hits have
+  something to play across — shipped 2026-08-08.) Now that the stage exists, the queue behind it is: **fire a real
+  combat MOMENT on it** (an attack, a death, a buff wave) rather than only the def in isolation, and let the author
+  pick which of the six units is source vs target instead of always the first of each row.) P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests
   aren't enforced there and the ~50 pre-existing `packages/ui` type errors stay invisible. Swapping the
@@ -889,13 +893,16 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
 - **Authentication + accounts.** **C1 SHIPPED 2026-08-03** — identity is now a server-issued `user_id`
   (anonymous sign-in, no login screen), every content row carries its owner, and RLS accepts a write only when
-  `auth.uid() = user_id`. The rating column is locked against self-edits. Remaining:
-  - **C2a — real accounts (magic link) SHIPPED 2026-08-09.** Sign-in/account UI + email magic link:
+  `auth.uid() = user_id`. The rating column is locked against self-edits. **The `schema.sql` C1 block was run
+  against the live project** (owner, 2026-08-09) — so the `to authenticated` policies are real, not just
+  committed. Remaining:
+  - **C2a — real accounts (email code / magic link) SHIPPED 2026-08-09.** Sign-in/account UI + email:
     `updateUser({email})` converts the anonymous session in place (same `user_id`, history intact),
-    `signInWithOtp` signs a returning player into their existing account on a fresh device. Identity is now
-    portable across devices and survives a site-data wipe. Purely client-side (email lives in `auth.users`),
-    so no schema change. **Needs the Supabase dashboard configured**: Email sign-ins enabled, signups allowed,
-    deployed origin whitelisted under Auth → URL Configuration.
+    `signInWithOtp` signs a returning player into their existing account on a fresh device. Completion works by
+    a typed 6-digit CODE (`verifyEmailCode`, the desktop/exe path — no web origin needed) OR a clicked link on
+    the web. Identity is now portable across devices and survives a site-data wipe. Purely client-side (email
+    lives in `auth.users`), so no schema change. **Needs the Supabase email templates to include `{{ .Token }}`**
+    (Magic Link + Change Email Address) so the code is delivered.
   - **C2b — handles + offline queue SHIPPED 2026-08-09.** The `Kevin#4821` discriminator (`profiles` gains
     `discriminator` + a unique `(lower(author), discriminator)` index, assigned client-side with
     retry-on-conflict) + denormalised `profiles.email`; the offline upload queue (queues every write path to

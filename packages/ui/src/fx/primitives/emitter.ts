@@ -39,7 +39,7 @@ const SPECS = {
   rate: {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 80, essential: true,
     axis: 'intensity',
-    help: 'Motes per second.',
+    help: 'How many motes are born each second. The stream runs for as long as the layer does, so this is its density — 80 is a steady feed, the top of the range a solid column. Life decides how many are alive at once: rate x life.',
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 700, essential: true,
@@ -48,25 +48,25 @@ const SPECS = {
     // proportionally more motes at the same `rate`. That is inherent to a continuous emitter running for
     // longer, and is spelled out on `FxScaleAxes.time` along with why `rate` is not the answer to it.
     axis: 'time',
-    help: 'Mote lifetime in ms.',
+    help: 'How long each mote lives, in ms. It does double duty in a one-shot: it is also how long the stream keeps emitting, so a longer Life means more motes as well as longer-lived ones.',
   },
   spread: {
     kind: 'slider', label: 'Spread', group: 'Emit', min: 0, max: 1, step: 0.01, default: 1,
-    help: '1 = emit in all directions, lower = upward cone.',
+    help: 'How wide the stream fans out. 1 throws motes in every direction; lower squeezes them into an upward cone, and 0 is a single straight jet.',
   },
 
   speed: {
     kind: 'slider', label: 'Speed', group: 'Motion', min: 0, max: 3000, step: 5, default: 60, essential: true,
-    axis: 'scale', help: 'px/sec initial.',
+    axis: 'scale', help: 'How fast a mote leaves the anchor, in px/sec. Low keeps the stream hugging the source like a haze; high throws it clear as a jet.',
   },
   speedVar: {
-    kind: 'slider', label: 'Speed var', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
+    kind: 'slider', label: 'Speed variance', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.4,
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, axis: 'scale',
-    help: 'px/sec² (negative = rise, like embers).',
+    help: 'Constant pull on every mote, in px/sec². Negative makes them rise like embers or sparks (the default), positive lets them fall, 0 leaves them weightless.',
   },
   orientToVelocity: {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
@@ -78,9 +78,9 @@ const SPECS = {
     help: 'Swirling lateral force (px/sec²) that makes particles wander — 0 = straight lines.',
   },
   turbScale: {
-    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    kind: 'slider', label: 'Turbulence scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
     enabledWhen: { param: 'turbulence', above: 0 },
-    help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Only bites once Turbulence is above 0.',
+    help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Does nothing while Turbulence is 0.',
   },
   emitShape: {
     kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point', essential: true,
@@ -105,7 +105,7 @@ const SPECS = {
     help: 'Squashes that spawn area vertically — 1 is a true circle/square, lower flattens it into an oval, higher makes it taller than it is wide. Does nothing while Emit shape is point.',
   },
   inheritVel: {
-    kind: 'slider', label: 'Inherit vel', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    kind: 'slider', label: 'Inherit motion', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
     help: 'Fraction of the anchor\'s own movement velocity added to each new particle.',
   },
 
@@ -115,10 +115,10 @@ const SPECS = {
   },
   size: {
     kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 7, essential: true, axis: 'scale',
-    help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs, and the top of the range is a single screen-filling bloom. Size var jitters it per mote and the Size / life curve rescales it as the mote ages.',
+    help: 'How big a mote is across, in px — 7 reads as sparks, 30 as fat glowing blobs, and the top of the range is a single screen-filling bloom. Size variance jitters it per mote and the Size / life curve rescales it as the mote ages.',
   },
   sizeVar: {
-    kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
+    kind: 'slider', label: 'Size variance', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4,
     help: 'How much mote sizes differ from each other, as a fraction of Size — 0 makes every mote identical, 0.4 (the default) spreads them between 0.6x and 1.4x size.',
   },
   stretchX: {
@@ -127,7 +127,7 @@ const SPECS = {
   },
   stretchY: {
     kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 8, step: 0.05, default: 1,
-    help: 'Per-particle height multiplier on top of Size.',
+    help: 'Stretches every mote vertically on top of Size — above 1 makes them tall and column-like, below 1 squat. Pair with Stretch X to turn a round shape into a streak.',
   },
   sizeCurve: {
     kind: 'curve', label: 'Size / life', group: 'Shape',
@@ -154,7 +154,7 @@ const SPECS = {
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
-    help: 'posterization levels — 3-4 is the cel look, higher washes out',
+    help: 'How many flat colour steps each mote is cut into, instead of a smooth gradient — 3-4 gives the hand-drawn cel look, 1 is a single flat colour, 6 washes back toward a blur.',
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
@@ -186,7 +186,7 @@ const SPECS = {
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
-    help: 'Soft additive halo behind each particle.',
+    help: 'A soft halo of light behind each mote, tinted by the palette\'s core colour. 0 leaves them crisp; higher makes the stream bloom and bleed into what it crosses.',
   },
 
   noiseScale: {

@@ -157,7 +157,7 @@ void main() {
 const SPECS = {
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 8, step: 1, default: 4, essential: true,
-    help: 'The style knob — 3-4 is the reference look, 8 washes out to generic fire.',
+    help: 'How many flat colour steps the trail is cut into, instead of a smooth gradient — 3-4 gives the hand-drawn cel look this game is built on, 1 is a single flat colour, and 8 washes back out to generic fire.',
   },
   plateau: {
     kind: 'slider', label: 'Plateau', group: 'Style', min: 0, max: 0.9, step: 0.01, default: 0.3,
@@ -174,7 +174,7 @@ const SPECS = {
   },
   glow: {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
-    help: 'soft outer halo',
+    help: 'A soft halo of light bleeding outside the trail, tinted by the palette\'s core colour. 0 leaves a crisp band; higher makes the trail bloom into what it crosses.',
   },
 
   noiseAlong: {
@@ -211,11 +211,11 @@ const SPECS = {
   },
   head: {
     kind: 'slider', label: 'Head', group: 'Shape', min: 0.01, max: 0.5, step: 0.005, default: 0.06,
-    help: 'How quickly the trail ramps up to full brightness at the head.',
+    help: 'How quickly the trail reaches full brightness behind the head. Low lights up almost instantly at the tip; high leaves a soft run-up, so the head reads as leading the light rather than carrying it.',
   },
   tail: {
     kind: 'slider', label: 'Tail', group: 'Shape', min: 0.3, max: 12, step: 0.05, default: 1.6,
-    help: 'Exponent of the tail fade — higher tapers off sooner.',
+    help: 'How abruptly the far end of the trail fades out. Low keeps the tail visible almost its whole length; high dumps it early, so the trail reads short and snappy however long Length is.',
   },
   soft: {
     kind: 'slider', label: 'Soft', group: 'Shape', min: 0.5, max: 6, step: 0.1, default: 1.5,
@@ -224,7 +224,7 @@ const SPECS = {
   length: {
     kind: 'slider', label: 'Length', group: 'Shape', min: 60, max: 2400, step: 5, default: 300, essential: true,
     axis: 'scale',
-    help: 'Max spine arc length in px — how far back the trail reaches.',
+    help: 'How far back the trail reaches at most, in px, measured along its own path. Short is a flick behind the head; long enough and the trail still spans the board after the head has arrived.',
   },
   width: {
     kind: 'slider', label: 'Width', group: 'Shape', min: 8, max: 600, step: 1, default: 54, essential: true,
@@ -253,18 +253,18 @@ const SPECS = {
     help: 'Width multiplier along the trail (0 = head, 1 = tail). Flat 1 = a constant-width ribbon; drag above the 1x line to bulge, below to taper — anywhere along the length.',
   },
   waveAmp: {
-    kind: 'slider', label: 'Wave amp', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0, axis: 'scale',
+    kind: 'slider', label: 'Wave depth', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0, axis: 'scale',
     help: 'Amplitude (px) of a travelling sine that bends the ribbon\'s spine sideways, so the trail snakes. 0 = a straight-following ribbon (the default look).',
   },
   waveFreq: {
-    kind: 'slider', label: 'Wave freq', group: 'Shape', min: 0.2, max: 24, step: 0.1, default: 2,
+    kind: 'slider', label: 'Wave frequency', group: 'Shape', min: 0.2, max: 24, step: 0.1, default: 2,
     enabledWhen: { param: 'waveAmp', above: 0 },
-    help: 'Wave cycles along the trail\'s length. Only bites once Wave amp is above 0.',
+    help: 'Wave cycles along the trail\'s length. Only bites once Wave depth is above 0.',
   },
   waveSpeed: {
     kind: 'slider', label: 'Wave speed', group: 'Shape', min: 0, max: 60, step: 0.1, default: 3,
     enabledWhen: { param: 'waveAmp', above: 0 },
-    help: 'How fast the wave travels (rad/sec); 0 freezes it in place. Only bites once Wave amp is above 0.',
+    help: 'How fast the wave travels along the trail; 0 freezes it in place so the bends stay pinned to the path. Does nothing while Wave depth is 0.',
   },
   drain: {
     kind: 'slider', label: 'Drain', group: 'Shape', min: 0, max: 8000, step: 10, default: 0, axis: 'scale',

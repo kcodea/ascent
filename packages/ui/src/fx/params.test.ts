@@ -454,7 +454,7 @@ describe('validateSpecs', () => {
 const DEP_SPECS = {
   turbulence: { kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 400, step: 5, default: 0 },
   turbScale: {
-    kind: 'slider', label: 'Turb scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
+    kind: 'slider', label: 'Turbulence scale', group: 'Physics', min: 0.005, max: 0.1, step: 0.001, default: 0.02,
     enabledWhen: { param: 'turbulence', above: 0 },
   },
   emitShape: { kind: 'enum', label: 'Emit shape', group: 'Physics', options: ['point', 'disc'], default: 'point' },
@@ -718,12 +718,12 @@ describe('the shipped primitives', () => {
     }
   });
 
-  it('ribbon: the wave shaping knobs are inert while Wave amp is 0 (their own default)', () => {
+  it('ribbon: the wave shaping knobs are inert while Wave depth is 0 (their own default)', () => {
     const specs = ribbonPrimitive.params as FxParamSpecs;
     const values = defaultsOf(specs) as Record<string, unknown>;
     for (const key of ['waveFreq', 'waveSpeed']) {
       expect(isParamEnabled(specs[key], values)).toBe(false);
-      expect(paramDisabledReason(specs, key, values)).toBe('Needs Wave amp above 0');
+      expect(paramDisabledReason(specs, key, values)).toBe('Needs Wave depth above 0');
       expect(isParamEnabled(specs[key], { ...values, waveAmp: 12 })).toBe(true);
     }
   });
@@ -747,7 +747,7 @@ describe('the shipped primitives', () => {
     expect(paramDisabledReason(specs, 'ringDelay', { ...values, rings: 1 })).toBe('Needs Rings above 1');
   });
 
-  it('emitter: Speed var has nothing to vary at Speed 0', () => {
+  it('emitter: Speed variance has nothing to vary at Speed 0', () => {
     const specs = emitterPrimitive.params as FxParamSpecs;
     const values = defaultsOf(specs) as Record<string, unknown>;
     expect(isParamEnabled(specs.speedVar, values)).toBe(true);

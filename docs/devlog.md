@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-08-09 — Accounts C3: server-authoritative rating
+
+**Folded into the C2 branch** (owner: "go ahead with C3, fold it into 943"). Closes the last rating hole: the
+CLIENT used to compute its own rating and push the absolute value through the `submit_own_rating` RPC, which
+trusted whatever number it got — anyone with devtools could set any rating. This is the gate the roadmap names
+before the ladder is shown to strangers.
+
+**The `submit-rating` Edge Function is now the only writer of `profiles.rating`.** A client sends
+`{ runId, placement }` — never a rating. The function (service role) reads the caller's STORED rating and
+computes the new one itself: `max(0, stored + LOBBY_PLACEMENT_DELTAS[placement-1])`. The key simplification is
+that the server needs ONLY the rating — Line + high-water marks are a local display concept the client
+re-derives from the adopted rating, so there are no line columns to keep server-side, and the whole authoritative
+computation is one line sharing ONE constant with the client.
+
+- **`supabase/functions/submit-rating/index.ts`** (Deno) — auth via the caller's JWT; dedupe by inserting a
+  `rated_runs` ledger row first (a unique violation = already rated → returns the current rating, idempotent);
+  a per-player rate limit off that same ledger; then the authoritative compute + upsert.
+- **`supabase/functions/_shared/lobbyRating.ts`** — the placement-delta table + `lobbyRatingAfter`, kept
+  dependency-free. **`lobbyRatingParity.test.ts`** reads this file and asserts its deltas equal the sim's
+  `LOBBY_PLACEMENT_DELTAS` and that the formula reproduces `resolveLobbyRating(...).ratingAfter` for every
+  placement — so a one-sided re-tune fails CI instead of silently diverging server from client.
+- **`schema.sql` C3 block** — `rated_runs (user_id, run_id)` PK with RLS on and NO policies (service-role only,
+  so a client can't read or forge rating history); and `revoke execute on submit_own_rating from authenticated`
+  — the client's legacy door, removed once the function is live.
+- **Client (`remoteBoards.ts`)** — `uploadPlayerProfile` no longer persists a client-computed rating: it
+  upserts the DISPLAY columns and inserts a rating-0 placeholder for a new row, then `submitRating` calls the
+  Edge Function with `{runId, placement}`. It falls back to the `submit_own_rating` RPC ONLY while the function
+  isn't deployed. The store passes `runId = String(seed)` + the lobby placement; non-lobby runs pass no
+  placement and don't move the ladder.
+
+**Deploy story (owner, both together — function FIRST):** `supabase functions deploy submit-rating`, then run
+the C3 SQL block (which revokes the client fallback). Until then the client uses the RPC fallback and nothing
+breaks — C3 just isn't enforcing. **The Edge Function can't be run or deployed from here** (no Deno / project
+auth), so its pure logic is unit-tested (parity) and the runtime path is owner-deployed — same shape as the C2
+dashboard/SQL owner-actions. Full deploy notes in `supabase/README.md`.
+
+**Verified:** `lobbyRatingParity.test.ts` (3) pins server↔client parity; `playerProfileWrite.test.ts` rewritten
+for C3 (rating rides the function with `{runId, placement}`; RPC only as the pre-deploy fallback; a rating-0
+placeholder insert; non-lobby + unrated runs submit no rating). `supabase/**` is excluded from the Node
+tsc/eslint. Gates: typecheck clean, **4755 tests / 283 files**, lint at its 7-warning baseline, `build:web`
+green.
+
 ## 2026-08-09 — Accounts C2b: handles (`Kevin#4821`) + offline queue + unrated tag
 
 **Folded the two deferred halves of C2 into the same branch** (owner: "fold both in C2"), on top of the C2a

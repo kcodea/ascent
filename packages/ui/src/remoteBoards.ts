@@ -624,13 +624,35 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
   }
 }
 
-/** Upsert a player's leaderboard row (keyed by author). Fire-and-forget; never throws / blocks. Skipped for
+/**
+ * ACCOUNTS C3 — submit a finished LOBBY run's placement for an AUTHORITATIVE rating.
+ *
+ * The `submit-rating` Edge Function reads the caller's STORED rating and computes the delta itself from the
+ * same placement table the client uses, so a client can't inflate it; `runId` dedupes so one run rates once.
+ * Falls back to the legacy `submit_own_rating` RPC (the client-computed absolute value) ONLY while the function
+ * isn't deployed — once C3 is live the schema revokes that RPC and the function path is the only one that runs.
+ * Fire-and-forget, like the rest of this seam.
+ */
+async function submitRating(opts: { runId: string; placement: number; fallbackRating: number }): Promise<void> {
+  const c = client();
+  if (!c) return;
+  try {
+    const { error } = await c.functions.invoke('submit-rating', { body: { runId: opts.runId, placement: opts.placement } });
+    if (!error) return; // the server set the authoritative rating
+  } catch { /* function absent (pre-deploy) / offline → fall through to the legacy RPC */ }
+  try { await c.rpc('submit_own_rating', { new_rating: opts.fallbackRating }); } catch { /* best-effort */ }
+}
+
+/** Upsert a player's leaderboard row (keyed by user). Fire-and-forget; never throws / blocks. Skipped for
  *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
 export async function uploadPlayerProfile(p: {
   author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
   /** C2 offline queue: a run finished with no live session is UNRATED — its ladder rating is not submitted
    *  (the local rating still moved; only the server ladder skips it). The rest of the profile still upserts. */
   unrated?: boolean;
+  /** C3: the finished LOBBY's placement (1–8) + a stable run id, so the SERVER derives the rating. Absent for
+   *  non-lobby runs, which don't move the ladder. */
+  runId?: string; placement?: number;
 }): Promise<void> {
   const c = client();
   const userId = currentUserId();
@@ -640,19 +662,15 @@ export async function uploadPlayerProfile(p: {
     // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
     // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
     //
-    // ── WHY THIS IS TWO STATEMENTS AND NOT ONE UPSERT ────────────────────────────────────────────────────
-    // The C1 RLS policy makes `rating` WRITE-ONCE from the client: its `with check` requires the incoming
-    // rating to equal the row's currently stored value. A single upsert sends every column, so as soon as the
-    // player's rating moved, the incoming rating no longer matched and Postgres rejected THE WHOLE ROW — not
-    // just the rating. `games_played`, `author` and `favorite_hero` all silently froze at whatever they were
-    // on the first insert, and the failure was swallowed by the best-effort catch below.
-    //
-    // That is the leaderboard reading "1 game" for a player with four runs in their Career (owner report
-    // 2026-08-04): the count was never wrong, it was never written after run one.
-    //
-    // So: UPDATE the mutable columns WITHOUT touching rating (leaving it equal to itself, which the policy
-    // permits), and fall back to an INSERT — which may set rating — only when no row exists yet. `select()`
-    // is what tells the two apart: an UPDATE matching nothing is a success with zero rows, not an error.
+    // ── DISPLAY COLUMNS vs RATING ────────────────────────────────────────────────────────────────────────
+    // The write-once RLS policy rejects a `rating` change on a row UPDATE (its `with check` requires the
+    // incoming rating to equal the stored one), so the display columns and the rating travel by DIFFERENT
+    // doors. Here we upsert ONLY the display columns; the rating goes through `submitRating` (C3), which is the
+    // Edge Function. The client therefore NEVER persists a rating it computed itself — a brand-new row gets a
+    // rating-0 PLACEHOLDER and the server fills in the real value. (History: a single `upsert()` sent rating on
+    // every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author at run
+    // one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; C3 removes client rating
+    // authority entirely.)
     const now = new Date().toISOString();
     // `email` is denormalised from `auth.users` (C2b) — kept current here so "signed in as …" and a future
     // Steam merge can read it off the profile row. Null while anonymous.
@@ -661,18 +679,16 @@ export async function uploadPlayerProfile(p: {
       favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: now,
       email: currentIdentity()?.email ?? null,
     };
+    // UPDATE the display columns; INSERT a rating-0 placeholder row only when none exists yet (an UPDATE
+    // matching nothing is a 0-row success, not an error — that is how we tell the two apart).
     const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
-    if (!updated.error && updated.data && updated.data.length > 0) {
-      // RATING moves through its own RPC (`submit_own_rating`, schema.sql 2026-08-06) — the ONLY path the
-      // policy design leaves open. The "C3 Edge Function" the write-once policy deferred to was never built,
-      // so from the C1 migration until this call existed NOTHING could move a stored rating and the MMR
-      // leaderboard froze at first-insert values (owner report 2026-08-06). Fire-and-forget like the rest of
-      // this seam: on a DB that hasn't run the migration the RPC 404s and the catch above swallows it.
-      // C2 UNRATED: a run finished offline (queued) does not move the ladder — skip the rating RPC for it.
-      if (!p.unrated) await c.rpc('submit_own_rating', { new_rating: p.rating });
-      return;
+    if (updated.error || !updated.data || updated.data.length === 0) {
+      await c.from('profiles').insert({ user_id: userId, rating: 0, ...mutable });
     }
-    await c.from('profiles').insert({ user_id: userId, rating: p.unrated ? 0 : p.rating, ...mutable });
+    // RATING: LOBBY runs only (a placement is present), never for an unrated (offline) run.
+    if (!p.unrated && p.placement != null && p.runId) {
+      await submitRating({ runId: p.runId, placement: p.placement, fallbackRating: p.rating });
+    }
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
   }

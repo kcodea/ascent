@@ -741,6 +741,10 @@ export const useGame = create<GameStore>((set, get) => ({
               void uploadPlayerProfile({
                 author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
                 favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+                // C3: the SERVER derives the rating from the placement — `rating` above is only the pre-deploy
+                // fallback. `runId` (the run seed) dedupes so one lobby run rates exactly once. Non-lobby runs
+                // pass no placement and don't move the ladder.
+                runId: String(next.seed), placement: lobbyPlacement ?? undefined,
               });
               set((st) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
             });

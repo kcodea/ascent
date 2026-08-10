@@ -389,3 +389,43 @@ alter table public.boards        add column if not exists unrated boolean not nu
 alter table public.runs          add column if not exists unrated boolean not null default false;
 alter table public.run_telemetry add column if not exists unrated boolean not null default false;
 alter table public.board_results add column if not exists unrated boolean not null default false;
+
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- ACCOUNTS C3 — server-authoritative rating  (2026-08-09)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- THE HOLE C3 CLOSES. Until now the CLIENT computed its own rating and pushed the absolute value through the
+-- `submit_own_rating` RPC — which trusts whatever number it is handed. Anyone with devtools could set any
+-- rating. That was tolerable at friend-scale; it is the real gate before the ladder is shown to strangers.
+--
+-- THE FIX. The `submit-rating` EDGE FUNCTION (supabase/functions/submit-rating) becomes the ONLY writer of
+-- `profiles.rating`. A client sends `{ runId, placement }` — NOT a rating. The function, running as the service
+-- role, reads the player's CURRENT stored rating and computes the delta itself from the same
+-- `LOBBY_PLACEMENT_DELTAS` table the client uses (parity is pinned by `lobbyRatingParity.test.ts`), so the
+-- number is server-derived and unforgeable. Note the server needs ONLY `rating`: the Line + high-water marks
+-- are a LOCAL display concept re-derived from the adopted rating, so there are no line columns here to keep.
+--
+-- DEDUPE + RATE LIMIT. One rating per (player, run): the function inserts a `rated_runs` ledger row first and
+-- treats a unique-violation as "already rated" (idempotent — a retried submit can't double-count). The same
+-- ledger backs a simple per-player rate limit (N ratings per window).
+--
+-- ORDER OF OPERATIONS (owner, done together): 1) `supabase functions deploy submit-rating`; 2) run THIS block.
+-- The revoke below removes the client's legacy door, so run it only AFTER the function is deployed and
+-- verified — until both are done the client keeps using the `submit_own_rating` fallback and nothing breaks.
+
+-- The dedupe / rate-limit ledger. RLS on with NO policies → only the service role (the Edge Function) can
+-- touch it; a client can neither read another player's rating history nor forge a ledger row.
+create table if not exists public.rated_runs (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  run_id     text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, run_id)
+);
+alter table public.rated_runs enable row level security;
+create index if not exists rated_runs_user_time on public.rated_runs (user_id, created_at desc);
+
+-- Close the client's rating door. After this, ONLY the service-role Edge Function can move a rating — the
+-- write-once profiles UPDATE policy already blocks a row update, and this removes the RPC that was the sole
+-- sanctioned client path. RUN ONLY ONCE THE FUNCTION IS DEPLOYED (see order of operations above).
+revoke execute on function public.submit_own_rating(int) from authenticated;

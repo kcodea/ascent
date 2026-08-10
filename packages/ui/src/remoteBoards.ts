@@ -625,7 +625,12 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
   try {
     const existing = await c.from('profiles').select('discriminator').eq('user_id', userId).limit(1);
     if (existing.error) return null;
+    // A leaderboard row is EARNED by finishing a run (`uploadPlayerProfile` creates it), not by setting a
+    // name. If there's no row yet, do NOT create one — otherwise every throwaway anonymous session that types
+    // a name leaves a 0-game ghost on the leaderboard (owner report 2026-08-10: a stray `Orangez#4040`, 0/0,
+    // from a fresh session that never played). The tag lands on the next boot after the first run instead.
     const rowExists = !!existing.data && existing.data.length > 0;
+    if (!rowExists) return null;
     const currentTag = (existing.data?.[0] as { discriminator?: string | null } | undefined)?.discriminator ?? null;
     const email = currentIdentity()?.email ?? null;
     // Prefer the current tag (stable across renames); fall back to fresh random tags on collision.
@@ -635,9 +640,7 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
     ];
     for (const tag of candidates) {
       const patch = { author, discriminator: tag, email, updated_at: new Date().toISOString() };
-      const res = rowExists
-        ? await c.from('profiles').update(patch).eq('user_id', userId).select('user_id')
-        : await c.from('profiles').insert({ user_id: userId, rating: 0, ...patch }).select('user_id');
+      const res = await c.from('profiles').update(patch).eq('user_id', userId).select('user_id');
       if (!res.error) return { author, discriminator: tag };
       if (res.error.code !== '23505') return null; // a real error, not a `name#tag` uniqueness collision
     }
@@ -725,6 +728,9 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   try {
     const request = Promise.resolve(
       c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
+        // Only RANKED players — a profile with zero finished games hasn't earned a slot (and a stray 0-game
+        // ghost row shouldn't clutter the board). Defensive alongside `claimHandle` no longer minting them.
+        .gt('games_played', 0)
         .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));

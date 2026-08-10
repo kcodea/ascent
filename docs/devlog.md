@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-10 — fix: leaderboard ghost rows + double-"YOU"
+
+**Owner spotted a stray `Orangez#4040` (0 rating / 0 games) on the leaderboard, both it and the real
+`Orangez#1799` tagged "YOU".** Three related bugs:
+
+- **`claimHandle` minted a leaderboard row for a 0-game account.** It INSERTED a `profiles` row whenever a name
+  was set, so every throwaway anonymous session (each sign-out mints a fresh `user_id`) that typed a name left
+  a 0/0 ghost. Now a row is EARNED by finishing a run (`uploadPlayerProfile` creates it) — `claimHandle` only
+  tags an EXISTING row; the tag lands on the next boot after the first run.
+- **`fetchTopPlayers` didn't exclude 0-game rows.** Added `.gt('games_played', 0)` — only ranked players show,
+  defensive alongside the fix above.
+- **"YOU" matched by display NAME (`r.author === me`).** Two accounts can share a name (that's what the tag
+  disambiguates), so both Orangez rows lit up. Now matches by `user_id` (`r.userId === account.userId`).
+
+Existing 0-game rows already in the table are hidden by the filter; an optional one-time
+`delete from public.profiles where games_played = 0;` clears them for good. Gates: typecheck clean,
+`playerProfileWrite` green, lint at the 7-warning baseline, `build:web` green.
+
 ## 2026-08-10 — fix: the sign-in code input truncated codes longer than 6 digits
 
 **Owner testing caught it live:** Supabase sent an 8-digit email OTP (`48319089`), but the account panel's

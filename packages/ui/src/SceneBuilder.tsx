@@ -271,7 +271,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
                 CombatResult already stored — same boards, same seed, same beats — and resolves nothing, so
                 the wave stays pinned and the boards you authored survive. */}
-            {run?.lastCombat !== undefined && (
+            {/* Recruit phase ONLY. The panel is mounted through combat too, and a click DURING a live fight
+                re-entered a phase it was already in — which skipped that fight's own resolution path and, on
+                a loss, left the arena with no enabled way out. There is nothing to re-watch mid-fight. */}
+            {run?.lastCombat !== undefined && run.phase === 'recruit' && (
               <div className="sb-row">
                 <button className="sb-btn sb-primary" onClick={replayLastCombat} title="Watch the last fight again — nothing advances">
                   ↻ run it again

@@ -751,6 +751,11 @@ export function Recruit() {
   // fight, and the same index+rect pattern as `sbEditing` for whichever pinned enemy slot is being edited.
   const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
   const [sbEditingFoe, setSbEditingFoe] = useState<{ index: number; rect: DOMRect } | null>(null);
+  // SANDBOX ONLY: this combat phase is a RE-WATCH of an already-resolved fight, not a fight awaiting
+  // resolution. Every combat EXIT below has to branch on it — the whole contract of "run it again" is that
+  // it re-runs the animation and nothing else, and the shared exits all resolve a combat.
+  const sandboxReplay = useGame((s) => s.sandboxReplay) && run.sandbox === true;
+  const exitReplay = useGame((s) => s.exitReplay);
   // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
   // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
@@ -1459,13 +1464,19 @@ export function Recruit() {
     setCombatOutro((o) => {
       if (o) return o; // already transitioning — ignore a double-click
       window.setTimeout(() => {
-        dispatch({ type: 'resolveCombat' });
+        // SANDBOX REPLAY: leave the phase, resolve NOTHING. `resolveCombat`'s own guard is only
+        // `phase === 'combat' && lastCombat` — it does not re-check `combatSettled` — so dispatching it here
+        // would settle the lobby round and run `advanceCombat` a SECOND time for a fight already resolved:
+        // wave +1, embers refilled, a fresh opponent served, and the board you authored stranded a wave back.
+        // The replay must be a pure animation, so its exit is a pure phase flip (see store `exitReplay`).
+        if (sandboxReplay) exitReplay();
+        else dispatch({ type: 'resolveCombat' });
         setCombatOutro('in');
         window.setTimeout(() => setCombatOutro(null), 260); // clear once the fade-in has played
       }, 200); // fade-out duration (matches the CSS .combatout transition)
       return 'out';
     });
-  }, [dispatch]);
+  }, [dispatch, sandboxReplay, exitReplay]);
 
   // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion
   // (GSAP) + kill all audio, hold a beat so everything visibly pauses and fades out together, then jump the
@@ -4219,12 +4230,17 @@ export function Recruit() {
       {!inCombat && run.rift && RIFTS[run.rift] && (
         <RiftButton rift={RIFTS[run.rift]} />
       )}
+      {/* A LOSS normally holds End Combat until the loss-damage blast has landed (`lossPhase === 'done'`).
+          In a sandbox REPLAY that sequence never runs at all — it early-returns on `run.combatSettled`,
+          which is `true` throughout a replay by design — so `lossPhase` stays null forever and the gate
+          below would leave no enabled way out of the phase (Skip unmounts once the replay is done).
+          Nothing is being waited on, so nothing is held. */}
       <EndTurnButton
         onEndTurn={endTurn}
         onEndCombat={endCombat}
-        combatReady={inCombat && replay.done && (replay.result !== 'lose' || lossPhase === 'done')}
+        combatReady={inCombat && replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done')}
         disabled={inCombat
-          ? !(replay.done && (replay.result !== 'lose' || lossPhase === 'done'))
+          ? !(replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done'))
           : eotAnimating || !!run.questOffer || !!run.runeforgeOffer || !roundSettled}
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}

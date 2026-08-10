@@ -66,6 +66,21 @@ export function setCardStats(board: BoardCard[], uid: string, stats: StatEdit): 
  *
  * Adopts the new card's printed stats and tribe — the point of a swap is to become that card, and carrying
  * the old body's numbers over would silently produce a minion that exists nowhere in the content.
+ *
+ * Built as a WHITELIST (a fresh body from the new def) rather than a spread-and-overwrite, because every
+ * other field on a `BoardCard` is PER-INSTANCE PROVENANCE of the card being replaced: `buffs` (the inspect
+ * panel's "+2/+2 Karwind" breakdown), `chosenOption`, `grantedTier`, `addedTribes`, and the dozen accrued
+ * counters (`summonBonus`, `hpGrantBonus`, `copiedEcho`, `manaBonus`, welds, temp keywords, …). A spread
+ * kept them: a Karwind-buffed wolf swapped to a bear read 9/9 with a breakdown accounting for none of its
+ * stats — exactly the provenance lie the BASE-stats ruling exists to prevent. A whitelist also cannot rot,
+ * where a blacklist would silently start lying again the next time `BoardCard` grows a field.
+ *
+ * `golden` is the one thing carried across: it is a property of the SLOT the author set up ("this seat is a
+ * triple"), not a history of the card that used to sit there, and swapping which minion you are testing a
+ * golden interaction on shouldn't quietly un-triple it.
+ *
+ * (`setCardStats` deliberately does NOT clear `buffs` — editing a number on the same card leaves it the same
+ * card, and its history still describes it.)
  */
 export function setCardId(
   board: BoardCard[],
@@ -76,7 +91,8 @@ export function setCardId(
   const def = defOf(cardId);
   if (def === undefined) return board; // unknown id → no-op, never a half-written card
   return mapCard(board, uid, (c) => ({
-    ...c,
+    uid: c.uid,
+    golden: c.golden,
     cardId,
     tribe: def.tribe,
     attack: clampAttack(def.attack),
@@ -106,7 +122,12 @@ const powerOf = (minions: BoardMinion[]): number =>
  * display-only; and `tier` is NOT inert — it feeds loss damage (`enemyState.tier` in `simulate`).
  */
 export function stagedBoard(wave: number, minions: BoardMinion[]): BoardSnapshot {
-  const clamped = minions.slice(0, MAX_BOARD).map((m) => applyStats(m, {}));
+  // The stats are passed through `applyStats` EXPLICITLY (not as an empty patch, which copies untouched) so
+  // this entry point honours the same floors as every other one — the file's "health floors at 1" invariant
+  // has to be true of the board that actually gets pinned, whoever staged the minions.
+  const clamped = minions
+    .slice(0, MAX_BOARD)
+    .map((m) => applyStats(m, { attack: m.attack, health: m.health }));
   return {
     v: 1,
     wave,

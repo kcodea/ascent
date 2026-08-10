@@ -339,6 +339,21 @@ interface GameStore {
   setSbTavernShowsEnemy: (on: boolean) => void;
   /** SANDBOX ONLY (dev). Watch the last fight again: same boards, same seed, same beats. */
   replayLastCombat: () => void;
+  /**
+   * SANDBOX ONLY (dev). True while the combat phase we are in is a REPLAY of an already-resolved fight
+   * rather than a fight that still has to be resolved. Set by `replayLastCombat`, cleared by `exitReplay`
+   * and by any dispatched action that changes the run's phase (a real fight starting or ending).
+   *
+   * It exists because "am I in combat?" is not enough to tell those two apart, and the combat view's exits
+   * behave completely differently for each: a real fight leaves through `resolveCombat` (which advances the
+   * wave), a replay must leave through nothing at all.
+   */
+  sandboxReplay: boolean;
+  /**
+   * SANDBOX ONLY (dev). Leave a replay: flip the phase straight back to `recruit` and drop the flag.
+   * Dispatches NOTHING — that is the entire point (see `replayLastCombat`).
+   */
+  exitReplay: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
@@ -889,6 +904,11 @@ export const useGame = create<GameStore>((set, get) => ({
         capturedBoards,
         telemetryLog,
         deriveState,
+        // A REDUCER-driven phase change is by definition a real fight starting (`faceOmen`) or a real fight
+        // being resolved — either way the combat we may now be in is not the sandbox's re-watch. Cleared
+        // here rather than unconditionally so a dispatch that happens to land mid-replay can't strand the
+        // flag off and re-open the "leaving a replay advances the wave" hole.
+        sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
       };
     }),
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
@@ -944,7 +964,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [] };
+      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [], sandboxReplay: false };
     });
   },
   sbEditMode: false,
@@ -962,7 +982,11 @@ export const useGame = create<GameStore>((set, get) => ({
    * `combatSettled` is left exactly as it is (already `true` — a fight only reaches `recruit`, where this is
    * callable, once `settleCombat` has run). Recruit.tsx's own "settle once the replay finishes" effect
    * (~line 1422) and its loss-damage sequence (~line 1478) both re-check `!run.combatSettled` before doing
-   * anything, so leaving it `true` is what stops the replay from resolving a second combat. It is NOT what
+   * anything, so leaving it `true` is what stops the replay from RE-SETTLING. Closing the settle path is
+   * only half the job, though: the combat view's exit (`endCombat` → `resolveCombat`) is guarded on
+   * `phase === 'combat' && lastCombat` and NOT on `combatSettled`, so merely *leaving* a replay used to
+   * settle the lobby round and advance the wave a second time. `sandboxReplay` is what closes that: the
+   * exit reads it and calls `exitReplay` instead of dispatching. It is NOT what
    * restarts the animation: `useCombatReplay`'s beat index only resets on `[combat]` — i.e. on `run.lastCombat`
    * changing OBJECT IDENTITY, not on the phase flipping — so the fight is reshuffled into a shallow clone
    * below purely to trip that effect. Same events, same frames — a clone reads identically, it just isn't
@@ -971,10 +995,18 @@ export const useGame = create<GameStore>((set, get) => ({
    * Sandbox-gated, and a no-op with no stored fight — the button is hidden in that state, but a store action
    * must not depend on its caller's guard.
    */
+  sandboxReplay: false,
   replayLastCombat: () => {
     const s = get();
-    if (!s.run.sandbox || !s.run.lastCombat) return;
-    set({ run: { ...s.run, phase: 'combat', lastCombat: { ...s.run.lastCombat } } });
+    // `phase === 'recruit'` is part of the guard, not just the button's: replaying from INSIDE a live fight
+    // would swallow that fight's own resolution (the phase never changes, so nothing downstream notices).
+    if (!s.run.sandbox || !s.run.lastCombat || s.run.phase !== 'recruit') return;
+    set({ run: { ...s.run, phase: 'combat', lastCombat: { ...s.run.lastCombat } }, sandboxReplay: true });
+  },
+  exitReplay: () => {
+    const s = get();
+    if (!s.run.sandbox || !s.sandboxReplay) return;
+    set({ run: { ...s.run, phase: 'recruit' }, sandboxReplay: false });
   },
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.

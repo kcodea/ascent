@@ -272,6 +272,29 @@ replaced code used. Judged against §0 that leaves the *idle* shop path measured
 
 Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4786 tests, `build:web`.
 
+**Final-review pass (six findings, one commit).** The replay's *settle* path was closed above; its **exit**
+path was still open, and that was the critical one. `endCombat` dispatches `resolveCombat`, whose reducer
+guard is only `phase === 'combat' && lastCombat` — it never re-checks `combatSettled` — so simply LEAVING a
+replay ran `settleLobbyRound` + `advanceCombat` a second time: wave +1, embers refilled to max,
+`turnStartPower` re-pinned, per-turn counters cleared, a fresh opponent served, and the board you had
+authored stranded a wave behind the one the editor now edits. Rather than widen `resolveCombat`'s guard (that
+is real play, for every player, to fix a dev rig), the store gained a sandbox-scoped `sandboxReplay` flag:
+set by `replayLastCombat`, cleared by `exitReplay` and by any dispatched action that changes the run's phase.
+`endCombat` branches on it and calls `exitReplay` — a pure phase flip back to `recruit`, dispatching nothing.
+A normal fight never sets the flag, so its exit is byte-for-byte the path it always took.
+Second: replaying a LOST fight softlocked the arena. The loss-damage sequence early-returns on
+`combatSettled` (true throughout a replay, by design), so `lossPhase` never reached `'done'`, End Combat's
+loss gate never opened, and Skip is unmounted once the replay finishes — no enabled control left the phase.
+End Combat's gate now also passes on `sandboxReplay`: there is nothing being waited on. Third, "run it again"
+is gated on `phase === 'recruit'` at BOTH the button and the store action — clicking it during a live fight
+swallowed that fight's own resolution. Also: a card swap now rebuilds the body from the new def as a
+WHITELIST (uid + golden survive; `buffs`, `chosenOption`, `grantedTier`, `addedTribes` and every accrued
+counter are dropped), so a Karwind-buffed wolf swapped to a bear can no longer read 9/9 under a "+2/+2
+Karwind" breakdown accounting for none of its stats; `stagedBoard` now actually clamps the minions it is
+handed, making its own docblock true; and the editor's stat inputs hold a local string draft so clearing a
+field to retype no longer snaps to 0/1 on the same keystroke (no clamping moved out of `sandboxEdit.ts`).
+Three new tests (provenance drop, golden retention, staged clamp) — 20 in `sandboxEdit.test.ts`.
+
 ## 2026-08-10 — fix: leaderboard ghost rows, double-"YOU", null-name career crash
 
 **Owner spotted a stray `Orangez#4040` (0 rating / 0 games) on the leaderboard, both it and the real

@@ -60,6 +60,35 @@ describe('editing a player board card', () => {
     expect(next[0].tribe).toBe('beast');
   });
 
+  it('swapping the card drops the OLD body\'s per-instance provenance', () => {
+    // A Karwind-buffed wolf swapped to a bear must not read 9/9 with a "+2/+2 Karwind" breakdown that
+    // accounts for none of its stats — that is a history the new body does not have.
+    const board = [{
+      ...card('a'),
+      buffs: [{ source: 'Karwind', attack: 2, health: 2 }],
+      chosenOption: 1,
+      grantedTier: 4,
+      addedTribes: ['mech'],
+      summonBonus: 3,
+      tempShield: true,
+    } as BoardCard];
+    const next = setCardId(board, 'a', 'bear', defOf);
+    expect(next[0].buffs).toBeUndefined();
+    expect(next[0].chosenOption).toBeUndefined();
+    expect(next[0].grantedTier).toBeUndefined();
+    expect(next[0].addedTribes).toBeUndefined();
+    expect(next[0].summonBonus).toBeUndefined();
+    expect(next[0].tempShield).toBeUndefined();
+    // …while the fields that describe the SLOT rather than the old card survive.
+    expect(next[0].uid).toBe('a');
+    expect(next[0].golden).toBe(false);
+  });
+
+  it('swapping keeps a golden slot golden', () => {
+    const next = setCardId([{ ...card('a'), golden: true }], 'a', 'bear', defOf);
+    expect(next[0].golden).toBe(true);
+  });
+
   it('swapping to an unknown card id changes nothing', () => {
     const board = [card('a')];
     expect(setCardId(board, 'a', 'ghost', defOf)).toEqual(board);
@@ -85,6 +114,18 @@ describe('the staged opponent board', () => {
 
   it('power is the sum of attack and health across the board', () => {
     expect(snap(2).power).toBe((3 + 4) * 2);
+  });
+
+  it('floors the staged minions it is handed — a pinned board of corpses ends combat instantly', () => {
+    const s = stagedBoard(3, [
+      { cardId: 'wolf', attack: -5, health: 0, keywords: [] },
+      { cardId: 'wolf', attack: 2.4, health: 3.6, keywords: [] },
+    ]);
+    expect(s.minions[0].attack).toBe(0);
+    expect(s.minions[0].health).toBe(1);
+    expect(s.minions[1].attack).toBe(2);
+    expect(s.minions[1].health).toBe(4);
+    expect(s.power).toBe(0 + 1 + 2 + 4); // power is recomputed from the CLAMPED stats, not the raw input
   });
 
   it('clamps to at most 7 minions', () => {

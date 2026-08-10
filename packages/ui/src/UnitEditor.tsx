@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BUYABLE_CARDS } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -34,6 +34,42 @@ export const EDITABLE_KEYWORDS: readonly Keyword[] = ['T', 'DS', 'V', 'W', 'R', 
 const KEYWORD_LABEL: Record<string, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave',
 };
+
+/**
+ * One stat field. A controlled `<input type="number">` bound straight to a number fights you while you type:
+ * clearing it to retype makes `Number('')` → `NaN`, the rules clamp that to 0 (or 1 for health) on the SAME
+ * keystroke, and the field snaps back under the cursor — multi-digit entry becomes a wrestle.
+ *
+ * The fix is a local STRING draft: the text you typed is what the field shows, and only a parse that yields a
+ * real number is reported upward. An intermediate state ('' while you retype, '-' while you think about it)
+ * simply commits nothing. Blur drops the draft, so the field then shows the CLAMPED value the rules settled
+ * on — which is how you see that 0 health became 1.
+ *
+ * No clamping lives here; `min` is a browser affordance (spinner bounds) only. The floors are in
+ * `sandboxEdit.ts` and stay there — this component reports intent and renders the result.
+ */
+function NumField({
+  label, min, value, onCommit,
+}: { label: string; min: number; value: number; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <label className="uned-num">
+      <span>{label}</span>
+      <input
+        type="number"
+        min={min}
+        value={draft ?? String(value)}
+        onChange={(e) => {
+          const text = e.target.value;
+          setDraft(text);
+          const n = Number(text);
+          if (text.trim() !== '' && Number.isFinite(n)) onCommit(n);
+        }}
+        onBlur={() => setDraft(null)}
+      />
+    </label>
+  );
+}
 
 export function UnitEditor({
   value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp,
@@ -95,20 +131,8 @@ export function UnitEditor({
         {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
       <div className="uned-stats">
-        <label className="uned-num">
-          <span>atk</span>
-          <input
-            type="number" min={0} value={value.attack}
-            onChange={(e) => onChange({ attack: Number(e.target.value) })}
-          />
-        </label>
-        <label className="uned-num">
-          <span>hp</span>
-          <input
-            type="number" min={1} value={value.health}
-            onChange={(e) => onChange({ health: Number(e.target.value) })}
-          />
-        </label>
+        <NumField label="atk" min={0} value={value.attack} onCommit={(n) => onChange({ attack: n })} />
+        <NumField label="hp" min={1} value={value.health} onCommit={(n) => onChange({ health: n })} />
       </div>
       <div className="uned-kw">
         {EDITABLE_KEYWORDS.map((kw) => (

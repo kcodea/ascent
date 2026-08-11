@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-11 — An authored def replaces the stock cue (Karwind stops double-effecting)
+
+The owner reported Karwind drawing a buff tendril and asked for it removed, since `flame-ring` is bound to
+that same moment. The rule shipped here is GENERAL rather than a Karwind special case: binding a def to a
+moment IS the statement "I have authored what this looks like", so the default cue stops. It mirrors combat's
+`claimDamageFx`, which already suppresses the stock hit-burst for units a bound def covers.
+
+`Recruit.tsx`'s tendril loop now skips any `recruitBuffFx` event whose SOURCE card has a `minionBuffed`
+binding — keyed on exactly the pair `runRecruitMomentCues` resolves for the same event, so the two cannot
+disagree about whether a def is playing. An unbound buffer keeps its ribbon, and a binding on a DIFFERENT
+kind does not suppress it (Paymaster Pimm is bound at `shout`, so a Shout that also buffs others still draws).
+
+**On the missing ring itself — the wiring is NOT the fault.** The owner also reported never seeing
+`flame-ring`. The whole path was instrumented live and every link fires:
+
+  [DIAG] cue enter minionBuffed karwind canPlay= true
+  [DIAG] bindingCard= karwind binding= {"def":"flame-ring"}
+  [DIAG] rAF fired, scheduling lands
+  [DIAG] fireLand uid= dg measured= {"x":640.78,"y":497.63}
+
+`playDef` was reached with a real anchor, and it emitted no `no committed def` warning — so the def resolves
+in the registry and is played. What could NOT be verified is whether it RENDERS: the tab available here is
+hidden, and both `requestAnimationFrame` and the Pixi ticker are paused there (the rAF above only fired
+because it was shimmed onto a timer for the diagnosis). The remaining suspect is therefore the def's own
+visuals — two shockwaves at radius 160, one with `glow: 0` and `speed: 0.65` against a 900ms duration, which
+never completes an expansion — i.e. a tuning question for the workbench, not a wiring bug.
+
+Verified: typecheck, `npx eslint packages apps` 0 errors, 4874 tests, build:web. The suppression itself lives
+in a DOM-measuring component this repo cannot test (no jsdom), so what the new `bindings.test.ts` block pins
+is the QUESTION it asks — which cards answer yes to a `minionBuffed` binding — since a flip there silently
+changes the tendril loop for every card in the table.
+
 ## 2026-08-11 — fix: hand-rearrange settle no longer replays the slide (double-glide)
 
 Owner report: rearranging cards in hand, on release the slide "repeats itself" (and a card briefly "returns

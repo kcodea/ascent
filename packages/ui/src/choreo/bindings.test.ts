@@ -677,3 +677,32 @@ describe('a tombstone in the file', () => {
     expect('scCast' in t.kinds).toBe(true);
   });
 });
+
+/**
+ * AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11).
+ *
+ * `Recruit.tsx`'s tendril loop skips any event whose SOURCE card has a `minionBuffed` binding, because that
+ * same event also plays the bound def through `runRecruitMomentCues` — so without the skip a bound card gets
+ * both, which reads as two effects for one event.
+ *
+ * The suppression itself lives in a DOM-measuring component this repo cannot test (no jsdom), so what is
+ * pinned here is the QUESTION it asks. If these answers ever flip, the tendril loop silently changes
+ * behaviour for every card in the table.
+ */
+describe('a bound def suppresses the stock shop tendril', () => {
+  it('Karwind is bound at minionBuffed, so its tendril is suppressed', () => {
+    expect(bindingFor('karwind', 'minionBuffed')).not.toBeNull();
+  });
+
+  it('an unbound buffer keeps its tendril', () => {
+    expect(bindingFor('b2_echohorn', 'minionBuffed')).toBeNull();
+    expect(bindingFor('bloodbinder', 'minionBuffed')).toBeNull();
+    expect(bindingFor(null, 'minionBuffed')).toBeNull();
+  });
+
+  it('a binding on a DIFFERENT kind does not suppress the tendril', () => {
+    // Pimm is bound at `shout`, not `minionBuffed` — a Shout that also buffs others must still draw its ribbon.
+    expect(bindingFor('dw_pimm', 'shout')).not.toBeNull();
+    expect(bindingFor('dw_pimm', 'minionBuffed')).toBeNull();
+  });
+});

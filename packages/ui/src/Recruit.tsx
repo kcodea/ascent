@@ -53,6 +53,7 @@ import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
+import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -2924,6 +2925,19 @@ export function Recruit() {
     // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
     // per-event behaviour.
     const fireOne = (ev: RunState['recruitBuffFx'][number]): void => {
+      // AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11).
+      //
+      // A bound card plays its def through `runRecruitMomentCues` off the SAME `recruitBuffFx` entries this
+      // loop draws tendrils from, so before this every bound card got both — Karwind rang AND threw a ribbon,
+      // which reads as two effects for one event and is not what anyone authored.
+      //
+      // The rule is general rather than a Karwind special case: binding a def to a moment IS the statement
+      // "I have authored what this looks like", so the default stops. Same shape as combat's `claimDamageFx`,
+      // which suppresses the stock hit-burst for units a bound def covers.
+      //
+      // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
+      // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
+      if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
       const tr = tEl.getBoundingClientRect();

@@ -53,6 +53,7 @@ import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
+import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -1277,6 +1278,15 @@ export function Recruit() {
   // The flame's clear timer, held in a ref so a dispatch can't cancel it — see the Karwind effect.
   const karwindTimerRef = useRef<number | undefined>(undefined);
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
+  // A trigger-medallion pulse on the BUFFER (Karwind) when its effect fires. A bound source's flame flash is
+  // suppressed in favour of its authored ring on the buffed Dragons — but the buffer itself then had no
+  // on-card cue that it triggered, so its medallion pulses instead (owner ask 2026-08-11). Own set + ref so
+  // it only touches `pulse`, never the battlecry sigil, and clears independently of the flame.
+  const [karwindPulseUids, setKarwindPulseUids] = useState<Set<string>>(new Set());
+  // The subset of the above whose proc was a CRIT (Karwind's 20% double): their medallion pulses RED instead
+  // of white. Split from `karwindPulseUids` so a card is in exactly one, and cleared by the same timer.
+  const [karwindCritPulseUids, setKarwindCritPulseUids] = useState<Set<string>>(new Set());
+  const karwindPulseTimerRef = useRef<number | undefined>(undefined);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
   const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
@@ -2924,6 +2934,19 @@ export function Recruit() {
     // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
     // per-event behaviour.
     const fireOne = (ev: RunState['recruitBuffFx'][number]): void => {
+      // AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11).
+      //
+      // A bound card plays its def through `runRecruitMomentCues` off the SAME `recruitBuffFx` entries this
+      // loop draws tendrils from, so before this every bound card got both — Karwind rang AND threw a ribbon,
+      // which reads as two effects for one event and is not what anyone authored.
+      //
+      // The rule is general rather than a Karwind special case: binding a def to a moment IS the statement
+      // "I have authored what this looks like", so the default stops. Same shape as combat's `claimDamageFx`,
+      // which suppresses the stock hit-burst for units a bound def covers.
+      //
+      // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
+      // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
+      if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
       const tr = tEl.getBoundingClientRect();
@@ -3119,7 +3142,47 @@ export function Recruit() {
   useEffect(() => {
     if (run.karwindFlashSeq === prevKarwindSeq.current) return;
     prevKarwindSeq.current = run.karwindFlashSeq;
-    const uids = run.karwindFlash ?? [];
+    // AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11) — the same rule the tendril loop uses,
+    // now covering the flame flash. This flash is a SECOND stock visual for the same buff Karwind's authored
+    // `flame-ring` now plays, so a bound card threw both. It is NOT gated on `karwind` by id, because
+    // `onBattlecryBuffTribe` (which stamps this flash) is also a set-2 Dragon's effect, and THAT card is
+    // unbound and must keep its flash. So the discriminator is the binding: suppress the flash on any Dragon a
+    // BOUND source buffed this action, reading the source attribution `recruitBuffFx` already carries. A
+    // Dragon buffed only by an unbound source keeps its flame.
+    // Karwind buffs EVERY Dragon including itself, and flashes all of them — so `karwindFlash` holds both the
+    // buffed others AND Karwind's own uid. `flame-ring` (a buff-OTHER binding) plays only on the others, so
+    // both have to be suppressed by hand or Karwind keeps flaming ITSELF red. `recruitBuffFx` gives me each:
+    // its `targetUid`s are the buffed others, its `sourceUid` is the buffer. Suppress a flash uid that is
+    // either — for any BOUND source. (A bound Karwind alone on the board buffs only itself, emits no
+    // buff-other event, so its lone self-flash survives — acceptable, since flame-ring plays on no one then.)
+    const bound = (e: { sourceCardId: string }): boolean =>
+      e.sourceCardId !== '' && bindingFor(e.sourceCardId, 'minionBuffed') !== null;
+    const authored = new Set<string>();
+    const authoredSources = new Set<string>();
+    for (const e of run.recruitBuffFx ?? []) {
+      if (!bound(e)) continue;
+      authored.add(e.targetUid);
+      if (e.sourceUid !== undefined) { authored.add(e.sourceUid); authoredSources.add(e.sourceUid); }
+    }
+    // The buffer's medallion pulse — the retained "it triggered" cue now its flame is suppressed. Fired here,
+    // BEFORE the flame's own early-return: a bound Karwind suppresses every flame, so `uids` below can be
+    // empty, and gating the pulse on that would silence the very case this exists for.
+    if (authoredSources.size > 0) {
+      // `karwindCritUid` is the uid of the body whose buff DOUBLED this proc — that one pulses RED, the rest
+      // white. Split so a card is in exactly one set (crit wins in Card.tsx's class chain regardless, but a
+      // clean split keeps the two props honest).
+      const critUid = run.karwindCritUid;
+      setKarwindCritPulseUids(new Set([...authoredSources].filter((u) => u === critUid)));
+      setKarwindPulseUids(new Set([...authoredSources].filter((u) => u !== critUid)));
+      sfx.triggerPulse();
+      if (karwindPulseTimerRef.current !== undefined) window.clearTimeout(karwindPulseTimerRef.current);
+      karwindPulseTimerRef.current = window.setTimeout(() => {
+        karwindPulseTimerRef.current = undefined;
+        setKarwindPulseUids(new Set());
+        setKarwindCritPulseUids(new Set());
+      }, 760); // matches the battlecry medallion hold
+    }
+    const uids = (run.karwindFlash ?? []).filter((u) => !authored.has(u));
     if (uids.length === 0) return;
     setKarwindFlameUids(new Set(uids));
     /* The 520ms clear lives in a REF, not this effect's cleanup. `run.karwindFlash` is in the deps and the
@@ -3132,7 +3195,7 @@ export function Recruit() {
       karwindTimerRef.current = undefined;
       setKarwindFlameUids(new Set());
     }, 520);
-  }, [run.karwindFlashSeq, run.karwindFlash]);
+  }, [run.karwindFlashSeq, run.karwindFlash, run.karwindCritUid]);
 
   // KARWIND'S DOUBLE TRIGGER (owner 2026-08-07) — float a crit-style "2x" over the proccer when its 20% roll
   // comes up. Rides `karwindFlashSeq` (the same bump the flame flash already uses) rather than a seq of its
@@ -4455,7 +4518,8 @@ export function Recruit() {
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.
-                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid)}
+                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
+                    pulseCrit={karwindCritPulseUids.has(m.uid) ? run.karwindFlashSeq : undefined}
                     glow={eotProcUids.has(m.uid)}
                     popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}

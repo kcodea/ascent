@@ -63,6 +63,16 @@ export interface FxBinding {
    * author cannot hear over the rest of the mix.
    */
   sfx?: BindingSfx;
+  /**
+   * A def to play INSTEAD of `def` when the moment is a CRIT (a doubled buff — currently Karwind's 20% roll,
+   * signalled by `RecruitMoment.crit`). Absent → the crit plays the ordinary `def` like any other buff.
+   *
+   * A def id like `def`, not a whitelist: it is validated the same way — `bindings.test.ts` asserts every
+   * bound def id (this one included) resolves in the registry. Only `minionBuffed` currently produces a crit
+   * moment, but the field is general: any moment that sets `crit` and any binding that names a `critDef` get
+   * the substitution.
+   */
+  critDef?: string;
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'buffed'];
@@ -157,9 +167,15 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.sfx must be one of ${BINDING_SFX.join(', ')} — dropped.`);
     return null;
   }
+  // `critDef` is a def id like `def`: existence is the registry test's job, so here only the shape is checked.
+  if (v.critDef !== undefined && (typeof v.critDef !== 'string' || v.critDef === '')) {
+    devError(`[fx] bindings.json: ${where}.critDef must be a non-empty string — dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
+  if (v.critDef !== undefined) out.critDef = v.critDef;
   return out;
 }
 

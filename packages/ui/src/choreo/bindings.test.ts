@@ -167,14 +167,16 @@ const BINDINGS: Record<string, { def: string }> = {
  * and the easier one to add without telling anyone, and it SHADOWS the kind beneath it — so an unnoticed
  * entry here silences a global effect for one card rather than merely adding to it.
  */
-const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string }>> = {
+const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
-  karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring' } },
+  karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
+  dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
+  dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
 };
 
@@ -243,6 +245,8 @@ describe('binding integrity', () => {
     for (const [cardId, byKind] of Object.entries(t.cards)) {
       for (const [kind, b] of Object.entries(byKind)) {
         if (b && !known.has(b.def)) missing.push(`${cardId}.${kind}:${b.def}`);
+        // A crit-variant is a real def id too — a dangling `critDef` fails CI exactly like a dangling `def`.
+        if (b && b.critDef !== undefined && !known.has(b.critDef)) missing.push(`${cardId}.${kind}.critDef:${b.critDef}`);
       }
     }
     expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);
@@ -675,5 +679,40 @@ describe('a tombstone in the file', () => {
     expect(t.kinds.scCast).toBeNull();
     expect(t.cards.bloodbinder?.rally).toBeNull();
     expect('scCast' in t.kinds).toBe(true);
+  });
+});
+
+/**
+ * AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11).
+ *
+ * `Recruit.tsx`'s tendril loop skips any event whose SOURCE card has a `minionBuffed` binding, because that
+ * same event also plays the bound def through `runRecruitMomentCues` — so without the skip a bound card gets
+ * both, which reads as two effects for one event.
+ *
+ * The suppression itself lives in a DOM-measuring component this repo cannot test (no jsdom), so what is
+ * pinned here is the QUESTION it asks. If these answers ever flip, the tendril loop silently changes
+ * behaviour for every card in the table.
+ */
+describe('a bound def suppresses the stock shop tendril AND the flame flash', () => {
+  // Both stock cues (the buff tendril and Karwind's flame flash) key their suppression off the SAME question:
+  // did a card with a `minionBuffed` binding buff this Dragon? The flash reads it via `recruitBuffFx`'s
+  // per-event `sourceCardId`; the pins below guard the answers that question depends on. `onBattlecryBuffTribe`
+  // (which stamps the flash) is used by Karwind AND an unbound set-2 Dragon, so the discriminator MUST be the
+  // binding, never the card id — an id check would strip the unbound Dragon's flash too.
+
+  it('Karwind is bound at minionBuffed, so its tendril is suppressed', () => {
+    expect(bindingFor('karwind', 'minionBuffed')).not.toBeNull();
+  });
+
+  it('an unbound buffer keeps its tendril', () => {
+    expect(bindingFor('b2_echohorn', 'minionBuffed')).toBeNull();
+    expect(bindingFor('bloodbinder', 'minionBuffed')).toBeNull();
+    expect(bindingFor(null, 'minionBuffed')).toBeNull();
+  });
+
+  it('a binding on a DIFFERENT kind does not suppress the tendril', () => {
+    // Pimm is bound at `shout`, not `minionBuffed` — a Shout that also buffs others must still draw its ribbon.
+    expect(bindingFor('dw_pimm', 'shout')).not.toBeNull();
+    expect(bindingFor('dw_pimm', 'minionBuffed')).toBeNull();
   });
 });

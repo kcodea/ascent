@@ -1,14 +1,6 @@
 {
   "version": 1,
-  "id": "flame-ring",
-  "label": "Flame ring",
-  "tags": [
-    "shockwave",
-    "fire",
-    "ring",
-    "buff",
-    "karwind"
-  ],
+  "id": "flame-ring-crit",
   "duration": 900,
   "layers": [
     {
@@ -20,7 +12,7 @@
         "speed": 0.65,
         "thickness": 0.29,
         "fade": 5,
-        "radius": 160,
+        "radius": 250,
         "squash": 1,
         "ringDelay": 0.16,
         "ease": 0.3,
@@ -37,9 +29,9 @@
         "reverse": false,
         "bands": 5,
         "palette": [
-          16736010,
-          16758815,
-          16773288,
+          14553618,
+          16719647,
+          16747146,
           16777215
         ],
         "alpha": 1,
@@ -60,8 +52,8 @@
       "at": 0,
       "params": {
         "rings": 1,
-        "speed": 3.65,
-        "thickness": 0.165,
+        "speed": 3.05,
+        "thickness": 0.26,
         "fade": 3.15,
         "radius": 160,
         "squash": 1,
@@ -80,9 +72,9 @@
         "reverse": false,
         "bands": 3,
         "palette": [
-          16736010,
-          16758815,
-          16773288,
+          16714250,
+          16719647,
+          16754856,
           16777215
         ],
         "alpha": 1,

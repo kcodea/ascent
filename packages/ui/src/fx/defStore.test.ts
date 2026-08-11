@@ -333,11 +333,26 @@ describe('coerceDef / toStoredDef', () => {
       label: 'Everything',
       tags: ['a', 'b'],
       slot: 'under',
+      ease: [[0, 0], [0.4, 0.9], [1, 1]],
       layers: [{ primitive: 'test-prim', anchor: 'target', at: 0, params: { size: 3 } }],
     };
     // Exactly what the workbench does on Save, with an editor that reproduces the prior def's state.
-    const saved = toStoredDef(prior.id, prior.duration, prior.layers, prior.seed, prior.slot, prior);
+    const saved = toStoredDef(prior.id, prior.duration, prior.layers, prior.seed, prior.slot, prior, prior.ease);
     expect(saved).toEqual(prior);
+  });
+
+  /** The identity ramp is "no ease", so it must not be written — otherwise every def saved after this
+   *  feature landed would gain a field that means nothing, and the player would leave its no-ease fast path
+   *  for a def that never asked for one. */
+  it('omits an identity ease rather than writing a meaningless field', () => {
+    const saved = toStoredDef('plain', 500, [], undefined, undefined, undefined, [[0, 0], [1, 1]]);
+    expect('ease' in saved).toBe(false);
+  });
+
+  /** The data-loss shape this whole guard exists for: load an eased def, save it, keep the ease. */
+  it('carries an authored ease through a re-save', () => {
+    const saved = toStoredDef('eased', 500, [], undefined, undefined, undefined, [[0, 0], [0.5, 0.2], [1, 1]]);
+    expect(saved.ease).toEqual([[0, 0], [0.5, 0.2], [1, 1]]);
   });
 
   it('coerceDef takes only the literal "under" slot, and omits it otherwise', () => {

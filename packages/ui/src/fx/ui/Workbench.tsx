@@ -30,7 +30,8 @@ import {
 import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl, registerSavedArt } from '../shapeLibrary';
-import { Inspector } from './Inspector';
+import { CurveEditor, Inspector } from './Inspector';
+import { CURVE_PRESETS } from '../curve';
 import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
@@ -490,6 +491,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // slot flip cost an undo step the author has to walk back past.
   const [slot, setSlot] = useState<FxSlot>(restoredSession?.slot ?? 'over');
 
+  // The def-level EASE — a curve on the composition's own clock (see `FxDef.ease`). Def-level like `slot`,
+  // and like it deliberately outside the undo snapshot: it is one control whose inverse is dragging the
+  // point back, and folding it in would make every drag cost an undo step.
+  //
+  // Held as a plain curve (the IDENTITY ramp when unset) rather than as `undefined`, so `CurveEditor` always
+  // has something to draw; `toDef`/`toStoredDef` drop the identity on the way out, so an untouched
+  // composition still serialises exactly as it did before this existed.
+  const [ease, setEase] = useState<[number, number][]>(restoredSession?.ease ?? [[0, 0], [1, 1]]);
+  // A rebuild key: the player resolves `def.ease` ONCE at construction (see `createPlayer`), so an edit has
+  // to rebuild — but the array's identity changes on every render, which would rebuild continuously.
+  const easeKey = JSON.stringify(ease);
+
   // ── undo / redo (see `EditorSnapshot`) ──────────────────────────────────────────────────────────────
   // Only the BUTTONS' enabled-ness lives in state; the stack itself is a ref, because undo/redo has to read
   // and write it synchronously inside an event handler (a state updater can't both compute the next stack
@@ -674,7 +687,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // against the real board, which is exactly what's behind it.
       if (backdropRef.current) backdropRef.current.container.visible = slot === 'over';
 
-      const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef, slot);
+      const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef, slot, ease);
       // The loop flag SURVIVES a rebuild, the same way `loopGapMs`/`speed`/`seed` do (see `loopOnRef`): a
       // primitive/scenario switch or duration change must not silently stop a loop the author is tuning
       // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
@@ -778,7 +791,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [structKey, scenarioId, durationMs, slot, subjectUid]);
+    // `easeKey` rather than `ease`: see its declaration — the array is a fresh object every render, so
+    // depending on it directly would rebuild the player continuously.
+  }, [structKey, scenarioId, durationMs, slot, easeKey, subjectUid]);
 
   // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
   // Arms the autosave: every caller (add/delete/reorder/primitive-swap/timing/load/prune) is real work.
@@ -1058,11 +1073,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   useEffect(() => {
     if (!autosaveArmedRef.current) return;
     const timer = setTimeout(
-      () => saveSession({ layers, selected, durationMs, seed, seedLocked, slot }),
+      () => saveSession({ layers, selected, durationMs, seed, seedLocked, slot, ease }),
       AUTOSAVE_DEBOUNCE_MS,
     );
     return () => clearTimeout(timer);
-  }, [layers, selected, durationMs, seed, seedLocked, slot]);
+  }, [layers, selected, durationMs, seed, seedLocked, slot, ease]);
 
   // The transient "Saved" confirmation's timer, cleared on unmount.
   useEffect(() => () => {
@@ -1393,7 +1408,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
   // layer's params.
   const copyDef = (): void => {
-    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers, slot), null, 2)).then(() => {
+    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers, slot, ease), null, 2)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
@@ -1483,6 +1498,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         seedLocked ? seed : undefined,
         slot,
         getDef(id),
+        ease,
       );
       const result = await saveDef(stored);
       if (!result.ok) {
@@ -1568,9 +1584,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         seedLocked ? seed : undefined,
         slot,
         undefined,
+        ease,
       ),
     );
-  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot]);
+  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot, ease]);
 
   // Point the selected (card, moment) at the draft, and take it back down again on the way out.
   //
@@ -1675,6 +1692,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         seedLocked ? seed : undefined,
         slot,
         getDef(plan.defId),
+        ease,
       );
       const defResult = await saveDef(stored);
       if (!defResult.ok) {
@@ -1840,6 +1858,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // The slot is part of what the def IS — an under-card slam loaded into the over slot is a different
     // effect. A def without one means the default, which is what every def written before the toggle meant.
     setSlot(def.slot ?? 'over');
+    // The ease is part of what the def IS, exactly like the slot: a composition that rushes its opening is a
+    // different effect from one that doesn't. Absent means the identity ramp, which is what "no ease" means.
+    setEase((def.ease ?? [[0, 0], [1, 1]]).map((p) => [p[0], p[1]] as [number, number]));
     commitLayers(next);
     applySelected(0);
     applyDuration(nextDuration);
@@ -2551,6 +2572,26 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             Under
           </button>
+        </div>
+
+        {/* The def-level EASE: a curve on the whole composition's clock, so every layer slows and rushes
+            together and their relationship to each other is preserved. The same CurveEditor the Inspector
+            uses for per-param curves — the control is identical, only what it drives differs. Editing it
+            rebuilds the player (see `easeKey`), so the change is visible on the next Fire. */}
+        <div
+          className="fxwb-easegroup"
+          title={
+            'A curve on the clock of the WHOLE composition: v = t is no change, a shallow start delays every ' +
+            'layer together and a steep one rushes them. It redistributes time INSIDE the duration rather ' +
+            'than changing it, and it cannot run backwards — a falling stretch reads as a hold.'
+          }
+        >
+          <CurveEditor
+            value={ease}
+            label="Ease"
+            presets={CURVE_PRESETS}
+            onChange={(next) => setEase(next.map((pt) => [pt[0], pt[1]] as [number, number]))}
+          />
         </div>
 
         {/* Seed: unlocked = every spawn rolls its own randomness (the historical feel); locked = the shown

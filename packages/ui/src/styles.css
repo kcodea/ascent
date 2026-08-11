@@ -6799,6 +6799,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-slotbtn:hover { background: #4a4136; }
 .fxwb-slotbtn.on { background: color-mix(in srgb, #c8a45c 22%, #241f17); border-color: #c8a45c; color: #f0e6ff; }
+/* FX Workbench — the DEF-LEVEL EASE (a curve on the whole composition's clock). Same bordered-cluster
+   treatment as its neighbours so the transport bar keeps reading as a row of labelled clusters.
+   `.fxwb-curve` is `width: 100%` for the Inspector's full-width column, so it is given an explicit width
+   here — otherwise it would try to fill the flex row and push every other cluster off the bar. */
+.fxwb-easegroup {
+  display: flex; align-items: center; padding: 4px 8px; border-radius: 9px;
+  background: #241f17; border: 1px solid #4a4136;
+}
+.fxwb-easegroup .fxwb-curve { width: 104px; gap: 3px; }
+/* The editor's own label is redundant beside the cluster label, and its font is sized for the Inspector's
+   wider column. Kept small and quiet so the cluster stays close to the height of its neighbours. */
+.fxwb-easegroup .fxwb-curve > label, .fxwb-easegroup .fxwb-curve > span { font-size: 10px; }
+.fxwb-easegroup .fxwb-curve > select { font-size: 10px; padding: 1px 2px; }
 /* A muted layer must be unmistakable in the list — otherwise "why is nothing rendering?" is a real trap. */
 .fxwb-layer-row.muted { opacity: 0.55; border-style: dashed; }
 .fxwb-layer-row.muted .fxwb-layer-name { text-decoration: line-through; }

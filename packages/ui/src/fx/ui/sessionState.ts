@@ -39,6 +39,10 @@ export interface WorkbenchSession {
    *  default" terms as `seedLocked`: a snapshot from before the toggle existed comes back `'over'`, which is
    *  where every composition has always played. */
   slot: FxSlot;
+  /** The def-level ease (see `FxDef.ease`). Always present here, as the IDENTITY ramp when unset, so the
+   *  workbench's state can be a plain curve rather than a nullable one — `toDef` drops the identity again on
+   *  the way out, so "no ease" still serialises as an omission. */
+  ease: [number, number][];
 }
 
 /** Duration clamp bounds, injected so this module never has to know the workbench's slider constants. */
@@ -166,7 +170,28 @@ export function normalizeSession(raw: unknown, bounds: DurationBounds): Workbenc
     // Same discipline: only the literal 'under' selects the under-card canvas, so an older snapshot (or a
     // mangled one) restores to the default slot rather than to a surprise.
     slot: s.slot === 'under' ? 'under' : 'over',
+    // Same discipline again: a snapshot predating the ease control, or one whose curve is unusable, restores
+    // to the identity ramp — i.e. no ease — rather than to a shape the author never drew.
+    ease: readEase(s.ease),
   };
+}
+
+/** A snapshot's `ease` as a usable curve, or the identity ramp. Mirrors `coerceDef`'s rules — a curve needs
+ *  at least two ascending pairs of finite numbers, and anything short of that means "no ease". */
+function readEase(raw: unknown): [number, number][] {
+  if (!Array.isArray(raw) || raw.length < 2) return [[0, 0], [1, 1]];
+  const pts: [number, number][] = [];
+  for (const p of raw) {
+    if (!Array.isArray(p) || p.length < 2) return [[0, 0], [1, 1]];
+    const t = p[0];
+    const v = p[1];
+    if (typeof t !== 'number' || !Number.isFinite(t) || typeof v !== 'number' || !Number.isFinite(v)) {
+      return [[0, 0], [1, 1]];
+    }
+    pts.push([t, v]);
+  }
+  for (let i = 1; i < pts.length; i++) if (pts[i][0] < pts[i - 1][0]) return [[0, 0], [1, 1]];
+  return pts;
 }
 
 /**

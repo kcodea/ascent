@@ -485,7 +485,11 @@ const pointerToCurve = (
  * `coerceParams` would reject outright) — both rules live in `curve.ts` alongside the sampler, so they are
  * unit-tested rather than trusted to the event handlers here.
  */
-function CurveEditor({
+/**
+ * A draggable value-over-life curve. EXPORTED because the workbench's def-level ease reuses it: the control
+ * is identical, only what it drives differs (a param there, the composition's clock here).
+ */
+export function CurveEditor({
   value,
   label,
   presets,

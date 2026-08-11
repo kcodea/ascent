@@ -1,6 +1,7 @@
 import { BOW_LIMIT } from './anchors';
 import type { FxAnchorId, FxLayer, FxSlot } from './def';
 import { coerceParams } from './params';
+import { isIdentityCurve, MIN_CURVE_POINTS } from './curve';
 import { getPrimitive } from './registry';
 
 /**
@@ -79,6 +80,12 @@ export interface StoredFxDef {
    * what makes this a true no-op for every def already on disk, and why `FX_DEF_VERSION` is not bumped.
    */
   slot?: FxSlot;
+  /**
+   * A curve on the COMPOSITION'S clock — see `FxDef.ease`, which this carries verbatim.
+   * OPTIONAL and omitted unless authored, on exactly the same terms as `seed`/`label`/`tags`/`slot` above,
+   * which is what keeps every def already on disk byte-identical and `FX_DEF_VERSION` unbumped.
+   */
+  ease?: [number, number][];
   layers: StoredFxLayer[];
 }
 
@@ -226,7 +233,30 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
   // number — all mean the default slot, and all serialise back out as an OMISSION, so a def that never
   // touched this field round-trips byte-identically.
   if (raw.slot === 'under') def.slot = 'under';
+  // The def-level ease, on the same omit-unless-usable terms. A curve needs at least MIN_CURVE_POINTS pairs
+  // of finite numbers to have a span to interpolate over; anything else means "no ease" rather than a curve
+  // to be repaired, because a half-read curve would silently retime the whole composition. The identity ramp
+  // is dropped too — it is what "no ease" MEANS, and keeping it would take the player off its fast path.
+  const ease = coerceEase(raw.ease);
+  if (ease !== null) def.ease = ease;
   return def;
+}
+
+/** A stored `ease` as a usable curve, or null for absent/unusable/identity. See `coerceDef`. */
+function coerceEase(raw: unknown): [number, number][] | null {
+  if (!Array.isArray(raw) || raw.length < MIN_CURVE_POINTS) return null;
+  const pts: [number, number][] = [];
+  for (const p of raw) {
+    if (!Array.isArray(p) || p.length < 2) return null;
+    const t = finite(p[0]);
+    const v = finite(p[1]);
+    if (t === null || v === null) return null;
+    pts.push([t, v]);
+  }
+  // Ascending by t is `sampleCurve`'s precondition, not something it checks — an unsorted curve would read
+  // as a silently wrong shape rather than as an error.
+  for (let i = 1; i < pts.length; i++) if (pts[i][0] < pts[i - 1][0]) return null;
+  return isIdentityCurve(pts) ? null : pts;
 }
 
 /** Parse def JSON (a paste, a file's contents). Never throws; `null` = not a def. */
@@ -287,6 +317,9 @@ export function toStoredDef(
   seed: number | undefined,
   slot: FxSlot | undefined,
   prior: StoredFxDef | undefined,
+  /** Trailing and optional so every existing call site stays valid — a caller that has no ease says nothing
+   *  rather than passing `undefined` through a hole in the middle of the signature. */
+  ease?: ReadonlyArray<readonly [number, number]>,
 ): StoredFxDef {
   const meta = carriedMeta(id, prior);
   // Two literals rather than a post-hoc assignment purely for KEY ORDER: `version, id, label, tags, duration,
@@ -300,6 +333,10 @@ export function toStoredDef(
   // Written ONLY for the non-default slot, so an author who never touches the toggle keeps saving the exact
   // JSON they saved before this field existed.
   if (slot === 'under') def.slot = 'under';
+  // Same rule as `slot`: the IDENTITY ramp is "no ease", so it is not written. An author who never draws one
+  // keeps saving the exact JSON they saved before this field existed — and, more importantly, an author who
+  // LOADS an eased def and re-saves it keeps the ease, which is the data-loss `label`/`tags` once had.
+  if (ease !== undefined && !isIdentityCurve(ease)) def.ease = ease.map((p) => [p[0], p[1]] as [number, number]);
   return def;
 }
 

@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-11 — Paymaster Pimm's Shout gets an effect, and shop bindings learn to carry a sound
+
+The owner authored `coin-shout` and asked for it on the tier-1 Dwarf whose Shout pays 1 Gold next turn
+(`dw_pimm`, Paymaster Pimm), with the max-Gold sound. Neither half was a one-line binding.
+
+**There was no `shout` binding slot.** The recruit surface published exactly two kinds, `rubyLanded` and
+`minionBuffed`, and `recruitMoments.ts` is explicit that a kind may only exist where a signal already supplies
+it — "adding one without a source would publish a binding slot that silently never fires". The source existed
+and was already in use: the board diff in `Recruit.tsx` that drives the medallion pulse (a minion is new, and
+its def carries an `onPlay`). `shout` now rides exactly that, adding no new detection.
+
+One moment PER minion, each naming its own card, rather than one moment with several recipients: two
+different minions played in the same action must each resolve their own binding, and a shared moment would
+have let the second silently take the first's effect.
+
+**Bindings can now carry a sound.** `FxBinding` gains an optional `sfx`, whitelisted by `BINDING_SFX` so a
+typo is a loud dev error rather than a sound that never fires — indistinguishable, otherwise, from one lost in
+the mix. Fired by the cue runner alongside the def, so the two cannot drift apart and a re-bind carries its
+sound with it. The alternative was a card-id check inside `Recruit.tsx`, which is the bespoke-shop-effect
+shape the recruit cue system exists to delete. `dw_pimm` is the first user:
+`{ "def": "coin-shout", "sfx": "maxGold" }`.
+
+**A test caught the lazy version.** The moment was first emitted as an object literal in the component, and
+`recruitMoments.test.ts`'s "every declared kind is actually produced by some emitter" failed — correctly, since
+a literal satisfies the type checker while leaving the guard blind. `shout` now has a named emitter,
+`shoutMoment(uid, cardId)`, and the guard covers both emitters rather than being weakened to ignore one.
+
+Verified: typecheck, `npx eslint packages apps` 0 errors, 4864 tests, build:web.
+
+**Open, deliberately uncommitted:** the owner reports `flame-ring` not appearing from Karwind. Every link was
+verified — live sim data shows `recruitBuffFx: [{ src: 'karwind', … }]` with the +3/+3 landing, the moment
+builder produces a source-keyed `minionBuffed`, the binding resolves, the effect's deps include the counter
+that changes, and Pixi is ready — so nothing in the chain reads broken. The animation itself could not be
+observed (rAF is paused in an unfocused tab). The agreed follow-up, a general "a bound def suppresses the
+stock cue" rule, is HELD until that is confirmed: if the ring is in fact firing, removing Karwind's tendril
+first would leave the card looking inert.
 ## 2026-08-11 — fix: OTP sign-in showed a red "{}" on an opaque server error
 
 Mike's OTP sign-in failed and the account panel showed two red braces. Cause: `@supabase/auth-js` builds an

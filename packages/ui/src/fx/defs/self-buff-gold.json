@@ -15,6 +15,17 @@
         "angle": -90,
         "speed": 1050,
         "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
         "drag": 0.795,
         "gravity": -400,
         "life": 590,
@@ -23,7 +34,10 @@
         "turbScale": 0.09,
         "emitShape": "ring",
         "emitRadius": 25,
+        "squashX": 1,
         "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
         "inheritVel": 0,
         "shape": "circle",
         "size": 6,
@@ -106,6 +120,17 @@
         "squash": 1,
         "ringDelay": 0,
         "ease": 0.55,
+        "radiusCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverse": false,
         "bands": 3,
         "palette": [
           16763402,

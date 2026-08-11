@@ -1,32 +1,78 @@
 {
   "version": 1,
   "kinds": {
-    "attackExchange": { "def": "self-buff-gold", "fanOut": "selfBuffed" },
-    "buffWave": { "def": "self-buff-gold", "fanOut": "selfBuffed" },
-    "hpGrant": { "def": "hp-grant" },
-    "keyword": { "def": "keyword-gain" },
-    "keywordLost": { "def": "keyword-lost" },
-    "questComplete": { "def": "quest-complete" },
-    "questTrigger": { "def": "quest-trigger" },
+    "attackExchange": {
+      "def": "self-buff-gold",
+      "fanOut": "selfBuffed"
+    },
+    "buffWave": {
+      "def": "self-buff-gold",
+      "fanOut": "selfBuffed"
+    },
+    "hpGrant": {
+      "def": "hp-grant"
+    },
+    "keyword": {
+      "def": "keyword-gain"
+    },
+    "keywordLost": {
+      "def": "keyword-lost"
+    },
+    "questComplete": {
+      "def": "quest-complete"
+    },
+    "questTrigger": {
+      "def": "quest-trigger"
+    },
     "rally": null,
-    "rubyLanded": { "def": "ruby-gem-apply" },
-    "reveal": { "def": "stealth-break" },
-    "scCast": { "def": "spell-cast" },
-    "shieldGain": { "def": "ward-gained" },
-    "spellProgress": { "def": "spell-progress" },
-    "toHand": { "def": "to-hand" },
-    "venomSpent": { "def": "venom-spent" }
+    "rubyLanded": {
+      "def": "ruby-gem-apply"
+    },
+    "reveal": {
+      "def": "stealth-break"
+    },
+    "scCast": {
+      "def": "spell-cast"
+    },
+    "shieldGain": {
+      "def": "ward-gained"
+    },
+    "spellProgress": {
+      "def": "spell-progress"
+    },
+    "toHand": {
+      "def": "to-hand"
+    },
+    "venomSpent": {
+      "def": "venom-spent"
+    }
   },
   "cards": {
     "b2_echohorn": {
-      "rally": { "def": "echohorn-target-sparkle" }
+      "rally": {
+        "def": "echohorn-target-sparkle"
+      }
     },
     "bloodbinder": {
-      "scCast": { "def": "ruby-lance", "fanOut": "damaged" }
+      "scCast": {
+        "def": "ruby-lance",
+        "fanOut": "damaged"
+      }
+    },
+    "dw_pimm": {
+      "shout": {
+        "def": "coin-shout",
+        "sfx": "maxGold"
+      }
     },
     "karwind": {
-      "buffWave": { "def": "flame-ring", "fanOut": "buffed" },
-      "minionBuffed": { "def": "flame-ring" }
+      "buffWave": {
+        "def": "flame-ring",
+        "fanOut": "buffed"
+      },
+      "minionBuffed": {
+        "def": "flame-ring"
+      }
     }
   }
 }

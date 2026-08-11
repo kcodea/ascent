@@ -44,6 +44,9 @@ export interface RecruitCueContext {
 export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
   if (!canPlayDefs()) return () => {};
 
+  // The shop being gemmed is ONE event across the row, not a per-card cascade — one spanning play, one sound.
+  if (moment.kind === 'shopRubied') return runShopRubiedSpan(moment, ctx);
+
   // Resolved UP FRONT, so an unbound moment costs one table lookup and schedules nothing — and so the
   // binding is read once rather than separately per land, which is two chances to disagree.
   //
@@ -78,6 +81,65 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
     for (const t of timers) clearTimeout(t);
   };
 }
+
+/**
+ * The shop-gem VOLLEY — a `shopRubied` moment (Veinstorm gemming the tavern) as ONE play spanning the row,
+ * with a SINGLE gem sound, instead of a per-offer cascade.
+ *
+ * Reasons it is its own path rather than a cascade of one:
+ *  - **One instance, not N.** A cascade schedules a burst per offer; a full shop is up to seven 220-particle
+ *    bursts. One spanning def is the GPU win the owner asked for.
+ *  - **Spans the actual gemmed offers.** `source`/`target` are the leftmost and rightmost gemmed offers'
+ *    centres, so an authored def can either sit at the midpoint or draw ACROSS the pair (a ribbon, a squashed
+ *    shockwave) and it auto-fits however many offers were gemmed.
+ *  - **Kind-level binding.** The span is about the shop, not any one offer, so it resolves `(null, kind)` —
+ *    a per-offer card override would be meaningless here and is deliberately not consulted.
+ *
+ * The sound is the caller's `onLand`, fired ONCE (the cascade fires it per land). The def is unchanged today
+ * (`ruby-gem-apply`, the placeholder in `bindings.json`); the owner re-authors the spanning def and re-binds
+ * `shopRubied` in the workbench, no code change.
+ */
+function runShopRubiedSpan(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
+  const binding = bindingFor(null, 'shopRubied');
+  if (!binding) return () => {};
+  let raf = 0;
+  const play = (): void => {
+    raf = requestAnimationFrame(() => {
+      // Measured inside the rAF for the same reason the cascade is — the gemmed offers re-rendered this commit.
+      let left: { uid: string; x: number; y: number } | null = null;
+      let right: { uid: string; x: number; y: number } | null = null;
+      for (const r of moment.recipients) {
+        const p = ctx.measure(r.uid);
+        if (!p) continue;
+        if (left === null || p.x < left.x) left = { uid: r.uid, x: p.x, y: p.y };
+        if (right === null || p.x > right.x) right = { uid: r.uid, x: p.x, y: p.y };
+      }
+      if (left === null || right === null) return; // every gemmed offer left before paint (sold, rerolled)
+      // Anchors the def can use: source/target span the gemmed offers, and `camera` is the viewport centre —
+      // the same definition `boardAnchors.ts` gives it and the same one the workbench tunes against, so a
+      // camera-anchored shop def (a fixed full-width burst) frames exactly as it did in the tuner. Without
+      // this a camera-anchored layer would resolve to ORIGIN (0,0) and fire in the screen corner.
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      playDef(binding.def, { source: left, target: right, camera }, { uids: { source: left.uid, target: right.uid }, index: 0 });
+      if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+      ctx.onLand?.(left.uid); // the single gem sound for the whole volley
+    });
+  };
+  // On a REFRESH re-stamp the offers are still sliding into a fresh row, so the span holds a beat and lands
+  // WITH them — timed to the badge roll (`SHOP_RUBY_DELIVER_MS` in `Recruit.tsx`), not before. The CAST plays
+  // at once: it is the spell going off, and its offers are already in place.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (moment.onRefresh) timer = setTimeout(play, SHOP_SPAN_REFRESH_DELAY_MS);
+  else play();
+  return () => {
+    if (timer !== undefined) clearTimeout(timer);
+    cancelAnimationFrame(raf);
+  };
+}
+
+/** How long the shop-gem span waits on a REFRESH re-stamp before firing, so it lands with the sliding-in
+ *  offers and syncs with the badge roll rather than flashing before the row settles. Owner-set 2026-08-11. */
+const SHOP_SPAN_REFRESH_DELAY_MS = 150;
 
 /** One land. Measured INSIDE the timer so a stagger that outlives a re-render — a triple collapsing three
  *  bodies into one, a sold minion — misses cleanly instead of firing at a stale rect. */

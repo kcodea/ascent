@@ -335,6 +335,18 @@ export interface BuffFxEvent {
  *  docs/fx-vocabulary.md. */
 export interface RubyLandedFx { uid: string; count: number; }
 
+/** Which tavern offers VEINSTORM gemmed this action, and whether it was the cast or a refresh re-stamp.
+ *  Distinct from `rubyLandedFx` on purpose: Veinstorm gems the whole shop as ONE event (a spanning volley, a
+ *  single sound), where a lone Ruby dragged onto an offer is a per-card gem — and only Veinstorm's chokepoint
+ *  (`stampVeinstormRubies`) can tell them apart, since both land the SAME 'Ruby' buff. `onRefresh` lets the UI
+ *  hold the span a beat on a re-stamp so it lands with the offers rather than before they finish sliding in.
+ *
+ *  `attack`/`health` is the per-offer Ruby value this action added — UNIFORM across every gemmed offer (the
+ *  cast stamps `1 + rubyBonus` to each, a refresh stamps the banked grant to each). Carried so the badge can
+ *  withhold EXACTLY what just landed, rather than recovering it from the offer's Ruby-buff total ÷ count —
+ *  which is only the average, and so is off on an offer that already carried a Ruby before Veinstorm hit it. */
+export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: number; health: number; }
+
 export interface RunState {
   seed: number;
   /** Game mode — see `RunMode`.
@@ -999,6 +1011,15 @@ export interface RunState {
    *  the combat-settle actions: the carry-back re-labels mid-fight Ruby gains as 'Ruby' buffs, and the replay
    *  already played this cue for those. */
   rubyLandedFx?: RubyLandedFx[];
+  /** Transient per-action scratch: the offers Veinstorm just gemmed (set by `stampVeinstormRubies`'s callers,
+   *  cleared at the top of `reduce`). Read once in the post-action FX block, which turns it into `veinstormFx`
+   *  AND excludes these uids from `rubyLandedFx` so a gemmed offer never fires both the span and the per-card
+   *  cue. Not the signal itself — the seq-bumped `veinstormFx` below is what the UI watches. */
+  veinstormStamped?: VeinstormFx;
+  /** The Veinstorm shop-gem signal — the offers gemmed + whether it was a refresh. Seq-gated like the other FX
+   *  payloads so the UI fires once per action even if the payload repeats. */
+  veinstormFx?: VeinstormFx;
+  veinstormFxSeq?: number;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

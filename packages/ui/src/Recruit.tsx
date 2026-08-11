@@ -100,6 +100,11 @@ const AURA_MARKERS = ['dscard', 'reborncard'] as const;
  *  so with a `react` layer, which claims the hold (`claimStat`) and takes the clock over entirely. */
 const RUBY_DELIVER_OFFSET_MS = 120;
 
+/** How long a gemmed SHOP offer holds its pre-Ruby badge before rolling up — timed to the shop-gem VOLLEY
+ *  landing, not the board cascade. One release for the whole shop (the effect is one spanning play), a touch
+ *  later than the board's 120ms so the numbers move just as the gems arrive. Owner-set 2026-08-11. */
+const SHOP_RUBY_DELIVER_MS = 200;
+
 /** When the Fodder ghost stops hovering and breaks into energy — the moment the tendril launches from it.
  *  Module-scope because the eater's NUMBER is now scheduled off it from a different place than the
  *  choreography that uses it (the hold goes in at the commit that raises the stat; the crumble is a timer
@@ -948,6 +953,9 @@ export function Recruit() {
   // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
   // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
   const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  /** The Veinstorm shop-gem HOLD's own guard — the offers withhold their pre-Ruby badge on `veinstormFxSeq`,
+   *  a different signal from the per-card cascade's `rubyLandedFxSeq`, so it needs its own advance. */
+  const prevVeinstormHoldSeq = useRef(run.veinstormFxSeq);
   /** The recruit-cue runner's own counter snapshot — see `recruitMoments.ts`. Separate from
    *  `prevRubyLandedSeq`, which the stat-HOLD effect below owns and advances on its own schedule. */
   const prevRecruitSeqs = useRef(recruitSeqsOf(run));
@@ -999,6 +1007,10 @@ export function Recruit() {
     // recruit-moments runner below keys off `prevRecruitSeqs`), so this effect owns its own guard outright.
     prevRubyLandedSeq.current = seq;
     const lands = run.rubyLandedFx ?? [];
+    // Per-gem holds on the cascade's own clock (the sweep the eye follows). `buffOf` reads the board, so a
+    // board minion's gem withholds and rolls; a lone Ruby on a shop offer finds no board buff, is skipped, and
+    // its badge shows immediately (unchanged behaviour). Veinstorm-gemmed offers are NOT in `lands` at all —
+    // the sim routes them to the span, whose own hold effect below withholds them on volley timing.
     const buffOf = (uid: string): CardBuff | undefined =>
       run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');
     for (const hold of rubyLandHolds(lands, buffOf)) {
@@ -1006,6 +1018,29 @@ export function Recruit() {
         { origin: 'cue', startAt: hold.at + RUBY_DELIVER_OFFSET_MS });
     }
   }, [run.rubyLandedFxSeq, run.rubyLandedFx, run.board]);
+
+  /**
+   * THE VEINSTORM SHOP-GEM HOLD — the offers show their PRE-Ruby stats, then roll up together ~200ms in, as
+   * the single spanning volley lands. Its own effect (not folded into the cascade above) because it keys off
+   * a different signal (`veinstormFxSeq`, not `rubyLandedFxSeq`) and reveals as a VOLLEY, not a cascade: every
+   * gemmed offer releases at the same `SHOP_RUBY_DELIVER_MS`, no per-recipient `at`.
+   *
+   * The withheld amount is the EXACT Ruby value Veinstorm added this action, carried on the signal — uniform
+   * across every gemmed offer, so each badge shows precisely its pre-Veinstorm number. (Deriving it from the
+   * offer's Ruby buff would only be the average — off on an offer that already carried a Ruby before the cast.)
+   * A `cue` hold outranks the intrinsic hold `Card` would place on the value change, so it supersedes the
+   * instant roll (see `fx/statHold.ts`'s ranks). Own-seq guard, so it fires once per Veinstorm, not per action.
+   */
+  useLayoutEffect(() => {
+    const seq = run.veinstormFxSeq;
+    if (seq === undefined || seq === prevVeinstormHoldSeq.current) return;
+    prevVeinstormHoldSeq.current = seq;
+    const vf = run.veinstormFx;
+    if (!vf) return;
+    for (const uid of vf.uids) {
+      holdStat(uid, { attack: vf.attack, health: vf.health }, { origin: 'cue', startAt: SHOP_RUBY_DELIVER_MS });
+    }
+  }, [run.veinstormFxSeq, run.veinstormFx]);
 
   /**
    * THE SHOP CUE RUNNER — what used to be ~35 lines of bespoke React per shop effect (diff a counter, wait a
@@ -1036,14 +1071,17 @@ export function Recruit() {
         const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
         return el ? restingCenterOf(el) : null;
       },
-      // One play per gem, matching the cascade the eye sees.
-      onLand: m.kind === 'rubyLanded' ? () => sfx.gemApply() : undefined,
+      // The gem sound. On a board `rubyLanded` cascade this fires per gem, matching the sweep the eye sees;
+      // on a `shopRubied` span the cue calls it ONCE, so the whole shop volley is a single gem sound.
+      onLand: m.kind === 'rubyLanded' || m.kind === 'shopRubied' ? () => sfx.gemApply() : undefined,
     })));
     return () => { for (const stop of stops) stop(); };
-    // ONLY the two counters. Depending on `run` would re-run this on every dispatch — buy, sell, freeze,
+    // ONLY the moment counters. Depending on `run` would re-run this on every dispatch — buy, sell, freeze,
     // refresh, drop — to discover it had nothing to do, which is strictly worse than the per-effect code it
     // replaced (that watched its own seq). The board is read through `runRef` instead, so it is not a dep.
-  }, [run.rubyLandedFxSeq, run.recruitFxSeq]);
+    // `veinstormFxSeq` is here because Veinstorm now bumps ONLY it (its gemmed offers were pulled out of
+    // `rubyLandedFx`), so without it the shop-gem span would never fire.
+  }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

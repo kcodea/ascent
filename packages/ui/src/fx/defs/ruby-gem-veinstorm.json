@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "id": "ruby-gem-veinstorm",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "burst",
+      "anchor": "camera",
+      "at": 0,
+      "params": {
+        "count": 181,
+        "interval": 3840,
+        "spread": 0.55,
+        "aimMode": "fixed",
+        "angle": -88,
+        "speed": 1165,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.501004874205163,
+            1.0157091731003443
+          ],
+          [
+            1,
+            0.9618493467176927
+          ]
+        ],
+        "drag": 0.865,
+        "gravity": 440,
+        "life": 980,
+        "orientToVelocity": true,
+        "turbulence": 0,
+        "turbScale": 0.009,
+        "emitShape": "disc",
+        "emitRadius": 218,
+        "squashX": 1.34,
+        "squashY": 0.2,
+        "offsetX": 0,
+        "offsetY": -185,
+        "inheritVel": 0,
+        "shape": "diamond",
+        "size": 25,
+        "sizeVar": 0.81,
+        "stretchX": 1.05,
+        "stretchY": 0.65,
+        "sizeCurve": [
+          [
+            0,
+            1.0740569188437208
+          ],
+          [
+            0.16747048938427683,
+            0.2841112005468509
+          ],
+          [
+            0.6858554334568822,
+            0.2897222982612446
+          ],
+          [
+            1,
+            1.3310141012987708
+          ]
+        ],
+        "coreBias": 0.92,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.227894848384962
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.5056102844373845
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 1.8,
+        "bands": 3,
+        "plateau": 0.34,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          12203574,
+          16711680,
+          10617089,
+          16731469
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 10.7,
+        "warp": 0.66,
+        "scroll": 2.9,
+        "erode": 0.91,
+        "gain": 2
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "camera",
+      "at": 0,
+      "params": {
+        "count": 181,
+        "interval": 3840,
+        "spread": 0.55,
+        "aimMode": "fixed",
+        "angle": -88,
+        "speed": 1165,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.501004874205163,
+            1.0157091731003443
+          ],
+          [
+            1,
+            0.9618493467176927
+          ]
+        ],
+        "drag": 0.865,
+        "gravity": -550,
+        "life": 980,
+        "orientToVelocity": true,
+        "turbulence": 0,
+        "turbScale": 0.009,
+        "emitShape": "disc",
+        "emitRadius": 218,
+        "squashX": 1.34,
+        "squashY": 0.2,
+        "offsetX": 0,
+        "offsetY": -185,
+        "inheritVel": 0,
+        "shape": "diamond",
+        "size": 25,
+        "sizeVar": 0.81,
+        "stretchX": 1.05,
+        "stretchY": 0.65,
+        "sizeCurve": [
+          [
+            0,
+            1.0740569188437208
+          ],
+          [
+            0.16747048938427683,
+            0.2841112005468509
+          ],
+          [
+            0.6858554334568822,
+            0.2897222982612446
+          ],
+          [
+            1,
+            1.3310141012987708
+          ]
+        ],
+        "coreBias": 0.92,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.227894848384962
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.5056102844373845
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 1.8,
+        "bands": 3,
+        "plateau": 0.34,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          12203574,
+          16711680,
+          10617089,
+          16731469
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 10.7,
+        "warp": 0.66,
+        "scroll": 2.9,
+        "erode": 0.91,
+        "gain": 2
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "camera",
+      "at": 0,
+      "params": {
+        "count": 130,
+        "interval": 3840,
+        "spread": 0.55,
+        "aimMode": "fixed",
+        "angle": -88,
+        "speed": 1720,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.501004874205163,
+            1.0157091731003443
+          ],
+          [
+            1,
+            0.9618493467176927
+          ]
+        ],
+        "drag": 0.865,
+        "gravity": 40,
+        "life": 200,
+        "orientToVelocity": true,
+        "turbulence": 0,
+        "turbScale": 0.009,
+        "emitShape": "disc",
+        "emitRadius": 69,
+        "squashX": 1.34,
+        "squashY": 0.2,
+        "offsetX": 0,
+        "offsetY": -182,
+        "inheritVel": 0,
+        "shape": "diamond",
+        "size": 25,
+        "sizeVar": 0.81,
+        "stretchX": 1.05,
+        "stretchY": 0.65,
+        "sizeCurve": [
+          [
+            0,
+            1.0740569188437208
+          ],
+          [
+            0.16747048938427683,
+            0.2841112005468509
+          ],
+          [
+            0.6858554334568822,
+            0.2897222982612446
+          ],
+          [
+            1,
+            1.3310141012987708
+          ]
+        ],
+        "coreBias": 0.92,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.227894848384962
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.5056102844373845
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 1.8,
+        "bands": 3,
+        "plateau": 0.34,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          16777215,
+          16777215,
+          16777215,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 10.7,
+        "warp": 0.66,
+        "scroll": 2.9,
+        "erode": 0.91,
+        "gain": 2
+      }
+    }
+  ]
+}

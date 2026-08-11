@@ -490,11 +490,12 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
     const s = veinstormTen();
     expect(s.rubyCasts ?? 0, 'ten Veinstorms are ten SPELL casts, not ten Ruby casts').toBe(0);
     expect(s.rubyCastsThisTurn ?? 0).toBe(0);
-    // The LANDED CUE is a different question and its answer flipped with the 2026-08-06 rework (owner
-    // confirmed the grant should be per-offer Rubies so Ruby Transfer can move them). The cue is derived
-    // from the per-offer Ruby-count delta, so it now plays — correctly: real Rubies really are arriving on
-    // those offers, and the animation is what makes that legible.
-    expect(s.rubyLandedFxSeq ?? 0, 'the offers really do gain Rubies now — the cue should play').toBeGreaterThan(0);
+    // The shop-gem CUE plays — but as the Veinstorm SPAN (`veinstormFxSeq`), not the per-card `rubyLanded`
+    // cascade (owner 2026-08-11: the shop being gemmed is one event, not a per-offer sweep). The gemmed
+    // offers are deliberately EXCLUDED from `rubyLandedFx` so they never fire both cues.
+    expect(s.veinstormFxSeq ?? 0, 'Veinstorm gems the shop — the span should play').toBeGreaterThan(0);
+    expect(s.veinstormFx?.onRefresh, 'this is the cast, not a refresh re-stamp').toBe(false);
+    expect(s.rubyLandedFxSeq ?? 0, 'the gemmed offers do NOT also fire the per-card cue').toBe(0);
   });
 
   it('buying a Resonance Idol out of a Veinstorm shop does not bounce the grant onwards', () => {

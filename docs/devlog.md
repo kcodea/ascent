@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-10 — the def-level ease gets its dial
+
+Closes the fourth requested FX feature, whose engine half shipped in #949 without a way to author it.
+
+**The control is the Inspector's own `CurveEditor`, exported and reused.** A def-level curve and a per-param
+curve are the same interaction — drag points on a box, seed from a preset — so building a second one would
+have meant two things to keep in step. Only what it drives differs.
+
+**The bug this was really about.** `toDef` rebuilds the def from workbench state, so before this an ease could
+only be hand-written into JSON, and *loading such a def and saving it silently stripped it* — the shape
+`label`/`tags` had in #805. Now threaded through: session autosave and restore, def load, and all THREE save
+paths (Save, the rail draft, and Commit).
+
+**Two existing guards caught me, which is the system working.**
+
+- `defStore.test.ts` builds a `Required<StoredFxDef>` as a compile-time exhaustiveness check, precisely so a
+  new optional field cannot be added without answering "does a Save keep it?". Adding `ease` broke the build
+  until I answered. That test was written after #805 for this exact purpose and it earned its keep.
+- `sessionState.test.ts`'s round-trip failed for the same reason on the autosave side.
+
+**Discipline carried through, matching the rest of the feature.** The IDENTITY ramp is what "no ease" MEANS,
+so it is never written: `toDef`, `toStoredDef` and `coerceDef` all drop it, which keeps every untouched def
+byte-identical on disk and keeps the player on its no-ease fast path. `coerceDef` and `normalizeSession` both
+refuse a half-read curve — too few points, a non-finite number, descending `t` (which breaks `sampleCurve`'s
+sorted precondition, something it does not check) — and fall back to the identity rather than repairing it
+into a shape nobody authored. A silently retimed composition is worse than an ignored field.
+
+The player resolves `def.ease` once at construction, so an edit rebuilds the player; that is keyed off a
+`JSON.stringify` of the curve, because the array is a fresh object every render and depending on it directly
+would rebuild continuously.
+
+**Known rough edge, logged rather than hidden.** A curve editor is ~150px tall and the transport bar's other
+clusters are ~32px. It works and the bar wraps, but one cluster now sets a whole row's height. Narrowing it
+does not help — the height is the svg plus the preset select plus the drag hint. The real fix is probably
+placement (the def-level controls may want their own panel) and that is a decision worth making when that bar
+is next touched rather than in isolation.
+
+Verified: typecheck (pkgs + web), lint at the 6-warning baseline, 4860 tests, `build:web`, and the control
+measured live in the running workbench.
+
 ## 2026-08-09 — Sandbox board editor: the FX workbench's synthetic stage is replaced by editing the real game
 
 **Why the stage got deleted eleven days after it shipped:** it was scenery. Nothing on it fought — an effect

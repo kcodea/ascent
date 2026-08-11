@@ -1,5 +1,6 @@
 import type { FxDef, FxLayer, FxSlot } from '../def';
 import { coerceParams, type FxParamSpecs } from '../params';
+import { isIdentityCurve } from '../curve';
 
 /**
  * The workbench's editable model of a single FX layer. A superset of `FxLayer` in editability terms: `life`
@@ -329,13 +330,22 @@ export function fitDurationToLayers(
 
 /** Build the `FxDef` the player consumes from the editor layers. `life = null` maps to `FxLayer.life`
  *  omitted (undefined); params pass through by reference (the player treats the def as read-only). */
-export function toDef(id: string, durationMs: number, layers: EditorLayer[], slot?: FxSlot): FxDef {
+export function toDef(
+  id: string,
+  durationMs: number,
+  layers: EditorLayer[],
+  slot?: FxSlot,
+  ease?: ReadonlyArray<readonly [number, number]>,
+): FxDef {
   return {
     id,
     duration: durationMs,
     // Omitted for the default slot, so a composition that never touched the toggle serialises exactly as it
     // did before the field existed (matches `toStoredDef`).
     ...(slot === 'under' ? { slot } : {}),
+    // Omitted for the identity ramp, so a composition that never drew a curve is byte-identical (matches
+    // `toStoredDef`, and keeps the player on its no-ease fast path rather than sampling an identity).
+    ...(ease !== undefined && !isIdentityCurve(ease) ? { ease } : {}),
     layers: layers.map((l) => ({
       primitive: l.primitive,
       anchor: l.anchor,

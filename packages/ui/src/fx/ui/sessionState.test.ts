@@ -149,8 +149,32 @@ describe('normalizeSession', () => {
       // The canvas slot round-trips with everything else. Spelled out here rather than left to the default
       // so this stays an exact-equality round-trip.
       slot: 'over' as const,
+      // Likewise the def-level ease — an authored curve must survive closing and reopening the workbench,
+      // or the autosave quietly discards part of the composition.
+      ease: [[0, 0], [0.4, 0.9], [1, 1]] as [number, number][],
     };
     expect(normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS)).toEqual(saved);
+  });
+
+  /**
+   * The ease restores to the IDENTITY ramp — i.e. no ease — for a snapshot that predates the control and for
+   * any curve that is not usable. A half-read curve is worse than none: it would silently retime the whole
+   * composition, and the author would be tuning an effect nobody authored.
+   */
+  it('defaults the ease to the identity ramp, and rejects an unusable curve', () => {
+    const base = { layers: [layer('ribbon')], selected: 0, durationMs: 1000 };
+    const IDENTITY = [[0, 0], [1, 1]];
+    expect(normalizeSession({ ...base }, BOUNDS)?.ease).toEqual(IDENTITY);   // predates the control
+    expect(normalizeSession({ ...base, ease: 'nope' }, BOUNDS)?.ease).toEqual(IDENTITY);
+    expect(normalizeSession({ ...base, ease: [[0, 0]] }, BOUNDS)?.ease).toEqual(IDENTITY); // too few points
+    expect(normalizeSession({ ...base, ease: [[0, 0], [1, 'x']] }, BOUNDS)?.ease).toEqual(IDENTITY);
+    expect(normalizeSession({ ...base, ease: [[0, 0], [Number.NaN, 1]] }, BOUNDS)?.ease).toEqual(IDENTITY);
+    // Descending t breaks `sampleCurve`'s sorted precondition, which it does not check — so it is refused
+    // here rather than allowed through to read as a silently wrong shape.
+    expect(normalizeSession({ ...base, ease: [[0, 0], [0.8, 0.5], [0.2, 1]] }, BOUNDS)?.ease).toEqual(IDENTITY);
+    // ...and a genuinely usable curve is kept.
+    expect(normalizeSession({ ...base, ease: [[0, 0], [0.5, 0.2], [1, 1]] }, BOUNDS)?.ease)
+      .toEqual([[0, 0], [0.5, 0.2], [1, 1]]);
   });
 
   // A snapshot from before the slot toggle existed must restore to the DEFAULT canvas, and only the literal

@@ -42,15 +42,17 @@ table covers both phases.
 
 ## Papercuts
 
-### `ease` has no dial, and the workbench will DROP it on save
-**Hit:** 2026-08-10, shipping the def-level ease. The engine half is done and tested (`FxDef.ease`, honoured
-by `player.ts`), but `toDef` in `layerModel.ts` rebuilds the def from workbench state, and workbench state has
-no field for it. So: a def can only get an ease by hand-editing its JSON, and **loading such a def into the
-workbench and saving it silently strips the ease** — exactly the class of bug that `label`/`tags` hit in #805.
-**Until the dial lands, do not open an eased def in the workbench.**
-**Fix:** the dial. `CurveEditor` in `Inspector.tsx` is already cleanly parameterised (`value`/`vMax`/
-`presets`/`onChange`) and just needs exporting; the work is workbench state — a `useState` + ref, the session
-snapshot, the history entry, `toDef`/`toStoredDef` passthrough, and a control beside the Duration dial.
+### The def-level ease control is much taller than the bar it sits in
+**Hit:** 2026-08-10, adding the ease dial. The control works — `CurveEditor` was exported and reused, so it
+behaves exactly like every per-param curve — but a curve editor is ~150px tall and the transport bar's other
+clusters (Canvas, Seed, Speed) are ~32px. The bar wraps, so nothing breaks, but one cluster now sets the
+height of a whole row.
+**Workaround:** narrowed to 104px and shrunk the label/preset type. It is still 150px tall; the height is the
+svg plus the preset select plus the drag hint, none of which a width change touches.
+**Cost:** cosmetic, but the transport bar reads as a row of small controls and this is not one.
+**Fix:** probably placement rather than styling — the def-level controls (Duration, Canvas, Ease) arguably
+want their own small panel rather than a seat on the transport bar. Worth deciding when that bar is next
+touched, not in isolation.
 
 ### No label / tags editor
 The def format carries `label` and `tags` — the library searches and groups by them — but the workbench has
@@ -185,10 +187,10 @@ closed-form function of age. The consequence that survives scrutiny:
      ships instead spawns each particle at the far end of ITS OWN flight (`v * life`) and negates the
      velocity — a straight-line flight is its own inverse, so it works for every emit shape including a bare
      point, and costs no extra RNG draw.
-  4. ~~**Def-level ease**~~ — **ENGINE SHIPPED 2026-08-10**, dial still missing. `FxDef.ease` is honoured by
+  4. ~~**Def-level ease**~~ — **SHIPPED 2026-08-10**, engine and dial. `FxDef.ease` is honoured by
      the player: layers arrive on the eased clock and are ticked with the eased delta, and the def's length is
-     unchanged because wrap/completion stay on the raw clock. See the papercut above — until the workbench has
-     a control for it, an ease is JSON-only and the workbench will strip it on save.
+     unchanged because wrap/completion stay on the raw clock. The workbench carries it through session
+     autosave, def load and all three save paths. One cosmetic papercut left over — see above.
 
 ---
 

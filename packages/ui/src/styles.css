@@ -5337,6 +5337,11 @@ svg { width: 18px; height: 18px; }
 .carhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; min-width: 120px; }
 .carhero-meta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
 .carrec { font-family: var(--font-ui); font-weight: 900; font-size: 15px; margin-left: 10px; font-variant-numeric: tabular-nums; }
+/* Match-row subtitle: which round the run ended on + when it was played. */
+.carsub { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.52); }
+.carsub-round { color: rgba(255, 255, 255, 0.72); }
+.carsub-dot { opacity: 0.5; }
+.carsub-when { font-weight: 600; }
 .carrec.won { color: #6fe0a0; }
 .carrec.lost { color: #ff9a9a; }
 /* Verdict reads as plain colored small-caps under the name (mockup: "OATH 7 • SURPASSED" in green). */

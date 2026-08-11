@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-11 — Career match rows show the round reached + when the run was played
+
+Owner ask: each Career match-history row should show the round the run ended on and its date/time (e.g.
+"Round 9, 8th Place" / "Round 14, 1st Place").
+
+- The reached round (`wave`) and `placement` were ALREADY on the entry, so the round is display-only — a new
+  subtitle under the hero name reads `Round {wave} · {played-at}`; the placement chip on the right is unchanged.
+- Date/TIME: the entry only stored `date` (day-only, `yyyy-mm-dd`). Added an optional `at` (full ISO datetime)
+  to `RunHistoryEntry`, stamped at run-end in the store (`buildRunHistoryEntry` now takes `at`). The Career's
+  `playedAtText()` shows date + time when `at` is present, and falls back to the day-only date on older entries
+  (parsed as LOCAL midnight to dodge the `new Date('YYYY-MM-DD')` UTC off-by-one).
+
+Verified live against a career with runs: 25 rows render `Round 14 · Aug 11, 2026`-style subtitles (existing
+rows are day-only; runs played from now on carry the time). typecheck (web) + lint (0 errors) + build green;
+runHistory tests 20/20.
+
 ## 2026-08-11 — fix: hand-rearrange settle no longer replays the slide (double-glide)
 
 Owner report: rearranging cards in hand, on release the slide "repeats itself" (and a card briefly "returns

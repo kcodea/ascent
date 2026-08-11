@@ -12,6 +12,9 @@ import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type Bo
 export interface RunHistoryEntry {
   v: 1;
   date: string; // ISO yyyy-mm-dd, stamped at run end
+  /** Full ISO datetime the run ended (stamped at run end). `date` is day-only; this carries the TIME too for
+   *  the Career's "played at" readout. Absent on entries saved before this field existed → fall back to `date`. */
+  at?: string;
   seed: number;
   heroId: string;
   wins: number;
@@ -98,7 +101,7 @@ function dominantTribeOf(run: RunState): Tribe | null {
 /** Build a history entry from a finished run + the run-end extras (capture count, final board, date, APT). */
 export function buildRunHistoryEntry(
   run: RunState,
-  extra: { date: string; boardsContributed: number; board: BoardSnapshot | null; apt: number; cardsPlayed: number; rating?: RatingChange },
+  extra: { date: string; at?: string; boardsContributed: number; board: BoardSnapshot | null; apt: number; cardsPlayed: number; rating?: RatingChange },
 ): RunHistoryEntry {
   const rec = runRecord(run);
   const lr = lineResult(run);
@@ -106,6 +109,7 @@ export function buildRunHistoryEntry(
   return {
     v: 1,
     date: extra.date,
+    at: extra.at,
     seed: run.seed,
     heroId: run.heroId,
     wins: rec.wins,

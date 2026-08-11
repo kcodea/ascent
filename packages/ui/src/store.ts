@@ -758,7 +758,8 @@ export const useGame = create<GameStore>((set, get) => ({
           // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
           // leaderboard slot.
           if (finalBoard && highestFresh?.id) finalBoard.id = highestFresh.id;
-          const date = new Date().toISOString().slice(0, 10);
+          const nowIso = new Date().toISOString();
+          const date = nowIso.slice(0, 10);
           // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
           // played come from the action log (the replay), which the run state itself doesn't track.
           const actions = replay.actions;
@@ -791,7 +792,7 @@ export const useGame = create<GameStore>((set, get) => ({
           }
           // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
           // a career follows the PLAYER instead of the browser.
-          const entry = buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
+          const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
           void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
             .then(() => fetchRunHistory<RunHistoryEntry>())
             .then((remote) => {

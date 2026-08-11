@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-11 — hide the empty action-tray circle + new hover/quest-node tuner controls
+
+Three more owner-reported board/tuner items:
+
+- **The mystery circle under the shop controls** was the now-EMPTY `.shoprow.actiontray` — Reroll + Freeze were
+  moved out to standalone board buttons, but the tray still painted its gold-bordered pill, collapsed to an
+  11×10px circle. Hidden with `.shoprow.actiontray:empty { display: none }` (reappears if a button is put back).
+- **Card hover-preview size** + **hand hover-pop size** are now Layout Lab dials. The inspect preview
+  (`.cardref-inner`) multiplies its device base by a new `--z-inspect-s` (**Card hover · Hover preview size**);
+  the hand-card hover scale was a hardcoded `1.06`, now `--z-hand-hover-s` (**Hand · Hover size**). `Card.tsx`'s
+  on-screen-footprint math folds in the new size dial too.
+- **Quest/rune nodes are individually positionable.** The badge row's first three nodes (quest/rune 1·2·3 in
+  display order) each take an individual X/Y nudge (`--qb1/2/3-x/y`, **Quest nodes · Node 1/2/3 · X/Y**) off
+  their row slot, so all three can be placed freely instead of only as a row. Defaults 0 = the plain row.
+
+All new controls default to current behaviour (no visual change until tuned). Verified live: the circle is
+gone; the Layout Lab applies every new var to root; the CSS reads them. typecheck (web) + lint (0 errors) green.
+
 ## 2026-08-11 — board-controls tuner fixes + shop/combat layout decouple + board-art offset
 
 A batch of owner-reported board/tuner fixes (all UI):

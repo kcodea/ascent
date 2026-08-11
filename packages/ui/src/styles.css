@@ -546,6 +546,10 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    gold edge (the mockup's control cluster). The frame adds height that the shorter info strip gives back, so
    the two rows still total the old shopbar height and the tavern/warband rows don't shift. */
 .shoprow.actiontray { gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); background: linear-gradient(180deg, rgba(70, 48, 18, 0.16), rgba(70, 48, 18, 0.30)); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(50, 34, 14, 0.30), 0 calc(3 * var(--u)) calc(9 * var(--u)) -4px var(--shadow); }
+/* Reroll + Freeze were moved out to standalone board buttons, leaving this tray EMPTY — which still painted
+   its gold-bordered pill as a tiny circle under the HUD (owner report 2026-08-11). Hide it while it has no
+   children; it reappears if a button is ever put back in the tray. */
+.shoprow.actiontray:empty { display: none; }
 /* Buttons inside the tray drop their outer drop-shadow (the tray carries it) so the group reads as one unit. */
 .shoprow.actiontray .shopbtn { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
 /* ---- Standalone End Turn DIAMOND (EndTurnButton.tsx) — the gem-in-bronze button on the board's middle-right,
@@ -1014,7 +1018,7 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    card is the same height anyway, and the panel hangs below at a fixed offset). A soft dark drop-shadow
    (follows the card's alpha, so it hugs the frame) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(var(--z-hand-hover-s, 1.06)); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
@@ -2145,7 +2149,9 @@ body.modalup .statusbar .questbadges {
 /* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
    is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
+/* `--inspect-zoom` is the device base (1 desktop, 1.3 mobile, set in Game.tsx); `--z-inspect-s` is the Layout
+   Lab's live size dial for the hover/inspect preview (owner ask 2026-08-11) — they multiply. */
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1)); }
 /* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
    flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
    overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
@@ -2571,6 +2577,12 @@ body.modalup .statusbar .questbadges {
    a genuinely long badge run. */
 .questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); width: max-content; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+/* PER-NODE placement (owner ask 2026-08-11): the first three badges (quest/rune 1·2·3 in display order) each
+   take an individual X/Y nudge off their row slot, so all three can be positioned freely instead of only as a
+   row. Defaults 0 = the plain row. The row transform on `.questbadges` still applies to the group. */
+.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, 0px) * var(--scale)), calc(var(--qb1-y, 0px) * var(--scale))); }
+.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 0px) * var(--scale)), calc(var(--qb2-y, 0px) * var(--scale))); }
+.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 0px) * var(--scale)), calc(var(--qb3-y, 0px) * var(--scale))); }
 /* ---- PENDING quest node — taken but not yet activated (QuestBadges).
    The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the
    moment it's taken and sits DIM until it activates, then lights up as a trophy in the same slot. The dim

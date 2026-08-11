@@ -66,6 +66,12 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.15, fmt: 'mul' },
   { key: 'handX', cssVar: '--z-hand-x', label: 'X offset', group: 'Hand', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
   { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -2, fmt: 'px' },
+  // How large a hand card grows when moused over (the hover pop). 1 = no growth.
+  { key: 'handHoverS', cssVar: '--z-hand-hover-s', label: 'Hover size', group: 'Hand', min: 1, max: 1.9, step: 0.01, def: 1.06, fmt: 'mul' },
+
+  // The hover/inspect card PREVIEW (the enlarged card + buff breakdown that floats up when you mouse a card).
+  // Multiplies the device base (`--inspect-zoom`: 1 desktop, 1.3 mobile), so this is a size dial on top of it.
+  { key: 'inspectS', cssVar: '--z-inspect-s', label: 'Hover preview size', group: 'Card hover', min: 0.5, max: 2.5, step: 0.02, def: 1, fmt: 'mul' },
 
   { key: 'hudS', cssVar: '--z-hud-s', label: 'Scale', group: 'HUD bar', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'hudX', cssVar: '--z-hud-x', label: 'X offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
@@ -79,6 +85,14 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -12, fmt: 'px' },
   { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -256, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },
+  // Per-node placement — the first three badges (quest/rune 1·2·3 in display order) each take an individual
+  // X/Y nudge off their row slot, so all three can be positioned freely instead of only as a row. 0 = the row.
+  { key: 'qb1X', cssVar: '--qb1-x', label: 'Node 1 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
 
   // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board
   // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),

@@ -650,9 +650,11 @@ export const Card = memo(function Card({
       const r = el.getBoundingClientRect();
       const n = popupCards.length;
       const gap = 10;
-      // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) for readability, so its rendered footprint is that
-      // much bigger than a natural card — fold the same factor into the width/height estimates so it stays on-screen.
-      const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--inspect-zoom')) || 1;
+      // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) × the Layout Lab's --z-inspect-s size dial, so its
+      // rendered footprint is that much bigger than a natural card — fold the SAME product into the width/height
+      // estimates so it stays on-screen.
+      const cs = getComputedStyle(document.documentElement);
+      const zoom = (parseFloat(cs.getPropertyValue('--inspect-zoom')) || 1) * (parseFloat(cs.getPropertyValue('--z-inspect-s')) || 1);
       // Popup cards are PLATED, so the plate — not the tile — is the real footprint: `plate.scale` times the
       // card width, and `× 1.5550` tall (the art's locked aspect). Estimating off the bare tile put wide
       // popups off the right edge and let tall ones run off the bottom.

@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-11 — Karwind's medallion pulses RED on a crit
+
+Extends the trigger-medallion pulse: on Karwind's 20% doubled buff, its medallion flashes RED instead of
+white. Joins the existing coloured-pulse family (`pulseRally` yellow, `pulseWatcher` blue) with a new
+`pulseCrit` — a per-fire nonce, forced red, HIGHEST precedence in `Card.tsx`'s class chain so a crit reads red
+over the plain pulse. The red is `--crit-pulse-color: #ff2424`, the same hue as the "2x" crit float
+(`critFxConfig.colorText`), so medallion and float read as one crit language; the `.cgem.pulsing.crit` CSS
+mirrors `.watcher` exactly via `color-mix`, only swapping the var.
+
+The split is driven by `karwindCritUid` (the uid of the body whose buff doubled): the pulse effect files that
+source into `karwindCritPulseUids` and the rest into `karwindPulseUids`, both cleared by the one 760ms timer.
+Verified on a forced live crit — `karwindCritUid: 'kw'`, red set `['kw']`, white set `[]`. typecheck, eslint 0
+errors, 4876 tests, build:web.
+
 ## 2026-08-11 — Karwind keeps a medallion pulse when it triggers
 
 Suppressing Karwind's flame flash left the buffer itself with no on-card cue that it had fired — the ring

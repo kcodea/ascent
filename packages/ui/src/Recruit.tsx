@@ -1283,6 +1283,9 @@ export function Recruit() {
   // on-card cue that it triggered, so its medallion pulses instead (owner ask 2026-08-11). Own set + ref so
   // it only touches `pulse`, never the battlecry sigil, and clears independently of the flame.
   const [karwindPulseUids, setKarwindPulseUids] = useState<Set<string>>(new Set());
+  // The subset of the above whose proc was a CRIT (Karwind's 20% double): their medallion pulses RED instead
+  // of white. Split from `karwindPulseUids` so a card is in exactly one, and cleared by the same timer.
+  const [karwindCritPulseUids, setKarwindCritPulseUids] = useState<Set<string>>(new Set());
   const karwindPulseTimerRef = useRef<number | undefined>(undefined);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
@@ -3165,12 +3168,18 @@ export function Recruit() {
     // BEFORE the flame's own early-return: a bound Karwind suppresses every flame, so `uids` below can be
     // empty, and gating the pulse on that would silence the very case this exists for.
     if (authoredSources.size > 0) {
-      setKarwindPulseUids(new Set(authoredSources));
+      // `karwindCritUid` is the uid of the body whose buff DOUBLED this proc — that one pulses RED, the rest
+      // white. Split so a card is in exactly one set (crit wins in Card.tsx's class chain regardless, but a
+      // clean split keeps the two props honest).
+      const critUid = run.karwindCritUid;
+      setKarwindCritPulseUids(new Set([...authoredSources].filter((u) => u === critUid)));
+      setKarwindPulseUids(new Set([...authoredSources].filter((u) => u !== critUid)));
       sfx.triggerPulse();
       if (karwindPulseTimerRef.current !== undefined) window.clearTimeout(karwindPulseTimerRef.current);
       karwindPulseTimerRef.current = window.setTimeout(() => {
         karwindPulseTimerRef.current = undefined;
         setKarwindPulseUids(new Set());
+        setKarwindCritPulseUids(new Set());
       }, 760); // matches the battlecry medallion hold
     }
     const uids = (run.karwindFlash ?? []).filter((u) => !authored.has(u));
@@ -3186,7 +3195,7 @@ export function Recruit() {
       karwindTimerRef.current = undefined;
       setKarwindFlameUids(new Set());
     }, 520);
-  }, [run.karwindFlashSeq, run.karwindFlash]);
+  }, [run.karwindFlashSeq, run.karwindFlash, run.karwindCritUid]);
 
   // KARWIND'S DOUBLE TRIGGER (owner 2026-08-07) — float a crit-style "2x" over the proccer when its 20% roll
   // comes up. Rides `karwindFlashSeq` (the same bump the flame flash already uses) rather than a seq of its
@@ -4510,6 +4519,7 @@ export function Recruit() {
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.
                     pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
+                    pulseCrit={karwindCritPulseUids.has(m.uid) ? run.karwindFlashSeq : undefined}
                     glow={eotProcUids.has(m.uid)}
                     popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}

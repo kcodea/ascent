@@ -341,6 +341,7 @@ export const Card = memo(function Card({
   electrify,
   karwind,
   pulse,
+  pulseCrit,
   pulseRally,
   pulseWatcher,
   pulseFrame,
@@ -393,6 +394,11 @@ export const Card = memo(function Card({
   /** Pulse the trigger medallion — a brief glow + a slow ring of energy when this unit's effect
    *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
   pulse?: boolean;
+  /** Pulse the trigger medallion RED — this unit's effect CRIT (Karwind's 20% doubled buff). Same ring as
+   *  `pulse`, forced red, and the HIGHEST precedence: a crit is the most significant proc, so it wins over
+   *  the plain trigger pulse (and the combat rally/watcher colours it never co-occurs with). A per-fire NONCE
+   *  (used as the medallion `key`, like `pulseRally`) so a repeat crit restarts the animation. */
+  pulseCrit?: number;
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
    *  yellow; takes precedence over `pulse`. A per-fire NONCE (truthy = pulsing): it's used as the medallion's
    *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
@@ -1046,7 +1052,7 @@ export const Card = memo(function Card({
               <span className="value">{shownHealth}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the

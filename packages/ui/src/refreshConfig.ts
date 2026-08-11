@@ -93,12 +93,13 @@ export interface RefreshConfig {
 // result, exactly like the Tavern stone's were. Mirror position/scale/glow changes into the styles.css
 // `var(--rfb-*, …)` fallbacks.
 const DEFAULTS: RefreshConfig = {
-  x: 3,
-  y: 294,
-  scale: 0.73,
-  costX: 87,
-  costY: -90,
-  costS: 1.6,
+  // Base point is the board's TOP-RIGHT now (see styles.css .rfbwrap); x/y fine-tune from there.
+  x: -30,
+  y: 54,
+  scale: 0.92,
+  costX: 150,
+  costY: -40,
+  costS: 1.5,
   costColor: '#f4be35',
   costFreeColor: '#47d17c',
   labelY: -64,

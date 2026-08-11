@@ -5785,10 +5785,12 @@ svg { width: 18px; height: 18px; }
    PERF: the two LOOPING animations (glow breath, sheen sweep) animate opacity/transform ONLY. */
 .rfbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 3px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 294px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.73));
-  width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
+  /* Base point is now the board's TOP-RIGHT (owner ask 2026-08-11): anchor the button's centre near the right
+     edge + top of the stage; the `--rfb-x/y` tuner offsets fine-tune from there. */
+  left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -30px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 54px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.92));
+  width: calc(170 * var(--u)); height: calc(72 * var(--u)); /* the art's 1927×816 (2.362) aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
@@ -5856,7 +5858,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.6));
+  transform: translate(calc(-50% + var(--rfb-cost-x, 150) * var(--u)), calc(-50% + var(--rfb-cost-y, -40) * var(--u))) scale(var(--rfb-cost-s, 1.5));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),

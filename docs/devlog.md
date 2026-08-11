@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-11 — new Refresh button art, moved to the board's top-right
+
+Owner ask: swap the Refresh button to the new `RefreshButton1` art and move it to the top-right of the board.
+
+- Art: `RefreshButton1.png` (1927×816) → `apps/web/public/frames/refresh_button1.webp` (800×339, webp q92,
+  34 KB), a wide orange pill with the "Refresh" wordmark baked in. `RefreshButton.tsx` now points at it.
+- Because the wordmark is in the art, the old floating glass **"Refresh" label** is removed — it would print
+  "Refresh" twice.
+- Reposition: `.rfbwrap` re-anchored from board TOP-CENTRE to **TOP-RIGHT** (base `0.85·gw`, `54px` down),
+  box aspect changed to the pill's 2.362 (`170×72 u`), scale `0.92`; the cost coin moved to the pill's right
+  end (`costX/Y/S` 150/−40/1.5). CSS `--rfb-*` fallbacks and the `refreshConfig.ts` DEFAULTS are updated
+  together (the tuner + shipped defaults stay in sync); the 🔄 dev tuner still fine-tunes from the new base.
+
+**Verified live** (throwaway run, browser): the pill renders top-right with its gold cost coin, the click
+still rolls the shop (gold 3→2), no console errors, art loads (no 404). typecheck (web) + lint (0 errors) +
+`build:web` green.
+
+Follow-up for owner: the hover **glow is still the old blue** (`rgba(82,189,255,…)`) — a cool halo on a warm
+button. Left as-is (retune the glow colour in the 🔄 tuner if you want it gold). The pressed-state art
+(`RefreshButtonPressed.png`) exists but isn't wired — the button uses an FX flare on click, not a press swap.
+
 ## 2026-08-11 — Paymaster Pimm's Shout gets an effect, and shop bindings learn to carry a sound
 
 The owner authored `coin-shout` and asked for it on the tier-1 Dwarf whose Shout pays 1 Gold next turn

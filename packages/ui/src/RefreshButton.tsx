@@ -82,12 +82,12 @@ export function RefreshButton({
         ? `Refresh the shop for ${cost} Gold`
         : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
     >
-      {/* Glass "Refresh" pill, floating above the crystal. */}
-      <span className="rfb-label" aria-hidden="true">Refresh</span>
-      {/* Hover halo — BEHIND the art so the crystal reads clean. */}
+      {/* Hover halo — BEHIND the art so the button reads clean. */}
       <span className="rfb-glow" aria-hidden="true" />
       <span className="rfb-artbox" aria-hidden="true">
-        <img className="rfb-art" src={`${F}refresh_button.webp`} alt="" draggable={false} />
+        {/* The "Refresh" wordmark is baked into this art (RefreshButton1), so the old floating glass label
+            is gone — it would print "Refresh" twice. */}
+        <img className="rfb-art" src={`${F}refresh_button1.webp`} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the crystal's face, clipped to it; transform-only loop. */}
         <span className="rfb-sheen"><span className="rfb-sheen-bar" /></span>
       </span>

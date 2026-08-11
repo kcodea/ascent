@@ -44,9 +44,15 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   if (!canPlayDefs()) return () => {};
 
   // Resolved UP FRONT, so an unbound moment costs one table lookup and schedules nothing — and so the
-  // per-card binding is read once rather than separately per land, which is two chances to disagree.
+  // binding is read once rather than separately per land, which is two chances to disagree.
+  //
+  // A source-attributed moment (a `minionBuffed` wave names its buffer) keys by the SOURCE card, so Karwind's
+  // binding fires on every Dragon it pumped rather than each Dragon needing its own. A recipient-keyed moment
+  // (rubyLanded) has no `sourceCardId` and keys by the first recipient, exactly as before.
   const first = moment.recipients[0];
-  const binding = first ? bindingFor(ctx.cardIdOf(first.uid), moment.kind) : null;
+  if (!first) return () => {};
+  const bindingCard = moment.sourceCardId ?? ctx.cardIdOf(first.uid);
+  const binding = bindingFor(bindingCard, moment.kind);
   if (!binding) return () => {};
 
   const timers: ReturnType<typeof setTimeout>[] = [];

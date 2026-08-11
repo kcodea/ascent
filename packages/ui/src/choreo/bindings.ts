@@ -45,11 +45,14 @@ export interface FxBinding {
    *   travelling effect bound to it would have nowhere to go and would collapse onto the source.
    * - `selfBuffed`: once per unit that buffed ITSELF in this moment. A self-buff has no pair to travel
    *   between and a moment can carry several at once.
+   * - `buffed`: once per unit this moment's source buffed SOMEONE ELSE (the cross-buff targets — Karwind
+   *   pumping every Dragon). The mirror of `selfBuffed`: `groupBuffCasts` already collects exactly these
+   *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
    */
-  fanOut?: 'primary' | 'damaged' | 'selfBuffed';
+  fanOut?: 'primary' | 'damaged' | 'selfBuffed' | 'buffed';
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'buffed'];
 
 /**
  * A reserved def id for LIVE PREVIEWS. A binding to it applies in memory — that is what makes the authoring

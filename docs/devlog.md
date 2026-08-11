@@ -68,6 +68,33 @@ rAF's zoom can't stack. Drag FEEL is untouched (follow/recenter/tilt unchanged).
 Verified: positioning math exact (synthetic transform probe), typecheck clean, full `npm test` 4786/285, lint
 at the 7-warning baseline, `build:web` green. The actual crispness is best judged by eye on a real drag —
 mechanism + math are sound.
+## 2026-08-10 — Karwind rings every Dragon it buffs (`flame-ring`, shop + combat)
+
+Wired the authored `flame-ring` def (two posterized shockwave layers, a hot fire ring — committed as
+`packages/ui/src/fx/defs/flame-ring.json`) to Karwind's buff, so a fiery ring blooms on **every Dragon Karwind
+pumps** whenever a Shout triggers, in BOTH the shop and combat. Karwind buffs *other* Dragons (cross-buffs), which
+none of the existing fan-out modes covered, so this added the plumbing for source-attributed buff FX rather than a
+one-off:
+
+- **Combat:** new `buffed` fan-out on `FxBinding` (`bindings.ts` union + `FAN_OUTS`), consumed by a new branch in
+  the `fxDef` channel of `score.ts` that rides the existing `groupBuffCasts` grouping (the same source→target pairs
+  the buff tendrils use) to play the def once per buffed unit, anchored on each target, `index` driving per-recipient
+  stagger. Bound via `cards.karwind.buffWave = { def: flame-ring, fanOut: buffed }`. In combat Karwind only
+  re-triggers via Thunderous Sovereign's Start-of-Combat Shout re-fire, so this is the rarer path.
+- **Shop:** recruit buff moments are now **source-attributed** — `recruitMomentsSince` splits a buff wave into one
+  `minionBuffed` moment per source card (mirroring how combat gives each buff wave its own source-keyed moment) and
+  carries the `sourceCardId`; `runRecruitMomentCues` keys the binding by that source when present (recipient-keyed,
+  as before, when absent — rubyLanded). Bound via `cards.karwind.minionBuffed = { def: flame-ring }`, so it plays
+  through the existing shop cue runner with **no new `playDef` call site** — the dynamic call stays inside the
+  sanctioned resolver (`recruitCues.ts`). The ring is additive: it sits on top of the existing Dragon buff tendrils.
+- Workbench: `CommitPanel` gains the `buffed` option so the fan-out is re-authorable from the tool.
+
+Verified: `typecheck` + `build:web` green; full `test` 4791/4791 (new coverage — `bindings.test.ts` accepts `buffed`
+and pins the two new `karwind` card bindings in its golden; `score.test.ts` proves the `buffed` fan-out plays once
+per cross-buffed unit and ignores self-buffs; `recruitMoments.test.ts` proves the per-source split and that the
+source is named; `directCalls.ts` golden bumped to score.ts=5 dynamic sites). Lint at its pre-existing baseline
+(the only errors are untracked `.github/skills/*` vendored bundles, not in this change). Name note: def ids can't
+contain `_`, so `flame_ring` is committed as `flame-ring`.
 
 ## 2026-08-10 — Compendium palette baked in (dark face, peach ink)
 

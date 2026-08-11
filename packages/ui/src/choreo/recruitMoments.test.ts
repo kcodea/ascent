@@ -15,6 +15,9 @@ const run = (o: Partial<Src> = {}): Src => ({
 const buff = (targetUid: string, attack = 1, health = 1): RunState['recruitBuffFx'][number] =>
   ({ targetUid, attack, health, sourceCardId: 'x', sourceTribe: 'beast', kind: 'minion' } as RunState['recruitBuffFx'][number]);
 
+const buffFrom = (sourceCardId: string, targetUid: string): RunState['recruitBuffFx'][number] =>
+  ({ targetUid, attack: 1, health: 1, sourceCardId, sourceTribe: 'dragon', kind: 'minion' } as RunState['recruitBuffFx'][number]);
+
 const NONE: RecruitSeqs = {};
 
 describe('recruitMomentsSince', () => {
@@ -72,6 +75,27 @@ describe('recruitMomentsSince', () => {
     it('ignores a zero buff — it changes no digit and reads as nothing', () => {
       const r = run({ recruitFxSeq: 1, recruitBuffFx: [buff('a', 0, 0)] });
       expect(recruitMomentsSince(r, NONE)).toEqual([]);
+    });
+
+    it('names the source of the wave, so the cue can key the binding by the buffer', () => {
+      const r = run({ recruitFxSeq: 1, recruitBuffFx: [buffFrom('karwind', 'd1')] });
+      expect(recruitMomentsSince(r, NONE)).toEqual([
+        { kind: 'minionBuffed', sourceCardId: 'karwind', recipients: [{ uid: 'd1', count: 1 }] },
+      ]);
+    });
+
+    /** Two sources buffing in ONE action are two moments — mirroring how combat gives each buff wave its own
+     *  source-keyed moment — so each source's binding resolves on its own recipients rather than smearing across
+     *  the whole board. Source order and per-source target order are both first-appearance. */
+    it('splits a mixed-source wave into one moment per source', () => {
+      const r = run({
+        recruitFxSeq: 1,
+        recruitBuffFx: [buffFrom('karwind', 'd1'), buffFrom('d2_matriarch', 'd1'), buffFrom('karwind', 'd2')],
+      });
+      expect(recruitMomentsSince(r, NONE)).toEqual([
+        { kind: 'minionBuffed', sourceCardId: 'karwind', recipients: [{ uid: 'd1', count: 1 }, { uid: 'd2', count: 1 }] },
+        { kind: 'minionBuffed', sourceCardId: 'd2_matriarch', recipients: [{ uid: 'd1', count: 1 }] },
+      ]);
     });
   });
 

@@ -57,6 +57,11 @@ describe('parseTable', () => {
     err.mockRestore();
   });
 
+  it('accepts the `buffed` fanOut (cross-buff targets)', () => {
+    const t = parseTable({ version: 1, kinds: { buffWave: { def: 'flame-ring', fanOut: 'buffed' } }, cards: {} });
+    expect(t.kinds.buffWave).toEqual({ def: 'flame-ring', fanOut: 'buffed' });
+  });
+
   it('returns empty tables for a wholly wrong shape', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(parseTable(null)).toEqual({ kinds: {}, cards: {} });
@@ -165,6 +170,9 @@ const BINDINGS: Record<string, { def: string }> = {
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
+  // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
+  // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
+  karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring' } },
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a

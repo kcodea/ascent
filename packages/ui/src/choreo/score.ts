@@ -580,6 +580,17 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid } });
           }
         });
+      } else if (binding.fanOut === 'buffed') {
+        at(cue, () => {
+          // Once per unit the source EMPOWERED (source !== target) — Karwind pumping every Dragon. Rides the
+          // exact same `groupBuffCasts` the tendril channel uses, so the def lands on precisely the units that
+          // grew, at their own anchor (`target`). Additive: the buff tendril still fires; this plays on top.
+          // `index` drives per-recipient `stagger`, matching the `damaged` fan-out.
+          groupBuffCasts(moment, ctx.events).forEach((c, i) => {
+            const fanAnchors = anchorsForUnits(c.source, c.target);
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i });
+          });
+        });
       } else {
         // `primary` (the default, and what an absent `fanOut` means): once, at the moment's own pair.
         at(cue, () => {

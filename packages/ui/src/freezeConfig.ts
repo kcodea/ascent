@@ -21,8 +21,9 @@ export interface FreezeConfig {
 // Mirrors the Tavern stone's anchor on the opposite side (its x is 8 at 0.155 of the stage; this sits at
 // 0.845), so the two read as a matched pair until the real art arrives and it gets tuned properly.
 const DEFAULTS: FreezeConfig = {
-  x: -8,
-  y: -287,
+  // Base point is the board's TOP-CENTRE now (see styles.css .frzwrap); x/y fine-tune from there.
+  x: 0,
+  y: 185,
   scale: 1,
 };
 

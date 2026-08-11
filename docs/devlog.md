@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-11 — board-controls tuner fixes + shop/combat layout decouple + board-art offset
+
+A batch of owner-reported board/tuner fixes (all UI):
+
+- **Refresh hover-glow flexibility.** The glow was a fixed ellipse at 0.85–1.15× the button — no way to match the
+  wide pill. Widened the fit ranges (0.2–2.5×) and added a **Corner radius** control (`glowRadius` → capsule vs
+  rectangle) so the halo can hug the pill. Glow blur range also widened (0–80px).
+- **Refresh cost-coin now actually tunable.** The baked default (`costX 150`) sat OUTSIDE the tuner range
+  (±90), so the slider could never reach it. Widened cost ranges (X ±260, Y ±160, size 0.3–3×).
+- **Freeze button → board TOP-CENTRE** (was top-right). Re-anchored `.frzwrap` base to `0.5·gw`, `185px` down
+  (clears the Gold/Tier/Time HUD strip, sits on the board's top-centre); `freezeConfig` defaults mirrored.
+- **Shop controls no longer shove the shop/combat row.** `.shopbar` reserved its column footprint in a unit
+  that INCLUDED `--z-shopui-s`, so scaling the controls grew the box and pushed the `flex:1` tavern zone — and
+  because the enemy board renders in that zone, combat positions shifted too. Footprint now uses a
+  shopUiS-free `--u-fix` with `overflow: visible`; the contents still scale. Verified: scaling the controls
+  0.6→1.4 leaves the shop row AND warband/combat row Y pixel-identical.
+- **Board backdrop X/Y offset** added to the Layout Lab (`--board-x/y`). The art is 2.358:1 — wider than the
+  16:9 stage — so ~17% spills past each side; a wider-than-16:9 browser shows that spill (incl. the hero-paw
+  area) while an exact-16:9 fullscreen crops it. Position was hardcoded `center` with no lever; now the owner
+  can nudge the art to pull the paw into the stage in fullscreen. (Root cause is geometric — the paw sits in
+  the horizontal spill — so this is the alignment control, not an auto-fix.)
+
+**Verified live** (browser): Freeze centres top; Refresh top-right; the glow/cost ranges reach the baked
+values; the shop-control-scale decouple holds (row Y unchanged); the board offset shifts the art. typecheck
+(web) + lint (0 errors) green.
+
 ## 2026-08-11 — new Refresh button art, moved to the board's top-right
 
 Owner ask: swap the Refresh button to the new `RefreshButton1` art and move it to the top-right of the board.

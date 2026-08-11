@@ -161,7 +161,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
      `--board-fill`, and re-check the four button offsets, which are tuned against this exact art size. */
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
+    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 0px) * var(--scale)) / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -453,7 +453,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
    (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
    controls" group. Defaults are a no-op (×1 / 0px). */
-.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -49px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* The shop-controls tray. Its COLUMN FOOTPRINT (height + margins) is reserved in `--u-fix` — a unit WITHOUT
+   `--z-shopui-s` — so scaling the controls (Shop controls · Scale) never grows the box and therefore never
+   pushes the tavern/warband rows (and, since the enemy board renders in the tavern zone, never shifts combat
+   positions — owner report 2026-08-11). The CONTENTS still size off `--u` (which includes the scale) and simply
+   `overflow: visible` past the fixed box when scaled up. X/Y offsets use `top/left` on a relative box, which
+   never reflowed siblings to begin with. */
+.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -49px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -5806,9 +5812,11 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
    would clip square at the box). STATIC shadow: only this layer's OPACITY animates. */
 .rfb-glow {
   position: absolute; left: 50%; top: 50%;
-  width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
+  width: calc(100% * var(--rfb-glow-w, 1.02)); height: calc(100% * var(--rfb-glow-h, 0.92));
   transform: translate(-50%, -50%);
-  border-radius: 50%;
+  /* A capsule/pill radius (design-px × --scale) so the halo can hug the WIDE Refresh pill instead of being a
+     fixed ellipse — tunable via `--rfb-glow-radius` (Glow fit → Corner radius). */
+  border-radius: calc(var(--rfb-glow-radius, 44) * var(--u));
   box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(82, 189, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
@@ -5976,8 +5984,10 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
    freeze art isn't in yet, so this rule only OVERRIDES the positioning, nothing visual. */
 .frzwrap.frzwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.845 * var(--gw) + var(--frz-x, -8px) * var(--scale));
-  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--frz-y, -287px) * var(--scale));
+  /* TOP-CENTRE of the board now (owner ask 2026-08-11) — base point is the stage's horizontal centre + top;
+     `--frz-x/y` fine-tune from there. */
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--frz-x, 0px) * var(--scale));
+  top: calc(var(--bar-y) + var(--frz-y, 185px) * var(--scale));
   transform: translate(-50%, -50%) scale(var(--frz-s, 1));
   z-index: 41;
 }

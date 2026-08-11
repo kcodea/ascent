@@ -36,6 +36,11 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // Fine-scale the board backdrop art (its height on `.boardbg`) so the painted frame lines up with the (fixed
   // 16:9) UI when you swap in new board art — 1 = art scaled to the stage height.
   { key: 'boardZoom', cssVar: '--board-zoom', label: 'Board zoom', group: 'Global', min: 0.6, max: 1.8, step: 0.01, def: 1, fmt: 'mul' },
+  // Shift the board backdrop art (its position on `.boardbg`). The art is WIDER than the 16:9 stage, so ~17% of
+  // it spills past each side; a 16:9 fullscreen crops that spill while a wider browser window shows it. These
+  // nudge the art so a feature sitting in the spill (e.g. the hero-portrait paw) can be pulled into the stage.
+  { key: 'boardX', cssVar: '--board-x', label: 'Board X offset', group: 'Global', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },

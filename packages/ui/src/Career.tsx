@@ -24,6 +24,22 @@ function cardViewOf(m: BoardMinion): CardView {
   };
 }
 
+/** "When this run was played" for the match row. Prefers the full `at` datetime (date + time); falls back to
+ *  the day-only `date` on older entries (no time then). Empty string if neither parses. */
+function playedAtText(e: Pick<RunHistoryEntry, 'at' | 'date'>): string {
+  if (e.at) {
+    const d = new Date(e.at);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+  if (e.date) {
+    // Parse the day-only string as LOCAL midnight — `new Date('YYYY-MM-DD')` is UTC and shifts a day back in
+    // negative-offset zones.
+    const d = new Date(`${e.date}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  return '';
+}
+
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
   celestial: 'Celestial',
@@ -240,6 +256,13 @@ export function Career() {
                             <div className="lbname">
                               {getHero(e.heroId).name}
                               <span className={`carrec ${wonRun ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
+                            </div>
+                            {/* The round the run ended on + when it was played (owner ask 2026-08-11). Round
+                                comes from the reached wave; the timestamp prefers the full `at`, falling back to
+                                the day-only `date` on older entries. */}
+                            <div className="carsub">
+                              <span className="carsub-round">Round {e.wave}</span>
+                              {playedAtText(e) && <><span className="carsub-dot">·</span><span className="carsub-when">{playedAtText(e)}</span></>}
                             </div>
                           </div>
                           {e.tags.length > 0 && (

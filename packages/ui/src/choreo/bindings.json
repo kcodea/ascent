@@ -67,6 +67,14 @@
         "def": "shop-buff-shout"
       }
     },
+    "dm_tormentor": {
+      "shout": {
+        "def": "shop-buff-shout"
+      },
+      "scNarrate": {
+        "def": "shop-buff-shout"
+      }
+    },
     "dw_pimm": {
       "shout": {
         "def": "coin-shout",

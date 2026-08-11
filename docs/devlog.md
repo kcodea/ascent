@@ -1,5 +1,16 @@
 # ASCENT — development log
 
+## 2026-08-11 — Market Tormentor gets the shop-buff-shout too
+
+`shop-buff-shout` now also plays for Market Tormentor (`dm_tormentor`, the tier-4 Demon whose Shout gives the
+right-most Shop slot +4/+2), in both phases — `shout` for the shop, `scNarrate` for a rune-refired Shout in
+combat, exactly as Contract Butcher. It is `onPlay`-only like the Butcher, so its only combat `sc` source is
+the Shout refire; the card-scoped `scNarrate` binding can't ride anything else. Both fire on the SOURCE of the
+Shout (the caster): the shop moment's recipient IS the caster, and the combat `sc` has no target, which
+`combatAnchorsFromRects` folds onto the source.
+
+typecheck, eslint 0 errors, 4876 tests, build:web.
+
 ## 2026-08-11 — Contract Butcher's Shout gets an effect, in both phases
 
 `shop-buff-shout` bound to Contract Butcher (`dm_butcher`) — the tier-2 Demon whose Shout gives Shop minions

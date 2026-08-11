@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-11 — bake the owner's tuned values across every board tuner
+
+Owner pasted final values from all the tuners; baked them into the shipped DEFAULTS (Layout Lab convention:
+production renders DEFAULTS, so update the config + the styles.css fallbacks together).
+
+- **Config DEFAULTS** updated: `layoutConfig` (21 values — shop/warband Y, shop-controls scale/Y, hand-hover &
+  inspect size, quest-node scale + per-node X/Y, gold pill scale/inset, tier-pill X/Y, charge-glyph Y),
+  `refreshConfig` (position/scale + cost seat + glow fit/blur/colour + shine), `freezeConfig` (top-centre nudge),
+  `tavernUpConfig` (position), `endTurnConfig` (position/scale), `heroPowerBtnConfig` (position/scale),
+  `heroPanelConfig` (panel X/Y/scale), `dragFeel` (hand-pop 0.28→0.53), `lobbyPanelConfig` (scale/size/rows/font).
+- **CSS fallbacks:** `layoutConfig` applies its vars only in DEV, so its `styles.css` fallbacks are the
+  PRODUCTION source of truth — updated all 21. The button/panel configs apply at boot in prod (unconditional
+  `applyXVars()`), so their fallbacks are flash-only; updated the pinned-button positions (rfb/frz/tvb) anyway
+  to kill the first-paint jump.
+
+Verified live with tuner storage cleared (so it renders pure DEFAULTS): the board matches the tuned look —
+bigger Refresh top-right, Freeze top-centre, Tier-1 on the stone, the gold circle seated bottom-right,
+circular hero portrait, resized lobby rail. typecheck (web) + lint (0 errors) + `build:web` green.
+
 ## 2026-08-11 — hero panel FRAME is a circle too
 
 Owner ask: make the hero portrait PANEL FRAME circular (not just the art). The panel is already a square

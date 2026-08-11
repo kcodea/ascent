@@ -84,7 +84,7 @@ const DEFAULTS: DragFeel = {
   magWeldLeadMs: 130,
   collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
-  handPop: 0.28,    // owner-tuned 2026-08-10: a slightly stronger upward pop (× --ch)
+  handPop: 0.53,    // owner-tuned 2026-08-11: a stronger upward pop (× --ch)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight

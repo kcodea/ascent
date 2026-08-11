@@ -89,9 +89,9 @@ export interface EndTurnConfig {
 // the CRACKED gem (pressedVariant 3). Mirror position/scale/glow changes into the styles.css
 // `var(--etb-*, …)` fallbacks.
 const DEFAULTS: EndTurnConfig = {
-  x: 150,
-  y: 32,
-  scale: 1.19,
+  x: 70,
+  y: -64,
+  scale: 0.95,
   glowBlur: 1,
   glowAlpha: 0.93,
   glowStrength: 6,

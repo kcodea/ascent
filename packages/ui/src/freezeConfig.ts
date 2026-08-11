@@ -22,8 +22,8 @@ export interface FreezeConfig {
 // 0.845), so the two read as a matched pair until the real art arrives and it gets tuned properly.
 const DEFAULTS: FreezeConfig = {
   // Base point is the board's TOP-CENTRE now (see styles.css .frzwrap); x/y fine-tune from there.
-  x: 0,
-  y: 185,
+  x: 10,
+  y: 206,
   scale: 1,
 };
 

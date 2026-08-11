@@ -6,6 +6,7 @@
  *  audio controls live here, in a modal nothing can obscure. */
 
 import { useState } from 'react';
+import { BOARDS, getBoard, setBoard, type BoardId } from './boardConfig';
 import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
 import { loadRunHistory } from './runHistory';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
@@ -20,6 +21,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
+  // Arena board pick (display-only, persisted in localStorage) — swaps the `--board` backdrop live.
+  const [board, setBoardSel] = useState<BoardId>(getBoard());
+  const pickBoard = (id: BoardId): void => { setBoard(id); setBoardSel(id); sfx.pulse(); };
   // This browser's captured finished-run boards (boardLibrary, localStorage). Wipe them when they go stale
   // (e.g. after a balance patch). Two-tap confirm so it can't be a misclick. Doesn't touch the live shared
   // pool or the leaderboard — only this machine's local captures.
@@ -81,6 +85,20 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
           <span className="ebs">{muted ? 'All audio is off' : 'Tap to mute everything'}</span>
         </button>
+        <div className="escsec">Board</div>
+        <div className="escboardpick">
+          {BOARDS.map((b) => (
+            <button
+              key={b.id}
+              className={`escbtn pressable${board === b.id ? ' on' : ''}`}
+              onPointerDown={() => pickBoard(b.id)}
+              aria-pressed={board === b.id}
+            >
+              <span className="ebl">{b.label}{board === b.id ? ' ✓' : ''}</span>
+              <span className="ebs">{b.blurb}</span>
+            </button>
+          ))}
+        </div>
         <div className="escsec">Saved Boards</div>
         <div className="escboards">
           <button className={`escbtn pressable${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>

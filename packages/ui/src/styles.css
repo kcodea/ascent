@@ -4393,6 +4393,7 @@ svg { width: 18px; height: 18px; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
+.escboardpick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* ── Dev Tuning Menu (DEV only) — one 🛠️ button replacing the old row of floating tuner buttons ── */
 /* ============================ DEV TUNING MENU ================================================================

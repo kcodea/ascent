@@ -78,7 +78,7 @@ const DEFAULTS: DragFeel = {
   threshold: 0,     // drag engages immediately
   recenter: 1,      // owner-tuned 2026-08-10: instant glide onto the cursor (was 0.28)
   recenterAfter: 0, // recentre immediately
-  handGrabY: 0.72,  // owner-tuned 2026-08-10: a hand card hangs from below mid-art (near its stat badges)
+  handGrabY: 1,     // owner-tuned 2026-08-10: a hand card hangs from its bottom edge
   snapMs: 110,
   magSlideMs: 390,
   magWeldLeadMs: 130,
@@ -162,7 +162,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 2;
+export const DRAG_DEFAULTS_VERSION = 3;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

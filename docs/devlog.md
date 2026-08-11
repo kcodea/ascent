@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-11 — circular hero portrait; Gold → bottom-right pill; Tier → onto the Tavern stone
+
+Board HUD reshuffle (owner ask, for the August board's paw layout):
+
+- **Hero portrait is now a circle** (`.hero .f` border-radius 10u → 50%) so it seats into the board's circular
+  hero node.
+- **Gold left the top strip** for its own standalone **glass pill pinned bottom-right of the board**
+  (`GoldPill.tsx` + `.goldpill`): a yellow-glass plaque with the live Gold total. The old strip's hover — this
+  turn's Gold + the projected start of the next two waves — moved with it (opens above the pill).
+- **Tier left the top strip** too, onto a **cream/gold "Tier N" pill on the Tavern Up stone**
+  (`.tvb-tierpill`) — the readout now lives with the button that changes it.
+- The **top stat strip now carries only the turn timer.**
+
+Verified live on the August board: portrait renders circular; the strip shows only Setup Time; "Tier 1" sits
+on the stone; the Gold pill sits bottom-right with its number. typecheck (web) + lint (0 errors) green.
+
 ## 2026-08-11 — hide the empty action-tray circle + new hover/quest-node tuner controls
 
 Three more owner-reported board/tuner items:

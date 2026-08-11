@@ -428,7 +428,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
 .hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-.hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(10 * var(--u)); background: var(--ink); display: grid; place-items: center; overflow: hidden; }
+.hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: 50%; background: var(--ink); display: grid; place-items: center; overflow: hidden; }
 .hero .f svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--acc); }
 .hero .f .heroimg { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; -webkit-user-drag: none; }
 .hero .nm { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); }
@@ -706,7 +706,21 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
+/* Current-tier pill on the stone (owner ask 2026-08-11) — the Tier readout moved off the top bar onto the
+   button that changes it. A cream/gold label eclipsing the stone's bottom edge, matching the hero-name pill;
+   pointer-events off so it never eats the upgrade click. Scales with the button (it's a child of the wrap). */
+.tvbwrap .tvb-tierpill { position: absolute; left: 50%; bottom: calc(6 * var(--u)); transform: translateX(-50%); z-index: 6; pointer-events: none; white-space: nowrap; padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 .tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+
+/* Standalone GOLD pill (owner ask 2026-08-11) — the Gold readout moved off the top strip to its own glass
+   button pinned BOTTOM-RIGHT of the board: a yellow-glass plaque with the live Gold total. Stage-pinned; the
+   next-gold tooltip reveals ABOVE it (the pill sits at the board's bottom edge). `--gold-x/y` allow a nudge. */
+.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 54px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 54px) * var(--scale)); display: inline-flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: 999px; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
+.goldpill svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: #4a2f08; }
+.goldpill-v { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); font-variant-numeric: tabular-nums; color: #2e1d05; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5); }
+.goldpill:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+/* The pill sits bottom-right, so its tooltip opens ABOVE + right-aligned (the base `.sbtip` opens below-centred). */
+.goldpill .sbtip { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; transform: none; }
 /* Disabled (can't afford / locked) dims the GEM only — the stone base + pips are board furniture cut straight
    from the board art, so they must NEVER dim (a dimmed base pops out against the board instead of sitting
    flush — owner note 2026-07-16). The gem going dark reads as "can't use right now". Static filter; brightness

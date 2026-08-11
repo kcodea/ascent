@@ -21,6 +21,7 @@ import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
 import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
+import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
@@ -4197,23 +4198,9 @@ export function Recruit() {
             read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
         {/* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) grouped in one segmented
             plaque. Styled tooltips (.sbtip) replace the native title so hover hints match the dark-pill format. */}
+        {/* Gold moved to a standalone glass pill bottom-right of the board; Tier moved onto the Tavern Up stone
+            (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
         <div className="statstrip">
-          <div className="statcell gold">
-            <span className="sc-l">Gold</span>
-            <span className="sc-ic"><Icon name="mana" /></span>
-            <span className="sc-v">{run.embers}</span>
-            {/* Hover: this turn's Gold + the projected START of the next two waves (cascading up, cap-aware). */}
-            <div className="sbtip goldtip" role="tooltip">
-              <div className="gt-now">Gold · <b>{run.embers}</b> this turn</div>
-              <div className="gt-row"><span>Next turn</span><b><Icon name="mana" />{nextTurnGold}</b></div>
-              <div className="gt-row"><span>Wave {run.wave + 2}</span><b><Icon name="mana" />{afterNextGold}</b></div>
-            </div>
-          </div>
-          <div className="statcell tier" data-tier={run.tier}>
-            <span className="sc-l">Tier</span>
-            <span className="sc-v">{run.tier}</span>
-            <span className="sbtip">Shop tier — higher tiers offer stronger minions (Upgrade Tavern to raise it)</span>
-          </div>
           <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} practice={run.mode === 'practice'} />
         </div>
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
@@ -4305,6 +4292,10 @@ export function Recruit() {
         combat={inCombat}
         onUpgrade={() => dispatch({ type: 'upgrade' })}
       />
+      {/* Gold — a standalone glass pill pinned bottom-right of the board (recruit phase only). */}
+      {!inCombat && (
+        <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
+      )}
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
           the replay-speed slider stacked beneath it. */}

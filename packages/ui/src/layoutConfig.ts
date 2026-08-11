@@ -94,6 +94,17 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
   { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
 
+  // Gold pill (bottom-right circle). X/Y are INSETS from the board's right / bottom edge (bigger = further in);
+  // Scale sizes the whole circle. Match the styles.css `.goldpill` fallbacks.
+  { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 54, fmt: 'px' },
+  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 54, fmt: 'px' },
+
+  // Tavern-tier text pill (on the Tavern Up stone). X/Y nudge it off the stone's bottom-centre; Scale sizes it.
+  { key: 'tierS', cssVar: '--tierpill-s', label: 'Scale', group: 'Tavern tier', min: 0.4, max: 2.5, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'tierX', cssVar: '--tierpill-x', label: 'X offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'tierY', cssVar: '--tierpill-y', label: 'Y offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+
   // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board
   // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),
   // X/Y nudge it off the midline. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in

@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-11 — Gold pill → circle, + Layout Lab tuners for it and the tavern-tier text
+
+Follow-ups to the HUD reshuffle (owner ask):
+
+- **Gold pill is a circle now** (fixed square + `border-radius: 50%`, showing just the number — the yellow
+  plate reads as the coin) so it seats into the board's bottom-right notch.
+- **New Layout Lab groups:** **Gold pill** (Scale + Inset-from-right + Inset-from-bottom, via `--gold-s/x/y`)
+  and **Tavern tier** (Scale + X + Y, via `--tierpill-s/x/y`) — so both the bottom-right gold circle and the
+  "Tier N" pill on the Tavern stone are position/scale-tunable live.
+
+Verified live: the gold pill measures square (circle); both tuner groups apply their vars to root and the CSS
+reads them. typecheck (web) + lint (0 errors) green.
+
 ## 2026-08-11 — circular hero portrait; Gold → bottom-right pill; Tier → onto the Tavern stone
 
 Board HUD reshuffle (owner ask, for the August board's paw layout):

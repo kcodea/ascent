@@ -14,7 +14,8 @@ export function GoldPill({ gold, nextTurnGold, afterNextGold, wave }: {
 }): JSX.Element {
   return (
     <div className="goldpill" role="status" aria-label={`Gold: ${gold}`}>
-      <Icon name="mana" />
+      {/* A CIRCLE seated in the board's bottom-right notch — the yellow plate reads as the coin, so the main
+          face shows just the number (the coin glyph stays in the hover breakdown below). */}
       <span className="goldpill-v">{gold}</span>
       {/* Hover: this turn's Gold + the projected START of the next two waves (cascading up, cap-aware). */}
       <div className="sbtip goldtip" role="tooltip">

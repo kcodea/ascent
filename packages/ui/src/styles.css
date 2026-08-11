@@ -2712,7 +2712,9 @@ body.dragging .statusbar .hero { pointer-events: none; }
    never pushes the art out). Every piece re-seats via the 🧍 tuner. */
 .statusbar .hero {
   position: relative; /* anchor for the pills + the floated Resolve box */
-  display: block; padding: calc(6 * var(--u)); border-radius: calc(18 * var(--u));
+  /* A CIRCLE frame (owner ask 2026-08-11): the panel is a square, so 50% rounds it to a circle that seats into
+     the board's circular hero node. The portrait fills it (also a circle) inside the padding ring. */
+  display: block; padding: calc(6 * var(--u)); border-radius: 50%;
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */

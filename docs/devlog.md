@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-11 — hero panel FRAME is a circle too
+
+Owner ask: make the hero portrait PANEL FRAME circular (not just the art). The panel is already a square
+(`.statusbar .hero`, 92u × 92u), so its `border-radius: 18u` → `50%` rounds the whole frame to a circle that
+seats into the board's circular hero node; the portrait (already a circle) fills it inside the gold padding
+ring. Verified live (panel measures square, radius 50%). build/test green.
+
 ## 2026-08-11 — Gold pill → circle, + Layout Lab tuners for it and the tavern-tier text
 
 Follow-ups to the HUD reshuffle (owner ask):

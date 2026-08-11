@@ -5,6 +5,7 @@ import { getTitleText, subscribeTitleText, titleContinueNote } from './titleText
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
+import { startReplay } from './replayDriver';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -55,6 +56,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const account = useGame((s) => s.account);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const lastReplay = useGame((s) => s.lastReplay);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
@@ -180,6 +182,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+          {lastReplay && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} title="Watch your last run play back">Rewatch Last Run</button>
+            </>
+          )}
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>

@@ -4107,6 +4107,21 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-btn.ghost { color: var(--gl-text, #eef4fb); background: transparent; border-color: var(--gl-border, rgba(190, 214, 240, 0.4)); align-self: flex-start; }
 .acctpanel-btn.ghost:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
 
+/* REPLAY VIEWER transport bar — floating glass controls while a recorded run plays. Presentation is Mike's
+   seam; reads the shared --gl-* vars so the UI Theme tuner reaches it. */
+.replaybar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 560; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-radius: 14px;
+  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.94)), var(--gl-bot, rgba(20, 25, 34, 0.97)));
+  -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
+  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: var(--gl-text, #eef4fb); font-family: var(--font-ui); }
+.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; min-width: 38px; height: 34px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
+.replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+.replayprog { position: relative; width: 260px; height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: hidden; }
+.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gl-accent, #a8d8ef); border-radius: 5px; }
+.replayround { font-weight: 700; font-size: 13px; min-width: 70px; text-align: center; }
+.replayspeed { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--gl-value, #e6b45a); }
+.replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
+
 /* The left menu column. */
 .titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }

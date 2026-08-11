@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-10 — Replay Phase 1c: the viewer — transport controls + restore + entry
+
+The driver (Phase 1b) becomes a real feature. `replayDriver` is now a CONTROLLER with a store-backed session
+(`replaySession = {index,total,playing,speed,round}`): play/pause, a 1–10× speed slider read live each step,
+click-to-seek (the loop re-runs the deterministic state to that point instantly, then continues), and an exit
+that **restores the pre-replay live run** — `startReplay` snapshots your run + `showTitle` and `endReplay`
+puts them back, so watching a replay never disturbs your actual game. The finished run's replay is stashed as
+`lastReplay` at gameover, and a **"Rewatch Last Run"** entry appears on the title when one exists.
+
+- `ReplayOverlay.tsx` — a floating glass transport bar (play/pause · seek · Round N · speed slider · exit),
+  reads the shared `--gl-*` theme vars.
+- Store: `replaySession` + `lastReplay` fields; `lastReplay` set in the run-end block.
+- Seek fast-rebuilds via `stateAt(replay, index)` (reduce with no delays/animation), so scrubbing is instant.
+
+**Verified live end-to-end** (generated a real 3-round lobby run, drove the viewer via the store):
+- overlay renders (`▶ Round 4 1× ✕`);
+- **play/pause holds** — paused at index 1, still 1 after 1.2 s, advanced to 3 on resume;
+- **speed** set to 4× took; **seek(0)** jumped the index back to 0;
+- **exit restored** the pre-replay run (session cleared, back to wave 4).
+No console errors. Gates: typecheck (web+pkgs), full `npm test` 4787/286, lint at the 7-warning baseline,
+`build:web` green.
+
+This completes Phase 1 (your own runs). Next: Phase 2 (upload full replays already carries `servedBoards`) +
+Phase 3 (spectate from the leaderboard / a recent-matches list), which reuse this exact viewer.
+
 ## 2026-08-10 — Replay Phase 1b: the replay DRIVER (plays a run back through the live UI)
 
 The engine that plays a recorded run back through the actual game UI. `replayDriver.playReplay(replay)`

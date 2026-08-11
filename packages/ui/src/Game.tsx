@@ -9,6 +9,7 @@ import { Rankings } from './Rankings';
 import { Career } from './Career';
 import { AvatarPicker } from './AvatarPicker';
 import { AccountPanel } from './AccountPanel';
+import { ReplayOverlay } from './ReplayOverlay';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
@@ -264,6 +265,7 @@ export function Game() {
       <Career />
       <AvatarPicker />
       <AccountPanel />
+      <ReplayOverlay />
     </ErrorBoundary>
   );
 }

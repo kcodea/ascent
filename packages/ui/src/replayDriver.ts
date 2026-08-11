@@ -1,24 +1,28 @@
-import { createRun, createLobbyRun, reduce, type Replay, type Action, type RunState } from '@game/sim';
+import { createRun, createLobbyRun, reduce, type Replay, type RunState } from '@game/sim';
 import { useGame } from './store';
 
 /**
- * REPLAY DRIVER (Phase 1b) — play a recorded run back through the LIVE game UI.
+ * REPLAY CONTROLLER (Phase 1b/1c) — play a recorded run back through the LIVE game UI, with transport controls.
  *
- * It reconstructs the opening state from the replay header, then re-applies the logged actions via `reduce`
- * DIRECTLY (never the live `dispatch`, which is swallowed while `replaying` — see the store) so no uploads /
- * saves / rating fire and nothing fights the driver. Shop actions are paced by the player's REAL recorded
- * cadence (`timings[i]`) × the speed; combats are paced by the arena's own animation — the driver waits for
- * `combatReplayDone` (bridged from `useCombatReplay`) before leaving a fight.
+ * It reconstructs the opening state (`createLobbyRun` + the recorded `servedBoards` for faithful fights), then
+ * re-applies the logged actions via `reduce` DIRECTLY — never the live `dispatch`, which is swallowed while
+ * `replaying` — so no uploads / saves / rating fire and nothing fights the driver. Shop actions are paced by
+ * the player's REAL recorded cadence (`timings[i]`) × speed; combats by the arena's own animation (the loop
+ * waits on `combatReplayDone`, bridged from `useCombatReplay`).
  *
- * Dev-triggerable today (`window.playReplay(exportReplay())`); the polished play/pause/scrub viewer wraps this.
+ * The UI-facing session state (index / total / playing / speed / round) lives on the store as `replaySession`
+ * so overlays react to it; these functions drive it. `startReplay` snapshots the live run and `endReplay`
+ * restores it, so watching a replay never disturbs your actual game.
  */
 
-let token = 0; // bumped to abort any in-flight replay (a new play, or stopReplay)
+interface Snapshot { run: RunState; replayActions: unknown; replayTimings: unknown; showTitle: boolean }
+
+let token = 0;               // bumped to abort/restart the loop (a new play, a seek, or a stop)
+let snapshot: Snapshot | null = null; // the live run stashed before playback, restored on exit
+let current: Replay | null = null;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
-/** Rebuild the run's opening state from the replay header, seeding the exact opponents fought so the fights
- *  animate faithfully (a cross-session replay can't re-derive pool-sourced seats). */
 function reconstruct(replay: Replay): RunState {
   const run = replay.mode && replay.mode !== 'lobby'
     ? createRun(replay.seed, replay.heroId, replay.mode)
@@ -27,42 +31,90 @@ function reconstruct(replay: Replay): RunState {
   return run;
 }
 
-export async function playReplay(replay: Replay, opts: { speed?: number } = {}): Promise<void> {
-  const mine = ++token;
-  const speed = Math.max(0.25, opts.speed ?? 1);
+/** Rebuild the run state to exactly `index` actions applied — instantly, no delays or animation. Used at the
+ *  start of the loop and on every seek (re-running is cheap + deterministic). */
+function stateAt(replay: Replay, index: number): RunState {
+  let run = reconstruct(replay);
+  for (let i = 0; i < index && i < replay.actions.length; i++) run = reduce(run, replay.actions[i]!);
+  return run;
+}
+
+async function runLoop(fromIndex: number): Promise<void> {
+  const mine = token;
   const g = useGame;
-  const aborted = (): boolean => token !== mine;
+  const replay = current!;
+  g.setState({ run: stateAt(replay, fromIndex), combatReplayDone: false });
+  patchSession({ index: fromIndex });
 
-  g.setState({ run: reconstruct(replay), replaying: true, combatReplayDone: false, showTitle: false, inspect: null, heroChoices: null });
-
-  for (let i = 0; i < replay.actions.length && !aborted(); i++) {
-    const a: Action = replay.actions[i]!;
+  for (let i = fromIndex; i < replay.actions.length; i++) {
+    // Honour pause: idle here (cheaply) until resumed or aborted.
+    while (token === mine && !(g.getState().replaySession?.playing ?? false)) await sleep(60);
+    if (token !== mine) return;
+    const speed = g.getState().replaySession?.speed ?? 1;
     if (g.getState().run.phase === 'combat') {
-      // Leaving/settling a fight: hold until its animation has played out, then a short beat so the result reads.
-      while (!aborted() && g.getState().run.phase === 'combat' && !g.getState().combatReplayDone) await sleep(30);
+      // Wait for the fight to finish ANIMATING, then a short beat so the result reads before leaving.
+      while (token === mine && g.getState().run.phase === 'combat' && !g.getState().combatReplayDone) await sleep(30);
       await sleep(500 / speed);
     } else {
-      // Shop cadence — the player's real gap before this action, clamped so an idle stretch can't stall playback.
       await sleep(Math.min(replay.timings?.[i] ?? 300, 5000) / speed);
     }
-    if (aborted()) break;
+    if (token !== mine) return;
+    const a = replay.actions[i]!;
     const next = reduce(g.getState().run, a);
-    // A new fight resets the arena's done-flag immediately (before the bridge re-fires), so the next combat
-    // gate above doesn't see a stale `true` from the previous one.
     g.setState({ run: next, combatReplayDone: a.type === 'faceOmen' ? false : g.getState().combatReplayDone });
+    patchSession({ index: i + 1, round: next.wave });
   }
-  if (!aborted()) g.setState({ replaying: false });
+  if (token === mine) patchSession({ playing: false }); // reached the end — hold on the final frame, paused
 }
 
-/** Stop any in-flight replay and drop out of replay mode. */
-export function stopReplay(): void {
+/** Merge a partial into the live session (no-op if a replay isn't active). */
+function patchSession(p: Partial<NonNullable<ReturnType<typeof getSession>>>): void {
+  const s = getSession();
+  if (s) useGame.setState({ replaySession: { ...s, ...p } });
+}
+const getSession = () => useGame.getState().replaySession;
+
+/** Start watching a recorded run. Snapshots the live run first so `endReplay` can restore it. */
+export function startReplay(replay: Replay): void {
+  const g = useGame;
+  const s = g.getState();
+  snapshot = { run: s.run, replayActions: s.replayActions, replayTimings: s.replayTimings, showTitle: s.showTitle };
+  current = replay;
   token++;
-  useGame.setState({ replaying: false });
+  g.setState({
+    replaying: true, showTitle: false, inspect: null, heroChoices: null, combatReplayDone: false,
+    replaySession: { index: 0, total: replay.actions.length, playing: true, speed: 1, round: 1 },
+  });
+  void runLoop(0);
 }
 
-// DEV console handle: `playReplay(useGame.getState().exportReplay())` to watch a run back, `stopReplay()` to
-// bail. Stripped from production. The polished play/pause/scrub viewer (Phase 1c) is the real entry point.
+export function pauseReplay(): void { patchSession({ playing: false }); }
+export function resumeReplay(): void { patchSession({ playing: true }); }
+export function setReplaySpeed(speed: number): void { patchSession({ speed: Math.max(0.5, Math.min(10, speed)) }); }
+
+/** Jump to a point in the run (by action index) and continue from there. */
+export function seekReplay(index: number): void {
+  if (!current) return;
+  const clamped = Math.max(0, Math.min(index, current.actions.length));
+  token++;
+  patchSession({ index: clamped });
+  void runLoop(clamped);
+}
+
+/** Stop the replay and restore the live run exactly as it was before playback. */
+export function endReplay(): void {
+  token++;
+  const g = useGame;
+  const snap = snapshot;
+  g.setState({
+    replaying: false, replaySession: null, combatReplayDone: false,
+    ...(snap ? { run: snap.run, replayActions: snap.replayActions as never, replayTimings: snap.replayTimings as never, showTitle: snap.showTitle } : {}),
+  });
+  snapshot = null;
+  current = null;
+}
+
+// DEV console handle — still handy for quick tests: `startReplay(useGame.getState().exportReplay())`.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { playReplay: typeof playReplay; stopReplay: typeof stopReplay }).playReplay = playReplay;
-  (window as unknown as { playReplay: typeof playReplay; stopReplay: typeof stopReplay }).stopReplay = stopReplay;
+  Object.assign(window as unknown as Record<string, unknown>, { startReplay, endReplay, seekReplay, setReplaySpeed, pauseReplay, resumeReplay });
 }

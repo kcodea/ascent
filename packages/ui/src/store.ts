@@ -40,6 +40,20 @@ import { turnClock } from './turnClock';
 // dispatch checks for an empty timing list), so no per-run reset is needed.
 let lastActionAt = 0;
 
+/** Live transport state of a running replay — read by the overlay, driven by `replayDriver`. */
+export interface ReplaySession {
+  /** Actions applied so far (0 … total). */
+  index: number;
+  /** Total actions in the replay. */
+  total: number;
+  /** Playing vs paused. */
+  playing: boolean;
+  /** Playback speed multiplier (0.5–10×). */
+  speed: number;
+  /** The run round (`wave`) currently shown — for the progress label. */
+  round: number;
+}
+
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
 // captured boards, once at startup while OPPONENT_POOL is still empty. The headless harnesses + tests don't
@@ -320,6 +334,11 @@ interface GameStore {
   /** Bridge from the combat arena's replay clock: true once the current fight's animation has finished, so the
    *  replay driver knows when it's safe to leave combat. Meaningless outside `replaying`. */
   combatReplayDone: boolean;
+  /** The live transport state of the running replay (index / total actions, playing, speed, current round) —
+   *  read by the replay overlay; driven by `replayDriver`. Null when not replaying. */
+  replaySession: ReplaySession | null;
+  /** The last FINISHED run's replay, stashed at gameover so "Rewatch last run" has something to play. */
+  lastReplay: Replay | null;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
   pendingMode: RunMode;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
@@ -601,6 +620,8 @@ export const useGame = create<GameStore>((set, get) => ({
   showTitle: true,
   replaying: false,
   combatReplayDone: false,
+  replaySession: null,
+  lastReplay: null,
   showLeaderboard: false,
   pendingMode: 'ascent',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
@@ -732,6 +753,7 @@ export const useGame = create<GameStore>((set, get) => ({
         setTimeout(() => {
           const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author);
           set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
+          set({ lastReplay: replay }); // REPLAY VIEWER: stash the finished run so "Rewatch last run" can play it
           void uploadBoards(fresh);
           // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
           // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this

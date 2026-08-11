@@ -162,7 +162,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 3;
+export const DRAG_DEFAULTS_VERSION = 4;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

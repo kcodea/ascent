@@ -128,6 +128,22 @@ describe('recruitMomentsSince', () => {
     const m = shoutMoment('u1', 'dw_pimm');
     expect(m).toEqual({ kind: 'shout', sourceCardId: 'dw_pimm', recipients: [{ uid: 'u1', count: 1 }] });
   });
+
+  it('marks a minionBuffed moment `crit` when a contributing event came from the body that critted', () => {
+    // `karwindCritUid` is the UID of the body whose buff doubled; an event with that `sourceUid` makes its
+    // wave a crit, which the cue runner turns into the binding's `critDef`.
+    const critBuff = { targetUid: 't', attack: 6, health: 6, sourceUid: 'kw1', sourceCardId: 'karwind', sourceTribe: 'dragon', kind: 'minion' } as RunState['recruitBuffFx'][number];
+    const r = run({ recruitFxSeq: 1, recruitBuffFx: [critBuff], karwindCritUid: 'kw1' });
+    const m = recruitMomentsSince(r, NONE);
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatchObject({ kind: 'minionBuffed', sourceCardId: 'karwind', crit: true });
+  });
+
+  it('leaves `crit` off an ordinary (non-crit) buff wave', () => {
+    const normal = { targetUid: 't', attack: 3, health: 3, sourceUid: 'kw1', sourceCardId: 'karwind', sourceTribe: 'dragon', kind: 'minion' } as RunState['recruitBuffFx'][number];
+    const r = run({ recruitFxSeq: 1, recruitBuffFx: [normal], karwindCritUid: undefined });
+    expect(recruitMomentsSince(r, NONE)[0].crit).toBeUndefined();
+  });
 });
 
 describe('recruitSeqsOf', () => {

@@ -16,6 +16,7 @@
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
   --watcher-pulse-color: #7fc8ff; /* light-blue medallion + card-frame bloom for the watcher pulse (see .cgem.pulsing.watcher / .framepulsering) */
+  --crit-pulse-color: #ff2424; /* red medallion pulse when an effect CRITs (Karwind's double) — matches the "2x" crit float (critFxConfig.colorText) so the two read as one crit language (see .cgem.pulsing.crit) */
   /* Sunward */
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
@@ -1782,6 +1783,17 @@ img.tierbadge.tierstars,
 .card.compact .cgem.pulsing.watcher::after {
   background: radial-gradient(circle, color-mix(in srgb, var(--watcher-pulse-color) 30%, #fff) 0%, color-mix(in srgb, var(--watcher-pulse-color) 85%, transparent) 45%, transparent 72%);
   box-shadow: 0 0 26px 10px color-mix(in srgb, var(--watcher-pulse-color) 40%, #fff), 0 0 56px 26px color-mix(in srgb, var(--watcher-pulse-color) 95%, transparent), 0 0 92px 46px color-mix(in srgb, var(--watcher-pulse-color) 55%, transparent);
+}
+/* Crit pulse — the same flash + ring, forced RED (Karwind's 20% doubled buff). Mirrors .watcher's structure
+   exactly, swapping --watcher-pulse-color for --crit-pulse-color so opacity/stop shape stay identical. Highest
+   precedence in Card.tsx's class chain, so a crit reads red over the plain trigger pulse. */
+.card.compact .cgem.pulsing.crit::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--crit-pulse-color) 20%, #fff) 0%, var(--crit-pulse-color) 52%, transparent 76%);
+  box-shadow: 0 0 20px 7px color-mix(in srgb, var(--crit-pulse-color) 40%, #fff), 0 0 40px 16px var(--crit-pulse-color), 0 0 66px 28px color-mix(in srgb, var(--crit-pulse-color) 75%, transparent);
+}
+.card.compact .cgem.pulsing.crit::after {
+  background: radial-gradient(circle, color-mix(in srgb, var(--crit-pulse-color) 30%, #fff) 0%, color-mix(in srgb, var(--crit-pulse-color) 85%, transparent) 45%, transparent 72%);
+  box-shadow: 0 0 26px 10px color-mix(in srgb, var(--crit-pulse-color) 40%, #fff), 0 0 56px 26px color-mix(in srgb, var(--crit-pulse-color) 95%, transparent), 0 0 92px 46px color-mix(in srgb, var(--crit-pulse-color) 55%, transparent);
 }
 @keyframes cgemglow {
   0% { opacity: 0; transform: scale(0.9); }

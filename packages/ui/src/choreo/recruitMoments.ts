@@ -89,6 +89,9 @@ export interface RecruitMoment {
    *  its own binding. Absent (rubyLanded) → recipient-keyed, as before. `''` is a sourceless wave (a spell or
    *  a dead Deathrattle) — it keys nothing and so only ever resolves a kind-level binding. */
   sourceCardId?: string;
+  /** A CRIT wave — a doubled buff (Karwind's 20% roll). The cue runner plays the binding's `critDef` instead
+   *  of its `def` when this is set. Only `minionBuffed` produces it today; absent everywhere else. */
+  crit?: boolean;
 }
 
 /**
@@ -131,7 +134,7 @@ export function captureRecruitSeqs(
  * always play in the same order, rather than in whatever order the fields happen to be read.
  */
 export function recruitMomentsSince(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid'>,
   prev: RecruitSeqs,
 ): RecruitMoment[] {
   const out: RecruitMoment[] = [];
@@ -151,16 +154,21 @@ export function recruitMomentsSince(
   // would visit one card twice as if they were different bodies). Source order and per-source target order are
   // both first-appearance, so the cascade sweeps the board the way the events arrived.
   if (run.recruitFxSeq !== undefined && run.recruitFxSeq !== prev.recruitFx) {
-    const bySource = new Map<string, { byUid: Map<string, RecruitRecipient>; order: string[] }>();
+    const bySource = new Map<string, { byUid: Map<string, RecruitRecipient>; order: string[]; crit: boolean }>();
     const sourceOrder: string[] = [];
     for (const e of run.recruitBuffFx ?? []) {
       if (e.attack === 0 && e.health === 0) continue; // a zero buff changes no digit and reads as nothing
       let group = bySource.get(e.sourceCardId);
       if (!group) {
-        group = { byUid: new Map(), order: [] };
+        group = { byUid: new Map(), order: [], crit: false };
         bySource.set(e.sourceCardId, group);
         sourceOrder.push(e.sourceCardId);
       }
+      // A crit is the doubled-buff roll (Karwind's `karwindCritUid` = the uid of the body that critted). An
+      // event belongs to that crit when its own `sourceUid` matches — precise for the common one-buffer case.
+      // Events grouped by cardId can span two same-name buffers (two Karwinds); if EITHER critted the whole
+      // wave reads as a crit, which over-reddens the rare double-Karwind case and is a deliberate simplification.
+      if (e.sourceUid !== undefined && e.sourceUid === run.karwindCritUid) group.crit = true;
       const seen = group.byUid.get(e.targetUid);
       if (seen) seen.count += 1;
       else {
@@ -170,7 +178,9 @@ export function recruitMomentsSince(
     }
     for (const sourceCardId of sourceOrder) {
       const group = bySource.get(sourceCardId)!;
-      out.push({ kind: 'minionBuffed', sourceCardId, recipients: group.order.map((u) => group.byUid.get(u)!) });
+      const moment: RecruitMoment = { kind: 'minionBuffed', sourceCardId, recipients: group.order.map((u) => group.byUid.get(u)!) };
+      if (group.crit) moment.crit = true;
+      out.push(moment);
     }
   }
 

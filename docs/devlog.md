@@ -15,6 +15,145 @@ Owner ask: each Career match-history row should show the round the run ended on 
 Verified live against a career with runs: 25 rows render `Round 14 · Aug 11, 2026`-style subtitles (existing
 rows are day-only; runs played from now on carry the time). typecheck (web) + lint (0 errors) + build green;
 runHistory tests 20/20.
+## 2026-08-11 — Karwind's medallion pulses RED on a crit
+
+Extends the trigger-medallion pulse: on Karwind's 20% doubled buff, its medallion flashes RED instead of
+white. Joins the existing coloured-pulse family (`pulseRally` yellow, `pulseWatcher` blue) with a new
+`pulseCrit` — a per-fire nonce, forced red, HIGHEST precedence in `Card.tsx`'s class chain so a crit reads red
+over the plain pulse. The red is `--crit-pulse-color: #ff2424`, the same hue as the "2x" crit float
+(`critFxConfig.colorText`), so medallion and float read as one crit language; the `.cgem.pulsing.crit` CSS
+mirrors `.watcher` exactly via `color-mix`, only swapping the var.
+
+The split is driven by `karwindCritUid` (the uid of the body whose buff doubled): the pulse effect files that
+source into `karwindCritPulseUids` and the rest into `karwindPulseUids`, both cleared by the one 760ms timer.
+Verified on a forced live crit — `karwindCritUid: 'kw'`, red set `['kw']`, white set `[]`. typecheck, eslint 0
+errors, 4876 tests, build:web.
+
+## 2026-08-11 — Karwind keeps a medallion pulse when it triggers
+
+Suppressing Karwind's flame flash left the buffer itself with no on-card cue that it had fired — the ring
+plays on the Dragons it buffed, not on Karwind. Its trigger medallion now pulses instead (owner ask): a
+lighter "it triggered" signal in place of the removed flash, plus the trigger sound.
+
+Its own `karwindPulseUids` set + timer ref, so it feeds ONLY the `pulse` prop (the medallion), never the
+battlecry sigil, and clears independently of the flame at the 760ms battlecry hold. The pulsed uids are the
+BOUND buffers' own `sourceUid`s from `recruitBuffFx` — the same attribution the flash suppression reads — so
+it pulses exactly the cards whose flame was suppressed. Fired BEFORE the flame block's early-return, since a
+bound Karwind suppresses every flame and `uids` there can be empty.
+
+Verified live: a Contract Butcher Shout makes `recruitBuffFx = [{ sourceUid: 'kw', … }]`, the pulse-source
+computation yields `['kw']`, so Karwind's card gets `pulse`. typecheck, eslint 0 errors, 4876 tests, build:web.
+
+## 2026-08-11 — Market Tormentor gets the shop-buff-shout too
+
+`shop-buff-shout` now also plays for Market Tormentor (`dm_tormentor`, the tier-4 Demon whose Shout gives the
+right-most Shop slot +4/+2), in both phases — `shout` for the shop, `scNarrate` for a rune-refired Shout in
+combat, exactly as Contract Butcher. It is `onPlay`-only like the Butcher, so its only combat `sc` source is
+the Shout refire; the card-scoped `scNarrate` binding can't ride anything else. Both fire on the SOURCE of the
+Shout (the caster): the shop moment's recipient IS the caster, and the combat `sc` has no target, which
+`combatAnchorsFromRects` folds onto the source.
+
+typecheck, eslint 0 errors, 4876 tests, build:web.
+
+## 2026-08-11 — Contract Butcher's Shout gets an effect, in both phases
+
+`shop-buff-shout` bound to Contract Butcher (`dm_butcher`) — the tier-2 Demon whose Shout gives Shop minions
++1/+1 — for the shop AND for combat.
+
+- **Shop:** `dm_butcher.shout` — plays when the card is played, off the same board-diff `shout` signal Pimm's
+  coin-shout uses.
+- **Combat:** `dm_butcher.scNarrate`. A Shout can re-fire mid-fight — three runes do it (Shared Scripture on
+  the first Shop-spell cast, War Chorus on the first Rally, Ancestral Roar for a dying Dragon), each emitting
+  `{ type: 'sc', text: 'Shout' }`, which `momentKind` maps to `scNarrate`. Card-scoped to `dm_butcher`, that
+  kind fires ONLY on Contract Butcher's own combat Shout (its sole `sc` source), so it never rides a
+  spell-power narration. The `sc` event has no target, and `combatAnchorsFromRects` folds a null target onto
+  the source — so the def plays ON Contract Butcher, exactly as in the shop.
+
+Set-2 audit for the owner: the other Shout-that-buffs-the-Shop minions are **Market Tormentor** (`dm_tormentor`,
+right-most slot +4/+2, stacks) and **Wardkeeper** (`dw_wardkeeper`, Shop spells +1 Attack). Demon Horse and
+Fatecarver buff the shop on RALLY, Soul Defiler and Void Curator on End of Turn — not Shouts.
+
+Verified: the combat path was traced end to end — three rune re-fire sites in `simulate.ts` all emit the
+`sc`/Shout event, `score.ts` resolves `bindingFor('dm_butcher','scNarrate')` on the source and folds the null
+target onto it. typecheck, eslint 0 errors, 4876 tests, build:web. The live combat visual needs a rune set up
+to trigger, so it is wiring-verified rather than eyeballed.
+
+## 2026-08-11 — A crit plays a different ring (bindings gain a crit variant)
+
+Karwind's 20% double now plays `flame-ring-crit` — a red ring — INSTEAD of `flame-ring`, on the Dragons it
+buffed (owner ruling: replace, not overlay). Because `flame-ring` plays through the generic `minionBuffed`
+binding for EVERY buff, the cue runner has to know a wave is a crit to pick the other def; it does, with no
+sim change.
+
+- `FxBinding` gains an optional `critDef` — a def id validated by the same registry test as `def`, played in
+  place of `def` when the moment is a crit. `bindings.json`: `karwind.minionBuffed = { def: 'flame-ring',
+  critDef: 'flame-ring-crit' }`. The swap is one field (`{ ...binding, def: critDef }`), so `sfx` and the rest
+  ride along and a crit variant is never a second binding to keep in sync.
+- `RecruitMoment` gains `crit`. The builder sets it when a contributing `recruitBuffFx` event's `sourceUid`
+  matches `run.karwindCritUid` — the UID of the body whose buff doubled. Precise for the common one-buffer
+  case; a rare two-Karwind wave where only one crits reddens both (documented simplification).
+- No new state and no sim edit: `karwindCritUid` already existed (it drives the "2x" float), and
+  `recruitBuffFx` already carried `sourceUid`. The join is entirely in the UI moment builder.
+
+Verified: a forced live crit sets `karwindCritUid: 'kw'`, `recruitBuffFx` carries `{ sourceUid: 'kw',
+attack: 6 }` (doubled), and the builder marks the moment crit — the whole join proven against real sim data,
+with the def swap and registry-resolution unit-tested. typecheck, eslint 0 errors, 4876 tests, build:web.
+
+On a crit the ordinary flame-ring does NOT also play (replace, per the ruling); the flame-flash stays
+suppressed and the "2x" crit float is untouched.
+
+## 2026-08-11 — The flame flash joins the suppression rule (Karwind shows only its ring)
+
+Extends the same-day "an authored def replaces the stock cue" rule to Karwind's second stock visual — the
+~520ms red flame flash. A bound Karwind now plays ONLY its authored `flame-ring` on the Dragons it buffs; the
+flash is suppressed, and the "2x" crit float is kept (owner ask).
+
+Not gated on the `karwind` id: `onBattlecryBuffTribe` (which stamps `karwindFlash`) is also an unbound set-2
+Dragon's effect, so an id check would strip that card's flash too. The discriminator is the binding, read
+through the source attribution `recruitBuffFx` already carries. Karwind buffs EVERY Dragon including itself,
+so `karwindFlash` holds both the buffed others (each a `targetUid`) and Karwind's own uid (the `sourceUid`) —
+both are suppressed for a bound source, so Karwind stops flaming itself red as well. A bound Karwind ALONE on
+the board buffs only itself and emits no buff-other event, so its lone self-flash survives — acceptable, since
+flame-ring plays on no one then. An unbound buffer keeps its full flash.
+
+Verified against live sim: `karwindFlash: ['kw','dg']`, `recruitBuffFx: [{sourceUid:'kw', targetUid:'dg'}]`,
+filter leaves nothing — no red flame, ring on the buffed Dragon, crit float intact. typecheck, eslint 0
+errors, 4874 tests, build:web.
+
+Follow-up the owner is authoring: a distinct RED ring for the crit (20% double), to play on top of / instead
+of flame-ring when `karwindCritUid` is set. Held until that def exists.
+
+## 2026-08-11 — An authored def replaces the stock cue (Karwind stops double-effecting)
+
+The owner reported Karwind drawing a buff tendril and asked for it removed, since `flame-ring` is bound to
+that same moment. The rule shipped here is GENERAL rather than a Karwind special case: binding a def to a
+moment IS the statement "I have authored what this looks like", so the default cue stops. It mirrors combat's
+`claimDamageFx`, which already suppresses the stock hit-burst for units a bound def covers.
+
+`Recruit.tsx`'s tendril loop now skips any `recruitBuffFx` event whose SOURCE card has a `minionBuffed`
+binding — keyed on exactly the pair `runRecruitMomentCues` resolves for the same event, so the two cannot
+disagree about whether a def is playing. An unbound buffer keeps its ribbon, and a binding on a DIFFERENT
+kind does not suppress it (Paymaster Pimm is bound at `shout`, so a Shout that also buffs others still draws).
+
+**On the missing ring itself — the wiring is NOT the fault.** The owner also reported never seeing
+`flame-ring`. The whole path was instrumented live and every link fires:
+
+  [DIAG] cue enter minionBuffed karwind canPlay= true
+  [DIAG] bindingCard= karwind binding= {"def":"flame-ring"}
+  [DIAG] rAF fired, scheduling lands
+  [DIAG] fireLand uid= dg measured= {"x":640.78,"y":497.63}
+
+`playDef` was reached with a real anchor, and it emitted no `no committed def` warning — so the def resolves
+in the registry and is played. What could NOT be verified is whether it RENDERS: the tab available here is
+hidden, and both `requestAnimationFrame` and the Pixi ticker are paused there (the rAF above only fired
+because it was shimmed onto a timer for the diagnosis). The remaining suspect is therefore the def's own
+visuals — two shockwaves at radius 160, one with `glow: 0` and `speed: 0.65` against a 900ms duration, which
+never completes an expansion — i.e. a tuning question for the workbench, not a wiring bug.
+
+Verified: typecheck, `npx eslint packages apps` 0 errors, 4874 tests, build:web. The suppression itself lives
+in a DOM-measuring component this repo cannot test (no jsdom), so what the new `bindings.test.ts` block pins
+is the QUESTION it asks — which cards answer yes to a `minionBuffed` binding — since a flip there silently
+changes the tendril loop for every card in the table.
 
 ## 2026-08-11 — fix: hand-rearrange settle no longer replays the slide (double-glide)
 

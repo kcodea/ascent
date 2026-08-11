@@ -1774,6 +1774,11 @@ export function Recruit() {
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
   const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  // Set true for the ONE commit in which the reorder-Flip above handles a drag-reorder, so the make-room
+  // `--hand-glide` effect stands down that commit. Both effects key off `handOrderKey` and would otherwise BOTH
+  // fire on a reorder (the drag is already null by the layout phase, so `--hand-glide`'s drag guard misses),
+  // re-sliding the neighbours a whole slot on top of the Flip — the "the slide repeats after I let go" bug.
+  const reorderGlidedRef = useRef(false);
   // Each hand card's LAYOUT x (offsetLeft) as of the previous commit — the make-room glide's "from". Layout,
   // not a rect, so no transform (hover zoom, drag slide, live glide) can ever leak into it.
   const handLeftsRef = useRef<Map<string, number>>(new Map());
@@ -3634,6 +3639,7 @@ export function Recruit() {
     const st = handReorderFlipRef.current;
     if (!st) return;
     handReorderFlipRef.current = null;
+    reorderGlidedRef.current = true; // this commit's hand motion is the Flip's — the `--hand-glide` effect below stands down
     glide(st);
   }, [handOrderKey]);
 
@@ -3652,7 +3658,13 @@ export function Recruit() {
      transforms the delta we seed is exactly where the card visually sits — so it continues rather than
      snapping back. Entering cards have no previous position and are skipped; `playBuySlide` owns those. */
   useLayoutEffect(() => {
-    if (inCombat || dragRef.current?.active) return;
+    // A drag-REORDER is the Flip effect's job (it already glided these cards from their captured spots). Both
+    // effects key off `handOrderKey`; the Flip effect runs first and sets this flag so we don't ALSO seed a
+    // full-slot make-room glide here — which would replay the slide a second time after release. Reset it
+    // unconditionally so a later count-change (buy/play) still glides normally.
+    const glidedByFlip = reorderGlidedRef.current;
+    reorderGlidedRef.current = false;
+    if (inCombat || dragRef.current?.active || glidedByFlip) return;
     const prev = handLeftsRef.current;
     const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
     const moved: HTMLElement[] = [];

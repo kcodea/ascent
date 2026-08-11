@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-11 — fix: hand-rearrange settle no longer replays the slide (double-glide)
+
+Owner report: rearranging cards in hand, on release the slide "repeats itself" (and a card briefly "returns
+from the board") — very quick. Root cause: TWO layout effects key off `handOrderKey`, and on a drag-reorder
+BOTH fire. The reorder-Flip (`handReorderFlipRef`) is meant to own a drag-reorder settle; the `--hand-glide`
+make-room effect is meant for count-changes (buy/play) only, gated by `dragRef.current?.active`. But `dragRef`
+is assigned inline during render and `onUp` calls `setDrag(null)` in the same batch as the reorder dispatch, so
+by the layout phase the drag is already null — the guard misses and `--hand-glide` ALSO runs. It seeds
+`oldOffsetLeft − newOffsetLeft` (offsetLeft ignores the make-room transform, so that's a FULL slot) and
+CSS-transitions it back to 0 — re-sliding the neighbours a whole slot on top of the Flip. That is the slide
+replaying after release. (A first attempt blamed the hover-pop capture — reverted; the owner's live test ruled
+it out, and this double-glide is the real cause, independent of hover.)
+
+Fix: a one-commit `reorderGlidedRef` flag. The reorder-Flip effect runs first and sets it; the `--hand-glide`
+effect reads it, stands down for that commit, and resets it — so a drag-reorder is glided ONCE (by Flip) while
+count-change glides still run normally. Presentation-only, no state/logic change. Verified typecheck + lint +
+full test + build:web green; owner confirmed the drop feel live.
+
 ## 2026-08-11 — the August board is the default now
 
 Owner promoted the August board from trial to default. The stylesheet `--board` now points at
@@ -128,7 +146,6 @@ still rolls the shop (gold 3→2), no console errors, art loads (no 404). typech
 Follow-up for owner: the hover **glow is still the old blue** (`rgba(82,189,255,…)`) — a cool halo on a warm
 button. Left as-is (retune the glow colour in the 🔄 tuner if you want it gold). The pressed-state art
 (`RefreshButtonPressed.png`) exists but isn't wired — the button uses an FX flare on click, not a press swap.
-
 ## 2026-08-11 — Paymaster Pimm's Shout gets an effect, and shop bindings learn to carry a sound
 
 The owner authored `coin-shout` and asked for it on the tier-1 Dwarf whose Shout pays 1 Gold next turn

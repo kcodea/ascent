@@ -258,10 +258,13 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
 
 ### Run identity
 The career surface exists; deepen what a finished run *remembers*.
-- **Round-by-round + replay view.** Career match cards expand in place to the stat line + final warband; the
-  remaining step is a full round-by-round view — store the `{seed,heroId,actions}` replay on the run-history
-  entry so a run can re-derive any round's board (the end-screen round-board viewer already does this
-  in-session).
+- **Round-by-round + replay view — TABLED, rebuild as state-replay (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+  A full action-replay spectator was built (watch any player's run through the live UI, from the leaderboard /
+  a recent-matches feed) on branch `feat/replay-driver` and **killed 2026-08-11**: action-replay re-derives the
+  run from `{seed,actions}`, and a mid-run combat RNG/uid drift makes real runs diverge completely (a recorded
+  1st-place win replayed as a 4th-place death). The fix is **state replay** — record the actual per-turn board +
+  each combat's event log and play those back, so "what you watch is what happened" and old replays survive
+  content changes. Full design + salvage list in the handoff. Pick this up when the game is more complete.
 - Deferred summary sections that need per-minion data not yet on `CombatResult`: biggest permanent-scaling
   source, quest-choice recap, Ancient recap.
 

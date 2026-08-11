@@ -53,8 +53,13 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   const first = moment.recipients[0];
   if (!first) return () => {};
   const bindingCard = moment.sourceCardId ?? ctx.cardIdOf(first.uid);
-  const binding = bindingFor(bindingCard, moment.kind);
-  if (!binding) return () => {};
+  const resolved = bindingFor(bindingCard, moment.kind);
+  if (!resolved) return () => {};
+  // A crit wave plays the binding's `critDef` in place of its `def` — a red ring for Karwind's doubled buff
+  // REPLACES the ordinary one (owner ruling 2026-08-11). Swap `def` only; `sfx` and everything else ride along,
+  // so a crit-variant is a one-field override, not a second binding to keep in sync.
+  const binding: FxBinding =
+    moment.crit && resolved.critDef !== undefined ? { ...resolved, def: resolved.critDef } : resolved;
 
   const timers: ReturnType<typeof setTimeout>[] = [];
   // ONE rAF before anything is measured: the buffed/gemmed cards re-render in this commit, and measuring

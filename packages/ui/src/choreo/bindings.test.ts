@@ -167,12 +167,12 @@ const BINDINGS: Record<string, { def: string }> = {
  * and the easier one to add without telling anyone, and it SHADOWS the kind beneath it — so an unnoticed
  * entry here silences a global effect for one card rather than merely adding to it.
  */
-const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string }>> = {
+const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
-  karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring' } },
+  karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
@@ -243,6 +243,8 @@ describe('binding integrity', () => {
     for (const [cardId, byKind] of Object.entries(t.cards)) {
       for (const [kind, b] of Object.entries(byKind)) {
         if (b && !known.has(b.def)) missing.push(`${cardId}.${kind}:${b.def}`);
+        // A crit-variant is a real def id too — a dangling `critDef` fails CI exactly like a dangling `def`.
+        if (b && b.critDef !== undefined && !known.has(b.critDef)) missing.push(`${cardId}.${kind}.critDef:${b.critDef}`);
       }
     }
     expect(missing, `bindings naming defs that do not exist: ${missing.join(', ')}`).toEqual([]);

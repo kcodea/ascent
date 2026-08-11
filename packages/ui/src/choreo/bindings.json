@@ -71,7 +71,8 @@
         "fanOut": "buffed"
       },
       "minionBuffed": {
-        "def": "flame-ring"
+        "def": "flame-ring",
+        "critDef": "flame-ring-crit"
       }
     }
   }

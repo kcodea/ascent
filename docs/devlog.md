@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-11 — A crit plays a different ring (bindings gain a crit variant)
+
+Karwind's 20% double now plays `flame-ring-crit` — a red ring — INSTEAD of `flame-ring`, on the Dragons it
+buffed (owner ruling: replace, not overlay). Because `flame-ring` plays through the generic `minionBuffed`
+binding for EVERY buff, the cue runner has to know a wave is a crit to pick the other def; it does, with no
+sim change.
+
+- `FxBinding` gains an optional `critDef` — a def id validated by the same registry test as `def`, played in
+  place of `def` when the moment is a crit. `bindings.json`: `karwind.minionBuffed = { def: 'flame-ring',
+  critDef: 'flame-ring-crit' }`. The swap is one field (`{ ...binding, def: critDef }`), so `sfx` and the rest
+  ride along and a crit variant is never a second binding to keep in sync.
+- `RecruitMoment` gains `crit`. The builder sets it when a contributing `recruitBuffFx` event's `sourceUid`
+  matches `run.karwindCritUid` — the UID of the body whose buff doubled. Precise for the common one-buffer
+  case; a rare two-Karwind wave where only one crits reddens both (documented simplification).
+- No new state and no sim edit: `karwindCritUid` already existed (it drives the "2x" float), and
+  `recruitBuffFx` already carried `sourceUid`. The join is entirely in the UI moment builder.
+
+Verified: a forced live crit sets `karwindCritUid: 'kw'`, `recruitBuffFx` carries `{ sourceUid: 'kw',
+attack: 6 }` (doubled), and the builder marks the moment crit — the whole join proven against real sim data,
+with the def swap and registry-resolution unit-tested. typecheck, eslint 0 errors, 4876 tests, build:web.
+
+On a crit the ordinary flame-ring does NOT also play (replace, per the ruling); the flame-flash stays
+suppressed and the "2x" crit float is untouched.
+
 ## 2026-08-11 — The flame flash joins the suppression rule (Karwind shows only its ring)
 
 Extends the same-day "an authored def replaces the stock cue" rule to Karwind's second stock visual — the

@@ -49,6 +49,9 @@ export interface RefreshConfig {
   glowW: number;
   /** Glow — height fit (×). */
   glowH: number;
+  /** Glow — corner radius of the halo (design px × --u). High = a capsule/pill that hugs a wide button;
+   *  0 = a hard rectangle. Lets the halo match the button's own rounded-pill shape. */
+  glowRadius: number;
   /** Glow — colour (hex). */
   glowColor: string;
   /** Sheen — the ambient glare sweep's full cycle (seconds): one sweep then a rest. */
@@ -93,31 +96,33 @@ export interface RefreshConfig {
 // result, exactly like the Tavern stone's were. Mirror position/scale/glow changes into the styles.css
 // `var(--rfb-*, …)` fallbacks.
 const DEFAULTS: RefreshConfig = {
-  x: 3,
-  y: 294,
-  scale: 0.73,
-  costX: 87,
-  costY: -90,
-  costS: 1.6,
+  // Base point is the board's TOP-RIGHT now (see styles.css .rfbwrap); x/y fine-tune from there.
+  x: -73,
+  y: 220,
+  scale: 1.85,
+  costX: -66,
+  costY: -64,
+  costS: 0.72,
   costColor: '#f4be35',
   costFreeColor: '#47d17c',
   labelY: -64,
-  labelS: 1.42,
-  glowBlur: 22,
+  labelS: 0.66,
+  glowBlur: 12,
   glowAlpha: 1,
   glowStrength: 7,
   glowPulse: 1.5,
   glowPulseDepth: 0.25,
-  glowW: 0.85,
-  glowH: 0.85,
-  glowColor: '#52bdff',
+  glowW: 0.93,
+  glowH: 0.59,
+  glowRadius: 33,
+  glowColor: '#d6ccff',
   sheenCycle: 1,
   sheenAlpha: 0,
-  shineMs: 280,
-  shineAlpha: 1,
-  shineSize: 3,
-  shineBlur: 7,
-  shineColor: '#ffffff',
+  shineMs: 210,
+  shineAlpha: 0.58,
+  shineSize: 1.75,
+  shineBlur: 3,
+  shineColor: '#f9e5ff',
   dustCount: 0,
   dustSize: 0.95,
   dustLife: 0.75,
@@ -126,7 +131,7 @@ const DEFAULTS: RefreshConfig = {
   blastSpread: 0.8,
   blastLife: 880,
   blastSize: 0.45,
-  blastColor: '#8fe4ff',
+  blastColor: '#ffb08f',
   artDim: 0.61,
 };
 
@@ -135,18 +140,19 @@ export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shin
   x: [-800, 800, 1],
   y: [-400, 600, 1],
   scale: [0.4, 2.5, 0.01],
-  costX: [-90, 90, 1],
-  costY: [-90, 90, 1],
-  costS: [0.5, 2, 0.02],
+  costX: [-260, 260, 1],
+  costY: [-160, 160, 1],
+  costS: [0.3, 3, 0.02],
   labelY: [-140, 40, 1],
   labelS: [0.5, 2, 0.02],
-  glowBlur: [0, 48, 1],
+  glowBlur: [0, 80, 1],
   glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
   glowPulse: [0, 6, 0.1],
   glowPulseDepth: [0, 1, 0.01],
-  glowW: [0.85, 1.15, 0.005],
-  glowH: [0.85, 1.15, 0.005],
+  glowW: [0.2, 2.5, 0.01],
+  glowH: [0.2, 2.5, 0.01],
+  glowRadius: [0, 100, 1],
   sheenCycle: [1, 12, 0.1],
   sheenAlpha: [0, 1, 0.01],
   shineMs: [0, 1200, 10],
@@ -183,6 +189,7 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   glowPulseDepth: 'Breathing depth — how far the glow dips each cycle.',
   glowW: 'Glow fit — halo width (× the button).',
   glowH: 'Glow fit — halo height (× the button).',
+  glowRadius: 'Glow shape — halo corner radius (design px). High = a capsule that hugs the pill; 0 = a rectangle.',
   glowColor: 'Hover glow colour.',
   sheenCycle: 'Sheen — seconds per glare sweep cycle (one sweep, then a rest). Lower = livelier.',
   sheenAlpha: 'Sheen — glare strength. 0 = no sweep.',
@@ -249,6 +256,7 @@ export function applyRefreshVars(): void {
   root.setProperty('--rfb-label-s', String(cfg.labelS));
   root.setProperty('--rfb-glow-w', String(cfg.glowW));
   root.setProperty('--rfb-glow-h', String(cfg.glowH));
+  root.setProperty('--rfb-glow-radius', String(cfg.glowRadius));
   root.setProperty('--rfb-glow-alpha', String(cfg.glowAlpha));
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--rfb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));

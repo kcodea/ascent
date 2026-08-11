@@ -89,8 +89,8 @@ export interface TavernUpConfig {
 // 220ms flash with a thick double-ring shockwave, and artDim 1 (the gem only desaturates when locked, no
 // darkening). Mirror position/scale/glow changes into the styles.css `var(--tvb-*, …)` fallbacks.
 const DEFAULTS: TavernUpConfig = {
-  x: -9,
-  y: -287,
+  x: 42,
+  y: -373,
   scale: 1.55,
   gemX: 0,
   gemY: 0,

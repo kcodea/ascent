@@ -1,5 +1,134 @@
 # ASCENT — development log
 
+## 2026-08-11 — the August board is the default now
+
+Owner promoted the August board from trial to default. The stylesheet `--board` now points at
+`newboardaugust.webp`, and the board picker was reworked: the `default` option IS August (url null → reads the
+stylesheet), with a new `classic` option overriding back to the original stone board (`ascentboardnostuff.webp`).
+`BoardId` is now `'default' | 'classic'`; a stale `'august'` in localStorage no longer matches, so it falls to
+the default (still August) — no visible change for anyone mid-trial. Verified live: a cleared preference renders
+August; the Classic toggle swaps to the stone board and back.
+
+## 2026-08-11 — bake the owner's tuned values across every board tuner
+
+Owner pasted final values from all the tuners; baked them into the shipped DEFAULTS (Layout Lab convention:
+production renders DEFAULTS, so update the config + the styles.css fallbacks together).
+
+- **Config DEFAULTS** updated: `layoutConfig` (21 values — shop/warband Y, shop-controls scale/Y, hand-hover &
+  inspect size, quest-node scale + per-node X/Y, gold pill scale/inset, tier-pill X/Y, charge-glyph Y),
+  `refreshConfig` (position/scale + cost seat + glow fit/blur/colour + shine), `freezeConfig` (top-centre nudge),
+  `tavernUpConfig` (position), `endTurnConfig` (position/scale), `heroPowerBtnConfig` (position/scale),
+  `heroPanelConfig` (panel X/Y/scale), `dragFeel` (hand-pop 0.28→0.53), `lobbyPanelConfig` (scale/size/rows/font).
+- **CSS fallbacks:** `layoutConfig` applies its vars only in DEV, so its `styles.css` fallbacks are the
+  PRODUCTION source of truth — updated all 21. The button/panel configs apply at boot in prod (unconditional
+  `applyXVars()`), so their fallbacks are flash-only; updated the pinned-button positions (rfb/frz/tvb) anyway
+  to kill the first-paint jump.
+
+Verified live with tuner storage cleared (so it renders pure DEFAULTS): the board matches the tuned look —
+bigger Refresh top-right, Freeze top-centre, Tier-1 on the stone, the gold circle seated bottom-right,
+circular hero portrait, resized lobby rail. typecheck (web) + lint (0 errors) + `build:web` green.
+
+## 2026-08-11 — hero panel FRAME is a circle too
+
+Owner ask: make the hero portrait PANEL FRAME circular (not just the art). The panel is already a square
+(`.statusbar .hero`, 92u × 92u), so its `border-radius: 18u` → `50%` rounds the whole frame to a circle that
+seats into the board's circular hero node; the portrait (already a circle) fills it inside the gold padding
+ring. Verified live (panel measures square, radius 50%). build/test green.
+
+## 2026-08-11 — Gold pill → circle, + Layout Lab tuners for it and the tavern-tier text
+
+Follow-ups to the HUD reshuffle (owner ask):
+
+- **Gold pill is a circle now** (fixed square + `border-radius: 50%`, showing just the number — the yellow
+  plate reads as the coin) so it seats into the board's bottom-right notch.
+- **New Layout Lab groups:** **Gold pill** (Scale + Inset-from-right + Inset-from-bottom, via `--gold-s/x/y`)
+  and **Tavern tier** (Scale + X + Y, via `--tierpill-s/x/y`) — so both the bottom-right gold circle and the
+  "Tier N" pill on the Tavern stone are position/scale-tunable live.
+
+Verified live: the gold pill measures square (circle); both tuner groups apply their vars to root and the CSS
+reads them. typecheck (web) + lint (0 errors) green.
+
+## 2026-08-11 — circular hero portrait; Gold → bottom-right pill; Tier → onto the Tavern stone
+
+Board HUD reshuffle (owner ask, for the August board's paw layout):
+
+- **Hero portrait is now a circle** (`.hero .f` border-radius 10u → 50%) so it seats into the board's circular
+  hero node.
+- **Gold left the top strip** for its own standalone **glass pill pinned bottom-right of the board**
+  (`GoldPill.tsx` + `.goldpill`): a yellow-glass plaque with the live Gold total. The old strip's hover — this
+  turn's Gold + the projected start of the next two waves — moved with it (opens above the pill).
+- **Tier left the top strip** too, onto a **cream/gold "Tier N" pill on the Tavern Up stone**
+  (`.tvb-tierpill`) — the readout now lives with the button that changes it.
+- The **top stat strip now carries only the turn timer.**
+
+Verified live on the August board: portrait renders circular; the strip shows only Setup Time; "Tier 1" sits
+on the stone; the Gold pill sits bottom-right with its number. typecheck (web) + lint (0 errors) green.
+
+## 2026-08-11 — hide the empty action-tray circle + new hover/quest-node tuner controls
+
+Three more owner-reported board/tuner items:
+
+- **The mystery circle under the shop controls** was the now-EMPTY `.shoprow.actiontray` — Reroll + Freeze were
+  moved out to standalone board buttons, but the tray still painted its gold-bordered pill, collapsed to an
+  11×10px circle. Hidden with `.shoprow.actiontray:empty { display: none }` (reappears if a button is put back).
+- **Card hover-preview size** + **hand hover-pop size** are now Layout Lab dials. The inspect preview
+  (`.cardref-inner`) multiplies its device base by a new `--z-inspect-s` (**Card hover · Hover preview size**);
+  the hand-card hover scale was a hardcoded `1.06`, now `--z-hand-hover-s` (**Hand · Hover size**). `Card.tsx`'s
+  on-screen-footprint math folds in the new size dial too.
+- **Quest/rune nodes are individually positionable.** The badge row's first three nodes (quest/rune 1·2·3 in
+  display order) each take an individual X/Y nudge (`--qb1/2/3-x/y`, **Quest nodes · Node 1/2/3 · X/Y**) off
+  their row slot, so all three can be placed freely instead of only as a row. Defaults 0 = the plain row.
+
+All new controls default to current behaviour (no visual change until tuned). Verified live: the circle is
+gone; the Layout Lab applies every new var to root; the CSS reads them. typecheck (web) + lint (0 errors) green.
+
+## 2026-08-11 — board-controls tuner fixes + shop/combat layout decouple + board-art offset
+
+A batch of owner-reported board/tuner fixes (all UI):
+
+- **Refresh hover-glow flexibility.** The glow was a fixed ellipse at 0.85–1.15× the button — no way to match the
+  wide pill. Widened the fit ranges (0.2–2.5×) and added a **Corner radius** control (`glowRadius` → capsule vs
+  rectangle) so the halo can hug the pill. Glow blur range also widened (0–80px).
+- **Refresh cost-coin now actually tunable.** The baked default (`costX 150`) sat OUTSIDE the tuner range
+  (±90), so the slider could never reach it. Widened cost ranges (X ±260, Y ±160, size 0.3–3×).
+- **Freeze button → board TOP-CENTRE** (was top-right). Re-anchored `.frzwrap` base to `0.5·gw`, `185px` down
+  (clears the Gold/Tier/Time HUD strip, sits on the board's top-centre); `freezeConfig` defaults mirrored.
+- **Shop controls no longer shove the shop/combat row.** `.shopbar` reserved its column footprint in a unit
+  that INCLUDED `--z-shopui-s`, so scaling the controls grew the box and pushed the `flex:1` tavern zone — and
+  because the enemy board renders in that zone, combat positions shifted too. Footprint now uses a
+  shopUiS-free `--u-fix` with `overflow: visible`; the contents still scale. Verified: scaling the controls
+  0.6→1.4 leaves the shop row AND warband/combat row Y pixel-identical.
+- **Board backdrop X/Y offset** added to the Layout Lab (`--board-x/y`). The art is 2.358:1 — wider than the
+  16:9 stage — so ~17% spills past each side; a wider-than-16:9 browser shows that spill (incl. the hero-paw
+  area) while an exact-16:9 fullscreen crops it. Position was hardcoded `center` with no lever; now the owner
+  can nudge the art to pull the paw into the stage in fullscreen. (Root cause is geometric — the paw sits in
+  the horizontal spill — so this is the alignment control, not an auto-fix.)
+
+**Verified live** (browser): Freeze centres top; Refresh top-right; the glow/cost ranges reach the baked
+values; the shop-control-scale decouple holds (row Y unchanged); the board offset shifts the art. typecheck
+(web) + lint (0 errors) green.
+
+## 2026-08-11 — new Refresh button art, moved to the board's top-right
+
+Owner ask: swap the Refresh button to the new `RefreshButton1` art and move it to the top-right of the board.
+
+- Art: `RefreshButton1.png` (1927×816) → `apps/web/public/frames/refresh_button1.webp` (800×339, webp q92,
+  34 KB), a wide orange pill with the "Refresh" wordmark baked in. `RefreshButton.tsx` now points at it.
+- Because the wordmark is in the art, the old floating glass **"Refresh" label** is removed — it would print
+  "Refresh" twice.
+- Reposition: `.rfbwrap` re-anchored from board TOP-CENTRE to **TOP-RIGHT** (base `0.85·gw`, `54px` down),
+  box aspect changed to the pill's 2.362 (`170×72 u`), scale `0.92`; the cost coin moved to the pill's right
+  end (`costX/Y/S` 150/−40/1.5). CSS `--rfb-*` fallbacks and the `refreshConfig.ts` DEFAULTS are updated
+  together (the tuner + shipped defaults stay in sync); the 🔄 dev tuner still fine-tunes from the new base.
+
+**Verified live** (throwaway run, browser): the pill renders top-right with its gold cost coin, the click
+still rolls the shop (gold 3→2), no console errors, art loads (no 404). typecheck (web) + lint (0 errors) +
+`build:web` green.
+
+Follow-up for owner: the hover **glow is still the old blue** (`rgba(82,189,255,…)`) — a cool halo on a warm
+button. Left as-is (retune the glow colour in the 🔄 tuner if you want it gold). The pressed-state art
+(`RefreshButtonPressed.png`) exists but isn't wired — the button uses an FX flare on click, not a press swap.
+
 ## 2026-08-11 — Paymaster Pimm's Shout gets an effect, and shop bindings learn to carry a sound
 
 The owner authored `coin-shout` and asked for it on the tier-1 Dwarf whose Shout pays 1 Gold next turn

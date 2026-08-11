@@ -38,7 +38,7 @@
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
-  --board: url('/ascentboardnostuff.webp');
+  --board: url('/newboardaugust.webp');
   /* The board art's own aspect (3440x1459). `.boardbg` needs it to compute the art's WIDTH from the
      stage height, so it can guarantee full coverage on a window wider than 16:9. Update if the art does. */
   --board-aspect: 2.3578;
@@ -161,7 +161,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
      `--board-fill`, and re-check the four button offsets, which are tuned against this exact art size. */
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
+    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 0px) * var(--scale)) / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -169,8 +169,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 46px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -79px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, -22px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -195px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -184,7 +184,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
    +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
-.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -79px) + var(--wb-drop, 0px)) * var(--scale)); }
+.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -195px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
@@ -198,7 +198,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .chargeglyph {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
   width: calc(var(--charge-w, 1148px) * var(--scale)); aspect-ratio: 1385 / 544;
-  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
+  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -111px) * var(--scale)));
   /* z-index 0 (NOT -1): .app is transparent over an opaque dark wrapper, so a NEGATIVE-z child paints behind
      .app's content and gets covered (invisible). z:0 keeps the glyph painted above the board backdrop while
      sitting in .app's paint group with the cards (position:relative / z:auto) — tree order then decides, and the
@@ -257,7 +257,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .charge-motes {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
   width: calc(var(--charge-w, 1148px) * var(--scale) * 1.5); aspect-ratio: 1 / 1;
-  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
+  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -111px) * var(--scale)));
   z-index: 0; pointer-events: none;
 }
 
@@ -428,7 +428,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
 .hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-.hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(10 * var(--u)); background: var(--ink); display: grid; place-items: center; overflow: hidden; }
+.hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: 50%; background: var(--ink); display: grid; place-items: center; overflow: hidden; }
 .hero .f svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--acc); }
 .hero .f .heroimg { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; -webkit-user-drag: none; }
 .hero .nm { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); }
@@ -453,7 +453,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
    (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
    controls" group. Defaults are a no-op (×1 / 0px). */
-.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -49px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* The shop-controls tray. Its COLUMN FOOTPRINT (height + margins) is reserved in `--u-fix` — a unit WITHOUT
+   `--z-shopui-s` — so scaling the controls (Shop controls · Scale) never grows the box and therefore never
+   pushes the tavern/warband rows (and, since the enemy board renders in the tavern zone, never shifts combat
+   positions — owner report 2026-08-11). The CONTENTS still size off `--u` (which includes the scale) and simply
+   `overflow: visible` past the fixed box when scaled up. X/Y offsets use `top/left` on a relative box, which
+   never reflowed siblings to begin with. */
+.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.31)); top: calc(var(--z-shopui-y, -92px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -540,6 +546,10 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    gold edge (the mockup's control cluster). The frame adds height that the shorter info strip gives back, so
    the two rows still total the old shopbar height and the tavern/warband rows don't shift. */
 .shoprow.actiontray { gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); background: linear-gradient(180deg, rgba(70, 48, 18, 0.16), rgba(70, 48, 18, 0.30)); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(50, 34, 14, 0.30), 0 calc(3 * var(--u)) calc(9 * var(--u)) -4px var(--shadow); }
+/* Reroll + Freeze were moved out to standalone board buttons, leaving this tray EMPTY — which still painted
+   its gold-bordered pill as a tiny circle under the HUD (owner report 2026-08-11). Hide it while it has no
+   children; it reappears if a button is ever put back in the tray. */
+.shoprow.actiontray:empty { display: none; }
 /* Buttons inside the tray drop their outer drop-shadow (the tray carries it) so the group reads as one unit. */
 .shoprow.actiontray .shopbtn { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
 /* ---- Standalone End Turn DIAMOND (EndTurnButton.tsx) — the gem-in-bronze button on the board's middle-right,
@@ -548,9 +558,9 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
 .etbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 32px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--etb-s, 1.19));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 70px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, -64px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 0.95));
   width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -661,8 +671,8 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    matching the diamond's tooltip feel. */
 .combatsummary {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 70px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -64px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
@@ -688,15 +698,31 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    overlaps its rim) → base (z1) → tier pips (z2) → gem-halo glow (z3) → press flash (z4) → cost coin (z5). */
 .tvbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, -9px) * var(--scale));
-  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, -287px) * var(--scale));
+  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 42px) * var(--scale));
+  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, -373px) * var(--scale));
   transform: translate(-50%, -50%) scale(var(--tvb-s, 1.55));
   width: calc(128 * var(--u)); height: calc(125.5 * var(--u)); /* the trimmed base art's 512×502 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
+/* Current-tier pill on the stone (owner ask 2026-08-11) — the Tier readout moved off the top bar onto the
+   button that changes it. A cream/gold label eclipsing the stone's bottom edge, matching the hero-name pill;
+   pointer-events off so it never eats the upgrade click. Scales with the button (it's a child of the wrap). */
+.tvbwrap .tvb-tierpill { position: absolute; left: 50%; bottom: calc(6 * var(--u)); transform: translate(calc(-50% + var(--tierpill-x, 114px) * var(--scale)), calc(var(--tierpill-y, -87px) * var(--scale))) scale(var(--tierpill-s, 1)); z-index: 6; pointer-events: none; white-space: nowrap; padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 .tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+
+/* Standalone GOLD pill (owner ask 2026-08-11) — the Gold readout moved off the top strip to its own glass
+   button pinned BOTTOM-RIGHT of the board: a yellow-glass plaque with the live Gold total. Stage-pinned; the
+   next-gold tooltip reveals ABOVE it (the pill sits at the board's bottom edge). `--gold-x/y` allow a nudge. */
+/* A CIRCLE (owner ask 2026-08-11) to seat in the board's bottom-right notch — fixed square + border-radius 50%,
+   sized/placed by the Layout Lab (--gold-s scale, --gold-x/y inset from the right/bottom edge). */
+.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 355px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 432px) * var(--scale)); transform: scale(var(--gold-s, 1.71)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
+.goldpill svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: #4a2f08; }
+.goldpill-v { font-family: var(--font-ui); font-weight: 900; font-size: calc(23 * var(--u)); font-variant-numeric: tabular-nums; color: #2e1d05; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5); line-height: 1; }
+.goldpill:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+/* The pill sits bottom-right, so its tooltip opens ABOVE + right-aligned (the base `.sbtip` opens below-centred). */
+.goldpill .sbtip { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; transform: none; }
 /* Disabled (can't afford / locked) dims the GEM only — the stone base + pips are board furniture cut straight
    from the board art, so they must NEVER dim (a dimmed base pops out against the board instead of sitting
    flush — owner note 2026-07-16). The gem going dark reads as "can't use right now". Static filter; brightness
@@ -1008,7 +1034,7 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    card is the same height anyway, and the panel hangs below at a fixed offset). A soft dark drop-shadow
    (follows the card's alpha, so it hugs the frame) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(var(--z-hand-hover-s, 1.34)); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
@@ -2139,7 +2165,9 @@ body.modalup .statusbar .questbadges {
 /* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
    is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
+/* `--inspect-zoom` is the device base (1 desktop, 1.3 mobile, set in Game.tsx); `--z-inspect-s` is the Layout
+   Lab's live size dial for the hover/inspect preview (owner ask 2026-08-11) — they multiply. */
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.34)); }
 /* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
    flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
    overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
@@ -2563,8 +2591,14 @@ body.modalup .statusbar .questbadges {
    statusbar is only as wide as the hero box — so the row folded into a vertical stack the moment it left
    flow (owner report 2026-08-03). Sizing to content restores the horizontal row; `max-width` still wraps
    a genuinely long badge run. */
-.questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); width: max-content; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
+.questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); width: max-content; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -7px) * var(--scale)), calc(var(--qb-y, -434px) * var(--scale))) scale(var(--qb-s, 1.4)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+/* PER-NODE placement (owner ask 2026-08-11): the first three badges (quest/rune 1·2·3 in display order) each
+   take an individual X/Y nudge off their row slot, so all three can be positioned freely instead of only as a
+   row. Defaults 0 = the plain row. The row transform on `.questbadges` still applies to the group. */
+.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -7px) * var(--scale)), calc(var(--qb1-y, 49px) * var(--scale))); }
+.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 5px) * var(--scale)), calc(var(--qb2-y, 10px) * var(--scale))); }
+.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 21px) * var(--scale)), calc(var(--qb3-y, 21px) * var(--scale))); }
 /* ---- PENDING quest node — taken but not yet activated (QuestBadges).
    The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the
    moment it's taken and sits DIM until it activates, then lights up as a trophy in the same slot. The dim
@@ -2678,7 +2712,9 @@ body.dragging .statusbar .hero { pointer-events: none; }
    never pushes the art out). Every piece re-seats via the 🧍 tuner. */
 .statusbar .hero {
   position: relative; /* anchor for the pills + the floated Resolve box */
-  display: block; padding: calc(6 * var(--u)); border-radius: calc(18 * var(--u));
+  /* A CIRCLE frame (owner ask 2026-08-11): the panel is a square, so 50% rounds it to a circle that seats into
+     the board's circular hero node. The portrait fills it (also a circle) inside the padding ring. */
+  display: block; padding: calc(6 * var(--u)); border-radius: 50%;
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
@@ -2725,9 +2761,9 @@ body.dragging .statusbar .hero { pointer-events: none; }
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -118px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 53px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.28));
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -38px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 295px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 0.98));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
@@ -5649,8 +5685,8 @@ svg { width: 18px; height: 18px; }
    never filter / box-shadow / background-position, which repaint every frame in a loop. */
 .riftbtn {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 70px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -64px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; justify-content: center;
   font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.08em; color: #f3e9ff;
@@ -5785,10 +5821,12 @@ svg { width: 18px; height: 18px; }
    PERF: the two LOOPING animations (glow breath, sheen sweep) animate opacity/transform ONLY. */
 .rfbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 3px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 294px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.73));
-  width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
+  /* Base point is now the board's TOP-RIGHT (owner ask 2026-08-11): anchor the button's centre near the right
+     edge + top of the stage; the `--rfb-x/y` tuner offsets fine-tune from there. */
+  left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -73px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 220px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 1.85));
+  width: calc(170 * var(--u)); height: calc(72 * var(--u)); /* the art's 1927×816 (2.362) aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
@@ -5804,9 +5842,11 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
    would clip square at the box). STATIC shadow: only this layer's OPACITY animates. */
 .rfb-glow {
   position: absolute; left: 50%; top: 50%;
-  width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
+  width: calc(100% * var(--rfb-glow-w, 0.93)); height: calc(100% * var(--rfb-glow-h, 0.59));
   transform: translate(-50%, -50%);
-  border-radius: 50%;
+  /* A capsule/pill radius (design-px × --scale) so the halo can hug the WIDE Refresh pill instead of being a
+     fixed ellipse — tunable via `--rfb-glow-radius` (Glow fit → Corner radius). */
+  border-radius: calc(var(--rfb-glow-radius, 33) * var(--u));
   box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(82, 189, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
@@ -5856,7 +5896,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.6));
+  transform: translate(calc(-50% + var(--rfb-cost-x, -66) * var(--u)), calc(-50% + var(--rfb-cost-y, -64) * var(--u))) scale(var(--rfb-cost-s, 0.72));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
@@ -5974,8 +6014,10 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
    freeze art isn't in yet, so this rule only OVERRIDES the positioning, nothing visual. */
 .frzwrap.frzwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.845 * var(--gw) + var(--frz-x, -8px) * var(--scale));
-  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--frz-y, -287px) * var(--scale));
+  /* TOP-CENTRE of the board now (owner ask 2026-08-11) — base point is the stage's horizontal centre + top;
+     `--frz-x/y` fine-tune from there. */
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--frz-x, 10px) * var(--scale));
+  top: calc(var(--bar-y) + var(--frz-y, 206px) * var(--scale));
   transform: translate(-50%, -50%) scale(var(--frz-s, 1));
   z-index: 41;
 }

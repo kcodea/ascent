@@ -1,6 +1,7 @@
 /**
- * Board picker (owner ask 2026-08-11) — swap the in-game arena backdrop between the shipped board and a
- * "test board" still being trialled. It's a display-only preference: the choice overrides the `--board` CSS
+ * Board picker (owner ask 2026-08-11) — swap the in-game arena backdrop. The AUGUST board is the default now;
+ * the Classic (original stone) board is a togglable alternate. It's a display-only preference: the choice
+ * overrides the `--board` CSS
  * var on the root (`.boardbg` + the hero-select preview read it), persists to localStorage, and applies once
  * at boot as a side-effect import so the pick survives a reload with no flash of the wrong art.
  *
@@ -9,7 +10,7 @@
  * different aspect, this needs to swap those too.
  */
 
-export type BoardId = 'default' | 'august';
+export type BoardId = 'default' | 'classic';
 
 interface BoardOption {
   id: BoardId;
@@ -20,8 +21,10 @@ interface BoardOption {
 }
 
 export const BOARDS: BoardOption[] = [
-  { id: 'default', label: 'Classic', blurb: 'The shipped arena board', url: null },
-  { id: 'august', label: 'Test board', blurb: 'New August board — in trial', url: "url('/newboardaugust.webp')" },
+  // `default` is the AUGUST board now (owner promoted it 2026-08-11) — url null means it reads the stylesheet
+  // `--board`, which points at newboardaugust.webp. `classic` overrides back to the original stone board.
+  { id: 'default', label: 'August', blurb: 'The arena board', url: null },
+  { id: 'classic', label: 'Classic', blurb: 'The original stone board', url: "url('/ascentboardnostuff.webp')" },
 ];
 
 const KEY = 'ascent.board';

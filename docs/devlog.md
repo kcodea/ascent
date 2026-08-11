@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-11 — Contract Butcher's Shout gets an effect, in both phases
+
+`shop-buff-shout` bound to Contract Butcher (`dm_butcher`) — the tier-2 Demon whose Shout gives Shop minions
++1/+1 — for the shop AND for combat.
+
+- **Shop:** `dm_butcher.shout` — plays when the card is played, off the same board-diff `shout` signal Pimm's
+  coin-shout uses.
+- **Combat:** `dm_butcher.scNarrate`. A Shout can re-fire mid-fight — three runes do it (Shared Scripture on
+  the first Shop-spell cast, War Chorus on the first Rally, Ancestral Roar for a dying Dragon), each emitting
+  `{ type: 'sc', text: 'Shout' }`, which `momentKind` maps to `scNarrate`. Card-scoped to `dm_butcher`, that
+  kind fires ONLY on Contract Butcher's own combat Shout (its sole `sc` source), so it never rides a
+  spell-power narration. The `sc` event has no target, and `combatAnchorsFromRects` folds a null target onto
+  the source — so the def plays ON Contract Butcher, exactly as in the shop.
+
+Set-2 audit for the owner: the other Shout-that-buffs-the-Shop minions are **Market Tormentor** (`dm_tormentor`,
+right-most slot +4/+2, stacks) and **Wardkeeper** (`dw_wardkeeper`, Shop spells +1 Attack). Demon Horse and
+Fatecarver buff the shop on RALLY, Soul Defiler and Void Curator on End of Turn — not Shouts.
+
+Verified: the combat path was traced end to end — three rune re-fire sites in `simulate.ts` all emit the
+`sc`/Shout event, `score.ts` resolves `bindingFor('dm_butcher','scNarrate')` on the source and folds the null
+target onto it. typecheck, eslint 0 errors, 4876 tests, build:web. The live combat visual needs a rune set up
+to trigger, so it is wiring-verified rather than eyeballed.
+
 ## 2026-08-11 — A crit plays a different ring (bindings gain a crit variant)
 
 Karwind's 20% double now plays `flame-ring-crit` — a red ring — INSTEAD of `flame-ring`, on the Dragons it

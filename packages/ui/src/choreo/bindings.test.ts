@@ -175,6 +175,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
+  dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
 };
 

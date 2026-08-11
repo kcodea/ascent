@@ -59,6 +59,14 @@
         "fanOut": "damaged"
       }
     },
+    "dm_butcher": {
+      "shout": {
+        "def": "shop-buff-shout"
+      },
+      "scNarrate": {
+        "def": "shop-buff-shout"
+      }
+    },
     "dw_pimm": {
       "shout": {
         "def": "coin-shout",

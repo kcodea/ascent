@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-11 — The FX workbench Save bug: a debounced autosave that a reload outran
+
+**Symptom** (hit twice while authoring shop-buff-shout / self-buff-gold): the author changes an effect, clicks
+Save, and the written file is byte-identical to what was already committed — their edits silently gone.
+
+**Root cause**, two interacting parts, both confirmed in the code and one live:
+- The workbench autosaves the live composition to `localStorage` on a 500ms DEBOUNCE, and the effect's cleanup
+  only CLEARS the pending timer — it never flushes. So any unmount within 500ms of an edit drops that edit.
+- A def Save reloads the page: `fxDefsPlugin` watches the defs dir and sends Vite a `full-reload` on a NEW def
+  file, and an overwrite invalidates through the import graph (HMR). Either unmounts the workbench.
+
+Chain: a reload between an edit and a Save — the author's own prior Save, or (likely here, given the repo's
+many concurrent sessions) another session writing a def into the served checkout — reverts the in-memory edits
+to the stale restored session, because the debounce never flushed. The author doesn't notice, clicks Save, and
+it writes that stale composition.
+
+**Fix:** flush the pending autosave synchronously before any reload (`beforeunload`, which `location.reload()`
+fires) and on unmount, so the restored session is always the latest edits. Verified live: after an edit the
+session key is empty (debounce pending); after a dispatched `beforeunload` it is written — the flush fires in
+exactly the window a reload used to lose. Cannot be unit-tested here (no jsdom; it is a page-lifecycle effect).
+
+typecheck, eslint 0 errors, 4876 tests, build:web.
+
 ## 2026-08-11 — Career match rows show the round reached + when the run was played
 
 Owner ask: each Career match-history row should show the round the run ended on and its date/time (e.g.

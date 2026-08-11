@@ -1070,14 +1070,45 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Deliberately NOT the def file: a git-tracked write on every slider drag is exactly what Save is for.
   // And deliberately the PRESENT only — the undo stack is session-scoped and is never written, so reopening
   // the workbench restores the composition you were looking at, not a half-consumed history to step through.
+  // The latest composition, mirrored into a ref so the flush below can write it from a context that has no
+  // render closure (a `beforeunload` handler, an unmount cleanup).
+  const sessionRef = useRef({ layers, selected, durationMs, seed, seedLocked, slot, ease });
+  sessionRef.current = { layers, selected, durationMs, seed, seedLocked, slot, ease };
+  // True while a debounced autosave is scheduled but not yet written — the window in which a reload would
+  // otherwise drop the edit.
+  const autosavePendingRef = useRef(false);
+
   useEffect(() => {
     if (!autosaveArmedRef.current) return;
-    const timer = setTimeout(
-      () => saveSession({ layers, selected, durationMs, seed, seedLocked, slot, ease }),
-      AUTOSAVE_DEBOUNCE_MS,
-    );
+    autosavePendingRef.current = true;
+    const timer = setTimeout(() => {
+      saveSession(sessionRef.current);
+      autosavePendingRef.current = false;
+    }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [layers, selected, durationMs, seed, seedLocked, slot, ease]);
+
+  // THE SAVE BUG (root cause, 2026-08-11). The debounce above cancels its pending write on unmount, and a def
+  // Save triggers a Vite `full-reload` (a NEW def file — see `fxDefsPlugin`) or an HMR invalidation (an
+  // overwrite) that unmounts this component. So an edit made in the ~500ms before ANY reload — the author's
+  // own prior Save, or, under this repo's many concurrent sessions, another session writing a def into the
+  // served checkout — was dropped from the autosave; the reload then restored the PRE-edit session, and the
+  // next Save wrote that stale composition, byte-identical to what was already committed. Flush the pending
+  // write synchronously before a reload (`beforeunload`, which `location.reload()` fires) and on unmount, so
+  // the restored session is always the author's latest edits. Cannot be unit-tested here (no jsdom, and it is
+  // a page-lifecycle effect); verified by the disappearance of the stale-save symptom.
+  useEffect(() => {
+    const flush = (): void => {
+      if (!autosavePendingRef.current) return;
+      saveSession(sessionRef.current);
+      autosavePendingRef.current = false;
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+  }, []);
 
   // The transient "Saved" confirmation's timer, cleared on unmount.
   useEffect(() => () => {

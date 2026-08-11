@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-10 — Replay Phase 1b: the replay DRIVER (plays a run back through the live UI)
+
+The engine that plays a recorded run back through the actual game UI. `replayDriver.playReplay(replay)`
+reconstructs the opening state (`createLobbyRun` + the recorded `servedBoards` for faithful fights), then
+re-applies the logged actions via `reduce` DIRECTLY — never the live `dispatch`, which is now swallowed while
+`replaying` — so no uploads / saves / rating fire and nothing fights the driver. Shop actions are paced by the
+player's REAL recorded cadence (`timings[i]`) × speed; combats are paced by the arena's OWN animation: the
+driver waits on a new `combatReplayDone` flag (bridged from `useCombatReplay` in Recruit) before leaving each
+fight.
+
+The integration is deliberately tiny for how much it does: one `if (replaying) return` guard on `dispatch`
+(kills side effects + input + the auto-advance effects in one line — the arena still animates because it reacts
+to `run`, not to dispatch), one bridge effect in Recruit, and a `replaying`/`combatReplayDone` pair on the
+store. `replayDriver.ts` is the whole driver; a DEV `window.playReplay(useGame.getState().exportReplay())`
+handle drives it.
+
+**Verified live end-to-end.** Generated a real 3-round lobby run (`[faceOmen, resolveCombat] × 3`, timings
+`[0, 1002, 996, …]`, 3 served boards), then `playReplay(...,{speed:2})` and polled: it reconstructed to wave 1,
+ANIMATED each fight (the `done` flag went false→true over ~1s per combat — the real `useCombatReplay` clock),
+waited for each, advanced w1→w2→w3, and ended at wave 4 (the run's real end) with `replaying` back to false. No
+console errors. Gates: typecheck (web+pkgs), full `npm test` 4787/286, lint at the 7-warning baseline,
+`build:web` green.
+
+Known follow-ups for the viewer (Phase 1c): snapshot + restore the pre-replay live run (a replay currently
+leaves the store showing the replayed run), plus play/pause, the 1–10× speed slider, the scrub bar, and the
+"Rewatch" entry point. The driver takes `{speed}` already.
+
 ## 2026-08-10 — Replay Phase 1a: capture per-action timing + served boards
 
 First slice of the replay-viewer feature — the DATA foundation. The fidelity groundwork checked out (a cold

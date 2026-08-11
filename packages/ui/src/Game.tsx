@@ -26,6 +26,7 @@ import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
 import { sfx } from './sfx';
 import { useGame } from './store';
+import './replayDriver'; // registers the DEV `window.playReplay` handle (side-effect import)
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the

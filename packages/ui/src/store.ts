@@ -313,6 +313,13 @@ interface GameStore {
   clearRun: () => void;
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
   showTitle: boolean;
+  /** REPLAY VIEWER — true while a recorded run is playing back. The `run` is driven by the replay driver
+   *  (reduce-only, no uploads/saves), and the recruit/combat UI reads this to auto-advance combats + block
+   *  live input instead of waiting for the player. */
+  replaying: boolean;
+  /** Bridge from the combat arena's replay clock: true once the current fight's animation has finished, so the
+   *  replay driver knows when it's safe to leave combat. Meaningless outside `replaying`. */
+  combatReplayDone: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
   pendingMode: RunMode;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
@@ -592,6 +599,8 @@ export const useGame = create<GameStore>((set, get) => ({
   heroChoices: null,
   lastHeroOffer: [],
   showTitle: true,
+  replaying: false,
+  combatReplayDone: false,
   showLeaderboard: false,
   pendingMode: 'ascent',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
@@ -650,6 +659,11 @@ export const useGame = create<GameStore>((set, get) => ({
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions, timings: get().replayTimings, servedBoards: get().run.servedBoards }),
   dispatch: (action) =>
     set((s) => {
+      // REPLAY VIEWER: while a recorded run is playing back, the driver owns the run state (it applies actions
+      // via `reduce` directly). Swallow every live dispatch here so nothing else — the arena's auto-settle/
+      // end-combat effects, or a stray click — fires a side effect (upload / autosave / rating) or fights the
+      // driver. The combat ARENA still animates (it reacts to `run`, not to dispatch).
+      if (s.replaying) return {} as Partial<GameStore>;
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
       // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here
       // with the action that caused it. No-op passthrough when the monitor is off.

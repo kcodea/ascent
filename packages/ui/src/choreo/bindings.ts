@@ -50,9 +50,30 @@ export interface FxBinding {
    *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
    */
   fanOut?: 'primary' | 'damaged' | 'selfBuffed' | 'buffed';
+  /**
+   * A sound to fire alongside the def, named from {@link BINDING_SFX}.
+   *
+   * Here rather than in the cue runner because "which sound" is the same KIND of question as "which def" —
+   * both are per-card authoring decisions, and the runner is deliberately ignorant of both. The alternative
+   * was a card-id check inside `Recruit.tsx`, which is precisely the bespoke-shop-effect shape the recruit
+   * cue system exists to delete.
+   *
+   * A WHITELIST, not a free string: an unknown name is dropped with a loud dev error rather than resolving to
+   * nothing at play time, because a sound that silently never fires is indistinguishable from a sound the
+   * author cannot hear over the rest of the mix.
+   */
+  sfx?: BindingSfx;
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'buffed'];
+
+/**
+ * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of
+ * those are wired to a specific game beat and would read as a bug if a shop effect started firing them. Add
+ * one here when an authored effect actually wants it.
+ */
+export const BINDING_SFX = ['maxGold', 'buff', 'triple', 'triggerPulse'] as const;
+export type BindingSfx = (typeof BINDING_SFX)[number];
 
 /**
  * A reserved def id for LIVE PREVIEWS. A binding to it applies in memory — that is what makes the authoring
@@ -132,7 +153,14 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.fanOut must be one of ${FAN_OUTS.join(', ')} — dropped.`);
     return null;
   }
-  return v.fanOut === undefined ? { def: v.def } : { def: v.def, fanOut: v.fanOut as FxBinding['fanOut'] };
+  if (v.sfx !== undefined && (typeof v.sfx !== 'string' || !(BINDING_SFX as readonly string[]).includes(v.sfx))) {
+    devError(`[fx] bindings.json: ${where}.sfx must be one of ${BINDING_SFX.join(', ')} — dropped.`);
+    return null;
+  }
+  const out: FxBinding = { def: v.def };
+  if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
+  if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
+  return out;
 }
 
 /**

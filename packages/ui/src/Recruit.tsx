@@ -50,7 +50,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf } from './choreo/recruitMoments';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat } from './fx/statHold';
@@ -3027,6 +3027,27 @@ export function Recruit() {
     if (fresh.length === 0) return;
     setBattlecryUids((s) => new Set([...s, ...fresh]));
     sfx.triggerPulse(); // a Battlecry officially fires → the medallion pulse cue (deduped)
+    // The SAME signal, published as a bindable moment. `fresh` is already "a minion whose Shout just fired",
+    // which is the source `recruitMoments.ts` requires before a kind may exist — this adds no new detection,
+    // it names the one that was already driving the medallion.
+    //
+    // ONE MOMENT PER MINION, each naming its own card as the source: two different minions played in the same
+    // action must each resolve their own binding, and a single moment carrying both recipients would make the
+    // second silently take the first's effect.
+    for (const uid of fresh) {
+      const cardId = run.board.find((c) => c.uid === uid)?.cardId ?? null;
+      if (cardId === null) continue;
+      runRecruitMomentCues(
+        shoutMoment(uid, cardId),
+        {
+          cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+          measure: (u) => {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
+            return el ? restingCenterOf(el) : null;
+          },
+        },
+      );
+    }
     /* The 760ms clear is PER UID and must outlive this effect's next run. It used to be a single timeout
        cancelled by the effect's own cleanup — and the deps are `[run.board, inCombat]`, so ANY board change
        inside that window (a buff writing a new array, a sell, a reorder) killed the clear and left the minion

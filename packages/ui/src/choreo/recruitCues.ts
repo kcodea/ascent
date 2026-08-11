@@ -1,6 +1,7 @@
 import { cascade, scheduleLands, type Land } from '../fx/land';
+import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { bindingFor } from './bindings';
+import { bindingFor, type FxBinding } from './bindings';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import type { RecruitMoment } from './recruitMoments';
 
@@ -61,7 +62,7 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   // effect had to learn about individually.
   const raf = requestAnimationFrame(() => {
     for (const land of scheduleLands(cascade(moment.recipients), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
-      const fire = (): void => fireLand(land, binding.def, ctx);
+      const fire = (): void => fireLand(land, binding, ctx);
       if (land.at <= 0) fire();
       else timers.push(setTimeout(fire, land.at));
     }
@@ -75,11 +76,15 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
 
 /** One land. Measured INSIDE the timer so a stagger that outlives a re-render — a triple collapsing three
  *  bodies into one, a sold minion — misses cleanly instead of firing at a stale rect. */
-function fireLand(land: Land, def: string, ctx: RecruitCueContext): void {
+function fireLand(land: Land, binding: FxBinding, ctx: RecruitCueContext): void {
   const p = ctx.measure(land.uid);
   if (!p) return;
   // Both anchors are the minion itself: a shop effect lands ON a card, with nothing to travel between.
   // `uids` names it so a `react` layer has a subject — the shop path was the one that had none.
-  playDef(def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group });
+  playDef(binding.def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group });
+  // The binding's own sound, fired WITH the visual rather than by the caller, so the two cannot drift apart
+  // and a re-bind carries its sound along. Whitelisted at parse time (see `BINDING_SFX`), so this lookup is
+  // total; the `?.` guards a name whose sfx entry was removed without updating the list.
+  if (binding.sfx !== undefined) sfx[binding.sfx]?.();
   ctx.onLand?.(land.uid);
 }

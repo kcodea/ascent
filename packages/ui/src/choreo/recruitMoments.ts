@@ -43,9 +43,34 @@ export type RecruitMomentKind =
   /** One or more Rubies were played onto board minions (drag from hand, a card that gems the board, an offer). */
   | 'rubyLanded'
   /** A board minion gained stats from a shop-phase source — a Shout, a spell, an End of Turn. */
-  | 'minionBuffed';
+  | 'minionBuffed'
+  /**
+   * A minion's Shout fired as it was played. Its source is the same signal that already drives the medallion
+   * pulse in `Recruit.tsx`: a minion newly on the board whose def carries an `onPlay` effect (or a Choose One).
+   *
+   * The recipient IS the source — a Shout happens ON the card that shouted, with nothing to travel between —
+   * so this is emitted one moment per shouting minion rather than one moment with several recipients. That is
+   * what lets each card resolve its OWN binding: two different minions played in the same action would
+   * otherwise have to share one, and the second would silently take the first's effect.
+   */
+  | 'shout';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'minionBuffed'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'minionBuffed', 'shout'];
+
+/**
+ * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
+ * module — the invariant `recruitMoments.test.ts` guards is "no declared kind without a source", and a kind
+ * assembled as an object literal somewhere in `Recruit.tsx` would satisfy the type checker while leaving that
+ * guard unable to see it.
+ *
+ * Not folded into `recruitMomentsSince` because its source is not a counter: a Shout is detected by diffing
+ * the BOARD (a minion is new, and its def has an `onPlay`), which `Recruit.tsx` already does to drive the
+ * medallion pulse. Duplicating that diff here to satisfy one function's shape would mean two detectors for
+ * one signal, and the second one would be the one that drifts.
+ */
+export function shoutMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'shout', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
 
 /** One recipient of a moment, and how many times it received. `count` above 1 is a STACK — two Rubies on
  *  one body — which the cue walks as repeats rather than collapsing (see `fx/land.ts`). */

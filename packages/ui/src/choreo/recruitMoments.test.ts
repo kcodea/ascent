@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RunState } from '@game/sim';
 import {
-  captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs,
-} from './recruitMoments';
+  captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs, shoutMoment } from './recruitMoments';
 
 /** Only the four FX fields are read; the rest of a RunState is irrelevant to this scan. */
 type Src = Parameters<typeof recruitMomentsSince>[0];
@@ -108,13 +107,26 @@ describe('recruitMomentsSince', () => {
   });
 
   /** Every declared kind must be reachable, or the workbench publishes a binding slot that never fires —
-   *  the exact failure the `rally` binding shipped with for weeks. */
-  it('every declared kind is actually produced by some input', () => {
-    const produced = new Set(recruitMomentsSince(run({
-      rubyLandedFxSeq: 1, rubyLandedFx: [{ uid: 'a', count: 1 }],
-      recruitFxSeq: 1, recruitBuffFx: [buff('b')],
-    }), NONE).map((m) => m.kind));
+   *  the exact failure the `rally` binding shipped with for weeks.
+   *
+   *  Covers EVERY emitter in this module, not just `recruitMomentsSince`: `shout` is detected by a board
+   *  diff rather than a counter (see `shoutMoment`), so a check that only knew about the counter-driven
+   *  function would either fail on a perfectly sourced kind or have to be weakened to ignore it. Adding a
+   *  kind still fails this test until its emitter is listed here. */
+  it('every declared kind is actually produced by some emitter', () => {
+    const produced = new Set<string>([
+      ...recruitMomentsSince(run({
+        rubyLandedFxSeq: 1, rubyLandedFx: [{ uid: 'a', count: 1 }],
+        recruitFxSeq: 1, recruitBuffFx: [buff('b')],
+      }), NONE).map((m) => m.kind),
+      shoutMoment('a', 'dw_pimm').kind,
+    ]);
     expect([...produced].sort()).toEqual([...RECRUIT_MOMENT_KINDS].sort());
+  });
+
+  it('a shout names its own card as the source, so each minion resolves its own binding', () => {
+    const m = shoutMoment('u1', 'dw_pimm');
+    expect(m).toEqual({ kind: 'shout', sourceCardId: 'dw_pimm', recipients: [{ uid: 'u1', count: 1 }] });
   });
 });
 

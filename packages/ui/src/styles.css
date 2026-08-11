@@ -38,7 +38,7 @@
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
-  --board: url('/ascentboardnostuff.webp');
+  --board: url('/newboardaugust.webp');
   /* The board art's own aspect (3440x1459). `.boardbg` needs it to compute the art's WIDTH from the
      stage height, so it can guarantee full coverage on a window wider than 16:9. Update if the art does. */
   --board-aspect: 2.3578;

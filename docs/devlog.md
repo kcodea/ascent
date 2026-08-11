@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-11 — the August board is the default now
+
+Owner promoted the August board from trial to default. The stylesheet `--board` now points at
+`newboardaugust.webp`, and the board picker was reworked: the `default` option IS August (url null → reads the
+stylesheet), with a new `classic` option overriding back to the original stone board (`ascentboardnostuff.webp`).
+`BoardId` is now `'default' | 'classic'`; a stale `'august'` in localStorage no longer matches, so it falls to
+the default (still August) — no visible change for anyone mid-trial. Verified live: a cleared preference renders
+August; the Classic toggle swaps to the stone board and back.
+
 ## 2026-08-11 — bake the owner's tuned values across every board tuner
 
 Owner pasted final values from all the tuners; baked them into the shipped DEFAULTS (Layout Lab convention:

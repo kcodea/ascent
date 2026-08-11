@@ -689,7 +689,13 @@ describe('a tombstone in the file', () => {
  * pinned here is the QUESTION it asks. If these answers ever flip, the tendril loop silently changes
  * behaviour for every card in the table.
  */
-describe('a bound def suppresses the stock shop tendril', () => {
+describe('a bound def suppresses the stock shop tendril AND the flame flash', () => {
+  // Both stock cues (the buff tendril and Karwind's flame flash) key their suppression off the SAME question:
+  // did a card with a `minionBuffed` binding buff this Dragon? The flash reads it via `recruitBuffFx`'s
+  // per-event `sourceCardId`; the pins below guard the answers that question depends on. `onBattlecryBuffTribe`
+  // (which stamps the flash) is used by Karwind AND an unbound set-2 Dragon, so the discriminator MUST be the
+  // binding, never the card id — an id check would strip the unbound Dragon's flash too.
+
   it('Karwind is bound at minionBuffed, so its tendril is suppressed', () => {
     expect(bindingFor('karwind', 'minionBuffed')).not.toBeNull();
   });

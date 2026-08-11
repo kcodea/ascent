@@ -3133,7 +3133,28 @@ export function Recruit() {
   useEffect(() => {
     if (run.karwindFlashSeq === prevKarwindSeq.current) return;
     prevKarwindSeq.current = run.karwindFlashSeq;
-    const uids = run.karwindFlash ?? [];
+    // AN AUTHORED DEF REPLACES THE STOCK CUE (owner ruling 2026-08-11) — the same rule the tendril loop uses,
+    // now covering the flame flash. This flash is a SECOND stock visual for the same buff Karwind's authored
+    // `flame-ring` now plays, so a bound card threw both. It is NOT gated on `karwind` by id, because
+    // `onBattlecryBuffTribe` (which stamps this flash) is also a set-2 Dragon's effect, and THAT card is
+    // unbound and must keep its flash. So the discriminator is the binding: suppress the flash on any Dragon a
+    // BOUND source buffed this action, reading the source attribution `recruitBuffFx` already carries. A
+    // Dragon buffed only by an unbound source keeps its flame.
+    // Karwind buffs EVERY Dragon including itself, and flashes all of them — so `karwindFlash` holds both the
+    // buffed others AND Karwind's own uid. `flame-ring` (a buff-OTHER binding) plays only on the others, so
+    // both have to be suppressed by hand or Karwind keeps flaming ITSELF red. `recruitBuffFx` gives me each:
+    // its `targetUid`s are the buffed others, its `sourceUid` is the buffer. Suppress a flash uid that is
+    // either — for any BOUND source. (A bound Karwind alone on the board buffs only itself, emits no
+    // buff-other event, so its lone self-flash survives — acceptable, since flame-ring plays on no one then.)
+    const bound = (e: { sourceCardId: string }): boolean =>
+      e.sourceCardId !== '' && bindingFor(e.sourceCardId, 'minionBuffed') !== null;
+    const authored = new Set<string>();
+    for (const e of run.recruitBuffFx ?? []) {
+      if (!bound(e)) continue;
+      authored.add(e.targetUid);
+      if (e.sourceUid !== undefined) authored.add(e.sourceUid);
+    }
+    const uids = (run.karwindFlash ?? []).filter((u) => !authored.has(u));
     if (uids.length === 0) return;
     setKarwindFlameUids(new Set(uids));
     /* The 520ms clear lives in a REF, not this effect's cleanup. `run.karwindFlash` is in the deps and the

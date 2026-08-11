@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-11 — The flame flash joins the suppression rule (Karwind shows only its ring)
+
+Extends the same-day "an authored def replaces the stock cue" rule to Karwind's second stock visual — the
+~520ms red flame flash. A bound Karwind now plays ONLY its authored `flame-ring` on the Dragons it buffs; the
+flash is suppressed, and the "2x" crit float is kept (owner ask).
+
+Not gated on the `karwind` id: `onBattlecryBuffTribe` (which stamps `karwindFlash`) is also an unbound set-2
+Dragon's effect, so an id check would strip that card's flash too. The discriminator is the binding, read
+through the source attribution `recruitBuffFx` already carries. Karwind buffs EVERY Dragon including itself,
+so `karwindFlash` holds both the buffed others (each a `targetUid`) and Karwind's own uid (the `sourceUid`) —
+both are suppressed for a bound source, so Karwind stops flaming itself red as well. A bound Karwind ALONE on
+the board buffs only itself and emits no buff-other event, so its lone self-flash survives — acceptable, since
+flame-ring plays on no one then. An unbound buffer keeps its full flash.
+
+Verified against live sim: `karwindFlash: ['kw','dg']`, `recruitBuffFx: [{sourceUid:'kw', targetUid:'dg'}]`,
+filter leaves nothing — no red flame, ring on the buffed Dragon, crit float intact. typecheck, eslint 0
+errors, 4874 tests, build:web.
+
+Follow-up the owner is authoring: a distinct RED ring for the crit (20% double), to play on top of / instead
+of flame-ring when `karwindCritUid` is set. Held until that def exists.
+
 ## 2026-08-11 — An authored def replaces the stock cue (Karwind stops double-effecting)
 
 The owner reported Karwind drawing a buff tendril and asked for it removed, since `flame-ring` is bound to

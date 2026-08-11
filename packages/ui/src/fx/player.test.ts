@@ -1072,3 +1072,140 @@ describe('destroy leaves the player inert', () => {
     for (const inst of live) expect(inst.destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+
+/**
+ * DEF-LEVEL EASE — a curve on the composition's own clock (`FxDef.ease`).
+ *
+ * Unlike the three per-layer curve features, the player IS constructible headlessly, so these are
+ * behavioural: they drive a real player and read the deltas its primitives were actually ticked with.
+ *
+ * Note the totals below are compared AGAINST A LINEAR RUN rather than against `duration`. A layer whose
+ * `life` ends exactly at the duration is reconciled to `done` and killed before that final frame's tick, so
+ * a full pass delivers slightly less than one duration — pre-existing behaviour that has nothing to do with
+ * easing. Comparing the two runs controls for it, and states the actual claim: an ease redistributes time,
+ * it does not create or destroy any.
+ */
+describe('def-level ease', () => {
+  beforeEach(() => {
+    spawned.length = 0;
+    clearPrimitives();
+    registerPrimitive(stubPrimitive('a'));
+    registerPrimitive(stubPrimitive('b'));
+  });
+
+  const dts = (inst: FxInstance): number[] =>
+    (inst.update as unknown as { mock: { calls: number[][] } }).mock.calls.map((c) => c[0]);
+  const ticked = (inst: FxInstance): number => dts(inst).reduce((sum, dt) => sum + dt, 0);
+
+  const easedDef = (ease: FxDef['ease']): FxDef => ({
+    id: 'eased',
+    duration: 1000,
+    ease,
+    // life EXCEEDS duration deliberately: a layer whose window closes exactly at the end is reconciled to
+    // `done` and killed before that frame's tick, and the eased runs reach that boundary at different
+    // moments — so a bounded layer would compare two different amounts of dropped tail, not two easings.
+    layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 2000, params: {} }],
+  });
+
+  /** Run one full duration and return the total ms the layer was ticked with. */
+  const runFullPass = (ease: FxDef['ease']): number => {
+    spawned.length = 0;
+    const p = createPlayer(easedDef(ease), CTX);
+    p.play();
+    for (let i = 0; i < 50; i++) p.update(20);
+    return ticked(spawned[0].inst);
+  };
+
+  /**
+   * THE no-op guarantee. Every shipped def omits `ease`, so the absent case must not merely be close to
+   * linear — it must be the identical arithmetic, which is why the player holds `null` rather than an
+   * identity curve.
+   */
+  it('ticks with the raw delta when no ease is declared', () => {
+    const p = createPlayer(easedDef(undefined), CTX);
+    p.play();
+    for (let i = 0; i < 10; i++) p.update(16);
+    expect(ticked(spawned[0].inst)).toBe(160);
+  });
+
+  it('redistributes time without creating or destroying any', () => {
+    const linear = runFullPass(undefined);
+    expect(runFullPass([[0, 0], [1, 1]])).toBeCloseTo(linear, 6);        // explicit identity
+    expect(runFullPass([[0, 0], [0.25, 0.8], [1, 1]])).toBeCloseTo(linear, 6); // fast-in
+    expect(runFullPass([[0, 0], [0.75, 0.2], [1, 1]])).toBeCloseTo(linear, 6); // slow-in
+  });
+
+  /** A shallow opening stretch means the composition has barely advanced while the clock has run. */
+  it('slows the composition where the curve is shallow, then catches up', () => {
+    const p = createPlayer(easedDef([[0, 0], [0.5, 0], [1, 1]]), CTX);
+    p.play();
+    for (let i = 0; i < 25; i++) p.update(20);   // 500ms of clock, on the flat half
+    expect(ticked(spawned[0].inst)).toBeCloseTo(0, 6);
+    for (let i = 0; i < 25; i++) p.update(20);   // the rushing half
+    expect(ticked(spawned[0].inst)).toBeGreaterThan(900);
+  });
+
+  /**
+   * A DESCENDING stretch must never hand a primitive a negative dt — every integrator would read it as
+   * nonsense (ages decreasing, drag dividing). It reads as a hold instead. Per-layer `reverse` is the
+   * feature for going backwards, and it does that by construction rather than by rewinding time.
+   */
+  it('clamps a descending curve to a hold rather than running time backwards', () => {
+    const p = createPlayer(easedDef([[0, 0], [0.5, 1], [1, 0]]), CTX);
+    p.play();
+    for (let i = 0; i < 50; i++) p.update(20);
+    const all = dts(spawned[0].inst);
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.every((dt) => dt >= 0)).toBe(true);
+    // The rising half delivered the def's time; the falling half added nothing on top of it.
+    expect(ticked(spawned[0].inst)).toBeLessThanOrEqual(1000);
+    expect(ticked(spawned[0].inst)).toBeGreaterThan(900);
+  });
+
+  /** A layer arrives when the EASED clock reaches its `at` — that is what "bends the schedule" means. */
+  it('delays a layer whose `at` the eased clock has not yet reached', () => {
+    const def: FxDef = {
+      id: 'eased-schedule',
+      duration: 1000,
+      ease: [[0, 0], [0.5, 0], [1, 1]], // no progress at all until halfway
+      layers: [{ primitive: 'b', anchor: 'target', at: 400, life: 600, params: {} }],
+    };
+    const p = createPlayer(def, CTX);
+    p.play();
+    for (let i = 0; i < 20; i++) p.update(20); // raw 400ms: `at` reached on the RAW clock
+    expect(spawned).toHaveLength(0);           // ...but the eased clock is still at 0
+    for (let i = 0; i < 20; i++) p.update(20); // raw 800ms -> eased 600ms, comfortably past `at`
+    expect(spawned.length).toBeGreaterThan(0);
+  });
+
+  /** Past the nominal window an unbounded layer must keep running at NORMAL speed, not freeze on the
+   *  curve's last value — otherwise a `fireOnce` tail would stall forever and hit the safety cap. */
+  it('runs linearly again past the duration', () => {
+    // A primitive that never reports completion: with the ordinary stub, `allFiringLayersDone` falls back
+    // to "clock >= duration" and the fire ends exactly at the boundary, leaving no tail to measure.
+    registerPrimitive({
+      id: 'never',
+      params: {},
+      spawn: () => {
+        const inst: FxInstance = {
+          update: vi.fn(), setParams: vi.fn(), destroy: vi.fn(), isComplete: () => false,
+        };
+        spawned.push({ id: 'never', inst });
+        return inst;
+      },
+    });
+    const def: FxDef = {
+      id: 'eased-tail',
+      duration: 200,
+      ease: [[0, 0], [0.5, 0.9], [1, 1]],
+      layers: [{ primitive: 'never', anchor: 'target', at: 0, params: {} }], // no `life` — unbounded
+    };
+    const p = createPlayer(def, CTX);
+    p.fireOnce();
+    for (let i = 0; i < 10; i++) p.update(20);  // through the eased window (200ms)
+    const atDuration = ticked(spawned[0].inst);
+    for (let i = 0; i < 5; i++) p.update(20);   // 100ms beyond it
+    expect(ticked(spawned[0].inst) - atDuration).toBeCloseTo(100, 6);
+  });
+});

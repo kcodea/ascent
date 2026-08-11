@@ -5,6 +5,7 @@ import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import { NOISE_GLSL, POSTERIZE_PAL_GLSL } from '../shaderChunks';
+import { bakeCurveLut, isIdentityCurve, CURVE_PRESETS } from '../curve';
 import { acquireShader, prewarmShaders, releaseShader } from '../shaderPool';
 
 /**
@@ -48,6 +49,19 @@ void main() {
  * every ring; a normalized direction is a continuous function of position, so the field is seam-free by
  * construction. Scroll is applied as a *rotation* of that direction (periodic, so it stays seam-free).
  */
+/**
+ * Lookup-table resolution for the authored expansion curve (`radiusCurve`).
+ *
+ * 32 samples over a radius ramp: the ring's radius spans the quad, so a table step is ~3% of the sweep and
+ * the shader interpolates linearly between entries — finer than the eye can separate on an expanding edge,
+ * and the curve editor's own control points are far sparser than this anyway.
+ *
+ * Packed 4-per-`vec4` rather than declared `float[32]`: std140 pads every element of a scalar array out to a
+ * full 16-byte slot, so a float array would spend 512 bytes to carry 128. As `vec4`s it is exactly 128.
+ */
+const RAD_LUT_N = 32;
+const RAD_LUT_VEC4 = RAD_LUT_N / 4;
+
 export const SHOCKWAVE_FRAG = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vUV;
@@ -79,6 +93,12 @@ uniform float uEase;
 // tuning renders identically; there is simply room around it for the falloff to complete.
 uniform float uQuadScale;
 uniform vec4  uPal[4];
+// The authored expansion curve, baked to a lookup table. 0 = not authored, and the ring takes the original
+// pow(phase, uEase) path untouched. Branching on a UNIFORM, so every fragment in the draw agrees.
+uniform float uRadCurveOn;
+uniform vec4  uRadLut[${RAD_LUT_VEC4}];
+// 1 = the ring contracts instead of expanding. Also a uniform branch.
+uniform float uRevRing;
 
 ${NOISE_GLSL}
 ${POSTERIZE_PAL_GLSL}
@@ -86,6 +106,25 @@ ${POSTERIZE_PAL_GLSL}
 // Constant loop bound (GLSL ES 3.0 fragment loops want a compile-time trip count to unroll cleanly);
 // matches the 'rings' param spec's max of 5. The k >= n break makes the effective count the live uRings.
 const int MAX_RINGS = 5;
+
+const int RAD_LUT_N = ${RAD_LUT_N};
+
+/** One packed LUT entry. The vec4 index is dynamic, which GLSL ES 3.00 permits on a uniform array; the
+ *  COMPONENT is chosen by compare rather than by [] so this needs nothing beyond that. */
+float radLutAt(int i) {
+  vec4 v = uRadLut[i >> 2];
+  int c = i & 3;
+  return c == 0 ? v.x : (c == 1 ? v.y : (c == 2 ? v.z : v.w));
+}
+
+/** The authored expansion curve at t, linearly interpolated between LUT samples. Sample i sits at
+ *  t = i / (RAD_LUT_N - 1), so the ends are exactly the curve's own endpoints. */
+float radCurve(float t) {
+  float x = clamp(t, 0.0, 1.0) * float(RAD_LUT_N - 1);
+  int i = int(floor(x));
+  int j = min(i + 1, RAD_LUT_N - 1);
+  return mix(radLutAt(i), radLutAt(j), x - float(i));
+}
 
 void main() {
   vec2 p = (vUV * 2.0 - 1.0) * uQuadScale;
@@ -130,12 +169,23 @@ void main() {
       // Continuous: the original repeating expansion, unchanged.
       phase = fract(clock + float(k) / uRings);
     }
-    // Expansion easing: the ring's RADIUS is pow(phase, uEase), so below 1 it punches out and settles.
-    // Guarded by an exact compare on the uniform (uniform control flow — every fragment takes the same
-    // branch) because pow(x, 1.0) is not guaranteed bit-exact; at uEase 1.0 the radius is literally the
-    // linear phase, exactly as before. The FADE stays on the linear phase, so a ring's lifetime — and the
-    // one-shot completion time — is unaffected by easing.
-    float rad = uEase == 1.0 ? phase : pow(max(phase, 0.0), uEase);
+    // Expansion shape: the ring's RADIUS as a function of its linear phase.
+    //
+    // Two paths, chosen on a uniform so every fragment takes the same one. The AUTHORED CURVE wins when one
+    // has been drawn; uEase then applies as an exponent on top of it, so the two compose rather than
+    // fight (leave Ease at 1 to get the curve alone). With no curve authored this is the original
+    // expression, character for character — including the exact compare on uEase, which is there because
+    // pow(x, 1.0) is not guaranteed bit-exact and every already-tuned def rests on the linear case.
+    //
+    // The FADE deliberately stays on the linear phase, so a ring's lifetime — and the one-shot completion
+    // time shockwaveOneShotDurationSec computes — is unaffected by either control.
+    float shaped = uRadCurveOn > 0.5 ? radCurve(phase) : phase;
+    float eased = uEase == 1.0 ? shaped : pow(max(shaped, 0.0), uEase);
+    // REVERSE — the ring CONTRACTS, sweeping from full radius in to the centre. Mirroring the shaped radius
+    // rather than the phase is deliberate: fade and lifetime stay on the linear clock, so a reversed ring
+    // still fades out as it arrives instead of appearing from nothing at the rim. At uRevRing 0.0 this is
+    // exactly eased (1.0 - x is not free, so the branch keeps the default bit-exact).
+    float rad = uRevRing > 0.5 ? 1.0 - eased : eased;
     float bandDist = abs(d - rad);
     float fadeAmt = pow(1.0 - phase, uFade);
 
@@ -232,7 +282,19 @@ const SPECS = {
   },
   ease: {
     kind: 'slider', label: 'Ease', group: 'Ring', min: 0.3, max: 8, step: 0.05, default: 1,
-    help: 'Expansion curve — below 1 punches out fast then settles, above 1 accelerates; 1 is linear.',
+    help: 'Expansion curve — below 1 punches out fast then settles, above 1 accelerates; 1 is linear. This is the one-dial version: it can only ever decelerate or only ever accelerate. Draw Expansion / life when you want a shape it cannot make, like hang-then-go. With a curve drawn, this stays live as an exponent on top of it, so leave it at 1 to get the curve alone.',
+  },
+  radiusCurve: {
+    kind: 'curve', label: 'Expansion / life', group: 'Ring',
+    // The IDENTITY ramp, not a flat line: this curve REPLACES the radius rather than multiplying it, so
+    // "do nothing" is v = t. `isIdentityCurve` detects exactly this and skips the LUT entirely, which is
+    // what keeps every already-tuned def on the original pow(phase, ease) expression.
+    default: [[0, 0], [1, 1]], vMax: 1, presets: CURVE_PRESETS,
+    help: 'How far out the ring has travelled across its life (0 = born at the centre, 1 = full Radius). The default diagonal is a steady sweep. Because it sets POSITION rather than speed, a flat stretch is a ring holding still and a steep one is a ring racing — so hold-then-drop reads as a ring that hangs and then snaps back inward. Fade is deliberately left on the linear clock, so reshaping this never changes how long a ring lives.',
+  },
+  reverse: {
+    kind: 'toggle', label: 'Reverse', group: 'Ring', default: false,
+    help: 'Turns the shockwave into an IMPLOSION: the ring starts at full Radius and sweeps inward to the centre. Fade and lifetime stay on the forward clock, so it still fades out as it arrives rather than appearing from nothing at the rim. Composes with everything else — Expansion / life and Ease shape the sweep, and this mirrors it.',
   },
   bands: {
     kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
@@ -371,6 +433,9 @@ function makeShockwaveShader(): Shader {
         uRingDelay: { value: 0, type: 'f32' },
         uEase: { value: 0, type: 'f32' },
         uPal: { value: new Float32Array(16), type: 'vec4<f32>', size: 4 },
+        uRadCurveOn: { value: 0, type: 'f32' },
+        uRadLut: { value: new Float32Array(RAD_LUT_N), type: 'vec4<f32>', size: RAD_LUT_VEC4 },
+        uRevRing: { value: 0, type: 'f32' },
       },
     },
   });
@@ -418,6 +483,26 @@ function writeAllUniforms(shader: Shader, params: ShockwaveParams, oneShot: bool
   u.uRingDelay = params.ringDelay;
   u.uEase = params.ease;
   u.uPal = tupleFloats(params.palette);
+  u.uRadCurveOn = isIdentityCurve(params.radiusCurve) ? 0 : 1;
+  u.uRadLut = radLutFloats(params.radiusCurve);
+  u.uRevRing = params.reverse ? 1 : 0;
+}
+
+/**
+ * The expansion curve as a fresh LUT buffer, for the shader's packed `uRadLut`.
+ *
+ * A new array per write, matching `tupleFloats`' contract for `uPal`: the uniform group holds what it is
+ * handed, so a shared scratch would alias every pooled shockwave onto one curve. This runs on acquire and on
+ * an inspector edit — never per frame — so the allocation is not on a hot path.
+ *
+ * Baked even when the curve is the identity and `uRadCurveOn` is 0, because a pooled shader must never
+ * inherit a previous tenant's buffer (see `writeAllUniforms`); an unread-but-correct LUT is cheaper to
+ * reason about than a conditional one.
+ */
+function radLutFloats(points: ReadonlyArray<readonly [number, number]>): Float32Array {
+  const out = new Float32Array(RAD_LUT_N);
+  bakeCurveLut(points, out);
+  return out;
 }
 
 class ShockwaveInstance implements FxInstance<ShockwaveParams> {
@@ -508,6 +593,11 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
     // `next`.
     u.uPal = tupleFloats(next.palette);
+    // Same reasoning as uPal: rebuilt unconditionally rather than diffed. A curve arrives as an array, so a
+    // reference-equality check would miss an in-place edit and a deep compare would cost more than the bake.
+    u.uRadCurveOn = isIdentityCurve(next.radiusCurve) ? 0 : 1;
+    u.uRadLut = radLutFloats(next.radiusCurve);
+    u.uRevRing = next.reverse ? 1 : 0;
     this.mesh.blendMode = next.blendMode;
     if (radiusChanged) {
       this.writeQuad(next.radius);

@@ -102,6 +102,47 @@ export function removeCurvePoint(
   return copy;
 }
 
+/**
+ * The IDENTITY RAMP — `v = t`. The one curve that means "do nothing" for a curve whose output replaces a
+ * quantity (a radius, a progress) rather than multiplying one, where the no-op is a flat 1 instead.
+ */
+export const IDENTITY_CURVE: readonly CurvePoint[] = [[0, 0], [1, 1]];
+
+/**
+ * Is this exactly the identity ramp?
+ *
+ * Deliberately a STRUCTURAL check on the two pinned end points, not a numeric probe of the sampled values.
+ * A consumer uses this to take a fast path that must be BYTE-IDENTICAL to not having the curve at all — a
+ * collinear three-point curve samples to the same values in exact arithmetic but need not survive a float
+ * round-trip through a lookup table, so it is treated as authored and goes the ordinary way. Answering
+ * "is it safe to skip the curve entirely", not "is it mathematically an identity".
+ */
+export function isIdentityCurve(points: ReadonlyArray<ReadonlyArray<number>>): boolean {
+  return points.length === 2
+    && points[0][0] === 0 && points[0][1] === 0
+    && points[1][0] === 1 && points[1][1] === 1;
+}
+
+/**
+ * Bake a curve into a uniformly-spaced lookup table, IN PLACE.
+ *
+ * For consumers that cannot call {@link sampleCurve} where they need it — a GPU shader being the motivating
+ * case: a fragment program cannot walk a variable-length control-point list, but it can index a fixed array.
+ * Sample `i` sits at `t = i / (out.length - 1)`, so the first and last entries are exactly the curve's
+ * endpoints and a shader can map `t` onto the table with a plain multiply.
+ *
+ * Writes into the caller's buffer and allocates nothing: the caller owns one per shader for its lifetime and
+ * re-bakes on edit, so this never runs per frame — but it must not add GC pressure when an inspector drag
+ * re-bakes it on every pointer move.
+ */
+export function bakeCurveLut(points: ReadonlyArray<CurvePoint>, out: Float32Array): void {
+  const n = out.length;
+  if (n === 0) return;
+  if (n === 1) { out[0] = sampleCurve(points, 0); return; }
+  const last = n - 1;
+  for (let i = 0; i < n; i++) out[i] = sampleCurve(points, i / last);
+}
+
 /** Named starting shapes a curve picker can seed from. */
 export const CURVE_PRESETS: Record<string, readonly CurvePoint[]> = {
   'fade out': [[0, 1], [1, 0]],

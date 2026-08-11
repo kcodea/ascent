@@ -166,6 +166,194 @@ tokens can't express: the book body gradient (`#e8f1fd → #000000` at 14%), the
 (`#2c2320`). CSS-only; verified live that the computed tokens + the three surfaces match the tuned values.
 `build:web` green, lint at its 7-warning baseline.
 
+## 2026-08-10 — a curve on the composition's own clock (engine half)
+
+Last of the four requested FX features, and the only one that shapes a def rather than a layer:
+**`FxDef.ease`**, a curve mapping normalized def progress to normalized def progress.
+
+**What it does that the other three cannot.** A layer arrives when the EASED clock reaches its `at`, and its
+primitive is ticked with the eased delta. So a slow-in curve delays the whole composition's opening and then
+rushes it, with every layer's relationship to every other left intact. That is distinct from raising
+`duration` (which rescales) and from the per-call `time` scalar (a constant factor) — this is the curve
+version of that scalar.
+
+**Three properties, each a deliberate choice.**
+
+- **The def's LENGTH is unchanged.** Wrapping, looping and completion all stay on the RAW clock; only layer
+  scheduling and ticking see the eased one. An ease redistributes time inside the window rather than
+  stretching it. Same discipline as the shockwave's expansion curve leaving fade on the linear phase — three
+  features now, one rule: *reshape the inside, never the duration.*
+- **It cannot run time backwards.** A descending stretch would mean a negative delta, which every particle
+  integrator would read as nonsense (ages decreasing, drag dividing). The delta is clamped at 0, so a falling
+  section reads as a HOLD. Per-layer `reverse` is the feature for going backwards, and it does that by
+  construction rather than by rewinding.
+- **Past `duration` it is linear again**, so an unbounded layer in a `fireOnce` tail keeps running at normal
+  speed instead of freezing on the curve's last value — which would stall until the safety cap.
+
+Absent (every shipped def) the player keeps `null` rather than an identity curve, so the default path runs
+the original single-clock arithmetic with no float round-trip through a sampler.
+
+**These are real tests, not source pins.** The player is constructible headlessly, unlike the primitives, so
+these drive a player and read the deltas its stubs were actually ticked with. Two of them failed first and
+both were my test being wrong rather than the code — worth recording because each named a real property of
+the player I had not accounted for:
+
+- Totals across an eased and a linear pass are NOT equal when the layer's `life` ends exactly at `duration`:
+  such a layer is reconciled to `done` and killed before that final frame's tick, and the two runs reach that
+  boundary at different eased times, so they drop different tails. Fixed by giving the layer a `life` that
+  outlives the pass, which is what isolates the easing from the boundary.
+- The past-duration test measured nothing, because the ordinary stub has no `isComplete` and
+  `allFiringLayersDone` then falls back to "clock >= duration" — the fire ends exactly at the boundary and
+  there is no tail. Needed a stub that never reports completion.
+
+**What is NOT in this, stated plainly: there is no dial.** `toDef` rebuilds the def from workbench state and
+workbench state has no field for `ease`, so today an ease can only be written by hand-editing a def's JSON —
+and **loading such a def into the workbench and saving it will strip it**, the same data-loss shape `label`/
+`tags` had in #805. Logged as a papercut with the trap called out. The remaining work is workbench state
+(a `useState` + ref, session snapshot, history entry, `toDef`/`toStoredDef` passthrough, a control by the
+Duration dial); `CurveEditor` itself is already cleanly parameterised and only needs exporting.
+
+Verified: typecheck (pkgs + web), lint at the 7-warning baseline, 4839 tests, `build:web`.
+
+## 2026-08-10 — every effect can play as a gather
+
+Third of the four requested FX features: a per-layer **Reverse** toggle on `burst`, `emitter`, `smoke` and
+`shockwave`. A detonation becomes a gather; a plume becomes an inhale; a shockwave becomes an implosion.
+Per-layer falls out for free — each layer already carries its own params — so a def can mix an outward spray
+with an inward ring on one timeline.
+
+**The mechanism, which is simpler than the spec expected.** The friction log sketched "spawn at the rim
+aiming inward". That is the wrong mechanism: it only reads as a gather when a def happens to have an
+`emitRadius`, and most do not — a point emitter would spawn everything at the anchor and travel nowhere.
+
+What ships instead: **a straight-line flight is its own inverse.** Put the particle where its own flight
+would have ENDED (`v * life`) and negate the velocity, and it retraces that line inward. It works for every
+emit shape including a bare point, needs no new tuning surface, and — the constraint that actually decided
+it — **draws no extra random value**. `emit()`'s contract is 7 draws per particle in a fixed order, and every
+saved seed replays against it; reverse is built entirely from values already drawn. There is a test.
+
+**Two deliberate asymmetries**, both because a true rewind is not what anyone wants to look at:
+
+- **The built-in fade is not mirrored.** Authored curves are read back to front (`1 - t`), so a shrink
+  becomes a grow. But mirroring the fade envelope too would leave a particle at full brightness at the
+  instant it dies — a pop, not a gather. Fade stays forward.
+- **The ring mirrors its SHAPED RADIUS, not its phase.** `1.0 - eased`, downstream of both the expansion
+  curve and `ease`, so reverse composes with them rather than replacing them. Mirroring phase instead would
+  have dragged fade and lifetime backwards with it, and a reversed ring would appear from nothing at the rim.
+
+It is honestly a *visual* reverse, which is why the log insisted on that name: drag, gravity and turbulence
+still act forward on the way in, so particles ease into the middle and stop a little short of dead centre
+rather than accelerating into it. The help text says so, so nobody goes looking for the bug.
+
+**Verification.** The GLSL was compiled against a real WebGL2 context again after the change — clean. And the
+backtick trap caught me a **second time** in one session (a `` `eased` `` in a shader comment ends the
+template literal and surfaces as a TypeScript parse error 40 lines away). That is now a friction-log entry
+rather than something I keep rediscovering: the existing tests catch it, but only after a misleading
+typecheck failure.
+
+`ribbon` still has no reverse and that remains correct — it is path geometry with no velocity to negate.
+
+Verified: typecheck (pkgs + web), lint at the 7-warning baseline, 4833 tests, `build:web`. Not judged by eye.
+
+## 2026-08-10 — the ring's expansion becomes an authored curve
+
+Owner, on the speed-curve PR: *"why not on ring or trail?"* Two different answers, and one of them was a
+gap I should have caught.
+
+**Ring: it already had this, badly.** `shockwave` carries `ease`, and the shader's radius is
+`pow(phase, uEase)` — below 1 punches out and settles, above 1 accelerates. That IS a speed-over-life
+control, restricted to one family: `pow` is monotonic in its rate, so a ring could never hold, stall, or
+pulse. `Expansion / life` makes it a drawn curve. Because the curve sets POSITION rather than speed, a flat
+stretch is a ring holding still and a steep one is a ring racing — hold-then-drop reads as a ring that hangs
+and then snaps back inward, which `ease` cannot express at any value.
+
+**Trail: out of scope, not pending.** `ribbon` is path geometry — no velocity anywhere in it — and its
+`widthCurve` runs along LENGTH (head → tail), not life. "How fast does a trail travel over its life" has no
+referent. What would time-shape a ribbon is the def-level ease, still item 4.
+
+**Getting a curve onto the GPU.** The radius is computed per-fragment in GLSL, so unlike the particle
+primitives this could not be a param read in a JS loop. The curve is baked to a **32-sample lookup table**
+(`bakeCurveLut`, new in `curve.ts`) and packed **4-per-`vec4`** — std140 pads every element of a scalar array
+to a full 16-byte slot, so `float[32]` would spend 512 bytes to carry 128; as `vec4`s it is exactly 128.
+
+**The compatibility problem, and the shape of the fix.** 18 of 29 shipped defs use shockwave and `ease` is
+genuinely tuned across them (0.3 to 1.5, ~22 non-default values), so the un-authored case must not change by
+one bit. The curve's default is the **identity ramp** `[[0,0],[1,1]]` — note the identity, not a flat 1: this
+curve *replaces* a quantity rather than multiplying one, so `v = t` is its no-op and a flat 1 would pin every
+ring at full radius for its whole life. `isIdentityCurve` detects exactly that and sets `uRadCurveOn = 0`,
+and the shader then takes the original expression untouched, including the exact `uEase == 1.0` compare that
+exists because `pow(x, 1.0)` is not guaranteed bit-exact. `isIdentityCurve` is deliberately a STRUCTURAL
+check, not a numeric one: a collinear three-point curve samples the same in exact arithmetic but need not
+survive a float round-trip through a table, so it is treated as authored. With a curve drawn, `ease` stays
+live as an exponent on top of it — they compose, so nothing had to be disabled.
+
+Fade deliberately still rides the linear phase, so reshaping expansion never changes how long a ring lives
+and `shockwaveOneShotDurationSec` stays valid.
+
+**Verification, including the half tests cannot reach.** A GLSL change is invisible to vitest, so:
+
+- The shipped fragment source was dumped through `vite-node` and **compiled against a real WebGL2 context** —
+  clean, empty info log. (Its first version did not: I had put backticks inside the template literal, which
+  truncated it. The file's own test for exactly that trap caught it.)
+- Then the **actual `radLutAt`/`radCurve` text was sliced out of the shipped source**, linked into a minimal
+  program, and run on the GPU against a baked `v = t²` table. Worst error over 64 samples was **0.0021**
+  against the 8-bit quantisation floor of 1/255 ≈ 0.0039 — so the `vec4` packing, the `i >> 2` / `i & 3`
+  indexing and the interpolation are confirmed by execution, not by reading. Testing the real text rather
+  than a copy is the point; a reconstruction would have proved nothing about what ships.
+- `writeAllUniforms`'s doc comment demanded that every uniform be written, to stop a pooled shader inheriting
+  the previous tenant's values. That was prose, and adding `uRadLut` is precisely the situation it warns
+  about — so it is now a **test** that derives the uniform list from the shader source. Verified by deleting
+  the `uRadLut` write and watching it fail.
+
+Verified: typecheck (pkgs + web), lint at the 7-warning baseline, 4819 tests, `build:web`. Not judged by eye —
+the maths is confirmed, the look is the owner's call.
+
+## 2026-08-10 — particles get a speed curve
+
+First of the four requested FX features (owner, 2026-08-02), taken in the order the friction log proposed
+because it is the one that is pure addition: **`Speed / life`** on `burst`, `emitter` and `smoke`, sitting in
+the Motion group next to `Speed` and reusing the curve widget the size/alpha/bias curves already use.
+
+**What it does.** Multiplies how far a particle TRAVELS this frame, over its own life. Shards can hang and
+then bolt; smoke can rise and settle; a spray can stall in mid-air and pick up again. `drag` could only ever
+slow things down along a single exponential shape — this authors the whole envelope, and the two compose.
+
+**The design decision, which is the whole of the risk.** The curve scales the **position delta**, never the
+stored velocity:
+
+```ts
+const travel = sampleCurve(p.speedCurve, lifeT);
+particle.x += lp.vx * travel * dtSec;
+```
+
+Scaling `lp.vx` in place would type-check, look plausible in the preview, and be wrong: a 0.5 curve would
+halve the VELOCITY every frame rather than halving that frame's travel, so it would decay geometrically and a
+particle could never recover when the curve came back up. Scaling the delta instead makes the curve purely a
+retiming — gravity, drag and turbulence keep accumulating exactly as before, heading is untouched (both axes
+take the same scalar), and a curve that dips to 0 parks a shard still pointing where it was going.
+
+**Every existing def is byte-identical.** The default is flat `[[0,1],[1,1]]`, where `sampleCurve` returns
+exactly `1` and `x * 1 === x` — the same no-op argument `alphaCurve` and `biasCurve` already rest on. `vMax`
+is 2, matching `sizeCurve`, so a curve can overshoot into a lurch instead of only decaying.
+
+**Testing, and its limit.** `BurstInstance` and friends can't be constructed headlessly (no WebGL), so the
+update loops are covered the way the RNG-draw contract already is — the arithmetic is **pinned in source**.
+The load-bearing guard asserts what must never appear rather than counting anything: `travel` must never land
+on a velocity field. I verified it fails by injecting `lp.vx *= travel` and watching it fire, then reverted —
+a guard that has never failed is not known to work. (The first draft of that guard counted occurrences of the
+identifier and was wrong: `travel` is also a burst aim mode, and "direction of travel" appears in help text,
+which `codeOf` keeps because string literals are code.)
+
+**A correction to the friction log while I was in there.** Its "shared root cause" section claimed the sim is
+dt-dependent because drag is a per-frame multiplier, and made that the blocker for `reverse` and def-level
+ease. That is not this code: burst's drag is `Math.pow(p.drag, dtMs / DRAG_REF_MS)` and turbulence is
+integrated as `* dtSec` in all three primitives. Step 2 of that plan is already true, so `reverse` is nearer
+than the log implied. Corrected in place rather than left to mislead the next pass.
+
+Verified: typecheck (pkgs + web), lint at the 7-warning baseline, full `npm test`, `build:web`. NOT yet
+judged by eye in the workbench — the dial is authored and its no-op default is proven; how a curve *reads* is
+the owner's call.
+
 ## 2026-08-10 — anonymous players get a friendly temp handle, not "Unnamed Climber"
 
 **Follow-up (same day):** the Title account chip now shows that temp handle for a first-time/unnamed player

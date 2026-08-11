@@ -236,9 +236,21 @@ const SPECS = {
     kind: 'slider', label: 'Speed variance', group: 'Motion', min: 0, max: 1, step: 0.01, default: 0.5,
     help: 'How much shard speeds differ from each other, as a fraction of Speed — 0 fires every shard at exactly the same pace (a clean expanding ring), 0.5 spreads them between half and one-and-a-half speed so the spray reads scattered.',
   },
+  reverse: {
+    kind: 'toggle', label: 'Reverse', group: 'Motion', default: false,
+    help: 'Turns the burst into a GATHER: shards start out where they would have finished and fly inward to the anchor, and every over-life curve is read back to front, so a spray that shrinks now grows. This is a VISUAL reverse, not a rewind — drag still slows shards as they travel, so they ease into the middle rather than accelerating into it, and stop a little short of dead centre. The built-in Fade is deliberately not mirrored, so shards still fade out at the end instead of vanishing at full brightness.',
+  },
+  speedCurve: {
+    kind: 'curve', label: 'Speed / life', group: 'Motion',
+    // vMax 2 so a shard can OVERSHOOT its launch speed mid-life (a lurch or a second kick), not only decay
+    // from it — same reasoning as sizeCurve's. Default is flat 1, where `sampleCurve` returns exactly 1 and
+    // `x * 1 === x`, so an untouched curve is a byte-identical no-op.
+    default: [[0, 1], [1, 1]], vMax: 2, presets: CURVE_PRESETS,
+    help: 'Multiplier on how fast a shard TRAVELS over its life (0 = birth, 1 = death), on top of Speed and Drag. Flat 1 = no change. This retimes travel without steering it: heading, gravity and drag are untouched, so a curve that dips to 0 parks a shard in mid-air still pointing where it was going, and one that rises launches it late. Drag is the special case of this that falls off exponentially — reach for a curve when you want a shape drag cannot make, like hang-then-go.',
+  },
   drag: {
     kind: 'slider', label: 'Drag', group: 'Motion', min: 0.7, max: 1, step: 0.005, default: 0.9,
-    help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave.',
+    help: 'How quickly shards slow down — 1 keeps them flying flat out the whole way, 0.9 (the default) coasts them to a stop, 0.7 stalls them almost the moment they leave. This is a per-frame decay; Speed / life is the authored version of the same idea.',
   },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
@@ -575,13 +587,27 @@ class BurstInstance implements FxInstance<BurstParams> {
       // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
       emissionOffset(p, this.rand(), this.rand(), this.emitScratch);
       spawnVelocity(angle, speed, p.squashX, p.squashY, this.velScratch);
+      // REVERSE — a gather instead of a spray. The whole trick is that a straight-line flight is its own
+      // inverse: put the shard where that flight WOULD have ended (v * life) and negate the velocity, and it
+      // retraces the same line inward. Costs no extra rand() draw, which matters — `emit`'s draw sequence is
+      // pinned at 7 per particle and every saved seed depends on it.
+      //
+      // It lands NEAR the anchor rather than exactly on it, because drag/gravity/turbulence still act on the
+      // way in and the displacement is the drag-free distance. That is the honest meaning of "visual reverse"
+      // (see docs/fx-workbench-friction.md): the eye reads a convergence, the physics is never rewound.
+      const rev = p.reverse;
+      const lifeSec = Math.max(1, p.life) / 1000;
+      const vx0 = rev ? -this.velScratch.vx : this.velScratch.vx;
+      const vy0 = rev ? -this.velScratch.vy : this.velScratch.vy;
       const particle = new Particle({
         texture: this.texture,
-        x: this.headX + this.emitScratch.ox,
-        y: this.headY + this.emitScratch.oy,
+        x: this.headX + this.emitScratch.ox + (rev ? this.velScratch.vx * lifeSec : 0),
+        y: this.headY + this.emitScratch.oy + (rev ? this.velScratch.vy * lifeSec : 0),
         anchorX: 0.5,
         anchorY: 0.5,
-        rotation: angle,
+        // Point the shard the way it is actually going. (`orientToVelocity` overrides this per frame anyway;
+        // this is the static case.)
+        rotation: rev ? angle + Math.PI : angle,
         scaleX: scaleX0,
         scaleY: scaleY0,
         tint,
@@ -589,9 +615,11 @@ class BurstInstance implements FxInstance<BurstParams> {
       });
       this.live.push({
         particle,
-        // Base radial velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
-        vx: this.velScratch.vx + p.inheritVel * this.headVx,
-        vy: this.velScratch.vy + p.inheritVel * this.headVy,
+        // Base radial velocity (inward when reversed) plus a fraction of the anchor's own movement
+        // (inheritVel 0 → no change). Inheritance is NOT flipped: it describes the emitter's own travel,
+        // which does not reverse just because the shards do.
+        vx: vx0 + p.inheritVel * this.headVx,
+        vy: vy0 + p.inheritVel * this.headVy,
         spin: (this.rand() * 2 - 1) * 6,
         age: 0,
         maxLife: Math.max(1, p.life),
@@ -628,6 +656,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
     const orient = p.orientToVelocity;
+    const reverse = p.reverse;
     const clockSec = this.clockSec;
     const live = this.live;
     const children = this.pc.particleChildren;
@@ -642,8 +671,20 @@ class BurstInstance implements FxInstance<BurstParams> {
       lp.age += dtMs;
       if (lp.age >= lp.maxLife) continue;
       const particle = lp.particle;
-      particle.x += lp.vx * dtSec;
-      particle.y += lp.vy * dtSec;
+      const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
+      const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
+      // Every AUTHORED over-life curve is read back to front when reversed, so a shrink becomes a grow. The
+      // built-in fade above (`frac`) deliberately stays forward: mirroring it too would leave shards at full
+      // brightness at the instant they die, which reads as a pop rather than as a gather.
+      const curveT = reverse ? 1 - lifeT : lifeT;
+      // Speed-over-life scales the DISTANCE COVERED this frame, not the stored velocity — so it retimes
+      // travel instead of steering it. Velocity keeps accumulating gravity/drag/turbulence untouched, which
+      // is what makes the curve non-destructive: dip to 0 and the shard parks, come back to 1 and it resumes
+      // on the heading it would have had. (Scaling `lp.vx/vy` in place would compound every frame and drift.)
+      // Default flat 1 -> `sampleCurve` returns exactly 1, so this is a byte-identical no-op.
+      const travel = sampleCurve(p.speedCurve, curveT);
+      particle.x += lp.vx * travel * dtSec;
+      particle.y += lp.vy * travel * dtSec;
       lp.vy += gravity * dtSec;
       lp.vx *= dragF;
       lp.vy *= dragF;
@@ -659,19 +700,17 @@ class BurstInstance implements FxInstance<BurstParams> {
       // turbulence, so the sprite tracks the heading it is actually flying on right now.
       particle.rotation = resolveParticleRotation(particle.rotation, lp.vx, lp.vy, orient, lp.spin, dtSec);
 
-      const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
-      const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
       // Built-in fade (authored by `fade` — at its default of 2 `burstFadeEnvelope` returns the literal
       // `frac * frac` this line used to inline, so the default is byte-identical), times the explicit
       // alpha-over-life curve. That second factor's default is flat 1, where `sampleCurve` returns exactly 1
       // and `x * 1 === x` — still a no-op, and still for that reason rather than by accident.
-      particle.alpha = burstFadeEnvelope(frac, p.fade) * sampleCurve(p.alphaCurve, lifeT);
-      const s = sampleCurve(p.sizeCurve, lifeT);
+      particle.alpha = burstFadeEnvelope(frac, p.fade) * sampleCurve(p.alphaCurve, curveT);
+      const s = sampleCurve(p.sizeCurve, curveT);
       particle.scaleX = lp.scaleX0 * s;
       particle.scaleY = lp.scaleY0 * s;
       // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
       // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
-      particle.tint = biasTint(lp.bias0 * sampleCurve(p.biasCurve, lifeT));
+      particle.tint = biasTint(lp.bias0 * sampleCurve(p.biasCurve, curveT));
 
       if (write !== i) live[write] = lp;
       children[write] = particle;

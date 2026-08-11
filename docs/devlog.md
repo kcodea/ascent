@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-10 — hand grab point → 1 (bottom edge)
+
+Follow-up to the hand-grab work: the owner tested it live and settled on `handGrabY = 1` (was 0.72), so a card
+lifted from the hand hangs from its very bottom edge under the cursor. Bumped `DRAG_DEFAULTS_VERSION` 2→3 (clears
+stale local overrides on sync) and updated the `dragFeel.test.ts` fingerprint. Values-only; verified typecheck +
+lint + dragFeel test + build:web green.
+
 ## 2026-08-10 — Replay Phase 1a: capture per-action timing + served boards
 
 First slice of the replay-viewer feature — the DATA foundation. The fidelity groundwork checked out (a cold

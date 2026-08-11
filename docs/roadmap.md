@@ -288,6 +288,14 @@ The career surface exists; deepen what a finished run *remembers*.
   does not model, and regressing the one screen the owner already likes for a refactor was not worth it.
   Fold it in when the primitive grows a slide axis.
 
+### Test board on trial — owner decision (2026-08-11)
+A **Board** picker in Settings swaps the arena backdrop between the shipped board and the new `NewBoardAugust`
+(display-only, persisted). Open questions before it's the default: (1) does the owner want it as the shipped
+board, and (2) if adopted, the UI element offsets (end/refresh/hero-power buttons, hero portrait) and the
+`--board-*` frame-fit constants are tuned against the CURRENT board's frame — the August board's frame/sockets
+sit slightly differently, so they'd want a re-tune pass (`--board-fill` / `--board-zoom` + the four button
+offsets in `styles.css`).
+
 ## Next
 
 ### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)

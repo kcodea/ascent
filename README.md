@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.
+
 - **Sandbox board editor** — click any minion on your board (or the pinned next opponent, via a new
   Shop ⇄ Next-enemy toggle) to edit its base stats, keywords, or swap the card outright, then "run it again"
   to replay the fight. Replaces the FX workbench's synthetic 3v3 stage, which shipped and was deleted 11 days

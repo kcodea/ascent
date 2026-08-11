@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-11 — a "test board" option in Settings (swap the arena backdrop)
+
+Owner ask: trial a new arena board (`NewBoardAugust`) in the game via the options menu. The board backdrop is
+one CSS var (`--board`) drawn on `.boardbg`, so a picker is a display-only override — no engine touch.
+
+- Art: `NewBoardAugust.jpg` (6336×2688) → `apps/web/public/newboardaugust.webp`, resized to 3440×1459 (the
+  same canvas + 2.3578 aspect as the shipped board, so `--board-aspect` / `--board-fill` / the tuned button
+  offsets all still hold) at webp q82 → 117 KB.
+- `boardConfig.ts` (new): a small `BoardId` pref (`default` | `august`) persisted to `localStorage`, applied by
+  overriding `--board` on the root (or clearing it to fall back to the stylesheet default). A side-effect
+  import in `Game.tsx` applies the saved pick at boot, before first paint (no flash of the wrong art).
+- `EscMenu.tsx`: a new **Board** section with the two options (re-adds a trimmed-down board picker; the old one
+  was removed 2026-07-14). The hero-select preview reads the same `--board`, so it previews the pick too.
+
+**Verified live** (throwaway lobby run, browser): the picker swaps the arena to the purple/gold August board
+and back; the pick persists in localStorage and re-applies after a full reload; the webp loads (3440×1459, no
+404). typecheck (web) + lint (0 errors) green.
+
+Caveat for owner: the UI element offsets (end/refresh/hero-power buttons, hero portrait) are tuned against the
+shipped board's frame; on the new board they land close but may want a re-tune if it's adopted for real.
+
 ## 2026-08-11 — remove the abandoned v1 replay-capture (timings + servedBoards)
 
 The action-replay spectator was killed (see [replay-v2-handoff.md](replay-v2-handoff.md) — it can't reproduce a

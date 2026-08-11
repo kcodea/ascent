@@ -42,6 +42,16 @@ table covers both phases.
 
 ## Papercuts
 
+### `ease` has no dial, and the workbench will DROP it on save
+**Hit:** 2026-08-10, shipping the def-level ease. The engine half is done and tested (`FxDef.ease`, honoured
+by `player.ts`), but `toDef` in `layerModel.ts` rebuilds the def from workbench state, and workbench state has
+no field for it. So: a def can only get an ease by hand-editing its JSON, and **loading such a def into the
+workbench and saving it silently strips the ease** — exactly the class of bug that `label`/`tags` hit in #805.
+**Until the dial lands, do not open an eased def in the workbench.**
+**Fix:** the dial. `CurveEditor` in `Inspector.tsx` is already cleanly parameterised (`value`/`vMax`/
+`presets`/`onChange`) and just needs exporting; the work is workbench state — a `useState` + ref, the session
+snapshot, the history entry, `toDef`/`toStoredDef` passthrough, and a control beside the Duration dial.
+
 ### No label / tags editor
 The def format carries `label` and `tags` — the library searches and groups by them — but the workbench has
 no field for either. They can only be set by hand-editing JSON. (Save silently *deleting* them was fixed in
@@ -95,6 +105,18 @@ card layer, whose whole job is to move a card — and of any effect that should 
 into defs and have shipped ever since on the assumption the migration was faithful. Nobody has judged them by
 eye. Cheap to check, and the kind of thing that stays wrong indefinitely once it stops being new.
 
+### A backtick in a GLSL comment fails as a TypeScript parse error 40 lines away
+**Hit:** 2026-08-10, twice in one session, writing shader comments for the ring curve and then for reverse.
+Shaders live in `` /* glsl */ `...` `` template literals, so a backtick in a GLSL comment — the natural way to
+write ``the `uEase` uniform`` in prose, and the house style everywhere else — silently ENDS the literal. The
+symptom is `TS1005: ',' expected` and *"Module declaration names may only use ' or " quoted strings"* pointing
+at whatever GLSL happens to follow, which reads as gibberish because it is being parsed as TypeScript.
+**Workaround:** drop the backticks. `shockwave.test.ts` and `ribbon.test.ts` both already assert
+`toContain('`')` is false, so it is caught at test time — but only after the confusing typecheck failure.
+**Cost:** small each time, but it is a trap with a misleading error and no local hint, and it is unavoidable
+for anyone documenting a shader. **Fix:** either an eslint rule naming the real cause, or move the shader
+sources into `.glsl` files imported as strings (which also gets syntax highlighting).
+
 ### The direct-call scanner reads comments
 **Hit:** 2026-08-01. A doc comment that *showed* the `playDef('<id>'` pattern registered a phantom def and
 failed CI. Deliberate (the scanner doesn't strip comments, so a commented-out call is still visible) and
@@ -134,27 +156,39 @@ Three asks that turn out to share one root cause. Logged together for that reaso
   gather; summon becomes dissipate. Every authored def becomes two effects.
 - **Whole-effect ease in/out** — a curve on the def's clock, i.e. the curve version of the per-call `time`
   scalar `playDef` already accepts.
-- **Per-layer speed ease** — a `speedCurve`, alongside the existing `sizeCurve` / `alphaCurve` / `biasCurve`.
+- ~~**Per-layer speed ease** — a `speedCurve`, alongside the existing `sizeCurve` / `alphaCurve` / `biasCurve`.~~
+  **Shipped 2026-08-10** as `Speed / life`.
 
-**The shared root cause.** Particle motion is INTEGRATED per frame (`lp.age += dtMs`, drag applied as a
-per-frame multiplier) rather than being a closed-form function of age. Three consequences:
+**The shared root cause.** Particle motion is INTEGRATED per frame (`lp.age += dtMs`) rather than being a
+closed-form function of age. The consequence that survives scrutiny:
   1. There is no history to rewind, so a true time-reverse is impossible without a rewrite.
-  2. The sim is dt-DEPENDENT — a per-frame drag multiplier means the same effect at 30fps and 240fps does not
-     travel the same distance, and any time-warp (a def-level ease) changes the motion rather than purely
-     retiming it.
-  3. So "ease the whole effect" and "reverse a layer" both land on the same fix.
+  2. ~~The sim is dt-DEPENDENT — a per-frame drag multiplier…~~ **This was wrong when written** (corrected
+     2026-08-10, while shipping `speedCurve`). Burst's drag is `Math.pow(p.drag, dtMs / DRAG_REF_MS)` — a
+     per-16.7ms retention renormalised to the real frame delta — and turbulence is an acceleration integrated
+     as `* dtSec` in all three primitives. Neither is a raw per-frame multiplier, so "the same effect travels
+     a different distance at 30fps and 240fps" does not describe this code. What remains is the ordinary
+     semi-implicit-Euler sensitivity to step size, which is a different and much smaller thing.
+  3. So reverse and def-level ease stand on their own merits; neither is blocked behind a dt fix.
 
 **Order that gets the most for the least, if these are taken up:**
-  1. `speedCurve` — pure addition, reuses the existing curve widget and the existing per-life curve plumbing.
-     Cheapest of the three and immediately useful; it also partly subsumes `drag`, which is just an
-     exponential speed curve.
-  2. **dt-normalise drag and turbulence** — unglamorous, and it is what actually unblocks the other two. Also
-     fixes a latent correctness bug: effects currently look subtly different at different frame rates.
-  3. **Per-layer `reverse`** as a VISUAL reverse (spawn at the rim aiming inward, curves mirrored, shockwave
-     radius contracting) — not a frame-exact time reversal. Spec it with that name so nobody later expects
-     rewind semantics and finds drag behaving asymmetrically.
-  4. **Def-level ease** — a curve remapping def progress, bending the layers' `at`/`life` schedule with it.
-     Last, because it is the one that most needs (2) to be true first.
+  1. ~~`speedCurve`~~ — **SHIPPED 2026-08-10.** `Speed / life` on burst, emitter and smoke. See `devlog.md`.
+  1b. ~~**The ring's expansion curve**~~ — **SHIPPED 2026-08-10.** Not on the original list, and it should have
+     been: `shockwave` already had `ease`, a single `pow` exponent that can only decelerate or only
+     accelerate. `Expansion / life` makes it an authored curve (owner asked "why not on ring or trail?").
+     **Trail is genuinely out of scope** rather than pending — `ribbon` is path geometry with no velocity
+     anywhere in it, and its `widthCurve` runs along LENGTH, not life. Time-shaping a ribbon is what (4)
+     would give it.
+  2. ~~**dt-normalise drag and turbulence**~~ — **NOT NEEDED**, see the correction above.
+  3. ~~**Per-layer `reverse`**~~ — **SHIPPED 2026-08-10**, as the VISUAL reverse this entry specced. One
+     note against the original sketch: "spawn at the rim" turned out to be the wrong mechanism. Spawning at
+     `emitRadius` only reads as a gather when a def happens to have an emit radius, and most do not. What
+     ships instead spawns each particle at the far end of ITS OWN flight (`v * life`) and negates the
+     velocity — a straight-line flight is its own inverse, so it works for every emit shape including a bare
+     point, and costs no extra RNG draw.
+  4. ~~**Def-level ease**~~ — **ENGINE SHIPPED 2026-08-10**, dial still missing. `FxDef.ease` is honoured by
+     the player: layers arrive on the eased clock and are ticked with the eased delta, and the def's length is
+     unchanged because wrap/completion stay on the raw clock. See the papercut above — until the workbench has
+     a control for it, an ease is JSON-only and the workbench will strip it on save.
 
 ---
 

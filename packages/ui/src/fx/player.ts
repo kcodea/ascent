@@ -2,6 +2,7 @@ import { Container } from 'pixi.js';
 import { coerceParams } from './params';
 import type { FxParamSpecs, ParamsOf } from './params';
 import { layerStateOf, type FxDef, type FxLayerState } from './def';
+import { MIN_CURVE_POINTS, sampleCurve } from './curve';
 import { getPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
 
@@ -204,10 +205,39 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     const t = timing.get(index);
     return t !== undefined ? t.life : def.layers[index].life;
   };
+  /**
+   * The def-level ease (see `FxDef.ease`), or null for the overwhelmingly common linear case.
+   *
+   * Resolved ONCE here rather than read per frame, and deliberately null — not an identity curve — when
+   * absent: the whole point is that a def without an ease keeps the original single-clock arithmetic, so
+   * there is no float round-trip through a sampler on the path every shipped effect takes.
+   */
+  const easePts = def.ease !== undefined && def.ease.length >= MIN_CURVE_POINTS ? def.ease : null;
+
+  /**
+   * The clock the LAYERS see: raw time bent through the def's ease curve.
+   *
+   * Beyond `duration` it continues linearly from the curve's endpoint rather than saturating, so an
+   * unbounded layer in a `fireOnce` pass keeps running at normal speed after the nominal window instead of
+   * freezing on the curve's last value.
+   */
+  const easedClock = (): number => {
+    if (easePts === null || def.duration <= 0) return clock;
+    if (clock >= def.duration) return sampleCurve(easePts, 1) * def.duration + (clock - def.duration);
+    return sampleCurve(easePts, clock / def.duration) * def.duration;
+  };
+
+  /** Eased time at the previous tick, so `reconcile` can hand primitives the WARPED delta. Re-synced on
+   *  every reconcile (including the `reconcile(0)` after a clock reset), which is what makes a wrap or a
+   *  stop self-healing rather than something each reset has to remember to fix up. */
+  let lastEased = 0;
+
   const stateOf = (index: number): FxLayerState => {
     const t = timing.get(index);
     const layer = def.layers[index];
-    return layerStateOf(t !== undefined ? t.at : layer.at, t !== undefined ? t.life : layer.life, def.duration, clock);
+    return layerStateOf(
+      t !== undefined ? t.at : layer.at, t !== undefined ? t.life : layer.life, def.duration, easedClock(),
+    );
   };
 
   /** Bring ONE layer in line with the clock. `oneShot` marks a fireOnce() pass, which differs in exactly one
@@ -235,7 +265,20 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
    *  point: the At/Life sliders must be visible in a Fire, not only in a loop. */
   const reconcile = (dtMs: number, oneShot = false): void => {
     for (let i = 0; i < def.layers.length; i++) syncLayer(i, oneShot);
-    if (dtMs > 0) for (const l of live.values()) l.inst.update(dtMs);
+    // With no ease this is `dtMs`, untouched — the arithmetic every shipped def has always run.
+    //
+    // With one, primitives are ticked with the EASED delta, so the whole composition slows and rushes
+    // together. Clamped at 0 because a descending stretch of the curve would otherwise hand an integrator a
+    // negative dt (ages running backwards, drag dividing instead of multiplying); it reads as a HOLD
+    // instead. Re-syncing `lastEased` unconditionally is what makes a wrap or stop self-healing: those reset
+    // `clock` to 0 and call `reconcile(0)`, and the resulting large negative delta is absorbed here.
+    let step = dtMs;
+    if (easePts !== null) {
+      const now = easedClock();
+      step = now > lastEased ? now - lastEased : 0;
+      lastEased = now;
+    }
+    if (step > 0) for (const l of live.values()) l.inst.update(step);
   };
 
   /**

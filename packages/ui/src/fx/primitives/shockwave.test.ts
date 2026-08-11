@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defaultsOf, validateSpecs, type FxParamSpec, type FxParamSpecs } from '../params';
+import { isIdentityCurve } from '../curve';
 import { QUAD_SCALE, SHOCKWAVE_FRAG, shockwaveOneShotDurationSec, shockwavePrimitive } from './shockwave';
+
+const SHOCKWAVE_SRC = readFileSync(new URL('./shockwave.ts', import.meta.url), 'utf8');
 
 describe('shockwave param specs', () => {
   it('has no self-contradictory defaults (registration-time invariant)', () => {
@@ -154,5 +158,126 @@ describe('quad oversizing', () => {
   it('is applied in the shader so d == 1 still means the true radius', () => {
     expect(SHOCKWAVE_FRAG).toContain('uniform float uQuadScale;');
     expect(SHOCKWAVE_FRAG).toContain('(vUV * 2.0 - 1.0) * uQuadScale');
+  });
+});
+
+/** Every `uniform <type> uName` the fragment shader declares. */
+function declaredUniforms(): string[] {
+  return [...SHOCKWAVE_FRAG.matchAll(/uniform\s+\w+\s+(u\w+)/g)].map((m) => m[1]);
+}
+
+/**
+ * THE POOLING GUARD, promoted from a comment to a test.
+ *
+ * `writeAllUniforms` carries a doc comment insisting it writes EVERY uniform the shader owns, because a
+ * pooled shader arrives holding the previous tenant's values — the intermittent, load-dependent class of bug
+ * where an effect looks right alone and wrong in a busy fight. That instruction was prose, so adding a
+ * uniform and forgetting it here was a silent mistake. Adding `uRadLut` is exactly that situation, so the
+ * instruction becomes enforceable now rather than after it has been missed once.
+ */
+describe('writeAllUniforms covers the shader', () => {
+  const body = (): string => {
+    const start = SHOCKWAVE_SRC.indexOf('function writeAllUniforms');
+    expect(start).toBeGreaterThan(-1);
+    const end = SHOCKWAVE_SRC.indexOf('\n}', start);
+    return SHOCKWAVE_SRC.slice(start, end);
+  };
+
+  it('writes every uniform the fragment shader declares', () => {
+    const missing = declaredUniforms().filter((name) => !body().includes(`u.${name} =`));
+    expect(missing).toEqual([]);
+  });
+
+  /** A shader that declares nothing would pass the test above vacuously. */
+  it('found a non-trivial set of uniforms to check', () => {
+    expect(declaredUniforms().length).toBeGreaterThan(15);
+  });
+});
+
+/**
+ * THE EXPANSION CURVE. A ring's radius used to be `pow(phase, ease)` — a single family of shapes that can
+ * only ever decelerate (ease < 1) or only ever accelerate (ease > 1). It cannot hold, stall, or pulse, which
+ * is what an authored curve is for.
+ *
+ * The curve is evaluated on the GPU, so it reaches the shader as a baked lookup table. That is the only
+ * reason this needs machinery at all, and it is why the DEFAULT must not go through it: 18 of 29 shipped defs
+ * use shockwave and `ease` is genuinely tuned across them, so the un-authored case takes the original
+ * expression, guarded by a uniform branch.
+ */
+describe('shockwave expansion curve', () => {
+  it('exposes a radiusCurve param defaulting to the IDENTITY ramp, not a flat line', () => {
+    const spec = shockwavePrimitive.params.radiusCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.group).toBe('Ring');
+    // v = t. A curve that REPLACES a quantity has the identity as its no-op; a flat 1 would pin every ring
+    // at full radius for its whole life.
+    expect(spec.default).toEqual([[0, 0], [1, 1]]);
+  });
+
+  /** The default has to be the value that makes the CPU take the skip-the-LUT path, or the fast path is
+   *  unreachable and every shipped def quietly starts sampling a table. */
+  it('defaults to a curve that isIdentityCurve accepts, so the LUT is skipped', () => {
+    expect(isIdentityCurve(shockwavePrimitive.params.radiusCurve.default as number[][])).toBe(true);
+  });
+
+  it('keeps the original pow(phase, uEase) expression for the un-authored case', () => {
+    // Both halves of the pre-existing behaviour survive: the exact compare on uEase (pow(x, 1.0) is not
+    // guaranteed bit-exact) and the pow itself.
+    expect(SHOCKWAVE_FRAG).toContain('uEase == 1.0 ? shaped : pow(max(shaped, 0.0), uEase)');
+    expect(SHOCKWAVE_FRAG).toContain('uRadCurveOn > 0.5 ? radCurve(phase) : phase');
+  });
+
+  it('branches on a uniform, so every fragment in a draw takes the same path', () => {
+    expect(SHOCKWAVE_FRAG).toContain('uniform float uRadCurveOn;');
+  });
+
+  /** The LUT is packed 4-per-vec4; a size that isn't a multiple of 4 would silently drop the tail. */
+  it('packs the LUT into exactly enough vec4s to hold every sample', () => {
+    const n = Number(/const int RAD_LUT_N = (\d+);/.exec(SHOCKWAVE_FRAG)?.[1]);
+    const vec4s = Number(/uniform\s+vec4\s+uRadLut\[(\d+)\]/.exec(SHOCKWAVE_FRAG)?.[1]);
+    expect(Number.isInteger(n)).toBe(true);
+    expect(n % 4).toBe(0);
+    expect(vec4s).toBe(n / 4);
+  });
+
+  /** The CPU allocates the buffer; the shader indexes it. A mismatch reads uninitialised tail samples. */
+  it('sizes the CPU-side buffer to the shader\'s sample count', () => {
+    const n = Number(/const int RAD_LUT_N = (\d+);/.exec(SHOCKWAVE_FRAG)?.[1]);
+    expect(SHOCKWAVE_SRC).toContain(`const RAD_LUT_N = ${n};`);
+    expect(SHOCKWAVE_SRC).toContain('const RAD_LUT_VEC4 = RAD_LUT_N / 4;');
+  });
+
+  /** Fade rides the linear phase deliberately, so reshaping expansion never changes how long a ring lives —
+   *  which is what keeps `shockwaveOneShotDurationSec` (and every def's timing) valid. */
+  it('leaves the fade on the linear phase, not the shaped radius', () => {
+    expect(SHOCKWAVE_FRAG).toContain('float fadeAmt = pow(1.0 - phase, uFade);');
+  });
+});
+
+/**
+ * REVERSE — an implosion. Mirrors the SHAPED RADIUS rather than the phase, which is what keeps fade and
+ * lifetime on the forward clock: a contracting ring still fades out as it reaches the centre instead of
+ * appearing from nothing at the rim.
+ */
+describe('shockwave reverse', () => {
+  it('exposes a reverse toggle defaulting to off', () => {
+    const spec = shockwavePrimitive.params.reverse;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Ring');
+  });
+
+  it('mirrors the shaped radius, behind a uniform branch that is exact when off', () => {
+    expect(SHOCKWAVE_FRAG).toContain('uniform float uRevRing;');
+    expect(SHOCKWAVE_FRAG).toContain('float rad = uRevRing > 0.5 ? 1.0 - eased : eased;');
+  });
+
+  /** Composition is the point: reverse mirrors whatever the curve and Ease produced, rather than replacing
+   *  them. If it ever reads `phase` directly it has stopped composing. */
+  it('mirrors the result of the curve and Ease, not the raw phase', () => {
+    expect(SHOCKWAVE_FRAG).toContain('float eased = uEase == 1.0 ? shaped : pow(max(shaped, 0.0), uEase);');
+    expect(SHOCKWAVE_FRAG).not.toContain('uRevRing > 0.5 ? 1.0 - phase');
   });
 });

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   sampleCurve,
+  bakeCurveLut,
+  isIdentityCurve,
   CURVE_PRESETS,
   CURVE_T_EPSILON,
+  IDENTITY_CURVE,
   MIN_CURVE_POINTS,
   insertCurvePoint,
   removeCurvePoint,
@@ -195,5 +198,75 @@ describe('CURVE_PRESETS', () => {
         if (i > 0) expect(pts[i][0], name).toBeGreaterThanOrEqual(pts[i - 1][0]);
       }
     }
+  });
+});
+
+/**
+ * The GPU bridge. A fragment shader cannot walk a variable-length control-point list, so a curve that has to
+ * be evaluated on the GPU is baked to a fixed-size table first. These two exist for that path.
+ */
+describe('isIdentityCurve', () => {
+  it('accepts the identity ramp', () => {
+    expect(isIdentityCurve(IDENTITY_CURVE)).toBe(true);
+    expect(isIdentityCurve([[0, 0], [1, 1]])).toBe(true);
+  });
+
+  it('rejects a flat line — the no-op for a MULTIPLIER is not the no-op for a RAMP', () => {
+    expect(isIdentityCurve([[0, 1], [1, 1]])).toBe(false);
+  });
+
+  it('rejects an authored shape', () => {
+    expect(isIdentityCurve([[0, 0], [0.5, 0.9], [1, 1]])).toBe(false);
+    expect(isIdentityCurve([[0, 1], [1, 0]])).toBe(false);
+  });
+
+  /**
+   * A collinear three-point curve samples identically in exact arithmetic, and is STILL not "identity" here.
+   * The predicate answers "is it safe to skip the curve machinery entirely", and a consumer uses that to take
+   * a byte-identical fast path — which a float round-trip through a lookup table cannot be promised to match.
+   * Answering the mathematical question instead would quietly widen who takes that path.
+   */
+  it('rejects a collinear curve that merely samples like the identity', () => {
+    expect(isIdentityCurve([[0, 0], [0.5, 0.5], [1, 1]])).toBe(false);
+  });
+});
+
+describe('bakeCurveLut', () => {
+  it('pins the first and last samples to the curve endpoints', () => {
+    const out = new Float32Array(32);
+    bakeCurveLut([[0, 0.25], [1, 0.75]], out);
+    expect(out[0]).toBeCloseTo(0.25, 6);
+    expect(out[31]).toBeCloseTo(0.75, 6);
+  });
+
+  it('samples uniformly, so entry i is the curve at i / (n - 1)', () => {
+    const pts: CurvePoint[] = [[0, 0], [0.3, 0.8], [1, 0.2]];
+    const out = new Float32Array(16);
+    bakeCurveLut(pts, out);
+    for (let i = 0; i < out.length; i++) {
+      expect(out[i]).toBeCloseTo(sampleCurve(pts, i / (out.length - 1)), 6);
+    }
+  });
+
+  /** Re-baked on every inspector drag, so it must not add GC pressure — it fills the caller's buffer. */
+  it('writes in place, keeping the caller\'s buffer', () => {
+    const out = new Float32Array(8);
+    const identity = out;
+    bakeCurveLut([[0, 0], [1, 1]], out);
+    expect(out).toBe(identity);
+  });
+
+  it('reproduces the identity ramp closely enough to interpolate between samples', () => {
+    const out = new Float32Array(32);
+    bakeCurveLut(IDENTITY_CURVE, out);
+    for (let i = 0; i < out.length; i++) expect(out[i]).toBeCloseTo(i / 31, 6);
+  });
+
+  /** Degenerate sizes must not throw — a consumer sizes the table, and 0 is a legal (if useless) Float32Array. */
+  it('survives an empty or single-entry table', () => {
+    expect(() => bakeCurveLut(IDENTITY_CURVE, new Float32Array(0))).not.toThrow();
+    const one = new Float32Array(1);
+    bakeCurveLut([[0, 0.4], [1, 0.9]], one);
+    expect(one[0]).toBeCloseTo(0.4, 6);
   });
 });

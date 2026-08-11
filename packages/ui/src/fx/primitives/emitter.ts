@@ -64,6 +64,17 @@ const SPECS = {
     enabledWhen: { param: 'speed', above: 0 },
     help: 'How much motes differ from each other in launch speed, as a fraction of Speed — 0 sends them all off at the same rate, 0.4 (the default) spreads them between 0.6x and 1.4x. Nothing to vary while Speed is 0.',
   },
+  reverse: {
+    kind: 'toggle', label: 'Reverse', group: 'Motion', default: false,
+    help: 'Turns the stream into a GATHER: motes start out where they would have finished and drift inward to the anchor, and every over-life curve is read back to front. This is a VISUAL reverse, not a rewind — gravity and turbulence still act on the way in, so a mote eases toward the middle and stops a little short of it. The built-in fade is deliberately not mirrored, so motes still fade out at the end rather than vanishing at full strength.',
+  },
+  speedCurve: {
+    kind: 'curve', label: 'Speed / life', group: 'Motion',
+    // vMax 2 so a mote can OVERSHOOT its launch speed mid-life rather than only decaying from it. Default is
+    // flat 1, where `sampleCurve` returns exactly 1 and `x * 1 === x` — a byte-identical no-op.
+    default: [[0, 1], [1, 1]], vMax: 2, presets: CURVE_PRESETS,
+    help: 'Multiplier on how fast a mote TRAVELS over its life (0 = birth, 1 = death), on top of Speed. Flat 1 = no change. It retimes travel without steering it: heading and gravity are untouched, so dipping to 0 stalls a mote where it is and coming back up sends it on again. Good for a stream that hangs before it drifts, or one that only gets going near the end.',
+  },
   gravity: {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: -30, axis: 'scale',
     help: 'Constant pull on every mote, in px/sec². Negative makes them rise like embers or sparks (the default), positive lets them fall, 0 leaves them weightless.',
@@ -431,6 +442,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
     const orient = p.orientToVelocity;
+    const reverse = p.reverse;
     const clockSec = this.clockSec;
     const motes = this.motes;
     const children = this.particles.particleChildren;
@@ -449,22 +461,29 @@ class EmitterInstance implements FxInstance<EmitterParams> {
         m.vx += turbulence * turbulenceX(m.p.x, m.p.y, clockSec, turbScale) * dtSec;
         m.vy += turbulence * turbulenceY(m.p.x, m.p.y, clockSec, turbScale) * dtSec;
       }
-      m.p.x += m.vx * dtSec;
-      m.p.y += m.vy * dtSec;
+      const t = m.age / m.maxLife;
+      // Authored over-life curves are read back to front when reversed. The built-in fade below is
+      // deliberately left forward: mirroring it too would leave a mote at full strength as it dies.
+      const curveT = reverse ? 1 - t : t;
+      // Speed-over-life scales the DISTANCE COVERED this frame, not the stored velocity — it retimes travel
+      // rather than steering it, and leaves gravity/turbulence accumulating as they were. Scaling m.vx/m.vy
+      // in place would compound every frame and drift. Default flat 1 -> exactly 1, a byte-identical no-op.
+      const travel = sampleCurve(p.speedCurve, curveT);
+      m.p.x += m.vx * travel * dtSec;
+      m.p.y += m.vy * travel * dtSec;
       // Point along the direction of travel when `orientToVelocity` is on. The emitter has no spin channel,
       // so the off-branch is `rotation + 0 * dtSec` — the mote's untouched spawn rotation, an exact no-op
       // (see `resolveEmitterRotation`). Reads m.vx/m.vy AFTER this frame's gravity + turbulence.
       m.p.rotation = resolveEmitterRotation(m.p.rotation, m.vx, m.vy, orient, 0, dtSec);
-      const t = m.age / m.maxLife;
       // Built-in fade-in/out, times the explicit alpha-over-life curve (default flat 1 → sampleCurve returns
       // exactly 1 and `x * 1 === x`, so the default is a byte-identical no-op).
-      m.p.alpha = moteAlpha(t, m.fadeIn) * sampleCurve(p.alphaCurve, t);
-      const shrink = sampleCurve(p.sizeCurve, t); // size-over-life multiplier
+      m.p.alpha = moteAlpha(t, m.fadeIn) * sampleCurve(p.alphaCurve, curveT);
+      const shrink = sampleCurve(p.sizeCurve, curveT); // size-over-life multiplier
       m.p.scaleX = m.scaleX0 * shrink;
       m.p.scaleY = m.scaleY0 * shrink;
       // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
       // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
-      m.p.tint = biasTint(m.bias0 * sampleCurve(p.biasCurve, t));
+      m.p.tint = biasTint(m.bias0 * sampleCurve(p.biasCurve, curveT));
       if (write !== i) motes[write] = m;
       children[write] = m.p;
       write++;
@@ -563,10 +582,19 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     // Spawn-position offset for the emission shape (point/radius 0 → (0, 0), i.e. no change).
     emissionOffset(p, this.rand(), this.rand(), this.emitScratch);
     spawnVelocity(angle, speed, p.squashX, p.squashY, this.velScratch);
+    // REVERSE — a gather instead of a stream. A straight-line flight is its own inverse: put the mote where
+    // that flight WOULD have ended (v * life) and negate the velocity, and it retraces the same line inward.
+    // Adds no rand() draw, which the seeded-replay contract depends on. It lands NEAR the anchor rather than
+    // on it, because gravity/turbulence still act on the way in — the honest meaning of "visual reverse".
+    const rev = p.reverse;
+    const revLifeSec = p.life / 1000;
+    const vx0 = rev ? -this.velScratch.vx : this.velScratch.vx;
+    const vy0 = rev ? -this.velScratch.vy : this.velScratch.vy;
+
     const particle = new Particle({
       texture: this.texture,
-      x: this.originX + this.emitScratch.ox,
-      y: this.originY + this.emitScratch.oy,
+      x: this.originX + this.emitScratch.ox + (rev ? this.velScratch.vx * revLifeSec : 0),
+      y: this.originY + this.emitScratch.oy + (rev ? this.velScratch.vy * revLifeSec : 0),
       anchorX: 0.5,
       anchorY: 0.5,
       tint: biasTint(bias),
@@ -579,8 +607,8 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     return {
       p: particle,
       // Base emission velocity plus a fraction of the anchor's own movement (inheritVel 0 → no change).
-      vx: this.velScratch.vx + p.inheritVel * this.headVx,
-      vy: this.velScratch.vy + p.inheritVel * this.headVy,
+      vx: vx0 + p.inheritVel * this.headVx,
+      vy: vy0 + p.inheritVel * this.headVy,
       age: 0,
       maxLife: p.life,
       fadeIn: p.fadeIn,

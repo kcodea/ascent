@@ -301,3 +301,67 @@ describe('emitter seeded randomness', () => {
     expect(EMITTER_SRC).toContain('emissionOffset(p, this.rand(), this.rand(), this.emitScratch)');
   });
 });
+
+/**
+ * SPEED OVER LIFE — see burst.test.ts's block for the full reasoning. The invariant: the curve scales the
+ * distance covered this frame, never the stored velocity, so it retimes drift instead of decaying it.
+ */
+describe('emitter speed over life', () => {
+  it('exposes a speedCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = emitterPrimitive.params.speedCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    expect(spec.group).toBe('Motion');
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
+    }
+  });
+
+  it('allows overshoot above 1x', () => {
+    expect(emitterPrimitive.params.speedCurve.vMax).toBe(2);
+  });
+
+  it('scales the POSITION delta on both axes, not the stored velocity', () => {
+    const code = codeOf(EMITTER_SRC);
+    expect(code).toContain('m.p.x += m.vx * travel * dtSec');
+    expect(code).toContain('m.p.y += m.vy * travel * dtSec');
+  });
+
+  /** The compounding guard — see burst.test.ts's copy. `m.vx *= travel` would decay velocity every frame
+   *  instead of scaling that frame's travel, and the mote could never recover. */
+  it('never lets the curve reach stored velocity, which would compound', () => {
+    expect(codeOf(EMITTER_SRC)).not.toMatch(/\.v[xy]\s*(?:\*=|\+=|-=|=)[^;\n]*\btravel\b/);
+  });
+
+  it('samples the curve once per mote per frame', () => {
+    expect(codeOf(EMITTER_SRC).match(/sampleCurve\(p\.speedCurve/g)).toHaveLength(1);
+  });
+});
+
+/** REVERSE — see burst.test.ts's block for the full reasoning. Same mechanism: spawn at the far end of the
+ *  flight, negate the velocity, mirror the authored curves only. */
+describe('emitter reverse', () => {
+  it('exposes a reverse toggle defaulting to off', () => {
+    const spec = emitterPrimitive.params.reverse;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Motion');
+  });
+
+  it('offsets the spawn by v * life and negates the velocity', () => {
+    const code = codeOf(EMITTER_SRC);
+    expect(code).toContain('rev ? this.velScratch.vx * revLifeSec : 0');
+    expect(code).toContain('const vx0 = rev ? -this.velScratch.vx : this.velScratch.vx;');
+    expect(code).toContain('const vy0 = rev ? -this.velScratch.vy : this.velScratch.vy;');
+  });
+
+  it('mirrors the authored curves but leaves the built-in fade forward', () => {
+    const code = codeOf(EMITTER_SRC);
+    expect(code).toContain('const curveT = reverse ? 1 - t : t;');
+    for (const c of ['speedCurve', 'alphaCurve', 'sizeCurve', 'biasCurve']) {
+      expect(code).toContain(`sampleCurve(p.${c}, curveT)`);
+    }
+  });
+});

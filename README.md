@@ -53,6 +53,11 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **A card's buff can carry its own authored effect** — Karwind now blooms a fire ring (`flame-ring`) on every Dragon it pumps, in the shop and in combat. Getting there added source-attributed buff effects: a new `buffed` fan-out for combat and per-source shop buff moments, so an effect can be keyed to the *buffer* rather than to each buffed card.
 
 - **Card-drag feel, retuned** — the owner's latest Drag-tuner values are now the shipped defaults (near-instant catch-up, a stronger tilt, a flatter resting angle, an instant recentre). New with it: a **hand grab point** — a card lifted from the hand now hangs from its bottom edge instead of from its centre, with a "Hand grab point" slider to place it exactly. Shop and board drags still ride centred.
+- **Any effect can play as a gather** — a per-layer Reverse toggle turns a detonation into a gather, a plume into an inhale, a shockwave into an implosion. Particles start where they would have finished and fly inward, so every authored effect is now two.
+
+- **Rings expand on an authored curve** — shockwave's Ease dial could only ever decelerate or only accelerate. Expansion / life draws the whole shape, so a ring can hang and then snap inward. Every existing effect is untouched: the un-drawn default is the identity ramp and takes the original code path.
+
+- **Particles can be given a speed curve** — a Speed / life dial on burst, emitter and smoke, alongside the size, alpha and bias curves already there. Shards can hang and then bolt, smoke can rise and settle, a spray can stall in mid-air and pick up again. Drag could only ever slow things down along one exponential shape; this authors the whole envelope.
 
 - **Shop-phase effects can be authored now** — the effects system only ever reached combat, so every shop visual was hand-written code with its effect baked in. Shop moments can now be bound in the workbench like combat ones. That matters because the most common mechanic in Set 2 — Shout, on 31 cards — happens in the shop, along with roughly 60% of the set's triggers.
 

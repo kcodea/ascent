@@ -452,3 +452,103 @@ describe('burstFadeEnvelope (the built-in fade, now authored)', () => {
     }
   });
 });
+
+/**
+ * SPEED OVER LIFE. The design property worth locking is not the sampling (curve.test.ts owns that) but the
+ * INTEGRATION SEMANTICS: the curve scales the distance covered this frame and never touches stored velocity.
+ *
+ * Scaling `lp.vx/vy` in place would compound — a 0.5 curve would halve the velocity every frame instead of
+ * halving this frame's travel, so the shard would decay to a standstill and never recover when the curve
+ * came back up. `BurstInstance` can't be built headlessly (see the note above the aim guard), so the loop's
+ * ARITHMETIC IS PINNED IN SOURCE, which is the same technique the rand-draw guards use.
+ */
+describe('burst speed over life', () => {
+  it('exposes a speedCurve curve param defaulting to the flat (no-op) [[0,1],[1,1]]', () => {
+    const spec = burstPrimitive.params.speedCurve;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('curve');
+    expect(spec.default).toEqual([[0, 1], [1, 1]]);
+    expect(spec.group).toBe('Motion');
+    // Flat 1 across life → travel = vx * 1 * dt, i.e. exactly the expression the loop had before the curve
+    // existed. This is what makes every already-authored def byte-identical.
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(sampleCurve(spec.default, t)).toBe(1);
+    }
+  });
+
+  it('allows overshoot above 1x, so a shard can lurch rather than only decay', () => {
+    expect(burstPrimitive.params.speedCurve.vMax).toBe(2);
+  });
+
+  it('scales the POSITION delta on both axes, not the stored velocity', () => {
+    const code = codeOf(BURST_SRC);
+    expect(code).toContain('particle.x += lp.vx * travel * dtSec');
+    expect(code).toContain('particle.y += lp.vy * travel * dtSec');
+  });
+
+  /**
+   * THE compounding guard, stated as what must never appear rather than as a count: `travel` must never land
+   * on a velocity field. `lp.vx *= travel` is the obvious mistake — it type-checks, it renders plausibly, and
+   * it turns a per-frame multiplier into an exponential decay, halving the VELOCITY every frame instead of
+   * that frame's travel, so a shard could never recover when the curve came back up.
+   *
+   * Counting occurrences of the identifier does not work here: `travel` is also a burst aim mode and the
+   * phrase "direction of travel" appears in help text, which `codeOf` keeps because string literals are code.
+   */
+  it('never lets the curve reach stored velocity, which would compound', () => {
+    expect(codeOf(BURST_SRC)).not.toMatch(/\.v[xy]\s*(?:\*=|\+=|-=|=)[^;\n]*\btravel\b/);
+  });
+
+  /** Sampled once per particle per frame, not once per axis — the loop is the hot path. */
+  it('samples the curve once per particle per frame', () => {
+    expect(codeOf(BURST_SRC).match(/sampleCurve\(p\.speedCurve/g)).toHaveLength(1);
+  });
+});
+
+/**
+ * REVERSE — a gather instead of a spray. Specced in docs/fx-workbench-friction.md as a VISUAL reverse, not a
+ * rewind: nothing is rolled back, the spawn is simply placed at the far end of the flight with the velocity
+ * negated, and the authored curves are read back to front.
+ */
+describe('burst reverse', () => {
+  it('exposes a reverse toggle defaulting to off', () => {
+    const spec = burstPrimitive.params.reverse;
+    expect(spec).toBeDefined();
+    expect(spec.kind).toBe('toggle');
+    expect(spec.default).toBe(false);
+    expect(spec.group).toBe('Motion');
+  });
+
+  /** Spawn where the flight would have ENDED, then fly the negated velocity back down the same line. */
+  it('offsets the spawn by v * life and negates the velocity', () => {
+    const code = codeOf(BURST_SRC);
+    expect(code).toContain('rev ? this.velScratch.vx * lifeSec : 0');
+    expect(code).toContain('rev ? this.velScratch.vy * lifeSec : 0');
+    expect(code).toContain('const vx0 = rev ? -this.velScratch.vx : this.velScratch.vx;');
+    expect(code).toContain('const vy0 = rev ? -this.velScratch.vy : this.velScratch.vy;');
+  });
+
+  /**
+   * THE constraint on this feature. `emit()` draws exactly 7 random values per particle in a fixed order, and
+   * every saved seed replays against that sequence. Reverse is built entirely from values already drawn — if
+   * it ever needs a draw of its own, every previously locked burst changes.
+   */
+  it('adds no rand() draw, so seeded replays are unaffected', () => {
+    expect(codeOf(BURST_SRC).match(/this\.rand\(\)/g)).toHaveLength(6);
+  });
+
+  /** Authored curves mirror; the built-in fade does not, or a shard would die at full brightness. */
+  it('mirrors the authored curves but leaves the built-in fade forward', () => {
+    const code = codeOf(BURST_SRC);
+    expect(code).toContain('const curveT = reverse ? 1 - lifeT : lifeT;');
+    for (const c of ['speedCurve', 'alphaCurve', 'sizeCurve', 'biasCurve']) {
+      expect(code).toContain(`sampleCurve(p.${c}, curveT)`);
+    }
+    // burstFadeEnvelope still rides `frac`, which is never mirrored.
+    expect(code).toContain('burstFadeEnvelope(frac, p.fade)');
+  });
+
+  it('points the shard the way it is actually travelling', () => {
+    expect(codeOf(BURST_SRC)).toContain('rotation: rev ? angle + Math.PI : angle,');
+  });
+});

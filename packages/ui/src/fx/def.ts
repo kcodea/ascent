@@ -74,6 +74,32 @@ export interface FxDef {
    * def written before this existed is byte-identical and plays exactly where it always did.
    */
   slot?: FxSlot;
+  /**
+   * A curve on the COMPOSITION'S OWN CLOCK — the only one of the four requested FX features that shapes a
+   * def rather than a layer.
+   *
+   * Maps normalized def progress to normalized def progress (`v = t` is no change). Everything downstream
+   * reads the eased time instead of the raw one: a layer arrives when the EASED clock reaches its `at`, and
+   * its primitive is ticked with the eased delta. So a slow-in curve delays the whole composition's opening
+   * and then rushes it, keeping every layer's relationship to every other intact — which is what separates
+   * it from raising `duration` (that rescales) and from the per-call `time` scalar (a constant factor). This
+   * is the curve version of that scalar.
+   *
+   * Three properties worth knowing before authoring one:
+   *  - **The def's LENGTH is unchanged.** Wrapping, looping and completion stay on the RAW clock, so an ease
+   *    redistributes time inside the window without making the effect longer or shorter — the same discipline
+   *    that leaves the shockwave's fade on the linear phase.
+   *  - **It cannot run time backwards.** A falling section would mean a negative delta, which every particle
+   *    integrator would read as nonsense (ages decreasing, drag dividing). The player clamps the delta at 0,
+   *    so a descending stretch reads as a HOLD, not a rewind. (Per-layer `reverse` is the feature for going
+   *    backwards, and it works by construction rather than by rewinding.)
+   *  - **Past `duration` it is linear again**, so an unbounded layer in a `fireOnce` pass keeps running at
+   *    normal speed after the nominal window instead of freezing on the curve's last value.
+   *
+   * Omitted (the default) means linear — every def written before this existed is untouched, and the player
+   * keeps its original single-clock arithmetic rather than routing through an identity curve.
+   */
+  ease?: ReadonlyArray<readonly [number, number]>;
   layers: FxLayer[];
 }
 

@@ -136,7 +136,11 @@ export function rollShop(state: RunState): void {
   // twice, which is what `kept` excludes here.
   const vs = state.veinstormRubies;
   if (vs && (vs.atk > 0 || vs.hp > 0)) {
-    for (const o of offers) if (!kept.includes(o)) stampVeinstormRubies(o, vs.atk, vs.hp);
+    const stamped: string[] = [];
+    for (const o of offers) if (!kept.includes(o) && stampVeinstormRubies(o, vs.atk, vs.hp)) stamped.push(o.uid);
+    // A re-stamp is Veinstorm gemming the fresh shop, so it drives the same span — with `onRefresh: true`, so
+    // the UI holds it a beat and it lands with the offers rather than while they are still sliding in.
+    if (stamped.length > 0) state.veinstormStamped = { uids: stamped, onRefresh: true, attack: vs.atk, health: vs.hp };
   }
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but

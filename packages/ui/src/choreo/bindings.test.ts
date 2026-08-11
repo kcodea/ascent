@@ -157,6 +157,7 @@ const BINDINGS: Record<string, { def: string }> = {
   toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
   rubyLanded: { def: 'ruby-gem-apply' },
+  shopRubied: { def: 'ruby-gem-veinstorm' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.

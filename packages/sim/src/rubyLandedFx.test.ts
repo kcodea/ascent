@@ -108,4 +108,40 @@ describe('rubyLandedFx stamp (which cards a Ruby landed on)', () => {
     expect(next.rubyLandedFxSeq).toBeUndefined();
     expect(next.rubyLandedFx).toBeUndefined();
   });
+
+  /**
+   * PLACING an already-gemmed minion from hand to board is NOT a landing (owner report 2026-08-11: buying a
+   * Veinstorm-gemmed offer re-played the gem cue when the minion was dropped onto the board).
+   *
+   * The Rubies were applied while the card sat in the shop/hand; moving it onto the board carries them, it does
+   * not land new ones. The signal diffs the 'Ruby' buff COUNT before vs after, and the `before` map has to
+   * include the HAND for that diff to be right — a hand card has no board/shop entry, so without this its
+   * carried count reads as count-minus-nothing and detonates a second time on every place.
+   */
+  it('placing an already-gemmed minion from hand does NOT re-stamp', () => {
+    const gemmed: BoardCard = {
+      ...card('h1', 'stray'),
+      attack: 3, health: 3,
+      buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }],
+    };
+    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 20, hand: [gemmed], board: [] };
+    const next = reduce(s, { type: 'play', uid: 'h1' });
+    expect(next.board.map((c) => c.uid)).toContain('h1'); // it really did reach the board
+    expect(next.rubyLandedFxSeq ?? 0).toBe(0);            // …without re-firing the cue
+    expect(next.rubyLandedFx ?? []).toEqual([]);
+  });
+
+  /** But a Ruby genuinely landing on a BOARD minion in the SAME action a hand card is played must still fire —
+   *  the hand-seeding must not blanket-suppress real landings. */
+  it('still stamps a real landing even with gemmed cards in hand', () => {
+    const gemmedInHand: BoardCard = {
+      ...card('h1', 'stray'), buffs: [{ source: 'Ruby', attack: 1, health: 1, count: 1 }],
+    };
+    const s = withRubyInHand({
+      hand: [card('r1', RUBY_ID), gemmedInHand],
+      board: [card('b1', 'stray')],
+    });
+    const next = reduce(s, { type: 'play', uid: 'r1', targetUid: 'b1' });
+    expect(next.rubyLandedFx).toEqual([{ uid: 'b1', count: 1 }]);
+  });
 });

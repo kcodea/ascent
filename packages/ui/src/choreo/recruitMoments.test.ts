@@ -3,13 +3,19 @@ import type { RunState } from '@game/sim';
 import {
   captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs, shoutMoment } from './recruitMoments';
 
-/** Only the four FX fields are read; the rest of a RunState is irrelevant to this scan. */
+/** Only the FX fields are read; the rest of a RunState is irrelevant to this scan. `rubyLanded` is per-card
+ *  (board or a lone shop offer); the shop SPAN comes from the sim's `veinstormFx`, not from any zone here. */
 type Src = Parameters<typeof recruitMomentsSince>[0];
 const run = (o: Partial<Src> = {}): Src => ({
   rubyLandedFxSeq: undefined, rubyLandedFx: undefined,
   recruitFxSeq: undefined, recruitBuffFx: [],
+  veinstormFxSeq: undefined, veinstormFx: undefined,
   ...o,
 } as Src);
+
+/** A veinstormFx payload. attack/health default to 1/1 — the moment layer ignores them (the badge hold
+ *  reads them, not the moment), so any value keeps these tests focused on uids + onRefresh. */
+const vfx = (uids: string[], onRefresh: boolean, attack = 1, health = 1) => ({ uids, onRefresh, attack, health });
 
 const buff = (targetUid: string, attack = 1, health = 1): RunState['recruitBuffFx'][number] =>
   ({ targetUid, attack, health, sourceCardId: 'x', sourceTribe: 'beast', kind: 'minion' } as RunState['recruitBuffFx'][number]);
@@ -54,6 +60,37 @@ describe('recruitMomentsSince', () => {
 
     it('drops a zero-count entry rather than scheduling a land that shows nothing', () => {
       const r = run({ rubyLandedFxSeq: 1, rubyLandedFx: [{ uid: 'a', count: 0 }] });
+      expect(recruitMomentsSince(r, NONE)).toEqual([]);
+    });
+  });
+
+  describe('shopRubied (the Veinstorm span)', () => {
+    /** Driven by the sim's `veinstormFx`, NOT by any shop-vs-board zone — a lone Ruby on an offer stays
+     *  `rubyLanded` (above). One moment carrying every gemmed offer, for one spanning play. */
+    it('emits one shopRubied carrying every gemmed offer', () => {
+      const r = run({ veinstormFxSeq: 1, veinstormFx: vfx(['s1', 's2', 's3'], false) });
+      const moments = recruitMomentsSince(r, NONE);
+      expect(moments).toHaveLength(1);
+      expect(moments[0]?.kind).toBe('shopRubied');
+      expect(moments[0]?.recipients).toEqual([{ uid: 's1', count: 1 }, { uid: 's2', count: 1 }, { uid: 's3', count: 1 }]);
+    });
+
+    it('carries the onRefresh flag through, for the span delay', () => {
+      const cast = run({ veinstormFxSeq: 1, veinstormFx: vfx(['s1'], false) });
+      const refresh = run({ veinstormFxSeq: 1, veinstormFx: vfx(['s1'], true) });
+      expect(recruitMomentsSince(cast, NONE)[0]?.onRefresh).toBe(false);
+      expect(recruitMomentsSince(refresh, NONE)[0]?.onRefresh).toBe(true);
+    });
+
+    it('fires only when the veinstorm seq moves, not the ruby one', () => {
+      const r = run({ rubyLandedFxSeq: 2, rubyLandedFx: [{ uid: 'b1', count: 1 }], veinstormFxSeq: 5, veinstormFx: vfx(['s1'], false) });
+      // Same veinstorm seq as prev → no shopRubied, even though ruby moved.
+      const moments = recruitMomentsSince(r, { rubyLanded: 0, veinstorm: 5 });
+      expect(moments.map((m) => m.kind)).toEqual(['rubyLanded']);
+    });
+
+    it('yields nothing for an empty gemmed-offer list', () => {
+      const r = run({ veinstormFxSeq: 1, veinstormFx: vfx([], false) });
       expect(recruitMomentsSince(r, NONE)).toEqual([]);
     });
   });
@@ -115,8 +152,11 @@ describe('recruitMomentsSince', () => {
    *  kind still fails this test until its emitter is listed here. */
   it('every declared kind is actually produced by some emitter', () => {
     const produced = new Set<string>([
+      // A per-card Ruby ('a'), a Veinstorm gemming ('s1' via veinstormFx), and a buff wave — so `rubyLanded`,
+      // `shopRubied` and `minionBuffed` all appear from `recruitMomentsSince`.
       ...recruitMomentsSince(run({
         rubyLandedFxSeq: 1, rubyLandedFx: [{ uid: 'a', count: 1 }],
+        veinstormFxSeq: 1, veinstormFx: vfx(['s1'], false),
         recruitFxSeq: 1, recruitBuffFx: [buff('b')],
       }), NONE).map((m) => m.kind),
       shoutMoment('a', 'dw_pimm').kind,

@@ -309,6 +309,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
+  state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
   // clearing the payload here destroyed welds that had not been rendered yet. A weld followed by any other
   // click in the same frame (in real play, almost always) coalesced into ONE render whose `weldFxUids` the
@@ -432,10 +433,22 @@ export function reduce(state: RunState, action: Action): RunState {
       const before = new Map<string, number>();
       for (const c of state.board) before.set(c.uid, rubyCountOf(c));
       for (const o of state.shop) before.set(o.uid, rubyCountOf(o));
+      // The HAND too. `landed` scans `next.board`/`next.shop`, and a gemmed minion PLACED from the hand
+      // (bought off a Veinstorm-gemmed offer, then dropped onto the board) arrives carrying its 'Ruby' buff
+      // with the SAME uid it held in hand. Without a `before` entry for that uid its carried count reads as
+      // count-minus-nothing and the cue detonates a SECOND time on the place (owner report 2026-08-11). A
+      // hand card is never a Ruby TARGET (Rubies hit board minions and offers), so seeding it here can only
+      // cancel a carry, never mask a real landing.
+      for (const h of state.hand) before.set(h.uid, rubyCountOf(h));
       const rubyLanded: RubyLandedFx[] = [];
+      // Offers VEINSTORM gemmed this action are handled by the shop-gem SPAN, not the per-card cue, so they are
+      // excluded here — otherwise a gemmed offer would fire both. A lone Ruby dragged onto an offer is NOT in
+      // this set (it never went through `stampVeinstormRubies`) and so still lands as an ordinary gem.
+      const veinstormUids = new Set(next.veinstormStamped?.uids ?? []);
       // The DELTA, not the total — a minion already carrying Rubies from earlier this turn must report only
       // the ones that just arrived.
       const landed = (c: { uid: string; buffs?: { source: string; count: number }[] }): void => {
+        if (veinstormUids.has(c.uid)) return;
         const n = rubyCountOf(c) - (before.get(c.uid) ?? 0);
         if (n > 0) rubyLanded.push({ uid: c.uid, count: n });
       };
@@ -444,6 +457,11 @@ export function reduce(state: RunState, action: Action): RunState {
       if (rubyLanded.length > 0) {
         next.rubyLandedFxSeq = (next.rubyLandedFxSeq ?? 0) + 1;
         next.rubyLandedFx = rubyLanded;
+      }
+      // The Veinstorm signal itself: seq-gated like the payloads above, so the UI's span fires once per action.
+      if (next.veinstormStamped && next.veinstormStamped.uids.length > 0) {
+        next.veinstormFxSeq = (next.veinstormFxSeq ?? 0) + 1;
+        next.veinstormFx = next.veinstormStamped;
       }
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver

@@ -28,6 +28,9 @@
     "rubyLanded": {
       "def": "ruby-gem-apply"
     },
+    "shopRubied": {
+      "def": "ruby-gem-veinstorm"
+    },
     "reveal": {
       "def": "stealth-break"
     },

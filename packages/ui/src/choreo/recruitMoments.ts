@@ -40,8 +40,17 @@ import type { RunState } from '@game/sim';
  * publish a binding slot that silently never fires — the exact failure this subsystem keeps producing.
  */
 export type RecruitMomentKind =
-  /** One or more Rubies were played onto board minions (drag from hand, a card that gems the board, an offer). */
+  /** One or more Rubies were played per-card — a drag from hand, a board-wide gem (Frenzied Excavator), OR a
+   *  lone Ruby onto a single tavern offer. Each detonates on its own card; the cue cascades down them. */
   | 'rubyLanded'
+  /**
+   * VEINSTORM gemmed the shop — one event across the whole row, not a per-card cascade. Driven by the sim's
+   * `veinstormFx` signal (NOT by zone): a lone Ruby on an offer is `rubyLanded`, only Veinstorm is this. The
+   * cue reads the gemmed offers' horizontal extent and plays its bound def once across it, with a single
+   * sound (see `recruitCues.ts`). `onRefresh` (carried on the moment) delays the span so a re-stamped shop
+   * lands its gems with the offers rather than while they slide in.
+   */
+  | 'shopRubied'
   /** A board minion gained stats from a shop-phase source — a Shout, a spell, an End of Turn. */
   | 'minionBuffed'
   /**
@@ -55,7 +64,7 @@ export type RecruitMomentKind =
    */
   | 'shout';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'minionBuffed', 'shout'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'shout'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -92,6 +101,9 @@ export interface RecruitMoment {
   /** A CRIT wave — a doubled buff (Karwind's 20% roll). The cue runner plays the binding's `critDef` instead
    *  of its `def` when this is set. Only `minionBuffed` produces it today; absent everywhere else. */
   crit?: boolean;
+  /** `shopRubied` only: the gemming was a shop REFRESH re-stamp, not the Veinstorm cast. The cue holds the
+   *  span a beat when true, so it lands with the offers rather than while they are still sliding in. */
+  onRefresh?: boolean;
 }
 
 /**
@@ -101,12 +113,13 @@ export interface RecruitMoment {
 export interface RecruitSeqs {
   rubyLanded?: number;
   recruitFx?: number;
+  veinstorm?: number;
 }
 
 /** The counters as they stand right now. For creating a caller's initial ref — steady-state updates should
  *  go through {@link captureRecruitSeqs}, which writes in place. */
-export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq'>): RecruitSeqs {
-  return { rubyLanded: run.rubyLandedFxSeq, recruitFx: run.recruitFxSeq };
+export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq'>): RecruitSeqs {
+  return { rubyLanded: run.rubyLandedFxSeq, recruitFx: run.recruitFxSeq, veinstorm: run.veinstormFxSeq };
 }
 
 /**
@@ -117,11 +130,12 @@ export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFx
  * `emissionOffset`/`spawnVelocity`.
  */
 export function captureRecruitSeqs(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq'>,
   into: RecruitSeqs,
 ): void {
   into.rubyLanded = run.rubyLandedFxSeq;
   into.recruitFx = run.recruitFxSeq;
+  into.veinstorm = run.veinstormFxSeq;
 }
 
 /**
@@ -134,17 +148,29 @@ export function captureRecruitSeqs(
  * always play in the same order, rather than in whatever order the fields happen to be read.
  */
 export function recruitMomentsSince(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid' | 'veinstormFxSeq' | 'veinstormFx'>,
   prev: RecruitSeqs,
 ): RecruitMoment[] {
   const out: RecruitMoment[] = [];
 
-  // A Ruby carries its own per-uid count, so a 2-stack arrives as one recipient with count 2.
+  // Per-card gems — a hand Ruby, a board-wide play, or a lone Ruby on ONE offer. The reducer has already
+  // pulled Veinstorm-gemmed offers OUT of this list (they are the span below), so everything here cascades on
+  // its own card. A Ruby carries its own per-uid count, so a 2-stack arrives as one recipient with count 2.
   if (run.rubyLandedFxSeq !== undefined && run.rubyLandedFxSeq !== prev.rubyLanded) {
     const recipients = (run.rubyLandedFx ?? [])
       .filter((r) => r.count > 0)
       .map((r) => ({ uid: r.uid, count: r.count }));
     if (recipients.length > 0) out.push({ kind: 'rubyLanded', recipients });
+  }
+
+  // VEINSTORM gemmed the shop — one spanning play, keyed off the sim's dedicated signal rather than by zone,
+  // so a lone Ruby on an offer (above, `rubyLanded`) and Veinstorm gemming the whole row are never confused.
+  // The recipients are the gemmed offers; the cue reads their extent. `onRefresh` rides along for the delay.
+  if (run.veinstormFxSeq !== undefined && run.veinstormFxSeq !== prev.veinstorm) {
+    const uids = run.veinstormFx?.uids ?? [];
+    if (uids.length > 0) {
+      out.push({ kind: 'shopRubied', recipients: uids.map((uid) => ({ uid, count: 1 })), onRefresh: !!run.veinstormFx?.onRefresh });
+    }
   }
 
   // A buff wave is split into ONE moment per SOURCE card, mirroring how combat gives each buff wave its own

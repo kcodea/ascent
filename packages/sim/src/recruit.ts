@@ -263,11 +263,12 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
 /** Give one tavern offer `attack`/`health` worth of Veinstorm RUBIES. Minions only — a spell/Ruby offer has
  *  no stats to carry, and Fodder is excluded exactly as it was under the old tavern channel (its buffs ride
  *  the run-wide enchant instead). Shared by the cast and by the shop roll so the two can never disagree. */
-export function stampVeinstormRubies(offer: ShopCard, attack: number, health: number): void {
-  if (attack <= 0 && health <= 0) return;
+export function stampVeinstormRubies(offer: ShopCard, attack: number, health: number): boolean {
+  if (attack <= 0 && health <= 0) return false;
   const d = CARD_INDEX[offer.cardId];
-  if (!d || d.spell || d.ruby || d.keywords.includes('FD')) return;
+  if (!d || d.spell || d.ruby || d.keywords.includes('FD')) return false;
   addOfferBuff(offer, 'Ruby', attack, health);
+  return true; // stamped — the caller records the uid so the shop-gem span can key off Veinstorm alone
 }
 
 export function addOfferBuff(offer: ShopCard, source: string, attack: number, health: number): void {
@@ -4152,7 +4153,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const a = 1 + rb.attack;
     const h = 1 + rb.health;
-    for (const offer of ctx.state.shop) stampVeinstormRubies(offer, a, h);
+    const stamped: string[] = [];
+    for (const offer of ctx.state.shop) if (stampVeinstormRubies(offer, a, h)) stamped.push(offer.uid);
+    // Record which offers the CAST gemmed, so the shop-gem span plays for Veinstorm alone (a lone Ruby on an
+    // offer is not in here and keeps its per-card cue). `onRefresh: false` — this is the cast, not a re-stamp.
+    if (stamped.length > 0) ctx.state.veinstormStamped = { uids: stamped, onRefresh: false, attack: a, health: h };
     // BANK it so every future shop is stamped too — "permanently", and the owner's "every time i refresh the
     // shop, it should have that buff". The bank is only ever READ at mint time (see `rollShop`), never folded
     // into a stat read, which is what keeps each offer's Rubies real, stealable and counted exactly once.

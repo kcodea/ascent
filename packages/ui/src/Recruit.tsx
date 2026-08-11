@@ -988,6 +988,14 @@ export function Recruit() {
   useLayoutEffect(() => {
     const seq = run.rubyLandedFxSeq;
     if (seq === undefined || seq === prevRubyLandedSeq.current) return;
+    // Advance the guard NOW, so this fires exactly once per Ruby event. The deps include `run.board` (the
+    // buff lookup below reads it), so without this line every later board change — buy, sell, freeze, any
+    // gem, any action — re-enters and re-places the SAME hold. `holdStat` carries the unrevealed remainder
+    // and restarts the roll (see `fx/statHold.ts`), so a re-placed hold grows without bound and the badge
+    // collapses toward 0 and rolls on every action. That regressed in #947, which replaced the old cue
+    // effect that used to own this advance and deleted the line with it; the two are decoupled now (the
+    // recruit-moments runner below keys off `prevRecruitSeqs`), so this effect owns its own guard outright.
+    prevRubyLandedSeq.current = seq;
     const lands = run.rubyLandedFx ?? [];
     const buffOf = (uid: string): CardBuff | undefined =>
       run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');
@@ -995,8 +1003,6 @@ export function Recruit() {
       holdStat(hold.uid, { attack: hold.attack, health: hold.health },
         { origin: 'cue', startAt: hold.at + RUBY_DELIVER_OFFSET_MS });
     }
-    // `prevRubyLandedSeq` is deliberately NOT advanced here — the cue effect below owns that bookkeeping, and
-    // moving it would make this effect silently swallow the cue.
   }, [run.rubyLandedFxSeq, run.rubyLandedFx, run.board]);
 
   /**

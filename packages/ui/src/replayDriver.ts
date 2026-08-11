@@ -20,8 +20,17 @@ interface Snapshot { run: RunState; replayActions: unknown; replayTimings: unkno
 let token = 0;               // bumped to abort/restart the loop (a new play, a seek, or a stop)
 let snapshot: Snapshot | null = null; // the live run stashed before playback, restored on exit
 let current: Replay | null = null;
+let authorName: string | undefined; // whose run we're watching (for the hero-panel name), carried into the session
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
+
+// Shop-action pacing bounds (before the speed divisor). A FLOOR so a fast / bot-recorded run is still legible
+// beat-by-beat rather than blipping past; a DEFAULT when a run predates timing capture; a CAP so one long
+// player pause (AFK, a phone call) doesn't stall the replay. Combats are paced by the arena, not these.
+const MIN_STEP_MS = 350, DEFAULT_STEP_MS = 900, MAX_STEP_MS = 5000;
+
+/** A run is over the moment it reaches a terminal phase — don't keep pacing trailing/no-op actions after. */
+const isTerminal = (run: RunState): boolean => run.phase === 'gameover' || run.phase === 'victory';
 
 function reconstruct(replay: Replay): RunState {
   const run = replay.mode && replay.mode !== 'lobby'
@@ -44,7 +53,7 @@ async function runLoop(fromIndex: number): Promise<void> {
   const g = useGame;
   const replay = current!;
   g.setState({ run: stateAt(replay, fromIndex), combatReplayDone: false });
-  patchSession({ index: fromIndex });
+  patchSession({ index: fromIndex, ended: false });
 
   for (let i = fromIndex; i < replay.actions.length; i++) {
     // Honour pause: idle here (cheaply) until resumed or aborted.
@@ -56,15 +65,22 @@ async function runLoop(fromIndex: number): Promise<void> {
       while (token === mine && g.getState().run.phase === 'combat' && !g.getState().combatReplayDone) await sleep(30);
       await sleep(500 / speed);
     } else {
-      await sleep(Math.min(replay.timings?.[i] ?? 300, 5000) / speed);
+      // Honour the player's REAL recorded gap before this action (floored so it's watchable, capped so a long
+      // AFK doesn't stall); fall back to a deliberate default for runs recorded before timing capture landed.
+      const recorded = replay.timings?.[i];
+      const step = recorded == null ? DEFAULT_STEP_MS : Math.max(MIN_STEP_MS, Math.min(recorded, MAX_STEP_MS));
+      await sleep(step / speed);
     }
     if (token !== mine) return;
     const a = replay.actions[i]!;
     const next = reduce(g.getState().run, a);
     g.setState({ run: next, combatReplayDone: a.type === 'faceOmen' ? false : g.getState().combatReplayDone });
+    // Snap the bar to full the instant the run ends — a won/lost run can terminate before its last recorded
+    // action, and pacing dead no-ops past the end is what made the game "end in the middle of the bar".
+    if (isTerminal(next)) { patchSession({ index: replay.actions.length, round: next.wave, playing: false, ended: true }); return; }
     patchSession({ index: i + 1, round: next.wave });
   }
-  if (token === mine) patchSession({ playing: false }); // reached the end — hold on the final frame, paused
+  if (token === mine) patchSession({ playing: false, ended: true }); // reached the end — hold on the final frame, paused
 }
 
 /** Merge a partial into the live session (no-op if a replay isn't active). */
@@ -74,18 +90,21 @@ function patchSession(p: Partial<NonNullable<ReturnType<typeof getSession>>>): v
 }
 const getSession = () => useGame.getState().replaySession;
 
-/** Start watching a recorded run. Snapshots the live run first so `endReplay` can restore it. */
-export function startReplay(replay: Replay): void {
+/** Start watching a recorded run. Snapshots the live run first so `endReplay` can restore it. `meta.authorName`
+ *  is the recorded player's display name — shown in the hero panel so a spectated run reads as THEIRS, not yours
+ *  (omit it when rewatching your own run). */
+export function startReplay(replay: Replay, meta?: { authorName?: string }): void {
   const g = useGame;
   const s = g.getState();
   snapshot = { run: s.run, replayActions: s.replayActions, replayTimings: s.replayTimings, showTitle: s.showTitle };
   current = replay;
+  authorName = meta?.authorName;
   token++;
   g.setState({
     replaying: true, showTitle: false, inspect: null, heroChoices: null, combatReplayDone: false,
     // Close any launcher overlay (leaderboard / recent-matches / career) so the exit lands cleanly on the title.
     showLeaderboard: false, showRankings: false, showRecentMatches: false, showCareer: false, careerOf: null,
-    replaySession: { index: 0, total: replay.actions.length, playing: true, speed: 1, round: 1 },
+    replaySession: { index: 0, total: replay.actions.length, playing: true, speed: 1, round: 1, authorName },
   });
   void runLoop(0);
 }
@@ -114,6 +133,7 @@ export function endReplay(): void {
   });
   snapshot = null;
   current = null;
+  authorName = undefined;
 }
 
 // DEV console handle — still handy for quick tests: `startReplay(useGame.getState().exportReplay())`.

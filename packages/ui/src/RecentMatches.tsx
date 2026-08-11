@@ -34,13 +34,15 @@ export function RecentMatches(): JSX.Element | null {
 
   // "3rd", "12 wins" — a compact result blurb. Placement is the lobby finish (1 = won the lobby); wins is the
   // number of combats won. Prefer placement when we have it.
+  const wins = (r: ReplayListing): string => `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
   const result = (r: ReplayListing): string => {
-    if (r.placement && r.placement > 0) {
+    // 1st place with zero combats won is self-contradictory (a bad/backfilled placement) — trust wins there.
+    if (r.placement && r.placement > 0 && !(r.placement === 1 && r.wins === 0)) {
       const s = r.placement % 10, d = Math.floor(r.placement / 10) % 10;
       const suffix = d === 1 ? 'th' : s === 1 ? 'st' : s === 2 ? 'nd' : s === 3 ? 'rd' : 'th';
-      return `${r.placement}${suffix} place`;
+      return `${r.placement}${suffix} place · ${wins(r)}`;
     }
-    return `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
+    return wins(r);
   };
 
   return (
@@ -69,18 +71,19 @@ export function RecentMatches(): JSX.Element | null {
               const hero = r.heroId ? getHero(r.heroId) : null;
               const art = r.heroId ? heroArt(r.heroId) : null;
               const mine = !!myId && r.userId === myId;
-              const watch = (): void => { sfx.pulse(); startReplay(r.replay); };
+              const name = displayHandle(r.author, undefined, r.userId);
+              const watch = (): void => { sfx.pulse(); startReplay(r.replay, { authorName: name }); };
               return (
                 <button
                   type="button"
                   className={`matchrow pressable${mine ? ' me' : ''}`}
                   key={`${r.userId || r.author}-${r.createdAt}-${i}`}
                   onClick={watch}
-                  title={`Watch ${displayHandle(r.author, undefined, r.userId)}'s run`}
+                  title={`Watch ${name}'s run`}
                 >
                   <span className="matchportrait">{art ? <img src={art} alt={hero?.name ?? ''} draggable={false} /> : <Icon name="anvil" />}</span>
                   <span className="matchmeta">
-                    <span className="matchname">{displayHandle(r.author, undefined, r.userId)}{mine && <span className="rankyou">you</span>}</span>
+                    <span className="matchname">{name}{mine && <span className="rankyou">you</span>}</span>
                     <span className="matchsub">{hero?.name ?? 'Unknown hero'} · {result(r)}</span>
                   </span>
                   <span className="matchwatch">▶ Watch</span>

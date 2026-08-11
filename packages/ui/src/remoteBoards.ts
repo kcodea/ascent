@@ -824,9 +824,16 @@ export interface ReplayListing {
   replay: Replay;
 }
 
+/** A replay only plays back FAITHFULLY when it carries the exact opponents fought (`servedBoards`) — without
+ *  them the combats re-derive from matchmaking and diverge (wrong winner, an early death mid-bar). Runs recorded
+ *  before that capture landed are therefore not spectatable; we hide them rather than show a lie. */
+const isFaithful = (replay: Replay | null | undefined): replay is Replay =>
+  !!replay && Array.isArray(replay.actions) && replay.actions.length > 0
+  && !!replay.servedBoards && Object.keys(replay.servedBoards).length > 0;
+
 const asListing = (r: Record<string, unknown>): ReplayListing | null => {
   const replay = r.replay as Replay | null;
-  if (!replay || !Array.isArray(replay.actions) || replay.actions.length === 0) return null; // unplayable
+  if (!isFaithful(replay)) return null; // unplayable / pre-capture — don't offer a run we can't reproduce
   return {
     userId: (r.user_id as string) ?? '', author: (r.author as string) ?? '', heroId: (r.hero_id as string) ?? '',
     wins: (r.wins as number) ?? 0, placement: (r.placement as number | null) ?? undefined,
@@ -840,33 +847,40 @@ export async function fetchRecentReplays(limit = 24): Promise<ReplayListing[]> {
   const c = client();
   if (!c) return [];
   try {
+    // Over-fetch: most rows filter out until the faithful-replay capture has been live a while, so scan a wider
+    // window and keep the newest `limit` that actually play back.
     const request = Promise.resolve(
       c.from('run_telemetry').select('user_id, author, hero_id, wins, placement, created_at, replay')
-        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(limit),
+        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(Math.max(limit * 4, 80)),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Record<string, unknown>[]).map(asListing).filter((x): x is ReplayListing => x !== null);
+    return (result.data as Record<string, unknown>[])
+      .map(asListing).filter((x): x is ReplayListing => x !== null).slice(0, limit);
   } catch {
     return [];
   }
 }
 
-/** A specific player's most recent run's replay — for a "Watch" button on their leaderboard row / Career. */
+/** A specific player's most recent FAITHFUL run's replay — for a "Watch" button on their leaderboard row /
+ *  Career. Scans their few newest runs and returns the first one we can reproduce (see `isFaithful`); `null`
+ *  if none qualify (all pre-capture) — the caller shows "No run" rather than a divergent replay. */
 export async function fetchLatestReplayForUser(userId: string): Promise<Replay | null> {
   const c = client();
   if (!c || !userId) return null;
   try {
     const request = Promise.resolve(
       c.from('run_telemetry').select('replay').eq('user_id', userId)
-        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(1),
+        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(8),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data?.length) return null;
-    const replay = (result.data[0] as { replay: Replay | null }).replay;
-    return replay && Array.isArray(replay.actions) && replay.actions.length > 0 ? replay : null;
+    for (const row of result.data as { replay: Replay | null }[]) {
+      if (isFaithful(row.replay)) return row.replay;
+    }
+    return null;
   } catch {
     return null;
   }

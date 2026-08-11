@@ -52,6 +52,12 @@ export interface ReplaySession {
   speed: number;
   /** The run round (`wave`) currently shown — for the progress label. */
   round: number;
+  /** WHOSE run this is — the spectated player's display name (shown in the hero panel in place of your own).
+   *  Undefined when rewatching your own run. */
+  authorName?: string;
+  /** The replay has reached a terminal phase (gameover / victory) — the game is over even if the loop hasn't
+   *  exhausted every recorded action. Lets the transport bar read as "done" and stops the round label drifting. */
+  ended?: boolean;
 }
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by

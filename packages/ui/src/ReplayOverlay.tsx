@@ -33,7 +33,7 @@ export function ReplayOverlay(): JSX.Element | null {
         <div className="replayprog-fill" style={{ width: `${pct}%` }} />
       </div>
 
-      <span className="replayround">Round {s.round}</span>
+      <span className="replayround">{s.authorName ? `${s.authorName} · ` : ''}{s.ended ? 'Final' : `Round ${s.round}`}</span>
 
       <label className="replayspeed" title="Playback speed">
         <span>{s.speed}×</span>

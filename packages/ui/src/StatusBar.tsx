@@ -51,7 +51,9 @@ function useFitText(text: string) {
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
-  const playerName = useGame((s) => s.playerName);
+  // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
+  // local account's. Falls back to your own name for a rewatch of your own run / normal play.
+  const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
   const heroArmed = useGame((s) => s.heroArmed);
   const armHero = useGame((s) => s.armHero);
   const dispatch = useGame((s) => s.dispatch);

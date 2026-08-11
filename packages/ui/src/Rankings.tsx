@@ -85,8 +85,9 @@ export function Rankings() {
                 sfx.pulse();
                 setNoReplay(null);
                 setWatching(r.userId);
+                const name = displayHandle(r.author, r.discriminator, r.userId);
                 void fetchLatestReplayForUser(r.userId)
-                  .then((rep) => { if (rep) startReplay(rep); else setNoReplay(r.userId); })
+                  .then((rep) => { if (rep) startReplay(rep, { authorName: name }); else setNoReplay(r.userId); })
                   .finally(() => setWatching(null));
               };
               return (

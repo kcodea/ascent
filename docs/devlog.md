@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-10 — Replay spectator: fidelity gate + author identity + honest pacing/progress (4 owner bugs)
+
+Owner playtest of the new spectator surfaced four issues, all traced to the feed serving **pre-capture rows**
+(runs recorded before Phase 1a's `timings`/`servedBoards` capture): the hero panel showed the *watcher's* name,
+a "1st place" run whose player never won, immediate/uniform pacing, and the game ending mid-progress-bar.
+
+- **Fidelity gate (fixes wrong-winner + mid-bar).** A replay only reproduces faithfully when it carries the
+  exact opponents fought — without `servedBoards` the combats re-derive from matchmaking and diverge. New
+  `isFaithful(replay)` (has actions **and** non-empty `servedBoards`) gates both `fetchRecentReplays`
+  (over-fetches a wider window, keeps the newest `limit` faithful) and `fetchLatestReplayForUser` (scans a
+  player's newest 8, returns the first faithful one; `null` → the row shows "No run"). Un-reproducible runs
+  are hidden rather than shown as a lie.
+- **Author identity (fixes the name).** `startReplay(replay, {authorName})` carries the recorded player's
+  handle into `replaySession`; `StatusBar` shows `replaySession.authorName ?? playerName`, so a spectated run
+  reads as THEIRS in the hero panel and the transport bar. Both entry points pass it (`displayHandle`).
+- **Honest pacing (fixes too-fast).** The driver already honoured `timings`; added a floor/cap/default
+  (350 ms / 5 s / 900 ms before the speed divisor) so a fast- or bot-recorded run is legible beat-by-beat and
+  a long AFK can't stall it. Faithful runs carry real timings, so the gate + this make cadence match reality.
+- **Terminal snap (fixes the bar).** The loop now ends the instant the run hits `gameover`/`victory` and snaps
+  `index → total` (bar full, `ended:true`, label "Final"), instead of pacing dead no-op actions past the end —
+  which is what made a won/lost run "end in the middle of the bar".
+
+**Verified live end-to-end** against the real backend: the feed now shows only the one full-fidelity run
+(the three pre-capture rows dropped); watching it shows **Orangez** in the panel + bar, paces on real timings,
+and ends exactly at the bar's end on the **8th-of-8** screen — matching the recorded placement
+(`index 38 === total 38`, `phase gameover`). Gates: typecheck (web+pkgs), full `npm test` 4787/286, lint at
+the 7-warning baseline, `build:web` green.
+
 ## 2026-08-10 — Replay Phase 2 + 3: spectate ANY player (recent-matches feed + leaderboard Watch)
 
 The replay viewer becomes a spectator: watch other players' runs, not just your own. The full replay already

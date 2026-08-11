@@ -53,9 +53,18 @@ const toIdentity = (user: SbUser, displayName = ''): Identity => ({
 });
 
 /** Raw Supabase auth errors are terse and sometimes leak internals; map the ones a player can actually hit to
- *  something calm. Anything unrecognised falls through verbatim so we never hide a real signal in dev. */
-function friendlyAuthError(message: string): string {
-  const m = message.toLowerCase();
+ *  something calm. Anything unrecognised falls through verbatim so we never hide a real signal in dev.
+ *  Exported for the regression test (the "{}" braces bug) — not part of the module's public surface. */
+export function friendlyAuthError(message: string): string {
+  const raw = (message ?? '').trim();
+  // gotrue/@supabase/auth-js builds an error message from `JSON.stringify(body)` when the error response has no
+  // readable field — an EMPTY body yields the literal string "{}" (Mike's OTP failure 2026-08-11 surfaced two
+  // red braces). Any opaque, non-human message (empty, "{}", "[object Object]", a bare JSON blob) is a server /
+  // transport problem the player can't act on, so show a calm generic instead of raw braces.
+  if (!raw || raw === '{}' || raw === '[object Object]' || raw.startsWith('{') || raw.startsWith('[')) {
+    return 'The sign-in service didn’t respond properly. Wait a moment and try again.';
+  }
+  const m = raw.toLowerCase();
   if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — wait a minute and try again.';
   if (m.includes('invalid') && m.includes('email')) return 'That doesn’t look like a valid email address.';
   // "Signups not allowed for otp" / "not authorized" / "disabled" all mean the Supabase project hasn't enabled
@@ -63,7 +72,7 @@ function friendlyAuthError(message: string): string {
   if (m.includes('signups not allowed') || m.includes('not authorized') || m.includes('disabled')) {
     return 'Email sign-in isn’t enabled for this build yet.';
   }
-  return message;
+  return raw;
 }
 
 /** True when an `updateUser({ email })` failure means the email already belongs to ANOTHER account — the one

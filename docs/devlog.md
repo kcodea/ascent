@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-11 — fix: OTP sign-in showed a red "{}" on an opaque server error
+
+Mike's OTP sign-in failed and the account panel showed two red braces. Cause: `@supabase/auth-js` builds an
+error's `.message` from `JSON.stringify(body)` when the response carries no readable field, so an EMPTY error
+body becomes the literal string `"{}"` — which `friendlyAuthError` passed through verbatim (its contract was
+"unknown messages fall through so we never hide a real signal"). The account panel renders that string, so the
+player saw `{}`.
+
+- `friendlyAuthError` now sanitizes opaque, non-human messages up front: empty, `"{}"`, `"[object Object]"`, or
+  anything starting with `{`/`[` (a bare JSON blob) → a calm "The sign-in service didn't respond properly. Wait
+  a moment and try again." Genuine prose messages still pass through unchanged, so real signals aren't hidden.
+- Added `authError.test.ts` (8 cases) pinning the `{}` fix plus the known mappings and the prose pass-through —
+  a regression guard, since this is the second OTP-surface papercut after the 8-digit truncation.
+
+Gates: typecheck (web) + lint (0 errors) green; new test 8/8.
+
 ## 2026-08-11 — a "test board" option in Settings (swap the arena backdrop)
 
 Owner ask: trial a new arena board (`NewBoardAugust`) in the game via the options menu. The board backdrop is

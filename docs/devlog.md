@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-08-11 — Karwind keeps a medallion pulse when it triggers
+
+Suppressing Karwind's flame flash left the buffer itself with no on-card cue that it had fired — the ring
+plays on the Dragons it buffed, not on Karwind. Its trigger medallion now pulses instead (owner ask): a
+lighter "it triggered" signal in place of the removed flash, plus the trigger sound.
+
+Its own `karwindPulseUids` set + timer ref, so it feeds ONLY the `pulse` prop (the medallion), never the
+battlecry sigil, and clears independently of the flame at the 760ms battlecry hold. The pulsed uids are the
+BOUND buffers' own `sourceUid`s from `recruitBuffFx` — the same attribution the flash suppression reads — so
+it pulses exactly the cards whose flame was suppressed. Fired BEFORE the flame block's early-return, since a
+bound Karwind suppresses every flame and `uids` there can be empty.
+
+Verified live: a Contract Butcher Shout makes `recruitBuffFx = [{ sourceUid: 'kw', … }]`, the pulse-source
+computation yields `['kw']`, so Karwind's card gets `pulse`. typecheck, eslint 0 errors, 4876 tests, build:web.
+
 ## 2026-08-11 — Market Tormentor gets the shop-buff-shout too
 
 `shop-buff-shout` now also plays for Market Tormentor (`dm_tormentor`, the tier-4 Demon whose Shout gives the

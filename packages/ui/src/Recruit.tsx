@@ -1278,6 +1278,12 @@ export function Recruit() {
   // The flame's clear timer, held in a ref so a dispatch can't cancel it — see the Karwind effect.
   const karwindTimerRef = useRef<number | undefined>(undefined);
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
+  // A trigger-medallion pulse on the BUFFER (Karwind) when its effect fires. A bound source's flame flash is
+  // suppressed in favour of its authored ring on the buffed Dragons — but the buffer itself then had no
+  // on-card cue that it triggered, so its medallion pulses instead (owner ask 2026-08-11). Own set + ref so
+  // it only touches `pulse`, never the battlecry sigil, and clears independently of the flame.
+  const [karwindPulseUids, setKarwindPulseUids] = useState<Set<string>>(new Set());
+  const karwindPulseTimerRef = useRef<number | undefined>(undefined);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
   const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
@@ -3149,10 +3155,23 @@ export function Recruit() {
     const bound = (e: { sourceCardId: string }): boolean =>
       e.sourceCardId !== '' && bindingFor(e.sourceCardId, 'minionBuffed') !== null;
     const authored = new Set<string>();
+    const authoredSources = new Set<string>();
     for (const e of run.recruitBuffFx ?? []) {
       if (!bound(e)) continue;
       authored.add(e.targetUid);
-      if (e.sourceUid !== undefined) authored.add(e.sourceUid);
+      if (e.sourceUid !== undefined) { authored.add(e.sourceUid); authoredSources.add(e.sourceUid); }
+    }
+    // The buffer's medallion pulse — the retained "it triggered" cue now its flame is suppressed. Fired here,
+    // BEFORE the flame's own early-return: a bound Karwind suppresses every flame, so `uids` below can be
+    // empty, and gating the pulse on that would silence the very case this exists for.
+    if (authoredSources.size > 0) {
+      setKarwindPulseUids(new Set(authoredSources));
+      sfx.triggerPulse();
+      if (karwindPulseTimerRef.current !== undefined) window.clearTimeout(karwindPulseTimerRef.current);
+      karwindPulseTimerRef.current = window.setTimeout(() => {
+        karwindPulseTimerRef.current = undefined;
+        setKarwindPulseUids(new Set());
+      }, 760); // matches the battlecry medallion hold
     }
     const uids = (run.karwindFlash ?? []).filter((u) => !authored.has(u));
     if (uids.length === 0) return;
@@ -4490,7 +4509,7 @@ export function Recruit() {
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.
-                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid)}
+                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
                     glow={eotProcUids.has(m.uid)}
                     popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}

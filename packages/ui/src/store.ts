@@ -35,10 +35,6 @@ import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntr
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 
-// REPLAY VIEWER — wall-clock (ms) of the last recorded action, so the reducer boundary can stamp a per-action
-// DELTA into `replayTimings`. Module-scoped (the store is a singleton); a run's first action records 0 (the
-// dispatch checks for an empty timing list), so no per-run reset is needed.
-let lastActionAt = 0;
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
 // `npm run pool` from seeded bot runs + any imported you/friend board exports) plus this browser's own
@@ -256,7 +252,6 @@ interface GameStore {
   replayActions: Action[];
   /** REPLAY VIEWER — per-action wall-clock deltas (ms since the previous recorded action), parallel to
    *  `replayActions`. UI metadata only (never fed to the sim), so a viewer can play back the real cadence. */
-  replayTimings: number[];
   /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
   telemetryLog: TelemetryLog;
   /** The live balance derivation for the run in progress (see `sim/runDerive.ts`). Fed on every dispatch,
@@ -596,7 +591,7 @@ export const useGame = create<GameStore>((set, get) => ({
     clearSave();
     dropBoardFx();
     const fresh = createRun(randomSeed());
-    set({ savedRun: null, run: fresh, replayActions: [], replayTimings: [], capturedBoards: [], telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
+    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
   },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
@@ -671,11 +666,10 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatSpeed });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
-  replayTimings: [],
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],
-  exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions, timings: get().replayTimings, servedBoards: get().run.servedBoards }),
+  exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
@@ -727,10 +721,10 @@ export const useGame = create<GameStore>((set, get) => ({
       ) {
         // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
         // boards were wrong. See `saveRunBoards`.
-        // REPLAY VIEWER: carry the per-action timings (parallel to actions; the final action gets a 0 delta —
-        // it's the run-ending trigger, whose shop-cadence is irrelevant) + the exact opponents fought
-        // (`servedBoards`) so a spectator can animate the real fights without re-deriving them.
-        const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action], timings: [...s.replayTimings, 0], servedBoards: next.servedBoards };
+        // The action log + seed reconstruct this run's boards (non-lobby) and its balance telemetry
+        // (`reconstructRunTelemetry`). It is NOT a faithful spectator replay — that needs state replay, see
+        // docs/replay-v2-handoff.md.
+        const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action] };
         // A LOBBY run already holds its boards (captured live above) and must NOT be replayed for them —
         // replaying re-simulates seven opponent seats and froze the end screen for ~20 s.
         const lobbyBoards = next.mode === 'lobby' ? capturedBoards : null;
@@ -859,16 +853,6 @@ export const useGame = create<GameStore>((set, get) => ({
       }
       const changed = next !== s.run;
       const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
-      // Stamp the real cadence: ms since the previous recorded action (0 for the run's first). `performance.now`
-      // is UI-only wall-clock — it never touches the deterministic sim.
-      let replayTimings = s.replayTimings;
-      if (changed) {
-        const nowMs = performance.now();
-        // The run's FIRST recorded action (empty timings) gets a 0 delta — so a fresh run never inherits the
-        // gap since the previous one, and no per-run reset of `lastActionAt` is needed.
-        replayTimings = [...s.replayTimings, s.replayTimings.length === 0 ? 0 : Math.round(nowMs - lastActionAt)];
-        lastActionAt = nowMs;
-      }
       const finished = next.phase === 'gameover' || next.phase === 'victory';
       // Autosave (A3): persist an in-progress run, and clear it once the run finishes (a finished run isn't
       // resumable). `savedRun` mirrors the persisted state so the title's Continue works.
@@ -898,9 +882,10 @@ export const useGame = create<GameStore>((set, get) => ({
         heroArmed: false, // any action clears targeting
         inspect: null, // …and closes the inspect overlay
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
-        // Record only state-changing actions — together with the seed they replay the run deterministically.
+        // Record only state-changing actions — together with the seed they reconstruct the run's board /
+        // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
+        // docs/replay-v2-handoff.md).
         replayActions,
-        replayTimings,
         capturedBoards,
         telemetryLog,
         deriveState,
@@ -935,7 +920,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     });
   },
   newRun: (seed, heroId) => {
@@ -943,7 +928,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     });
   },
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
@@ -964,7 +949,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], replayTimings: [], capturedBoards: [], sandboxReplay: false };
+      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], sandboxReplay: false };
     });
   },
   sbEditMode: false,

@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-11 — remove the abandoned v1 replay-capture (timings + servedBoards)
+
+The action-replay spectator was killed (see [replay-v2-handoff.md](replay-v2-handoff.md) — it can't reproduce a
+real run faithfully). This removes the dead capture that #955 had left running on `main`: every finished run was
+still uploading a full replay **plus per-wave opponent boards + per-action timings** into `run_telemetry.replay`
+jsonb — the fattest part of each row, and now read by nothing.
+
+- `Replay` interface (snapshot.ts): dropped `timings?` and `servedBoards?`. Back to `{seed, heroId, mode,
+  actions}`.
+- Store: removed the `replayTimings` capture (`performance.now()` per action, the module `lastActionAt`, the
+  field + all resets) and stopped putting `timings`/`servedBoards` on the uploaded `replay`. The action log +
+  seed are KEPT — they still reconstruct non-lobby boards (`saveRunBoards`) and the balance telemetry
+  (`reconstructRunTelemetry`), which is a deterministic derivation, NOT a faithful spectator replay.
+- Deleted `replayFidelity.test.ts` — it only ever proved a *bot* run's board reproduces, which gave false
+  confidence: real runs diverge (the whole reason for the v2 rebuild). It guarded a feature that no longer ships.
+- `RunState.servedBoards` is untouched — that's core opponent-pinning for restored runs, unrelated to #955.
+
+Gates: typecheck (web+pkgs), lint (0 errors), full `npm test` 4859/285, `build:web` green.
+
 ## 2026-08-10 — the def-level ease gets its dial
 
 Closes the fourth requested FX feature, whose engine half shipped in #949 without a way to author it.

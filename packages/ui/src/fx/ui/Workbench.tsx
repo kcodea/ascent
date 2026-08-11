@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
-import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
+import { CARD_INDEX } from '@game/content';
 import { defaultsOf } from '../params';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
@@ -55,15 +55,6 @@ import {
 import type { MomentKind } from '../../choreo/kinds';
 import { useGame } from '../../store';
 import { createBackdrop, type FxBackdrop } from './backdrop';
-import { FxStage } from './Stage';
-import {
-  FX_STAGE_SLOTS,
-  defaultStageBoard,
-  setStageCard,
-  stageUnitOptions,
-  type FxStageBoard,
-  type FxStageSide,
-} from './stageBoard';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
 import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
@@ -419,34 +410,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Default: whatever the harness staged, else the first minion — a sensible starting pick, but one the
   // author can see in the picker and change, which is what the silent version never allowed.
   const [previewUid, setPreviewUid] = useState<string | null>(null);
-  // THE STAGE. On by default: an authoring tool that shows a different board every time it opens cannot
-  // show you the same effect twice, and half the effect vocabulary (watchers, rallies, area buffs, a hit
-  // crossing sides) has nothing to play across on a shop screen. Turning it off hands the backdrop back to
-  // the live game, which is the honest choice when what you are checking IS the real board.
-  const [stageOn, setStageOn] = useState(true);
-  const [stageBoard, setStageBoard] = useState<FxStageBoard>(() => defaultStageBoard(BUYABLE_CARDS));
-  // Minions only, by name — the stage is a display, so a spell (which has no board presence) would be a slot
-  // you could pick and never see. Sorted once; the picker is six selects over the same list.
-  const stageCardOptions = useMemo(
-    () => [...BUYABLE_CARDS].sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, name: c.name })),
-    [],
-  );
   const harnessUid = useGame((s) => s.run?.board.find((m) => m.cardId === harnessCard)?.uid ?? null);
-  // The stage STEPS ASIDE for the harness. Staging a card puts a real minion on the real board so the effect
-  // can be watched firing on a real moment — the one workflow whose whole point IS the live game. Leaving an
-  // opaque stage in front of it would hide the thing you asked to watch, so the toggle goes inert and says so.
-  const stageShown = stageOn && harnessUid === null;
   // The board as (uid, label) pairs for the picker. Memoised on the board's own stable reference: building
   // a fresh array inside the selector never settles under Zustand's reference equality (see `ProcHarness`).
   const previewBoard = useGame((s) => s.run?.board);
-  // With the stage up, the pickable units are the STAGE'S six — picking a unit from the hidden game behind it
-  // would animate a card nobody can see, which is the silent-subject bug this picker exists to prevent.
   const previewOptions = useMemo(
-    () =>
-      stageShown
-        ? stageUnitOptions(stageBoard, (id) => CARD_INDEX[id]?.name ?? id)
-        : (previewBoard ?? []).map((m, i) => ({ uid: m.uid, label: `${i + 1}. ${CARD_INDEX[m.cardId]?.name ?? m.cardId}` })),
-    [stageShown, stageBoard, previewBoard],
+    () => (previewBoard ?? []).map((m, i) => ({ uid: m.uid, label: `${i + 1}. ${CARD_INDEX[m.cardId]?.name ?? m.cardId}` })),
+    [previewBoard],
   );
   // Keep the pick valid: a staged card wins, and a subject that left the board falls back to the first one
   // rather than leaving the preview pointed at a unit that no longer exists.
@@ -1924,12 +1894,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   return (
     <div className={`fxwb${railMode ? ' fxwb-rail' : ''}`}>
-      {/* THE STAGE — the workbench's own 3v3 board, standing between the effect and whatever screen the game
-          happens to be sitting on. See `stageBoard.ts` for why an authoring tool cannot use the live game as
-          its backdrop. Rendered FIRST so it sits behind every panel, and `aria-hidden` because it is scenery.
-          Toggled off returns you to the old behaviour (author over the live game), which is still the right
-          choice when the thing you are checking IS the real board. */}
-      {stageShown && <FxStage board={stageBoard} />}
       {/* THE PIPELINE RAIL.
           The tool's own guide describes a ten-step journey from "nothing" to "playing in a real fight", but only
           the middle of it was ever on screen: Save sat at the bottom of a long scroll, "Watch in combat" was a
@@ -2032,42 +1996,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             </select>
           </div>
         )}
-        {/* THE STAGE CONTROLS. The toggle picks what the effect plays over; the six selects say which cards
-            stand there. Cards are pickable because "how does this read on a taunt" and "how does this read on
-            a wide frame" are real questions an author asks, and the answer used to be "go and build that
-            board in a run first". */}
-        <div className="fxwb-group fxwb-stage-group">
-          <button
-            className={`fxwb-btn${stageShown ? ' on' : ''}`}
-            disabled={harnessUid !== null}
-            onClick={() => setStageOn((v) => !v)}
-            title={harnessUid !== null
-              ? 'The harness has staged a card on the real board — the stage steps aside so you can watch it.'
-              : stageShown
-                ? 'Showing the workbench stage — three units a side, the same every time. Click to author over the live game instead.'
-                : 'Showing the live game behind the workbench. Click for the workbench stage — three units a side.'}
-          >
-            Stage
-          </button>
-          {stageShown && (['foe', 'you'] as FxStageSide[]).map((side) => (
-            <span key={side} className="fxwb-stage-row">
-              <span className="fxwb-backdrop-label">{side === 'foe' ? 'Enemy' : 'Yours'}</span>
-              {Array.from({ length: FX_STAGE_SLOTS }, (_, i) => (
-                <select
-                  key={i}
-                  className="fxwb-select fxwb-stage-pick"
-                  value={stageBoard[side][i]?.cardId ?? ''}
-                  title={`${side === 'foe' ? 'Enemy' : 'Your'} unit ${i + 1}`}
-                  onChange={(e) => setStageBoard((b) => setStageCard(b, side, i, e.target.value))}
-                >
-                  {stageCardOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              ))}
-            </span>
-          ))}
-        </div>
         <div className="fxwb-group fxwb-backdrop-group">
           <span className="fxwb-backdrop-label">Backdrop</span>
           {BACKDROP_SWATCHES.map((sw) => (

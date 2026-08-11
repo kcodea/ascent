@@ -21,7 +21,6 @@
  * the reads below are the thin browser layer on top.
  */
 
-import { boardRoot } from './boardAnchors';
 import { unitSelector } from './combatAnchors';
 
 /** Which units a react layer plays on, relative to the subject. */
@@ -172,10 +171,7 @@ export function rowUids(unit: Element): string[] {
 export function otherRowUids(unit: Element): string[] {
   const row = unit.closest('.row');
   if (row === null) return [];
-  // Scoped to `boardRoot()`, not the document: with the workbench stage up, the live game's rows are still
-  // in the DOM behind it, and an unscoped scan would report units from a board nobody can see as "the
-  // opposing side". See `boardAnchors.boardRoot`.
-  const rows = [...boardRoot().querySelectorAll('.row')].filter((r) => r !== row);
+  const rows = [...document.querySelectorAll('.row')].filter((r) => r !== row);
   return rows.flatMap((r) => [...r.querySelectorAll('[data-uid]')].map(uidOf))
     .filter((u): u is string => u !== null);
 }

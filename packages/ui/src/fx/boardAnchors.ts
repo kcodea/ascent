@@ -102,30 +102,7 @@ export function invalidateBoardAnchors(): void {
   cache = null;
 }
 
-/**
- * WHERE "the board" is, for every positional read in the FX layer.
- *
- * Normally the document: there is one board on screen and it is the game's. But the FX workbench can stage
- * its OWN 3v3 board (`fx/ui/stageBoard.ts`) over the top of a live game, and then there are two — the game's
- * rows, hidden behind an opaque stage but still in the DOM and still matching every selector here, and the
- * stage's rows, which are the ones actually on screen. `querySelector` takes the first match in DOCUMENT
- * order, and the game renders first, so an unscoped read anchors the effect to a card nobody can see. (Seen
- * on the first run of the stage: "your first unit" resolved to a shop offer behind it.)
- *
- * Scoping by ROOT rather than by selector is deliberate — the selectors stay character-for-character the
- * ones the shipping code uses, which is the invariant this module exists to hold. Only where we start
- * looking changes.
- */
-export function boardRoot(): ParentNode {
-  // Headless (the node test env — no `document`, and no `DocumentFragment` to stand in either): an inert
-  // root that answers "nothing on screen" to both query methods, so no caller has to repeat a DOM guard.
-  if (typeof document === 'undefined') {
-    return { querySelector: () => null, querySelectorAll: () => [] } as unknown as ParentNode;
-  }
-  return document.querySelector('.fxwb-stage') ?? document;
-}
-
-const rectOf = (sel: string): RectLike | null => boardRoot().querySelector(sel)?.getBoundingClientRect() ?? null;
+const rectOf = (sel: string): RectLike | null => document.querySelector(sel)?.getBoundingClientRect() ?? null;
 
 /**
  * Real on-screen anchors from the live board, or `null` when the board isn't up (headless, or the workbench

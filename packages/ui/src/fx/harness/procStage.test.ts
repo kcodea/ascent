@@ -45,8 +45,8 @@ describe('sandbagBoard', () => {
     expect(b.minions[0].attack).toBe(0);
   });
 
-  it('reports power for the board it actually built', () => {
+  it('reports power for the board it actually built — power is now Σ(attack+health) — see stagedBoard', () => {
     const b = sandbagBoard(1, { count: 3, hp: 20, attack: 2 });
-    expect(b.power).toBe(60); // mirrors SceneBuilder's hp * n — see the note on `power` in procStage.ts
+    expect(b.power).toBe((2 + 20) * 3); // was hp * n (60) before sandbagBoard routed through stagedBoard
   });
 });

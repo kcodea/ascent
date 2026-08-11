@@ -1,5 +1,66 @@
 # ASCENT — development log
 
+## 2026-08-09 — Sandbox board editor: the FX workbench's synthetic stage is replaced by editing the real game
+
+**Why the stage got deleted eleven days after it shipped:** it was scenery. Nothing on it fought — an effect
+could only be previewed in isolation, never fired by a real attack, death, or buff wave, because the stage's
+six units never touched combat. The fix isn't a better stage; it's dropping the fake rig and editing the real
+one. `refactor(fx): remove the workbench's synthetic stage` deletes `Stage.tsx`, `stageBoard.ts` and its
+tests outright (`boardRoot()` went with it — it only existed to disambiguate the fake board from a real one
+on screen at once), and `sandbagBoard` (the harness's own board builder, used to stage an opponent for a
+proc-firing rail) now routes through the new `stagedBoard` so the served-board metadata — `heroId`, `resolve`,
+`tier`, `power` — lives in exactly one place instead of two that could drift apart.
+
+**What replaces it:** a click-to-edit mode on your OWN warband row and the tavern row (`sbEditMode`), and a
+Shop ⇄ Next-enemy toggle on the tavern row (`sbTavernShowsEnemy`) that swaps its contents for the pinned
+opponent, editable the same way. `UnitEditor.tsx` is a popover anchored to the clicked card: swap the card
+(keeps the uid), edit base attack/health, toggle keywords. `SceneBuilder.tsx` gained an "Editing" section
+holding both toggles, "+ add enemy" (clamped 1–7), and "run it again" (a replay button). All of it is data
+edits over `packages/ui/src/sandboxEdit.ts` — 17 tests, every edit a pure, total function over `BoardCard[]` /
+`BoardSnapshot`: stat floors, card swap, keyword toggle, enemy add/remove, `power` recomputed on every edit as
+Σ(attack+health) (previously `hp × count`, a SceneBuilder shortcut this unifies away — `sandbagBoard`'s power
+output changes as an intended consequence, not a regression, and its test says so).
+
+**`servedBoards` is what makes this honest.** A run already records the exact board it fights every wave;
+`stagedBoard`'s output is written into that same channel and read verbatim by `nextOpponent` /
+`opponentBoard` — no translation step between "what you authored" and "what fights" that could drift.
+Verified live in the browser, not just by reading the code: a fight was driven off an authored board and the
+combat log showed exactly the units placed, stats and keywords included.
+
+**Two owner rulings baked into the editor's behaviour:**
+- Editing sets BASE stats, not a buff. A card typed to 40/40 reads as a plain 40/40 with neutral badges, never
+  "+38 buffed" — the editor is authoring a card, not applying an effect to one.
+- Placing a card in edit mode does not fire its Battlecry. Battlecries only fire off a real shop `buy` — the
+  sandbox intentionally cannot fabricate one.
+
+**The replay bug, caught in review, is the most useful thing here.** `replayLastCombat`'s first draft set
+`combatSettled: false` while re-entering the combat phase, meaning to force `useCombatReplay` to restart the
+animation. It would have re-armed `Recruit.tsx`'s "settle once the replay finishes" effect — which gates on
+`!run.combatSettled` — so a replayed win or draw would have silently resolved the fight a SECOND time: a
+duplicate history push, a second Resolve computation, carry-backs applied twice, all behind a button labelled
+"watch that again." The fix (`b5b72b9e`) leaves `combatSettled` untouched (it's already `true` by the time a
+fight is replayable) and instead gives `run.lastCombat` a new object identity via a shallow clone —
+`useCombatReplay`'s beat-index reset keys on `[combat]` by IDENTITY, not on the phase flipping, so the clone
+alone is what restarts the animation at beat 0 while every settle-gated effect stays a no-op. Same events,
+same frames; just not `===` the last one.
+
+**Hardening found along the way:** `f20c9786` closes a targeting leak where the Fortify hero power's aim
+selector could resolve a pinned-enemy card (`sbfoe-N`, shown in the tavern row by the shop⇄enemy toggle) as a
+dispatch target — the same leak class the shop-uid and measure-cards selectors already guarded against, hit
+through a third entry point (the global pointerup listener armed while a hero power is targeting). Hoisted the
+`:not([data-uid^="sbfoe-"])` guard into a shared `SB_FOE_EXCLUDE` constant used at all three call sites, so a
+sandbox-only enemy card can never be bought, targeted by a spell, or hit by a hero power — and a future
+selector inherits the guard instead of needing to remember it by hand.
+
+**Verified:** typecheck (pkgs + web) clean, `npx eslint packages apps` 0 errors, 4780 tests, `build:web`
+green. Browser-verified: both editor popovers, the shop⇄enemy toggle, an authored-board fight reading back
+exactly what was authored, and the replay's safety property (no double-settle, no duplicate Resolve/history).
+**Not covered:** the replay ANIMATION playing to completion in a live tab — rAF is paused in an unfocused
+preview tab, so watching a full replay beat-by-beat to the end is still unwatched by this session. Also
+open: the secondary HUD bridges (kill counter, quest badges, hand-grant previews) are gated on
+`!run.combatSettled` the same way the settle effect is, so they correctly do NOT re-animate during a replay —
+only the fight itself replays. Scenario save/load (persisting a staged board across sessions) was scoped out
+of this plan and is not built.
 ## 2026-08-10 — hand grab point → 1 (bottom edge)
 
 Follow-up to the hand-grab work: the owner tested it live and settled on `handGrabY = 1` (was 0.72), so a card
@@ -210,6 +271,29 @@ replaced code used. Judged against §0 that leaves the *idle* shop path measured
 **firing** path reasoned, not profiled.
 
 Verified: typecheck (pkgs + web), lint (0 errors in the changed files), 4786 tests, `build:web`.
+
+**Final-review pass (six findings, one commit).** The replay's *settle* path was closed above; its **exit**
+path was still open, and that was the critical one. `endCombat` dispatches `resolveCombat`, whose reducer
+guard is only `phase === 'combat' && lastCombat` — it never re-checks `combatSettled` — so simply LEAVING a
+replay ran `settleLobbyRound` + `advanceCombat` a second time: wave +1, embers refilled to max,
+`turnStartPower` re-pinned, per-turn counters cleared, a fresh opponent served, and the board you had
+authored stranded a wave behind the one the editor now edits. Rather than widen `resolveCombat`'s guard (that
+is real play, for every player, to fix a dev rig), the store gained a sandbox-scoped `sandboxReplay` flag:
+set by `replayLastCombat`, cleared by `exitReplay` and by any dispatched action that changes the run's phase.
+`endCombat` branches on it and calls `exitReplay` — a pure phase flip back to `recruit`, dispatching nothing.
+A normal fight never sets the flag, so its exit is byte-for-byte the path it always took.
+Second: replaying a LOST fight softlocked the arena. The loss-damage sequence early-returns on
+`combatSettled` (true throughout a replay, by design), so `lossPhase` never reached `'done'`, End Combat's
+loss gate never opened, and Skip is unmounted once the replay finishes — no enabled control left the phase.
+End Combat's gate now also passes on `sandboxReplay`: there is nothing being waited on. Third, "run it again"
+is gated on `phase === 'recruit'` at BOTH the button and the store action — clicking it during a live fight
+swallowed that fight's own resolution. Also: a card swap now rebuilds the body from the new def as a
+WHITELIST (uid + golden survive; `buffs`, `chosenOption`, `grantedTier`, `addedTribes` and every accrued
+counter are dropped), so a Karwind-buffed wolf swapped to a bear can no longer read 9/9 under a "+2/+2
+Karwind" breakdown accounting for none of its stats; `stagedBoard` now actually clamps the minions it is
+handed, making its own docblock true; and the editor's stat inputs hold a local string draft so clearing a
+field to retype no longer snaps to 0/1 on the same keystroke (no clamping moved out of `sandboxEdit.ts`).
+Three new tests (provenance drop, golden retention, staged clamp) — 20 in `sandboxEdit.test.ts`.
 
 ## 2026-08-10 — fix: leaderboard ghost rows, double-"YOU", null-name career crash
 

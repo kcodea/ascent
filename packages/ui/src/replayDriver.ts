@@ -83,6 +83,8 @@ export function startReplay(replay: Replay): void {
   token++;
   g.setState({
     replaying: true, showTitle: false, inspect: null, heroChoices: null, combatReplayDone: false,
+    // Close any launcher overlay (leaderboard / recent-matches / career) so the exit lands cleanly on the title.
+    showLeaderboard: false, showRankings: false, showRecentMatches: false, showCareer: false, careerOf: null,
     replaySession: { index: 0, total: replay.actions.length, playing: true, speed: 1, round: 1 },
   });
   void runLoop(0);

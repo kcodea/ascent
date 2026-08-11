@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-10 — Replay Phase 2 + 3: spectate ANY player (recent-matches feed + leaderboard Watch)
+
+The replay viewer becomes a spectator: watch other players' runs, not just your own. The full replay already
+rides in `run_telemetry.replay` (a public-read jsonb column) on every finished run, so this is a READ + the
+existing Phase-1 viewer — no schema change.
+
+- **Phase 2 — fetch (`remoteBoards.ts`):** `fetchRecentReplays(limit)` (newest runs across all players →
+  `ReplayListing[]` = user/author/hero/wins/placement/created + the replay) and `fetchLatestReplayForUser(id)`
+  (one player's newest run). Both time-boxed (4 s) + best-effort (`[]`/`null` when no backend), and both drop
+  rows whose `replay` has no `actions` (unplayable / pre-capture).
+- **Phase 3 — entry points:**
+  - **Recent Matches** (`RecentMatches.tsx`) — a new full-page overlay (sibling of Rankings/Champions),
+    reached from a **"Watch"** item in the title nav. Each row is a whole clickable plate (portrait ·
+    name · hero · placement/wins) that hands its replay straight to `startReplay`.
+  - **Leaderboard "▶ Watch"** — a per-row button on Rankings that fetches that player's latest replay and
+    spectates it (the row itself still opens their career; the button `stopPropagation`s).
+- `startReplay` now closes any launcher overlay (leaderboard / recent-matches / career) so exiting a
+  spectated replay lands cleanly back on the title (the snapshot it restores was taken with `showTitle`).
+
+**Verified live end-to-end** against the real backend: the Recent Matches feed populated with real rows
+(Orangez, LazerLemon, …); clicking **Watch LazerLemon's run** started the replay through the live shop UI
+with the transport bar (`replaying:true`, `showRecentMatches:false`); **exit restored** to the title
+(`showTitle:true`, `replaySession:null`). The Leaderboard renders its new trailing Watch column, columns
+aligned. No console errors. Gates: typecheck (web+pkgs), full `npm test` 4787/286, lint at the 7-warning
+baseline, `build:web` green.
+
+Note: only runs uploaded after Phase 1a carry `timings`/`servedBoards` (full fidelity); older rows degrade
+gracefully (synthetic pacing, re-derived opponents) but still play.
+
 ## 2026-08-10 — Replay Phase 1c: the viewer — transport controls + restore + entry
 
 The driver (Phase 1b) becomes a real feature. `replayDriver` is now a CONTROLLER with a store-backed session

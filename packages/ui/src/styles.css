@@ -5204,7 +5204,7 @@ svg { width: 18px; height: 18px; }
    background"). At rgba(0,0,0,.3) the homescreen's daylit castle read straight through it, so the columns
    that aren't accent-coloured — Games, the hero name, the header labels — washed out against clouds and
    towers. Opaque-enough navy fixes every one of them at once and needs no per-column colour tuning. */
-.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px 104px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
 /* A leaderboard row is a BUTTON now (it opens that player's career). Reset the button chrome so it still
    reads as a table row, and keep the grid from the base rule — a button defaults to inline-block and would
    otherwise collapse the columns. */
@@ -5238,6 +5238,24 @@ svg { width: 18px; height: 18px; }
 .rankrating { color: var(--acc); font-weight: 800; }
 .rankfav { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rankhead .rankfav { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
+/* Watch button — spectate that player's latest run. Sits in its own trailing column; the click is stopped
+   from bubbling to the row (which opens the career). */
+.rankwatch { align-self: center; justify-self: end; margin-left: 14px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 12px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; border-radius: 8px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rankwatch:hover:not(:disabled) { filter: brightness(1.08); }
+.rankwatch:disabled { opacity: 0.55; cursor: default; }
+.rankhead .rankwatch, .rankrow.rankhead > .rankwatchhead { color: rgba(255, 255, 255, 0.78); font-size: 11px; }
+/* Recent Matches — the spectator feed. Each row is a whole clickable plate (it opens the replay), portrait +
+   name/hero-result + a Watch affordance. Reuses the .lbpage/.lbscroll page frame from the leaderboards. */
+.matchlist { display: flex; flex-direction: column; gap: 10px; }
+.matchrow { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 10px 18px; text-align: left; font: inherit; color: #f4eee2; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.matchrow:hover { border-color: var(--acc); background: linear-gradient(rgba(196, 160, 92, 0.14), rgba(196, 160, 92, 0.14)), rgba(8, 13, 26, 0.82); }
+.matchrow.me { border-color: var(--acc); background: linear-gradient(rgba(255, 140, 40, 0.16), rgba(255, 140, 40, 0.16)), rgba(8, 13, 26, 0.82); }
+.matchportrait { width: 48px; height: 48px; border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.3); display: grid; place-items: center; }
+.matchportrait img { width: 100%; height: 100%; object-fit: cover; }
+.matchmeta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.matchname { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matchsub { font-size: 13px; color: rgba(255, 255, 255, 0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matchwatch { font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); padding: 7px 14px; border-radius: 9px; white-space: nowrap; }
 .rankportrait { width: 30px; height: 30px; border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.3); flex: none; display: grid; place-items: center; }
 .rankportrait img { width: 100%; height: 100%; object-fit: cover; }
 .rankportrait svg { width: 18px; height: 18px; color: #f6efe2; }

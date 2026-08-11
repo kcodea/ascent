@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type Replay, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -802,6 +802,71 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
     ]);
     if (!result || result.error || !result.data) return null;
     return (result.data as Array<{ entry: T }>).map((r) => r.entry).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+// ── Replays (spectate any player) ─────────────────────────────────────────────────────────────────────────
+// The full replay ({seed,heroId,mode,actions,timings,servedBoards}) already rides in `run_telemetry.replay`
+// (a public-read jsonb column) on every finished run — so watching someone else's game is just a READ + the
+// existing replay viewer. Runs uploaded before the timing/servedBoards capture landed replay at synthetic pace
+// / re-derived opponents; new runs are full fidelity.
+
+/** One spectate-able run, shaped for a "recent matches" list / a leaderboard Watch button. */
+export interface ReplayListing {
+  userId: string;
+  author: string;
+  heroId: string;
+  wins: number;
+  placement?: number;
+  createdAt: string;
+  replay: Replay;
+}
+
+const asListing = (r: Record<string, unknown>): ReplayListing | null => {
+  const replay = r.replay as Replay | null;
+  if (!replay || !Array.isArray(replay.actions) || replay.actions.length === 0) return null; // unplayable
+  return {
+    userId: (r.user_id as string) ?? '', author: (r.author as string) ?? '', heroId: (r.hero_id as string) ?? '',
+    wins: (r.wins as number) ?? 0, placement: (r.placement as number | null) ?? undefined,
+    createdAt: (r.created_at as string) ?? '', replay,
+  };
+};
+
+/** The most recent finished runs across all players, newest first — the "recent matches" feed. Best-effort +
+ *  time-boxed; [] on any failure / no backend. */
+export async function fetchRecentReplays(limit = 24): Promise<ReplayListing[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('run_telemetry').select('user_id, author, hero_id, wins, placement, created_at, replay')
+        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Record<string, unknown>[]).map(asListing).filter((x): x is ReplayListing => x !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** A specific player's most recent run's replay — for a "Watch" button on their leaderboard row / Career. */
+export async function fetchLatestReplayForUser(userId: string): Promise<Replay | null> {
+  const c = client();
+  if (!c || !userId) return null;
+  try {
+    const request = Promise.resolve(
+      c.from('run_telemetry').select('replay').eq('user_id', userId)
+        .not('replay', 'is', null).order('created_at', { ascending: false }).limit(1),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data?.length) return null;
+    const replay = (result.data[0] as { replay: Replay | null }).replay;
+    return replay && Array.isArray(replay.actions) && replay.actions.length > 0 ? replay : null;
   } catch {
     return null;
   }

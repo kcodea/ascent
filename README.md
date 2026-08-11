@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Watch any player's run** — the replay viewer is now a spectator. A new **Watch** feed on the title lists the newest runs from every player; click one to watch it play back through the live shop-and-combat UI, with a play/pause · seek · 1–10× speed · exit transport bar. The leaderboard grows a per-row **▶ Watch** that spectates that player's latest run, and the title still offers **Rewatch Last Run** for your own. Everything rides the replay already stored on each finished run — no re-simulation.
+
 - **Card-drag feel, retuned** — the owner's latest Drag-tuner values are now the shipped defaults (near-instant catch-up, a stronger tilt, a flatter resting angle, an instant recentre). New with it: a **hand grab point** — a card lifted from the hand now hangs from below mid-art (near its stat badges) instead of from its centre, with a "Hand grab point" slider to place it exactly. Shop and board drags still ride centred.
 
 - **Shop-phase effects can be authored now** — the effects system only ever reached combat, so every shop visual was hand-written code with its effect baked in. Shop moments can now be bound in the workbench like combat ones. That matters because the most common mechanic in Set 2 — Shout, on 31 cards — happens in the shop, along with roughly 60% of the set's triggers.

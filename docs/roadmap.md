@@ -256,7 +256,10 @@ The career surface exists; deepen what a finished run *remembers*.
 - **Round-by-round + replay view.** Career match cards expand in place to the stat line + final warband; the
   remaining step is a full round-by-round view — store the `{seed,heroId,actions}` replay on the run-history
   entry so a run can re-derive any round's board (the end-screen round-board viewer already does this
-  in-session).
+  in-session). *(The full replay viewer now exists — Phase 1/2/3 shipped 2026-08-10: watch your own or any
+  player's run through the live UI, reached from the title "Rewatch Last Run", the "Watch" recent-matches
+  feed, and a per-row Watch on the leaderboard. Wiring a **Watch** button into the Career match cards is the
+  small remaining adopter.)*
 - Deferred summary sections that need per-minion data not yet on `CombatResult`: biggest permanent-scaling
   source, quest-choice recap, Ancient recap.
 

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Card drag tilt reworked** — a dragged card now dives toward the board in the direction it's travelling (leading edge pinches), uniformly on every axis and settling flat when you stop. Rebuilt on a smoothed-travel signal with one uniform dive gain, and split the floating card into position + tilt layers so the 3D pitch is clean instead of sliding. Drag-feel tuner now exposes `Dive gain` / `Dive smoothing`.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

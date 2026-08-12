@@ -1867,7 +1867,11 @@ export function Recruit() {
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
   // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
   const dragCardRef = useRef<HTMLDivElement>(null);
-  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0 }); // rx/ry = smoothed position; ax/ay = anchor (grab→centre)
+  // The inner tilt wrapper. The 3D dive (rotateX/rotateY) lives HERE so it pivots about the card's OWN centre,
+  // decoupled from the outer's big position translate — otherwise the perspective foreshortens that translate
+  // and the card slides sideways instead of pitching cleanly (see `.dragtilt` in styles.css).
+  const dragTiltRef = useRef<HTMLDivElement>(null);
+  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0, vx: 0, vy: 0 }); // rx/ry = smoothed pos; ax/ay = anchor (grab→centre); vx/vy = smoothed travel (drives the dive)
   // Touch drags stick to the FINGER (near-1 catch-up), not the mouse-tuned weighted lag: a card trailing the
   // cursor reads as pleasant "weight" with a mouse, but under a fingertip the same lag reads as stutter/low-FPS.
   const dragIsTouchRef = useRef(false);
@@ -1887,25 +1891,35 @@ export function Recruit() {
   const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, playFloorRef.current);
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
-  // card's render position toward the cursor and tilt it toward its motion, writing the transform straight
-  // to the node each frame. The lag-gap (cursor − render pos) drives BOTH the catch-up and the lean, so a
-  // fast drag leans hard and a stopped cursor settles flat. Pure compositor transform — no layout reads.
+  // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
+  // The card's per-frame travel feeds a smoothed velocity; the dive pitches the LEADING edge toward the board,
+  // one uniform gain on both axes, settling flat when the cursor stops. Pure compositor transforms — no layout
+  // reads. Position and tilt live on SEPARATE elements so the perspective never foreshortens the big position
+  // translate (which slid the card sideways instead of pitching it).
   useLayoutEffect(() => {
     if (!drag?.active) return;
     const el = dragCardRef.current;
+    const tiltEl = dragTiltRef.current;
     if (!el) return;
     const m = dragMotionRef.current;
     const d0 = dragRef.current;
+    // OUTER = position only: a plain 2D translate + `zoom` lift, and it carries the `perspective` PROPERTY so
+    // the inner dive foreshortens about the card centre (NOT baked into this translate → no slide). A flat
+    // `staticRotate` rides here too. LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a
+    // 3D-transformed layer rasterises at 1× and a scale upscales that one texture, blurring the card; `zoom`
+    // re-rasterises at the enlarged size. Because zoom also scales the translate, divide it by the lift.
+    const writePos = (f: ReturnType<typeof getDragFeel>): void => {
+      el.style.setProperty('zoom', String(f.scale));
+      el.style.perspective = `${f.perspective}px`;
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
+      el.style.transform = `translate(${m.rx / f.scale - m.ax}px, ${m.ry / f.scale - m.ay}px) rotate(${f.staticRotate}deg)`;
+    };
     if (d0) {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
       m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
-      const f = getDragFeel();
-      // LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a 3D-transformed layer rasterises
-      // at 1× and the scale then upscales that one texture, blurring the whole card. `zoom` re-rasterises at the
-      // enlarged size. Because zoom also scales the transform's translate, divide it by the lift (`liftTx`).
-      el.style.setProperty('zoom', String(f.scale));
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
-      el.style.transform = dragTransform(f.perspective, m.rx / f.scale - m.ax, m.ry / f.scale - m.ay, 0, 0, 1, f.staticRotate); // before-paint, no flash
+      m.vx = 0; m.vy = 0;              // no dive on the first frame
+      writePos(getDragFeel());
+      if (tiltEl) tiltEl.style.transform = 'rotateX(0deg) rotateY(0deg)'; // flat before-paint, no flash
     }
     let raf = 0;
     let last = performance.now();
@@ -1934,17 +1948,23 @@ export function Recruit() {
       const live = dragPosRef.current ?? d;
       const gx = live.x - m.rx;
       const gy = live.y - m.ry;
-      m.rx += gx * k;
-      m.ry += gy * k;
+      const stepX = gx * k;   // the card's ACTUAL per-frame travel (how far m.rx moves this frame)
+      const stepY = gy * k;
+      m.rx += stepX;
+      m.ry += stepY;
+      // Smoothed travel velocity = EMA of the per-frame step. `tiltEase` = 1 → tracks it raw (dive follows the
+      // motion and snaps flat the instant the cursor stops); lower = a softer build/settle. This is the
+      // "distance travelled" signal that drives the dive.
+      const ek = f.tiltEase >= 1 ? 1 : 1 - Math.pow(1 - f.tiltEase, dt / 16.667);
+      m.vx += (stepX - m.vx) * ek;
+      m.vy += (stepY - m.vy) * ek;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      // Lean INTO the drag direction: each axis tilts by its signed lag-gap (cursor − card). Direction-driven,
-      // so left/right (and up/down) lean opposite ways; when the cursor stops the gap closes and it sits flat.
-      const rotY = clamp(f.tiltPerPx * f.hLean * gx); // horizontal lean
-      const rotX = clamp(f.tiltPerPx * f.vLean * gy); // vertical lean
-      el.style.setProperty('zoom', String(f.scale)); // crisp layout lift (see the setup block) — not transform scale
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`; // pivot tilt around the (recentring) anchor
-      // Translate divided by the zoom so the anchor still lands under the cursor; no `scale()` in the transform.
-      el.style.transform = dragTransform(f.perspective, m.rx / f.scale - m.ax, m.ry / f.scale - m.ay, rotX, rotY, 1, f.staticRotate);
+      // Dive: the LEADING edge dips toward the board, one uniform gain for both axes (screen y is down+):
+      //   south (vy>0) → rotX<0 → bottom edge recedes → bottom corners pinch; east (vx>0) → rotY>0 → right recedes.
+      const rotX = clamp(-f.tiltGain * m.vy);
+      const rotY = clamp(f.tiltGain * m.vx);
+      writePos(f);
+      if (tiltEl) tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -4747,10 +4767,11 @@ export function Recruit() {
             // doesn't fight it. The React-driven release animations (snap / magnet-slide) keep `transform:
             // scale`, so force zoom back to 1 for them or the rAF's leftover zoom would stack (double-size).
             zoom: reactDrivesDrag ? 1 : undefined,
-            // Normal drag: the rAF (above) owns `transform` + `transform-origin` (a weighted lag, a recentre
-            // onto the cursor, and a tilt-toward-motion), written straight to this node so React re-renders
-            // don't fight it. Snap-back / magnet-slide use a CSS transition, so React drives those here — the
-            // origin is the card centre (matching the recentred anchor), the durations come from the config.
+            // Normal drag: the rAF (above) owns this OUTER's `transform` + `transform-origin` (position: a
+            // weighted lag + recentre onto the cursor) and its `perspective`, while the dive lives on the inner
+            // `.dragtilt`. Written straight to the nodes so React re-renders don't fight them. Snap-back /
+            // magnet-slide use a CSS transition, so React drives those here — the origin is the card centre
+            // (matching the recentred anchor), the durations come from the config.
             transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
             transform: magSlide
               ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
@@ -4762,7 +4783,11 @@ export function Recruit() {
             opacity: magSlide ? 0 : 1,
           }}
         >
-          <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+          {/* Inner tilt layer: the rAF writes rotateX/rotateY here (dive about the card's own centre). During
+              snap/magnet-slide React flattens it so the frozen last-frame rotation clears. */}
+          <div className="dragtilt" ref={dragTiltRef} style={{ transform: reactDrivesDrag ? 'none' : undefined }}>
+            <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+          </div>
         </div>
       )}
 

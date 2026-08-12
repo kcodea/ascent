@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-12 — Card drag tilt: distance/motion-driven directional dive (+ a slide fix)
+
+Owner ask: the dragged card's 3D lean was velocity-based and dishonest — it barely tipped north/south but
+leaned hard east/west, and the angle didn't track the travel direction. Target (owner sketch + the PixiJS
+`mesh_perspective_3d` example): the **leading edge dives toward the board** in whatever direction the card
+is moving, *uniformly* on every axis, and settles flat when the cursor stops.
+
+**What changed (UI-only, presentation):**
+- **Signal.** The drag rAF now folds the card's per-frame travel into a smoothed velocity (`vx,vy` on
+  `dragMotionRef`, EMA rate `tiltEase`). That "distance travelled" signal drives the dive and eases to zero
+  when you stop.
+- **Mapping.** Replaced the two independent lean knobs (`tiltPerPx·hLean` / `·vLean`) with the reference's
+  single uniform gain: `rotX = -tiltGain·vy`, `rotY = +tiltGain·vx`, clamped to `tiltMax`. Signs matched to
+  the owner's sketch — south → bottom corners pinch, east → right corners pinch (leading edge dives).
+- **Decouple position from tilt (the slide fix).** At the tuned `perspective 525` / up to `45°`, baking the
+  big position translate and the 3D rotate into one transform slid the card sideways (the translate sat
+  inside the perspective). Split the floating card into two nested elements: OUTER `.dragcard` owns position
+  (2D translate + `zoom` lift + the `perspective` *property*), new inner `.dragtilt` owns the dive
+  (`rotateX/rotateY` about its own centre). Now it's a clean pitch and the receding edge's corners pinch.
+  Snap/magnet-slide are unaffected (they rotate 0°); React flattens `.dragtilt` while they run.
+- **Tuner + config.** Retired `tiltPerPx`/`hLean`/`vLean`; added `tiltGain`/`tiltEase`; kept
+  `tiltMax`/`perspective`/`staticRotate`. New owner-tuned defaults (`tiltGain 3`, `tiltEase 1`, `tiltMax 45`,
+  `perspective 525`); bumped `DRAG_DEFAULTS_VERSION` 4→5 and the fingerprint. `follow` (0.95) and `scale`
+  (1.21) untouched — position feel unchanged.
+
+Shaped on a throwaway preview (scratchpad) to lock signs + gain/ease by eye before touching Recruit; spec at
+`docs/superpowers/specs/2026-08-12-drag-distance-tilt-design.md`. Verified: typecheck (pkgs+web), eslint 0
+errors, 4887 tests, build:web. Feel to be eyeballed live by the owner at 1×.
+
 ## 2026-08-11 — The FX workbench Save bug: a debounced autosave that a reload outran
 
 **Symptom** (hit twice while authoring shop-buff-shout / self-buff-gold): the author changes an effect, clicks

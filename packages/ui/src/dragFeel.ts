@@ -9,17 +9,16 @@
 export interface DragFeel {
   /** Catch-up fraction per 60 fps frame toward the cursor (1 = instant/no lag; lower = heavier/laggier). */
   follow: number;
-  /** Degrees of tilt per px of lag-gap — how hard the card leans into its motion. */
-  tiltPerPx: number;
-  /** Max tilt (deg) — clamps the lean so a fast fling can't over-rotate. */
+  /** Degrees of dive per px/frame of card travel — ONE uniform gain for both axes (so N/S dives as hard as
+   *  E/W). The card pitches so its LEADING edge dips toward the board in the direction it's moving. Replaces
+   *  the old per-axis `tiltPerPx · hLean` / `tiltPerPx · vLean` lean. */
+  tiltGain: number;
+  /** Velocity smoothing for the dive: EMA rate of the card's per-frame travel (1 = no smoothing — the dive
+   *  tracks raw movement and snaps flat the instant the cursor stops; lower = a softer build and settle). */
+  tiltEase: number;
+  /** Max tilt (deg) — clamps the dive so a fast fling can't over-rotate. */
   tiltMax: number;
-  /** Horizontal lean into the drag direction. Magnitude = how much; SIGN = which way (flip if left/right feel
-   *  backwards); 0 = no horizontal lean. */
-  hLean: number;
-  /** Vertical lean into the drag direction. Magnitude = how much; SIGN = which way (flip if up/down feel
-   *  backwards); 0 = no vertical lean. */
-  vLean: number;
-  /** CSS perspective (px) for the 3D tilt — smaller = stronger foreshortening. */
+  /** CSS perspective (px) for the 3D dive — smaller = stronger foreshortening / a deeper corner pinch. */
   perspective: number;
   /** Hold scale — how much the card grows while lifted (the 'off the table' size). */
   scale: number;
@@ -68,11 +67,10 @@ export interface DragFeel {
 
 const DEFAULTS: DragFeel = {
   follow: 0.95,     // owner-tuned 2026-08-10: near-instant catch-up (was 0.54)
-  tiltPerPx: 2,     // owner-tuned 2026-08-10: much stronger lean per px (was 0.6)
-  tiltMax: 20,      // owner-tuned 2026-08-10: looser tilt ceiling (was 11)
-  hLean: 0.5,       // lean into horizontal motion
-  vLean: -0.2,      // lean into vertical motion
-  perspective: 4000,// owner-tuned 2026-08-10: gentler foreshortening (was 1550)
+  tiltGain: 3,      // owner-tuned 2026-08-12: uniform dive gain; any real motion saturates the cap
+  tiltEase: 1,      // owner-tuned 2026-08-12: no smoothing — dive tracks raw travel, snaps flat on stop
+  tiltMax: 45,      // owner-tuned 2026-08-12: the dive ceiling (was 20)
+  perspective: 525, // owner-tuned 2026-08-12: strong foreshortening / deep corner pinch (was 4000)
   scale: 1.21,      // clearly lifted off the table
   staticRotate: 0,  // owner-tuned 2026-08-10: sits flat while held (was -1.5)
   threshold: 0,     // drag engages immediately
@@ -94,11 +92,10 @@ const DEFAULTS: DragFeel = {
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   follow: [0.1, 1, 0.02],
-  tiltPerPx: [0, 3, 0.05],
-  tiltMax: [0, 20, 0.5],
-  hLean: [-1, 1, 0.1],
-  vLean: [-1, 1, 0.1],
-  perspective: [200, 5000, 50],
+  tiltGain: [0, 5, 0.05],
+  tiltEase: [0.02, 1, 0.02],
+  tiltMax: [0, 60, 0.5],
+  perspective: [200, 3000, 25],
   scale: [1, 1.3, 0.01],
   staticRotate: [-8, 8, 0.5],
   threshold: [0, 30, 1],
@@ -120,11 +117,10 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
 export const DRAG_DESC: Record<keyof DragFeel, string> = {
   follow: 'How fast the card catches up to the cursor. Lower = heavier/laggier; 1 = instant (no lag).',
-  tiltPerPx: 'Degrees of 3D lean per pixel the card trails the cursor. Higher = leans harder when moving.',
-  tiltMax: 'Ceiling on the tilt (degrees) so a fast fling can’t over-rotate.',
-  hLean: 'Lean into left/right motion. Magnitude = how much; flip the SIGN if left/right feel backwards; 0 = off.',
-  vLean: 'Lean into up/down motion. Magnitude = how much; flip the SIGN if up/down feel backwards; 0 = off.',
-  perspective: 'CSS 3D depth (px). Smaller = stronger foreshortening / more dramatic tilt.',
+  tiltGain: 'Degrees of dive per px/frame of travel — one uniform gain for both axes; the leading edge dips toward the board.',
+  tiltEase: 'Velocity smoothing for the dive. 1 = no smoothing (tracks raw travel, snaps flat on stop); lower = a softer build and settle.',
+  tiltMax: 'Ceiling on the dive (degrees) so a fast fling can’t over-rotate.',
+  perspective: 'CSS 3D depth (px). Smaller = stronger foreshortening / a deeper corner pinch.',
   scale: 'How much the card grows while held — the “lifted off the table” size.',
   staticRotate: 'A fixed 2D angle (deg) while held. 0 = sits flat like a card on the table.',
   threshold: 'Pixels the pointer must move before a click turns into a drag.',
@@ -162,7 +158,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 4;
+export const DRAG_DEFAULTS_VERSION = 5;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

@@ -93,6 +93,31 @@
         "def": "flame-ring",
         "critDef": "flame-ring-crit"
       }
+    },
+    "wo_attack": {
+      "spellCast": {
+        "def": "bloody-ale"
+      }
+    },
+    "wo_champion": {
+      "spellCast": {
+        "def": "champions-ale"
+      }
+    },
+    "wo_health": {
+      "spellCast": {
+        "def": "defensive-ale"
+      }
+    },
+    "wo_mine": {
+      "spellCast": {
+        "def": "coin-ale"
+      }
+    },
+    "wo_reinforcement": {
+      "spellCast": {
+        "def": "reinforcing-ale"
+      }
     }
   }
 }

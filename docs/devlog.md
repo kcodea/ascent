@@ -1,5 +1,50 @@
 # ASCENT — development log
 
+## 2026-08-12 — Dwarven Ale shop-cast FX: a `spellCast` recruit moment, cursor→target buff volleys, and an Edward echo
+
+**What & why.** The five Set-2 Dwarven Ales (`wo_mine`/`wo_reinforcement`/`wo_champion`/`wo_health`/`wo_attack`)
+had no per-card cast FX — every untargeted shop spell shared one generic `fireSpark` burst, because the
+recruit-moment system had no cast-shaped kind to bind to. This adds one and wires the five authored looks.
+
+**Engine/UI — the wiring (presentation-only; no sim/content change).**
+- **New `spellCast` recruit-moment kind** (`choreo/recruitMoments.ts`): a `spellCastMoment(cardId, point, recipients?)`
+  builder carrying the release **`cursor`** point, plus a point-anchored branch `runSpellCastFire` in
+  `choreo/recruitCues.ts`. It is a real `RECRUIT_MOMENT_KIND` (the binding-validation tests require a kind to
+  have a named emitter), so it satisfies both `recruitMoments.test.ts`'s emitter invariant and
+  `bindings.test.ts`'s known-kind check.
+- **Cast-site fire + spark suppression** (`Recruit.tsx` `fireSpellCastFx`, both spell branches in `applyDrop`):
+  a spell with a `spellCast` binding fires its authored def from the release point and the generic spark is
+  suppressed for it ("authored replaces stock", the same rule the buff/Karwind paths follow); unbound spells
+  are unchanged.
+- **Buff ales fan out cursor→target(s)** (Champion's/Defensive/Bloody): the def fires once per buffed minion,
+  all simultaneously, each travelling from the cursor to that minion; the generic buff-tendril pop is suppressed
+  for exactly those minions (mirroring the existing `rubyOwned` filter, keyed by `recruitFxSeq`). Golden/
+  Reinforcing stay single point-fires (no minion target).
+- **Edward Keg-hands echo:** with `dw_edward` on board (Ales trigger ×2, ×3 gilded — a `spellCasts()`
+  multiplier), the buff-ale volley re-fires from Edward's card as the source — 1 echo for ×2, 2 for ×3, each
+  80ms after the last. UI-only (Edward's uid + gilded read from `run.board`; position measured at echo time).
+
+**Content/art (owner-authored in the FX workbench).** Five defs bound per ale: `coin-ale` (Golden — coin spray),
+`reinforcing-ale` (muster shimmer), `champions-ale`/`bloody-ale`/`defensive-ale` (source→target trail ribbons +
+target eruptions). `bindings.json` gains a per-card `spellCast` row for each; the golden `CARD_BINDINGS` fixture
+in `bindings.test.ts` was extended to match.
+
+**Verified.** `typecheck` + `lint` (0 errors) + full `npm test` (288 files / 4889 tests) + `build:web` all green.
+One test needed updating — `fx/directCalls.test.ts` accounts for every dynamic `playDef` site, and the new
+`runSpellCastFire` added two in `recruitCues.ts` (the shop binding resolver, which the test explicitly allows),
+so `DYNAMIC_CALL_SITES['choreo/recruitCues.ts']` went 2→4. It lives under `fx/`, so scoped `choreo/` test runs
+missed it — a reminder to run the FULL suite before claiming wiring done. Looks were iterated live by the owner
+on the branch dev server.
+
+**Follow-ups (deferred, owner-acknowledged).**
+- **coin-ale first-cast warmup:** the coins use `tintMode:"texture"` with `art:group-14035`; on the very first
+  cast after a load the texture is still decoding, so that layer renders nothing until it caches. Self-heals per
+  reload. Cosmetic.
+- **committed art in production:** `fx/defs/art/*.png` is DEV-gated (`shapeLibrary.ts:410`), so in a prod build
+  `art:` shapes fall back to a procedural shape. Only **Golden**'s coins use an `art:` shape (the other four are
+  built-in shapes + palette tint), and this matches the already-shipped `coin-shout` behavior — but it means
+  Golden's coins won't render as the PNG for players until the FX-system-wide art-shipping path is addressed.
+
 ## 2026-08-11 — Balance batch: ~12 minions, ~40 runes, and two combat-timing bug fixes
 
 A large owner balance pass across content + engine.
@@ -41,6 +86,30 @@ Plus the two spell cards: Displacement → T6, Invitation Above → 4 Gold.
 
 Verified: typecheck, eslint 0 errors, `npm test`, build:web. Tests updated across the affected card/rune
 suites to the new numbers and behavior; two combat regression tests added for the timing fixes.
+
+## 2026-08-11 — Lobby HUD cleanup + a Recent Games feed
+
+A 7-part owner ask sweeping the lobby HUD and the two menus:
+
+- **Top-left round/record plaque hidden in a lobby.** It duplicated the opponent rail (which already shows the
+  round + seats-left), so `HudBar`'s `.alt` block is now wrapped in `{!lobby && …}`. It still renders for a
+  course/Ascent run, which has no rail. (Removing the lobby branch narrowed `lobby` to `null` inside, which
+  surfaced two dead `lobby ? …` ternaries as TS "never" errors — replaced with the course-only content.)
+- **Rail header enlarged + max-loss added.** `.lobbyround` / `.lobbyalive` are bigger and weight-800; a new
+  `.lobbymax` heart chip prints the round's `lossDamageCap` ("−5" / "No cap") — the readout the plaque used to
+  carry, now on the rail beside "Round N" and "N left".
+- **Esc menu: dropped the unused clear-boards / reset-career actions** (Supabase is the system of record now)
+  and **moved the combat-pacing slider here** as a new "Combat" section.
+- **Combat overlay: removed the inline speed slider** (now in the Esc menu) and **moved the Skip button above
+  the End-Turn diamond** — it and the post-combat summary never coexist, so they share that anchor.
+- **Recent Games** (new `RecentGames.tsx`, a title button under Hall of Champions): a read-only full-page feed
+  of the last 20 finished games across all players — portrait, player, hero, when, placement + verdict — from
+  the public `run_telemetry` table via a new `fetchRecentGames()` (best-effort, time-boxed like the other
+  remote reads). No replay (state-replay is tabled); just the feed.
+
+Verified live in the browser: top-left plaque gone, rail reads "Round 1 · 8 left · −5", Esc menu sections are
+Audio / Board / Combat / Run with the speed slider and no clear actions, and the Recent Games page renders 20
+rows. Gates: typecheck, eslint 0 errors, 4887 tests, build:web — all green.
 
 ## 2026-08-11 — The FX workbench Save bug: a debounced autosave that a reload outran
 

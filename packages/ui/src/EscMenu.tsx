@@ -7,16 +7,12 @@
 
 import { useState } from 'react';
 import { BOARDS, getBoard, setBoard, type BoardId } from './boardConfig';
-import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
-import { loadRunHistory } from './runHistory';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
-  const profile = useGame((s) => s.profile);
-  const resetCareer = useGame((s) => s.resetCareer);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -24,35 +20,13 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // Arena board pick (display-only, persisted in localStorage) — swaps the `--board` backdrop live.
   const [board, setBoardSel] = useState<BoardId>(getBoard());
   const pickBoard = (id: BoardId): void => { setBoard(id); setBoardSel(id); sfx.pulse(); };
-  // This browser's captured finished-run boards (boardLibrary, localStorage). Wipe them when they go stale
-  // (e.g. after a balance patch). Two-tap confirm so it can't be a misclick. Doesn't touch the live shared
-  // pool or the leaderboard — only this machine's local captures.
-  const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
-  const [boardMsg, setBoardMsg] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
-  // Desktop only (see desktop.ts): the browser build has no shell to close. Two-tap confirm like the
-  // resets above — closing the app mid-run is the most destructive button in here.
+  // Combat pacing — how fast the combat replay animates (owner moved this here from the in-combat HUD
+  // 2026-08-11). Live store value; the arena's beat clock + CSS read it.
+  const combatSpeed = useGame((s) => s.combatSpeed);
+  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  // Desktop only (see desktop.ts): the browser build has no shell to close. Two-tap confirm —
+  // closing the app mid-run is the most destructive button in here.
   const [confirmQuit, setConfirmQuit] = useState(false);
-  const clearBoards = (): void => {
-    if (!boardCount) { setBoardMsg('No boards to clear.'); return; }
-    if (!confirmClear) { setConfirmClear(true); setBoardMsg(`Clear all ${boardCount} captured boards? Tap again to confirm.`); return; }
-    clearStoredBoards();
-    setBoardCount(0);
-    setConfirmClear(false);
-    setBoardMsg('Cleared your captured boards.');
-  };
-  // Reset the local career: rating (→ 0 / Line 7) + match history. Two-tap confirm — it can't be undone.
-  // Doesn't touch captured boards or the shared pool/leaderboard (those are separate resets).
-  const [runCount, setRunCount] = useState(() => loadRunHistory().length);
-  const [careerMsg, setCareerMsg] = useState<string | null>(null);
-  const [confirmCareer, setConfirmCareer] = useState(false);
-  const doResetCareer = (): void => {
-    if (!confirmCareer) { setConfirmCareer(true); setCareerMsg('Wipe rating, match history, insights + hero stats? Tap again to confirm.'); return; }
-    resetCareer();
-    setRunCount(0);
-    setConfirmCareer(false);
-    setCareerMsg('Career reset — rating, past games + all stats cleared.');
-  };
 
   return (
     <div className="escov" onPointerDown={onClose}>
@@ -99,21 +73,19 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-        <div className="escsec">Saved Boards</div>
-        <div className="escboards">
-          <button className={`escbtn pressable${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
-            <span className="ebl">{confirmClear ? 'Tap again to clear' : 'Clear my boards'}</span>
-            <span className="ebs">{confirmClear ? `Wipes all ${boardCount} captures` : `${boardCount} saved · wipe stale captures`}</span>
-          </button>
-          {boardMsg && <div className="escboards-msg">{boardMsg}</div>}
-        </div>
-        <div className="escsec">Career</div>
-        <div className="escboards">
-          <button className={`escbtn pressable${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
-            <span className="ebl">{confirmCareer ? 'Tap again to reset' : 'Reset my career'}</span>
-            <span className="ebs">{confirmCareer ? 'Wipes rating + past games + all stats' : `Rating ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
-          </button>
-          {careerMsg && <div className="escboards-msg">{careerMsg}</div>}
+        <div className="escsec">Combat</div>
+        <div className="escvol">
+          <span className="evl">Speed</span>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={combatSpeed}
+            aria-label="Combat replay speed"
+            onChange={(e) => setCombatSpeed(Number(e.target.value))}
+          />
+          <span className="evv">{combatSpeed.toFixed(1)}×</span>
         </div>
         <div className="escsec">Run</div>
         {/* Back to the main menu — the run stays saved (Continue resumes it); it does NOT abandon the run. */}

@@ -46,6 +46,18 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **20 new runes + 2 new minions** — Herzog (a Dragon whose per-play buff scales retroactively with your Shop-Spell count) and Kobabyboldies (Echo: 3 Rubies on each Kobold); six "grant a minion + upgrade it" runes (Display Case, Wrangler, Living Geode, Dawnclaw, Blart, Sylus) and a dozen new shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack), all with art.
 
+- **Live "Summon a X/Y Imp" text + two end-of-turn fixes** — any card/rune that summons an Imp now prints the Imp's current stats (base 1/1 + your Imp Aura) as a live green "(X/Y)", everywhere; End-of-Turn Discovers (Moira → Black Belt Brian) auto-grant instead of popping the picker at the combat hand-off; and an End-of-Turn shop buff (Moira beside Market Tormentor) now animates on the beat instead of landing silently.
+
+- **Balance batch + two combat-timing fixes** — a wide owner pass: ~12 minion reworks (Spell Warden/Bob Blart retiers, Errand Fiend loses Flurry, Dawnclaw's Echo hits one adjacent/both-when-gilded, Candle Conduit reacts to gaining Rubies, Avarice/Malphas Demon-consume reworks, Rope Wrangler grows itself, and more), ~40 rune cost/effect changes, and two engine bugs squashed — "summon when you have space" now fires at Start of Combat (not a beat late), and a Rally that summons onto a **full** board is rejected immediately instead of sneaking in after the attacker dies.
+
+- **Lobby HUD cleanup + Recent Games** — the redundant top-left round plaque is hidden in a lobby (the rail now carries the round, seats-left, and the max-loss chip, with a bolder header); the Esc menu drops the unused clear-boards/reset-career actions and gains the combat-pacing slider (moved out of the combat overlay, where Skip now sits above End Turn); and a new **Recent Games** page (title screen, under Hall of Champions) shows the last 20 finished games across all players — player, hero, and outcome.
+
+- **Dwarven Ales get shop-cast FX** — each of the five Ales now plays its own authored effect when cast, fired
+  from the point you release the card. The three buff Ales shoot a trail from the cursor to each buffed minion
+  at once (with the generic buff-pop suppressed for them), and if **Edward Keg-hands** is on your board the
+  volley echoes a beat later from his card (twice when he's gilded). Built on a new `spellCast` recruit-moment
+  kind, so any shop spell's cast look is now bindable from the workbench.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

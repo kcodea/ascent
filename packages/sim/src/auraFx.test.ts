@@ -128,4 +128,19 @@ describe('projectEndOfTurnSteps per-beat FX capture', () => {
     const { fx } = projectEndOfTurnSteps(s);
     expect(fx.every((f) => f.handGrants.length === 0)).toBe(true);
   });
+
+  it('surfaces an End-of-Turn SHOP buff (Moira re-firing Market Tormentor) as `shopBuff` on the grown offer', () => {
+    // Owner report 2026-08-11: a Moira beside Market Tormentor re-fires Tormentor's Shout at End of Turn,
+    // growing the right-most Shop minion — but it applied silently. The projection now surfaces the offer's
+    // growth so the recruit screen can animate it on the beat.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit',
+      board: [card('t', 'dm_tormentor', 'demon', 5, 5), card('m', 'b2_moira', 'beast', 3, 5)],
+      shop: [offer('s1', 'stray')], // a minion offer — the right-most slot Tormentor's Shout buffs
+    };
+    const { fx } = projectEndOfTurnSteps(s);
+    const s1 = fx.flatMap((f) => f.shopBuff ?? []).find((b) => b.uid === 's1');
+    expect(s1, 'the right-most offer grew this beat').toBeDefined();
+    expect([s1!.attack, s1!.health]).toEqual([4, 2]); // Tormentor's +4/+2 Shout, re-fired by Moira
+  });
 });

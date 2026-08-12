@@ -78,10 +78,10 @@ describe('Rune of the Spare Chair', () => {
 
 describe('Rune of Ashen Payroll', () => {
   it('is a settle-time payout keyed on the Imps the fight actually summoned', () => {
-    // The rune arms as a numeric flag (the threshold), which the settle path compares against the carried
-    // `playerImpsSummoned`. Buying it is what has to write that number.
+    // Owner rework 2026-08-11: no threshold and no once-per-combat cap — it pays 1 Gold per Imp summoned. The
+    // `amount` is now just a truthy arming value (1); the settle path multiplies by `playerImpsSummoned`.
     const s = withRune('rune_ashen_payroll');
-    expect(s.questFlags?.runeAshenPayroll, 'the threshold never reached questFlags').toBe(3);
+    expect(s.questFlags?.runeAshenPayroll, 'the flag never reached questFlags').toBe(1);
   });
 });
 

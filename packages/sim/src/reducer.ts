@@ -330,6 +330,38 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   return true;
 }
 
+/**
+ * Auto-resolve any Discover raised by an END-OF-TURN trigger (e.g. Moira replaying a Discover Shout like Black
+ * Belt Brian) — grant a RANDOM pick from each pool WITHOUT opening the interactive picker (owner ruling
+ * 2026-08-11). The shop is mid-transition to combat here, so a window would block the hand-off and read as a
+ * bug. Mirrors the mid-combat Discover auto-grant in `settleCombat`: the offer is still BUILT by the real
+ * `openDiscover` (same pools / tier rules / rng stream), only the CHOICE is rolled instead of asked, landing
+ * through the same `takeDiscoverPick` a clicked Discover uses. Drains the queue too, so several EoT discovers
+ * (two Brians via a Moira) all resolve.
+ */
+function autoResolveEotDiscovers(s: RunState): void {
+  const clearDiscoverState = (): void => {
+    s.discover = undefined;
+    s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
+    s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined;
+  };
+  let guard = 0;
+  while ((s.discover?.length || (s.discoverQueue?.length ?? 0) > 0) && guard++ < 20) {
+    if (!s.discover?.length) {
+      const spec = s.discoverQueue?.shift();
+      if (!spec) break;
+      openDiscover(s, spec); // the low-level opener sets s.discover directly (no modal/queue check)
+    }
+    if (s.discover?.length) {
+      const rng = makeRng(s.rngCursor);
+      const pick = rng.int(s.discover.length);
+      s.rngCursor = rng.state();
+      takeDiscoverPick(s, pick);
+    }
+    clearDiscoverState();
+  }
+}
+
 export function reduce(state: RunState, action: Action): RunState {
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
@@ -1489,34 +1521,25 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
         gainGold(s, sellValueWithBonus(sold, s));
-        // Rune of Liquidation: the sold minion's BONUS stats (everything above its printed base — buffs,
-        // Rubies, improvements) transfer to the right-most Shop minion. Read off the def rather than tracked
-        // separately, so every source of growth counts. A golden body's base is doubled, so its bonus is
-        // measured against that. No shop minion (all spells/Rubies, or an empty tavern) → nothing to give.
+        // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
+        // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
+        // tavern) → nothing to give.
         if (s.runeLiquidation) {
-          const soldDef = CARD_INDEX[sold.cardId];
-          if (soldDef) {
-            const g = sold.golden ? 2 : 1;
-            const bonusA = Math.max(0, sold.attack - soldDef.attack * g);
-            const bonusH = Math.max(0, sold.health - soldDef.health * g);
-            const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-            if (target && (bonusA > 0 || bonusH > 0)) addOfferBuff(target, 'Rune of Liquidation', bonusA, bonusH);
-          }
+          const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+          if (target && (sold.attack > 0 || sold.health > 0)) addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health);
         }
         // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
         if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
-        // Rune of the Aftermarket: the FIRST sale each turn gives the sold minion's BASE stats (its printed
-      // card, not what it had grown into) to every minion currently in the Shop. Base rather than live so a
-      // fully-buffed body doesn't dump a monstrous shop buff — the sheet says "its base stats".
+        // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
+      // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
       if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
         const soldDef = CARD_INDEX[sold.cardId];
         if (soldDef && !soldDef.spell && !soldDef.ruby) {
           s.aftermarketUsedThisTurn = true;
-          const g = sold.golden ? 2 : 1;
-          for (const o of s.shop) {
-            const d = CARD_INDEX[o.cardId];
-            if (d && !d.spell && !d.ruby) addOfferBuff(o, 'Rune of the Aftermarket', soldDef.attack * g, soldDef.health * g);
-          }
+          const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+          const halfA = Math.floor(sold.attack / 2);
+          const halfH = Math.floor(sold.health / 2);
+          if (target && (halfA > 0 || halfH > 0)) addOfferBuff(target, 'Rune of the Aftermarket', halfA, halfH);
         }
       }
       // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
@@ -1938,6 +1961,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Any Discover an EoT trigger raised (Moira re-firing a Discover Shout) auto-resolves to a random pick —
+      // no interactive window at the combat hand-off (owner 2026-08-11).
+      autoResolveEotDiscovers(s);
       // Re-Pete's Second Hand: at the END of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
       // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
       // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
@@ -2841,8 +2867,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
     if (grown > 0) s.growthBonus = (s.growthBonus ?? 0) + grown;
   }
-  if (s.questFlags?.runeAshenPayroll && (result.playerImpsSummoned ?? 0) >= s.questFlags.runeAshenPayroll) {
-    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 4;
+  // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
+  // no once-per-combat cap. The armed flag just needs to be truthy.
+  if (s.questFlags?.runeAshenPayroll) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + (result.playerImpsSummoned ?? 0);
   }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
@@ -3122,6 +3150,10 @@ function advanceCombat(s: RunState): void {
   // (undefined/'atk' ↔ 'hp'), so this turn's combat reads the freshly-swapped stat.
   for (const c of s.board) if (c.cardId === 'bloodbinder') c.bloodbinderMode = c.bloodbinderMode === 'hp' ? 'atk' : 'hp';
   openNextStartOfTurnModal(s);
+  // Rune of the Long Shift (owner 2026-08-11): Discover 2 Shop spells at the start of each turn. Queued AFTER
+  // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
+  // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
+  if (s.runeLongShift) { queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -3858,6 +3890,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeScales':
       s.runeScales = true; // Rune of Scales: each spell cast gives your Dragons +1/+1
+      break;
+    case 'runeLongShift':
+      s.runeLongShift = true; // Rune of the Long Shift: Start of Turn, Discover 2 Shop spells
       break;
     case 'runeBartering':
       s.runeBartering = true; // Rune of Bartering: Shout minions sell for 2 Gold

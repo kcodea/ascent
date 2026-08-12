@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { type CardDef, combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { addBuff, applyEndOfTurn, applyGoldSpent, fireOnRubyPlayed, mintRubies, RUBY_ID } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, mintRubies, RUBY_ID } from './recruit';
 
 /**
  * The Ruby engine (set 2 Kobolds). Rubies are a spell-LIKE token that is NOT a Shop Spell: minted into hand,
@@ -135,17 +135,25 @@ describe('Ruby engine (set 2)', () => {
     expect(CARD_INDEX[s.hand[s.hand.length - 1]!.cardId]!.tier, 'the granted minion was not Tier 1').toBe(1);
   });
 
-  it('Candle Conduit (rework 2026-08-07): every Ruby played bounces its stats to 1 more minion', () => {
+  it('Candle Conduit (rework 2026-08-11): getting a Ruby casts a Ruby on a random friendly minion', () => {
+    // No longer a bounce on Rubies PLAYED — the Conduit now reacts to Rubies GAINED. Minting one Ruby drops it
+    // in hand AND fires the Conduit's onGetRuby, which casts a Ruby (+1/+1) onto one random friendly board body.
     const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false });
     const s: RunState = { ...createRun(1), board: [mk('cc', 'k_candleconduit'), mk('k2', 'sandbag'), mk('k3', 'sandbag')], hand: [] };
     const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
-    // Play a Ruby on k2 through the real path: the Ruby lands (+1/+1) AND the Conduit bounces its stats to
-    // one more random friendly (+1/+1 again) — total board delta +4, not +2.
-    const target = s.board.find((c) => c.uid === 'k2')!;
-    addBuff(target, 'Ruby', 1, 1);
-    fireOnRubyPlayed(s, target, 1, 1);
+    mintRubies(s, 1);
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length, 'the minted Ruby landed in hand').toBe(1);
     const after = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
-    expect(after - before, 'the Ruby + exactly one bounce').toBe(4);
+    expect(after - before, 'exactly one Ruby (+1/+1) cast onto the board').toBe(2);
+  });
+
+  it('a golden Candle Conduit casts two Rubies per Ruby gained', () => {
+    const mk = (uid: string, cardId: string, golden = false): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden });
+    const s: RunState = { ...createRun(1), board: [mk('cc', 'k_candleconduit', true), mk('k2', 'sandbag'), mk('k3', 'sandbag')], hand: [] };
+    const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
+    mintRubies(s, 1);
+    const after = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
+    expect(after - before, 'two Rubies (+1/+1 each) cast onto the board').toBe(4);
   });
 
   it('Prismcaster makes a hand Ruby cast an extra time', () => {

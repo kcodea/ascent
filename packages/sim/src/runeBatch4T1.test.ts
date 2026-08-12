@@ -28,15 +28,15 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 
 describe('the nine defs ship as specced', () => {
   it('costs, and only the Ruby/Ale ones are Set-2 scoped', () => {
-    expect(rune('rune_empty_plate').cost).toBe(3);
+    expect(rune('rune_empty_plate').cost).toBe(2); // owner balance 2026-08-11 (3 → 2)
     expect(rune('rune_gem_dividend').cost).toBe(3);
     expect(rune('rune_carrion_coin').cost).toBe(3);
     expect(rune('rune_five_banners').cost).toBe(4);
     expect(rune('rune_centerline').cost).toBe(3);
-    expect(rune('rune_second_litter').cost).toBe(4);
-    expect(rune('rune_shared_pour').cost).toBe(4);
+    expect(rune('rune_second_litter').cost).toBe(2); // owner balance 2026-08-11 (4 → 2)
+    expect(rune('rune_shared_pour').cost).toBe(3); // owner balance 2026-08-11 (4 → 3)
     expect(rune('rune_aftermarket').cost).toBe(4);
-    expect(rune('rune_hoardcalling').cost).toBe(5);
+    expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
     expect(rune('rune_gem_dividend').sets).toEqual(['set2']);
     expect(rune('rune_shared_pour').sets).toEqual(['set2']);
@@ -168,17 +168,17 @@ describe('Rune of Shared Pour', () => {
 });
 
 describe('Rune of the Aftermarket', () => {
-  it('the first sell each turn pushes the sold minion’s BASE stats into the Shop', () => {
+  it('the first sell each turn hands HALF the sold minion’s LIVE stats to the right-most Shop offer (owner rework 2026-08-11)', () => {
     const s = withRune('rune_aftermarket', { board: [bm('sold', 'stray', 9, 9)] });
     expect(s.runeAftermarket).toBe(true);
     const before = s.shop.map((c) => (c.atk ?? 0) + (c.hp ?? 0));
     const next = reduce(s, { type: 'sell', uid: 'sold' }) as RunState;
     const after = next.shop.map((c) => (c.atk ?? 0) + (c.hp ?? 0));
-    // Base stats, not the buffed 9/9 the body was carrying — a Stray is 1/1, so +2 total per Shop minion.
-    const base = CARD_INDEX['stray']!;
-    const delta = base.attack + base.health;
+    // Half of the LIVE 9/9 → +4/+4 (floor), and ONLY on the right-most offer, not every Shop minion.
     expect(after.length).toBe(before.length);
-    for (let i = 0; i < after.length; i++) expect(after[i]! - before[i]!).toBe(delta);
+    const last = after.length - 1;
+    expect(after[last]! - before[last]!, 'the right-most took half the live 9/9').toBe(8); // 4 + 4
+    for (let i = 0; i < last; i++) expect(after[i]! - before[i]!, 'only the right-most is buffed').toBe(0);
     expect(next.aftermarketUsedThisTurn, 'the once-per-turn latch should be spent').toBe(true);
   });
 

@@ -226,7 +226,8 @@ export type EffectFactoryId =
   | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
   | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
-  | 'onConsumeGoldFlat' // Set 2 — Avarice Incarnate: the first consume each turn pays a flat Gold amount
+  | 'onConsumeGoldFlat' // Set 2 — (legacy) the first consume each turn pays a flat Gold amount
+  | 'onOtherDemonConsumeEcho' // Set 2 — Avarice Incarnate: another Demon's Shop consume makes Avarice consume too + Gold
   | 'spellCastDemonConsumesShop' // Set 2 — Baal: every N spells, a friendly Demon consumes a Shop minion
   | 'endOfTurnNeighboursConsumeShop' // Set 2 — Feastmaster Vhal: adjacent minions each consume N Shop minions
   | 'onBattlecryBuffTribeAdjacentMore' // Karwind: Shout triggers buff your tribe; neighbours get more instead
@@ -883,7 +884,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -956,6 +957,8 @@ export type QuestReward =
   | { kind: 'runeKindling' }
   // Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand).
   | { kind: 'runeScales' }
+  // Rune of the Long Shift: at the start of each turn, Discover 2 Shop spells.
+  | { kind: 'runeLongShift' }
   // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
   | { kind: 'runeBartering' }
   // Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it.

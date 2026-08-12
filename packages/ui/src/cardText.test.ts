@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -297,5 +297,43 @@ describe('stepProgress — Runic Archivist sell meter', () => {
 
   it('shows no counter in combat — you cannot sell mid-fight', () => {
     expect(stepProgress('d2_archivist', {})).toBeNull();
+  });
+});
+
+describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => {
+  const aura = { attack: 1, health: 1 }; // Imp Aura +1/+1 → a summoned Imp is 2/2
+
+  it('gates on cards that actually SUMMON an Imp', () => {
+    expect(cardSummonsImp('dm_wrangler')).toBe(true);   // startOfCombat summonImps
+    expect(cardSummonsImp('dm_shepherd')).toBe(true);   // deathrattleImpsOverflowGrant
+    expect(cardSummonsImp('dm_errand')).toBe(true);     // rallySummonImpBuffImps
+    expect(cardSummonsImp('impking')).toBe(true);       // deathrattleSummon tokenId impscrap
+    expect(cardSummonsImp('dm_broodwright')).toBe(false); // REACTS to summons, doesn't summon
+    expect(cardSummonsImp('badgington')).toBe(false);   // no Imps at all
+  });
+
+  it('annotates the summoned Imp with its live stats, wrapped in {{…}} (green, no golden-double)', () => {
+    const t = withImpStats('dm_wrangler', CARD_INDEX['dm_wrangler']!.text, aura);
+    expect(t).toContain('Imp {{(2/2)}}');
+  });
+
+  it('anchors to the SUMMON phrase — a later "your Imps +1/+1" mention is untouched', () => {
+    const t = withImpStats('dm_errand', CARD_INDEX['dm_errand']!.text, aura);
+    expect(t).toContain('summon an **Imp {{(2/2)}}**'); // the summoned body
+    expect(t).toContain('your **Imps +1/+1**');          // the buff mention, unchanged
+    expect(t.match(/\{\{\(2\/2\)\}\}/g)?.length, 'exactly one annotation').toBe(1);
+  });
+
+  it('handles plural summons ("summon 4 Imps")', () => {
+    const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.text, aura);
+    expect(t).toContain('summon **4 Imps {{(2/2)}}**');
+  });
+
+  it('shows the 1/1 base with no Imp Aura, and leaves non-summoners alone', () => {
+    expect(withImpStats('dm_wrangler', CARD_INDEX['dm_wrangler']!.text, undefined)).toContain('Imp {{(1/1)}}');
+    const bad = CARD_INDEX['badgington']!.text;
+    expect(withImpStats('badgington', bad, aura)).toBe(bad); // untouched
+    const bw = CARD_INDEX['dm_broodwright']!.text;
+    expect(withImpStats('dm_broodwright', bw, aura)).toBe(bw); // untouched despite "summon an Imp" in text
   });
 });

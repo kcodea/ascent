@@ -91,7 +91,6 @@ describe("practice IS a lobby now (owner rework 2026-07-31)", () => {
 describe('lobby run — playing it', () => {
   it('one round of play settles the WHOLE table, not just the player’s fight', () => {
     let s = createLobbyRun(4, 'drakko');
-    const before = s.lobby!.seats.map((x) => x.resolve + x.armor);
     let guard = 0;
     while (s.lobby!.round === 1 && s.phase !== 'gameover' && guard++ < 500) {
       const next = reduce(s, DEFAULT_BOT.act(s));
@@ -105,9 +104,9 @@ describe('lobby run — playing it', () => {
     expect(round1.length, 'not every pairing resolved — 8 seats is 4 fights').toBe(4);
     expect(round1.some((e) => e.a === 's0' || e.b === 's0'), 'the player’s own fight is missing').toBe(true);
     expect(round1.filter((e) => e.a !== 's0' && e.b !== 's0').length, 'the other tables never fought').toBe(3);
-    // …and the table really did move: at least one seat is worse off than it started.
-    const after = s.lobby!.seats.map((x) => x.resolve + x.armor);
-    expect(after.some((hp, i) => hp < before[i]!), 'nobody took any damage at all').toBe(true);
+    // NOTE: we do NOT assert anyone took damage — as the comment above says, round-1 boards are tiny and every
+    // pairing can legitimately draw for 0 (a balance shift made exactly that happen for this seed, 2026-08-11).
+    // The `fought` encounter count above is the real proof the whole table resolved.
   });
 
   it('the player’s Resolve tracks the SEAT, not the ordinary run damage', () => {

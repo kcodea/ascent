@@ -50,9 +50,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_spellkeeper',
     name: 'Spell Warden',
     tribe: 'dragon',
-    tier: 4, // owner balance 2026-08-04: T3 → T4
-    attack: 3,
-    health: 4,
+    tier: 5, // owner balance 2026-08-11: T4 → T5
+    attack: 7,
+    health: 5,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
     text: 'After you cast your **second Shop spell** each turn, get a copy of the first.',

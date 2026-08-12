@@ -18,16 +18,21 @@ const fodder = (n: number): BoardMinion[] => [
 ];
 const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
 
-describe('Rune of Last Call — Avenge (3): an Ale to hand', () => {
-  it('grants exactly once per 3 friendly deaths', () => {
+describe('Rune of Last Call — Avenge (4): 2 Ales to hand (owner rework 2026-08-11)', () => {
+  it('grants 2 Ales per 4 friendly deaths', () => {
     // Derived from the deaths the fight ACTUALLY produced rather than the board size — the back-line body is
-    // not guaranteed to survive, and an assumed death count silently tests the wrong threshold.
-    for (const n of [2, 4, 7]) {
+    // not guaranteed to survive, and an assumed death count silently tests the wrong threshold. Each Avenge(4)
+    // proc now pays TWO random Ales (was one at Avenge 3).
+    let sawAProc = false;
+    for (const n of [4, 7, 9]) {
       const r = sim(fodder(n), killer, { runeLastCall: true });
       const deaths = r.events.filter((e) => e.type === 'death' && e.side === 'player').length;
       const granted = (r.playerHandGrants ?? []).filter((g) => ALE_IDS.includes(g)).length;
-      expect(granted, `${deaths} friendly deaths should pay ${Math.floor(deaths / 3)} Ales`).toBe(Math.floor(deaths / 3));
+      const procs = Math.floor(deaths / 4);
+      if (procs > 0) sawAProc = true;
+      expect(granted, `${deaths} friendly deaths should pay ${procs * 2} Ales`).toBe(procs * 2);
     }
+    expect(sawAProc, 'no fixture crossed the Avenge(4) threshold — vacuous').toBe(true);
   });
 
   it('grants nothing without the rune', () => {
@@ -72,7 +77,7 @@ describe('Rune of the Procession — Avenge (4): double your right-most', () => 
 describe('the three runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Last Call', 1, false], ['Rune of the Cinder Ledger', 3, true], ['Rune of the Procession', 3, true],
+      ['Rune of Last Call', 2, false], ['Rune of the Cinder Ledger', 3, true], ['Rune of the Procession', 3, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);

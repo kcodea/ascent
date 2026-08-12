@@ -897,7 +897,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -934,8 +934,14 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
   else {
-    // `shopRightmost` buffs the OFFER sitting on the right, not the run-wide buy bonus — the Showcase is about
-    // the row in front of you, so it must not leak onto future shops the way `applyRunShopBuff` does.
+    // `shopRightmost` (Rune of the Showcase) is now PERMANENT across refreshes (owner 2026-08-11): accumulate
+    // into state.rightmostSlotBuff — the same running total Market Tormentor uses — and land the increment on
+    // the current right-most offer. applyShopRefreshed re-lands that total on every fresh roll, so unlike the
+    // old one-shot addOfferBuff it survives a refresh.
+    state.rightmostSlotBuff = {
+      attack: (state.rightmostSlotBuff?.attack ?? 0) + b.attack,
+      health: (state.rightmostSlotBuff?.health ?? 0) + b.health,
+    };
     const offer = [...state.shop].reverse().find((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
     if (offer) addOfferBuff(offer, 'Rune of the Showcase', b.attack, b.health);
   }
@@ -2562,9 +2568,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), perA * played * g, perH * played * g);
   },
 
-  /** Set 2 — Malphas "Feast": at End of Turn your LEFT-most and RIGHT-most Demons each Consume the `count` Shop
-   *  minions on their own side of the row — left-most eats from the front, right-most from the back. Splitting
-   *  the row is what makes seating matter; both eating the same tail would collapse the two halves into one. */
+  /** Set 2 — Malphas "Feast" (owner rework 2026-08-11): at End of Turn EACH of your friendly Demons Consumes ONE
+   *  Shop minion. Golden makes every consume grant DOUBLE stats — the `times` arg scales the eater's stat gain,
+   *  NOT the number of minions eaten (a gilded Malphas isn't twice as many bodies, it's twice the growth). */
   endOfTurnEndDemonsConsumeSides: (ctx, self, params) => {
     // Gated on the Choose One pick. `applyChooseOne` fires an option's effects ONCE, as a battlecry, so a
     // PERSISTENT option (this one, and Legion) can't live in `chooseOne[].effects` — it would fire at pick time
@@ -2572,21 +2578,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (num(params.option, -1) >= 0 && self.chosenOption !== num(params.option, -1)) return;
     const demons = ctx.state.board.filter((c) => isTribe(c, 'demon'));
     if (demons.length === 0) return;
-    const each = num(params.count, 2) * gold(self);
-    const left = demons[0]!;
-    const right = demons[demons.length - 1]!;
-    // FRONT of the row for the left-most Demon.
-    for (let k = 0; k < each; k++) {
+    const times = gold(self); // 1, or 2 (double stats gained) when golden
+    for (const eater of demons) {
       const i = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-      if (i < 0) break;
-      consumeShopMinion(ctx.state, left, i, 1);
-    }
-    // BACK of the row for the right-most — skipped when they're the same body, so a lone Demon doesn't eat twice.
-    if (right.uid === left.uid) return;
-    for (let k = 0; k < each; k++) {
-      const i = rightmostShopMinion(ctx.state);
-      if (i < 0) break;
-      consumeShopMinion(ctx.state, right, i, 1);
+      if (i < 0) break; // no edible minion left in the row
+      consumeShopMinion(ctx.state, eater, i, times);
     }
   },
 
@@ -2817,6 +2813,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if ((self.rubyRecvTick ?? 0) >= 1) return; // "the first time" each turn
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
     gainGold(ctx.state, num(params.gold, 3) * gold(self));
+  },
+
+  /** Set 2 — Avarice Incarnate (owner 2026-08-11): the FIRST time ANOTHER friendly Demon Consumes a Shop minion
+   *  each turn (golden: the first 2 times), Avarice ALSO Consumes a Shop minion and grants Gold. `onConsume`
+   *  fires board-wide with the eater in the payload, so `payload.minion !== self` makes this react to OTHER
+   *  Demons only — and Avarice's own consume below re-fires `onConsume` with `minion === self`, which this skips
+   *  (so it can't feed itself). The per-turn latch reuses `rubyRecvTick` (reset each wave), like onConsumeGoldFlat.
+   *  The eaten offer the other Demon took is already spliced out, so "does too" means a FRESH Shop consume. */
+  onOtherDemonConsumeEcho: (ctx, self, params, payload) => {
+    const p = payload as { minion?: BoardCard; shop?: boolean } | undefined;
+    if (!p?.shop || !p.minion || p.minion === self) return; // another minion's SHOP consume only
+    if (!isTribe(p.minion, 'demon')) return; // ...a friendly Demon
+    if ((self.rubyRecvTick ?? 0) >= gold(self)) return; // first 1 (golden: 2) each turn
+    const state = ctx.state;
+    // `onConsume` fires AFTER consumeShopMinion records the gain, so the last shopEaten entry (matched by
+    // eaterUid) carries the exact stats the other Demon just gained. Avarice mirrors them — it does NOT eat a
+    // minion of its own (owner clarification 2026-08-11).
+    const last = state.shopEaten?.[state.shopEaten.length - 1];
+    if (!last || last.eaterUid !== p.minion.uid || (last.gainA <= 0 && last.gainH <= 0)) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    addBuff(self, 'Avarice Incarnate', last.gainA, last.gainH); // the SAME stats the other Demon gained
+    gainGold(state, num(params.gold, 3)); // flat 3 per fire — golden pays via the higher cap, not bigger Gold
   },
 
   /** Set 2 — Ashen Broodlord: when THIS body Consumes a minion, get a Shop spell (golden: 2).
@@ -4916,6 +4934,7 @@ export function applyGoldSpent(state: RunState, amount: number): void {
 export function applyCardsPlayed(state: RunState, count: number): void {
   if (count <= 0) return;
   state.cardsPlayedTotal = (state.cardsPlayedTotal ?? 0) + count;
+  advanceRuneThresholds(state, 'cardsPlayed', count); // Rune of Mountain Trade: every 6 cards played, Ruby the board
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -6458,17 +6477,20 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const sr = improveReps(state);
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }
-  // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion). Wrapped
-  // for FX so the gain descends onto the minion (sourceless — no board anchor) instead of the number silently jumping.
-  const kindlingTarget = state.board[0];
-  if (state.runeKindling && kindlingTarget) {
-    captureBuffFx(state, undefined, 'spell', () => addBuff(kindlingTarget, 'Rune of Kindling', 3, 3));
+  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +2/+2 (owner 2026-08-11; was
+  // left-most only, +3/+3). Wrapped for FX so the gain descends onto the minion instead of the number jumping.
+  // On a one-minion board the two ends are the same body, so buff it once (not twice).
+  if (state.runeKindling && state.board.length > 0) {
+    const ends = state.board.length === 1
+      ? [state.board[0]!]
+      : [state.board[0]!, state.board[state.board.length - 1]!];
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 2, 2); });
   }
-  // Rune of Enchantment: each spell cast gives your minions +1/+1, permanently. (The +2/+2 half is the
-  // COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +1/+1.)
+  // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
+  // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.
   if (state.runeEnchantment) {
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 1, 1);
+      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 2, 3);
     });
   }
   // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
@@ -6477,10 +6499,10 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
       for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2, 2);
     });
   }
-  // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand) — descends onto each affected board Dragon.
+  // Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand) — descends onto each affected board Dragon.
   if (state.runeScales) {
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 2, 2); // +2/+2 (owner sheet 2026-07-31)
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4, 5); // owner 2026-08-11 (was +2/+2)
     });
   }
   for (const card of [...state.board]) {
@@ -6542,18 +6564,20 @@ export function applyEndOfTurn(state: RunState): void {
   // the first body of each tribe it has not covered yet, so the pick is a seating decision rather than RNG;
   // a dual-type body covers BOTH its tribes (it is a minion "of each type" for both). Routed through the real
   // Ruby-play path, so Resonance Idol / Candle Conduit / Ruby Broker all hear it.
+  // Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for EACH card
+  // played this turn — the cursor is re-rolled per Ruby so they spread across independently-random bodies.
   if (state.runeLapidary) {
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-    const covered = new Set<string>();
-    for (const c of [...state.board]) {
-      const def = CARD_INDEX[c.cardId];
-      const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-      if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
-      for (const t of tribes) covered.add(t);
-      const a = 1 + rb.attack;
-      const h = 1 + rb.health;
-      addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(state, c, a, h);
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    const n = (state.playedThisTurn ?? []).length;
+    for (let i = 0; i < n; i++) {
+      if (state.board.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const target = state.board[rng.int(state.board.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Ruby', a, h);
+      fireOnRubyPlayed(state, target, a, h);
     }
   }
 
@@ -6809,6 +6833,11 @@ export interface EotStepFx {
    *  `next.phase === 'recruit'` and End of Turn flips to combat, so an End-of-Turn imp buff never washed
    *  (owner report 2026-07-28). The beat still renders the board, so the cue belongs here. */
   impAura?: { attack: number; health: number };
+  /** SHOP-offer growth this beat produced (owner report 2026-08-11: a Moira beside Market Tormentor re-fires
+   *  Tormentor's Shout at End of Turn, growing the right-most Shop minion — but it applied silently). Diffed by
+   *  offer uid from `offerBuyStats`, which folds BOTH per-offer buffs (Tormentor) and the run-wide buy bonus
+   *  (Soul Defiler / `tavernBuyBonus`), so every shop-buff source animates without per-effect wiring. */
+  shopBuff?: { uid: string; attack: number; health: number }[];
 }
 
 /**
@@ -6853,6 +6882,8 @@ export function projectEndOfTurnSteps(state: RunState): {
     const handBefore = new Set(clone.hand.map((c) => c.uid));
     const spBefore = { a: spellAttackBonus(clone), h: spellHealthBonus(clone) };
     const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
+    // Shop-offer effective buy stats before the beat (folds tavernBuyBonus + per-offer + golden), keyed by uid.
+    const shopBefore = new Map(clone.shop.map((o) => [o.uid, offerBuyStats(clone, o)]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -6874,6 +6905,15 @@ export function projectEndOfTurnSteps(state: RunState): {
     // End-of-Turn card that moves either channel animates without touching this code.
     const spDelta = { attack: spellAttackBonus(clone) - spBefore.a, health: spellHealthBonus(clone) - spBefore.h };
     const impDelta = { attack: (clone.impBuff?.attack ?? 0) - impBefore.a, health: (clone.impBuff?.health ?? 0) - impBefore.h };
+    // Shop offers this beat grew (Market Tormentor's re-fired Shout, Soul Defiler's buy-bonus) — one delta per uid.
+    const shopBuff: { uid: string; attack: number; health: number }[] = [];
+    for (const o of clone.shop) {
+      const before = shopBefore.get(o.uid);
+      if (!before) continue;
+      const now = offerBuyStats(clone, o);
+      const da = now.attack - before.attack, dh = now.health - before.health;
+      if (da > 0 || dh > 0) shopBuff.push({ uid: o.uid, attack: da, health: dh });
+    }
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -6882,6 +6922,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       handGrants,
       ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
       ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
+      ...(shopBuff.length ? { shopBuff } : {}),
     });
   };
   for (const card of [...clone.board]) {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, playerOpponent, seatResults,
+  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
@@ -90,6 +90,11 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
       <div className="lobbyhead">
         <span className="lobbyround">Round {lobby.round}</span>
         <span className="lobbyalive">{living.length} left</span>
+        {/* Max loss — the most Resolve a loss this round can cost (moved here from the removed top-left plaque,
+            owner ask 2026-08-11). */}
+        <span className="lobbymax" title="Most Resolve you can lose if you lose this combat">
+          <Icon name="heart" />{Number.isFinite(lossDamageCap(lobby.round)) ? `−${lossDamageCap(lobby.round)}` : 'No cap'}
+        </span>
       </div>
 
       <div className="lobbyseats">

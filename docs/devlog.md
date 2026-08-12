@@ -45,6 +45,30 @@ on the branch dev server.
   built-in shapes + palette tint), and this matches the already-shipped `coin-shout` behavior — but it means
   Golden's coins won't render as the PNG for players until the FX-system-wide art-shipping path is addressed.
 
+## 2026-08-11 — Lobby HUD cleanup + a Recent Games feed
+
+A 7-part owner ask sweeping the lobby HUD and the two menus:
+
+- **Top-left round/record plaque hidden in a lobby.** It duplicated the opponent rail (which already shows the
+  round + seats-left), so `HudBar`'s `.alt` block is now wrapped in `{!lobby && …}`. It still renders for a
+  course/Ascent run, which has no rail. (Removing the lobby branch narrowed `lobby` to `null` inside, which
+  surfaced two dead `lobby ? …` ternaries as TS "never" errors — replaced with the course-only content.)
+- **Rail header enlarged + max-loss added.** `.lobbyround` / `.lobbyalive` are bigger and weight-800; a new
+  `.lobbymax` heart chip prints the round's `lossDamageCap` ("−5" / "No cap") — the readout the plaque used to
+  carry, now on the rail beside "Round N" and "N left".
+- **Esc menu: dropped the unused clear-boards / reset-career actions** (Supabase is the system of record now)
+  and **moved the combat-pacing slider here** as a new "Combat" section.
+- **Combat overlay: removed the inline speed slider** (now in the Esc menu) and **moved the Skip button above
+  the End-Turn diamond** — it and the post-combat summary never coexist, so they share that anchor.
+- **Recent Games** (new `RecentGames.tsx`, a title button under Hall of Champions): a read-only full-page feed
+  of the last 20 finished games across all players — portrait, player, hero, when, placement + verdict — from
+  the public `run_telemetry` table via a new `fetchRecentGames()` (best-effort, time-boxed like the other
+  remote reads). No replay (state-replay is tabled); just the feed.
+
+Verified live in the browser: top-left plaque gone, rail reads "Round 1 · 8 left · −5", Esc menu sections are
+Audio / Board / Combat / Run with the speed slider and no clear actions, and the Recent Games page renders 20
+rows. Gates: typecheck, eslint 0 errors, 4887 tests, build:web — all green.
+
 ## 2026-08-11 — The FX workbench Save bug: a debounced autosave that a reload outran
 
 **Symptom** (hit twice while authoring shop-buff-shout / self-buff-gold): the author changes an effect, clicks

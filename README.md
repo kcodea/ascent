@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Lobby HUD cleanup + Recent Games** — the redundant top-left round plaque is hidden in a lobby (the rail now carries the round, seats-left, and the max-loss chip, with a bolder header); the Esc menu drops the unused clear-boards/reset-career actions and gains the combat-pacing slider (moved out of the combat overlay, where Skip now sits above End Turn); and a new **Recent Games** page (title screen, under Hall of Champions) shows the last 20 finished games across all players — player, hero, and outcome.
+
 - **Dwarven Ales get shop-cast FX** — each of the five Ales now plays its own authored effect when cast, fired
   from the point you release the card. The three buff Ales shoot a trail from the cursor to each buffed minion
   at once (with the generic buff-pop suppressed for them), and if **Edward Keg-hands** is on your board the

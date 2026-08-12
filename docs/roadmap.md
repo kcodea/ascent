@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Lobby HUD cleanup + Recent Games — SHIPPED 2026-08-11.** Hid the redundant top-left plaque in a lobby
+  (rail now carries round + seats-left + max-loss), moved the combat-pacing slider into the Esc menu and Skip
+  above End-Turn, dropped the unused clear-boards/reset-career actions, and added a Recent Games feed (last 20
+  finished games across all players). Details in the devlog.
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
 - **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,

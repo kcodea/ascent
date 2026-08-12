@@ -46,6 +46,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const openRankings = useGame((s) => s.openRankings);
+  const openRecentGames = useGame((s) => s.openRecentGames);
   const openBalance = useGame((s) => s.openBalance);
   const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
@@ -168,6 +169,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="The latest victory runs + their warbands">
             <span className="mbicon"><Icon name="crown" /></span>
             <span className="mblabel">{txt.champions}</span>
+          </button>
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRecentGames(); }} title="The last 20 games played across every player">
+            <span className="mbicon"><Icon name="clock" /></span>
+            <span className="mblabel">Recent Games</span>
           </button>
           <button className="menubtn" onClick={onSettings}>
             <span className="mbicon"><Icon name="gear" /></span>

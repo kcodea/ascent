@@ -7,6 +7,7 @@ import { HeroSelect } from './HeroSelect';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
+import { RecentGames } from './RecentGames';
 import { Career } from './Career';
 import { AvatarPicker } from './AvatarPicker';
 import { AccountPanel } from './AccountPanel';
@@ -261,6 +262,7 @@ export function Game() {
       <Title onSettings={() => setMenuOpen(true)} />
       <Leaderboard />
       <Rankings />
+      <RecentGames />
       <Career />
       <AvatarPicker />
       <AccountPanel />

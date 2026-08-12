@@ -93,6 +93,11 @@
         "def": "flame-ring",
         "critDef": "flame-ring-crit"
       }
+    },
+    "wo_mine": {
+      "spellCast": {
+        "def": "spell-cast"
+      }
     }
   }
 }

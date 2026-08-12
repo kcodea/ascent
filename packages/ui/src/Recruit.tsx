@@ -51,7 +51,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
@@ -4068,6 +4068,19 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // A tavern spell cast plays its AUTHORED def from the release point (the `cursor` anchor) when one is bound,
+  // and SUPPRESSES the generic spark for it — the same "authored replaces stock" rule the buff/Karwind paths
+  // follow. Unbound spells keep today's spark (Yazzus re-fire included).
+  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
+    if (bindingFor(cardId, 'spellCast')) {
+      runRecruitMomentCues(spellCastMoment(cardId, pt), {
+        cardIdOf: () => null, measure: () => null,
+      });
+      return;
+    }
+    castSparks(() => fireSpark(pt.x, pt.y), cardId);
+  };
+
   // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to
   // blue dust. Fires on RELEASE and runs on its own clock, deliberately NOT bounded by the ~200ms FLIP
   // flight — a dissolve clamped to the flight reads as a blink. The effect itself lives in `plateDissolve.ts`
@@ -4236,12 +4249,13 @@ export function Recruit() {
           return true;
         }
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
+        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y });
+        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
         return true;
       }
       if (up) {
         dispatch({ type: 'play', uid: d.uid });
-        castSparks(() => fireSpark(x, y), d.view.cardId);
+        fireSpellCastFx(d.view.cardId, { x, y });   // authored def if bound; else the generic spark
         return true;
       }
       return false;

@@ -179,6 +179,9 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
+  // Golden Ale — the proof-of-path binding for the shop spell-cast site (Task 2): a placeholder def so the
+  // release-point emission + generic-spark suppression can be verified end-to-end before an authored def exists.
+  wo_mine: { spellCast: { def: 'spell-cast' } },
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a

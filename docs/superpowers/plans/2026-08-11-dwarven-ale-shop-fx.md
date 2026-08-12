@@ -359,6 +359,78 @@ With a buff ale bound to a source→target def: cast Champion's (one trail to th
 
 ---
 
+### Task 5: Edward Keg-hands echo — buff-ale volley re-fires from Edward
+
+**Design (owner, 2026-08-12):** `dw_edward` (Edward Keg-hands) makes Dwarven Ales trigger **twice** (**three times** gilded) — a run-wide multiplier inside `spellCasts()` (`packages/sim/src/recruit.ts:816`). The sim already re-runs the buff, but the FX dedupes targets so the repeat is invisible. When a buff ale is cast with Edward on board, re-fire the SAME cursor→minion fan-out **from Edward's card** as the source: **1** extra volley for ×2, **2** for ×3 (gilded), each **80ms** after the last (base cursor volley at t=0, echoes at +80/+160ms). UI-only — Edward's uid + gilded state come from `run.board`.
+
+**Files:**
+- Modify: `packages/ui/src/Recruit.tsx` (`fireSpellCastFx` — add the Edward echo after the base volley)
+
+**Interfaces:** Consumes existing `runRecruitMomentCues`, `spellCastMoment`, `restingCenterOf`, `runRef`, `useGame`, `spellCastOwnedRef` — all already in scope. No new exports.
+
+- [ ] **Step 1: Add the echo-delay constant**
+
+Add a module-scope const near the other FX timing constants in `Recruit.tsx`:
+
+```ts
+/** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
+const SPELLCAST_EDWARD_ECHO_MS = 80;
+```
+
+- [ ] **Step 2: Re-fire the fan-out from Edward in `fireSpellCastFx`**
+
+Replace the body of `fireSpellCastFx` (currently ~`Recruit.tsx:4083-4093`) with:
+
+```ts
+const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
+  if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+  const st = useGame.getState().run;
+  // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
+  const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
+  if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
+  const recipients = targets.map((uid) => ({ uid, count: 1 }));
+  const ctx = {
+    cardIdOf: (uid: string) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+    measure: (uid: string) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+  };
+  // Base volley: from the cursor (release point).
+  runRecruitMomentCues(spellCastMoment(cardId, pt, recipients), ctx);
+  // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
+  // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
+  // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
+  // (only buff ales have minion targets) — and Edward only multiplies Ales, and only Ales carry a spellCast
+  // binding, so recipients + Edward ⟺ an Ale Edward doubled. Edward's position is measured at echo time (inside
+  // the timeout), so it survives Edward himself being re-rendered by the buff.
+  const edwards = targets.length > 0 ? st.board.filter((c) => c.cardId === 'dw_edward') : [];
+  const echoes = edwards.length > 0 ? (edwards.some((e) => e.golden) ? 2 : 1) : 0;
+  const edwardUid = edwards[0]?.uid;
+  for (let i = 1; i <= echoes; i++) {
+    window.setTimeout(() => {
+      const el = edwardUid ? document.querySelector<HTMLElement>(`[data-uid="${edwardUid}"]`) : null;
+      if (!el) return; // Edward left the board (sold/tripled) before the echo — skip cleanly
+      runRecruitMomentCues(spellCastMoment(cardId, restingCenterOf(el), recipients), ctx);
+    }, i * SPELLCAST_EDWARD_ECHO_MS);
+  }
+};
+```
+
+- [ ] **Step 3: Gates**
+
+Run the FULL suite (a scoped run misses `fx/directCalls.test.ts`): `npm run typecheck && npm run lint && npm test && npm run build:web`. All green. (The change is DOM/timer integration in `Recruit.tsx` — not unit-tested, consistent with the rest of the cast-site wiring; live-verified by Mike. Note `spellCastMoment`/`runSpellCastFire` are UNCHANGED, so `DYNAMIC_CALL_SITES` does not move — no new `playDef` sites are added.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/ui/src/Recruit.tsx
+git commit -m "feat(fx): buff-ale volley echoes from Edward Keg-hands (×2/×3), 80ms apart"
+```
+
+- [ ] **Step 5: Live verify (Mike)**
+
+Board with Edward + 3 friendlies: cast a buff ale, confirm the cursor volley fires, then a second volley from Edward's card ~80ms later; gild Edward and confirm a third volley (+160ms). Without Edward, only the cursor volley (unchanged).
+
+---
+
 ## Notes for the executor
 
 - **The workbench Save writes real files** under `packages/ui/src/fx/defs/`; do not hand-author the `ale-*.json` unless iterating on an already-Saved def.

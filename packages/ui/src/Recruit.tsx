@@ -112,6 +112,9 @@ const SHOP_RUBY_DELIVER_MS = 200;
  *  Syncs the `fodderpop` CSS keyframe's 65% mark. */
 const FODDER_CRUMBLE_MS = 620;
 
+/** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
+const SPELLCAST_EDWARD_ECHO_MS = 80;
+
 /**
  * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
  * happens to be drawn right now.
@@ -4086,10 +4089,30 @@ export function Recruit() {
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
     const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
-    runRecruitMomentCues(spellCastMoment(cardId, pt, targets.map((uid) => ({ uid, count: 1 }))), {
-      cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
-      measure: (uid) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
-    });
+    const recipients = targets.map((uid) => ({ uid, count: 1 }));
+    const ctx = {
+      cardIdOf: (uid: string) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+      measure: (uid: string) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+    };
+    // Base volley: from the cursor (release point).
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients), ctx);
+    // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
+    // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
+    // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
+    // (only buff ales have minion targets) — and Edward only multiplies Ales, and only Ales carry a spellCast
+    // binding, so recipients + Edward ⟺ an Ale Edward doubled. Edward's position is measured at echo time (inside
+    // the timeout), so it survives Edward himself being re-rendered by the buff.
+    const edwards = targets.length > 0 ? st.board.filter((c) => c.cardId === 'dw_edward') : [];
+    const echoes = edwards.length > 0 ? (edwards.some((e) => e.golden) ? 2 : 1) : 0;
+    const edwardUid = edwards[0]?.uid;
+    for (let i = 1; i <= echoes; i++) {
+      window.setTimeout(() => {
+        const el = edwardUid ? document.querySelector<HTMLElement>(`[data-uid="${edwardUid}"]`) : null;
+        const center = el ? restingCenterOf(el) : null;
+        if (!center) return; // Edward left the board (sold/tripled), or isn't laid out, before the echo — skip cleanly
+        runRecruitMomentCues(spellCastMoment(cardId, center, recipients), ctx);
+      }, i * SPELLCAST_EDWARD_ECHO_MS);
+    }
   };
 
   // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to

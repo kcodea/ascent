@@ -678,7 +678,6 @@ export function Recruit() {
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
   // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
   //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
@@ -4410,27 +4409,12 @@ export function Recruit() {
         <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
       )}
 
-      {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
-          the replay-speed slider stacked beneath it. */}
+      {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
+          a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
       {inCombat && !replay.done && (
-        <div className="combathud">
-          <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
-            <Icon name="sword" /> Skip
-          </button>
-          <div className="combatspeed" title="Combat replay speed">
-            <span className="csl">Speed</span>
-            <input
-              type="range"
-              min={0.5}
-              max={5}
-              step={0.1}
-              value={combatSpeed}
-              onChange={(e) => setCombatSpeed(Number(e.target.value))}
-              aria-label="Combat replay speed"
-            />
-            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
-          </div>
-        </div>
+        <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
+          <Icon name="sword" /> Skip
+        </button>
       )}
 
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and

@@ -359,6 +359,10 @@ interface GameStore {
   showRankings: boolean;
   openRankings: () => void;
   closeRankings: () => void;
+  /** The Recent Games overlay (last 20 games across all players) is open. */
+  showRecentGames: boolean;
+  openRecentGames: () => void;
+  closeRecentGames: () => void;
   /** The Career overlay (match history + per-hero stats) is open. */
   showCareer: boolean;
   /** WHOSE career is on screen. `null` = your own. Set when opening another player's from the leaderboard
@@ -1002,6 +1006,9 @@ export const useGame = create<GameStore>((set, get) => ({
   showRankings: false,
   openRankings: () => set({ showRankings: true }),
   closeRankings: () => set({ showRankings: false }),
+  showRecentGames: false,
+  openRecentGames: () => set({ showRecentGames: true }),
+  closeRecentGames: () => set({ showRecentGames: false }),
   showCareer: false,
   careerOf: null,
   openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),

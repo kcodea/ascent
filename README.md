@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Lobby HUD cleanup + Recent Games** — the redundant top-left round plaque is hidden in a lobby (the rail now carries the round, seats-left, and the max-loss chip, with a bolder header); the Esc menu drops the unused clear-boards/reset-career actions and gains the combat-pacing slider (moved out of the combat overlay, where Skip now sits above End Turn); and a new **Recent Games** page (title screen, under Hall of Champions) shows the last 20 finished games across all players — player, hero, and outcome.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

@@ -18,11 +18,14 @@ export function HudBar() {
   const rift = run.rift ? RIFTS[run.rift] : null;
   return (
     <div className="bar">
+      {/* The round/record plaque is REDUNDANT with the lobby rail (which shows the round + seats left), so it
+          is hidden in a lobby (owner ask 2026-08-11) — the rail carries the round, seats-left, and the max-loss
+          readout now. It stays for a course/Ascent run, which has no rail. */}
+      {!lobby && (
       <div className="alt">
         <span className="wavecol">
-          {/* A LOBBY has no course clock — it ends by elimination — so the "/ 17" would be a promise the mode
-              doesn't make. It counts rounds and shows how many seats are left instead. */}
-          <span className="w">{lobby ? `ROUND ${lobby.round}` : `ROUND ${run.wave} / ${CONFIG.courseRounds}`}</span>
+          {/* Course/Ascent only (a lobby hides this whole plaque and uses the rail). */}
+          <span className="w">ROUND {run.wave} / {CONFIG.courseRounds}</span>
           {/* The most Resolve a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
               Practice, where Resolve is unlimited and losses deal no damage. */}
           {!practice && (
@@ -63,12 +66,9 @@ export function HudBar() {
             <Icon name="crown" />{wins}–{losses}
           </span>
         )}
-        {lobby
-          ? <span className="lbl line" title="Outlast the table — a lobby is won by being the last seat standing">
-              {lobby.seats.filter((x) => x.alive).length} / {lobby.seats.length} left
-            </span>
-          : <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>}
+        <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>
       </div>
+      )}
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow
           column) so it can never grow the bar and push the shop/board down when buffs are active. */}
       <div className="topleft">

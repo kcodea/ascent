@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion, Tribe } from '@game/core';
 import { getHero, TAG_INFO } from '@game/sim';
@@ -7,7 +7,7 @@ import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame, tempHandle } from './store';
+import { useGame, tempHandle, type CareerFocus } from './store';
 import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
@@ -38,6 +38,44 @@ function playedAtText(e: Pick<RunHistoryEntry, 'at' | 'date'>): string {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
   return '';
+}
+
+/** A run's played-time as an epoch (ms), preferring the full `at` datetime, falling back to the day-only
+ *  `date`. NaN when neither parses — the focus matcher then leans on the identity fields instead. */
+function runTimeMs(e: Pick<RunHistoryEntry, 'at' | 'date'>): number {
+  if (e.at) { const t = Date.parse(e.at); if (!Number.isNaN(t)) return t; }
+  if (e.date) { const t = Date.parse(`${e.date}T00:00:00`); if (!Number.isNaN(t)) return t; }
+  return NaN;
+}
+
+/**
+ * Match a Recent-Games focus to the run_history entry it names, so opening a game from the feed expands the
+ * right run. run_telemetry (the feed) and run_history (the career) are separate rows written from the same
+ * run-end flow, so there is no shared id to join on — but both stamp the run's END TIME within seconds, so the
+ * NEAREST timestamp among the player's same-hero runs is the reliable key. (The two rows' `wins` can even
+ * disagree — they're tallied by different paths — so identity fields are only a fallback tiebreaker when no
+ * usable timestamps exist, never a hard filter.) Returns -1 when the hero appears in neither.
+ */
+function matchRunIndex(entries: RunHistoryEntry[], f: CareerFocus): number {
+  const sameHero = entries.map((e, i) => ({ e, i })).filter((x) => x.e.heroId === f.heroId);
+  if (sameHero.length === 0) return -1;
+  if (sameHero.length === 1) return sameHero[0].i;
+  // Multiple same-hero runs — prefer the one closest in time to the clicked game.
+  const ft = f.createdAt ? Date.parse(f.createdAt) : NaN;
+  if (Number.isFinite(ft)) {
+    let best = -1, bestScore = Infinity;
+    for (const { e, i } of sameHero) {
+      const et = runTimeMs(e);
+      if (!Number.isFinite(et)) continue;
+      const score = Math.abs(et - ft);
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    if (best >= 0) return best;
+  }
+  // No usable timestamps — lean on identity (wins + placement), else the newest same-hero run.
+  const ident = sameHero.find((x) => x.e.wins === f.wins
+    && (f.placement == null || x.e.placement == null || x.e.placement === f.placement));
+  return (ident ?? sameHero[0]).i;
 }
 
 const TRIBE_LABEL: Record<Tribe, string> = {
@@ -93,6 +131,24 @@ export function Career() {
   // the lobby never asks. Owner report 2026-08-08.
   const lobbyMode = stats.lobbyRuns > 0;
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
+
+  // ── Focus: opened from a specific game (a Recent Games row) ────────────────────────────────────────────
+  // Expand + scroll to the run the feed row named. Matched once entries land; index -1 = no focus / no match
+  // (then the default newest-expanded view stands). Recomputed if the player or their runs change.
+  const focus: CareerFocus | undefined = careerOf?.focus;
+  const focusIndex = useMemo(
+    () => (focus && entries && entries.length > 0 ? matchRunIndex(entries, focus) : -1),
+    [focus, entries],
+  );
+  const focusRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (focusIndex < 0) return;
+    setOpen((prev) => new Set(prev).add(focusIndex));
+    // Scroll after the expanded body has painted, so we centre on the full card, not the collapsed head.
+    const id = requestAnimationFrame(() => focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    return () => cancelAnimationFrame(id);
+  }, [focusIndex]);
+
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
@@ -247,7 +303,11 @@ export function Career() {
                     const wonRun = verdict !== 'defeat'; // the SCORE reads green for a top-4 too
                     const delta = e.ratingDelta;
                     return (
-                      <div className={`lbentry carmatch${expanded ? ' open' : ''}`} key={i}>
+                      <div
+                        className={`lbentry carmatch${expanded ? ' open' : ''}${i === focusIndex ? ' carmatch-focus' : ''}`}
+                        key={i}
+                        ref={i === focusIndex ? focusRef : undefined}
+                      >
                         <button className="carmatch-head" onClick={() => toggle(i)}>
                           <div className="lbportrait">
                             {heroArt(e.heroId) ? <img src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}

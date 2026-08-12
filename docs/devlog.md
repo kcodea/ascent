@@ -28,6 +28,47 @@ is moving, *uniformly* on every axis, and settles flat when the cursor stops.
 Shaped on a throwaway preview (scratchpad) to lock signs + gain/ease by eye before touching Recruit; spec at
 `docs/superpowers/specs/2026-08-12-drag-distance-tilt-design.md`. Verified: typecheck (pkgs+web), eslint 0
 errors, 4887 tests, build:web. Feel to be eyeballed live by the owner at 1×.
+## 2026-08-12 — Recent Games rows open the player's Career, expanded to that run
+
+**What & why.** The Recent Games feed (PR #971) was read-only — you could see who played what, but not look at
+the board/runes behind a game. Each row is now a button that opens **that player's Career** (the existing
+view-another-player path the Leaderboard uses) and auto-expands + scrolls to the specific run clicked, so the
+board, runes, quests and standout stats are one click away.
+
+**UI.**
+- `RecentGames.tsx` — a row with a `user_id` renders as a `.matchrow-btn` (a real button; a trailing chevron in
+  a 5th grid column, hover/focus/press affordances). A pre-accounts row with no `user_id` stays a plain,
+  non-interactive `.matchrow`. Clicking fetches the player's profile (for the Career header's rating / games
+  count, which the feed row doesn't carry) then calls `openCareer({ …, focus })`.
+- `Career.tsx` — a new optional `CareerView.focus` (`heroId` / `wins` / `placement` / `createdAt`) pins WHICH
+  run to expand. `matchRunIndex` finds it: run_telemetry (the feed) and run_history (the career) are separate
+  rows with no shared id, but both stamp the run's end time within seconds, so the match is **nearest-timestamp
+  among the player's same-hero runs** — identity fields (`wins`/`placement`) are only a fallback tiebreaker
+  because the two rows' `wins` can disagree (tallied by different paths). The matched card gets a static accent
+  ring (`.carmatch-focus`) and is scrolled to centre.
+- `remoteBoards.ts` — `RecentGameRow` gains `userId` (now selected from `run_telemetry`, which has a public-read
+  `user_id` column); new `fetchPlayerById(userId)` reads one `profiles` row for the Career header.
+
+**Verified.** typecheck + lint (0 errors) + full `npm test` (288 files / 4929) + `build:web`, all green. Live
+against the configured backend: the feed rendered 20 clickable rows; clicking the **Aug 11 9:25 PM Gildmaster**
+game opened *LazerLemon's Career* (19 runs loaded via the cross-user `run_history` read), expanding precisely
+that run — matched by timestamp, not the newest — with its board + runes shown. Both overlays share the
+`.lbpage` shell; Career renders after Recent Games in `Game.tsx`, so it stacks on top and Back returns to the
+feed.
+
+**Depends on** the same `run_history` cross-user select policy the Leaderboard→Career feature already needs; on
+a backend without it, a click opens an empty career (graceful, consistent). No backend → rows are non-clickable.
+
+**Cursor pass (follow-up).** The new clickable row set a bare `cursor: pointer`, which overrode the game's
+custom gauntlet cursor (`.matchrow-btn` is more specific than the global `button` rule at styles.css:121). Fixed
+to `url('/cursors/gauntlet_open.svg')`, and swept the other PLAYER-FACING surfaces carrying the same bare-cursor
+bug into the gauntlet convention: the settings gear (`.gearbtn`), the Esc-menu buttons (`.escbtn` / `.escclose`),
+the hero-panel power button (`.hmn-btn` + disabled), the Minion Book zoom (`.book-zoom-btn` + disabled), the
+combat buffs panel (`.buffsframe`), and the account panel's disabled primary. Left alone: dev-only tools (FX
+workbench, tuner, sandbox editor, perf HUD, balance report, choreo/desk) and affordance cursors (text inputs,
+range sliders, drag handles), which want their native cursor. Verified live — gear + row now resolve to
+`gauntlet_open`.
+
 ## 2026-08-12 — 20 new runes + 2 new minions (Herzog, Kobabyboldies)
 
 A large owner content drop: two new Set-2 minions and twenty runes, plus their art.

@@ -4,12 +4,24 @@ import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, c
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
  *  `userId` is what the run history is fetched by, and `author` is display-only. */
+/** When a Career is opened from a specific game (a Recent Games row), this pins WHICH run to expand + scroll to.
+ *  run_telemetry and run_history are written from the same run-end flow, so `createdAt` lines up within seconds
+ *  — enough to disambiguate two otherwise-identical runs by nearest time. */
+export interface CareerFocus {
+  heroId: string;
+  wins: number;
+  placement: number | null;
+  createdAt: string | null;
+}
+
 export interface CareerView {
   userId: string;
   author: string;
   rating: number;
   gamesPlayed: number;
   favoriteHero?: string;
+  /** Set only when opened from a single game (Recent Games) — the run to auto-expand + scroll to. */
+  focus?: CareerFocus;
 }
 
 import type { CardView } from './Card';

@@ -328,7 +328,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .oppframe.threat .opp-name { background: var(--ink3); }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
-.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: default; }
+.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
 .buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .buffs-head .buffs-title { flex: 1; text-align: left; }
@@ -952,9 +952,9 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   border-top-color: rgba(255, 255, 255, 0.5); /* the lit top edge that sells the glass */
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18); /* static */
-  cursor: pointer;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
-.statusbar .heropanel .hmn-btn:disabled { opacity: 0.45; cursor: default; }
+.statusbar .heropanel .hmn-btn:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .statusbar .heropanel .hmn-btn:not(:disabled):hover {
   border-color: rgba(255, 235, 170, 0.75);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 45%, rgba(20, 16, 10, 0.3));
@@ -4150,7 +4150,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: filter 0.1s, opacity 0.1s; }
 .acctpanel-btn.primary { color: #0d1420; background: var(--gl-accent, #a8d8ef); }
 .acctpanel-btn.primary:hover { filter: brightness(1.08); }
-.acctpanel-btn.primary:disabled { opacity: 0.45; cursor: default; }
+.acctpanel-btn.primary:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .acctpanel-btn.ghost { color: var(--gl-text, #eef4fb); background: transparent; border-color: var(--gl-border, rgba(190, 214, 240, 0.4)); align-self: flex-start; }
 .acctpanel-btn.ghost:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
 
@@ -4427,7 +4427,7 @@ svg { width: 18px; height: 18px; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
-.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
+.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
@@ -5112,7 +5112,7 @@ svg { width: 18px; height: 18px; }
 .escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
 .escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; text-align: left; }
+.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
 .escbtn:hover { border-color: var(--acc); }
 .escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }
 .escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: var(--ink); }
@@ -5121,7 +5121,7 @@ svg { width: 18px; height: 18px; }
 .escbtn.danger { border-color: color-mix(in srgb, var(--threat) 45%, var(--line)); }
 .escbtn.danger:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 12%, var(--card)); }
 .escbtn.danger .ebl { color: var(--threat-dk); }
-.escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: pointer; }
+.escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .escclose:hover { background: var(--acc-dk); }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
@@ -5389,7 +5389,18 @@ svg { width: 18px; height: 18px; }
 .rgverdict { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.02em; min-width: 62px; text-align: right; }
 .rgverdict.won, .rgverdict.top4 { color: #6fe0a0; }
 .rgverdict.lost { color: #ff9a9a; }
+/* A clickable Recent-Games row opens the player's Career. Button reset + a 5th column for the chevron; a
+   one-shot hover/press (no looping paint animation). */
+.matchrow-btn { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; text-align: left; font: inherit; width: 100%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease; }
+.matchrow-btn:hover { border-color: rgba(255, 255, 255, 0.34); background: rgba(14, 20, 36, 0.92); }
+.matchrow-btn:active { transform: translateY(1px); }
+.matchrow-btn:disabled { opacity: 0.6; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.matchrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.rgchev { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: rgba(255, 255, 255, 0.4); }
+.matchrow-btn:hover .rgchev { color: var(--acc); }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* The run a Recent-Games click focused — a static accent ring (no animation). */
+.carmatch-focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
 
 /* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
 .carcols { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
@@ -5546,8 +5557,8 @@ svg { width: 18px; height: 18px; }
 .book-cell { transition: transform 0.12s ease; }
 /* Zoom control — sits in the Compendium header beside Gilded, matching its pill treatment. */
 .book-zoom { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.14); }
-.book-zoom-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.07); color: var(--ink, #f2ead9); font-size: 17px; line-height: 1; cursor: pointer; }
-.book-zoom-btn:disabled { opacity: 0.35; cursor: default; }
+.book-zoom-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.07); color: var(--ink, #f2ead9); font-size: 17px; line-height: 1; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-zoom-btn:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .book-zoom-val { min-width: 44px; text-align: center; font-size: 13px; letter-spacing: 0.04em; opacity: 0.85; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
 .book-empty { flex: 1; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: var(--ink3); }

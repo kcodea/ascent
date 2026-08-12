@@ -13,6 +13,15 @@ Doc-only fix: rewrote that section to say `verify` is a required merge gate (pus
 until green → plain `gh pr merge --squash`, no `--admin`), noting the enforcement isn't visible through the
 classic-protection or repo-ruleset APIs (both empty) so it's likely an ORG-level ruleset — and that direct-
 push / force-push enforcement is untested, so the discipline rules stay hard. No code change.
+## 2026-08-12 — Rename: Kobabyboldies → Kobebes
+
+Owner rename of the Set-2 Kobold minion added earlier today. **Display-only** — the card id stays
+`k_kobabyboldies` (it's baked into the art filename `k_kobabyboldies.webp` and into any opponent-board
+snapshots already captured), so nothing about matchmaking, saved runs, or the effect wiring changes. Touched:
+the card `name` (`cards/set2/kobolds.ts`), the granting rune's text ("Get a **Kobebes** with Taunt and Rise" —
+`rune_kobold_bebes`, whose own name is unchanged), and the name mentioned in code comments / the test labels
+(`types.ts`, `schema.ts`, `factories.ts`, `runeMinionBatchAug11.test.ts`). Verified: typecheck + lint + full
+`npm test` + `build:web` all green.
 
 ## 2026-08-12 — Card drag tilt: distance/motion-driven directional dive (+ a slide fix)
 
@@ -42,6 +51,7 @@ is moving, *uniformly* on every axis, and settles flat when the cursor stops.
 Shaped on a throwaway preview (scratchpad) to lock signs + gain/ease by eye before touching Recruit; spec at
 `docs/superpowers/specs/2026-08-12-drag-distance-tilt-design.md`. Verified: typecheck (pkgs+web), eslint 0
 errors, 4887 tests, build:web. Feel to be eyeballed live by the owner at 1×.
+
 ## 2026-08-12 — Recent Games rows open the player's Career, expanded to that run
 
 **What & why.** The Recent Games feed (PR #971) was read-only — you could see who played what, but not look at

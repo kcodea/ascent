@@ -233,9 +233,9 @@ export const SET2_KOBOLDS: CardDef[] = [
   {
     // Owner add 2026-08-11. A Ruby payoff that pays the whole Kobold line on death — the more Kobolds you
     // field, the more Rubies land. Gilded doubles the count (6 each). The Ruby strength (1/1 + rubyBonus)
-    // is threaded in by playRubyOn, so a late-run Kobabyboldies pays full-strength Rubies.
+    // is threaded in by playRubyOn, so a late-run Kobebes pays full-strength Rubies.
     id: 'k_kobabyboldies',
-    name: 'Kobabyboldies',
+    name: 'Kobebes',
     tribe: 'kobold',
     tier: 5,
     attack: 3,

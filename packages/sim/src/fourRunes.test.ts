@@ -37,8 +37,8 @@ describe('Rune of Distillation — a shop-minion cast also hits your left-most',
   });
 });
 
-describe('Rune of Liquidation — a sold minion hands its bonus stats to the right-most offer', () => {
-  it('transfers ONLY the stats above the printed base', () => {
+describe('Rune of Liquidation — a sold minion hands its FULL live stats to the right-most offer', () => {
+  it('transfers the whole live stat line, not just the bonus above base (owner rework 2026-08-11)', () => {
     const base = CARD_INDEX['drummer']!;
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
@@ -48,11 +48,12 @@ describe('Rune of Liquidation — a sold minion hands its bonus stats to the rig
     };
     s = reduce(s, { type: 'sell', uid: 'sell' });
     const right = s.shop.find((o) => o.uid === 'o2')!;
-    expect([right.atk ?? 0, right.hp ?? 0], 'the bonus, not the whole stat line').toEqual([5, 3]);
+    // The sold body is 7/7 live (2/4 base + 5/3) — the whole line transfers now.
+    expect([right.atk ?? 0, right.hp ?? 0], 'the full live stat line').toEqual([base.attack + 5, base.health + 3]);
     expect(s.shop.find((o) => o.uid === 'o1')!.atk ?? 0, 'only the RIGHT-most').toBe(0);
   });
 
-  it('a base-stat minion transfers nothing', () => {
+  it('a base-stat minion transfers its full base stats (owner rework 2026-08-11)', () => {
     const base = CARD_INDEX['drummer']!;
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
@@ -61,7 +62,8 @@ describe('Rune of Liquidation — a sold minion hands its bonus stats to the rig
       runeLiquidation: true,
     };
     s = reduce(s, { type: 'sell', uid: 'sell' });
-    expect(s.shop[0]!.atk ?? 0).toBe(0);
+    // No more "a base body transfers nothing" — a plain 2/4 hands over its full 2/4 now.
+    expect([s.shop[0]!.atk ?? 0, s.shop[0]!.hp ?? 0]).toEqual([base.attack, base.health]);
   });
 });
 
@@ -122,7 +124,7 @@ describe('the four defs are wired', () => {
     expect(RUNE_INDEX['rune_liquidation']!.epic).toBe(true);
     expect(RUNE_INDEX['rune_warpath']!.cost).toBe(5);
     expect(RUNE_INDEX['rune_warpath']!.epic).toBe(true);
-    expect(RUNE_INDEX['rune_gemspam']!.cost).toBe(5);
+    expect(RUNE_INDEX['rune_gemspam']!.cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     expect(RUNE_INDEX['rune_gemspam']!.epic).toBe(true);
   });
 });

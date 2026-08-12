@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES, poolFor, SETS } from '@game/content';
-import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
-import { applyEndOfTurn, fireRecruitDeathrattlesForTest } from './recruit';
+import { applyEndOfTurn } from './recruit';
 
 const bm = (cardId: string, attack: number, health: number, extra?: Partial<BoardMinion>): BoardMinion =>
   ({ cardId, attack, health, ...extra } as BoardMinion);
@@ -32,53 +32,23 @@ describe('Water Dragon — Avenge (3) copies the left-most hand Spell', () => {
   });
 });
 
-describe("Rope Wrangler — Echo summons a random minion from your hand (consumed)", () => {
-  const fight = (handMinions: { uid: string; cardId: string; attack: number; health: number; keywords: never[]; golden: boolean }[]): CombatResult =>
-    simulate(
-      [bm('ropewrangler', 1, 1)],
-      [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX,
-      combatSide({ tier: 4, handMinions }), combatSide({ tier: 4 }));
-
-  it('summons the hand minion with its LIVE stats and carries the consumption back', () => {
-    const r = fight([{ uid: 'h1', cardId: 'pack', attack: 9, health: 9, keywords: [], golden: false }]);
-    const sum = r.events.find((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'pack');
-    expect(sum, 'the hand minion was summoned').toBeTruthy();
-    expect((sum as { minion: { attack: number; health: number } }).minion.attack).toBe(9); // buffed stats, not base
-    expect((sum as { minion: { health: number } }).minion.health).toBe(9);
-    expect(r.playerHandSummoned).toEqual(['h1']); // settle removes it — the card fought, so it is spent
+describe("Rope Wrangler — End of Turn casts Lasso and grows itself (owner rework 2026-08-11)", () => {
+  // The Echo (deathrattleSummonRandomHandMinion) was removed. The Wrangler now has TWO End-of-Turn effects:
+  // cast Lasso, and buff itself +2/+2 (golden: Lasso twice, +4/+4). No more hand-summon / consumption to track.
+  it('gains +2/+2 at End of Turn', () => {
+    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 10, shop: [],
+      board: [card('rw', 'ropewrangler', 5, 4)] };
+    applyEndOfTurn(s);
+    const rw = s.board.find((c) => c.uid === 'rw')!;
+    expect([rw.attack, rw.health], 'the Wrangler grew +2/+2').toEqual([7, 6]);
   });
 
-  it('an empty / spell-only hand is a clean no-op', () => {
-    const r = fight([]);
-    expect(r.events.some((e) => e.type === 'summon')).toBe(false);
-    expect(r.playerHandSummoned).toBeUndefined();
-  });
-
-  it('settle KEEPS the summoned card in the run hand (owner ruling 2026-08-08)', () => {
-    // Reversed from the original "consumed" rule: the card's text is "Echo: summon a random minion from your
-    // hand" and never says the card is spent, so losing it read as a bug in play. The summoned body is a
-    // combat-only body like every other summon; the hand card survives the fight.
-    let s: RunState = {
-      ...createRun(1), phase: 'combat',
-      hand: [card('h1', 'pack'), card('h2', 'alley')],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
-        initial: { player: [], enemy: [] }, playerHandSummoned: ['h1'] },
-    };
-    s = reduce(s, { type: 'settleCombat' });
-    expect(s.hand.map((c) => c.uid)).toEqual(['h1', 'h2']);
-  });
-
-  it('the SHOP half (a Ryme/borrow-fired Echo) moves the hand card to the board, same card, same buffs', () => {
-    const s: RunState = {
-      ...createRun(1),
-      board: [card('rw', 'ropewrangler')],
-      hand: [card('h1', 'pack', 7, 7), card('sp', 'growth', 0, 1)], // the spell must never be picked
-    };
-    fireRecruitDeathrattlesForTest(s, s.board[0]!);
-    const moved = s.board.find((c) => c.uid === 'h1');
-    expect(moved, 'the hand minion reached the board').toBeTruthy();
-    expect([moved!.attack, moved!.health]).toEqual([7, 7]);
-    expect(s.hand.map((c) => c.uid)).toEqual(['sp']);
+  it('golden gains +4/+4 at End of Turn', () => {
+    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 10, shop: [],
+      board: [{ ...card('rw', 'ropewrangler', 5, 4), golden: true }] };
+    applyEndOfTurn(s);
+    const rw = s.board.find((c) => c.uid === 'rw')!;
+    expect([rw.attack, rw.health], 'the golden Wrangler grew +4/+4').toEqual([9, 8]);
   });
 });
 

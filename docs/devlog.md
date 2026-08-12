@@ -45,6 +45,48 @@ on the branch dev server.
   built-in shapes + palette tint), and this matches the already-shipped `coin-shout` behavior — but it means
   Golden's coins won't render as the PNG for players until the FX-system-wide art-shipping path is addressed.
 
+## 2026-08-11 — Balance batch: ~12 minions, ~40 runes, and two combat-timing bug fixes
+
+A large owner balance pass across content + engine.
+
+**Minions.** Spell Warden → T5 7/5; Bob Blart → T5 7/7; Errand Fiend drops Flurry; Packstrider's Rally is now
+attack-only (+1 Attack per Beast); Baby Gastrid's Shout gives +2 Health per Gold spent (was +1); Lieutenant
+Thane's Rally now feeds 2 other minions and can't feed other Thanes (new `excludeId` on
+`rallyGiveAttackToOthers`, so a pair can't pump each other into a runaway loop); Badgington reverts to
+"Rally: get a random Shop Spell" (`rallyGrantSpell`); Rope Wrangler loses its Echo and instead gains +2/+2
+each End of Turn alongside its Lasso; Dawnclaw's Echo now triggers ONE adjacent Shout ungilded / BOTH gilded
+(a `{ one: true }` param on the shared Ryme factory, leaving Ryme untouched); Candle Conduit reworked to
+"when you get a Ruby, cast a Ruby on a random friendly minion" (`onGetRuby` → `rubyGainedCast`); Avarice
+Incarnate reworked to a new reactor (`onOtherDemonConsumeEcho`) — the first time another friendly Demon
+Consumes a Shop minion each turn (golden: first 2), Avarice **gains the same stats that Demon gained** (it does
+not consume a minion of its own) and grants 3 Gold; Malphas' Feast option is now "each Demon eats one Shop
+minion, golden = double the stats gained" (was end-Demons eating 2/side).
+
+**Runes.** ~20 cost tweaks; and effect reworks: Last Call → Avenge(4)/2 Ales; Blood and Coin → Avenge(5)/3
+Gold; Ashen Payroll → 1 Gold per Imp summoned (no threshold/cap); Kindling → both end minions +2/+2;
+Aftermarket → half the sold minion's stats to the right-most Shop minion; Liquidation → full (not bonus)
+stats; Enchantment → +2/+3 shop / +4/+6 combat; Merchant's Chorus → every 2 Shouts, permanent Shop +1/+1;
+Showcase → its right-most-slot +4/+4 is now permanent across refreshes (shares Market Tormentor's
+`rightmostSlotBuff` accumulator); Mountain Trade fully reworked to a new `cardsPlayed` threshold meter (every
+6 cards played → a Ruby on the whole board); Full Measure / Open Appetite / Unbroken Vein / Shared Reflection
+now also hand over the named minion; Double Fisting → 2 Ales/turn; Tip Jar → 3/3; Brood → 2×/combat; Scales →
++4/+5; Yazzus → 4 cost; Lapidary → a Ruby on a random minion for each card played this turn (spread, not
+per-type); Long Shift → a new `runeLongShift` reward: Start of Turn, Discover 2 Shop spells (was a buy-meter).
+Plus the two spell cards: Displacement → T6, Invitation Above → 4 Gold.
+
+**Two combat-timing bugs.**
+- *Summon-on-space fired a beat late.* "While you have space, summon X" (Rune of the Brood / Living Echoes /
+  Decoy Sigil) only ran inside the attack loop, so a board that BEGAN combat with room waited for the first
+  attack's cascade to fire. `fillFreeSlots()` now also runs once at Start of Combat, before the rotation; the
+  bounded per-combat counters keep it from double-firing.
+- *Rally-on-death summoned onto a full board.* An `attackOnSummon` token (e.g. Chicken Brawl's Charging
+  Soldier, summoned by an Echohorn Rally) deferred its board-cap check to flush time — which runs AFTER the
+  attacker's own death frees a slot — so a summon that should have been rejected on a full board landed anyway.
+  The cap is now enforced at QUEUE time: a full board rejects the summon immediately (overflow no-op).
+
+Verified: typecheck, eslint 0 errors, `npm test`, build:web. Tests updated across the affected card/rune
+suites to the new numbers and behavior; two combat regression tests added for the timing fixes.
+
 ## 2026-08-11 — Lobby HUD cleanup + a Recent Games feed
 
 A 7-part owner ask sweeping the lobby HUD and the two menus:

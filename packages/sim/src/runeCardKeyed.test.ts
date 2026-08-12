@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNE_INDEX, RUNES } from '@game/content';
 import { createRun, effectiveTargetTribe, reduce, type BoardCard, type RunState } from './index';
+import { advanceRuneThresholds } from './recruit';
 
 /**
  * The 2026-08-07 owner CARD-KEYED rune batch — each rune names one specific Set-2 card and changes what that
@@ -129,10 +130,19 @@ describe('Rune of the Broodmaster', () => {
 });
 
 describe('Rune of Mountain Trade', () => {
-  it('arms, and hands over nothing until Mountainbond actually plays its Rubies', () => {
-    const s = withRune('rune_mountain_trade', { board: [bm('m', 'dw_mountainbond', 4, 4)] });
-    expect(s.runeMountainTrade).toBe(true);
-    // The rune pays on the Ruby play, not on purchase — buying it alone must not conjure an Ale.
-    expect(s.hand.length, 'an Ale appeared on purchase').toBe(0);
+  it('is a cards-played threshold that Rubies the whole board every 6 (owner rework 2026-08-11)', () => {
+    // The old Mountainbond/Ale behaviour is GONE — it now rides the runeThreshold engine's `cardsPlayed` meter.
+    const r = rune('rune_mountain_trade');
+    expect(r.reward).toMatchObject({ kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true });
+    expect(r.previewCards).toEqual(['ruby']);
+
+    // Arm it through the real buyRune path, then drive the meter: playing 6 cards showers every board minion
+    // with a Ruby (base 1/1 + rubyBonus), just like Gemspam does on Gold.
+    const s = withRune('rune_mountain_trade', { board: [bm('a', 'sandbag', 2, 2), bm('b', 'sandbag', 3, 3)] });
+    const t = (s.runeThresholds ?? []).find((x) => x.rubyAll && x.meter === 'cardsPlayed');
+    expect(t, 'the cardsPlayed threshold was never armed').toBeDefined();
+    advanceRuneThresholds(s, 'cardsPlayed', 6);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'left minion took a Ruby').toEqual([3, 3]); // 2/2 + 1/1
+    expect([s.board[1]!.attack, s.board[1]!.health], 'right minion took a Ruby').toEqual([4, 4]); // 3/3 + 1/1
   });
 });

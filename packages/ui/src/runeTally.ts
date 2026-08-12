@@ -101,9 +101,9 @@ const SLAYING_PER = 6;
  * the Brood / Living Echoes (space-triggered, no player-facing count), Finality (a one-shot latch).
  */
 const RUNE_DEATHS_PER: Record<string, number> = {
-  rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 3, rune_cinder_ledger: 3,
+  rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 4, rune_cinder_ledger: 3, // Last Call: Avenge (4) — owner 2026-08-11
   rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
-  rune_blood_and_coin: 4, rune_engraving: 3, // Engraving: Avenge (3) — Rubies +1 Health per proc
+  rune_blood_and_coin: 5, rune_engraving: 3, // Blood and Coin: Avenge (5) — owner 2026-08-11; Engraving: Avenge (3)
   rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };

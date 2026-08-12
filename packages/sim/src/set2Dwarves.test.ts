@@ -129,12 +129,13 @@ describe('Gold and throughput', () => {
     expect(cap.attack, 'the Captain buffed itself').toBe(CARD_INDEX['dw_ironlung']!.attack);
   });
 
-  it('Quartermaster Dorrin scales with Gold spent THIS TURN', () => {
+  it('Baby Gastrid scales with Gold spent THIS TURN (+2 Health per Gold, owner rework 2026-08-11)', () => {
     let s = set2();
     const target = body('dw_brunni', 't');
     s = { ...s, board: [target], hand: [body('dw_dorrin', 'q')], goldSpentThisTurn: 4 };
     s = playAimed(s, 'q', 't');
-    expect(s.board.find((x) => x.uid === 't')!.health).toBe(CARD_INDEX['dw_brunni']!.health + 4);
+    // 4 Gold spent × +2 Health = +8.
+    expect(s.board.find((x) => x.uid === 't')!.health).toBe(CARD_INDEX['dw_brunni']!.health + 8);
   });
 
   it('Dorrin with nothing spent grants nothing — no phantom buff', () => {
@@ -413,13 +414,14 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     expect(rubies.every((c) => c.attack === 3 && c.health === 3), 'a minted Ruby was not 3/3').toBe(true);
   });
 
-  it('Rune of Double Fisting grants Edward, and 3 random Ales EVERY TURN (owner sheet 2026-07-31)', () => {
-    // The Ales recur — a recurringEndOfTurn reward, not a one-shot trio.
+  it('Rune of Double Fisting grants Edward, and 2 random Ales EVERY TURN (owner rework 2026-08-11)', () => {
+    // The Ales recur — a recurringEndOfTurn reward, not a one-shot trio. The recurring grant dropped from 3
+    // ('grantAles3') to 2 ('grantAles').
     const rune = all.find((r) => r.name === 'Rune of Double Fisting')!;
     const multi = rune.reward as { kind: string; rewards: { kind: string; cards?: string[]; effect?: string }[] };
     expect(multi.kind).toBe('multi');
     expect(multi.rewards.some((r2) => r2.kind === 'grant' && r2.cards?.includes('dw_edward'))).toBe(true);
-    expect(multi.rewards.some((r2) => r2.kind === 'recurringEndOfTurn' && r2.effect === 'grantAles3')).toBe(true);
+    expect(multi.rewards.some((r2) => r2.kind === 'recurringEndOfTurn' && r2.effect === 'grantAles')).toBe(true);
   });
 
   it('the rune-granted minions are NOT buyable from the shop', () => {

@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Balance batch (minions + runes) + two combat-timing fixes — SHIPPED 2026-08-11.** ~12 minion reworks, ~40
+  rune cost/effect changes (incl. Mountain Trade's new `cardsPlayed` threshold meter and a permanent Showcase),
+  and two engine bugs: summon-on-space now fires at Start of Combat, and a Rally summon onto a full board is
+  rejected at queue time rather than landing after the attacker's death frees a slot. Details in the devlog.
 - **Lobby HUD cleanup + Recent Games — SHIPPED 2026-08-11.** Hid the redundant top-left plaque in a lobby
   (rail now carries round + seats-left + max-loss), moved the combat-pacing slider into the Esc menu and Skip
   above End-Turn, dropped the unused clear-boards/reset-career actions, and added a Recent Games feed (last 20

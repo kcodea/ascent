@@ -47,7 +47,7 @@ export const RUNES: RuneDef[] = [
     // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
     id: 'rune_contraband',
     name: 'Rune of Contraband',
-    cost: 5, // owner balance 2026-08-04
+    cost: 6, // owner balance 2026-08-11
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
@@ -87,7 +87,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_summoning',
     name: 'Rune of Summoning',
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11
     text: 'Whenever you cast a Shop spell, improve your **Imps** by **+2/+2** wherever they are.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
@@ -130,7 +130,7 @@ export const RUNES: RuneDef[] = [
     // Shares Open Tab's primitive (2 random Ales at End of Turn).
     id: 'rune_first_round',
     name: 'Rune of the First Round',
-    cost: 4,
+    cost: 5, // owner balance 2026-08-11
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
     sets: ['set2'], // Ales
@@ -170,7 +170,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_showcase',
     name: 'Rune of the Showcase',
     cost: 3,
-    text: 'When you spend **10 Gold**, give the **right-most minion** in the Shop **+4/+4**.',
+    // Owner 2026-08-11: the buff is now PERMANENT (accumulates on the right-most slot across refreshes, like
+    // Market Tormentor) rather than decorating only the current row. See the shopRightmost branch in payRuneThreshold.
+    text: 'When you spend **10 Gold**, give the **right-most minion** in the Shop **+4/+4 permanently**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'shopRightmost', attack: 4, health: 4 } },
   },
   {
@@ -178,14 +180,16 @@ export const RUNES: RuneDef[] = [
     id: 'rune_merchants_chorus',
     name: "Rune of the Merchant's Chorus",
     cost: 3,
-    text: 'After you trigger **3 Shouts** in a turn, give minions in the **Shop +4/+4**. Once per turn.',
-    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, buff: { target: 'shop', attack: 4, health: 4 }, oncePerTurn: true },
+    // Owner 2026-08-11: every 2 Shouts (cumulative, no once-per-turn cap) grants the Shop a small PERMANENT
+    // +1/+1 — the `shop` target writes into tavernBuyBonus, which every future shop inherits.
+    text: 'After you trigger **2 Shouts**, give minions in the **Shop +1/+1** permanently.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 2, buff: { target: 'shop', attack: 1, health: 1 } },
   },
   {
     // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
     id: 'rune_stampede',
     name: 'Rune of the Stampede',
-    cost: 4,
+    cost: 5, // owner balance 2026-08-11
     text: 'Your **first** friendly **Rally** each combat triggers **twice**.',
     reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' },
   },
@@ -219,8 +223,8 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_last_call',
     name: 'Rune of Last Call',
-    cost: 1,
-    text: '**Avenge (3):** get a random **Dwarven Ale**.',
+    cost: 2, // owner balance 2026-08-11 (1 → 2)
+    text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
     reward: { kind: 'combatFlag', flag: 'runeLastCall' },
     sets: ['set2'], // Ales
   },
@@ -236,8 +240,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_blood_and_coin',
     name: 'Rune of Blood and Coin',
     cost: 3,
-    text: 'Every **4 friendly deaths** in combat, gain **4 Gold** next turn.',
-    reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 4 },
+    text: '**Avenge (5):** gain **3 Gold** next turn.', // owner 2026-08-11 (was every 4 deaths / 4 Gold)
+    reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 3 },
   },
   {
     // Pays ONCE at settle rather than per summon, so the Shop sees one combined buff instead of a drip.
@@ -261,9 +265,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_brood',
     name: 'Rune of the Brood',
     cost: 3,
-    text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **3 times** per combat.',
+    text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **2 times** per combat.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
-    reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 3 },
+    reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 2 }, // owner balance 2026-08-11 (3 → 2)
   },
   {
     id: 'rune_war_chorus',
@@ -305,14 +309,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_action',
     name: 'Rune of Action',
-    cost: 6,
+    cost: 5, // owner balance 2026-08-11
     text: '**End of Turn:** give your **three left-most minions +1/+1** for each card you played this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
   },
   {
     id: 'rune_epic_forge',
     name: 'Rune of the Epic Forge',
-    cost: 3,
+    cost: 4, // owner balance 2026-08-11
     // An EARLY epic forge: turn 8, one turn ahead of the systemic turn-9 visit (owner 2026-07-31). A
     // schedule to wave 9 itself would do nothing — the baseline already sets the same boolean there.
     text: 'Visit an **additional Epic Forge** on turn 8.',
@@ -322,7 +326,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_kindling',
     name: 'Rune of Kindling',
     cost: 4, // owner balance 2026-08-07
-    text: 'Whenever you cast a Shop spell, give your **left-most minion +3/+3**.',
+    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +2/+2**.', // owner 2026-08-11
     reward: { kind: 'runeKindling' },
   },
   {
@@ -389,7 +393,7 @@ export const RUNES: RuneDef[] = [
     // is the general mechanism — see `questRecurringLimited`.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
-    cost: 5,
+    cost: 6, // owner balance 2026-08-11
     text: 'Get a **Gold Font** and **2 random spells** at End of Turn, for the **next 2 turns**.',
     previewCards: ['manafont'], // text names it — the forge hover shows the card
     reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy', turns: 2 },
@@ -400,7 +404,7 @@ export const RUNES: RuneDef[] = [
     // ceiling. Repeats for the rest of the run.
     id: 'rune_summit',
     name: 'Rune of the Summit',
-    cost: 5,
+    cost: 3, // owner balance 2026-08-11
     text: '**In 3 turns:** **Discover** a **Tier 7** minion. Repeats every **3 turns**.',
     reward: { kind: 'runeSummit' },
   },
@@ -422,7 +426,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_bartering',
     name: 'Rune of Bartering',
-    cost: 5,
+    cost: 6, // owner balance 2026-08-11
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
@@ -455,7 +459,7 @@ export const RUNES: RuneDef[] = [
     // same Rise-vs-exact-copy distinction Living Treasure hit; Rise returns the printed body).
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
-    cost: 4,
+    cost: 3, // owner balance 2026-08-11
     text: '**Start of Combat:** give a random friendly minion **Echo:** summon an exact copy of this without Echo.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
@@ -493,8 +497,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_tip_jar',
     name: 'Rune of the Tip Jar',
     cost: 6,
-    text: 'Gain **4 Gold** and increase your **maximum Gold** by **4**.',
-    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 4, immediate: true }, { kind: 'gainMaxGold', amount: 4 }] },
+    text: 'Gain **3 Gold** and increase your **maximum Gold** by **3**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 3, immediate: true }, { kind: 'gainMaxGold', amount: 3 }] },
   },
   {
     id: 'rune_coffers',
@@ -522,7 +526,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_lorekeeping',
     name: 'Rune of Lorekeeping',
-    cost: 4,
+    cost: 3, // owner balance 2026-08-11
     text: 'Whenever you cast a **Shop spell on a minion**, give it an extra **+4/+4**.',
     reward: { kind: 'runeLorekeeping' },
   },
@@ -628,7 +632,7 @@ export const RUNES: RuneDef[] = [
     // Reuses the threshold engine with a new `consume` meter.
     id: 'rune_empty_plate',
     name: 'Rune of the Empty Plate',
-    cost: 3,
+    cost: 2, // owner balance 2026-08-11
     text: 'After you **Consume 3 Shop minions**, get a random **Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'consume', per: 3, grantSpell: 1 },
   },
@@ -667,14 +671,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_second_litter',
     name: 'Rune of the Second Litter',
-    cost: 4,
+    cost: 2, // owner balance 2026-08-11
     text: 'The first **Beast** summoned each combat summons **another copy**.',
     reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
   },
   {
     id: 'rune_shared_pour',
     name: 'Rune of Shared Pour',
-    cost: 4,
+    cost: 3, // owner balance 2026-08-11
     text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
     sets: ['set2'], // Ales
@@ -683,13 +687,13 @@ export const RUNES: RuneDef[] = [
     id: 'rune_aftermarket',
     name: 'Rune of the Aftermarket',
     cost: 4,
-    text: 'The first minion you **sell** each turn gives its **base stats** to minions in the current **Shop**.',
+    text: 'The first minion you **sell** each turn gives **half its stats** to the **right-most** minion in the current **Shop**.', // owner 2026-08-11
     reward: { kind: 'runeAftermarket' },
   },
   {
     id: 'rune_hoardcalling',
     name: 'Rune of Hoardcalling',
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11
     text: 'After your first **Dragon Shout** each turn, get a random **Shop spell**.',
     reward: { kind: 'runeHoardcalling' },
   },
@@ -707,9 +711,11 @@ export const RUNES: RuneDef[] = [
     id: 'rune_ashen_payroll',
     name: 'Rune of Ashen Payroll',
     cost: 4,
-    text: 'After you summon **3 Imps** in combat, gain **4 Gold** next turn. Once per combat.',
+    // Owner 2026-08-11: per-Imp payout, no threshold and no once-per-combat cap. `amount` stays only to arm the
+    // flag truthily — the settle handler now pays 1 Gold for EACH Imp summoned (see reducer runeAshenPayroll).
+    text: 'Gain **1 Gold** next turn for each **Imp** you summon in combat.',
     previewCards: ['impscrap'],
-    reward: { kind: 'combatFlag', flag: 'runeAshenPayroll', amount: 3 },
+    reward: { kind: 'combatFlag', flag: 'runeAshenPayroll', amount: 1 },
   },
   {
     id: 'rune_backbeat',
@@ -759,27 +765,31 @@ export const RUNES: RuneDef[] = [
     id: 'rune_full_measure',
     name: 'Rune of Full Measure',
     cost: 4,
-    text: '**Baby Gastrid** also grants **Attack** equal to the Health it grants.',
+    // Owner 2026-08-11: now also HANDS OVER a Baby Gastrid, on top of the Attack-symmetry effect.
+    text: 'Get a **Baby Gastrid**. Your **Baby Gastrids** also grant **Attack** equal to the Health they grant.',
     previewCards: ['dw_dorrin'],
-    reward: { kind: 'runeFullMeasure' },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_dorrin'] }, { kind: 'runeFullMeasure' }] },
     sets: ['set2'],
   },
   {
     id: 'rune_mountain_trade',
     name: 'Rune of Mountain Trade',
     cost: 5,
-    text: 'Whenever **Mountainbond** plays Rubies, get a random **Dwarven Ale**.',
-    previewCards: ['dw_mountainbond'],
-    reward: { kind: 'runeMountainTrade' },
+    // Owner 2026-08-11: full rework — a "cards played" threshold that showers the board with a Ruby every 6.
+    // Uses the runeThreshold engine's new `cardsPlayed` meter (see advanceRuneThresholds / applyCardsPlayed).
+    text: 'After you play **6 cards**, play a **Ruby** on your minions.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true },
     sets: ['set2'],
   },
   {
     id: 'rune_open_appetite',
     name: 'Rune of Open Appetite',
     cost: 5,
-    text: 'Your **Appetite Agents** can target a minion of **any type**.',
+    // Owner 2026-08-11: now also HANDS OVER an Appetite Agent, on top of the any-type targeting.
+    text: 'Get an **Appetite Agent**. Your **Appetite Agents** can target a minion of **any type**.',
     previewCards: ['dm_agent'],
-    reward: { kind: 'runeOpenAppetite' },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_agent'] }, { kind: 'runeOpenAppetite' }] },
     sets: ['set2'],
   },
 
@@ -796,9 +806,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_unbroken_vein',
     name: 'Rune of the Unbroken Vein',
     cost: 5,
-    text: 'Your **Veinbreakers** gain **both** Choose One effects.',
+    // Owner 2026-08-11: now also HANDS OVER a Veinbreaker, on top of the both-effects grant.
+    text: 'Get a **Veinbreaker**. Your **Veinbreakers** give **both** Choose One effects.',
     previewCards: ['k_veinbreaker'],
-    reward: { kind: 'runeUnbrokenVein' },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_veinbreaker'] }, { kind: 'runeUnbrokenVein' }] },
     sets: ['set2'],
   },
 ];
@@ -881,7 +892,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // The shop's two purchases discount each other, alternating.
     id: 'rune_cadence',
     name: 'Rune of Cadence',
-    cost: 3,
+    cost: 5, // owner balance 2026-08-11
     epic: true,
     text: 'After you buy a minion, your next **Shop spell** costs **1 less**. After you cast a **Shop spell**, your next **minion** costs **1 less**.',
     reward: { kind: 'runeCadence' },
@@ -911,7 +922,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_stormcalling',
     name: 'Rune of Stormcalling',
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11
     epic: true,
     text: 'Get a **Karwind** and a random **Shout** minion.',
     // Ungilded (owner sheet 2026-07-31 — it granted a Gilded copy before).
@@ -941,7 +952,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Scales',
     cost: 2,
     epic: true,
-    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+2**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+5**.', // owner 2026-08-11 (was +2/+2)
     reward: { kind: 'runeScales' },
   },
   {
@@ -1131,7 +1142,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Liquidation',
     cost: 4,
     epic: true,
-    text: 'When you **sell** a minion, give its **bonus stats** to the **right-most Shop** minion.',
+    text: 'When you **sell** a minion, give its **stats** to the **right-most Shop** minion.', // owner 2026-08-11 (was bonus stats)
     reward: { kind: 'runeLiquidation' },
   },
   {
@@ -1147,7 +1158,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
     id: 'rune_gemspam',
     name: 'Rune of Gemspam',
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11
     epic: true,
     text: 'When you spend **10 Gold**, play a **Ruby** on all of your minions.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
@@ -1177,7 +1188,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_yazzus',
     name: 'Rune of Yazzus',
-    cost: 6,
+    cost: 4, // owner balance 2026-08-11 (6 → 4)
     epic: true,
     text: 'Get a **Yazzus**.',
     reward: { kind: 'grant', cards: ['yazzus'] },
@@ -1241,9 +1252,9 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Double Fisting',
     cost: 6,
     epic: true,
-    // Owner sheet 2026-07-31: the Ales RECUR — 3 random Ales every turn, not a one-shot trio.
-    text: 'Get an **Edward Keg-hands**, and **3 random Dwarven Ales** every turn.',
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_edward'] }, { kind: 'recurringEndOfTurn', effect: 'grantAles3' }] },
+    // Owner sheet 2026-07-31: the Ales RECUR — 2 random Ales every turn (owner balance 2026-08-11, was 3).
+    text: 'Get an **Edward Keg-hands**, and **2 random Dwarven Ales** every turn.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_edward'] }, { kind: 'recurringEndOfTurn', effect: 'grantAles' }] },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
@@ -1288,8 +1299,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Long Shift',
     cost: 2,
     epic: true,
-    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
-    reward: { kind: 'runeThreshold', meter: 'cardsBought', per: 3, grantSpell: 1 },
+    // Owner rework 2026-08-11: from a buy-meter to a start-of-turn double Discover. The window opens in the
+    // shop as normal (the "no window" ruling is only for END-of-turn discovers, which fire mid-transition).
+    text: '**Start of Turn:** Discover **2 Shop Spells**.',
+    reward: { kind: 'runeLongShift' },
   },
   {
     id: 'rune_vanguard',
@@ -1456,7 +1469,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // whole-warband buff had nowhere to land and would have vanished at settle.
     id: 'rune_overflow',
     name: 'Rune of Overflow',
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11
     epic: true,
     text: 'Whenever you summon a minion that **does not fit**, give your minions **+4/+4 permanently**.',
     reward: { kind: 'combatFlag', flag: 'runeOverflow', amount: 4 },
@@ -1507,7 +1520,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Enchantment',
     cost: 5,
     epic: true,
-    text: 'Whenever you cast a **Shop spell**, give your minions **+1/+1** permanently (**+2/+2** during combat).',
+    text: 'Whenever you cast a **Shop spell**, give your minions **+2/+3** permanently (**+4/+6** during combat).', // owner 2026-08-11
     reward: { kind: 'runeEnchantment' },
   },
   {
@@ -1523,7 +1536,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Lapidary',
     cost: 5,
     epic: true,
-    text: '**End of Turn:** play a **Ruby** on one friendly minion of each type.',
+    text: '**End of Turn:** play a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
     previewCards: ['ruby'],
     reward: { kind: 'runeLapidary' },
     sets: ['set2'], // Rubies
@@ -1749,10 +1762,11 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_shared_reflection',
     name: 'Rune of Shared Reflection',
     cost: 5,
-    text: 'The first **Shop spell** cast on each **Mirrorwing** every turn also casts on adjacent **Dragons**.',
+    // Owner 2026-08-11: now also HANDS OVER a Mirrorwing, on top of the cast-on-adjacent-Dragons effect.
+    text: 'Get a **Mirrorwing**. The first **Shop spell** cast on each **Mirrorwing** every turn also casts on adjacent **Dragons**.',
     previewCards: ['d2_mirrorwing'],
     epic: true,
-    reward: { kind: 'runeSharedReflection' },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_mirrorwing'] }, { kind: 'runeSharedReflection' }] },
     sets: ['set2'],
   },
   {

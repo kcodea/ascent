@@ -478,9 +478,9 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Graverobber on Grim fires its Deathrattle out of combat (buffs Beasts by the run tally)', () => {
+  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +8/+8)', () => {
     let s: RunState = {
-      ...createRun(1), deathrattlesTriggered: 2, // 2 prior Echoes; Grim's own death makes the live tally 3
+      ...createRun(1),
       board: [
         { uid: 'grim', cardId: 'grim', tribe: 'beast', attack: 7, health: 1, keywords: [], golden: false },
         { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
@@ -490,13 +490,12 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
-    // Grim's Deathrattle: +2/+2 per Deathrattle this game (tally = 3 incl. its own death) → the Beast gets +6/+6.
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 6);
+    // Grim's new Echo (2026-08-12): a flat +8/+8 to your Beasts → the surviving Beast gets +8/+8.
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 8);
   });
 
   it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
-    // Grim's Deathrattle (buff Beasts by the run tally) fires once + once per Sylus. tally = 1 (Grim's own
-    // death) at +2/+2 per, so each fire is +2/+2 → the Beast gets +4/+4 with one Sylus.
+    // Grim's Echo (+8/+8 to Beasts) fires once + once per Sylus → the Beast gets +16/+16 with one Sylus.
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -508,7 +507,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 4); // +2/+2 fired twice (once + one Sylus)
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 16); // +8/+8 fired twice (once + one Sylus)
   });
 
   it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {

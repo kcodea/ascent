@@ -60,6 +60,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   spellCastTransform: 'into',
   deathrattleGrantCardToHand: 'cardId',
   avengeGrantSpell: 'cardId',
+  avengeSummon: 'cardId', // Dunkey summons an Armadiyo
   deathrattleBuffCardTypeRunWide: 'cardId',
   // Minions that CAST a named spell — surface that spell on hover so its live (spell-power-aware) value is
   // readable there instead of restated on the minion. Taragosa/Watcher cast a fixed spell with no `spellId`

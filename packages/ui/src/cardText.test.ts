@@ -101,22 +101,10 @@ describe('cardText helpers', () => {
   });
 
 
-  it('tallyBuffText shows Grim’s live +N/+N from the run Deathrattle tally', () => {
-    // Grim: "give your Beasts **+2/+2** for each Deathrattle triggered this game" — with 4 triggered,
-    // the printed +2/+2 becomes a green {{+8/+8}}.
-    expect(tallyBuffText('grim', 4)).toContain('{{+8/+8}}');
-    expect(tallyBuffText('grim', 4)).not.toContain('**+2/+2**'); // the printed value was replaced
-  });
-
-  it('tallyBuffText doubles for a GILDED Grim and rewrites the golden text', () => {
-    // The factory multiplies by mul(self), so a gilded Grim really grants double — the live number has to
-    // follow, and it must rewrite the GOLDEN text, not the base one.
-    expect(tallyBuffText('grim', 4, true)).toContain('{{+16/+16}}');
-    expect(tallyBuffText('grim', 4, false)).toContain('{{+8/+8}}');
-  });
-
-  it('tallyBuffText falls back (null) at a zero tally or on a non-tally card', () => {
-    expect(tallyBuffText('grim', 0)).toBeNull(); // nothing triggered yet → printed text
+  // Grim was retext'd to a FLAT Echo buff on 2026-08-12, so no card uses `deathrattleBuffTribeByTally` any
+  // more — `tallyBuffText` returns null for every card, which the fallback test below now covers via Grim.
+  it('tallyBuffText falls back (null) on a non-tally card', () => {
+    expect(tallyBuffText('grim', 4)).toBeNull(); // Grim is no longer a tally-buff card
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
   });
 

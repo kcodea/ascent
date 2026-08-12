@@ -160,6 +160,17 @@ export function simulate(
     { player: [], enemy: [] };
   /** Rune of the Second Litter: has the once-per-combat copy already fired, per side? */
   const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
+  const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number }[]> = { player: [], enemy: [] };
+  /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
+  const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
+   *  side's final value carries back into the run). Seeded from the run-persisted level (default 2). */
+  const beastialLevel: Record<Side, number> = {
+    player: playerState.questMods?.beastialSwarmLevel ?? 2,
+    enemy: enemyState.questMods?.beastialSwarmLevel ?? 2,
+  };
+  const beastialStart = { player: beastialLevel.player, enemy: beastialLevel.enemy };
   /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
   const runeDragonscaleLeft: Record<Side, number> = {
     player: playerState.questMods.runeDragonscale ?? 0,
@@ -802,6 +813,9 @@ export function simulate(
       // Player-side only — the enemy shop is regenerated each wave, so its slot buff would never be read.
       if (side === 'player') { rightmostSlotGain.attack += attack; rightmostSlotGain.health += health; }
     },
+    queueNextSummonBuff: (side, tribe, attack, health) => {
+      if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health });
+    },
     grantMagneticBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
       magneticBuffGain.attack += attack;
@@ -1165,6 +1179,23 @@ export function simulate(
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
       fireTrigger('runeSavagery', side);
       ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+    }
+    // RUNE OF THE JUNGLE: a Beast summoned in combat doubles its Health. Sibling of Savagery (Attack), applied
+    // here so it composes with the summon payoffs; `minion.health` (current) is added again to double it.
+    if (modsFor(side).runeJungle && minion.health > 0 && !minion.dead
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      fireTrigger('runeJungle', side);
+      ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
+    }
+    // WOLVIE (Echo): consume ONE queued next-summon buff for this side if this body matches its tribe. FIFO, so
+    // two Wolvies pay the next two matching summons. Applied after auras/Savagery so it stacks on the final body.
+    if (!minion.dead && nextSummonBuffs[side].length > 0) {
+      const i = nextSummonBuffs[side].findIndex((b) =>
+        minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe);
+      if (i >= 0) {
+        const b = nextSummonBuffs[side].splice(i, 1)[0]!;
+        ctx.buff(minion, b.attack, b.health, 'Wolvie');
+      }
     }
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
@@ -1685,6 +1716,29 @@ export function simulate(
         && !raisedBodies.has(minion.uid)) {
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
+    const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe;
+    // RUNE OF BEASTIAL SWARM: a friendly Beast dying pumps your living Beasts by the current per-death amount
+    // (starts 2, raised by the Avenge(2) improvement below). A combat stat-gain; only the LEVEL persists.
+    if (dyingIsBeast && modsFor(minion.side).runeBeastialSwarm) {
+      const n = beastialLevel[minion.side];
+      const beasts = living(minion.side).filter((m) => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe);
+      if (n > 0 && beasts.length > 0) {
+        nextStep(); fireTrigger('runeBeastialSwarm', minion.side);
+        for (const m of beasts) ctx.buff(m, n, n, 'Rune of Beastial Swarm');
+      }
+    }
+    // RUNE OF THE BURROW: the FIRST friendly Beast with an Echo to die each combat is resummoned WITHOUT its
+    // Echo (a def clone with its onDeath effects stripped, so it can't loop the resummon). Base stats.
+    if (dyingIsBeast && modsFor(minion.side).runeBurrow && !burrowUsed[minion.side]
+        && minion.effects.some((e) => e.on === 'onDeath')) {
+      const def = cards[minion.cardId];
+      if (def) {
+        burrowUsed[minion.side] = true;
+        fireTrigger('runeBurrow', minion.side);
+        const noEcho: CardDef = { ...def, effects: def.effects.filter((e) => e.on !== 'onDeath') };
+        summonMinion(minion.side, noEcho, minion.uid, minion.keywords.filter((k) => k !== 'R'), !!minion.golden, false);
+      }
+    }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
@@ -1749,6 +1803,12 @@ export function simulate(
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+    // RUNE OF BEASTIAL SWARM — Avenge (2): every 2 friendly deaths, raise the per-death amount by +2. Permanent:
+    // the player side's grown level carries back into the run (`playerBeastialSwarmLevel`).
+    if (modsFor(minion.side).runeBeastialSwarm && deaths[minion.side] % 2 === 0) {
+      beastialLevel[minion.side] += 2;
+      fireTrigger('runeBeastialSwarm', minion.side);
+    }
     emitAvenge(minion.side, deaths[minion.side], minion);
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
@@ -3185,6 +3245,7 @@ export function simulate(
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
     playerRightmostSlotBuff: rightmostSlotGain.attack > 0 || rightmostSlotGain.health > 0 ? { ...rightmostSlotGain } : undefined,
+    playerBeastialSwarmLevel: beastialLevel.player > beastialStart.player ? beastialLevel.player : undefined,
     playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,
     playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,

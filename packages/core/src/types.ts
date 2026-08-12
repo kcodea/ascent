@@ -205,6 +205,8 @@ export type EffectFactoryId =
   | 'deathrattleSummonRandomTribeSetStats' // Bullseye: Echo — summon a random tribe minion set to fixed stats
   | 'onSummonTribeBuffFlat' // Beardsley: combat-only — a summoned tribe minion gets a flat +atk/+hp
   | 'avengeSummonImps' // Endless Overseer: Avenge (X) — summon N Imps with Taunt + Ward
+  | 'avengeSummon' // Dunkey: Avenge (X) — summon a cardId (golden → gilded), no immediate attack
+  | 'deathrattleBuffNextSummon' // Wolvie: Echo — the next Beast summoned this combat gets +atk/+hp (one-shot)
   | 'deathrattleBuffRightmostSlot' // Right Hand Hank: Echo — carry-back buff the right-most Shop slot
   | 'goldSpentBuffRightmostSlot' // Feastmaster Vhal: every N Gold spent, buff the right-most Shop slot
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
@@ -1142,6 +1144,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Gemheart Golems get Ward), Dawnclaw (Dawnclaws also fire their Echo at Start of Combat), Sylus (Sylus
   // doubles its own Health at Start of Combat).
   | 'runeWrangler' | 'runeLivingGeode' | 'runeDawnclaw' | 'runeSylus'
+  // Aug-12 Beast batch: Jungle (a summoned Beast doubles its Health), Burrow (first Echo-Beast death each
+  // combat is resummoned without its Echo), Beastial Swarm (your Beasts gain +N/+N on each friendly Beast death;
+  // Avenge(2) raises N permanently).
+  | 'runeJungle' | 'runeBurrow' | 'runeBeastialSwarm'
   // Rune of the Old Pack: the first Beast you resummon each combat returns with its FULL stats.
   | 'oldPack'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
@@ -1428,6 +1434,15 @@ export interface QuestCombatMods {
   runeDragonscale?: number;
   runeTemperedTime?: boolean;
   runeSavagery?: boolean;
+  /** Rune of the Jungle: a Beast summoned in combat doubles its Health (the Health sibling of Savagery). */
+  runeJungle?: boolean;
+  /** Rune of the Burrow: the first friendly Beast with an Echo that dies each combat is resummoned without it. */
+  runeBurrow?: boolean;
+  /** Rune of Beastial Swarm: your Beasts gain +N/+N when a friendly Beast dies; Avenge(2) raises N. `N` (the
+   *  current per-death amount, ≥2) rides in on `beastialSwarmLevel` and the improved value carries back. */
+  runeBeastialSwarm?: boolean;
+  /** Rune of Beastial Swarm — the current per-death buff amount (starts 2, +2 per Avenge(2), run-persisted). */
+  beastialSwarmLevel?: number;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;
@@ -2135,6 +2150,9 @@ export interface CombatResult {
   /** Permanent right-most Shop-slot buff earned this combat (Right Hand Hank's Echo) — added to
    *  RunState.rightmostSlotBuff so the next shop's right-most offer carries it. Absent if 0/0. */
   playerRightmostSlotBuff?: { attack: number; health: number };
+  /** Rune of Beastial Swarm — the grown per-death buff amount, if the Avenge(2) improvement fired this combat.
+   *  Written to RunState.beastialSwarmLevel so the bigger per-death buff persists. Absent if unchanged. */
+  playerBeastialSwarmLevel?: number;
   /** A PERMANENT buff earned in combat for your whole warband, carried back onto the run's board (Rune of
    *  Overflow). Every other carry-back is tribe-scoped — Imps, Beasts, Fodder, Rubies — so "your minions"
    *  needed its own untyped channel; without one, a combat buff simply vanishes at settle and a rune whose
@@ -2391,6 +2409,9 @@ export interface CombatContext {
    *  Carried back via CombatResult.playerRightmostSlotBuff → added to RunState.rightmostSlotBuff (the same
    *  accumulator Market Tormentor grows), which applyShopRefreshed re-lands on the next roll's right-most. */
   grantRightmostSlotBuff(attack: number, health: number, side: Side): void;
+  /** Wolvie (Echo) — queue a one-shot buff for the NEXT `tribe` minion `side` summons this combat. Consumed at
+   *  the summon chokepoint (front of the queue), so two Wolvies stack as two separate next-summon grants. */
+  queueNextSummonBuff(side: Side, tribe: Tribe, attack: number, health: number): void;
   /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
    *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future
    *  Attachments inherit it. Only the player carries back (the enemy is regenerated each wave). */

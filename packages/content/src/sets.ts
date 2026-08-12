@@ -64,7 +64,7 @@ const SET1_DRAGONS_IN_SET2: readonly CardDef[] = DRAGONS.filter((d) => d.id === 
  *  (2026-07-24). The re-spec'd ones (Kennelmaster, Runic Beetle) and the 15 new Beasts land as their stats /
  *  rulings are confirmed. Same opt-in-by-id pattern as Karwind + the neutral spells. */
 const SET1_BEASTS_IN_SET2: readonly CardDef[] = BEASTS.filter((b) =>
-  ['badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle'].includes(b.id),
+  ['seaurchin', 'manasaber', 'kennel', 'beetle', 'grim'].includes(b.id), // grim pulled in 2026-08-12
 );
 /**
  * Set 1 NEUTRAL minions that carry into Set 2 (owner roster 2026-07-25), plus the Tier-7 neutrals from the same

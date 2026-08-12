@@ -1947,7 +1947,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Jungle',
     cost: 6,
     epic: true,
-    text: 'Your **Beast** summons **double their Health** when summoned.',
+    text: 'Your **Beasts** gain **double their Health** when summoned in combat.',
     reward: { kind: 'combatFlag', flag: 'runeJungle' },
     sets: ['set2'],
   },

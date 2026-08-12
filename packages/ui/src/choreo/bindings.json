@@ -99,6 +99,11 @@
         "def": "bloody-ale"
       }
     },
+    "wo_champion": {
+      "spellCast": {
+        "def": "champions-ale"
+      }
+    },
     "wo_health": {
       "spellCast": {
         "def": "defensive-ale"

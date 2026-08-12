@@ -27,6 +27,14 @@ describe('Wolvie — Echo buffs the next summoned Beast', () => {
     expect(pupBuff(run(false)), 'the next Beast got +2/+4').toContainEqual([2, 4]);
     expect(pupBuff(run(true)), 'gilded Wolvie +4/+8').toContainEqual([4, 8]);
   });
+
+  it('a Wolvie that RISES consumes its own queued buff (a Rise is a summon)', () => {
+    // Regression (owner report 2026-08-12): Wolvie with Rise dies → its Echo queues +2/+4 → the risen body IS
+    // the next Beast summoned, so it must take the buff. The Rise re-slot used to bypass the summon chokepoint.
+    const r = sim([bm('b2_wolvie', 'W', 3, 2, { keywords: ['R'] })]);
+    expect(buffsOn(r, uidOf(r, 'b2_wolvie'), 'Wolvie').map((b) => [b.attack, b.health]), 'the risen Wolvie got +2/+4')
+      .toContainEqual([2, 4]);
+  });
 });
 
 // ── Armadiyo (T4 Beast, Echo: give your Beasts +2/+4 wherever they are) ────────────────────────────────────

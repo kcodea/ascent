@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-12 — Fix: Wolvie's next-summon buff now pays a Beast that RISES
+
+Owner report: a Wolvie whose Echo queued "+2/+4 to the next Beast you summon" did not pay the same Wolvie when
+it came back via **Rise**. Cause: the queue was consumed only at the normal summon chokepoint (`placeSummon`),
+and a Rise re-slots the body on its own path (`killOrReborn`) without passing through it — even though a Rise
+IS a summon (owner ruling 2026-07-13; it already counts for summon quests and inherits "wherever they are"
+auras like Kennelmaster's). Extracted the consumption into `applyNextSummonBuff` and call it from BOTH paths,
+so a risen Beast takes the queued buff too. Regression test added in `beastBatchAug12.test.ts`. Gates all green
+(typecheck / lint / 4953 tests / build:web).
+
 ## 2026-08-12 — Art re-wire from the source folder (`npm run art:wire`)
 
 Ran the strict-name-match art pipeline against `C:/Game Assets/Ascent Art` (the owner's authored art, updated

@@ -162,6 +162,17 @@ export function simulate(
   const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number }[]> = { player: [], enemy: [] };
+  /** Consume ONE queued Wolvie next-summon buff for `side` if this body matches its tribe (FIFO, so two Wolvies
+   *  pay the next two matching summons). Called from BOTH the normal summon chokepoint AND the Rise re-slot — a
+   *  Rise re-enters play as a summon (owner ruling 2026-07-13), so it is "the next Beast you summon" too. */
+  function applyNextSummonBuff(minion: Minion, side: Side): void {
+    if (minion.dead || nextSummonBuffs[side].length === 0) return;
+    const i = nextSummonBuffs[side].findIndex((b) =>
+      minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe);
+    if (i < 0) return;
+    const b = nextSummonBuffs[side].splice(i, 1)[0]!;
+    ctx.buff(minion, b.attack, b.health, 'Wolvie');
+  }
   /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
   const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
@@ -1187,16 +1198,9 @@ export function simulate(
       fireTrigger('runeJungle', side);
       ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
     }
-    // WOLVIE (Echo): consume ONE queued next-summon buff for this side if this body matches its tribe. FIFO, so
-    // two Wolvies pay the next two matching summons. Applied after auras/Savagery so it stacks on the final body.
-    if (!minion.dead && nextSummonBuffs[side].length > 0) {
-      const i = nextSummonBuffs[side].findIndex((b) =>
-        minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe);
-      if (i >= 0) {
-        const b = nextSummonBuffs[side].splice(i, 1)[0]!;
-        ctx.buff(minion, b.attack, b.health, 'Wolvie');
-      }
-    }
+    // WOLVIE (Echo): a queued next-summon buff pays this body if its tribe matches. Applied after auras/Savagery
+    // so it stacks on the final body. (The Rise path calls the same helper — see killOrReborn.)
+    applyNextSummonBuff(minion, side);
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
     // the placed body inline right after this returns — so the token summons, then swings, before the next
@@ -1608,6 +1612,7 @@ export function simulate(
       nextStep(); // the body's return is its own moment, after the rattle's summons
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
       applyTribeAuras(minion); // a Reborn Beast inherits Kennelmaster's aura too ("summoned in any way")
+      applyNextSummonBuff(minion, minion.side); // …and a Rise is "the next Beast you summon" for Wolvie's Echo
       // A Rise IS a summon (owner ruling 2026-07-13): count it toward "Summon N in combat" quests (Forsaken Will,
       // Pack Mentality, …) — the body re-enters play, so it summons. Player-side only; mirrors placeSummon's tally.
       // NOT an onSummon broadcast: Rise deliberately doesn't re-fire onSummon effects — this is the quest count only.

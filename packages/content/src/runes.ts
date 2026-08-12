@@ -1917,7 +1917,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Kobold Bebes',
     cost: 6,
     epic: true,
-    text: 'Get a **Kobabyboldies** with **Taunt** and **Rise**.',
+    text: 'Get a **Kobebes** with **Taunt** and **Rise**.',
     previewCards: ['k_kobabyboldies'],
     reward: { kind: 'grant', cards: ['k_kobabyboldies'], grantKeywords: ['T', 'R'] },
     sets: ['set2'],

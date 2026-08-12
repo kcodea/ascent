@@ -551,7 +551,7 @@ export type EffectFactoryId =
   | 'rallyPlayRubiesTargets' // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
   | 'deathrattleRubyStatGain' // Set 2 — Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
-  | 'deathrattlePlayRubiesTribe' // Set 2 — Kobabyboldies (Echo): on death, play N Rubies on each friendly `tribe`
+  | 'deathrattlePlayRubiesTribe' // Set 2 — Kobebes (Echo): on death, play N Rubies on each friendly `tribe`
   | 'onTribePlayedBuffSelfPerSpell' // Set 2 — Herzog: +N/+N when you play a `tribe`; N = base + floor(spellsCast/per)
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies

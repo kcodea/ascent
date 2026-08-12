@@ -71,26 +71,6 @@ export const BEASTS: CardDef[] = [
     text: '**Slaughter:** your Shop spells permanently gain **+1/+1**.',
   },
   {
-    // A tempo Beast that mills spells: throws one to hand whenever it scores a kill (Slaughter). The random
-    // spell obeys the current shop tier (via ctx.grantRandomSpell at settle). The Rally half was cut in the
-    // 2026-07-21 balance pass — killing is now the only way to mill.
-    id: 'badgington',
-    name: 'Badgington',
-    tribe: 'beast',
-    tier: 4,
-    attack: 5,
-    health: 5,
-    keywords: ['RL'],
-    // Owner rework 2026-08-11: back to the simple "Rally: get a random Shop Spell." `rallyGrantSpell` is the
-    // shared Rally spell-grant (Perfect Core's), which draws a random non-token spell from the run pool, routes
-    // it through the combat→hand carry-back, and doubles on golden.
-    effects: [
-      { on: 'onAttack', do: 'rallyGrantSpell' },
-    ],
-    text: '**Rally:** get a random **Shop Spell**.',
-    goldenText: '**Rally:** get **2** random **Shop Spells**.',
-  },
-  {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.
     // `token: true` keeps it out of the shop pool + the "random Beast" grants (it's reward-exclusive). No combat
     // effect; the live sell value surfaces via cardText's trailForagerText on every surface.
@@ -231,22 +211,6 @@ export const BEASTS: CardDef[] = [
 
   // --- Final beasts (2026-06-24) — combat→run carry-backs (Sporebat, Gryphon) + a dual-surface summon
   //     engine (Mama Bear). ---
-  {
-    // Defensive value engine: a Taunt body that, on death, hands you a random tavern-tier spell. Golden → 2.
-    id: 'sporebat',
-    name: 'Sporebat',
-    tribe: 'beast',
-    tier: 4,
-    attack: 4,
-    health: 3,
-    keywords: ['T'],
-    // Owner rework 2026-08-07: it stores the run's LAST-cast Shop spell and re-casts it on death. The stored
-    // spell is run-level (`lastSpellCastId`, snapshot-captured for served boards); a targeted spell picks a
-    // random friendly Beast, an untargeted one simply casts (owner ruling). Golden casts twice.
-    effects: [{ on: 'onDeath', do: 'deathrattleCastLastSpell' }],
-    text: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast.',
-    goldenText: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast **twice**.',
-  },
   {
     // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap
     // keeps a Taunt that soaks a whole board from rolling unlimited refreshes). Golden banks 2 per hit.

@@ -125,6 +125,7 @@ export function simulate(
   };
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const rightmostSlotGain = { attack: 0, health: 0 }; // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
   const magneticBuffGain = { attack: 0, health: 0 }; // permanent Attachment enchant from this combat (Chorus Engine)
   const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
@@ -796,6 +797,10 @@ export function simulate(
       }
       // NO `sc` telegraph here on purpose: the `tribeAura` emit above ALREADY drives the board aura-wash in the
       // replay, so adding one would double-cue the same gain. The Imp path was never silent — only the Shop one.
+    },
+    grantRightmostSlotBuff: (attack, health, side) => {
+      // Player-side only — the enemy shop is regenerated each wave, so its slot buff would never be read.
+      if (side === 'player') { rightmostSlotGain.attack += attack; rightmostSlotGain.health += health; }
     },
     grantMagneticBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
@@ -3179,6 +3184,7 @@ export function simulate(
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    playerRightmostSlotBuff: rightmostSlotGain.attack > 0 || rightmostSlotGain.health > 0 ? { ...rightmostSlotGain } : undefined,
     playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,
     playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,

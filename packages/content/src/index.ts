@@ -95,6 +95,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
  */
 const IMPLICIT_REF_EFFECTS: Record<string, readonly string[]> = {
   summonImps: ['impscrap'],                      // Imp Wrangler
+  avengeSummonImps: ['impscrap'],                // Endless Overseer (Avenge summon, rework 2026-08-12)
   rallySummonImpBuffImps: ['impscrap'],          // Errand Fiend (Rally rework 2026-08-04)
   deathrattleImpsOverflowGrant: ['impscrap'],    // Legion Shepherd
   onImpDeathSummonImp: ['impscrap'],

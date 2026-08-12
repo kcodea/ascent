@@ -2732,6 +2732,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Feastmaster Vhal (owner rework 2026-08-12) — every `every` Gold spent (the threshold is applied by
+   *  `applyGoldSpent`, so this only does the buff), give the right-most Shop minion +atk/+hp for the rest of
+   *  the run. Reuses Market Tormentor's `rightmostSlotBuff` accumulator: it grows the running total and lands
+   *  the increment on the current right-most offer, and applyShopRefreshed re-lands the total on every fresh
+   *  roll. Golden doubles the grant. */
+  goldSpentBuffRightmostSlot: (ctx, self, params) => {
+    const st = ctx.state;
+    const a = num(params.attack, 8) * gold(self);
+    const h = num(params.health, 8) * gold(self);
+    st.rightmostSlotBuff = {
+      attack: (st.rightmostSlotBuff?.attack ?? 0) + a,
+      health: (st.rightmostSlotBuff?.health ?? 0) + h,
+    };
+    const i = rightmostShopMinion(st);
+    if (i >= 0) addOfferBuff(st.shop[i]!, nameOf(self), a, h);
+  },
+
   /** Set 2 — Bob Blart (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
    *  it — the offer stays in the tavern. Deliberately not `consumeShopMinion`: no consume fires, so it doesn't
    *  feed Pactstone / Glutton / Abhorrent Horror, and the minion is still buyable. */

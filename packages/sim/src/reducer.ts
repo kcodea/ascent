@@ -2729,6 +2729,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.impBuff.attack += result.playerImpBuffGain.attack;
     s.impBuff.health += result.playerImpBuffGain.health;
   }
+  // Right Hand Hank's Echo: grow the run's right-most Shop-slot accumulator (the same total Market Tormentor
+  // feeds). The next shop roll's applyShopRefreshed re-lands it on the right-most offer.
+  if (result.playerRightmostSlotBuff) {
+    s.rightmostSlotBuff = {
+      attack: (s.rightmostSlotBuff?.attack ?? 0) + result.playerRightmostSlotBuff.attack,
+      health: (s.rightmostSlotBuff?.health ?? 0) + result.playerRightmostSlotBuff.health,
+    };
+  }
   // Chorus Engine's Rally: its Attachment enchant is permanent and reaches them "wherever they are" — the
   // same contract Scrap Herald's Battlecry already has, so it is applied the same way rather than through a
   // second, subtly different path. Combat could only touch the UNWELDED Attachments still on the field; this

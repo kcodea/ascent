@@ -617,16 +617,6 @@ export const RUNES: RuneDef[] = [
     text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per run.',
     reward: { kind: 'runeGoldenSplinter', at: 15, tier: 5 },
   },
-  {
-    // Pure data: the existing grant reward already carries `grantKeywords`, so the Badger is a Badgington
-    // handed over with Flurry (W) and Ward (DS) stamped on.
-    id: 'rune_badger',
-    name: 'Rune of the Badger',
-    cost: 5,
-    text: 'Get a **Badgington** with **Flurry** and **Ward**.',
-    previewCards: ['badgington'], // text names it — the forge hover shows the card
-    reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] },
-  },
   // ── the 2026-08-07 owner batch 4 (tranche 1: the pattern-reuse nine) ──
   {
     // Reuses the threshold engine with a new `consume` meter.
@@ -730,13 +720,6 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
     reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
-  },
-  {
-    id: 'rune_spellhide',
-    name: 'Rune of Spellhide',
-    cost: 4,
-    text: 'The first stat-granting **Shop spell** you cast on a **Beast** each turn is cast on it again at **Start of Combat**.',
-    reward: { kind: 'runeSpellhide' },
   },
   {
     id: 'rune_spellmarket',
@@ -1000,17 +983,6 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeGemscript' },
     sets: ['set2'], // Rubies
-  },
-  {
-    // Doubles Runebloom Matriarch's per-spell trigger — recruit-phase, where the card actually fires.
-    id: 'rune_matriarch',
-    name: 'Rune of the Matriarch',
-    cost: 5,
-    epic: true,
-    text: 'Your **Runebloom Matriarchs** trigger spells in combat an **additional time**.',
-    previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeMatriarch' },
-    sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
   },
   {
     id: 'rune_stormcalling',
@@ -1726,15 +1698,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeCorruptedTome' },
   },
   {
-    id: 'rune_groveweaver',
-    name: 'Rune of the Groveweaver',
-    cost: 6,
-    epic: true,
-    text: 'When your **Groveweavers** buff a friendly Beast, they also buff **themselves**.',
-    previewCards: ['b2_groveweaver'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeGroveweaver' },
-  },
-  {
     id: 'rune_conduit',
     name: 'Rune of the Conduit',
     cost: 5,
@@ -1966,6 +1929,48 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-08-12 owner archive batch (each retired alongside its subject minion, except Spellhide) ─────────
+  {
+    // Archived 2026-08-12 (owner) alongside Groveweaver.
+    id: 'rune_groveweaver',
+    name: 'Rune of the Groveweaver',
+    cost: 6,
+    epic: true,
+    text: 'When your **Groveweavers** buff a friendly Beast, they also buff **themselves**.',
+    previewCards: ['b2_groveweaver'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeGroveweaver' },
+  },
+  {
+    // Archived 2026-08-12 (owner) alongside Runebloom Matriarch.
+    // Doubles Runebloom Matriarch's per-spell trigger — recruit-phase, where the card actually fires.
+    id: 'rune_matriarch',
+    name: 'Rune of the Matriarch',
+    cost: 5,
+    epic: true,
+    text: 'Your **Runebloom Matriarchs** trigger spells in combat an **additional time**.',
+    previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeMatriarch' },
+    sets: ['set2'], // Runebloom Matriarch is a set-2 Beast
+  },
+  {
+    // Archived 2026-08-12 (owner) alongside Badgington.
+    // Pure data: the existing grant reward already carries `grantKeywords`, so the Badger is a Badgington
+    // handed over with Flurry (W) and Ward (DS) stamped on.
+    id: 'rune_badger',
+    name: 'Rune of the Badger',
+    cost: 5,
+    text: 'Get a **Badgington** with **Flurry** and **Ward**.',
+    previewCards: ['badgington'], // text names it — the forge hover shows the card
+    reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] },
+  },
+  {
+    // Archived 2026-08-12 (owner). Its `runeSpellhide` reward stays wired for saved runs that hold it.
+    id: 'rune_spellhide',
+    name: 'Rune of Spellhide',
+    cost: 4,
+    text: 'The first stat-granting **Shop spell** you cast on a **Beast** each turn is cast on it again at **Start of Combat**.',
+    reward: { kind: 'runeSpellhide' },
+  },
   {
     // Archived 2026-08-08 (owner) alongside Scavvers itself — with the card out of every set pool the rune
     // had nothing left to modify. The def stays so a saved run holding it still resolves through `RUNE_INDEX`.

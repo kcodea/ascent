@@ -537,38 +537,43 @@ describe('set 2 — Scavvers (owner rework 2026-08-07: Echo triggers an adjacent
   });
 });
 
-describe('set 2 — Menagerie Mammoth (owner rework 2026-08-07: Avenge 3, cast a random hand spell)', () => {
-  it('wiring: T5 6/6, the summon-buff engine is gone', () => {
+describe('set 2 — Menagerie Mammoth (owner rework 2026-08-12: Echo, summon 3 random other Beasts)', () => {
+  it('wiring: T5 6/6, Echo summons random Beasts (the hand-caster is gone)', () => {
     const d = CARD_INDEX['b2_mammoth']!;
     expect([d.tier, d.attack, d.health]).toEqual([5, 6, 6]);
-    expect(d.effects.some((e) => e.do === 'avengeCastRandomHandSpell')).toBe(true);
-    expect(d.effects.some((e) => e.do === 'onSummonTribeBuffImproveSelf')).toBe(false);
+    const e = d.effects.find((x) => x.do === 'deathrattleSummonRandomTribe');
+    expect(e, 'no random-Beast Echo wired').toBeDefined();
+    expect(e!.on).toBe('onDeath');
+    expect(e!.params).toMatchObject({ tribe: 'beast', count: 3, excludeSelf: true });
+    expect(d.effects.some((x) => x.do === 'avengeCastRandomHandSpell'), 'old hand-caster gone').toBe(false);
   });
 
-  it('every 3 friendly deaths it casts a random spell from the hand snapshot (kept, not consumed)', () => {
-    // Three 1-hp strays die to the wall → one Avenge(3) proc → a Growth cast (the only hand spell).
+  // Only the Mammoth's OWN summons (a summoned Beast could cascade its own Echo); the event's `source` is the
+  // summoner's uid.
+  const summonedBy = (r: ReturnType<typeof simulate>, uid: string): string[] =>
+    (r.events.filter((e) => e.type === 'summon' && (e as { source?: string }).source === uid) as { minion: { cardId: string } }[])
+      .map((e) => e.minion.cardId);
+
+  const mammothUid = (r: ReturnType<typeof simulate>): string =>
+    r.initial.player.find((m) => m.cardId === 'b2_mammoth')!.uid;
+
+  it('on death, summons 3 random Beasts — and never another Mammoth', () => {
     const r = simulate(
-      [
-        { cardId: 'b2_mammoth', attack: 6, health: 4000, sourceUid: 'MM' },
-        { cardId: 'stray', attack: 1, health: 1 }, { cardId: 'stray', attack: 1, health: 1 },
-        { cardId: 'stray', attack: 1, health: 1 },
-      ],
-      [{ cardId: 'omen', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'], handSpellIds: ['growth'] }), combatSide({ tier: 1 }));
-    expect(r.events.some((e) => e.type === 'sc' && /Menagerie Mammoth casts Growth/.test(e.text)), 'no cast').toBe(true);
-    expect(r.playerSpellsCast ?? 0).toBeGreaterThan(0);
+      [{ cardId: 'b2_mammoth', attack: 6, health: 1, sourceUid: 'MM' }],
+      [{ cardId: 'sandbag', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const summoned = summonedBy(r, mammothUid(r));
+    expect(summoned.length, 'three bodies from the Mammoth').toBe(3);
+    expect(summoned.every((id) => CARD_INDEX[id]?.tribe === 'beast' || CARD_INDEX[id]?.tribe2 === 'beast'), 'all Beasts').toBe(true);
+    expect(summoned.includes('b2_mammoth'), 'never summons another Mammoth').toBe(false);
   });
 
-  it('an empty (or tavern-only) hand is a clean no-op — no cast is counted', () => {
+  it('a GILDED Mammoth summons 6', () => {
     const r = simulate(
-      [
-        { cardId: 'b2_mammoth', attack: 6, health: 4000, sourceUid: 'MM' },
-        { cardId: 'stray', attack: 1, health: 1 }, { cardId: 'stray', attack: 1, health: 1 },
-        { cardId: 'stray', attack: 1, health: 1 },
-      ],
-      [{ cardId: 'omen', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['beast'], handSpellIds: ['displacement'] }), combatSide({ tier: 1 }));
-    expect(r.playerSpellsCast ?? 0).toBe(0);
+      [{ cardId: 'b2_mammoth', attack: 6, health: 1, sourceUid: 'MM', golden: true }],
+      [{ cardId: 'sandbag', attack: 60, health: 40000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    expect(summonedBy(r, mammothUid(r)).length).toBe(6);
   });
 });
 

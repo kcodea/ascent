@@ -72,23 +72,6 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
   },
   {
-    // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.
-    id: 'b2_groveweaver',
-    name: 'Groveweaver',
-    tribe: 'beast',
-    tier: 5,
-    attack: 4,
-    health: 8,
-    keywords: [],
-    effects: [
-      // Owner balance 2026-08-04: the base grant is +3/+3 (was +2/+2); each spell still improves it +2/+2.
-      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 3, health: 3, step: 2 } },
-      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
-    ],
-    text: 'When you summon a Beast, give it **+3/+3**. Improve this by **+2/+2** when you cast a Shop spell.',
-    goldenText: 'When you summon a Beast, give it **+6/+6**. Improve this by **+4/+4** when you cast a Shop spell.',
-  },
-  {
     // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat
     // +5/+5 aura to "+1/+1 then DOUBLE", so it scales with whatever the token was already worth. `SC` dropped
     // from keywords — it's an onSummon watcher now, not a Start of Combat.
@@ -137,9 +120,9 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Rally:** trigger your left-most **Echo** twice.',
   },
   {
-    // Owner rework 2026-08-07: the summon-buff engine is out (and Rune of the Mammoth retires with it —
-    // archived). It is a hand-caster now: every 3 friendly deaths it casts a random spell from your hand,
-    // through the combat resolver — kept, not consumed, like Quil's. Targeted spells pick a random friendly.
+    // Owner rework 2026-08-12: a summon engine again — Echo: summon 3 random OTHER Beasts, drawn from the run's
+    // set pool (`excludeSelf` keeps it from summoning more Mammoths). Golden doubles the count to 6 via
+    // `deathrattleSummonRandomTribe`'s built-in `mul(self)`.
     id: 'b2_mammoth',
     name: 'Menagerie Mammoth',
     tribe: 'beast',
@@ -147,9 +130,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeCastRandomHandSpell', params: { count: 3 } }],
-    text: '**Avenge (3):** cast a random spell in your hand.',
-    goldenText: '**Avenge (3):** cast a random spell in your hand **twice**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomTribe', params: { tribe: 'beast', count: 3, excludeSelf: true } }],
+    text: '**Echo:** summon **3** random other **Beasts**.',
+    goldenText: '**Echo:** summon **6** random other **Beasts**.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4
@@ -182,22 +165,6 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scCastLeftmostHandSpell' }],
     text: '**Start of Combat:** cast the left-most spell in your hand on adjacent Beasts.',
     goldenText: '**Start of Combat:** cast the left-most spell in your hand on adjacent Beasts **twice**.',
-  },
-  {
-    // The top-end spell payoff. Owner rework 2026-08-07: instead of paying out PER cast, it multiplies the
-    // casts themselves — every Shop Spell your board casts mid-fight resolves an extra time. It reads the
-    // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.
-    // Start of Combat, so the grant is locked in and does not retract if the Matriarch dies.
-    id: 'b2_runebloom',
-    name: 'Runebloom Matriarch',
-    tribe: 'beast',
-    tier: 6,
-    attack: 5,
-    health: 9,
-    keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scGrantSpellCastExtra', params: { extra: 1 } }],
-    text: 'Your **Shop Spells** cast an extra time in combat.',
-    goldenText: 'Your **Shop Spells** cast **2** extra times in combat.',
   },
   {
     // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both
@@ -243,5 +210,34 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerAdjacentShouts', params: {} }],
     text: '**End of Turn:** trigger adjacent **Shouts**.',
     goldenText: '**End of Turn:** trigger adjacent **Shouts** **twice**.',
+  },
+  {
+    // Owner add 2026-08-12. Echo: summon a random Beast from the run pool and STAMP it 7/7 — a fixed body
+    // whatever it rolls (`deathrattleSummonRandomTribeSetStats`). Golden doubles the STATLINE (one 14/14),
+    // not the count.
+    id: 'b2_bullseye',
+    name: 'Bullseye',
+    tribe: 'beast',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomTribeSetStats', params: { tribe: 'beast', count: 1, stat: 7 } }],
+    text: '**Echo:** summon a random **Beast** and set its stats to **7/7**.',
+    goldenText: '**Echo:** summon a random **Beast** and set its stats to **14/14**.',
+  },
+  {
+    // Owner add 2026-08-12. A combat-only summon payoff: every Beast you summon mid-fight gets +6/+6 flat
+    // (`onSummonTribeBuffFlat` has no recruit twin, so shop summons don't trigger it). Golden gives +12/+12.
+    id: 'b2_beardsley',
+    name: 'Beardsley',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 6, health: 6 } }],
+    text: 'When you summon a **Beast** in combat, give it **+6/+6**.',
+    goldenText: 'When you summon a **Beast** in combat, give it **+12/+12**.',
   },
 ];

@@ -141,6 +141,6 @@ describe('projectEndOfTurnSteps per-beat FX capture', () => {
     const { fx } = projectEndOfTurnSteps(s);
     const s1 = fx.flatMap((f) => f.shopBuff ?? []).find((b) => b.uid === 's1');
     expect(s1, 'the right-most offer grew this beat').toBeDefined();
-    expect([s1!.attack, s1!.health]).toEqual([4, 2]); // Tormentor's +4/+2 Shout, re-fired by Moira
+    expect([s1!.attack, s1!.health]).toEqual([7, 7]); // Tormentor's +7/+7 Shout, re-fired by Moira
   });
 });

@@ -104,12 +104,13 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     // THIRD SHAPE, and this one is the owner's full spec (2026-07-31): a SHOUT that buffs the right-most Shop
     // SLOT for the rest of the run. The buff lands on the current shop when played, RE-lands on every fresh
-    // roll's right-most, STACKS across plays (two normals + a gilded = +16/+16), and does NOT need the
+    // roll's right-most, STACKS across plays (two normals + a gilded = +28/+28), and does NOT need the
     // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
-    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 2 } }],
-    text: '**Shout:** the **right-most Shop slot** gets **+4/+2** for the rest of the run. Stacks.',
-    goldenText: '**Shout:** the **right-most Shop slot** gets **+8/+4** for the rest of the run. Stacks.',
+    // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14).
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 7, health: 7 } }],
+    text: '**Shout:** the **right-most Shop slot** gets **+7/+7** for the rest of the run. Stacks.',
+    goldenText: '**Shout:** the **right-most Shop slot** gets **+14/+14** for the rest of the run. Stacks.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
@@ -196,18 +197,6 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Echo:** summon **4 Imps**. Your Imps gain **+4/+4** everywhere for each one that had no room.',
   },
   {
-    id: 'dm_tallymonger',
-    name: 'Void Curator',
-    tribe: 'demon',
-    tier: 5,
-    attack: 6,
-    health: 6,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffSpellsAndImps', params: { attack: 1, health: 1, impAttack: 3, impHealth: 1 } }],
-    text: '**End of Turn:** give your **Shop Spells +1/+1** and your **Imps +3/+1**.',
-    goldenText: '**End of Turn:** give your **Shop Spells +2/+2** and your **Imps +6/+2**.',
-  },
-  {
     id: 'dm_avarice',
     name: 'Avarice Incarnate',
     tribe: 'demon',
@@ -222,7 +211,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'The **first 2 times** another friendly **Demon** Consumes a Shop minion each turn, this gains **the same stats** and grants **3 Gold**.',
   },
   {
-    // Its NEIGHBOURS eat, so the stats land on them — seating is the card.
+    // Owner rework 2026-08-12: a Gold-sink payoff. Every 10 Gold spent, permanently buff the right-most Shop
+    // minion — the `every` threshold is metered per-instance by `applyGoldSpent`; the buff reuses Market
+    // Tormentor's `rightmostSlotBuff` accumulator. Golden gives +16/+16.
     id: 'dm_vhal',
     name: 'Feastmaster Vhal',
     tribe: 'demon',
@@ -230,17 +221,13 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnSelfAndNeighboursConsume', params: { count: 1 } }],
-    // The effect has always included SELF (see `endOfTurnSelfAndNeighboursConsume`); the text omitted it.
-    // "Adjacent DEMONS" — the effect has always filtered neighbours to Demons; the text said "minions"
-    // (owner report 2026-08-01).
-    text: '**End of Turn:** this minion and adjacent **Demons** each Consume a random Shop minion.',
-    goldenText: '**End of Turn:** this minion and adjacent **Demons** each Consume **2** random Shop minions.',
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRightmostSlot', params: { every: 10, attack: 8, health: 8 } }],
+    text: 'When you spend **10 Gold**, give the **right-most Shop minion +8/+8** permanently.',
+    goldenText: 'When you spend **10 Gold**, give the **right-most Shop minion +16/+16** permanently.',
   },
   {
-    // Owner change 2026-07-25. Was "your Imps have an Echo this combat"; now a capped death trigger, which also
-    // catches Imps summoned MID-combat (a graft can only reach bodies that already exist). The budget is what
-    // bounds the chain — a replacement Imp dying can pay out, but only while it lasts.
+    // Owner rework 2026-08-12: an Avenge summoner — every 4 friendly deaths, summon an Imp with Taunt and Ward
+    // (`avengeSummonImps`). No keyword pill, matching the other Avenge cards; golden summons 2.
     id: 'dm_overseer',
     name: 'Endless Overseer',
     tribe: 'demon',
@@ -248,9 +235,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 9,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scGrantRightmostEcho', params: { count: 2 } }],
-    text: '**Start of Combat:** give your right-most minion **"Echo:** summon **2 Imps** with **Ward"**.',
-    goldenText: '**Start of Combat:** give your right-most minion **"Echo:** summon **4 Imps** with **Ward"**.',
+    effects: [{ on: 'avenge', do: 'avengeSummonImps', params: { count: 4, summon: 1 } }],
+    text: '**Avenge (4):** summon an **Imp** with **Taunt** and **Ward**.',
+    goldenText: '**Avenge (4):** summon **2 Imps** with **Taunt** and **Ward**.',
   },
   {
     id: 'dm_maw',
@@ -295,5 +282,20 @@ export const SET2_DEMONS: CardDef[] = [
         effects: [] },
     ],
     text: '**Choose One:** your Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
+  },
+  {
+    // Owner add 2026-08-12. A glass-cannon 4/1 built to die: its Echo feeds your shop. The buff is a combat→run
+    // carry-back (`grantRightmostSlotBuff`) onto Market Tormentor's right-most-slot accumulator, so it survives
+    // into the next recruit phase and re-lands on every fresh roll. Golden gives +12/+6.
+    id: 'dm_hank',
+    name: 'Right Hand Hank',
+    tribe: 'demon',
+    tier: 2,
+    attack: 4,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 6, health: 3 } }],
+    text: '**Echo:** give the **right-most Shop minion +6/+3** permanently.',
+    goldenText: '**Echo:** give the **right-most Shop minion +12/+6** permanently.',
   },
 ];

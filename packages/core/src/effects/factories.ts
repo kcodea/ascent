@@ -1482,6 +1482,30 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.summon(self.side, card, self.uid, undefined, self.golden, true);
   },
 
+  /** Endless Overseer (owner rework 2026-08-12) — Avenge (X): every X friendly deaths, summon `summon` Imp(s)
+   *  with Taunt and Ward (the shared `impscrap` token; keywords stamped at summon). Golden summons 2. */
+  avengeSummonImps: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4)); // the Avenge threshold
+    const seen = avengeCountFor(self, count);
+    if (seen <= 0 || seen % x !== 0) return;
+    const imp = ctx.getCard('impscrap');
+    if (!imp) return;
+    for (let i = 0; i < num(params.summon, 1) * mul(self); i++) {
+      ctx.summon(self.side, imp, self.uid, ['T', 'DS'], false, false);
+    }
+  },
+
+  /** Right Hand Hank (owner add 2026-08-12) — Echo: give the right-most Shop minion +atk/+hp PERMANENTLY.
+   *  A combat death feeds the recruit-phase shop-slot accumulator (`RunState.rightmostSlotBuff`, the same total
+   *  Market Tormentor grows) through the `grantRightmostSlotBuff` carry-back — player-side only, since the enemy
+   *  has no shop. Golden doubles. */
+  deathrattleBuffRightmostSlot: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.grantRightmostSlotBuff?.(num(params.attack, 6) * mul(self), num(params.health, 3) * mul(self), self.side);
+  },
+
   /** Deathrattle (Skullblade): permanently raise the run-wide spell power by +atk/+hp (golden doubles).
    *  Carried back via `CombatResult.playerSpellPower` (player-side only — `grantSpellPower` guards it),
    *  then applied to the run's spell bonus in settleCombat. Each Skullblade death stacks another +atk/+hp. */
@@ -3467,6 +3491,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a > 0 || h > 0) ctx.buff(self, a, h, self.uid);
   },
 
+  /** Beardsley (owner add 2026-08-12) — when you summon a `tribe` minion IN COMBAT, give it +atk/+hp flat
+   *  (golden doubles). Combat-only by construction: there is no recruit twin, so a shop-phase summon never
+   *  fires it (unlike Groveweaver's `summonBuffTribeAsym`, which is wired in both phases). */
+  onSummonTribeBuffFlat: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = str(params.tribe);
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
+    const g = mul(self);
+    const a = num(params.attack, 6) * g;
+    const h = num(params.health, 6) * g;
+    if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
+  },
+
   /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).
    *
    *  Prefers minions that DON'T already have a shield — handing Ward to a shielded body is a wasted grant, and
@@ -3483,16 +3521,35 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Menagerie Mammoth (Echo): summon `count` RANDOM minions of `tribe`, drawn from the run's set pool
    *  (golden doubles the count). Seeded via the combat RNG so replays stay faithful. Tokens are excluded — a
-   *  random summon should give you real bodies, not another card's summon-fodder. */
+   *  random summon should give you real bodies, not another card's summon-fodder. `excludeSelf` drops this
+   *  card's own id from the pool ("3 random OTHER Beasts" — a Mammoth never summons more Mammoths). */
   deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe);
+    const pool = ctx.poolCards(self.side).filter(
+      (c) => !c.token && !c.spell && (!params.excludeSelf || c.id !== self.cardId)
+        && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+    );
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 2) * mul(self); i++) {
+      ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
+    }
+  },
+
+  /** Bullseye (owner add 2026-08-12) — Echo: summon `count` random `tribe` minion(s) from the run's set pool
+   *  and SET each one's stats to `stat`/`stat`. Golden doubles the STATLINE, not the count (a gilded Bullseye
+   *  summons one 14/14). Tokens/spells excluded, like `deathrattleSummonRandomTribe`. */
+  deathrattleSummonRandomTribeSetStats: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
     const pool = ctx.poolCards(self.side).filter(
       (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
-    for (let i = 0; i < num(params.count, 2) * mul(self); i++) {
-      ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
+    const s = num(params.stat, 7) * mul(self);
+    for (let i = 0; i < num(params.count, 1); i++) {
+      ctx.summon(self.side, ctx.rng.pick(pool), self.uid, undefined, false, false,
+        { attack: s, health: s, maxHealth: s });
     }
   },
 

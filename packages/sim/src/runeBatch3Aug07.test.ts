@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** The third 2026-08-07 owner batch: the Badger (Basic), the Groveweaver and the Conduit (Epic). */
@@ -14,13 +14,14 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 
 describe('the 3 defs ship as specced', () => {
   it('costs, forges and set scoping', () => {
-    expect([rune('rune_badger').cost, !!rune('rune_badger').epic]).toEqual([5, false]);
-    expect([rune('rune_groveweaver').cost, rune('rune_groveweaver').epic]).toEqual([6, true]);
+    // Rune of the Badger + Rune of the Groveweaver were archived 2026-08-12 (alongside Badgington / Groveweaver);
+    // only the Conduit still stocks the forge.
+    expect(rune('rune_badger'), 'Badger archived').toBeUndefined();
+    expect(rune('rune_groveweaver'), 'Groveweaver archived').toBeUndefined();
+    expect(ARCHIVED_RUNES.some((r) => r.id === 'rune_badger' || r.id === 'rune_groveweaver')).toBe(true);
     expect([rune('rune_conduit').cost, rune('rune_conduit').epic]).toEqual([5, true]);
-    // Only the Conduit is Ruby-gated; the other two work in either set.
+    // Only the Conduit is Ruby-gated.
     expect(rune('rune_conduit').sets).toEqual(['set2']);
-    expect(rune('rune_badger').sets).toBeUndefined();
-    expect(rune('rune_groveweaver').sets).toBeUndefined();
   });
 });
 

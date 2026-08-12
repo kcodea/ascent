@@ -4,7 +4,7 @@
 
 **Goal:** Give each of the five Set-2 Dwarven Ale shop spells its own bespoke cast FX, fired from the point the card is released.
 
-**Architecture:** A new `spellCast` recruit-moment kind carries the release point; a `spellCastMoment(cardId, point)` builder + a point-anchored branch in `runRecruitMomentCues` fire the per-card bound def at the `cursor` anchor. The cast site in `Recruit.tsx` emits the moment and suppresses the generic spark for bound spells. Then five defs are authored in the workbench's pinned-cursor scenario and bound per ale. Entirely presentation-layer — no sim/content changes.
+**Architecture:** A new `spellCast` recruit-moment kind carries the release point; a `spellCastMoment(cardId, point, recipients?)` builder + a branch in `runRecruitMomentCues` fire the per-card bound def. Point-only ales (Golden, Reinforcing) fire once at the `cursor`; the three BUFF ales fire the def once per buffed minion, all simultaneously, travelling cursor→minion, and suppress the generic buff pop for those minions (Task 4). The cast site in `Recruit.tsx` emits the moment and suppresses the generic spark for bound spells. Defs are authored in the workbench and bound per ale. Entirely presentation-layer — no sim/content changes.
 
 **Tech Stack:** React + Zustand UI (`@game/ui`), the FX def/binding/cue system under `packages/ui/src/fx` + `packages/ui/src/choreo`, the FX workbench (pinned-cursor scenario), Vitest.
 
@@ -241,6 +241,121 @@ Expected: all green.
 - [ ] **Step 5: Update docs + publish**
 
 Prepend a `docs/devlog.md` entry (what changed, why, how verified), move the item out of `docs/roadmap.md`, refresh the README "Recent changes". Then use the FX publish flow (`npm run fx:publish -- "feat(fx): Dwarven Ale shop-cast FX"`) to open the PR.
+
+---
+
+### Task 4: Buff ales — shoot the def cursor→target(s) and suppress the generic pop
+
+**Design change (owner, 2026-08-11):** the three BUFF ales (Champion's `wo_champion`, Defensive `wo_health`, Bloody `wo_attack`) no longer fire a single point burst at the cursor. Instead the bound def fires **once per buffed minion, all simultaneously**, each travelling **from the cursor (source) to that minion (target)** and erupting on impact — and the game's generic buff-tendril pop is **suppressed** for those minions (the ale def owns their visual). Golden (`wo_mine`) and Reinforcing (`wo_reinforcement`) are unchanged (point fire at the cursor). No sim change — the buffed uids come from `recruitBuffFx`, and the cursor origin is UI-supplied.
+
+**Files:**
+- Modify: `packages/ui/src/choreo/recruitMoments.ts` (recipients arg on the builder)
+- Modify: `packages/ui/src/choreo/recruitMoments.test.ts` (recipients test)
+- Modify: `packages/ui/src/choreo/recruitCues.ts` (`runSpellCastFire` fan-out)
+- Modify: `packages/ui/src/Recruit.tsx` (read buffed uids, real measure, suppression ref + filter)
+
+**Interfaces:**
+- Consumes: `spellCastMoment`, `runRecruitMomentCues`, `bindingFor`, `restingCenterOf`, `runRef`, `useGame` (all already present).
+- Produces: `spellCastMoment(cardId, point, recipients?: RecruitRecipient[])` — `recipients` defaults to `[]` (existing 2-arg callers unaffected; the Task-1 shape test still passes).
+
+- [ ] **Step 1: Extend the builder + its test**
+
+In `recruitMoments.ts`, change the signature to `spellCastMoment(cardId: string, point: { x: number; y: number }, recipients: RecruitRecipient[] = [])` returning `{ kind: 'spellCast', sourceCardId: cardId, recipients, point }`. Add a test in `recruitMoments.test.ts`:
+
+```ts
+it('carries recipients when the cast buffed minions (trail targets)', () => {
+  const m = spellCastMoment('wo_champion', { x: 10, y: 20 }, [{ uid: 'm1', count: 1 }]);
+  expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_champion', recipients: [{ uid: 'm1', count: 1 }], point: { x: 10, y: 20 } });
+});
+```
+
+Run: `npx vitest run packages/ui/src/choreo/recruitMoments.test.ts` — the new test passes AND the Task-1 point-only test (which passes 2 args → `recipients: []`) still passes.
+
+- [ ] **Step 2: Fan out in the cue branch**
+
+Replace `runSpellCastFire` in `recruitCues.ts` with:
+
+```ts
+function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
+  const binding = bindingFor(moment.sourceCardId ?? null, 'spellCast');
+  const pt = moment.point;
+  if (!binding || !pt) return () => {};
+  const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const src = moment.sourceCardId ?? null;
+  // No targets → a single fire at the release point (Golden / Reinforcing).
+  if (moment.recipients.length === 0) {
+    playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
+    if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+    return () => {};
+  }
+  // Targets (buff ales) → one fire per buffed minion, ALL AT ONCE, each travelling cursor→minion. The buffed
+  // cards re-rendered this commit (stat change), so measure inside one rAF for post-layout geometry.
+  const raf = requestAnimationFrame(() => {
+    for (const r of moment.recipients) {
+      const c = ctx.measure(r.uid);
+      if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
+      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid } });
+    }
+    if (binding.sfx !== undefined) sfx[binding.sfx]?.(); // one sound for the volley, not one per target
+  });
+  return () => cancelAnimationFrame(raf);
+}
+```
+
+- [ ] **Step 3: Cast site — read buffed uids, pass a real measure, claim suppression**
+
+In `Recruit.tsx`, add a component-level ref near the other FX refs (e.g. beside `prevFxSeq`):
+
+```ts
+// The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
+// them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
+const spellCastOwnedRef = useRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() });
+```
+
+Replace the `fireSpellCastFx` helper (from Task 2) with:
+
+```ts
+const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
+  if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+  const st = useGame.getState().run;
+  // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
+  const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
+  if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
+  runRecruitMomentCues(spellCastMoment(cardId, pt, targets.map((uid) => ({ uid, count: 1 }))), {
+    cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+    measure: (uid) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+  });
+};
+```
+
+- [ ] **Step 4: Suppress the generic pop for ale-owned minions**
+
+In the buff-FX replay effect (`Recruit.tsx`, the `useEffect` on `[run.recruitFxSeq]` ~line 3032), extend the existing `rubyOwned` filter to also drop ale-owned uids:
+
+```ts
+    const rubyOwned = new Set((run.rubyLandedFx ?? []).map((l) => l.uid));
+    const aleOwned = spellCastOwnedRef.current.seq === run.recruitFxSeq ? spellCastOwnedRef.current.uids : new Set<string>();
+    const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
+    const events = owned ? run.recruitBuffFx.filter((e) => !owned.has(e.targetUid)) : run.recruitBuffFx;
+    if (events.length === 0) return;
+    replayBuffFxEvents(events);
+```
+
+- [ ] **Step 5: Gates**
+
+Run: `npm run typecheck && npx vitest run packages/ui/src/choreo/ && npm run lint`
+Expected: green. (The cue-branch + Recruit.tsx changes are DOM/timer integration — not unit-tested, consistent with the rest of `recruitCues.ts`; they are live-verified by Mike.)
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/ui/src/choreo/recruitMoments.ts packages/ui/src/choreo/recruitMoments.test.ts packages/ui/src/choreo/recruitCues.ts packages/ui/src/Recruit.tsx
+git commit -m "feat(fx): buff ales shoot the bound def cursor→target(s), suppress the generic pop"
+```
+
+- [ ] **Step 7: Live verify (Mike)**
+
+With a buff ale bound to a source→target def: cast Champion's (one trail to the leftmost) and Defensive/Bloody (three trails at once to the buffed minions); confirm each travels from the cursor, erupts on the minion, all simultaneous, and the generic buff pop is gone on those minions. Other buff sources (a Shout, a rune) keep their normal pop.
 
 ---
 

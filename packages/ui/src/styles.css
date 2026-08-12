@@ -3698,7 +3698,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* The rows + FX canvases + the control bar aren't animated, so a plain opacity transition fades them cleanly. */
 .app.combatout .zone .row,
 .app.combatout .pixifx,
-.app.combatout .combathud,
+.app.combatout .combathud-skip,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
@@ -3753,22 +3753,16 @@ body.aiming, body.aiming * { cursor: none !important; }
 .cbtns .btn.big svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
-.combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
 /* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
    (buffs aren't actionable mid-replay; it returns in recruit). The QUEST panel stays visible in combat — its
    objectives tick up live as the replay plays (the whole point of the combat quest live-tick). */
 .app.combat .buffsframe { display: none; }
-.combathud-skip { display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
+   `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
+.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 70px) * var(--scale)); top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -64px) - 142px) * var(--scale)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--acc-dk); }
-.combathud-skip:active { transform: translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
-/* combat replay-speed slider — now sits in the top-right combat HUD, beneath the Skip button */
-.combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
-.combatspeed .csl { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
-.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: calc(8 * var(--u)); -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
-.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed input[type='range']::-moz-range-thumb { width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); color: var(--acc-dk); min-width: calc(36 * var(--u)); text-align: right; font-variant-numeric: tabular-nums; }
+.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
@@ -5379,6 +5373,22 @@ svg { width: 18px; height: 18px; }
    move the verdict beside them. Gold only for the win; the rest read as neutral detail. */
 .carplace { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; color: rgba(255, 255, 255, 0.62); }
 .carplace.first { color: var(--acc); }
+
+/* Recent Games list (RecentGames.tsx) — the last 20 games across all players: portrait · name/hero · place ·
+   verdict. Reuses the .lbpage/.lbscroll page frame from the leaderboards. */
+.matchlist { display: flex; flex-direction: column; gap: 10px; }
+.matchrow { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 18px; color: #f4eee2; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; }
+.matchportrait { width: 48px; height: 48px; border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.3); display: grid; place-items: center; }
+.matchportrait img { width: 100%; height: 100%; object-fit: cover; }
+.matchportrait svg { width: 26px; height: 26px; color: #f6efe2; }
+.matchmeta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.matchname { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matchsub { font-size: 13px; color: rgba(255, 255, 255, 0.68); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rgplace { font-family: var(--font-ui); font-weight: 900; font-size: 15px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.62); }
+.rgplace.first { color: var(--acc); }
+.rgverdict { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.02em; min-width: 62px; text-align: right; }
+.rgverdict.won, .rgverdict.top4 { color: #6fe0a0; }
+.rgverdict.lost { color: #ff9a9a; }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
 /* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
@@ -7172,9 +7182,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #14111c; box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7),
     inset 0 0 0 1px rgba(255, 255, 255, 0.09); }
 .lobbyrail > * { pointer-events: auto; }
-.lobbyhead { display: flex; justify-content: space-between; align-items: baseline; flex: none;
+.lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
-.lobbyalive { color: #f4d58a; font-weight: 700; }
+/* Round + seats-left read a touch larger + bold (owner ask 2026-08-11) so the rail header carries the round HUD. */
+.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: #fff; letter-spacing: 0.05em; }
+.lobbyalive { font-size: calc(11 * var(--lfont)); font-weight: 800; color: #f4d58a; }
+/* Max-loss chip — the round's most-you-can-lose readout, moved off the removed top-left plaque. */
+.lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: #ff9a9a; }
+.lobbymax svg { width: calc(11 * var(--lfont)); height: calc(11 * var(--lfont)); color: #ff6b6b; }
 
 /* NEXT-FOE MARKER — a chip in the row, not a card above the table (owner ask 2026-07-31). The rail used to be
    two different things stacked: a big portrait card for the imminent opponent, then a list of everyone else.

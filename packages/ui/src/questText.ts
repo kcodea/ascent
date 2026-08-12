@@ -130,6 +130,7 @@ function keywordPhrase(kws: Keyword[]): string {
  * the union means a new effect fails to compile until its text is written.
  */
 const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
+  lassoing: 'End of Turn: Cast Lasso and grant a random friendly minion +2/+2',
   triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
   grantRandomShout: 'End of Turn: get a random Shout minion',
   grantAles3: 'End of Turn: get 3 random Dwarven Ales',
@@ -358,7 +359,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'runeThreshold': {
-      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', shout: 'Shouts you trigger', consume: 'Shop minions you Consume' };
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume' };
       const parts: string[] = [];
       if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
       if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);

@@ -47,18 +47,18 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Shout:** give minions in the Shop **+2/+2**.',
   },
   {
-    // Owner rework 2026-08-04: Echo → RALLY. Flurry doubles the Rally, so each combat round of attacks makes
-    // two Imps and stacks the enchant twice — the tribe's aggressive engine piece.
+    // Owner rework 2026-08-04: Echo → RALLY. (Owner 2026-08-11: Flurry removed — the Rally now fires once per
+    // attack rather than twice.)
     id: 'dm_errand',
     name: 'Errand Fiend',
     tribe: 'demon',
     tier: 2,
     attack: 1,
     health: 3,
-    keywords: ['W', 'RL'],
+    keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallySummonImpBuffImps', params: { amount: 1 } }],
-    text: '**Flurry. Rally:** summon an **Imp** and give your **Imps +1/+1**.',
-    goldenText: '**Flurry. Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
+    text: '**Rally:** summon an **Imp** and give your **Imps +1/+1**.',
+    goldenText: '**Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
   },
   {
     // The eater is the TARGET, not this card — so it can feed whichever Demon you want to grow.
@@ -159,9 +159,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_gourmand',
     name: 'Bob Blart',
     tribe: 'demon',
-    tier: 4,
-    attack: 5,
-    health: 5,
+    tier: 5, // owner balance 2026-08-11: T4 → T5
+    attack: 7,
+    health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnGainRightmostShopStats', params: { times: 1 } }],
     text: "**End of Turn:** gain the **right-most** Shop minion's stats.",
@@ -217,9 +217,9 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     // Flat Gold rather than the eaten minion's tier (owner change 2026-07-25): the tier version paid 1 Gold off
     // a Tier-1 offer, which is negligible on a Tier-6 card and swingy depending on what the shop showed.
-    effects: [{ on: 'onConsume', do: 'onConsumeGoldFlat', params: { gold: 3 } }],
-    text: 'The **first time** you Consume a Shop minion each turn, gain **3 Gold**.',
-    goldenText: 'The **first time** you Consume a Shop minion each turn, gain **6 Gold**.',
+    effects: [{ on: 'onConsume', do: 'onOtherDemonConsumeEcho', params: { gold: 3 } }],
+    text: 'The **first time** another friendly **Demon** Consumes a Shop minion each turn, this gains **the same stats** and grants **3 Gold**.',
+    goldenText: 'The **first 2 times** another friendly **Demon** Consumes a Shop minion each turn, this gains **the same stats** and grants **3 Gold**.',
   },
   {
     // Its NEIGHBOURS eat, so the stats land on them — seating is the card.
@@ -280,19 +280,20 @@ export const SET2_DEMONS: CardDef[] = [
     // pick is recorded per-instance as `chosenOption` and already rides into combat, so each printed effect
     // simply checks which branch this body became.
     effects: [
-      { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { count: 2, option: 0 } },
+      { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { option: 0 } },
       { on: 'onAttack', do: 'onImpAttackSummonCopy', params: { count: 1, option: 1 } },
     ],
     // No flavour names on the options (owner 2026-07-25) — see the note on Elderhorn. `option: 0` is still Feast
-    // and `option: 1` still Legion in the gates above; only the printed wording changed.
+    // and `option: 1` still Legion in the gates above. Owner rework 2026-08-11: Feast is now "each Demon eats one
+    // Shop minion", golden = double stats gained (not double the count).
     chooseOne: [
-      { text: '**End of Turn:** your left and right-most Demons each Consume the **2** Shop minions on their side.',
-        goldenText: '**End of Turn:** your left and right-most Demons each Consume the **4** Shop minions on their side.',
+      { text: '**End of Turn:** each of your **Demons** Consumes a Shop minion.',
+        goldenText: '**End of Turn:** each of your **Demons** Consumes a Shop minion, gaining **double** its stats.',
         effects: [] },
       { text: 'When an **Imp** attacks, summon a copy if you have room.',
         goldenText: 'When an **Imp** attacks, summon **2** copies if you have room.',
         effects: [] },
     ],
-    text: '**Choose One:** your end Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
+    text: '**Choose One:** your Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
   },
 ];

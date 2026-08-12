@@ -96,6 +96,7 @@ const RUNE_ALIASES: Record<string, string> = {
   runeofscale: 'rune_scale',             // owner ruling: the sheet's "Rune of Scale" IS Rune of Bulk Order
   runeofthemotherload: 'rune_motherlode', // misspelled in the source ("Motherload")
   spellofpillaging: 'rune_pillaging',     // authored as "Spell of..."; there is no such spell, and the rune matches
+  runeofthecaravan: 'rune_strange_caravan', // art authored as "the Caravan"; the rune is "the Strange Caravan"
 };
 
 /** Normalize for comparison: letters+digits only, lowercased. "Broad-Axe Brakka" -> "broadaxebrakka" */

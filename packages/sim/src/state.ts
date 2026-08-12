@@ -52,6 +52,8 @@ export type AuraFxTribe = 'beast' | 'demon' | 'mech' | 'undead';
 export interface ShopCard {
   uid: string;
   cardId: string;
+  /** Rune of the Bargain Bin: this offer sells for 0 once bought (stamped onto the bought minion's `sellOverride`). */
+  sellZero?: boolean;
   /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
@@ -89,6 +91,8 @@ export interface BoardCard {
   tribe: Tribe;
   attack: number;
   health: number;
+  /** Rune of the Bargain Bin: an overridden sell value (0) — read by `sellValueOf` ahead of the normal calc. */
+  sellOverride?: number;
   keywords: Keyword[];
   golden: boolean;
   /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
@@ -481,7 +485,7 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -529,6 +533,9 @@ export interface RunState {
    *  right-most minion of every fresh roll. Applied incrementally to the CURRENT shop at Shout time and in
    *  full to each new roll (`applyShopRefreshed`). */
   rightmostSlotBuff?: { attack: number; health: number };
+  /** Rune of the Display Case: the accumulated LEFT-most-slot enchant (Market Tormentor's mirror of
+   *  `rightmostSlotBuff`), re-landed on the left offer each roll by `applyShopRefreshed`. */
+  leftmostSlotBuff?: { attack: number; health: number };
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
@@ -775,7 +782,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -807,12 +814,40 @@ export interface RunState {
   runeKindling?: boolean;
   /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
   runeScales?: boolean;
+  runeLongShift?: boolean;
   /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
   runeBartering?: boolean;
   /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */
   runeTwinGilding?: boolean;
   /** Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast. */
   runeDenMother?: boolean;
+  /** Rune of the Display Case: your Market Tormentors also enchant the LEFT-most Shop slot. */
+  runeDisplayCase?: boolean;
+  /** Rune of Blart: your Bob Blarts gain BOTH the left and right-most Shop minions' stats at End of Turn. */
+  runeBlart?: boolean;
+  /** Rune of the Vaultkeeper: your Vaultkeepers also give their per-Dragon grant to an adjacent minion. */
+  runeVaultkeeper?: boolean;
+  // ── Aug-11 economy runes ──
+  runeSellersMarket?: boolean;   // sell → board +4/+3
+  runeFreshPages?: boolean;      // Start of Turn: Discover a Shop spell
+  runeStrangeCaravan?: boolean;  // Start of Turn: a random minion from an uncontrolled type
+  runeWindowShopping?: boolean;  // first 4 Refreshes each turn are free
+  runeOpenEnrollment?: boolean;  // after a Refresh, offer an extra dominant-type minion
+  runeShopkeep?: boolean;        // upgrade cost −3, repeated each End of Turn
+  runeTradeIn?: boolean;         // first sale each turn → next minion of that type costs 1 less
+  runeRestocking?: boolean;      // first buy each turn refills its slot with a same-Tier 1-Gold minion
+  runeCollector?: boolean;       // 3 types bought in a turn → Discover from one of them (once/turn)
+  runeBargainBin?: boolean;      // first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
+  /** Window Shopping: refreshes used this turn (the first 4 are free). Reset each turn. */
+  windowShopRolls?: number;
+  /** Restocking / Bargain Bin / Collector once-per-turn latches (reset each turn). */
+  restockUsedThisTurn?: boolean;
+  bargainBinUsedThisTurn?: boolean;
+  collectorUsedThisTurn?: boolean;
+  /** Trade-In: the tribe of your first sale this turn — arms a 1-Gold discount on the next minion of that type. */
+  tradeInTribe?: Tribe;
+  /** Collector: the distinct minion tribes you've bought this turn (reset each turn). */
+  typesBoughtThisTurn?: Tribe[];
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** HENCHMAN decay (owner spec 2026-08-03): Gold knocked off the hero's henchman cost so far — +3 per round
@@ -1169,7 +1204,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

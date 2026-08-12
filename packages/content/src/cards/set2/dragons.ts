@@ -50,9 +50,9 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_spellkeeper',
     name: 'Spell Warden',
     tribe: 'dragon',
-    tier: 4, // owner balance 2026-08-04: T3 → T4
-    attack: 3,
-    health: 4,
+    tier: 5, // owner balance 2026-08-11: T4 → T5
+    attack: 7,
+    health: 5,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
     text: 'After you cast your **second Shop spell** each turn, get a copy of the first.',
@@ -322,5 +322,20 @@ export const SET2_DRAGONS: CardDef[] = [
     // No flavour names (owner 2026-07-25) — its OPTIONS never carried them, but the combined card text did.
     text: '**Choose One:** your **Shouts** trigger an additional time, or your first **Shop spell** each turn casts **3 times**.',
     goldenText: '**Choose One:** gain **both** — your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
+  },
+  {
+    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A
+    // Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime Shop-Spell count: +1/+1
+    // per Dragon at base, climbing +1 every 4 Shop Spells cast this run. Live text folds in the current grant.
+    id: 'd2_herzog',
+    name: 'Vaultkeeper',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 1, per: 4 } }],
+    text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 Shop Spells** cast this game.',
+    goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 Shop Spells** cast this game.',
   },
 ];

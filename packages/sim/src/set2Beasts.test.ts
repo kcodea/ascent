@@ -22,18 +22,18 @@ describe('set 2 — Beast tribe wiring', () => {
 describe('set 2 — Packstrider', () => {
   const pk: BoardMinion = { cardId: 'b2_packstrider', attack: 2, health: 40, keywords: ['RL'], sourceUid: 'PK' };
 
-  it('Rally buffs itself by +1/+1 per Beast you control (including itself)', () => {
-    // Three Beasts on board: Packstrider + two others. Its first attack should add +3/+3 (×3 Beasts).
-    // Real Beasts (Strays) — a BoardMinion tribe override doesn't reach the combat minion, which reads its
-    // CardDef tribe, so a tribe-overridden sandbag wouldn't count.
+  it('Rally gains +1 Attack (no Health) per Beast you control, counting itself (owner rework 2026-08-11)', () => {
+    // Three Beasts on board: Packstrider + two others. Its first attack should add +3 Attack, +0 Health (×3
+    // Beasts). Real Beasts (Strays) — a BoardMinion tribe override doesn't reach the combat minion, which reads
+    // its CardDef tribe, so a tribe-overridden sandbag wouldn't count.
     const others: BoardMinion[] = [
       { cardId: 'stray', attack: 1, health: 40, sourceUid: 'B1' },
       { cardId: 'stray', attack: 1, health: 40, sourceUid: 'B2' },
     ];
     const r = simulate([pk, ...others], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 1, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    // its rally buff event: +3/+3 (one per Beast, three Beasts)
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    // its rally buff event: +3 Attack, +0 Health (one Attack per Beast, three Beasts — no Health)
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 0)).toBe(true);
   });
 });
 
@@ -63,13 +63,14 @@ describe('set 2 — Beast spell payoffs', () => {
 });
 
 describe('set 2 — Dawnclaw', () => {
-  it('is wired to the shared adjacent-Battlecry re-fire (the mechanic Ryme already proves)', () => {
-    // Dawnclaw's Echo reuses `deathrattleReplayAdjacentBattlecry` verbatim — the SAME factory Ryme uses, whose
-    // combat behaviour (both neighbours, golden twice, narrates + procs Karwind) is covered by the Ryme tests
+  it('is wired to the shared adjacent-Battlecry re-fire, now with the ONE-neighbour param (owner rework 2026-08-11)', () => {
+    // Dawnclaw's Echo reuses `deathrattleReplayAdjacentBattlecry` — the SAME factory Ryme uses — but with
+    // `params: { one: true }`, so the ungilded card re-fires exactly ONE neighbour's Shout (a seeded pick when
+    // it has two), while golden fires BOTH. The shared factory's both/×2 behaviour (no `one`) is Ryme's, covered
     // in simulate.test.ts / rymeWayfinder.test.ts. What's new here is the card wiring, so that's what we pin.
     const dc = CARD_INDEX['b2_dawnclaw']!;
     expect([dc.tier, dc.attack, dc.health]).toEqual([4, 5, 3]);
-    expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' });
+    expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } });
   });
 });
 

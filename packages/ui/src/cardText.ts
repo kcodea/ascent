@@ -1,6 +1,45 @@
 import type { Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 
+/** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
+ *  annotation below. `deathrattleSummon` / `onFriendDeathSummon` are generic summoners, so they only count when
+ *  their `tokenId` is the Imp. */
+const IMP_SUMMON_DOS = new Set(['summonImps', 'rallySummonImpBuffImps', 'deathrattleImpsOverflowGrant', 'spellSummonImpsNextCombat']);
+
+/** Runes whose reward SUMMONS Imps in combat (base 1/1 + the run's Imp Aura) — the same "(X/Y)" annotation as
+ *  imp-summoning minions, but on the rune's forge text. */
+const RUNE_IMP_SUMMONERS = new Set(['rune_brood', 'rune_broodpit', 'rune_finality']);
+
+/** Does this card/rune SUMMON an Imp (not merely mention or buff Imps)? */
+export function cardSummonsImp(id: string): boolean {
+  if (RUNE_IMP_SUMMONERS.has(id)) return true;
+  const def = CARD_INDEX[id];
+  if (!def) return false;
+  return def.effects.some((e) =>
+    IMP_SUMMON_DOS.has(e.do)
+    || ((e.do === 'deathrattleSummon' || e.do === 'onFriendDeathSummon') && (e.params as { tokenId?: string } | undefined)?.tokenId === 'impscrap'));
+}
+
+/**
+ * Live Imp-stat annotation (owner ask 2026-08-11): any card/rune that SUMMONS an Imp should print the Imp's
+ * CURRENT stats — base 1/1 plus the run-wide Imp Aura — updating in real time. This injects "(X/Y)" right after
+ * the Imp in the `summon … Imp(s)` phrase (anchored to "summon" so a mention like "give your Imps +1/+1" is left
+ * alone), wrapped in `{{…}}` so the Card paints it green AND excludes it from the golden `doubleNums` pass (Imp
+ * tokens are never golden — the golden effect scales the COUNT/buffs, not the token's own body).
+ *
+ * A no-op for non-summoners and when the text has no `summon … Imp` phrase, so it's safe to run over any text.
+ */
+export function withImpStats(id: string, text: string, impAura?: { attack: number; health: number }, wrap = true): string {
+  if (!cardSummonsImp(id)) return text;
+  const x = 1 + (impAura?.attack ?? 0);
+  const y = 1 + (impAura?.health ?? 0);
+  // `wrap` emits the green {{…}} marker (Card renders it); rune text goes through plain `mdBold`, which doesn't
+  // process {{…}}, so runes pass wrap=false for a plain "(X/Y)". Anchor to "summon … Imp(s)" within one sentence;
+  // only the first match (the summoned body) is annotated.
+  const stat = wrap ? `{{(${x}/${y})}}` : `(${x}/${y})`;
+  return text.replace(/(\bsummons?\b[^.]*?\b)(Imps?)\b/i, `$1$2 ${stat}`);
+}
+
 /** How many of `playedThisTurn` (card ids) belong to any of `tribes` (dual-types count). */
 function countPlayed(playedThisTurn: string[] | undefined, tribes: Tribe[]): number {
   return (playedThisTurn ?? []).filter((id) => {
@@ -416,6 +455,25 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
   const per = base * mult; // the per-4-spells improvement size (golden ×2)
   const toNext = 4 - (spellProgress % 4); // on-board spells until the next step
   return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}} (improves **+${per}/+${per}** per 4 spells with this on board — {{${toNext} to go}}).`;
+}
+
+/**
+ * Herzog's per-Dragon grant SCALES with the run's lifetime Shop-Spell count: +N/+N where N = base +
+ * floor(spellsCast / per), read live (retroactive). Injects the current per-Dragon grant into the printed
+ * "Gain +X/+X" (the FIRST +A/+H in the text — the "Improves" step is left as the base rate) and appends the
+ * countdown to the next step. `{{…}}` renders green + is excluded from the golden doubling, so golden is folded
+ * in here (see the note at the top of this file).
+ */
+export function herzogText(cardId: string, golden: boolean, spellsCast: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onTribePlayedBuffSelfPerSpell');
+  if (!def || !eff) return null;
+  const per = Math.max(1, Number((eff.params as { per?: number } | undefined)?.per ?? 4));
+  const base = Number((eff.params as { base?: number } | undefined)?.base ?? 1);
+  const cur = (base + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
+  const toNext = per - (spellsCast % per);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} Shop Spells to next step}}`;
 }
 
 /**

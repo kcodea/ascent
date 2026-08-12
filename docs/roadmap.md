@@ -21,6 +21,22 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **20 new runes + 2 new minions — SHIPPED 2026-08-12.** Herzog + Kobabyboldies; six grant-a-minion+flag runes;
+  twelve shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's
+  Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Herzog was renamed to
+  **Vaultkeeper** (Rune of the Vaultkeeper grants it + shares its grant to an adjacent minion). Details in the devlog.
+- **Live Imp-stat text + two End-of-Turn fixes — SHIPPED 2026-08-11.** "Summon a X/Y Imp" live text on every
+  imp summoner (cards + runes); EoT-triggered Discovers auto-grant (no window); EoT shop buffs animate on the
+  beat. Follow-up: tick the growing shop offer's printed number up live during the beat (it currently gets a
+  burst + float; the offer is replaced next turn where the buff shows fully). Details in the devlog.
+- **Balance batch (minions + runes) + two combat-timing fixes — SHIPPED 2026-08-11.** ~12 minion reworks, ~40
+  rune cost/effect changes (incl. Mountain Trade's new `cardsPlayed` threshold meter and a permanent Showcase),
+  and two engine bugs: summon-on-space now fires at Start of Combat, and a Rally summon onto a full board is
+  rejected at queue time rather than landing after the attacker's death frees a slot. Details in the devlog.
+- **Lobby HUD cleanup + Recent Games — SHIPPED 2026-08-11.** Hid the redundant top-left plaque in a lobby
+  (rail now carries round + seats-left + max-loss), moved the combat-pacing slider into the Esc menu and Skip
+  above End-Turn, dropped the unused clear-boards/reset-career actions, and added a Recent Games feed (last 20
+  finished games across all players). Details in the devlog.
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
 - **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,
@@ -751,6 +767,12 @@ trigger"; avoid true undo until the rules are sturdier).
 - **Buff / FX live eyeballs** — several session-39 cues (summon-arrival poof, `ascend` flash) were reasoned
   from keyframes, not yet watched live on the cream board; drive a focused Chrome tab and tune.
 - **Recruit-phase hero/spell buffs** get only a sound + CSS glow today — wire them to `pixiFx.pulse`.
+- **Committed FX art doesn't ship to prod** — the `fx/defs/art/*.png` glob is DEV-gated (`shapeLibrary.ts:410`),
+  so any `art:<slug>` shape falls back to a procedural shape in a production build. Surfaced 2026-08-12 while
+  binding Golden Ale's `coin-ale` (its coin layer uses `art:group-14035`; the other four ales and most defs use
+  built-in shapes, so they're unaffected). Same behavior as the shipped `coin-shout`. Decide whether authored
+  art should reach players (a bundling/whitelist path) or stay dev-only. Also minor: an `art:` texture's FIRST
+  cast after load renders nothing until the texture decodes/caches — a prewarm would close it.
 
 ### Audio
 - Record the actual SFX clips into `packages/ui/src/audio/{cards,heroes}/` per the manifest

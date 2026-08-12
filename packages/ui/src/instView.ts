@@ -4,9 +4,9 @@ import { CONFIG, dominantBoardTribe, hasTier7Access, spellAttackBonus, spellDisp
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
-  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
+  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -140,6 +140,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??
+            herzogText(c.id, p.golden, p.spellsCast) ?? // Herzog: live per-Dragon grant, scales with lifetime Shop Spells
             spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
@@ -159,7 +160,11 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   const runeNote = runeModifiedNote(c.id, p.runeFlags);
   const noted = runeNote ? `${text} ${runeNote}` : text;
   const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
-  return { text: noted + metric, goldenText: notedGolden !== undefined ? notedGolden + metric : undefined };
+  // Live Imp-stat annotation (owner 2026-08-11): fold the summoned Imp's current X/Y into the "summon … Imp"
+  // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
+  const impText = withImpStats(cardId, noted, p.impAura);
+  const impGolden = notedGolden !== undefined ? withImpStats(cardId, notedGolden, p.impAura) : undefined;
+  return { text: impText + metric, goldenText: impGolden !== undefined ? impGolden + metric : undefined };
 }
 
 /**

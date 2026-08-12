@@ -231,6 +231,21 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and play **2 Rubies** on them.',
   },
   {
+    // Owner add 2026-08-11. A Ruby payoff that pays the whole Kobold line on death — the more Kobolds you
+    // field, the more Rubies land. Gilded doubles the count (6 each). The Ruby strength (1/1 + rubyBonus)
+    // is threaded in by playRubyOn, so a late-run Kobabyboldies pays full-strength Rubies.
+    id: 'k_kobabyboldies',
+    name: 'Kobabyboldies',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesTribe', params: { count: 3, tribe: 'kobold' } }],
+    text: '**Echo:** play **3 Rubies** on each of your **Kobolds**.',
+    goldenText: '**Echo:** play **6 Rubies** on each of your **Kobolds**.',
+  },
+  {
     // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
     // a random friendly Kobold. The Echo's Ruby-strength gain carries back from combat.
     id: 'k_alchemist',
@@ -275,9 +290,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'rubyPlayedAnywhere', do: 'rubyBounceExtra' }],
-    text: 'Your **Rubies** all bounce **1 more time**.',
-    goldenText: 'Your **Rubies** all bounce **2 more times**.',
+    // Owner rework 2026-08-11: from a Ruby-bounce passive to a ruby-gain reactor. `rubyGainedCast` (no tribe
+    // filter) casts a Ruby on ONE random friendly minion each time you get a Ruby; golden casts 2.
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
+    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
   },
   {
     // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework

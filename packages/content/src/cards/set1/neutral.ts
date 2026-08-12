@@ -303,15 +303,14 @@ export const NEUTRAL: CardDef[] = [
     attack: 5,
     health: 4,
     keywords: [],
+    // Owner rework 2026-08-11: dropped the Echo (deathrattleSummonRandomHandMinion); End of Turn now also grows
+    // the Wrangler itself by +2/+2 (golden +4/+4). Two endOfTurn effects fire in array order.
     effects: [
       { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } },
-      // Owner add 2026-08-04: the wrangled stock stampedes out when it dies. The summoned body is combat-only
-      // and the HAND CARD SURVIVES (owner ruling 2026-08-08 — the text never said it was spent, and losing it
-      // read as a bug); a golden summons 2, never the same card twice in one fight.
-      { on: 'onDeath', do: 'deathrattleSummonRandomHandMinion', params: {} },
+      { on: 'endOfTurn', do: 'endOfTurnBuff', params: { attack: 2, health: 2 } },
     ],
-    text: '**End of Turn:** Cast **Lasso**. **Echo:** summon a random minion from your hand.',
-    goldenText: '**End of Turn:** Cast **Lasso** twice. **Echo:** summon **2** random minions from your hand.',
+    text: '**End of Turn:** Cast **Lasso** and gain **+2/+2**.',
+    goldenText: '**End of Turn:** Cast **Lasso** twice and gain **+4/+4**.',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

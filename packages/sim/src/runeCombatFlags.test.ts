@@ -93,7 +93,7 @@ describe('Rune of Warding — the sheet says TRIPLE', () => {
 describe('the five runes ship at the sheet\'s costs', () => {
   it('exists with the right cost and tier', () => {
     const want: [string, number, boolean][] = [
-      ['Rune of the Stampede', 4, false], ['Rune of the Hatchery', 4, false],
+      ['Rune of the Stampede', 5, false], ['Rune of the Hatchery', 4, false],
       ['Rune of the Vanguard', 1, true], ['Rune of Finality', 6, true],
     ];
     for (const [name, cost, epic] of want) {

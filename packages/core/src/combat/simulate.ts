@@ -839,11 +839,11 @@ export function simulate(
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
       if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
       emit({ type: 'spellcast', side, count: spellTotals[side] }); // the replay's live-counter beat
-      // Rune of Enchantment: a COMBAT cast gives your minions +2/+2 (the shop half gives the printed +1/+1 —
+      // Rune of Enchantment: a COMBAT cast gives your minions +4/+6 (the shop half gives the printed +2/+3 —
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
-      // AFTER the counter beat, so the replay's tick and the buff land in the order they read.
+      // AFTER the counter beat, so the replay's tick and the buff land in the order they read. (owner 2026-08-11)
       if (modsFor(side).runeEnchantment) {
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 2, 2, 'Rune of Enchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 6, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -899,7 +899,11 @@ export function simulate(
         const def = cards[rec.cardId];
         if (!def) continue;
         resummonedUids.add(rec.uid);
-        raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden).uid);
+        // Rune of the Old Pack: bring the FIRST resummoned Beast back at its full (pre-death) stats, not base.
+        const copyStats = modsFor(side).oldPack && !oldPackUsed[side] && rec.attack !== undefined && rec.maxHealth !== undefined
+          ? { attack: rec.attack, health: rec.maxHealth, maxHealth: rec.maxHealth } : undefined;
+        if (copyStats) { oldPackUsed[side] = true; fireTrigger('oldPack', side); }
+        raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden, false, copyStats).uid);
         brought += 1;
       }
       return brought;
@@ -1030,6 +1034,19 @@ export function simulate(
       const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
       minion.effects = [...minion.effects, eff];
     }
+    // Aug-11 minion-grant runes — Ward/Taunt on a specific summoner's token. `nearUid` is the summoner's uid
+    // (combatArena.summonToken passes self.uid), so these scope to "summoned by your Imp Wranglers / Geode
+    // Guardians" rather than every Imp / Golem. Granted before the summon snapshot so the keyword shows frame 1.
+    if ((modsFor(side).runeWrangler && card.id === 'impscrap') || (modsFor(side).runeLivingGeode && card.id === 'gemheart-shard')) {
+      const summoner = nearUid ? boards[side].find((m) => m.uid === nearUid) : undefined;
+      const wardOnly = card.id === 'gemheart-shard' && summoner?.cardId === 'k_geode';
+      const wardTaunt = card.id === 'impscrap' && summoner?.cardId === 'dm_wrangler';
+      if (wardOnly || wardTaunt) {
+        minion.divineShield = true;
+        if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+        if (wardTaunt && !minion.keywords.includes('T')) minion.keywords.push('T');
+      }
+    }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -1038,6 +1055,16 @@ export function simulate(
     // token is OFF the board for the rest of the cascade, so a same-clash Deathrattle can no longer buff it
     // before it exists — which also keeps the buff/summon event order consistent for the UI's computeFrame.
     if (card.attackOnSummon || attackNow) {
+      // Board-cap enforced at QUEUE time, not flush time (owner bug 2026-08-11): a Rally/Echo that summons an
+      // attack-on-summon token while the board is FULL must fail NOW. Previously the summon sat on the queue and
+      // was placed at the next flushImmediateAttacks — which runs AFTER the current clash's death cascade, so the
+      // attacker's own death freed the slot and a summon that should have been rejected instead landed (reported:
+      // Echohorn on a full board triggers Chicken Brawl's Echo, dies, and the Charging Soldier appears anyway).
+      // When there's no room, run placeSummon inline: it emits summonOverflow (+ the Rune of Overflow payoff) and
+      // no-ops, exactly like a plain over-cap summon — the token is simply lost, board stays full.
+      if (living(side).length >= 7) {
+        return placeSummon(minion, side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
+      }
       pendingAttackOnSummon.push({ summon: { minion, side, card, nearUid, grantKeywords, golden, copyStats, doubled } });
       return minion;
     }
@@ -1651,7 +1678,7 @@ export function simulate(
     }
     if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
         && !raisedBodies.has(minion.uid)) {
-      deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden });
+      deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
@@ -1740,7 +1767,7 @@ export function simulate(
     // Rune of Blood and Coin: every N friendly deaths banks Gold for next turn. Player-only — a served enemy
     // has no run to carry Gold back into.
     const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
-    if (bacStep > 0 && side === 'player' && deaths[side] % 4 === 0) {
+    if (bacStep > 0 && side === 'player' && deaths[side] % 5 === 0) { // owner 2026-08-11: Avenge(5) (was every 4 deaths)
       fireTrigger('runeBloodAndCoin', side);
       bonusGoldGain += bacStep;
     }
@@ -1759,7 +1786,9 @@ export function simulate(
   // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
   // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
   // was killed from, so the copy comes back in (or next to) its original slot.
-  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean }[]> = { player: [], enemy: [] };
+  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean; attack?: number; maxHealth?: number }[]> = { player: [], enemy: [] };
+  // Rune of the Old Pack: the FIRST Beast resummoned each combat returns at full stats (per side, once).
+  const oldPackUsed: Record<Side, boolean> = { player: false, enemy: false };
   const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
   const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
   const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
@@ -2625,6 +2654,20 @@ export function simulate(
         }
       }
     }
+    // Rune of Dawnclaw: your Dawnclaws ALSO fire their adjacent-Shout Echo at Start of Combat (they don't die).
+    if (rmods.runeDawnclaw) {
+      for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'b2_dawnclaw')) {
+        nextStep(); fireTrigger('runeDawnclaw', rside);
+        FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+      }
+    }
+    // Rune of Sylus: your Sylus double their own Health at Start of Combat.
+    if (rmods.runeSylus) {
+      for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'sylus')) {
+        nextStep(); fireTrigger('runeSylus', rside);
+        ctx.buff(m, 0, m.health, m.uid);
+      }
+    }
     if (rmods.runeCrucible) {
       // Rune of the Crucible: sacrifice the N left-most now; when the side's LAST minion dies, they return.
       // Snapshotted at full current stats so the resummon is the body you gave up, not a base-stat copy.
@@ -2782,11 +2825,11 @@ export function simulate(
   runeAvenge(3, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
   // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
-  runeAvenge(3, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
+  runeAvenge(4, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
     // Player-only: `grantToHand` has no meaning for a served enemy. A set without the Ales grants nothing
-    // rather than injecting cards the run could never otherwise see.
+    // rather than injecting cards the run could never otherwise see. Owner 2026-08-11: Avenge(4), TWO Ales.
     const ales = ctx.poolCards(side).filter((c) => ALE_IDS.includes(c.id));
-    if (ales.length > 0) ctx.grantToHand(ctx.rng.pick(ales).id, side, undefined);
+    if (ales.length > 0) for (let i = 0; i < 2; i++) ctx.grantToHand(ctx.rng.pick(ales).id, side, undefined);
   });
   runeAvenge(3, 'runeCinderLedger', (m, side) => side === 'player' && !!m.runeCinderLedger, (side) => {
     const n = modsFor(side).runeCinderLedger ?? 6;
@@ -2952,7 +2995,13 @@ export function simulate(
       pendingAttackOnSummon.push({ minion: m });
     }
   }
-  flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer strike before the rotation begins
+  // A board that BEGINS combat with room (fewer than 7) fills its "while you have space" summons NOW, before any
+  // attacks — Rune of the Brood / Living Echoes / Decoy Sigil used to wait for the first attack's cascade to free
+  // a slot (the only place fillFreeSlots ran), so on an already-short board they fired a beat late, after the
+  // opponent had already swung (owner bug 2026-08-11). The bounded per-combat counters (broodSpent/echoesSpent/
+  // decoysSpent) keep this from double-firing with the in-loop call below.
+  fillFreeSlots();
+  flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer / the fills above strike before the rotation begins
   flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1
   let guard = 0;
   while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {

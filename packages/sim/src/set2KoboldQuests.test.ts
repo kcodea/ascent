@@ -158,7 +158,7 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
   it("ships the six new runes at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
       ['Rune of Recollection', 3, false],
-      ['Rune of the First Round', 4, false],
+      ['Rune of the First Round', 5, false],
       ['Rune of the Motherlode', 5, true],
       ['Rune of Adventuring', 6, true],
       ['Rune of the Choir', 4, true],

@@ -6,6 +6,8 @@ import { CARD_INDEX, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
+import { withImpStats } from './cardText';
+import { useGame } from './store';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
  *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
@@ -60,6 +62,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
+  // Live "(X/Y)" for the imp-summoning runes (Brood / Broodpit / Finality): base 1/1 + the run's Imp Aura.
+  // Plain parens (wrap=false) — rune text renders through `mdBold`, which doesn't process the green {{…}} marker.
+  const impAura = useGame((s) => s.run?.impBuff);
   const rewardCards = previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
   const hasPreview = rewardCards.length > 0;
   const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
@@ -110,7 +115,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
               Does not stack
             </div>
           )}
-          <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+          <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(withImpStats(rune.id, rune.text, impAura, false)) }} />
         </div>
       </div>
       {!affordable && <div className="runecard-lock">Not enough Gold</div>}

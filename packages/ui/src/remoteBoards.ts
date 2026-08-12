@@ -554,6 +554,42 @@ export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
   }
 }
 
+/** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended. */
+export interface RecentGameRow {
+  author: string | null;
+  heroId: string;
+  wins: number;
+  placement: number | null;
+  createdAt: string | null;
+}
+
+/** The last N finished games across ALL players (public read on `run_telemetry`) — newest first. Best-effort +
+ *  time-boxed; `[]` when no backend / on any failure. */
+export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('run_telemetry').select('author, hero_id, wins, placement, created_at')
+          .order('created_at', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<Record<string, unknown>>).map((r) => ({
+      author: (r.author as string | null) ?? null,
+      heroId: String(r.hero_id ?? ''),
+      wins: Number(r.wins ?? 0),
+      placement: r.placement != null ? Number(r.placement) : null,
+      createdAt: (r.created_at as string | null) ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   const c = client();
   if (!c) return [];

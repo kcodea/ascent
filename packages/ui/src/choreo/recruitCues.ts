@@ -47,6 +47,10 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   // The shop being gemmed is ONE event across the row, not a per-card cascade — one spanning play, one sound.
   if (moment.kind === 'shopRubied') return runShopRubiedSpan(moment, ctx);
 
+  // A tavern spell cast — ONE fire at the release point, anchored to `cursor`, keyed by the spell's card id.
+  // No cascade, no DOM measure: the anchor is the point carried on the moment.
+  if (moment.kind === 'spellCast') return runSpellCastFire(moment, ctx);
+
   // Resolved UP FRONT, so an unbound moment costs one table lookup and schedules nothing — and so the
   // binding is read once rather than separately per land, which is two chances to disagree.
   //
@@ -140,6 +144,39 @@ function runShopRubiedSpan(moment: RecruitMoment, ctx: RecruitCueContext): () =>
 /** How long the shop-gem span waits on a REFRESH re-stamp before firing, so it lands with the sliding-in
  *  offers and syncs with the badge roll rather than flashing before the row settles. Owner-set 2026-08-11. */
 const SHOP_SPAN_REFRESH_DELAY_MS = 150;
+
+/**
+ * A `spellCast` moment: with no recipients (Golden/Reinforcing) this is ONE fire at the release point, no DOM
+ * measure, no cascade — a tavern spell with nowhere to travel from/to, so `source`/`target`/`cursor` are all
+ * the same point. With recipients (a BUFF ale — Champion's/Defensive/Bloody) it fans out into ONE fire PER
+ * buffed minion, all simultaneously, each travelling from the release point (`cursor`/`source`) to that
+ * minion's measured centre (`target`). Keyed by the spell's own card id (not the kind) so each spell resolves
+ * its own binding.
+ */
+function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
+  const binding = bindingFor(moment.sourceCardId ?? null, 'spellCast');
+  const pt = moment.point;
+  if (!binding || !pt) return () => {};
+  const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const src = moment.sourceCardId ?? null;
+  // No targets → a single fire at the release point (Golden / Reinforcing).
+  if (moment.recipients.length === 0) {
+    playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
+    if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+    return () => {};
+  }
+  // Targets (buff ales) → one fire per buffed minion, ALL AT ONCE, each travelling cursor→minion. The buffed
+  // cards re-rendered this commit (stat change), so measure inside one rAF for post-layout geometry.
+  const raf = requestAnimationFrame(() => {
+    for (const r of moment.recipients) {
+      const c = ctx.measure(r.uid);
+      if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
+      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid } });
+    }
+    if (binding.sfx !== undefined) sfx[binding.sfx]?.(); // one sound for the volley, not one per target
+  });
+  return () => cancelAnimationFrame(raf);
+}
 
 /** One land. Measured INSIDE the timer so a stagger that outlives a re-render — a triple collapsing three
  *  bodies into one, a sold minion — misses cleanly instead of firing at a stale rect. */

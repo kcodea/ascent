@@ -84,8 +84,7 @@ describe('Beardsley — combat-only summon buff', () => {
     expect(buffedSummon(run(true), 12), 'gilded Beardsley +12/+12').toBe(true);
   });
 
-  it('does NOT fire in the shop — it is combat-only (no recruit factory)', () => {
-    // Play a Beast token beside Beardsley in the recruit phase; it must arrive unbuffed.
+  it('fires in the SHOP too (owner 2026-08-12: both phases) — a Beast played beside it gets +6/+6', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99,
       board: [minion('BD', 'b2_beardsley', 5, 5)],
@@ -93,7 +92,7 @@ describe('Beardsley — combat-only summon buff', () => {
     };
     s = reduce(s, { type: 'play', uid: 'p' });
     const pack = s.board.find((c) => c.uid === 'p')!;
-    expect([pack.attack, pack.health], 'unbuffed in the shop').toEqual([3, 2]);
+    expect([pack.attack, pack.health], 'Beardsley +6/+6 in the shop').toEqual([9, 8]);
   });
 });
 

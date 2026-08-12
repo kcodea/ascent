@@ -1,14 +1,33 @@
 # ASCENT — development log
 
-## 2026-08-12 — Fix: Wolvie's next-summon buff now pays a Beast that RISES
+## 2026-08-12 — Wolvie fixes + stacking, Beardsley both-phases, Rune of the Zoo
 
-Owner report: a Wolvie whose Echo queued "+2/+4 to the next Beast you summon" did not pay the same Wolvie when
-it came back via **Rise**. Cause: the queue was consumed only at the normal summon chokepoint (`placeSummon`),
-and a Rise re-slots the body on its own path (`killOrReborn`) without passing through it — even though a Rise
-IS a summon (owner ruling 2026-07-13; it already counts for summon quests and inherits "wherever they are"
-auras like Kennelmaster's). Extracted the consumption into `applyNextSummonBuff` and call it from BOTH paths,
-so a risen Beast takes the queued buff too. Regression test added in `beastBatchAug12.test.ts`. Gates all green
-(typecheck / lint / 4953 tests / build:web).
+Four related Beast-summon changes in one pass.
+
+**Fix: Wolvie's next-summon buff now pays a Beast that RISES.** Owner report: a Wolvie whose Echo queued
+"+2/+4 to the next Beast you summon" did not pay the same Wolvie when it came back via **Rise**. Cause: the
+queue was consumed only at the normal summon chokepoint (`placeSummon`), and a Rise re-slots the body on its
+own path (`killOrReborn`) without passing through it — even though a Rise IS a summon (owner ruling
+2026-07-13; it already counts for summon quests and inherits "wherever they are" auras). Extracted the
+consumption into `applyNextSummonBuff` and call it from BOTH paths.
+
+**Wolvie Echoes now STACK (owner 2026-08-12).** Four queued Wolvie Echoes all land on the NEXT matching summon
+— summed onto that one body, then the queue is spent. Still "the next summon only", just cumulative, instead
+of the old one-Echo-per-summon FIFO.
+
+**Beardsley fires in BOTH phases (owner 2026-08-12).** Text is now "Whenever you summon a Beast, give it
++6/+6" — a recruit-phase `onSummonTribeBuffFlat` twin was added so a Beast played/summoned in the shop gets
+the grant too (the combat half is unchanged).
+
+**Rune of the Zoo (Epic 6, new).** "Get a Beardsley. Your Beardsleys trigger 1 more time for every summon in
+combat." Implemented as a per-side combat-summon ordinal (`summonOrdinal`) read through `ctx.zooReps`: with
+the rune, Beardsley's grant multiplies by the running summon count (1st summon ×1, 2nd ×2, …), composing with
+golden (×2) and stacking across Beardsleys (each fires per summon). Shop half stays flat — the rune reads
+"in combat". Art wired (`rune_zoo.webp`, RuneOfTheZoo.png source).
+
+Tests: the Rise regression, Echo stacking, Zoo ordinal scaling (+ gild composition + no-rune flat control) in
+`beastBatchAug12.test.ts`; the old Beardsley "combat-only" test flipped to assert the shop grant. Gates all
+green (typecheck / lint / 4958 tests / build:web).
 
 ## 2026-08-12 — Art re-wire from the source folder (`npm run art:wire`)
 

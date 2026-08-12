@@ -162,16 +162,19 @@ export function simulate(
   const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number }[]> = { player: [], enemy: [] };
-  /** Consume ONE queued Wolvie next-summon buff for `side` if this body matches its tribe (FIFO, so two Wolvies
-   *  pay the next two matching summons). Called from BOTH the normal summon chokepoint AND the Rise re-slot — a
-   *  Rise re-enters play as a summon (owner ruling 2026-07-13), so it is "the next Beast you summon" too. */
+  /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
+   *  next Beast summoned, then the queue is spent — they are still for the next summon ONLY, just summed. Called
+   *  from BOTH the normal summon chokepoint AND the Rise re-slot — a Rise re-enters play as a summon (owner
+   *  ruling 2026-07-13), so it is "the next Beast you summon" too. */
   function applyNextSummonBuff(minion: Minion, side: Side): void {
     if (minion.dead || nextSummonBuffs[side].length === 0) return;
-    const i = nextSummonBuffs[side].findIndex((b) =>
-      minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe);
-    if (i < 0) return;
-    const b = nextSummonBuffs[side].splice(i, 1)[0]!;
-    ctx.buff(minion, b.attack, b.health, 'Wolvie');
+    const matches = (b: { tribe: Tribe }): boolean =>
+      minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe;
+    let a = 0, h = 0;
+    for (const b of nextSummonBuffs[side]) if (matches(b)) { a += b.attack; h += b.health; }
+    if (a === 0 && h === 0) return;
+    nextSummonBuffs[side] = nextSummonBuffs[side].filter((b) => !matches(b)); // spent on this one body
+    ctx.buff(minion, a, h, 'Wolvie');
   }
   /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
   const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
@@ -350,6 +353,8 @@ export function simulate(
   const wildHuntGrown: Record<Side, number> = { player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 };
   /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
   let playerSummonCount = 0;
+  /** Per-side count of combat summons so far (this one included), read by Rune of the Zoo to scale Beardsley. */
+  const summonOrdinal: Record<Side, number> = { player: 0, enemy: 0 };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -827,6 +832,7 @@ export function simulate(
     queueNextSummonBuff: (side, tribe, attack, health) => {
       if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health });
     },
+    zooReps: (side) => (modsFor(side).runeZoo ? Math.max(1, summonOrdinal[side]) : 1),
     grantMagneticBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
       magneticBuffGain.attack += attack;
@@ -1142,6 +1148,7 @@ export function simulate(
     }
     registerEffects(minion);
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    summonOrdinal[side] += 1; // before onSummon fires, so Rune of the Zoo reads THIS summon's ordinal
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
       // Rune of the Remains / Rune of Reinvestment both key off friendly summons. Counted here, at the single

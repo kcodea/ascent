@@ -1147,7 +1147,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Aug-12 Beast batch: Jungle (a summoned Beast doubles its Health), Burrow (first Echo-Beast death each
   // combat is resummoned without its Echo), Beastial Swarm (your Beasts gain +N/+N on each friendly Beast death;
   // Avenge(2) raises N permanently).
-  | 'runeJungle' | 'runeBurrow' | 'runeBeastialSwarm'
+  | 'runeJungle' | 'runeBurrow' | 'runeBeastialSwarm' | 'runeZoo'
   // Rune of the Old Pack: the first Beast you resummon each combat returns with its FULL stats.
   | 'oldPack'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
@@ -1443,6 +1443,8 @@ export interface QuestCombatMods {
   runeBeastialSwarm?: boolean;
   /** Rune of Beastial Swarm — the current per-death buff amount (starts 2, +2 per Avenge(2), run-persisted). */
   beastialSwarmLevel?: number;
+  /** Rune of the Zoo — your Beardsleys' summon buff scales with the running combat-summon count. */
+  runeZoo?: boolean;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;
@@ -2412,6 +2414,9 @@ export interface CombatContext {
   /** Wolvie (Echo) — queue a one-shot buff for the NEXT `tribe` minion `side` summons this combat. Consumed at
    *  the summon chokepoint (front of the queue), so two Wolvies stack as two separate next-summon grants. */
   queueNextSummonBuff(side: Side, tribe: Tribe, attack: number, health: number): void;
+  /** Rune of the Zoo — how many times Beardsley's summon buff should apply to the CURRENT summon: the running
+   *  combat-summon ordinal for `side` when the rune is held (1st summon → 1×, 2nd → 2×, …), else 1. */
+  zooReps(side: Side): number;
   /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
    *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future
    *  Attachments inherit it. Only the player carries back (the enemy is regenerated each wave). */

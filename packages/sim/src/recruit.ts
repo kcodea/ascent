@@ -2075,6 +2075,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (`onSpellCastImproveSummon`), which is what the card says. Golden doubles the whole magnitude at grant
    *  time so base and step each double exactly once. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts; the arriver rides params.
+  /** Beardsley (owner 2026-08-12: now both phases) — a Beast summoned in the SHOP gets a flat +atk/+hp (golden
+   *  doubles). The combat twin lives in `@game/core` factories; Rune of the Zoo's summon-count scaling is a
+   *  COMBAT-only rule, so the shop half stays flat. */
+  onSummonTribeBuffFlat: (ctx, self, params, { minion }) => {
+    if (!minion || minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    const g = gold(self);
+    const a = num(params.attack, 6) * g;
+    const h = num(params.health, 6) * g;
+    if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
+  },
+
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
     if (minion === self) return;
     ARENA_EFFECTS.summonBuffTribeAsym(shopArena(ctx.state, self), { ...params, arriver: minion });

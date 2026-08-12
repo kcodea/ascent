@@ -35,6 +35,42 @@ describe('Wolvie — Echo buffs the next summoned Beast', () => {
     expect(buffsOn(r, uidOf(r, 'b2_wolvie'), 'Wolvie').map((b) => [b.attack, b.health]), 'the risen Wolvie got +2/+4')
       .toContainEqual([2, 4]);
   });
+
+  it('multiple Wolvie Echoes STACK onto the next single summon (owner 2026-08-12)', () => {
+    // Two Taunt Wolvies die first (each queues +2/+4); then Pack Leader dies and summons a Pup — the Pup takes
+    // BOTH at once (+4/+8), and the queue is then spent (still the next summon only, just summed).
+    const r = sim([bm('b2_wolvie', 'W1', 3, 1, { keywords: ['T'] }), bm('b2_wolvie', 'W2', 3, 1, { keywords: ['T'] }), bm('pack', 'P', 2, 1)]);
+    const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
+    expect(pup, 'a Pup spawned').toBeDefined();
+    expect(buffsOn(r, pup!.minion.uid, 'Wolvie').map((b) => [b.attack, b.health]), 'both Echoes on one Pup').toContainEqual([4, 8]);
+  });
+});
+
+// ── Rune of the Zoo (Beardsley's summon buff scales with the running combat-summon count) ─────────────────
+describe('Rune of the Zoo — Beardsley scales with the combat-summon count', () => {
+  const beardsleyBuffs = (r: ReturnType<typeof simulate>, bUid: string) =>
+    (r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === bUid) as { attack: number }[]).map((b) => b.attack);
+
+  it('the 1st combat summon gets +6, the 2nd +12, … (Pack Leader summons 2 Pups)', () => {
+    const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)], { runeZoo: true });
+    const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
+    expect(buffs, 'ordinal 1 → +6').toContain(6);
+    expect(buffs, 'ordinal 2 → +12').toContain(12);
+  });
+
+  it('without the rune, every summon gets a flat +6 (no scaling)', () => {
+    const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)]);
+    const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
+    expect(buffs.every((a) => a === 6), 'all +6, no ordinal scaling').toBe(true);
+    expect(buffs).not.toContain(12);
+  });
+
+  it('gilded Beardsley composes with the ordinal (×2 × N)', () => {
+    const r = sim([bm('b2_beardsley', 'B', 5, 9999, { golden: true }), bm('pack', 'P', 2, 1)], { runeZoo: true });
+    const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
+    expect(buffs, 'ordinal 1 × gild → +12').toContain(12);
+    expect(buffs, 'ordinal 2 × gild → +24').toContain(24);
+  });
 });
 
 // ── Armadiyo (T4 Beast, Echo: give your Beasts +2/+4 wherever they are) ────────────────────────────────────

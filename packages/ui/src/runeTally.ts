@@ -59,6 +59,20 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_slaying' && run.questFlags?.runeSlaying) {
     return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_PER)}/${SLAYING_PER}`;
   }
+  // END-OF-TURN ACCUMULATORS (audit 2026-08-12, from the Lapidary report): "for every card you played / Gold
+  // spent this turn" runes bank silently all turn — the badge shows the count they will pay out on. A plain
+  // count (like Bucky's Ales), not `x/N`: there is no threshold, every unit is worth another payout.
+  if (runeId === 'rune_lapidary' && run.runeLapidary) {
+    const n = (run.playedThisTurn ?? []).length;
+    return `${n} card${n === 1 ? '' : 's'}`;
+  }
+  if (runeId === 'rune_action' && run.questRecurringEndOfTurn?.includes('runeAction')) {
+    const n = (run.playedThisTurn ?? []).length;
+    return `${n} card${n === 1 ? '' : 's'}`;
+  }
+  if (runeId === 'rune_spending' && run.questRecurringEndOfTurn?.includes('runeSpending')) {
+    return `${run.goldSpentThisTurn ?? 0}g`;
+  }
   // Rune of Bulk Order keeps its own Gold meter on `runeScale` rather than joining `runeThresholds`.
   // RUNE OF BUCKY (owner ask 2026-08-07): the Ales cast THIS turn — i.e. what you are currently banking for
   // NEXT combat, since Bucky pays off last turn's brewing. A plain count, not `x/N`: there is no threshold,

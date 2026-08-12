@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
+
+Owner report: Rune of the Lapidary showed no cards-played counter, and its End-of-Turn Rubies never animated.
+Two audits followed (counters; EoT animations), each closing a CLASS, not just the instance.
+
+**Counters.** `runeTally` gains the per-turn ACCUMULATOR class — a plain count, like Bucky's Ales, since there
+is no threshold: **Lapidary** ("N cards"), **Rune of Action** ("N cards"), **Rune of Spending** ("Ng") — the
+audit sweep found all three banking silently. `tallyCoverage.test.ts` now enforces the class: any rune whose
+text matches "for every / for each / per … this turn" must report a live count (the old THRESHOLD regex needed
+a printed digit, which is exactly how the Lapidary slipped by).
+
+**EoT beats.** The Lapidary and the Crucible Choir were hardcoded blocks at the top of `applyEndOfTurn` —
+outside the projection, so no beat, no FX, applied silently after the phase flip. Both are now VIRTUAL
+recurring-EoT entries (`recurringEotEffects`, the shared list `applyEndOfTurn` / `projectEndOfTurnSteps` /
+`questEndOfTurnBeats` all read), so they get labeled beats, itemized per-Ruby FX waves, and Chronos repeats —
+exactly like Rune of Spending / Action. Two deliberate behavior notes: they now fire AFTER the warband's own
+EoT effects (with the other recurrences), and Chronos repeats them (they didn't before; "End-of-Turn effects
+trigger extra times" is Chronos's whole rule). Turn-limited recurrences (Quick Study) were the same audit
+class — in the commit but not the projection — and now project + list beats too.
+
+**The Ruby animation.** `EotStepFx` gains `ruby` (per-beat {uid,count} deltas, diffed like the reducer's
+`rubyLandedFx` boundary), and the End-of-Turn beat player fires the SAME bound gem cascade the shop plays
+(`runRecruitMomentCues` with a `rubyLanded` moment), with the generic descend suppressed for gem-delivered
+targets ("authored replaces stock", the shop's `rubyOwned` rule). Beat-driven like spellPower/impAura, because
+the reducer-keyed cue only advances at `faceOmen`, after the board is gone.
+
+**Still exempt (documented, not fixed):** Rune of the Coffers (max-Gold +1) and Rune of Shopkeep (upgrade-cost
+−3) change HUD numbers, not board state — a labeled beat for them belongs to the Beat System project (see the
+owner's beat-system handoff docs, which independently list every one of this pass's findings).
+
+Verified: typecheck + lint (0 errors) + npm test (4970) + build:web all green; new coverage in
+`eotBeatsAudit.test.ts` + the tallyCoverage accumulator sweep.
+
 ## 2026-08-12 — Market Tormentor retext
 
 Owner retext: "**Shout:** give the **right-most Shop minion +7/+7** permanently." (gild +14/+14) — the simpler

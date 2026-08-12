@@ -434,6 +434,8 @@ export function dragonTamerCostOf(state: RunState): number {
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'>): number {
+  // Rune of the Bargain Bin: a bin-bought minion sells for its overridden value (0) — checked first so it wins.
+  if (card.sellOverride !== undefined) return card.sellOverride;
   // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold — folded HERE so every sell path AND the
   // UI's sell-value coin/float read the same number (never below a card's own higher sell value).
   const barter = state?.runeBartering && hasBattlecry(CARD_INDEX[card.cardId]) ? 2 : 0;
@@ -1424,7 +1426,7 @@ export function dominantBoardTribe(state: RunState): Tribe | null {
 /** The ACTIVE tribes with NO presence on the player's board — the full "you do not control" set (no RNG
  *  consumed). Wayfinder Discovers across ALL of these (spread), not one, so its 3 options aren't a guaranteed
  *  single tribe — unless you're missing only one. Empty when you control every active tribe. */
-function uncontrolledTribes(state: RunState): Tribe[] {
+export function uncontrolledTribes(state: RunState): Tribe[] {
   const onBoard = new Set<Tribe>();
   for (const c of state.board) {
     const def = CARD_INDEX[c.cardId];
@@ -2608,6 +2610,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `params.self` existed for exactly this and was never honored — with it set the eater is the card itself;
    *  without it the old any-friendly behaviour survives for a future card that wants it (random off the run
    *  cursor). Guarded against Chipper's own arrival so playing it doesn't immediately feed itself. */
+  /** Set 2 — Herzog: whenever you play a `tribe` minion, gain +N/+N where N = base + floor(spellsCast / per),
+   *  read live off the run's lifetime Shop-Spell count (retroactive). Golden doubles the grant. */
+  onTribePlayedBuffSelfPerSpell: (ctx, self, params, payload) => {
+    const played = payload.minion;
+    const tribe = str(params.tribe) || 'dragon';
+    if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
+    const step = Math.floor((ctx.state.spellsCast ?? 0) / Math.max(1, num(params.per, 4)));
+    const grant = (num(params.base, 1) + step) * gold(self);
+    addBuff(self, nameOf(self), grant, grant);
+  },
+
   onTribePlayedConsumeShop: (ctx, self, params, payload) => {
     const played = payload.minion;
     const tribe = str(params.tribe) || 'demon';
@@ -2700,6 +2713,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     };
     const i = rightmostShopMinion(st);
     if (i >= 0) addOfferBuff(st.shop[i]!, nameOf(self), a, h);
+    // Rune of the Display Case: your Market Tormentors ALSO enchant the LEFT-most Shop slot, permanently —
+    // its own accumulator, re-landed on every fresh roll by applyShopRefreshed (mirrors the rightmost channel).
+    if (st.runeDisplayCase) {
+      st.leftmostSlotBuff = {
+        attack: (st.leftmostSlotBuff?.attack ?? 0) + a,
+        health: (st.leftmostSlotBuff?.health ?? 0) + h,
+      };
+      const l = st.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (l >= 0 && l !== i) addOfferBuff(st.shop[l]!, nameOf(self), a, h);
+    }
   },
 
   /** Set 2 — Bob Blart (End of Turn): gain the RIGHT-most Shop minion's stats `times` over WITHOUT eating
@@ -2711,6 +2734,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const { attack, health } = offerBuyStats(ctx.state, ctx.state.shop[i]!);
     const times = num(params.times, 1) * gold(self);
     addBuff(self, nameOf(self), attack * times, health * times);
+    // Rune of Blart: also gain the LEFT-most Shop minion's stats (a different offer than the right-most).
+    if (ctx.state.runeBlart) {
+      const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (l >= 0 && l !== i) {
+        const ls = offerBuyStats(ctx.state, ctx.state.shop[l]!);
+        addBuff(self, nameOf(self), ls.attack * times, ls.health * times);
+      }
+    }
   },
 
   /** Set 2 — Void Curator (End of Turn): give your SPELLS and IMPS +atk/+hp. Two run-wide channels: the spell
@@ -5934,6 +5965,12 @@ export function applyShopRefreshed(state: RunState): void {
     const i = rightmostShopMinion(state);
     if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
   }
+  // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
+  const lslot = state.leftmostSlotBuff;
+  if (lslot) {
+    const l = state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (l >= 0) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
@@ -6487,6 +6524,9 @@ export function applyEndOfTurn(state: RunState): void {
   // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
   // that reads maxEmbers this tick already sees the raise.
   if (state.runeCoffers) state.maxEmbers += 1;
+  // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
+  // applied the first −3). Floored so it can't go negative.
+  if (state.runeShopkeep) state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
   // Rune of the Lapidary: a Ruby on ONE friendly minion of each type. Walks the board in seat order and takes
   // the first body of each tribe it has not covered yet, so the pick is a seating decision rather than RNG;
   // a dual-type body covers BOTH its tribes (it is a minion "of each type" for both). Routed through the real
@@ -6669,6 +6709,19 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
         }
       }
     }
+  } else if (effect === 'lassoing') {
+    // Rune of Lassoing: End of Turn, cast Lasso (steal a random tavern minion) AND grant a random friendly
+    // minion +2/+2. Untargeted Lasso resolves on the tavern; the buff picks a seeded-random board minion.
+    step(() => {
+      const lasso = CARD_INDEX['lasso'];
+      if (lasso) castSpell(state, lasso);
+      if (state.board.length > 0) {
+        const rng = makeRng(state.rngCursor);
+        const target = state.board[rng.int(state.board.length)]!;
+        state.rngCursor = rng.state();
+        addBuff(target, 'Rune of Lassoing', 2, 2);
+      }
+    });
   } else if (effect === 'undeadPlayedAtk') {
     // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`)
     // — one step per card played, each step buffing every Undead +3.

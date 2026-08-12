@@ -45,6 +45,7 @@ const NOT_A_METER: Record<string, string> = {
   q_motherlode: 'the 2 is how many Kobolds a Ruby copies onto',
   rune_scales: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_profit_sharing: 'fires on EVERY Gold gain; the digits are the +3/+3 grant',
+  rune_sellers_market: 'fires on EVERY sell; the digits are the +4/+3 grant, not a count-up',
   rune_vault: 'a one-shot latch (reach Tier 5) — the shop-tier gem IS the meter',
   rune_wheel: 'the refresh accrual already prints live on every shop offer via shopBuffOnRefresh',
   rune_flagship: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
@@ -72,6 +73,8 @@ const armedRun = (): RunState => ({
   spellDripPer: 5,
   spellDripTick: 3,
   runeSummitTick: 1,
+  runeCollector: true,
+  typesBoughtThisTurn: [],
   runeThresholds: [],
 } as unknown as RunState);
 

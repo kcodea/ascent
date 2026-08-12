@@ -130,6 +130,7 @@ function keywordPhrase(kws: Keyword[]): string {
  * the union means a new effect fails to compile until its text is written.
  */
 const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
+  lassoing: 'End of Turn: Cast Lasso and grant a random friendly minion +2/+2',
   triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
   grantRandomShout: 'End of Turn: get a random Shout minion',
   grantAles3: 'End of Turn: get 3 random Dwarven Ales',

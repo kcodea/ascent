@@ -11,7 +11,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -177,6 +177,33 @@ export function upgradeCostOf(s: RunState): number {
  *  — cheap to shop, dear to churn. The single source of truth for the reducer's roll charge + the UI button. */
 export function refreshCostOf(s: RunState): number {
   return getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : CONFIG.refreshCost;
+}
+
+/** Rune of Open Enrollment: append ONE extra offer of the board's most common type after a refresh. */
+function appendDominantTypeOffer(s: RunState): void {
+  const tribe = dominantBoardTribe(s);
+  if (!tribe) return;
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+}
+
+/** Rune of the Bargain Bin: replace every minion offer with a random minion priced at 1 Gold that sells for 0
+ *  (the `sellZero` marker rides onto the bought minion as `sellOverride`). Spell/Ruby offers are left as-is. */
+function fillBargainBin(s: RunState): void {
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  s.shop = s.shop.map((o) => {
+    const d = CARD_INDEX[o.cardId];
+    if (!d || d.spell || d.ruby) return o;
+    const pick = pool[rng.int(pool.length)]!;
+    return { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 1, sellZero: true };
+  });
+  s.rngCursor = rng.state();
 }
 
 /**
@@ -510,6 +537,16 @@ export function reduce(state: RunState, action: Action): RunState {
       advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
       applyCardsBought(next, 1); // Korok / Banksly: "when you buy N cards" (the buy-count sibling of the Gold meter)
       next.cardsBoughtThisTurn = (next.cardsBoughtThisTurn ?? 0) + 1; // set 2: Frenzied Excavator's SoC scaler
+      // Rune of the Collector: buying from 3 different TYPES in a turn Discovers a minion of one of them (once/turn).
+      if (next.runeCollector && !next.collectorUsedThisTurn) {
+        const set = new Set(next.typesBoughtThisTurn ?? []);
+        for (const t of tribes) if (t !== 'neutral') set.add(t);
+        next.typesBoughtThisTurn = [...set];
+        if (set.size >= 3) {
+          next.collectorUsedThisTurn = true;
+          queueDiscover(next, { kind: 'minion', tier: next.tier, tribes: [...set] });
+        }
+      }
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
@@ -750,11 +787,28 @@ function reduceCore(state: RunState, action: Action): RunState {
       const freeBuy = s.rift === 'freedom' && !s.freeBuyUsedThisTurn;
       // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
       const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff); // Moe's set price > Merchant's Mark override > Hank/default
+      // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
+      const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
+      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && tiDef && (tiDef.tribe === s.tradeInTribe || tiDef.tribe2 === s.tradeInTribe) ? 1 : 0;
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
+      if (tradeInOff) s.tradeInTribe = undefined; // spent
+      // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
+      // priced at 1 Gold (a bargain re-stock). Injected at the same index so the shop keeps its shape.
+      if (s.runeRestocking && !s.restockUsedThisTurn) {
+        const boughtTier = CARD_INDEX[offer.cardId]?.tier;
+        const pool = boughtTier ? poolOf(s).buyable.filter((c) => c.tier === boughtTier && !c.spell && !c.ruby) : [];
+        if (pool.length > 0) {
+          const rng = makeRng(s.rngCursor);
+          const pick = pool[rng.int(pool.length)]!;
+          s.rngCursor = rng.state();
+          s.shop.splice(i, 0, { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 1 });
+          s.restockUsedThisTurn = true;
+        }
+      }
       if (s.runeCadence) s.cadenceSpellOff = true; // …and buying a minion arms the spell discount
       if (freeBuy) s.freeBuyUsedThisTurn = true;
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
@@ -783,6 +837,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
+        ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
       };
       // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
       // source names, not a blanket "Fortify"; fall back to a generic label for any legacy offer with no breakdown.
@@ -1484,6 +1539,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.soldThisTurn = [...(s.soldThisTurn ?? []), sold.cardId];
         fireOnMinionSold(s, sold);
       }
+      // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
+      if (sold && s.runeSellersMarket) for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3);
+      // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
+      if (sold && s.runeTradeIn && s.soldThisTurn?.length === 1) {
+        const t = CARD_INDEX[sold.cardId]?.tribe;
+        if (t && t !== 'neutral') s.tradeInTribe = t;
+      }
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
       if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
@@ -1493,9 +1555,14 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'roll': {
+      // Rune of Window Shopping: your first 4 Refreshes each turn are free (counted before charging).
+      const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 4;
+      if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
       // Refreshing Texts bank free rerolls — spend one before charging Mana.
       if (s.freeRolls > 0) {
         s.freeRolls -= 1;
+      } else if (wsFree) {
+        // free — Window Shopping covers it
       } else {
         const rc = refreshCostOf(s); // Tradesman pays 2
         if (s.embers < rc) return state;
@@ -1503,9 +1570,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
+      // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0.
+      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
+      // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
+      if (s.runeOpenEnrollment) appendDominantTypeOffer(s);
       return s;
     }
 
@@ -2905,6 +2976,13 @@ function advanceCombat(s: RunState): void {
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
   s.hoardcallingUsedThisTurn = undefined;
+  // Aug-11 economy runes' per-turn latches.
+  s.windowShopRolls = 0;
+  s.restockUsedThisTurn = false;
+  s.bargainBinUsedThisTurn = false;
+  s.collectorUsedThisTurn = false;
+  s.tradeInTribe = undefined;
+  s.typesBoughtThisTurn = [];
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
@@ -3122,6 +3200,18 @@ function advanceCombat(s: RunState): void {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
     if (s.runeSummitTick % 3 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); // every 3rd shop (owner sheet 2026-07-31)
   }
+  // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
+  if (s.runeStrangeCaravan) {
+    const un = uncontrolledTribes(s);
+    if (un.length > 0) {
+      const rng = makeRng(s.rngCursor);
+      const tribe = un[rng.int(un.length)]!;
+      s.rngCursor = rng.state();
+      grantRandomTribeMinion(s, tribe, 1, true);
+    }
+  }
+  // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
+  if (s.runeFreshPages) queueDiscover(s, { kind: 'spell' });
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -3778,6 +3868,26 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeDenMother':
       s.runeDenMother = true; // Rune of the Den Mother: Den Mother buffs herself too
       break;
+    case 'runeDisplayCase':
+      s.runeDisplayCase = true; // Rune of the Display Case: Market Tormentor also enchants the left-most slot
+      break;
+    case 'runeBlart':
+      s.runeBlart = true; // Rune of Blart: Bob Blart gains both end Shop minions' stats
+      break;
+    case 'runeSellersMarket': s.runeSellersMarket = true; break; // sell → board +4/+3
+    case 'runeFreshPages': s.runeFreshPages = true; break;       // Start of Turn: Discover a Shop spell
+    case 'runeStrangeCaravan': s.runeStrangeCaravan = true; break; // Start of Turn: uncontrolled-type minion
+    case 'runeWindowShopping': s.runeWindowShopping = true; break; // first 4 Refreshes each turn are free
+    case 'runeOpenEnrollment': s.runeOpenEnrollment = true; break; // Refresh offers an extra dominant-type minion
+    case 'runeTradeIn': s.runeTradeIn = true; break;             // first sale → next minion of that type −1 Gold
+    case 'runeRestocking': s.runeRestocking = true; break;       // first buy refills its slot with a 1-Gold minion
+    case 'runeCollector': s.runeCollector = true; break;         // 3 types bought → Discover one of them
+    case 'runeBargainBin': s.runeBargainBin = true; break;       // first Refresh fills the Shop with 1-Gold minions
+    case 'runeShopkeep':
+      // Rune of Shopkeep: reduce the upgrade cost by 3 NOW, and again each End of Turn (see applyEndOfTurn).
+      s.runeShopkeep = true;
+      s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - 3);
+      break;
     case 'runeScale':
       s.runeScale = { count: r.count, attack: r.attack, health: r.health, per: r.per, tick: 0 }; // Gold-spend buffs random allies
       break;
@@ -4168,6 +4278,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeMoonhowl: f?.runeMoonhowl,           // Rune of Moonhowl: a dying Mage-Pup casts its taught spell
     runeFloodedVault: f?.runeFloodedVault,   // Rune of the Flooded Vault: the Avenge also casts the left-most hand spell
     runeBattleRefraction: f?.runeBattleRefraction, // Rune of Battle Refraction: Prismcasters repeat combat Rubies
+    runeWrangler: f?.runeWrangler,           // Rune of the Wrangler: Imp Wrangler's Imps get Ward + Taunt
+    runeLivingGeode: f?.runeLivingGeode,     // Rune of the Living Geode: Geode Guardian's Golems get Ward
+    runeDawnclaw: f?.runeDawnclaw,           // Rune of Dawnclaw: Dawnclaws also fire their Echo at Start of Combat
+    runeSylus: f?.runeSylus,                 // Rune of Sylus: your Sylus double their own Health at Start of Combat
+    oldPack: f?.oldPack,                     // Rune of the Old Pack: first Beast resummoned each combat returns at full stats
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright

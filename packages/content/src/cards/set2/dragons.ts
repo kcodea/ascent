@@ -323,4 +323,19 @@ export const SET2_DRAGONS: CardDef[] = [
     text: '**Choose One:** your **Shouts** trigger an additional time, or your first **Shop spell** each turn casts **3 times**.',
     goldenText: '**Choose One:** gain **both** — your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
   },
+  {
+    // Owner add 2026-08-11. A Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime
+    // Shop-Spell count: +1/+1 per Dragon at base, climbing +1 every 4 Shop Spells cast this run (so a spell-heavy
+    // build makes every Dragon play land harder). Live text folds in the current per-Dragon grant (herzogText).
+    id: 'd2_herzog',
+    name: 'Herzog',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 1, per: 4 } }],
+    text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 Shop Spells** cast this game.',
+    goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 Shop Spells** cast this game.',
+  },
 ];

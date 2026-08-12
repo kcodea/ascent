@@ -419,6 +419,25 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
 }
 
 /**
+ * Herzog's per-Dragon grant SCALES with the run's lifetime Shop-Spell count: +N/+N where N = base +
+ * floor(spellsCast / per), read live (retroactive). Injects the current per-Dragon grant into the printed
+ * "Gain +X/+X" (the FIRST +A/+H in the text — the "Improves" step is left as the base rate) and appends the
+ * countdown to the next step. `{{…}}` renders green + is excluded from the golden doubling, so golden is folded
+ * in here (see the note at the top of this file).
+ */
+export function herzogText(cardId: string, golden: boolean, spellsCast: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onTribePlayedBuffSelfPerSpell');
+  if (!def || !eff) return null;
+  const per = Math.max(1, Number((eff.params as { per?: number } | undefined)?.per ?? 4));
+  const base = Number((eff.params as { base?: number } | undefined)?.base ?? 1);
+  const cur = (base + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
+  const toNext = per - (spellsCast % per);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} Shop Spells to next step}}`;
+}
+
+/**
  * Flowing Monk scales with overflows seen: each overflow Engraves `count` friends +X/+X where X = base ×
  * (1 + floor(overflows / every)) (×2 golden) — the tally rides in `summonBonus`. Show the live current
  * grant AND the countdown to the next step (both green), so the card always states its current value.

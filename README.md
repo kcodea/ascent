@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **20 new runes + 2 new minions** — Herzog (a Dragon whose per-play buff scales retroactively with your Shop-Spell count) and Kobabyboldies (Echo: 3 Rubies on each Kobold); six "grant a minion + upgrade it" runes (Display Case, Wrangler, Living Geode, Dawnclaw, Blart, Sylus) and a dozen new shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack), all with art.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

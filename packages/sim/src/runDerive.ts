@@ -404,7 +404,10 @@ export function observeAction(st: DeriveState, before: RunState, action: Action,
     const offer = before.shop?.find((o) => o.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
     const idx = st.offerIdx[action.uid];
     const row = idx === undefined ? undefined : st.offers[idx];
-    if (row) { row.bought = true; row.goldAfter = after.embers; }
+    // Record the Gold at the moment of PURCHASE (before/after bracket the same transaction). A FROZEN offer can
+    // be bought a turn after it was first snapshotted, by which point a Gold refill has moved `row.gold` stale —
+    // updating it here keeps `goldAfter <= gold` an honest per-purchase pair.
+    if (row) { row.bought = true; row.gold = before.embers; row.goldAfter = after.embers; }
     const had = new Set([...before.hand, ...before.board].map((c) => c.uid));
     const got = [...after.hand, ...after.board].find((c) => !had.has(c.uid) && c.cardId === offer?.cardId);
     if (got) recordAcquisition(st, got, before.wave, 'shop', before.embers - after.embers);

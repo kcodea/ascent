@@ -3523,7 +3523,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = str(params.tribe);
     if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const g = mul(self);
+    // Rune of the Zoo scales the grant by the running combat-summon ordinal (1× on the 1st summon, 2× on the
+    // 2nd, …). Off the rune it returns 1, so Beardsley is a plain +6/+6. Stacks across Beardsleys (each fires)
+    // and composes with golden (`mul`).
+    const g = mul(self) * (ctx.zooReps?.(self.side) ?? 1);
     const a = num(params.attack, 6) * g;
     const h = num(params.health, 6) * g;
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);

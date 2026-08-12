@@ -1963,6 +1963,18 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeBeastialSwarm' },
     sets: ['set2'],
   },
+  {
+    // Owner add 2026-08-12. Grants a Beardsley + the `runeZoo` combat flag: each Beardsley's summon buff scales
+    // with the running combat-summon count (1st summon 1×, 2nd 2×, …). Stacks across Beardsleys and golden.
+    id: 'rune_zoo',
+    name: 'Rune of the Zoo',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Beardsley**. Your **Beardsleys** trigger **1 more time** for every summon in combat.',
+    previewCards: ['b2_beardsley'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['b2_beardsley'] }, { kind: 'combatFlag', flag: 'runeZoo' }] },
+    sets: ['set2'],
+  },
 ];
 
 /**

@@ -162,6 +162,20 @@ export function simulate(
   const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number }[]> = { player: [], enemy: [] };
+  /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
+   *  next Beast summoned, then the queue is spent — they are still for the next summon ONLY, just summed. Called
+   *  from BOTH the normal summon chokepoint AND the Rise re-slot — a Rise re-enters play as a summon (owner
+   *  ruling 2026-07-13), so it is "the next Beast you summon" too. */
+  function applyNextSummonBuff(minion: Minion, side: Side): void {
+    if (minion.dead || nextSummonBuffs[side].length === 0) return;
+    const matches = (b: { tribe: Tribe }): boolean =>
+      minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe;
+    let a = 0, h = 0;
+    for (const b of nextSummonBuffs[side]) if (matches(b)) { a += b.attack; h += b.health; }
+    if (a === 0 && h === 0) return;
+    nextSummonBuffs[side] = nextSummonBuffs[side].filter((b) => !matches(b)); // spent on this one body
+    ctx.buff(minion, a, h, 'Wolvie');
+  }
   /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
   const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
@@ -339,6 +353,8 @@ export function simulate(
   const wildHuntGrown: Record<Side, number> = { player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 };
   /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
   let playerSummonCount = 0;
+  /** Per-side count of combat summons so far (this one included), read by Rune of the Zoo to scale Beardsley. */
+  const summonOrdinal: Record<Side, number> = { player: 0, enemy: 0 };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -816,6 +832,7 @@ export function simulate(
     queueNextSummonBuff: (side, tribe, attack, health) => {
       if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health });
     },
+    zooReps: (side) => (modsFor(side).runeZoo ? Math.max(1, summonOrdinal[side]) : 1),
     grantMagneticBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
       magneticBuffGain.attack += attack;
@@ -1131,10 +1148,36 @@ export function simulate(
     }
     registerEffects(minion);
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    summonEntryEffects(minion, side);
+    // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
+    // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
+    // the placed body inline right after this returns — so the token summons, then swings, before the next
+    // deferred token lands (preserving the sequential board-cap "room after the first has attacked" logic).
+    // Echo Warden: while it's on your board, "your summons trigger one more time" — each successful summon spawns
+    // an extra copy (the copy carries `doubled=true`, so it never re-triggers). Golden Echo Warden adds two; each
+    // Echo Warden stacks. Player-side only (it's a player reward). A full board short-circuits above (no room).
+    if (!doubled && side === 'player') {
+      let extra = 0;
+      for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') extra += m.golden ? 2 : 1;
+      for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
+    }
+    return minion;
+  }
+
+  /**
+   * Everything that fires when a minion ENTERS PLAY — the single summon-entry suite, called from BOTH the
+   * normal placement chokepoint (`placeSummon`) and the Rise return (`killOrReborn`). A minion that Rises IS
+   * a summon (owner ruling 2026-08-12, closing the earlier "quest count only" carve-out): it fires onSummon
+   * watchers (Beardsley / King Oona / Groveweaver / Broodwright), advances the Zoo ordinal and the Remains
+   * counter, collects Emberline's bank, can be Second Litter's first Beast, and takes Savagery / Jungle /
+   * Wolvie — exactly like any other body entering play.
+   */
+  function summonEntryEffects(minion: Minion, side: Side): void {
+    summonOrdinal[side] += 1; // before onSummon fires, so Rune of the Zoo reads THIS summon's ordinal
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
       // Rune of the Remains / Rune of Reinvestment both key off friendly summons. Counted here, at the single
-      // placement chokepoint, so a token, a Rise and a resummon all count exactly once each.
+      // entry chokepoint, so a token, a Rise and a resummon all count exactly once each.
       if (minion.side === 'player') {
         playerSummonCount += 1;
         const remains = modsFor('player').runeRemains ?? 0;
@@ -1187,29 +1230,9 @@ export function simulate(
       fireTrigger('runeJungle', side);
       ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
     }
-    // WOLVIE (Echo): consume ONE queued next-summon buff for this side if this body matches its tribe. FIFO, so
-    // two Wolvies pay the next two matching summons. Applied after auras/Savagery so it stacks on the final body.
-    if (!minion.dead && nextSummonBuffs[side].length > 0) {
-      const i = nextSummonBuffs[side].findIndex((b) =>
-        minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe);
-      if (i >= 0) {
-        const b = nextSummonBuffs[side].splice(i, 1)[0]!;
-        ctx.buff(minion, b.attack, b.health, 'Wolvie');
-      }
-    }
-    // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
-    // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
-    // the placed body inline right after this returns — so the token summons, then swings, before the next
-    // deferred token lands (preserving the sequential board-cap "room after the first has attacked" logic).
-    // Echo Warden: while it's on your board, "your summons trigger one more time" — each successful summon spawns
-    // an extra copy (the copy carries `doubled=true`, so it never re-triggers). Golden Echo Warden adds two; each
-    // Echo Warden stacks. Player-side only (it's a player reward). A full board short-circuits above (no room).
-    if (!doubled && side === 'player') {
-      let extra = 0;
-      for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') extra += m.golden ? 2 : 1;
-      for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
-    }
-    return minion;
+    // WOLVIE (Echo): a queued next-summon buff pays this body if its tribe matches. Applied after auras/Savagery
+    // so it stacks on the final body.
+    applyNextSummonBuff(minion, side);
   }
 
   // Runs `run()` as an ECHO (Deathrattle) trigger. The `echoDepth` counter that used to live here — marking
@@ -1607,14 +1630,11 @@ export function simulate(
       const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
       nextStep(); // the body's return is its own moment, after the rattle's summons
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
-      applyTribeAuras(minion); // a Reborn Beast inherits Kennelmaster's aura too ("summoned in any way")
-      // A Rise IS a summon (owner ruling 2026-07-13): count it toward "Summon N in combat" quests (Forsaken Will,
-      // Pack Mentality, …) — the body re-enters play, so it summons. Player-side only; mirrors placeSummon's tally.
-      // NOT an onSummon broadcast: Rise deliberately doesn't re-fire onSummon effects — this is the quest count only.
-      if (minion.side === 'player') {
-        bumpQuestTally('summonCombat', minion);
-        if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); }
-      }
+      // A Rise IS a summon, in FULL (owner ruling 2026-08-12, superseding the 2026-07-13 "quest count only"
+      // carve-out): the returned body runs the same summon-entry suite as any placed summon — onSummon
+      // watchers (Beardsley / King Oona / Groveweaver), tribe auras, the Zoo ordinal, Remains, Emberline,
+      // Second Litter, Savagery / Jungle, Wolvie, and the quest tallies (all inside the shared helper).
+      summonEntryEffects(minion, minion.side);
       return;
     }
     minion.dead = true;

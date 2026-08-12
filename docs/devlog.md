@@ -1,5 +1,55 @@
 # ASCENT — development log
 
+## 2026-08-12 — Wolvie fixes + stacking, Beardsley both-phases, Rune of the Zoo
+
+Four related Beast-summon changes in one pass.
+
+**Fix: Wolvie's next-summon buff now pays a Beast that RISES.** Owner report: a Wolvie whose Echo queued
+"+2/+4 to the next Beast you summon" did not pay the same Wolvie when it came back via **Rise**. Cause: the
+queue was consumed only at the normal summon chokepoint (`placeSummon`), and a Rise re-slots the body on its
+own path (`killOrReborn`) without passing through it — even though a Rise IS a summon (owner ruling
+2026-07-13; it already counts for summon quests and inherits "wherever they are" auras). Extracted the
+consumption into `applyNextSummonBuff` and call it from BOTH paths.
+
+**Wolvie Echoes now STACK (owner 2026-08-12).** Four queued Wolvie Echoes all land on the NEXT matching summon
+— summed onto that one body, then the queue is spent. Still "the next summon only", just cumulative, instead
+of the old one-Echo-per-summon FIFO.
+
+**Beardsley fires in BOTH phases (owner 2026-08-12).** Text is now "Whenever you summon a Beast, give it
++6/+6" — a recruit-phase `onSummonTribeBuffFlat` twin was added so a Beast played/summoned in the shop gets
+the grant too (the combat half is unchanged).
+
+**Rune of the Zoo (Epic 6, new).** "Get a Beardsley. Your Beardsleys trigger 1 more time for every summon in
+combat." Implemented as a per-side combat-summon ordinal (`summonOrdinal`) read through `ctx.zooReps`: with
+the rune, Beardsley's grant multiplies by the running summon count (1st summon ×1, 2nd ×2, …), composing with
+golden (×2) and stacking across Beardsleys (each fires per summon). Shop half stays flat — the rune reads
+"in combat". Art wired (`rune_zoo.webp`, RuneOfTheZoo.png source).
+
+Tests: the Rise regression, Echo stacking, Zoo ordinal scaling (+ gild composition + no-rune flat control) in
+`beastBatchAug12.test.ts`; the old Beardsley "combat-only" test flipped to assert the shop grant.
+
+**Second pass (owner reports 2026-08-12, same branch):**
+- **Beardsley live text under Rune of the Zoo.** The combat card now prints the buff the NEXT summon will
+  actually get (base × gild × next ordinal) — `summonFlatZooText` in the shared `liveCardText` chain, fed by
+  the replay's live `combatQuestDelta.summonCombat` through a primitive zustand selector in `Unit.tsx` (only
+  re-renders on summon beats, only with the rune held). Enemy Beardsleys fall back to printed text, like the
+  other run-side scalers.
+- **Dunkey avenge AUDIT (owner report: "the Armadiyo that Dunkey summoned died and did not count").** Verified
+  empirically: the tally is CORRECT — a summoned Armadiyo's death counts toward the next Avenge(4), and with
+  board room every threshold fires exactly (regression test added). What CAN happen is the Avenge summon being
+  dropped when the board is momentarily full at the threshold instant (the dying minion's own Echo takes the
+  freed slot first). Owner ruling: **"this is the correct rule"** — full-board summons are lost, consistent
+  with the Aug-11 queue-time cap ruling. No change; documented here.
+- **Rise IS a summon, in full (owner ruling, superseding 2026-07-13's "quest count only" carve-out).** The
+  whole summon-entry suite is now ONE shared function (`summonEntryEffects`) called from both the placement
+  chokepoint and the Rise return: a risen body fires onSummon watchers (Beardsley / King Oona / Groveweaver /
+  Broodwright), advances the Zoo ordinal + the Remains counter, collects Emberline's bank, can be Second
+  Litter's first Beast, and takes Savagery / Jungle / Wolvie. Deliberately NOT extended: the body-construction
+  grants (Hatchery's +3/+3, Undertow's Ward, Food Chain's inherit) — a Rise's returned body is defined by the
+  Rise rule itself (base Attack, 1 Health, printed keywords); flagged for the owner in the PR.
+
+Gates all green (typecheck / lint / 4963 tests / build:web).
+
 ## 2026-08-12 — Art re-wire from the source folder (`npm run art:wire`)
 
 Ran the strict-name-match art pipeline against `C:/Game Assets/Ascent Art` (the owner's authored art, updated

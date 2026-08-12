@@ -46,6 +46,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   const runSpellsThisTurn = useGame((s) => s.run.spellsThisTurn);
   const runPlayedThisTurn = useGame((s) => s.run.playedThisTurn);
   const enemyScalers = useGame((s) => s.run.lastCombat?.enemyScalers);
+  // Rune of the Zoo: Beardsley's combat text prints the NEXT summon's live grant. A primitive selector — units
+  // only re-render when the summon tally actually moves (a rare board-reflow beat), and only with the rune held.
+  const zooSummons = useGame((s) => (s.run.questFlags?.runeZoo ? (s.combatQuestDelta?.summonCombat ?? 0) : undefined));
   const spA = foe ? (enemyScalers?.spellPower.attack ?? 0) : runSpA;
   const spH = foe ? (enemyScalers?.spellPower.health ?? 0) : runSpH;
   const drTally = foe ? (enemyScalers?.deathrattles ?? 0) : runDrTally;
@@ -92,6 +95,8 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         lastSpellThisTurnName: foe ? undefined : (run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined),
         // Rune-modified card rules read live in COMBAT too (owner audit 2026-08-02) — player-side only.
         runeMammoth: foe ? undefined : !!run.questFlags?.runeMammoth,
+        zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
+
         runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
       })
     : { text: '', goldenText: undefined };

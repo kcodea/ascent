@@ -228,8 +228,9 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Echo:** summon a random **Beast** and set its stats to **14/14**.',
   },
   {
-    // Owner add 2026-08-12. A combat-only summon payoff: every Beast you summon mid-fight gets +6/+6 flat
-    // (`onSummonTribeBuffFlat` has no recruit twin, so shop summons don't trigger it). Golden gives +12/+12.
+    // Owner add 2026-08-12 (owner 2026-08-12: now BOTH phases). Whenever you summon a Beast — in the shop or in
+    // combat — give it +6/+6 flat (`onSummonTribeBuffFlat` is wired in both the recruit and combat factories).
+    // Golden gives +12/+12. Rune of the Zoo scales the COMBAT half by the running summon count.
     id: 'b2_beardsley',
     name: 'Beardsley',
     tribe: 'beast',
@@ -238,8 +239,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 6, health: 6 } }],
-    text: 'When you summon a **Beast** in combat, give it **+6/+6**.',
-    goldenText: 'When you summon a **Beast** in combat, give it **+12/+12**.',
+    text: 'Whenever you summon a **Beast**, give it **+6/+6**.',
+    goldenText: 'Whenever you summon a **Beast**, give it **+12/+12**.',
   },
   {
     // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets

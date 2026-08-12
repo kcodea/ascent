@@ -4334,6 +4334,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeJungle: f?.runeJungle,               // Rune of the Jungle: a summoned Beast doubles its Health
     runeBurrow: f?.runeBurrow,               // Rune of the Burrow: first Echo-Beast death is resummoned without its Echo
     runeBeastialSwarm: f?.runeBeastialSwarm, // Rune of Beastial Swarm: your Beasts gain +N/+N per friendly Beast death
+    runeZoo: f?.runeZoo,                     // Rune of the Zoo: Beardsley's summon buff scales with the summon count
     beastialSwarmLevel: f?.runeBeastialSwarm ? (s.beastialSwarmLevel ?? 2) : undefined, // the current per-death amount (run-persisted)
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too

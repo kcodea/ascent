@@ -66,11 +66,11 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.95,     // owner-tuned 2026-08-10: near-instant catch-up (was 0.54)
-  tiltGain: 3,      // owner-tuned 2026-08-12: uniform dive gain; any real motion saturates the cap
-  tiltEase: 1,      // owner-tuned 2026-08-12: no smoothing — dive tracks raw travel, snaps flat on stop
-  tiltMax: 45,      // owner-tuned 2026-08-12: the dive ceiling (was 20)
-  perspective: 525, // owner-tuned 2026-08-12: strong foreshortening / deep corner pinch (was 4000)
+  follow: 1,        // owner-tuned 2026-08-12: instant catch-up — the card rides exactly on the cursor
+  tiltGain: 7,      // owner-tuned 2026-08-12: uniform dive gain (one gain, both axes)
+  tiltEase: 0.4,    // owner-tuned 2026-08-12: eased dive build/settle off the smoothed travel
+  tiltMax: 16,      // owner-tuned 2026-08-12: the dive ceiling
+  perspective: 600, // owner-tuned 2026-08-12: foreshortening / corner-pinch depth (was 4000)
   scale: 1.21,      // clearly lifted off the table
   staticRotate: 0,  // owner-tuned 2026-08-10: sits flat while held (was -1.5)
   threshold: 0,     // drag engages immediately
@@ -158,7 +158,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 5;
+export const DRAG_DEFAULTS_VERSION = 6;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

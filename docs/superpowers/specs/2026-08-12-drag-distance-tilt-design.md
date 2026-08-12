@@ -102,19 +102,20 @@ the owner asked for: **position outside, tilt inside.**
   and update the removed/added keys across `DragFeel`, `DEFAULTS`, `DRAG_RANGES`, `DRAG_DESC`, and the
   `DragTuner` `SPECS`/`ORDER` so the panel and the persisted shape stay in sync.
 
-### 3b. Locked values (dialed by eye in the preview, owner-approved 2026-08-12)
+### 3b. Locked values (dialed live in the game by the owner 2026-08-12)
+
+Shaped first on the preview, then re-tuned in-game against real cards — the in-game numbers are the shipped
+ones:
 
 | key | value | note |
 |---|---|---|
-| `tiltGain` | **3.0** | deg per px/frame; with the cap below, any real motion saturates → decisive full dive |
-| `tiltEase` | **1.0** | no smoothing — tilt = raw per-frame travel; snaps flat the instant the cursor stops |
-| `tiltMax` | **45** | the dive ceiling |
-| `perspective` | **525** | strong foreshortening / deep corner pinch (was 4000) |
+| `tiltGain` | **7** | deg per px/frame — uniform dive gain, both axes |
+| `tiltEase` | **0.4** | eased dive build/settle off the smoothed travel (not raw) |
+| `tiltMax` | **16** | the dive ceiling |
+| `perspective` | **600** | foreshortening / corner-pinch depth (was 4000) |
+| `follow` | **1** | owner chose instant catch-up — the card rides exactly on the cursor (was 0.95) |
 
-`follow` stays **0.95** (unchanged position feel). The owner's preview used `follow 1`, but with the tilt
-saturated at these gains the 0.95-vs-1 difference is imperceptible, and leaving it honors the "position
-untouched" scope. `scale` stays **1.21** (existing hold-size knob — explicitly out of scope). `tiltEase`
-is kept as a live knob (default 1) so a softer settle can be dialed later without a code change.
+`scale` stays **1.21** (existing hold-size knob — out of scope). Shipped as `DRAG_DEFAULTS_VERSION 6`.
 
 ### 4. Build path — cheap preview first
 

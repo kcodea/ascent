@@ -21,9 +21,9 @@ is moving, *uniformly* on every axis, and settles flat when the cursor stops.
   (`rotateX/rotateY` about its own centre). Now it's a clean pitch and the receding edge's corners pinch.
   Snap/magnet-slide are unaffected (they rotate 0°); React flattens `.dragtilt` while they run.
 - **Tuner + config.** Retired `tiltPerPx`/`hLean`/`vLean`; added `tiltGain`/`tiltEase`; kept
-  `tiltMax`/`perspective`/`staticRotate`. New owner-tuned defaults (`tiltGain 3`, `tiltEase 1`, `tiltMax 45`,
-  `perspective 525`); bumped `DRAG_DEFAULTS_VERSION` 4→5 and the fingerprint. `follow` (0.95) and `scale`
-  (1.21) untouched — position feel unchanged.
+  `tiltMax`/`perspective`/`staticRotate`. Owner-tuned defaults (dialed live in the game): `tiltGain 7`,
+  `tiltEase 0.4`, `tiltMax 16`, `perspective 600`, and `follow` nudged 0.95→`1` (card rides exactly on the
+  cursor). `scale` (1.21) untouched. `DRAG_DEFAULTS_VERSION` 4→6 with the matching fingerprint.
 
 Shaped on a throwaway preview (scratchpad) to lock signs + gain/ease by eye before touching Recruit; spec at
 `docs/superpowers/specs/2026-08-12-drag-distance-tilt-design.md`. Verified: typecheck (pkgs+web), eslint 0

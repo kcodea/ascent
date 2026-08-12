@@ -481,7 +481,7 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'shout' | 'consume'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -807,6 +807,7 @@ export interface RunState {
   runeKindling?: boolean;
   /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
   runeScales?: boolean;
+  runeLongShift?: boolean;
   /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
   runeBartering?: boolean;
   /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */

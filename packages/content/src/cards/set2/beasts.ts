@@ -211,9 +211,9 @@ export const SET2_BEASTS: CardDef[] = [
     // Taunt (owner 2026-07-25): it has to be attacked INTO for its Echo to pay, so guarding the line is what
     // makes the card do its own job.
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' }],
-    text: "**Taunt. Echo:** trigger adjacent minions' **Shouts**.",
-    goldenText: "**Taunt. Echo:** trigger adjacent minions' **Shouts** twice.",
+    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } }],
+    text: "**Taunt. Echo:** trigger an adjacent minion's **Shout**.",
+    goldenText: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts**.",
   },
   {
     // A go-wide Rally payoff: the more Beasts you field, the harder it hits. Buffs ITSELF (not the board) so
@@ -225,9 +225,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyBuffSelfPerTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
-    text: '**Rally:** gain **+1/+1** for every Beast you control.',
-    goldenText: '**Rally:** gain **+2/+2** for every Beast you control.',
+    effects: [{ on: 'onAttack', do: 'rallyBuffSelfPerTribe', params: { tribe: 'beast', attack: 1, health: 0 } }],
+    text: '**Rally:** gain **+1 Attack** for every Beast you control.',
+    goldenText: '**Rally:** gain **+2 Attack** for every Beast you control.',
   },
   {
     // Owner add 2026-07-28. A Shout ENGINE that pays in the shop rather than in combat: park it between two

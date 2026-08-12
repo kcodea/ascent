@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance batch + two combat-timing fixes** — a wide owner pass: ~12 minion reworks (Spell Warden/Bob Blart retiers, Errand Fiend loses Flurry, Dawnclaw's Echo hits one adjacent/both-when-gilded, Candle Conduit reacts to gaining Rubies, Avarice/Malphas Demon-consume reworks, Rope Wrangler grows itself, and more), ~40 rune cost/effect changes, and two engine bugs squashed — "summon when you have space" now fires at Start of Combat (not a beat late), and a Rally that summons onto a **full** board is rejected immediately instead of sneaking in after the attacker dies.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

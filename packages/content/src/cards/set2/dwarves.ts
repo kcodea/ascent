@@ -119,9 +119,9 @@ export const SET2_DWARVES: CardDef[] = [
     keywords: [],
     target: 'friendly',
     targetTribe: 'dwarf', // owner ruling 2026-08-04: Dwarves only — enforced by the reducer, mirrored by the aim UI
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTargetPerGoldSpent', params: { health: 1 } }],
-    text: '**Shout:** give a friendly **Dwarf** **+1 Health** per Gold spent this turn.',
-    goldenText: '**Shout:** give a friendly **Dwarf** **+2 Health** per Gold spent this turn.',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTargetPerGoldSpent', params: { health: 2 } }],
+    text: '**Shout:** give a friendly **Dwarf** **+2 Health** per Gold spent this turn.',
+    goldenText: '**Shout:** give a friendly **Dwarf** **+4 Health** per Gold spent this turn.',
   },
   {
     // Left-most rather than targeted, so you pick the recipient by ARRANGING your line — deterministic, no RNG.
@@ -227,9 +227,11 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGiveAttackToOthers', params: { count: 3 } }],
-    text: "**Rally:** give this minion's **Attack** to **3 random** friendly minions.",
-    goldenText: "**Rally:** give this minion's **Attack** to **3** friendly minions **twice**.",
+    // Owner 2026-08-11: 3 → 2 recipients, and it can no longer feed OTHER Lieutenant Thanes (the id is
+    // excluded in `rallyGiveAttackToOthers`) — so two Thanes don't pump each other into a runaway loop.
+    effects: [{ on: 'onAttack', do: 'rallyGiveAttackToOthers', params: { count: 2, excludeId: 'dw_thane' } }],
+    text: "**Rally:** give this minion's **Attack** to **2 other** friendly minions.",
+    goldenText: "**Rally:** give this minion's **Attack** to **2 other** friendly minions **twice**.",
   },
   {
     // `bonusEmbersNextTurn` already existed and is paid at turn start — no new run state was needed after all.

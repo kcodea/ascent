@@ -99,20 +99,21 @@ describe('Sporebat — Echo casts the STORED spell on a random friendly Beast', 
   });
 });
 
-describe('Badgington — Rally casts a random targeted spell on another Beast, and copies it', () => {
-  it('casts, and the copy of THAT spell carries back to hand', () => {
-    const r = fight([
-      { cardId: 'badgington', attack: 30, health: 400 },
-      { cardId: 'pack', attack: 1, health: 400 },
-    ]);
+describe('Badgington — Rally grants a random Shop Spell to hand (owner rework 2026-08-11)', () => {
+  it('on attack, a random non-token Shop spell is granted to hand — no other Beast required', () => {
+    // The rework dropped the targeted-cast-on-a-Beast behaviour: Rally now simply mills a random Shop spell to
+    // hand (via the shared rallyGrantSpell path), so a lone Badgington with no other Beast still pays out.
+    const r = fight([{ cardId: 'badgington', attack: 30, health: 400 }]);
     const grants = r.playerHandGrants ?? [];
-    expect(grants.length, 'no copy was granted').toBeGreaterThan(0);
-    expect(grants.every((id) => CARD_INDEX[id]?.spell && !!CARD_INDEX[id]?.target), 'a copy of a non-targeted spell').toBe(true);
+    expect(grants.length, 'no spell was granted').toBeGreaterThan(0);
+    expect(grants.every((id) => CARD_INDEX[id]?.spell && !CARD_INDEX[id]?.token), 'a non-spell or token was granted').toBe(true);
   });
 
-  it('alone on the board (no other Beast) it does nothing', () => {
-    const r = fight([{ cardId: 'badgington', attack: 30, health: 400 }]);
-    expect((r.playerHandGrants ?? []).length).toBe(0);
+  it('golden grants twice as many per attack', () => {
+    const solo = (fight([{ cardId: 'badgington', attack: 30, health: 400 }]).playerHandGrants ?? []).length;
+    const gold = (fight([{ cardId: 'badgington', attack: 30, health: 400, golden: true }]).playerHandGrants ?? []).length;
+    expect(solo, 'the ungilded fixture never granted').toBeGreaterThan(0);
+    expect(gold).toBe(solo * 2);
   });
 });
 
@@ -142,28 +143,7 @@ describe('Earthbreaker — the side guard (owner bug report 2026-08-07)', () => 
     expect(r.events.some((e) => e.type === 'buff' && e.source === eb.uid), 'the friendly watcher broke').toBe(true);
   });
 });
-
-describe('Candle Conduit — the combat-side bounce', () => {
-  it('a combat Ruby play lands on its target AND one more minion', () => {
-    // playRubyOn is exercised through Rune of Gemstorm (Avenge 2) — so the fixture needs two friendly deaths
-    // to pace it: two 1-hp strays die to the wall, the Avenge fires once, and every living Kobold plays its
-    // Rubies. Both boards carry TWO tanky Kobolds so the bounce always has a living recipient; the control
-    // swaps the Conduit for a second Crownvein. Count the Ruby-tagged buff events.
-    const enemy: BoardMinion[] = [{ cardId: 'omen', attack: 60, health: 40000 }];
-    const board = (first: string): BoardMinion[] => [
-      { cardId: first, attack: 5, health: 4000 },
-      { cardId: 'k_crownvein', attack: 4, health: 4000 },
-      { cardId: 'stray', attack: 1, health: 1 },
-      { cardId: 'stray', attack: 1, health: 1 },
-    ];
-    const gm = { questMods: { runeGemstorm: 1 } as CombatSideState['questMods'] };
-    const withConduit = simulate(board('k_candleconduit'), enemy, makeRng(5), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['kobold'], ...gm }), combatSide({ tier: 1 }));
-    const without = simulate(board('k_crownvein'), enemy, makeRng(5), CARD_INDEX,
-      combatSide({ tier: 6, tribes: ['kobold'], ...gm }), combatSide({ tier: 1 }));
-    const rubyLandings = (r: CombatResult): number =>
-      r.events.filter((e: CombatEvent) => e.type === 'buff' && (e as { ruby?: true }).ruby).length;
-    expect(rubyLandings(without), 'the Gemstorm fixture plays no Rubies — vacuous').toBeGreaterThan(0);
-    expect(rubyLandings(withConduit)).toBe(rubyLandings(without) * 2); // every landing gains one bounce
-  });
-});
+// Candle Conduit's combat-side Ruby bounce was RETIRED in the 2026-08-11 rework: it is now a recruit-phase
+// `onGetRuby` reactor (cast a Ruby on a random friendly minion whenever you GET a Ruby), with no combat half at
+// all. There is nothing left to pin in the combat simulator, so that block was removed — the new behaviour is
+// covered in packages/sim/src/rubies.test.ts, where mintRubies / fireOnRubyGained are reachable.

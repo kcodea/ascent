@@ -4449,3 +4449,38 @@ describe('Rally quest tally counts EXTRA fires (Uron)', () => {
     expect(perAttack(true)).toBe(2);
   });
 });
+
+describe('combat-timing bug fixes (owner 2026-08-11)', () => {
+  it('a "while you have space" summon fills a STARTING slot before any attack (Rune of the Brood)', () => {
+    // Board begins with room (1 minion, 6 open slots). The Brood Imp must arrive at Start of Combat, before the
+    // rotation — it used to wait for the first attack's death cascade to free a slot (which it already had).
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 50 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 2, health: 50 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6, questMods: { runeBrood: 1 } }), combatSide({ tier: 1 }));
+    const firstImp = r.events.findIndex((ev) => ev.type === 'summon' && (ev as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    const firstAttack = r.events.findIndex((ev) => ev.type === 'attack');
+    expect(firstImp, 'the Brood Imp is summoned').toBeGreaterThanOrEqual(0);
+    expect(firstAttack, 'someone attacks').toBeGreaterThanOrEqual(0);
+    expect(firstImp, 'the Brood fills the slot BEFORE the first attack').toBeLessThan(firstAttack);
+  });
+
+  it('a Rally-summoned attack-on-summon token is rejected while the board is FULL, even though the attacker then dies', () => {
+    // 7 minions — a full board. Left-most carries Chicken Brawl's Echo (summons a Charging Soldier, which attacks
+    // on summon). The Echohorn's Rally fires that Echo BEFORE its own death; the board is full at that instant, so
+    // no Soldier may appear — not even after the Echohorn dies to the wall's retaliation and frees a slot. The bug
+    // was that the summon deferred its board-cap check to flush time, after the death had already opened the slot.
+    const p: BoardMinion[] = [
+      { cardId: 'dw_chickenbrawl', attack: 1, health: 9999 }, // echo carrier, indestructible so the board stays full
+      { cardId: 'b2_echohorn', attack: 5, health: 4 }, // dies to the wall's 40-Attack retaliation, AFTER its Rally
+      { cardId: 'sandbag', attack: 0, health: 9999 },
+      { cardId: 'sandbag', attack: 0, health: 9999 },
+      { cardId: 'sandbag', attack: 0, health: 9999 },
+      { cardId: 'sandbag', attack: 0, health: 9999 },
+      { cardId: 'sandbag', attack: 0, health: 9999 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 40, health: 9999 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const soldiers = r.events.filter((ev) => ev.type === 'summon' && (ev as { minion: { cardId: string } }).minion.cardId === 'dw_soldier');
+    expect(soldiers.length, 'no Charging Soldier is summoned onto the full board').toBe(0);
+  });
+});

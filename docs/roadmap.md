@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Balance batch (minions + runes) + two combat-timing fixes — SHIPPED 2026-08-11.** ~12 minion reworks, ~40
+  rune cost/effect changes (incl. Mountain Trade's new `cardsPlayed` threshold meter and a permanent Showcase),
+  and two engine bugs: summon-on-space now fires at Start of Combat, and a Rally summon onto a full board is
+  rejected at queue time rather than landing after the attacker's death frees a slot. Details in the devlog.
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
 - **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,

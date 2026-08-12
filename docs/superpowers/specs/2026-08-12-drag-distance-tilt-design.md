@@ -60,18 +60,37 @@ signal: its magnitude is the card's speed.
 ### 2. Tilt — uniform directional dive
 
 Replace the current `tiltPerPx · hLean · gx` / `tiltPerPx · vLean · gy` with the reference's single-gain
-mapping, fed by the smoothed velocity:
+mapping, fed by the smoothed velocity (screen y is down+):
 
 ```
-rotY = clamp(-tiltGain * vx, ±tiltMax)   // horizontal travel → dive about Y
-rotX = clamp(-tiltGain * vy, ±tiltMax)   // vertical travel   → dive about X
+rotX = clamp(-tiltGain * vy, ±tiltMax)   // vertical travel   → pitch about X
+rotY = clamp(+tiltGain * vx, ±tiltMax)   // horizontal travel → roll about Y
 ```
 
-One `tiltGain` for both axes (kills the N/S weakness). Signs are chosen so the **leading edge dips toward
-the board** and are confirmed by eye (§4) — they may flip from the literal reference because the card sits
-in a downward-facing board view, not a centered plane. `rotX`/`rotY` continue to flow through the existing
-`dragTransform(perspective, …, rotX, rotY, …)` call; nothing else about position, zoom, anchor, or shadow
-changes.
+One `tiltGain` for both axes (kills the N/S weakness). Signs confirmed by eye against the owner's sketch:
+the **leading edge dives toward the board** — drag **south → bottom two corners pinch**, **east → right
+corners pinch**, north/west the reverse.
+
+### 2b. Decouple position from tilt (the slide fix — now load-bearing)
+
+At the locked `perspective 525` and up to `45°` of tilt, the current single-transform approach
+(`perspective(P) translate(bigOffset) rotateX rotateY` in one `dragTransform` call) **slides the card
+sideways**: the large position translate sits *inside* the perspective, so any tilt's depth is multiplied by
+that offset and shoves the card off-axis instead of pitching cleanly. It only looked acceptable before
+because the old tilt was tiny (`tiltMax 20`) and perspective very gentle (`4000`).
+
+Fix — split the floating card into two nested elements:
+
+- **Outer `.dragcard`** (position): plain 2D `translate` + `zoom` lift, and it carries the `perspective`
+  **CSS property** (vanishing point = its own center). The existing follow / grab-anchor / recentre / zoom
+  math is unchanged; it just no longer includes `perspective()`/`rotate` in its transform.
+- **New inner `.dragtilt` wrapper** (tilt): `transform: rotateX(rotX) rotateY(rotY)` about `50% 50%`, so the
+  dive is a clean symmetric pitch and the receding edge's corners genuinely pinch. Wraps `<Card>`.
+
+The rAF writes the outer's translate/zoom and the inner's rotation each frame (two `style.transform`
+writes, both compositor-only). Snap-back / magnet-slide keep the existing `dragTransform` on the outer
+(they rotate 0°, so no slide) — untouched. This nested split is also the "revisit how position is rendered"
+the owner asked for: **position outside, tilt inside.**
 
 ### 3. Tuner (`dragFeel.ts` + `DragTuner.tsx`)
 
@@ -82,6 +101,20 @@ changes.
 - **Bump** `DRAG_DEFAULTS_VERSION` (required whenever `DEFAULTS` changes; `dragFeel.test.ts` enforces it),
   and update the removed/added keys across `DragFeel`, `DEFAULTS`, `DRAG_RANGES`, `DRAG_DESC`, and the
   `DragTuner` `SPECS`/`ORDER` so the panel and the persisted shape stay in sync.
+
+### 3b. Locked values (dialed by eye in the preview, owner-approved 2026-08-12)
+
+| key | value | note |
+|---|---|---|
+| `tiltGain` | **3.0** | deg per px/frame; with the cap below, any real motion saturates → decisive full dive |
+| `tiltEase` | **1.0** | no smoothing — tilt = raw per-frame travel; snaps flat the instant the cursor stops |
+| `tiltMax` | **45** | the dive ceiling |
+| `perspective` | **525** | strong foreshortening / deep corner pinch (was 4000) |
+
+`follow` stays **0.95** (unchanged position feel). The owner's preview used `follow 1`, but with the tilt
+saturated at these gains the 0.95-vs-1 difference is imperceptible, and leaving it honors the "position
+untouched" scope. `scale` stays **1.21** (existing hold-size knob — explicitly out of scope). `tiltEase`
+is kept as a live knob (default 1) so a softer settle can be dialed later without a code change.
 
 ### 4. Build path — cheap preview first
 
@@ -94,12 +127,14 @@ hunting for the look.
 
 ## Scope
 
-**In:** the tilt signal + mapping in the `.dragcard` rAF (`Recruit.tsx`), the `dragFeel.ts` config surface,
-and the `DragTuner.tsx` panel; the throwaway preview.
+**In:** the tilt signal + mapping in the `.dragcard` rAF (`Recruit.tsx`), the new `.dragtilt` nested wrapper
+(§2b) and the two-target transform write, the `dragFeel.ts` config surface, and the `DragTuner.tsx` panel;
+the throwaway preview.
 
-**Out:** position/follow behaviour, anchor/recenter, hand-grab point, drag shadow, snap/magnet-slide, and
-every non-tilt drag knob — all unchanged. No touch-path change (the touch near-1 follow override stays; the
-tilt reads the same smoothed velocity regardless of input).
+**Out:** the follow / grab-anchor / recentre / hand-grab / zoom **math** (unchanged — it just moves onto the
+outer element), the drag shadow, snap/magnet-slide, and every non-tilt drag knob. No touch-path change (the
+touch near-1 follow override stays; the tilt reads the same smoothed velocity regardless of input). Note the
+DOM *structure* changes (the nested wrapper) even though the position math does not.
 
 ## Verification
 

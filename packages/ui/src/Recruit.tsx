@@ -2179,7 +2179,7 @@ export function Recruit() {
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright],
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -4021,6 +4021,17 @@ export function Recruit() {
         if (bfx.handGrants.length > 0) setEotGrants((g) => [...g, ...bfx.handGrants]);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
+        // Shop offers this beat grew (a Moira re-firing Market Tormentor's Shout at End of Turn; Soul Defiler's
+        // buy-bonus) — a green burst + "+A/+H" float on each, so the shop buff plays out while the shop is still
+        // on screen instead of landing silently after the phase flips to combat (owner report 2026-08-11).
+        for (const sb of bfx.shopBuff ?? []) {
+          const el = document.querySelector(`[data-zone="tavern"] .card[data-uid="${sb.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+          floatSpellPowerNumber(cx, cy - r.height * 0.3, sb.attack, sb.health);
+        }
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];

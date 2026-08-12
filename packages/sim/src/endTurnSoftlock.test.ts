@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type RunState } from './index';
 
 /**
@@ -51,5 +52,24 @@ describe('End Turn is never blocked by a pending targeted Battlecry', () => {
     const after = reduce(s, { type: 'faceOmen' });
     expect(after.pendingTarget).toBeUndefined();
     expect(after.phase).toBe('combat');
+  });
+});
+
+describe('An End-of-Turn Discover auto-grants — it never opens the picker at the combat hand-off', () => {
+  it('Moira re-firing two Black Belt Brians grants two spells, with no Discover window left open (owner 2026-08-11)', () => {
+    // [Brian, Moira, Brian]: at End of Turn Moira replays both neighbours' Discover Battlecries. Those Discovers
+    // must AUTO-RESOLVE to a random pick — an interactive window here would block faceOmen's transition.
+    const s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', tier: 5, hand: [] };
+    s.board = [
+      { uid: 'a', cardId: 'blackbelt', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false },
+      { uid: 'm', cardId: 'b2_moira', tribe: 'beast', attack: 3, health: 5, keywords: [], golden: false },
+      { uid: 'b', cardId: 'blackbelt', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false },
+    ] as RunState['board'];
+    const after = reduce(s, { type: 'faceOmen' });
+    expect(after.phase, 'the turn actually ended — no modal blocked it').toBe('combat');
+    expect(after.discover, 'no interactive Discover window is left open').toBeUndefined();
+    expect(after.discoverQueue ?? [], 'the discover queue is drained').toHaveLength(0);
+    const spells = after.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
+    expect(spells.length, 'both re-fired Brians auto-granted a spell').toBe(2);
   });
 });

@@ -45,6 +45,35 @@ on the branch dev server.
   built-in shapes + palette tint), and this matches the already-shipped `coin-shout` behavior — but it means
   Golden's coins won't render as the PNG for players until the FX-system-wide art-shipping path is addressed.
 
+## 2026-08-11 — Live "Summon a X/Y Imp" text + two end-of-turn fixes
+
+Follow-up polish to the balance batch.
+
+**Live Imp stats on every summoner (owner ask).** Any card or rune that SUMMONS an Imp now prints the Imp's
+current stats — base 1/1 plus the run's Imp Aura — as a green "(X/Y)" folded into the "summon … Imp" phrase,
+updating in real time (e.g. Legion Shepherd: "Echo: summon 4 Imps (4/3)"). A new `withImpStats` helper gates
+on the imp-summon effect ids (so a card that only *buffs* Imps, like Broodwright, is left alone) and anchors
+to the summon phrase (so a trailing "your Imps +1/+1" is untouched). Wired once into `liveCardText` (lights up
+shop / board / hand / Discover AND combat) and into `RuneCard` for the imp-summoning runes (Brood / Broodpit /
+Finality). Fixed along the way: the recruit `live`-text memo omitted `run.impBuff` from its deps, so the Imp
+Aura (and Chef Raag's live text) never refreshed when it changed — added it.
+
+**End-of-Turn Discovers auto-grant (bug).** A Discover raised by an End-of-Turn trigger (Moira re-firing Black
+Belt Brian's Shout) opened the interactive picker mid-transition to combat, blocking the hand-off. Those now
+auto-resolve to a random pick from the pool — the same treatment a mid-combat Discover gets — draining the
+queue so several at once all resolve.
+
+**End-of-Turn shop buffs animate (bug).** A Moira beside Market Tormentor re-fires Tormentor's Shout at End of
+Turn, growing the right-most Shop minion — but it applied silently (the commit lands after the phase flips to
+combat, so the shop-diff watcher never fired). The end-of-turn beat projection now surfaces a `shopBuff` channel
+(diffed from `offerBuyStats`, so it catches both per-offer buffs and the run-wide buy bonus / Soul Defiler), and
+the recruit replay fires a burst + "+A/+H" float on each growing offer on its beat. (Follow-up: ticking the
+offer's printed number up live during the beat — the offer is replaced next turn, where the buff shows in full.)
+
+Verified: typecheck, eslint 0 errors, `npm test`, build:web; the Imp text confirmed live in the browser
+(aura 3/2 → "(4/3)"). New tests: `withImpStats` (cardText.test), the EoT auto-grant (endTurnSoftlock.test), and
+the `shopBuff` projection channel (auraFx.test).
+
 ## 2026-08-11 — Balance batch: ~12 minions, ~40 runes, and two combat-timing bug fixes
 
 A large owner balance pass across content + engine.

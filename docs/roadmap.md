@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Live Imp-stat text + two End-of-Turn fixes — SHIPPED 2026-08-11.** "Summon a X/Y Imp" live text on every
+  imp summoner (cards + runes); EoT-triggered Discovers auto-grant (no window); EoT shop buffs animate on the
+  beat. Follow-up: tick the growing shop offer's printed number up live during the beat (it currently gets a
+  burst + float; the offer is replaced next turn where the buff shows fully). Details in the devlog.
 - **Balance batch (minions + runes) + two combat-timing fixes — SHIPPED 2026-08-11.** ~12 minion reworks, ~40
   rune cost/effect changes (incl. Mountain Trade's new `cardsPlayed` threshold meter and a permanent Showcase),
   and two engine bugs: summon-on-space now fires at Start of Combat, and a Rally summon onto a full board is

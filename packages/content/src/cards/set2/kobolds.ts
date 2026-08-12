@@ -275,9 +275,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'rubyPlayedAnywhere', do: 'rubyBounceExtra' }],
-    text: 'Your **Rubies** all bounce **1 more time**.',
-    goldenText: 'Your **Rubies** all bounce **2 more times**.',
+    // Owner rework 2026-08-11: from a Ruby-bounce passive to a ruby-gain reactor. `rubyGainedCast` (no tribe
+    // filter) casts a Ruby on ONE random friendly minion each time you get a Ruby; golden casts 2.
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
+    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
   },
   {
     // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework

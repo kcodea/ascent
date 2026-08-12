@@ -521,25 +521,29 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(s.recruitFxSeq).toBeGreaterThan(0); // seq bumped → the UI replays the descends
   });
 
-  it('Rune of Kindling: casting a spell descends +3/+3 onto the leftmost minion (sourceless FX event)', () => {
+  it('Rune of Kindling: casting a spell descends +2/+2 onto the left AND right-most minions (owner rework 2026-08-11)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeKindling: true,
       board: [mkAlley('a'), mkAlley('b')],
       hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
-    s = reduce(s, { type: 'play', uid: 'sp1' }); // casting a spell fires the Kindling buff
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3/3
-    const fx = s.recruitBuffFx.filter((e) => e.targetUid === 'a' && e.sourceUid === undefined);
-    expect(fx.length).toBe(1);
-    expect([fx[0]!.attack, fx[0]!.health]).toEqual([3, 3]);
+    s = reduce(s, { type: 'play', uid: 'sp1' }); // casting a spell fires the Kindling buff on both ends
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (left-most)
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (right-most)
+    const fxA = s.recruitBuffFx.filter((e) => e.targetUid === 'a' && e.sourceUid === undefined);
+    const fxB = s.recruitBuffFx.filter((e) => e.targetUid === 'b' && e.sourceUid === undefined);
+    expect(fxA.length).toBe(1);
+    expect([fxA[0]!.attack, fxA[0]!.health]).toEqual([2, 2]);
+    expect(fxB.length).toBe(1);
+    expect([fxB[0]!.attack, fxB[0]!.health]).toEqual([2, 2]);
   });
 
-  it('Rune of Scales: casting a spell descends +2/+2 onto each board Dragon (Beasts untouched)', () => {
+  it('Rune of Scales: casting a spell descends +4/+5 onto each board Dragon (Beasts untouched)', () => {
     const mkDragon = (uid: string): RunState['board'][number] => ({ uid, cardId: 'yazzus', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false });
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeScales: true,
       board: [mkDragon('d1'), mkAlley('b'), mkDragon('d2')],
       hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'sp1' });
-    const dragonFx = s.recruitBuffFx.filter((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 2 && (e.targetUid === 'd1' || e.targetUid === 'd2'));
-    expect(dragonFx.length).toBe(2); // one descend per Dragon (+2/+2, owner sheet 2026-07-31)
+    const dragonFx = s.recruitBuffFx.filter((e) => e.sourceUid === undefined && e.attack === 4 && e.health === 5 && (e.targetUid === 'd1' || e.targetUid === 'd2'));
+    expect(dragonFx.length).toBe(2); // one descend per Dragon (+4/+5, owner 2026-08-11)
     expect(s.recruitBuffFx.some((e) => e.targetUid === 'b')).toBe(false); // the Beast gets nothing
   });
 
@@ -686,13 +690,13 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
 describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge scheduling', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('Rune of Kindling: each spell cast gives the leftmost minion +3/+3', () => {
+  it('Rune of Kindling: each spell cast gives the left AND right-most minions +2/+2 (owner rework 2026-08-11)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeKindling: true,
       board: [mkAlley('lead'), mkAlley('other')],
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' }); // cast a spell
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3/3
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([1, 1]); // leftmost only
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (left-most)
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (right-most)
   });
 
   it('Rune of the Pair: conjures 2 random Tier-4 minions', () => {
@@ -820,13 +824,13 @@ describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / D
   };
   const spell = (uid = 'gp'): RunState['hand'][number] => ({ uid, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
-  it('Rune of Scales: each spell cast gives your Dragons +2/+2 (board + hand)', () => {
+  it('Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand)', () => {
     // A Dragon on board + a non-Dragon; cast a spell → only the Dragon grows.
     let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeScales: true,
       board: [mk('d', 'karwind'), mkAlley('b')], hand: [spell()] };
     const dragonBefore = s.board[0]!.attack;
     s = reduce(s, { type: 'play', uid: 'gp' });
-    expect(s.board[0]!.attack).toBe(dragonBefore + 2); // Dragon +2 (owner sheet 2026-07-31)
+    expect(s.board[0]!.attack).toBe(dragonBefore + 4); // Dragon +4/+5 (owner 2026-08-11)
     expect(s.board[1]!.attack).toBe(1); // non-Dragon unchanged
   });
 

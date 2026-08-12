@@ -52,15 +52,17 @@ describe('the shop-side machinery', () => {
     expect(Math.min(after.spellsCast, 6)).toBe(6);
   });
 
-  it('the Lapidary plays one Ruby per TYPE at End of Turn, not one per minion', () => {
-    // Two Beasts + one Dragon → 2 Rubies (one Beast, one Dragon), not 3.
+  it('the Lapidary plays one Ruby per CARD PLAYED at End of Turn, spread across random minions (owner 2026-08-11)', () => {
+    // 3 cards played this turn → 3 Rubies, each landing on an independently-random board minion (+1/+1 base,
+    // no Ruby bonus in this run). We assert the TOTAL stats added, since which minion each Ruby hits is random.
     const s = withRune('rune_lapidary', {
       board: [bm('b1', 'stray'), bm('b2', 'pack'), bm('d1', 'whelpling')],
+      playedThisTurn: ['x', 'y', 'z'],
     });
-    const before = s.board.map((c) => c.attack + c.health);
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     const next = reduce({ ...s, phase: 'recruit' }, { type: 'faceOmen' }) as RunState;
-    const gained = next.board.filter((c, i) => (c.attack + c.health) > (before[i] ?? 0)).length;
-    expect(gained, 'one minion of each type, not each minion').toBe(2);
+    const after = next.board.reduce((n, c) => n + c.attack + c.health, 0);
+    expect(after - before, '3 cards played → 3 Rubies (+1/+1 each) = +6 total stats').toBe(6);
   });
 
   it('the Foundry hands over a Dragon every 5 sells', () => {

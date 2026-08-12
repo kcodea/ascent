@@ -81,17 +81,14 @@ export const BEASTS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: ['RL'],
-    // Rally, not Slaughter (owner 2026-07-31): it now pays for ATTACKING rather than for landing a kill, so it
-    // no longer needs a favourable trade to do anything. `rallyGrantSpell` is the shared Rally spell-grant
-    // (Perfect Core's), which already handles the golden multiplier and the carry-back to hand.
-    // Owner rework 2026-08-07: instead of granting a spell, it CASTS one — a random targeted spell onto
-    // another friendly Beast (never itself) — and hands you a copy of what it cast. The pool is the targeted
-    // spells the combat resolver can execute, so it never picks a spell that would fizzle.
+    // Owner rework 2026-08-11: back to the simple "Rally: get a random Shop Spell." `rallyGrantSpell` is the
+    // shared Rally spell-grant (Perfect Core's), which draws a random non-token spell from the run pool, routes
+    // it through the combat→hand carry-back, and doubles on golden.
     effects: [
-      { on: 'onAttack', do: 'rallyCastRandomTargetedSpell' },
+      { on: 'onAttack', do: 'rallyGrantSpell' },
     ],
-    text: '**Rally:** cast a random targeted spell on another friendly Beast. Get a copy of it.',
-    goldenText: '**Rally:** cast a random targeted spell on another friendly Beast **twice**. Get a copy of each.',
+    text: '**Rally:** get a random **Shop Spell**.',
+    goldenText: '**Rally:** get **2** random **Shop Spells**.',
   },
   {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.

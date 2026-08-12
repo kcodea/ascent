@@ -17,10 +17,13 @@ const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ c
  * fight), so Frenzied Excavator's Rubies land at 1/2, not 1/1. This suite pins the PRESENTATION half: the
  * choreography compiler must give each of those events its own timed beat — narrations, the Ruby wave with
  * the live magnitude — so the replay shows the cascade as it happens, never "after combat resolves".
+ *
+ * Dawnclaw is GOLDEN here (owner 2026-08-11): after that rework an UNgilded Dawnclaw triggers only ONE adjacent
+ * Shout, so to exercise BOTH neighbours in one cascade the test uses the gilded body (which triggers both).
  */
 describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Excavator', () => {
   const r = simulate(
-    [bm('k_deepvein', 2, 9999), bm('b2_dawnclaw', 1, 1), bm('k_frenzied', 3, 9999)],
+    [bm('k_deepvein', 2, 9999), { ...bm('b2_dawnclaw', 1, 1), golden: true }, bm('k_frenzied', 3, 9999)],
     [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
   const moments = compileMoments(r.events);
   const narrations = moments

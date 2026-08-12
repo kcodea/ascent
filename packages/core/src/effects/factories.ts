@@ -1060,9 +1060,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const amount = self.attack;
     if (amount <= 0) return;
     // RANDOM `count` friends (owner fix 2026-07-31) — it took the left-most 3, which made board order do the
-    // targeting. Distinct picks per repetition, re-rolled for the golden second pass.
+    // targeting. Distinct picks per repetition, re-rolled for the golden second pass. Owner 2026-08-11: an
+    // optional `excludeId` drops minions of that card id from the pool — Lieutenant Thane can't feed other
+    // Lieutenant Thanes, so a pair of them don't pump each other into a runaway Attack loop.
     for (let r = 0; r < mul(self); r++) {
-      const pool = ctx.living(self.side).filter((m) => m !== self);
+      const pool = ctx.living(self.side).filter((m) => m !== self && (!params.excludeId || m.cardId !== str(params.excludeId)));
       for (let n = 0; n < num(params.count, 3) && pool.length > 0; n++) {
         const m = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
         ctx.buff(m, amount, 0, self.uid);
@@ -2829,14 +2831,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (economy battlecries no-op), and (3) emits `battlecryTriggered` so reactive cards (Karwind/Bane) proc —
    *  once per trigger. Drakko the Drummer doubles each trigger. Sylus / Deathsayer re-run this whole
    *  Deathrattle (they re-invoke by factory id), so their multiplication composes for free. */
-  deathrattleReplayAdjacentBattlecry: (ctx, self, _params, payload) => {
+  deathrattleReplayAdjacentBattlecry: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const neighbors = livingNeighbours(ctx, self).filter(hasBattlecry);
+    let neighbors = livingNeighbours(ctx, self).filter(hasBattlecry);
     if (neighbors.length === 0) return;
-    // Base Ryme now triggers BOTH neighbours (it used to pick one at random); golden triggers each TWICE.
-    // Note this no longer consumes an RNG roll on the base card — a seeded-replay-visible change, so the
-    // combat goldens were re-baked with it.
-    const repeats = drakkoRepeats(ctx, self.side) * (self.golden ? 2 : 1); // Drakko doubles each trigger
+    // Ryme (no param): triggers BOTH neighbours, golden each TWICE — consumes no RNG on the base card (a
+    // seeded-replay-visible property, so its combat goldens were baked with it).
+    // Dawnclaw (`one: true`, owner 2026-08-11): triggers ONE adjacent (a seeded pick), and GOLDEN widens that
+    // to BOTH neighbours once each — NOT the same neighbour twice. The `one` branch does consume an RNG roll,
+    // but only on Dawnclaw; Ryme's no-param path is untouched.
+    const one = !!params.one;
+    let repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger
+    if (one) {
+      if (!self.golden && neighbors.length > 1) neighbors = [ctx.rng.pick(neighbors)];
+    } else {
+      repeats *= self.golden ? 2 : 1;
+    }
     for (const n of neighbors) {
       for (let r = 0; r < repeats; r++) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });

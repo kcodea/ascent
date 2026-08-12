@@ -491,7 +491,7 @@ export const SPELLS: CardDef[] = [
     id: 'displacement',
     name: 'Displacement',
     tribe: 'neutral',
-    tier: 5,
+    tier: 6, // owner balance 2026-08-11 (T5 → T6)
     attack: 0,
     health: 1,
     keywords: [],
@@ -799,7 +799,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 5,
+    cost: 4, // owner balance 2026-08-11 (5 → 4)
     effects: [],
     discoverOnPlay: { exactTier: 6 },
     text: '**Discover** a **Tier 6** minion.',

@@ -51,7 +51,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
@@ -111,6 +111,9 @@ const SHOP_RUBY_DELIVER_MS = 200;
  *  inside `playFodderEat`), and two copies of this number would drift the number off the tendril.
  *  Syncs the `fodderpop` CSS keyframe's 65% mark. */
 const FODDER_CRUMBLE_MS = 620;
+
+/** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
+const SPELLCAST_EDWARD_ECHO_MS = 80;
 
 /**
  * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
@@ -678,7 +681,6 @@ export function Recruit() {
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
   // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
   //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
@@ -1230,6 +1232,9 @@ export function Recruit() {
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  // The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
+  // them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
+  const spellCastOwnedRef = useRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() });
   const prevAuraSeq = useRef(run.auraFxSeq ?? 0); // aura-wash FX watcher — same init-to-current contract
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
@@ -3038,10 +3043,13 @@ export function Recruit() {
     // and neither read survives (owner ask 2026-08-02). Correlated by uid rather than by tagging the buff
     // event, because "was this stat gain a Ruby" is already answered by the Ruby signal the same action
     // computes; a second source of that truth could disagree with the first.
+    // An ale's authored cast trail (Step 3 above) owns the same "the ale draws it, not the generic tendril"
+    // rule as a Ruby land — claimed via `spellCastOwnedRef`, keyed by THIS action's `recruitFxSeq` so a stale
+    // claim from a previous action never suppresses an unrelated buff wave.
     const rubyOwned = new Set((run.rubyLandedFx ?? []).map((l) => l.uid));
-    const events = rubyOwned.size > 0
-      ? run.recruitBuffFx.filter((e) => !rubyOwned.has(e.targetUid))
-      : run.recruitBuffFx;
+    const aleOwned = spellCastOwnedRef.current.seq === run.recruitFxSeq ? spellCastOwnedRef.current.uids : new Set<string>();
+    const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
+    const events = owned ? run.recruitBuffFx.filter((e) => !owned.has(e.targetUid)) : run.recruitBuffFx;
     if (events.length === 0) return;
     replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
@@ -4079,6 +4087,44 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // A tavern spell cast plays its AUTHORED def from the release point (the `cursor` anchor) when one is bound,
+  // and SUPPRESSES the generic spark for it — the same "authored replaces stock" rule the buff/Karwind paths
+  // follow. Unbound spells keep today's spark (Yazzus re-fire included). A BUFF ale (Champion's/Defensive/
+  // Bloody) additionally carries the minions it buffed THIS action as trail targets, so the def fans out
+  // cursor→minion instead of firing once at the point, and claims them for the buff-FX suppression filter
+  // (Step 4 below) so the generic tendril pop doesn't ALSO play on top of the authored trail.
+  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
+    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+    const st = useGame.getState().run;
+    // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
+    const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
+    if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
+    const recipients = targets.map((uid) => ({ uid, count: 1 }));
+    const ctx = {
+      cardIdOf: (uid: string) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+      measure: (uid: string) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+    };
+    // Base volley: from the cursor (release point).
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients), ctx);
+    // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
+    // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
+    // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
+    // (only buff ales have minion targets) — and Edward only multiplies Ales, and only Ales carry a spellCast
+    // binding, so recipients + Edward ⟺ an Ale Edward doubled. Edward's position is measured at echo time (inside
+    // the timeout), so it survives Edward himself being re-rendered by the buff.
+    const edwards = targets.length > 0 ? st.board.filter((c) => c.cardId === 'dw_edward') : [];
+    const echoes = edwards.length > 0 ? (edwards.some((e) => e.golden) ? 2 : 1) : 0;
+    const edwardUid = edwards[0]?.uid;
+    for (let i = 1; i <= echoes; i++) {
+      window.setTimeout(() => {
+        const el = edwardUid ? document.querySelector<HTMLElement>(`[data-uid="${edwardUid}"]`) : null;
+        const center = el ? restingCenterOf(el) : null;
+        if (!center) return; // Edward left the board (sold/tripled), or isn't laid out, before the echo — skip cleanly
+        runRecruitMomentCues(spellCastMoment(cardId, center, recipients), ctx);
+      }, i * SPELLCAST_EDWARD_ECHO_MS);
+    }
+  };
+
   // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to
   // blue dust. Fires on RELEASE and runs on its own clock, deliberately NOT bounded by the ~200ms FLIP
   // flight — a dissolve clamped to the flight reads as a blink. The effect itself lives in `plateDissolve.ts`
@@ -4247,12 +4293,13 @@ export function Recruit() {
           return true;
         }
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
+        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y });
+        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
         return true;
       }
       if (up) {
         dispatch({ type: 'play', uid: d.uid });
-        castSparks(() => fireSpark(x, y), d.view.cardId);
+        fireSpellCastFx(d.view.cardId, { x, y });   // authored def if bound; else the generic spark
         return true;
       }
       return false;
@@ -4421,27 +4468,12 @@ export function Recruit() {
         <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
       )}
 
-      {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
-          the replay-speed slider stacked beneath it. */}
+      {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
+          a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
       {inCombat && !replay.done && (
-        <div className="combathud">
-          <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
-            <Icon name="sword" /> Skip
-          </button>
-          <div className="combatspeed" title="Combat replay speed">
-            <span className="csl">Speed</span>
-            <input
-              type="range"
-              min={0.5}
-              max={5}
-              step={0.1}
-              value={combatSpeed}
-              onChange={(e) => setCombatSpeed(Number(e.target.value))}
-              aria-label="Combat replay speed"
-            />
-            <span className="combatspeed-val">{combatSpeed.toFixed(1)}×</span>
-          </div>
-        </div>
+        <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
+          <Icon name="sword" /> Skip
+        </button>
       )}
 
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and

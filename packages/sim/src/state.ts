@@ -824,6 +824,8 @@ export interface RunState {
   runeDisplayCase?: boolean;
   /** Rune of Blart: your Bob Blarts gain BOTH the left and right-most Shop minions' stats at End of Turn. */
   runeBlart?: boolean;
+  /** Rune of the Vaultkeeper: your Vaultkeepers also give their per-Dragon grant to an adjacent minion. */
+  runeVaultkeeper?: boolean;
   // ── Aug-11 economy runes ──
   runeSellersMarket?: boolean;   // sell → board +4/+3
   runeFreshPages?: boolean;      // Start of Turn: Discover a Shop spell

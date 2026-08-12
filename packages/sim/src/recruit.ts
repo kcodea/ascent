@@ -2619,6 +2619,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const step = Math.floor((ctx.state.spellsCast ?? 0) / Math.max(1, num(params.per, 4)));
     const grant = (num(params.base, 1) + step) * gold(self);
     addBuff(self, nameOf(self), grant, grant);
+    // Rune of the Vaultkeeper: ALSO give the same grant to an adjacent minion (a seeded pick when both exist).
+    if (ctx.state.runeVaultkeeper) {
+      const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+      const neighbours = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+      if (neighbours.length > 0) {
+        const rng = makeRng(ctx.state.rngCursor);
+        const target = neighbours[rng.int(neighbours.length)]!;
+        ctx.state.rngCursor = rng.state();
+        addBuff(target, nameOf(self), grant, grant);
+      }
+    }
   },
 
   onTribePlayedConsumeShop: (ctx, self, params, payload) => {

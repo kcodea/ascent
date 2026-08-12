@@ -23,8 +23,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 - **20 new runes + 2 new minions — SHIPPED 2026-08-12.** Herzog + Kobabyboldies; six grant-a-minion+flag runes;
   twelve shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's
-  Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Follow-up: Rune of
-  Herzog has no master art yet. Details in the devlog.
+  Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Herzog was renamed to
+  **Vaultkeeper** (Rune of the Vaultkeeper grants it + shares its grant to an adjacent minion). Details in the devlog.
 
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:

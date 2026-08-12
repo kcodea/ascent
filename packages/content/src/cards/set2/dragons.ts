@@ -324,11 +324,11 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Choose One:** gain **both** — your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
   },
   {
-    // Owner add 2026-08-11. A Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime
-    // Shop-Spell count: +1/+1 per Dragon at base, climbing +1 every 4 Shop Spells cast this run (so a spell-heavy
-    // build makes every Dragon play land harder). Live text folds in the current per-Dragon grant (herzogText).
+    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A
+    // Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime Shop-Spell count: +1/+1
+    // per Dragon at base, climbing +1 every 4 Shop Spells cast this run. Live text folds in the current grant.
     id: 'd2_herzog',
-    name: 'Herzog',
+    name: 'Vaultkeeper',
     tribe: 'dragon',
     tier: 6,
     attack: 7,

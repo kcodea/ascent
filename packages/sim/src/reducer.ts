@@ -3874,6 +3874,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeBlart':
       s.runeBlart = true; // Rune of Blart: Bob Blart gains both end Shop minions' stats
       break;
+    case 'runeVaultkeeper':
+      s.runeVaultkeeper = true; // Rune of the Vaultkeeper: Vaultkeeper also buffs an adjacent minion
+      break;
     case 'runeSellersMarket': s.runeSellersMarket = true; break; // sell → board +4/+3
     case 'runeFreshPages': s.runeFreshPages = true; break;       // Start of Turn: Discover a Shop spell
     case 'runeStrangeCaravan': s.runeStrangeCaravan = true; break; // Start of Turn: uncontrolled-type minion

@@ -966,6 +966,8 @@ export type QuestReward =
   | { kind: 'runeDisplayCase' }
   // Rune of Blart: your Bob Blarts gain the stats of BOTH the left and right-most Shop minions at End of Turn.
   | { kind: 'runeBlart' }
+  // Rune of the Vaultkeeper: your Vaultkeepers also give their per-Dragon grant to an adjacent minion.
+  | { kind: 'runeVaultkeeper' }
   // Aug-11 economy runes (recruit-phase flags).
   | { kind: 'runeSellersMarket' }   // whenever you sell a minion, give your minions +4/+3
   | { kind: 'runeFreshPages' }      // Start of Turn: Discover a Shop spell

@@ -24,12 +24,13 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
   });
 
   it('the two new minions exist with the owner stats/tiers', () => {
-    expect(CARD_INDEX['d2_herzog']).toMatchObject({ tribe: 'dragon', tier: 6, attack: 7, health: 7 });
+    expect(CARD_INDEX['d2_herzog']).toMatchObject({ name: 'Vaultkeeper', tribe: 'dragon', tier: 6, attack: 7, health: 7 });
     expect(CARD_INDEX['k_kobabyboldies']).toMatchObject({ tribe: 'kobold', tier: 5, attack: 3, health: 3 });
+    expect(RUNE_INDEX['rune_herzog']!.name).toBe('Rune of the Vaultkeeper');
   });
 });
 
-describe('Herzog — retroactive per-Dragon scaling', () => {
+describe('Vaultkeeper — retroactive per-Dragon scaling', () => {
   const playDragon = (spellsCast: number): RunState => {
     let s: RunState = {
       ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast,
@@ -56,6 +57,19 @@ describe('Herzog — retroactive per-Dragon scaling', () => {
     s = reduce(s, { type: 'play', uid: 'b' });
     const h = s.board.find((c) => c.uid === 'h')!;
     expect([h.attack, h.health]).toEqual([7, 7]);
+  });
+
+  it('Rune of the Vaultkeeper: a played Dragon also gives the same grant to an adjacent minion', () => {
+    let s: RunState = {
+      ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast: 0, runeVaultkeeper: true,
+      board: [bc('v', 'd2_herzog', 'dragon', 7, 7), bc('n', 'stray', 'beast', 2, 2)],
+      hand: [bc('d', 'whelpling', 'dragon', 1, 1)],
+    };
+    s = reduce(s, { type: 'play', uid: 'd' });
+    const v = s.board.find((c) => c.uid === 'v')!;
+    const n = s.board.find((c) => c.uid === 'n')!;
+    expect([v.attack, v.health], 'Vaultkeeper self-buff').toEqual([8, 8]);
+    expect([n.attack, n.health], 'the adjacent minion gets the same +1/+1').toEqual([3, 3]);
   });
 });
 

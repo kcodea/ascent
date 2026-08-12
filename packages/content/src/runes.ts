@@ -1909,13 +1909,13 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    id: 'rune_herzog',
-    name: 'Rune of Herzog',
+    id: 'rune_herzog', // id kept (saved runs store ids); renamed Rune of Herzog → Rune of the Vaultkeeper 2026-08-12
+    name: 'Rune of the Vaultkeeper',
     cost: 5,
     epic: true,
-    text: 'Get a **Herzog**.',
+    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** also give their stats to an adjacent minion.',
     previewCards: ['d2_herzog'],
-    reward: { kind: 'grant', cards: ['d2_herzog'] },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_herzog'] }, { kind: 'runeVaultkeeper' }] },
     sets: ['set2'],
   },
   // ── Aug-11 economy runes (Epic) ──

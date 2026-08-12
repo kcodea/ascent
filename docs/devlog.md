@@ -5,10 +5,12 @@
 A large owner content drop: two new Set-2 minions and twenty runes, plus their art.
 
 **New minions.**
-- **Herzog** (T6 Dragon 7/7) — gain +N/+N whenever you play a Dragon, where N = 1 + floor(Shop Spells cast this
-  run / 4), read live so it's RETROACTIVE (at 15 spells it's +4/+4 per Dragon, at 16 +5/+5). New recruit factory
-  `onTribePlayedBuffSelfPerSpell` (hooks the board-wide `onSummon` fan-out) + a live `herzogText` helper folding
-  the current per-Dragon grant into the printed text.
+- **Vaultkeeper** (T6 Dragon 7/7; renamed from "Herzog" the same day, id `d2_herzog` kept) — gain +N/+N whenever
+  you play a Dragon, where N = 1 + floor(Shop Spells cast this run / 4), read live so it's RETROACTIVE (at 15
+  spells it's +4/+4 per Dragon, at 16 +5/+5). New recruit factory `onTribePlayedBuffSelfPerSpell` (hooks the
+  board-wide `onSummon` fan-out) + a live text helper folding the current per-Dragon grant into the printed text.
+  **Rune of the Vaultkeeper** (was Rune of Herzog) now grants the minion AND adds a flag (`runeVaultkeeper`) so
+  your Vaultkeepers also hand the same grant to an adjacent minion; its art is now wired.
 - **Kobabyboldies** (T5 Kobold 3/3) — "Echo: play 3 Rubies on each of your Kobolds." New combat factory
   `deathrattlePlayRubiesTribe` reusing the `playRubies` primitive with an onDeath self-guard.
 
@@ -29,7 +31,8 @@ Shop spell), Collector (buy 3 different types in a turn → Discover from one; s
 Beast resummoned each combat returns at full stats — the graveyard now banks pre-death stats).
 
 **Art.** All 20 runes and both minions wired through `npm run art:wire` + `optimize-art` (name-matched; one alias
-for "Rune of the Caravan" → the Strange Caravan). Rune of Herzog has no art yet (no master supplied).
+for "Rune of the Caravan" → the Strange Caravan). Rune of the Vaultkeeper + the Vaultkeeper portrait were wired
+directly (the rune master was filed under the Beasts minion folder, so it can't come through the runes job).
 
 Verified: typecheck clean, eslint 0 errors, `npm test` (4920), build:web. New regression tests in
 `runeMinionBatchAug11.test.ts` (Herzog scaling, Kobabyboldies Echo, Seller's Market, Window Shopping, Bargain

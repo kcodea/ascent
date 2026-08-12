@@ -120,28 +120,36 @@ boundary leaked.
 > phantom `runeChef` errors from a checkout parked on an unrelated branch). One install per worktree fixes it
 > for good. CI is unaffected: it clones clean and installs.
 
-- **`main` is always playable, and NOTHING ON THE SERVER ENFORCES THAT — the discipline is the only guard.**
-  Verified 2026-08-05: `main` has no classic branch protection (the API 404s) and the repo has no rulesets.
-  So a direct push to `main`, a force-push, or a merge of a red PR would all simply succeed. Treat the rules
-  below as hard anyway; they are what stands in for the protection nobody has configured.
+- **`main` now requires a green `verify` check to MERGE — but the discipline below is still the real guard.**
+  As of 2026-08-12 a base-branch policy blocks merging a PR into `main` until the required **`verify`** status
+  check (the CI workflow: typecheck + lint + test + build:web) passes: `gh pr merge` fails with *"the base
+  branch policy prohibits the merge"* / *"Required status check 'verify' is in progress"* until it is green.
+  This is NEW — it was verified ABSENT on 2026-08-05 and added since. It is not visible through the classic
+  protection API (`branches/main/protection` still 404s) or the repo rulesets endpoint (`rulesets` and
+  `rules/branches/main` return `[]`), so it is most likely an ORG-level ruleset — do NOT conclude
+  "unprotected" from those empty endpoints. What is NOT confirmed: whether the policy also blocks a *direct
+  push* or *force-push* to `main` (untested — don't try it). So keep every rule below as hard regardless; the
+  server gates the merge, the discipline gates everything else.
   - **Never commit or push straight to `main` — open a PR.** Squash-merge (one clean, revertable commit per
     feature). Never force-push `main`.
-  - **CI is a signal, not a gate.** `.github/workflows/ci.yml` (typecheck + lint + test + build:web) runs on
-    the PR but is NOT a required check, so a red PR is merge-able. Read `gh pr checks` before merging and
-    don't merge on pending or failing.
-  - **Claude MAY merge from the CLI** once CI is green — an earlier version of this line claimed branch
-    protection made that impossible, which was never true (`gh pr merge --squash` merged #877 with no review
-    requested). Anything `gh` does is attributed to the authenticated owner, so "a review from the other
-    person" is a convention between the two of you, not something the repo can check. Ask first when the
-    change is risky; the safety here is judgement, not machinery.
+  - **CI `verify` is now a REQUIRED gate.** `.github/workflows/ci.yml` (typecheck + lint + test + build:web)
+    runs as the `verify` check and MUST be green before a PR can merge. After you push, `gh pr checks <n>
+    --watch` until `verify` passes, then merge. It can briefly report *"no checks"* for a minute or two before
+    `verify` starts — that is not "CI disabled", just not-yet-started; wait and re-poll.
+  - **Claude MAY merge from the CLI** once `verify` is green — `gh pr merge --squash` then works with no
+    override. Anything `gh` does is attributed to the authenticated owner, so "a review from the other person"
+    is a convention between the two of you, not something the repo can check. Ask first when the change is
+    risky. Do NOT reach for `--admin` to bypass a pending `verify`: the harness safety classifier blocks
+    `--admin` merges anyway, and the check just needs to finish (hit 2026-08-12).
   - **`gh pr merge --delete-branch` can report failure AFTER a successful merge.** It merges server-side,
     then tries to check `main` out locally — which fails when a worktree already holds it
     (`fatal: 'main' is already used by worktree at …`). Confirm with `gh pr view <n> --json state,mergedAt`
     before assuming the merge didn't land, and clean the branch up by hand.
 
-  *If you would rather this were machinery than discipline: a ruleset on `main` requiring a PR and the
-  `verify` check would close all of the above. Nobody has configured one — that is a decision, not an
-  oversight to be fixed silently.*
+  *The `verify` check is now enforced (above), so red PRs can no longer merge. What is still NOT machine-
+  enforced (as far as tested): the "open a PR, never push straight to `main`" rule and "squash-merge" — those
+  remain discipline. If you want those enforced too, an explicit `main` ruleset requiring a PR would close the
+  gap.*
 - **GitHub Flow, short branches.** One feature/fix = one branch = one PR, lived in hours-to-~2-days. Branch off
   latest `main`; rebase on `origin/main` at the start of a session and before pushing. Name by risk: `feat/…`,
   `fix/…`, `chore/…`, `refactor/…`, `docs/…`.

@@ -192,6 +192,51 @@ describe('Dunkey — avenge counting includes its own summons', () => {
   });
 });
 
+// ── Summon-entry ORDER (owner ruling 2026-08-12): auras FIRST, then augmenters left→right ─────────────────
+describe('summon-entry order — auras land before the augmenting triggers', () => {
+  it("the owner's worked example: Grim aura → 8/10 Cub, THEN Oona doubles the post-aura Attack", () => {
+    // Grim (1/1) dies first (leftmost, dies to the wall's retaliation) → +8/+8 Beast aura armed. Void Panther
+    // dies → 0/2 Void Cub arrives → aura first (8/10) → Oona doubles its POST-aura Attack: +8/+0. Under the
+    // old order Oona read the pre-aura 0-Attack body and granted nothing at all.
+    const r = sim([
+      bm('grim', 'G', 1, 1), bm('manasaber', 'VP', 4, 1), bm('b2_oona', 'O', 0, 999999),
+    ], {}, 3);
+    const cub = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .find((e) => e.minion.cardId === 'sabercub');
+    expect(cub, 'a Void Cub spawned').toBeDefined();
+    const cubBuffs = buffsOn(r, cub!.minion.uid);
+    const grimUid = uidOf(r, 'grim');
+    const oonaUid = uidOf(r, 'b2_oona');
+    expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 8 && b.health === 8), 'Grim aura +8/+8').toBe(true);
+    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 8 && b.health === 0), 'Oona doubled the POST-aura 8 Attack').toBe(true);
+  });
+
+  it('Rune of the Jungle doubles the POST-aura Health too', () => {
+    const r = sim([bm('grim', 'G', 1, 1), bm('manasaber', 'VP', 4, 1)], { runeJungle: true }, 3);
+    const cub = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+      .find((e) => e.minion.cardId === 'sabercub');
+    expect(cub).toBeDefined();
+    // Cub 0/2 + Grim aura 8/8 → 8/10 → the Jungle doubles the post-aura 10 Health, not the printed 2.
+    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 10), 'doubled 10, not 2').toBe(true);
+  });
+
+  it('onSummon watchers fire in CURRENT board order, left→right (Beardsley vs Oona)', () => {
+    // Pack Leader's Echo Pup (1/1). Beardsley LEFT of Oona: +6/+6 first → Oona doubles 7 Attack (+7).
+    // Oona LEFT of Beardsley: Oona doubles 1 Attack (+1) → then +6/+6. The Oona buff amount is the tell.
+    const oonaGrant = (board: BoardMinion[]): number => {
+      const r = sim(board, {}, 2);
+      const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
+        .find((e) => e.minion.cardId === 'pup')!;
+      const oonaUid = uidOf(r, 'b2_oona');
+      return buffsOn(r, pup.minion.uid).find((b) => b.source === oonaUid)?.attack ?? 0;
+    };
+    expect(oonaGrant([bm('b2_beardsley', 'B', 0, 999999), bm('b2_oona', 'O', 0, 999999), bm('pack', 'P', 2, 1)]),
+      'Beardsley first: Oona doubles the buffed 7').toBe(7);
+    expect(oonaGrant([bm('b2_oona', 'O', 0, 999999), bm('b2_beardsley', 'B', 0, 999999), bm('pack', 'P', 2, 1)]),
+      'Oona first: it doubles the bare 1').toBe(1);
+  });
+});
+
 // ── Rise IS a summon, in full (owner ruling 2026-08-12) ───────────────────────────────────────────────────
 describe('Rise fires the full summon-entry suite', () => {
   it('a risen Beast triggers onSummon watchers (Beardsley buffs it)', () => {

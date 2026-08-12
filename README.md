@@ -44,6 +44,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Dwarven Ales get shop-cast FX** — each of the five Ales now plays its own authored effect when cast, fired
+  from the point you release the card. The three buff Ales shoot a trail from the cursor to each buffed minion
+  at once (with the generic buff-pop suppressed for them), and if **Edward Keg-hands** is on your board the
+  volley echoes a beat later from his card (twice when he's gilded). Built on a new `spellCast` recruit-moment
+  kind, so any shop spell's cast look is now bindable from the workbench.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

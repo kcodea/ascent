@@ -84,9 +84,15 @@ export function shoutMoment(uid: string, cardId: string): RecruitMoment {
 }
 
 /** A `spellCast` moment: a tavern spell cast, anchored at the release `point` and keyed by the spell's card
- *  id so each spell resolves its own binding. `recipients` is empty — the anchor is the raw point, not a unit. */
-export function spellCastMoment(cardId: string, point: { x: number; y: number }): RecruitMoment {
-  return { kind: 'spellCast', sourceCardId: cardId, recipients: [], point };
+ *  id so each spell resolves its own binding. `recipients` defaults to empty — the anchor is the raw point, not
+ *  a unit — but a BUFF ale (Champion's/Defensive/Bloody) passes the buffed minions here so the cue can fire once
+ *  per recipient, cursor→minion, instead of a single point burst (Golden/Reinforcing stay point-only). */
+export function spellCastMoment(
+  cardId: string,
+  point: { x: number; y: number },
+  recipients: RecruitRecipient[] = [],
+): RecruitMoment {
+  return { kind: 'spellCast', sourceCardId: cardId, recipients, point };
 }
 
 /** One recipient of a moment, and how many times it received. `count` above 1 is a STACK — two Rubies on

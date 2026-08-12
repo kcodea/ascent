@@ -1230,6 +1230,9 @@ export function Recruit() {
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  // The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
+  // them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
+  const spellCastOwnedRef = useRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() });
   const prevAuraSeq = useRef(run.auraFxSeq ?? 0); // aura-wash FX watcher — same init-to-current contract
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
@@ -3038,10 +3041,13 @@ export function Recruit() {
     // and neither read survives (owner ask 2026-08-02). Correlated by uid rather than by tagging the buff
     // event, because "was this stat gain a Ruby" is already answered by the Ruby signal the same action
     // computes; a second source of that truth could disagree with the first.
+    // An ale's authored cast trail (Step 3 above) owns the same "the ale draws it, not the generic tendril"
+    // rule as a Ruby land — claimed via `spellCastOwnedRef`, keyed by THIS action's `recruitFxSeq` so a stale
+    // claim from a previous action never suppresses an unrelated buff wave.
     const rubyOwned = new Set((run.rubyLandedFx ?? []).map((l) => l.uid));
-    const events = rubyOwned.size > 0
-      ? run.recruitBuffFx.filter((e) => !rubyOwned.has(e.targetUid))
-      : run.recruitBuffFx;
+    const aleOwned = spellCastOwnedRef.current.seq === run.recruitFxSeq ? spellCastOwnedRef.current.uids : new Set<string>();
+    const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
+    const events = owned ? run.recruitBuffFx.filter((e) => !owned.has(e.targetUid)) : run.recruitBuffFx;
     if (events.length === 0) return;
     replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
@@ -4070,15 +4076,20 @@ export function Recruit() {
 
   // A tavern spell cast plays its AUTHORED def from the release point (the `cursor` anchor) when one is bound,
   // and SUPPRESSES the generic spark for it — the same "authored replaces stock" rule the buff/Karwind paths
-  // follow. Unbound spells keep today's spark (Yazzus re-fire included).
+  // follow. Unbound spells keep today's spark (Yazzus re-fire included). A BUFF ale (Champion's/Defensive/
+  // Bloody) additionally carries the minions it buffed THIS action as trail targets, so the def fans out
+  // cursor→minion instead of firing once at the point, and claims them for the buff-FX suppression filter
+  // (Step 4 below) so the generic tendril pop doesn't ALSO play on top of the authored trail.
   const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
-    if (bindingFor(cardId, 'spellCast')) {
-      runRecruitMomentCues(spellCastMoment(cardId, pt), {
-        cardIdOf: () => null, measure: () => null,
-      });
-      return;
-    }
-    castSparks(() => fireSpark(pt.x, pt.y), cardId);
+    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+    const st = useGame.getState().run;
+    // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
+    const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
+    if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
+    runRecruitMomentCues(spellCastMoment(cardId, pt, targets.map((uid) => ({ uid, count: 1 }))), {
+      cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+      measure: (uid) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+    });
   };
 
   // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to

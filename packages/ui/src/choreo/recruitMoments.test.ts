@@ -176,6 +176,11 @@ describe('recruitMomentsSince', () => {
     expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_mine', recipients: [], point: { x: 120, y: 340 } });
   });
 
+  it('carries recipients when the cast buffed minions (trail targets)', () => {
+    const m = spellCastMoment('wo_champion', { x: 10, y: 20 }, [{ uid: 'm1', count: 1 }]);
+    expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_champion', recipients: [{ uid: 'm1', count: 1 }], point: { x: 10, y: 20 } });
+  });
+
   it('marks a minionBuffed moment `crit` when a contributing event came from the body that critted', () => {
     // `karwindCritUid` is the UID of the body whose buff doubled; an event with that `sourceUid` makes its
     // wave a crit, which the cue runner turns into the binding's `critDef`.

@@ -32,10 +32,13 @@ change**. The anchor is the pointer, known at the cast site.
 
 ## Architecture (entirely in the presentation layer)
 
-1. **`spellCast` becomes a workbench-bindable kind**, keyed per-card
-   (`cards.wo_mine.spellCast → ale-golden`, etc.) in `bindings.json` / `bindings.ts`. It is a
-   binding kind, *not* a `RecruitMomentKind` routed through the cascade cue runner (that runner is
-   uid-anchored and DOM-measuring; this fire is a raw point and needs neither).
+1. **`spellCast` becomes a first-class `RecruitMomentKind`**, keyed per-card
+   (`cards.wo_mine.spellCast → ale-golden`, etc.) in `bindings.json` / `bindings.ts`. The binding-
+   validation tests force this: `bindings.test.ts` only accepts a kind that lives in
+   `RECRUIT_MOMENT_KINDS`, and `recruitMoments.test.ts` requires every such kind to have a real
+   emitter. So `spellCast` gets a pure `spellCastMoment(cardId, point)` builder and its **own branch**
+   in `runRecruitMomentCues` (point-anchored, like `shopRubied`'s span branch) — it does not use the
+   uid cascade/DOM-measure path, because its anchor is the raw `cursor` point carried on the moment.
 2. **At the cast site** (`Recruit.tsx applyDrop`, the untargeted `up` spell branch ~4243, and the
    targeted branch ~4239): resolve `bindingFor(cardId, 'spellCast')`.
    - **Bound** → `playDef(binding.def, { cursor: dropPoint, source: dropPoint, target: dropPoint, camera })`

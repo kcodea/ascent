@@ -888,6 +888,15 @@ export const RUNES: RuneDef[] = [
     text: "Reduce your Shop's **upgrade cost** by **3**. **End of Turn:** repeat this.",
     reward: { kind: 'runeShopkeep' },
   },
+  {
+    // Owner add 2026-08-12. Combat flag: the first friendly Beast WITH an Echo that dies each combat comes back
+    // (stripped of that Echo, so it can't re-loop the resummon). Read in `simulate` at the death chokepoint.
+    id: 'rune_burrow',
+    name: 'Rune of the Burrow',
+    cost: 4,
+    text: 'The first friendly **Beast** with **Echo** that dies each combat is **resummoned** without Echo.',
+    reward: { kind: 'combatFlag', flag: 'runeBurrow' },
+  },
 ];
 
 /**
@@ -1919,6 +1928,40 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first **Beast** you **Resummon** each combat returns with its **full stats**.',
     reward: { kind: 'combatFlag', flag: 'oldPack' },
+  },
+  {
+    // Owner add 2026-08-12. Grants the rune-only Voidmother (T6 Beast 6/1, Echo: summon a Void Panther).
+    id: 'rune_voidmother',
+    name: 'Rune of the Voidmother',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Voidmother**.',
+    previewCards: ['b2_voidmother'],
+    reward: { kind: 'grant', cards: ['b2_voidmother'] },
+    sets: ['set2'],
+  },
+  {
+    // Owner add 2026-08-12. Combat flag (`runeJungle`): a Beast summoned in combat doubles its Health — the
+    // Health sibling of Rune of Savagery. Read in `simulate` at the summon chokepoint.
+    id: 'rune_jungle',
+    name: 'Rune of the Jungle',
+    cost: 6,
+    epic: true,
+    text: 'Your **Beasts** gain **double their Health** when summoned in combat.',
+    reward: { kind: 'combatFlag', flag: 'runeJungle' },
+    sets: ['set2'],
+  },
+  {
+    // Owner add 2026-08-12. Combat flag: your Beasts gain +N/+N whenever a friendly Beast dies (N starts 2),
+    // and every 2 friendly deaths Avenge(2) raises N permanently (carried across combats via
+    // `RunState.beastialSwarmLevel`). Read + carried back in `simulate`.
+    id: 'rune_beastial_swarm',
+    name: 'Rune of Beastial Swarm',
+    cost: 5,
+    epic: true,
+    text: 'Your **Beasts** gain **+2/+2** when a friendly **Beast** dies. **Avenge (2):** Improve this permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeBeastialSwarm' },
+    sets: ['set2'],
   },
 ];
 

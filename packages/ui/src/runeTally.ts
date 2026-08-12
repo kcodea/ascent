@@ -109,6 +109,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
   rune_blood_and_coin: 5, rune_engraving: 3, // Blood and Coin: Avenge (5) — owner 2026-08-11; Engraving: Avenge (3)
   rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
+  rune_beastial_swarm: 2, // Beastial Swarm: Avenge (2) — raises the per-death buff amount
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

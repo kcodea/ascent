@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Beast batch (owner) — SHIPPED 2026-08-12.** Kennelmaster Avenge 3→4; King Oona doubles Attack only; 4 new
+  Beasts (Wolvie, Armadiyo, Dunkey, Voidmother) and 4 new runes (Burrow, Voidmother, Jungle, Beastial Swarm),
+  with three new combat mechanics (next-summon queue, resummon-without-Echo, per-death buff + run-persisted
+  Avenge level). Grim pulled into Set 2 + retext'd to a flat +8/+8 Echo. Details in the devlog.
 - **Content batch (owner) — SHIPPED 2026-08-12.** 4 minion reworks (Market Tormentor +7/+7; Menagerie Mammoth →
   Echo summon 3 random other Beasts; Feastmaster Vhal → spend-10-Gold shop buff; Endless Overseer → Avenge(4)
   summon an Imp with Taunt+Ward), 3 new minions (Right Hand Hank, Bullseye, Beardsley — incl. a new combat→shop

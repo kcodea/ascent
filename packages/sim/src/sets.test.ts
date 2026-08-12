@@ -143,7 +143,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     // flag those as leaks.
     const OPTED_IN = new Set([
       'karwind',
-      'badgington', 'seaurchin', 'sporebat', 'manasaber', 'kennel', 'beetle',
+      'seaurchin', 'manasaber', 'kennel', 'beetle', 'grim', // grim opted in 2026-08-12
       'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
       'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',

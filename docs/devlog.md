@@ -12,6 +12,44 @@ Still unwired (no source art yet — reported by the tool, not an error): the Be
 Dunkey / Voidmother and the four new runes (Burrow, Voidmother, Jungle, Beastial Swarm); they render with the
 placeholder until authored.
 
+## 2026-08-12 — Beast batch: 2 tweaks, 4 new Beasts, 4 new runes (three new combat mechanics)
+
+A Beast-focused owner batch. Reuse covered most of it; four pieces are genuinely new combat plumbing.
+
+**Tweaks.** Kennelmaster Avenge 3 → 4 (param + text). King Oona now doubles a summoned Beast's **Attack** only
+(gild triples Attack) — `onSummonTribeBuffThenDouble` gained an `attackOnly` flag.
+
+**New Beasts.**
+- **Wolvie** (T2 3/2 Taunt) — Echo: the NEXT Beast you summon this combat gets +2/+4 (gild +4/+8). New mechanic:
+  a per-side FIFO queue of one-shot next-summon buffs (`queueNextSummonBuff` / `deathrattleBuffNextSummon`),
+  consumed at the summon chokepoint.
+- **Armadiyo** (T4 5/3 Taunt) — Echo: give your Beasts +2/+4 wherever they are (gild +4/+8). Reuses
+  `deathrattleBuffTribe` (buffs living Beasts + a rest-of-combat aura for later summons).
+- **Dunkey** (T5 4/6) — Avenge (4): summon an Armadiyo (gild → a Gilded Armadiyo). New `avengeSummon` factory
+  (a no-immediate-attack sibling of `avengeSummonAttack`).
+- **Voidmother** (T6 6/1, rune-only `token`) — Echo: summon a Void Panther. Pure reuse (`deathrattleSummon`).
+
+**New runes.**
+- **Rune of the Burrow** (Basic 4) — the first friendly Echo-Beast to die each combat is resummoned WITHOUT its
+  Echo (a def clone with its onDeath effects stripped, so it can't loop). New combat flag + death-hook.
+- **Rune of the Voidmother** (Epic 4) — grants the Voidmother.
+- **Rune of the Jungle** (Epic 6) — a Beast summoned in combat doubles its Health. New flag; the Health sibling
+  of Rune of Savagery, hooked at the same summon chokepoint.
+- **Rune of Beastial Swarm** (Epic 5) — your Beasts gain +N/+N (N starts 2) on each friendly Beast death; every
+  2 friendly deaths Avenge(2) raises N **permanently**. New flag + a run-persisted level (`RunState`
+  `beastialSwarmLevel`) carried across combats via `CombatResult.playerBeastialSwarmLevel`.
+
+**Grim** was pulled into the Set-2 pool (`SET1_BEASTS_IN_SET2`) and retext'd to a flat **Echo: give your Beasts
++8/+8 wherever they are** (gild +16/+16) — via `deathrattleBuffTribe`, replacing the per-Deathrattle-tally
+shape. That change is shared with Set 1 (one def). `deathrattleBuffTribeByTally` + `tallyBuffText` are now
+card-less (kept for a future user).
+
+**Verified.** typecheck + lint (0 errors) + full `npm test` (290 files / 4952) + `build:web`, all green. New
+mechanics covered in `beastBatchAug12.test.ts` (incl. Burrow's resummon, Beastial Swarm's per-death buff +
+Avenge(2) carry-back, Wolvie's next-summon queue, Jungle's doubled Health); the Grim/Oona/Kennelmaster reworks
+rewired their existing tests; two new combat-flag names added to the schema enum + audits (tally, live-tracking,
+buffers) updated.
+
 ## 2026-08-12 — Content batch: 4 minion reworks, 5 minion + 4 rune archives, 3 new minions
 
 An owner content pass across Set 2 (+ two Set-1 archives), touching content, the effect factories, and one new

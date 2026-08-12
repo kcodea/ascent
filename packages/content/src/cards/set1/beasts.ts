@@ -46,7 +46,7 @@ export const BEASTS: CardDef[] = [
       // Owner rebalance 2026-08-02: back to base +1 Attack improving +1 per Avenge (golden doubles both,
       // reading +2 improving +2 — the 07-25 "+2 improving +2" plain values were too much).
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4
     ],
     // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any
     // summoned later inherit it (the "wherever they are" aura). N = 2 + its Avenge-grown summonBonus (carried
@@ -54,8 +54,8 @@ export const BEASTS: CardDef[] = [
     // countdown surface via cardText's summonBuffText helper on every surface.
     // Printed base follows the params (owner report 2026-07-31: it GAVE +2 but SAID +1 — the 2026-07-25
     // rebalance moved the params and left the text behind).
-    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (3):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
+    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (4):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -104,7 +104,10 @@ export const BEASTS: CardDef[] = [
     text: '**Rally:** give your Beasts **+5/+5** wherever they are. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
-    // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.
+    // A glass-cannon finisher: a 7/1 that pays off enormously when it dies. Owner rework 2026-08-12: from the
+    // per-Deathrattle tally to a flat +8/+8 Beast buff (gild +16/+16), and pulled into the Set-2 pool too
+    // (see SET1_BEASTS_IN_SET2). `deathrattleBuffTribe` buffs the living Beasts and registers a rest-of-combat
+    // aura, so bodies summoned later this fight inherit it — "wherever they are".
     id: 'grim',
     name: 'Grim',
     tribe: 'beast',
@@ -112,9 +115,9 @@ export const BEASTS: CardDef[] = [
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', per: 2 } }],
-    text: '**Deathrattle:** give your Beasts **+2/+2** wherever they are for each Deathrattle triggered this game.',
-    goldenText: '**Deathrattle:** give your Beasts **+4/+4** wherever they are for each Deathrattle triggered this game.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
+    text: '**Echo:** give your Beasts **+8/+8** wherever they are.',
+    goldenText: '**Echo:** give your Beasts **+16/+16** wherever they are.',
   },
   {
     id: 'shaper',

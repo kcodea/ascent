@@ -30,6 +30,8 @@ describe('isDeathrattleBufferCard', () => {
       deathrattleBuffCardTypeRunWide: 'run-wide enchant, emits no combat buff-other',
       // Right Hand Hank — buffs the next SHOP (a carry-back), not a live board minion, so no combat cue.
       deathrattleBuffRightmostSlot: 'carry-back shop-slot buff, emits no combat buff-other',
+      // Wolvie — queues a buff for a FUTURE summon; nothing on the board gains stats at death time.
+      deathrattleBuffNextSummon: 'buffs the next summon (deferred), not a live board minion at death',
     };
     const onDeath = new Set<string>();
     for (const def of Object.values(CARD_INDEX)) {

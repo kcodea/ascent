@@ -86,10 +86,11 @@ export const SET2_BEASTS: CardDef[] = [
       // Owner rebalance 2026-08-02 (final): the flat buff and the Avenge improve are CUT — the card is purely
       // the multiply now. `attack: 0, health: 0` keeps the shared factory's grant half silent (it guards on
       // `a > 0 || h > 0`), so only the stat-doubling runs; golden still triples via `mul(self)`.
-      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 0, health: 0 } },
+      // Owner 2026-08-12: `attackOnly` — the multiply hits ATTACK alone now (was both stats).
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 0, health: 0, attackOnly: true } },
     ],
-    text: 'When you summon a Beast in combat, **double** its stats.',
-    goldenText: 'When you summon a Beast in combat, **triple** its stats.',
+    text: 'When you summon a Beast in combat, **double** its Attack.',
+    goldenText: 'When you summon a Beast in combat, **triple** its Attack.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the
@@ -239,5 +240,62 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 6, health: 6 } }],
     text: 'When you summon a **Beast** in combat, give it **+6/+6**.',
     goldenText: 'When you summon a **Beast** in combat, give it **+12/+12**.',
+  },
+  {
+    // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets
+    // +2/+4 (`deathrattleBuffNextSummon` queues it; the summon chokepoint consumes it). Golden +4/+8.
+    id: 'b2_wolvie',
+    name: 'Wolvie',
+    tribe: 'beast',
+    tier: 2,
+    attack: 3,
+    health: 2,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffNextSummon', params: { tribe: 'beast', attack: 2, health: 4 } }],
+    text: '**Taunt. Echo:** give the next **Beast** you summon **+2/+4**.',
+    goldenText: '**Taunt. Echo:** give the next **Beast** you summon **+4/+8**.',
+  },
+  {
+    // Owner add 2026-08-12. Echo: buff your Beasts "wherever they are" — `deathrattleBuffTribe` buffs the living
+    // Beasts and registers a rest-of-combat aura so bodies summoned later inherit it. Golden +4/+8.
+    id: 'b2_armadiyo',
+    name: 'Armadiyo',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 2, health: 4 } }],
+    text: '**Taunt. Echo:** give your Beasts **+2/+4** wherever they are.',
+    goldenText: '**Taunt. Echo:** give your Beasts **+4/+8** wherever they are.',
+  },
+  {
+    // Owner add 2026-08-12. Avenge (4): summon an Armadiyo (`avengeSummon`; a gilded Dunkey summons a gilded
+    // Armadiyo). No keyword pill, matching the other Avenge cards.
+    id: 'b2_dunkey',
+    name: 'Dunkey',
+    tribe: 'beast',
+    tier: 5,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeSummon', params: { count: 4, cardId: 'b2_armadiyo' } }],
+    text: '**Avenge (4):** summon an **Armadiyo**.',
+    goldenText: '**Avenge (4):** summon a **Gilded Armadiyo**.',
+  },
+  {
+    // Owner add 2026-08-12. Rune-only (Rune of the Voidmother grants it) — `token: true` keeps it out of the
+    // shop pool + the "random Beast" grants. Echo: summon a Void Panther (`manasaber`). Golden summons 2.
+    id: 'b2_voidmother',
+    name: 'Voidmother',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 1,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'manasaber', count: 1 } }],
+    text: '**Echo:** summon a **Void Panther**.',
+    goldenText: '**Echo:** summon **2 Void Panthers**.',
   },
 ];

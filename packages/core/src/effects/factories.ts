@@ -659,6 +659,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Wolvie (owner add 2026-08-12) — Echo: queue a one-shot buff for the NEXT `tribe` minion you summon this
+   *  combat (+atk/+hp, golden doubled). The summon chokepoint applies + consumes the front of the queue. */
+  deathrattleBuffNextSummon: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.queueNextSummonBuff(self.side, (str(params.tribe) || 'beast') as Tribe,
+      num(params.attack, 2) * mul(self), num(params.health, 4) * mul(self));
+  },
+
   /** Deathrattle (Grim): buff your `tribe` by +`per`/+`per` per Deathrattle triggered this game (the
    *  run-wide base + this combat's player Deathrattles, snapshotted now — Grim's own death is counted).
    *  Registers a rest-of-combat aura at that magnitude, then buffs the friends already on the board.
@@ -1480,6 +1488,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const card = ctx.getCard(str(params.cardId));
     if (!card) return;
     ctx.summon(self.side, card, self.uid, undefined, self.golden, true);
+  },
+
+  /** Dunkey (owner add 2026-08-12) — Avenge (X): summon a `cardId` minion (golden summons a GILDED one). Like
+   *  `avengeSummonAttack`, but the summon does NOT strike immediately — it just joins the board. */
+  avengeSummon: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    const seen = avengeCountFor(self, count);
+    if (seen <= 0 || seen % x !== 0) return;
+    const card = ctx.getCard(str(params.cardId));
+    if (!card) return;
+    ctx.summon(self.side, card, self.uid, undefined, self.golden, false);
   },
 
   /** Endless Overseer (owner rework 2026-08-12) — Avenge (X): every X friendly deaths, summon `summon` Imp(s)
@@ -3433,8 +3454,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
     // …then MULTIPLY what it now has. One extra copy of its own stats per `mul` — so plain doubles and gilded
     // TRIPLES (owner 2026-07-27). Buffing by a multiple of the current stats rather than setting them keeps it
-    // stacking correctly with anything else that has already touched the body.
-    ctx.buff(minion, minion.attack * mul(self), minion.health * mul(self), self.uid);
+    // stacking correctly with anything else that has already touched the body. `attackOnly` (King Oona, owner
+    // 2026-08-12) multiplies the Attack alone — the Health is left as-is.
+    const mAtk = minion.attack * mul(self);
+    const mHp = params.attackOnly ? 0 : minion.health * mul(self);
+    if (mAtk > 0 || mHp > 0) ctx.buff(minion, mAtk, mHp, self.uid);
   },
 
   /** Set 2 — Menagerie Mammoth (owner rework 2026-07-27): every Beast you summon in combat gets +N Attack, and

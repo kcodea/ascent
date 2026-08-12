@@ -2737,6 +2737,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
       health: (s.rightmostSlotBuff?.health ?? 0) + result.playerRightmostSlotBuff.health,
     };
   }
+  // Rune of Beastial Swarm: the Avenge(2) improvement raised the per-death buff amount — persist it.
+  if (result.playerBeastialSwarmLevel) s.beastialSwarmLevel = result.playerBeastialSwarmLevel;
   // Chorus Engine's Rally: its Attachment enchant is permanent and reaches them "wherever they are" — the
   // same contract Scrap Herald's Battlecry already has, so it is applied the same way rather than through a
   // second, subtly different path. Combat could only touch the UNWELDED Attachments still on the field; this
@@ -4329,6 +4331,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeDawnclaw: f?.runeDawnclaw,           // Rune of Dawnclaw: Dawnclaws also fire their Echo at Start of Combat
     runeSylus: f?.runeSylus,                 // Rune of Sylus: your Sylus double their own Health at Start of Combat
     oldPack: f?.oldPack,                     // Rune of the Old Pack: first Beast resummoned each combat returns at full stats
+    runeJungle: f?.runeJungle,               // Rune of the Jungle: a summoned Beast doubles its Health
+    runeBurrow: f?.runeBurrow,               // Rune of the Burrow: first Echo-Beast death is resummoned without its Echo
+    runeBeastialSwarm: f?.runeBeastialSwarm, // Rune of Beastial Swarm: your Beasts gain +N/+N per friendly Beast death
+    beastialSwarmLevel: f?.runeBeastialSwarm ? (s.beastialSwarmLevel ?? 2) : undefined, // the current per-death amount (run-persisted)
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright

@@ -1922,14 +1922,13 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Grim: Beasts +2/+2 per Deathrattle this game — here just Grim itself, so
-    // +2) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
-    // is a living Beast to buff.
+    // Use a buff Deathrattle (Grim: Beasts +8/+8, flat) so the proc count is the number of buff events — no
+    // board-cap interference. Only the Alleycat is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 2,
+        (e) => e.type === 'buff' && e.attack === 8,
       ).length;
-    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +2/+2 per Deathrattle this game
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Echo: give your Beasts +8/+8
     const carry = { cardId: 'alley', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
@@ -1963,10 +1962,10 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
-    // Grim dies on its first swing (1 HP → retaliation) and registers a Beast aura sized to its tally
-    // (here +2/+2: just Grim's own Deathrattle counts so far, at +2/+2 per). Mama Pup outlives it, then dies and summons
-    // 2 Pups — and though they're summoned *after* Grim is gone, the aura still catches them. Isolates the
-    // aura: a one-time "buff living Beasts" could never reach a minion that didn't exist yet.
+    // Grim dies on its first swing (1 HP → retaliation) and registers a +8/+8 Beast aura (its flat Echo). Mama
+    // Pup outlives it, then dies and summons 2 Pups — and though they're summoned *after* Grim is gone, the
+    // aura still catches them. Isolates the aura: a one-time "buff living Beasts" could never reach a minion
+    // that didn't exist yet.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'pack', attack: 2, health: 25, sourceUid: 'P' }, // Mama Pup: tanky, Deathrattle → 2 Pups
@@ -1982,14 +1981,13 @@ describe('simulate (handoff A.3)', () => {
     expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
     for (const { ev } of latePups) {
       const uid = ev.type === 'summon' ? ev.minion.uid : '';
-      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 2 && b.health === 2);
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 8 && b.health === 8);
       expect(gotAura).toBe(true);
     }
   });
 
-  it('Grim scales +2/+2 per Deathrattle triggered this game (run-wide base + this combat)', () => {
-    // A run that has already seen 5 Deathrattles (the run-wide base); this fight Grim dies (1 more) →
-    // tally 6 at +2/+2 per → the surviving Beast gets +12/+12.
+  it('Grim gives a FLAT +8/+8 regardless of the run Deathrattle tally (rework 2026-08-12)', () => {
+    // A run that has already seen 5 Deathrattles must NOT scale Grim's grant any more — it is flat now.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
@@ -1997,7 +1995,7 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 })); // deathrattles = run-wide Deathrattle base
     const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 12 && ev.health === 12)).toBe(true);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 8 && ev.health === 8)).toBe(true);
   });
 
   it('Gnasher: each kill permanently raises run-wide spell power (+1/+1)', () => {
@@ -4326,7 +4324,7 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
   });
 
   it('ZYFF doubles Deathrattles — and STACKS additively with Sylus', () => {
-    // Grim's Echo buffs Beasts by the tally; count its buff events as the proc count.
+    // Grim's Echo buffs Beasts +8/+8; count its buff events as the proc count.
     const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
       run(
         [
@@ -4336,7 +4334,7 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
         ],
         [{ cardId: 'omen', attack: 1, health: 300 }],
         6,
-      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+      ).events.filter((e) => e.type === 'buff' && e.attack === 8).length;
     const none = procs([]);
     const zyff = procs([{ cardId: 'zyff', attack: 6, health: 80 }]);
     const both = procs([{ cardId: 'zyff', attack: 6, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);

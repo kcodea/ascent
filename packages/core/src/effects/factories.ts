@@ -1934,7 +1934,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const adj of livingNeighbours(ctx, self)) playRubyOn(ctx, self, adj, per);
   },
 
-  /** Set 2 — Kobabyboldies (Echo): on death, play `count` Rubies on EACH friendly minion of `tribe`. Guarded
+  /** Set 2 — Kobebes (Echo): on death, play `count` Rubies on EACH friendly minion of `tribe`. Guarded
    *  against the board-wide onDeath broadcast (fires only on this body's death); golden doubles the count. */
   deathrattlePlayRubiesTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

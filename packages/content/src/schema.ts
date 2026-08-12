@@ -423,7 +423,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyPlayRubiesTargets', // Crownvein: Rally play N Rubies each on the first M friends of a tribe
   'deathrattleRubyStatGain', // Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
   'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
-  'deathrattlePlayRubiesTribe', // Kobabyboldies (Echo): on death, play N Rubies on each friendly tribe minion
+  'deathrattlePlayRubiesTribe', // Kobebes (Echo): on death, play N Rubies on each friendly tribe minion
   'onTribePlayedBuffSelfPerSpell', // Herzog: +N/+N when you play a tribe; N scales with Shop Spells cast
   'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies

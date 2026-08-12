@@ -73,9 +73,9 @@ describe('Vaultkeeper — retroactive per-Dragon scaling', () => {
   });
 });
 
-describe('Kobabyboldies — Echo plays 3 Rubies on each friendly Kobold', () => {
+describe('Kobebes — Echo plays 3 Rubies on each friendly Kobold', () => {
   it('on death, every friendly Kobold gains 3 Rubies (1/1 each → +3/+3)', () => {
-    // Kobabyboldies dies to the wall's retaliation; its Echo plays 3 Rubies on each friendly Kobold (incl. Geode).
+    // Kobebes dies to the wall's retaliation; its Echo plays 3 Rubies on each friendly Kobold (incl. Geode).
     const p: BoardMinion[] = [bm('k_kobabyboldies', 5, 1), bm('k_geode', 5, 9999), bm('sandbag', 0, 9999)];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 40, health: 9999 }];
     const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));

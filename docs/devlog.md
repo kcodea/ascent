@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-12 — Rename: Kobabyboldies → Kobebes
+
+Owner rename of the Set-2 Kobold minion added earlier today. **Display-only** — the card id stays
+`k_kobabyboldies` (it's baked into the art filename `k_kobabyboldies.webp` and into any opponent-board
+snapshots already captured), so nothing about matchmaking, saved runs, or the effect wiring changes. Touched:
+the card `name` (`cards/set2/kobolds.ts`), the granting rune's text ("Get a **Kobebes** with Taunt and Rise" —
+`rune_kobold_bebes`, whose own name is unchanged), and the name mentioned in code comments / the test labels
+(`types.ts`, `schema.ts`, `factories.ts`, `runeMinionBatchAug11.test.ts`). Verified: typecheck + lint + full
+`npm test` + `build:web` all green.
+
 ## 2026-08-12 — 20 new runes + 2 new minions (Herzog, Kobabyboldies)
 
 A large owner content drop: two new Set-2 minions and twenty runes, plus their art.

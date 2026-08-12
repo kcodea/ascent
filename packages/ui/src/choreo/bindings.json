@@ -98,6 +98,11 @@
       "spellCast": {
         "def": "coin-ale"
       }
+    },
+    "wo_reinforcement": {
+      "spellCast": {
+        "def": "reinforcing-ale"
+      }
     }
   }
 }

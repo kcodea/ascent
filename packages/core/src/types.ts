@@ -202,6 +202,11 @@ export type EffectFactoryId =
   | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
   | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
   | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
+  | 'deathrattleSummonRandomTribeSetStats' // Bullseye: Echo — summon a random tribe minion set to fixed stats
+  | 'onSummonTribeBuffFlat' // Beardsley: combat-only — a summoned tribe minion gets a flat +atk/+hp
+  | 'avengeSummonImps' // Endless Overseer: Avenge (X) — summon N Imps with Taunt + Ward
+  | 'deathrattleBuffRightmostSlot' // Right Hand Hank: Echo — carry-back buff the right-most Shop slot
+  | 'goldSpentBuffRightmostSlot' // Feastmaster Vhal: every N Gold spent, buff the right-most Shop slot
   | 'battlecryGrantSpellPowerRun' // Set 2 — Coppercoat Spellsword (Choose One): permanently raise run-wide spell power
   | 'endOfTurnCopyNeighbour' // Set 2 — Bellringer Voss: every N turns, a plain copy of the board neighbour(s) to hand
   | 'deathrattleSummonRandomTier' // Set 2 — Gravelight Acolyte (Echo): summon N random minions of an exact tier
@@ -2127,6 +2132,9 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** Permanent right-most Shop-slot buff earned this combat (Right Hand Hank's Echo) — added to
+   *  RunState.rightmostSlotBuff so the next shop's right-most offer carries it. Absent if 0/0. */
+  playerRightmostSlotBuff?: { attack: number; health: number };
   /** A PERMANENT buff earned in combat for your whole warband, carried back onto the run's board (Rune of
    *  Overflow). Every other carry-back is tribe-scoped — Imps, Beasts, Fodder, Rubies — so "your minions"
    *  needed its own untyped channel; without one, a combat buff simply vanishes at settle and a rune whose
@@ -2379,6 +2387,10 @@ export interface CombatContext {
   /** No `sourceUid`: unlike `gainTavernBuy`, this already emits a `tribeAura` event, which the replay blooms
    *  as the board aura-wash — so the gain is cued without needing a second channel. */
   grantImpBuff(attack: number, health: number, side: Side): void;
+  /** Right Hand Hank (Echo) — from combat, grow the run's right-most Shop-slot buff by +atk/+hp (player only).
+   *  Carried back via CombatResult.playerRightmostSlotBuff → added to RunState.rightmostSlotBuff (the same
+   *  accumulator Market Tormentor grows), which applyShopRefreshed re-lands on the next roll's right-most. */
+  grantRightmostSlotBuff(attack: number, health: number, side: Side): void;
   /** Chorus Engine — raise the run's ATTACHMENT (Magnetic) enchant from combat. The recruit twin is Scrap
    *  Herald's `battlecryBuffMagnetics`: buff every Magnetic on board + in hand, and stack the aura so future
    *  Attachments inherit it. Only the player carries back (the enemy is regenerated each wave). */

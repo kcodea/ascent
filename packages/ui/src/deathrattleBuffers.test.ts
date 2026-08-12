@@ -28,6 +28,8 @@ describe('isDeathrattleBufferCard', () => {
     const EXCLUDED: Record<string, string> = {
       // Spear Warden — the owner wants it reframed as an "echo-aura", kept out until that design lands.
       deathrattleBuffCardTypeRunWide: 'run-wide enchant, emits no combat buff-other',
+      // Right Hand Hank — buffs the next SHOP (a carry-back), not a live board minion, so no combat cue.
+      deathrattleBuffRightmostSlot: 'carry-back shop-slot buff, emits no combat buff-other',
     };
     const onDeath = new Set<string>();
     for (const def of Object.values(CARD_INDEX)) {

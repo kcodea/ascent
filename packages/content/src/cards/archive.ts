@@ -12,6 +12,93 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // ── 2026-08-12 owner archive batch ─────────────────────────────────────────────────────────────────────
+  {
+    // ARCHIVED 2026-08-12 (owner). Moved verbatim from set2/demons.ts — belongs to no set now.
+    id: 'dm_tallymonger',
+    name: 'Void Curator',
+    tribe: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffSpellsAndImps', params: { attack: 1, health: 1, impAttack: 3, impHealth: 1 } }],
+    text: '**End of Turn:** give your **Shop Spells +1/+1** and your **Imps +3/+1**.',
+    goldenText: '**End of Turn:** give your **Shop Spells +2/+2** and your **Imps +6/+2**.',
+  },
+  {
+    // ARCHIVED 2026-08-12 (owner). Moved verbatim from set1/beasts.ts — belongs to no set now.
+    // Defensive value engine: a Taunt body that, on death, hands you a random tavern-tier spell. Golden → 2.
+    id: 'sporebat',
+    name: 'Sporebat',
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: ['T'],
+    // Owner rework 2026-08-07: it stores the run's LAST-cast Shop spell and re-casts it on death. The stored
+    // spell is run-level (`lastSpellCastId`, snapshot-captured for served boards); a targeted spell picks a
+    // random friendly Beast, an untargeted one simply casts (owner ruling). Golden casts twice.
+    effects: [{ on: 'onDeath', do: 'deathrattleCastLastSpell' }],
+    text: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast.',
+    goldenText: '**Taunt.** Store the last spell you cast. **Echo:** cast that spell on a random friendly Beast **twice**.',
+  },
+  {
+    // ARCHIVED 2026-08-12 (owner) alongside Rune of the Groveweaver. Moved verbatim from set2/beasts.ts.
+    // The tribe's two halves in one card: it pays your summons, and your SPELLS make that payment bigger.
+    id: 'b2_groveweaver',
+    name: 'Groveweaver',
+    tribe: 'beast',
+    tier: 5,
+    attack: 4,
+    health: 8,
+    keywords: [],
+    effects: [
+      // Owner balance 2026-08-04: the base grant is +3/+3 (was +2/+2); each spell still improves it +2/+2.
+      { on: 'onSummon', do: 'summonBuffTribeAsym', params: { tribe: 'beast', attack: 3, health: 3, step: 2 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 2 } },
+    ],
+    text: 'When you summon a Beast, give it **+3/+3**. Improve this by **+2/+2** when you cast a Shop spell.',
+    goldenText: 'When you summon a Beast, give it **+6/+6**. Improve this by **+4/+4** when you cast a Shop spell.',
+  },
+  {
+    // ARCHIVED 2026-08-12 (owner) alongside Rune of the Matriarch. Moved verbatim from set2/beasts.ts.
+    // The top-end spell payoff. Owner rework 2026-08-07: instead of paying out PER cast, it multiplies the
+    // casts themselves — every Shop Spell your board casts mid-fight resolves an extra time. It reads the
+    // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.
+    // Start of Combat, so the grant is locked in and does not retract if the Matriarch dies.
+    id: 'b2_runebloom',
+    name: 'Runebloom Matriarch',
+    tribe: 'beast',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scGrantSpellCastExtra', params: { extra: 1 } }],
+    text: 'Your **Shop Spells** cast an extra time in combat.',
+    goldenText: 'Your **Shop Spells** cast **2** extra times in combat.',
+  },
+  {
+    // ARCHIVED 2026-08-12 (owner) alongside Rune of the Badger. Moved verbatim from set1/beasts.ts.
+    // A tempo Beast that mills spells: throws one to hand whenever it scores a kill (Slaughter). The random
+    // spell obeys the current shop tier (via ctx.grantRandomSpell at settle). The Rally half was cut in the
+    // 2026-07-21 balance pass — killing is now the only way to mill.
+    id: 'badgington',
+    name: 'Badgington',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: ['RL'],
+    // Owner rework 2026-08-11: back to the simple "Rally: get a random Shop Spell." `rallyGrantSpell` is the
+    // shared Rally spell-grant (Perfect Core's), which draws a random non-token spell from the run pool, routes
+    // it through the combat→hand carry-back, and doubles on golden.
+    effects: [
+      { on: 'onAttack', do: 'rallyGrantSpell' },
+    ],
+    text: '**Rally:** get a random **Shop Spell**.',
+    goldenText: '**Rally:** get **2** random **Shop Spells**.',
+  },
   {
     // ARCHIVED 2026-08-08 (owner). Moved verbatim from set2/beasts.ts — belongs to no set now, so it can't be
     // drawn, offered, Discovered or granted. Rune of the Second Life ("your Scavvers have Taunt and Rise")

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Content batch** — four Set-2 minion reworks (Market Tormentor now +7/+7; Menagerie Mammoth summons 3 random other Beasts on death; Feastmaster Vhal buffs a Shop minion every 10 Gold spent; Endless Overseer summons Taunt+Ward Imps on Avenge), three new minions (**Right Hand Hank**, **Bullseye**, **Beardsley**), and nine cards archived out of the pools (5 minions + 4 runes).
+
 - **Card drag tilt reworked** — a dragged card now dives toward the board in the direction it's travelling (leading edge pinches), uniformly on every axis and settling flat when you stop. Rebuilt on a smoothed-travel signal with one uniform dive gain, and split the floating card into position + tilt layers so the 3D pitch is clean instead of sliding. Drag-feel tuner now exposes `Dive gain` / `Dive smoothing`.
 - **Recent Games are clickable** — a game in the Recent Games feed now opens that player's Career, auto-expanded and scrolled to the run you clicked, so its board, runes, quests and standout stats are one tap away. Matched to the run by nearest end-time (the feed and the career are separate records).
 

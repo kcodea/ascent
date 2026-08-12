@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Content batch (owner) — SHIPPED 2026-08-12.** 4 minion reworks (Market Tormentor +7/+7; Menagerie Mammoth →
+  Echo summon 3 random other Beasts; Feastmaster Vhal → spend-10-Gold shop buff; Endless Overseer → Avenge(4)
+  summon an Imp with Taunt+Ward), 3 new minions (Right Hand Hank, Bullseye, Beardsley — incl. a new combat→shop
+  carry-back), and 9 archives (5 minions + 4 runes). Details in the devlog.
 - **Recent Games → player Career — SHIPPED 2026-08-12.** Each Recent Games row is now clickable, opening that
   player's Career expanded + scrolled to the specific run (board/runes/details), matched by nearest timestamp.
   Reuses the Leaderboard's view-another-player path; needs the `run_history` cross-user read policy (else the

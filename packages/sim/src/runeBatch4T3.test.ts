@@ -20,10 +20,10 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 }
 
 describe('the eight defs ship as specced', () => {
-  it('costs, all Basic, none set-scoped', () => {
+  it('costs, all Basic, none set-scoped (Spellhide archived 2026-08-12)', () => {
     const costs: Record<string, number> = {
       rune_emberline: 3, rune_ashen_payroll: 4, rune_backbeat: 4, rune_spare_chair: 4,
-      rune_spellhide: 4, rune_spellmarket: 4, rune_last_word: 4, rune_runic_hoard: 4,
+      rune_spellmarket: 4, rune_last_word: 4, rune_runic_hoard: 4,
     };
     for (const [id, cost] of Object.entries(costs)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);

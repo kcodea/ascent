@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, fireOnRubyCast, offerBuyStats } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, fireOnRubyCast, offerBuyStats } from './recruit';
 
 /**
  * Set 2's DEMON tribe. Its identity is Consume-from-the-Shop (eight cards) braided with an Imp swarm line.
@@ -144,10 +144,11 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   });
 
   it('several consumes in ONE action all animate', () => {
-    // The other half: clearing per action must not clear WITHIN one. Feastmaster Vhal's two neighbours each eat.
+    // The other half: clearing per action must not clear WITHIN one. Malphas' Feast makes EACH of your Demons
+    // Consume a Shop minion, so one End of Turn produces several consumes — they must all be recorded.
     const s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [minion('L', 'dm_clerk', 1, 1), minion('v', 'dm_vhal', 6, 8), minion('R', 'dm_butcher', 2, 3)],
+      board: [minion('L', 'dm_clerk', 1, 1), { ...minion('M', 'dm_malphas', 10, 6), chosenOption: 0 }, minion('R', 'dm_butcher', 2, 3)],
       hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
     };
     applyEndOfTurn(s);
@@ -329,29 +330,27 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(m4.attack + m4.health).toBeGreaterThan(16); // ate something
   });
 
-  it('Endless Overseer (owner rework 2026-07-27): grafts an Imp Echo onto the RIGHT-most minion', () => {
-    // The graft is invisible until the recipient dies, so the test kills the right-most body and looks for the
-    // Imps. The Overseer itself is left-most and immortal here, so a payout can only have come from the graft.
+  it('Endless Overseer (owner rework 2026-08-12): Avenge (4) summons an Imp with Taunt and Ward', () => {
+    // The Overseer is immortal (0 attack, 9999 health); four disposable friendlies die to the wall → exactly
+    // one Avenge(4) payout. The summoned Imp must carry BOTH Taunt and Ward.
     const r = simulate(
-      [bm('dm_overseer', 'O', 0, 9999), bm('sandbag', 'R', 0, 1)],
+      [bm('dm_overseer', 'O', 0, 9999), bm('sandbag', 'a', 0, 1), bm('sandbag', 'b', 0, 1), bm('sandbag', 'c', 0, 1), bm('sandbag', 'd', 0, 1)],
       [{ cardId: 'sandbag', attack: 50, health: 9999 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBe(2);
-    // …with Ward, which is the half a plain `summonImps` graft would silently drop.
+    expect(imps.length, 'one Imp per Avenge(4) threshold').toBe(1);
     const kws = (imps[0] as { minion: { keywords: string[] } }).minion.keywords;
-    expect(kws, 'the grafted Imps arrived without Ward').toContain('DS');
+    expect(kws, 'the Imp arrived without Taunt').toContain('T');
+    expect(kws, 'the Imp arrived without Ward').toContain('DS');
   });
 
-  it('…and grafts onto the right-most body only, not the whole board', () => {
-    // Two disposable bodies; only the right-hand one should carry the Echo. Without this, a graft-everything
-    // regression (the shape this card had before 2026-07-25) would still pass the test above.
+  it('…and a GILDED Overseer summons 2 Imps per Avenge(4)', () => {
     const r = simulate(
-      [bm('dm_overseer', 'O', 0, 9999), bm('sandbag', 'M', 0, 1), bm('sandbag', 'R', 0, 1)],
+      [{ ...bm('dm_overseer', 'O', 0, 9999), golden: true }, bm('sandbag', 'a', 0, 1), bm('sandbag', 'b', 0, 1), bm('sandbag', 'c', 0, 1), bm('sandbag', 'd', 0, 1)],
       [{ cardId: 'sandbag', attack: 50, health: 9999 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length, 'both bodies paid out — the graft is not right-most-only').toBe(2);
+    expect(imps.length, 'gilded summons 2 per threshold').toBe(2);
   });
 
   it('Malphas offers a Choose One with both halves', () => {
@@ -517,7 +516,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   it('the Shout buffs the CURRENT shop immediately', () => {
     let s = base();
     s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s)).toBe(6); // +4/+2 (owner value change 2026-07-31: attack-forward, not symmetric)
+    expect(rightmostBuff(s)).toBe(14); // +7/+7 (owner balance 2026-08-12: was +4/+2)
   });
 
   it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
@@ -526,19 +525,19 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
     for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(6); // +4/+2
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(14); // +7/+7
     }
   });
 
-  it("STACKS to the owner's worked example shape: two normals + a gilded = +16/+8", () => {
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +28/+28", () => {
     let s: RunState = { ...base(), hand: [
       minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
       { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
     ] };
     for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
-    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(24); // +16/+8: 4+4+8 attack, 2+2+4 health
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(56); // +28/+28: 7+7+14 each side
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(24);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(56);
   });
 
   it('the buff rides the offer into the minion you BUY', () => {
@@ -549,8 +548,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const offer = s.shop[i]!;
     const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
-    expect(bought.attack - def.attack!).toBe(4);
-    expect(bought.health - def.health!).toBe(2);
+    expect(bought.attack - def.attack!).toBe(7);
+    expect(bought.health - def.health!).toBe(7);
   });
 
   it('a Hellrider consuming the right-most eats the BUFFED body (buff-before-consume ordering)', () => {
@@ -566,8 +565,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const eaten = s.shopEaten?.at(-1);
     expect(eaten, 'Hellrider did not fire on this refresh').toBeTruthy();
     const def = CARD_INDEX[eaten!.cardId]!;
-    expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(4);
-    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(2);
+    expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(7);
+    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(7);
   });
 });
 
@@ -606,15 +605,19 @@ describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () =
     expect([blart.attack, blart.health], "it gains the right-most offer's stats").toEqual([5 + ra, 5 + rh]);
   });
 
-  it('Feastmaster Vhal eats too, not just its neighbours', () => {
+  it('Feastmaster Vhal (owner rework 2026-08-12): every 10 Gold spent buffs the right-most Shop minion +8/+8', () => {
     const s: RunState = {
       ...createRun(3), phase: 'recruit',
       board: [minion('v', 'dm_vhal', 6, 8)], hand: [],
       shop: shop('sandbag', 'alley', 'stray'),
     };
-    applyEndOfTurn(s);
-    // Alone on the board, the old version ate nothing at all — only neighbours consumed.
-    expect(s.shopEaten?.some((e) => e.eaterUid === 'v'), 'Vhal itself consumed').toBe(true);
+    const rm = () => { const i = [...s.shop].reverse().findIndex((o) => !CARD_INDEX[o.cardId]?.spell); return s.shop[s.shop.length - 1 - i]!; };
+    applyGoldSpent(s, 9);
+    expect((rm().atk ?? 0) + (rm().hp ?? 0), 'under the 10-Gold threshold, nothing yet').toBe(0);
+    applyGoldSpent(s, 1); // 10 total → one threshold crossed
+    expect([rm().atk ?? 0, rm().hp ?? 0], 'right-most gets +8/+8').toEqual([8, 8]);
+    // …and it rides the run-wide accumulator, so a fresh roll re-lands it.
+    expect(s.rightmostSlotBuff).toEqual({ attack: 8, health: 8 });
   });
 
   it('Demon Horse’s Rally carries a PERMANENT shop buff back out of combat', () => {

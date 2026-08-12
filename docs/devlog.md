@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-12 — Content batch: 4 minion reworks, 5 minion + 4 rune archives, 3 new minions
+
+An owner content pass across Set 2 (+ two Set-1 archives), touching content, the effect factories, and one new
+combat→run carry-back.
+
+**Minion reworks.**
+- **Market Tormentor** — right-most Shop-slot Shout buffed **+4/+2 → +7/+7** (gild +14/+14). Pure param change on
+  `buffRightmostSlotPermanent`.
+- **Menagerie Mammoth** — from the Avenge hand-caster back to a summon engine: **Echo: summon 3 random OTHER
+  Beasts** (gild 6). Reuses the (previously unused) `deathrattleSummonRandomTribe`, which gained an `excludeSelf`
+  option so it can't summon more Mammoths; archived Beasts drop out naturally (the pool is the run's set).
+- **Feastmaster Vhal** — from the neighbour-consume to a Gold sink: **when you spend 10 Gold, give the right-most
+  Shop minion +8/+8 permanently** (gild +16/+16). New recruit factory `goldSpentBuffRightmostSlot`, metered by
+  the existing `applyGoldSpent` `every`-threshold and feeding Market Tormentor's `rightmostSlotBuff` accumulator.
+- **Endless Overseer** — from the Start-of-Combat Imp-Echo graft to **Avenge (4): summon an Imp with Taunt and
+  Ward** (gild summons 2). New combat factory `avengeSummonImps`.
+
+**New minions.**
+- **Right Hand Hank** — T2 Demon 4/1, **Echo: give the right-most Shop minion +6/+3 permanently** (gild +12/+6).
+  A glass cannon built to die; its Echo is the batch's one new piece of engine plumbing — a combat→run carry-back
+  (`grantRightmostSlotBuff` → `CombatResult.playerRightmostSlotBuff` → settle grows `rightmostSlotBuff`), the same
+  shape as the imp-aura / spell-power carry-backs. Classified EXEMPT in the live-tracking audit (its subject, the
+  next shop, doesn't exist mid-fight).
+- **Bullseye** — T3 Beast 3/2, **Echo: summon a random Beast and set its stats to 7/7** (gild 14/14 — the statline
+  doubles, not the count). New factory `deathrattleSummonRandomTribeSetStats`.
+- **Beardsley** — T4 Beast 5/5, **when you summon a Beast in combat, give it +6/+6** (gild +12/+12). New factory
+  `onSummonTribeBuffFlat` — combat-only by construction (no recruit twin, so shop summons don't trigger it).
+
+**Archives** (moved verbatim into `cards/archive.ts` / the `ARCHIVED_RUNES` list — kept in `CARD_INDEX`/`RUNE_INDEX`
+for saved runs, out of every set/forge pool). Minions: **Void Curator, Sporebat, Groveweaver, Runebloom Matriarch,
+Badgington**. Runes: **Rune of the Groveweaver, Rune of the Matriarch, Rune of the Badger, Rune of Spellhide**
+(the first three retire alongside their subject minion; Badger's grant named Badgington, so both go together).
+
+**Verified.** typecheck + lint (0 errors) + full `npm test` (289 files / 4932) + `build:web`, all green. New tests
+in `contentBatchAug12.test.ts` (the 3 new minions incl. Hank's carry-back settle, + archive bookkeeping) and
+rewritten behaviour tests for the four reworks; rune-pool counts and the archived-alongside assertions updated.
+
 ## 2026-08-12 — CLAUDE.md: `main` now enforces a required `verify` check (correct the stale note)
 
 Surfaced while merging the drag-tilt PR: `gh pr merge` refused with *"the base branch policy prohibits the

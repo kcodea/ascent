@@ -56,6 +56,7 @@ const LIVE: Record<string, string> = {
 const EXEMPT: Record<string, string> = {
   playerDiscoverCasts: 'the Discover MODAL cannot open mid-fight — queueing at settle is the whole design',
   playerNextShopBuff: 'its subject (the next shop) does not exist until the fight ends',
+  playerRightmostSlotBuff: 'its subject (the next shop right-most slot) does not exist until the fight ends (Right Hand Hank)',
   playerBonusGold: 'ditto — next-shop Gold has no live surface mid-fight',
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',

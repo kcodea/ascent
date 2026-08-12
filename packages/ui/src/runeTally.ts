@@ -49,6 +49,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
     return `${run.runeSummitTick % 3}/3`;
   }
+  // Rune of the Collector: distinct minion TYPES bought this turn, toward the 3 that fire the Discover.
+  if (runeId === 'rune_collector' && run.runeCollector) {
+    return `${Math.min((run.typesBoughtThisTurn ?? []).length, 3)}/3`;
+  }
   // Rune of Slaying banks KILLS ACROSS COMBATS (`runeSlayingKills`) and pays every 6 — the owner's report
   // 2026-08-04. A cross-combat meter with nothing on screen is the worst case of all: the payout arrives
   // rounds after the kills that earned it, so without this it reads as pure randomness.

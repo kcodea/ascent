@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **20 new runes + 2 new minions — SHIPPED 2026-08-12.** Herzog + Kobabyboldies; six grant-a-minion+flag runes;
+  twelve shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's
+  Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Herzog was renamed to
+  **Vaultkeeper** (Rune of the Vaultkeeper grants it + shares its grant to an adjacent minion). Details in the devlog.
 - **Live Imp-stat text + two End-of-Turn fixes — SHIPPED 2026-08-11.** "Summon a X/Y Imp" live text on every
   imp summoner (cards + runes); EoT-triggered Discovers auto-grant (no window); EoT shop buffs animate on the
   beat. Follow-up: tick the growing shop offer's printed number up live during the beat (it currently gets a

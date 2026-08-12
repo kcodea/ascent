@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **20 new runes + 2 new minions** — Herzog (a Dragon whose per-play buff scales retroactively with your Shop-Spell count) and Kobabyboldies (Echo: 3 Rubies on each Kobold); six "grant a minion + upgrade it" runes (Display Case, Wrangler, Living Geode, Dawnclaw, Blart, Sylus) and a dozen new shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack), all with art.
+
 - **Live "Summon a X/Y Imp" text + two end-of-turn fixes** — any card/rune that summons an Imp now prints the Imp's current stats (base 1/1 + your Imp Aura) as a live green "(X/Y)", everywhere; End-of-Turn Discovers (Moira → Black Belt Brian) auto-grant instead of popping the picker at the combat hand-off; and an End-of-Turn shop buff (Moira beside Market Tormentor) now animates on the beat instead of landing silently.
 
 - **Balance batch + two combat-timing fixes** — a wide owner pass: ~12 minion reworks (Spell Warden/Bob Blart retiers, Errand Fiend loses Flurry, Dawnclaw's Echo hits one adjacent/both-when-gilded, Candle Conduit reacts to gaining Rubies, Avarice/Malphas Demon-consume reworks, Rope Wrangler grows itself, and more), ~40 rune cost/effect changes, and two engine bugs squashed — "summon when you have space" now fires at Start of Combat (not a beat late), and a Rally that summons onto a **full** board is rejected immediately instead of sneaking in after the attacker dies.

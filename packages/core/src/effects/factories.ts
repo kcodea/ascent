@@ -1934,6 +1934,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const adj of livingNeighbours(ctx, self)) playRubyOn(ctx, self, adj, per);
   },
 
+  /** Set 2 — Kobabyboldies (Echo): on death, play `count` Rubies on EACH friendly minion of `tribe`. Guarded
+   *  against the board-wide onDeath broadcast (fires only on this body's death); golden doubles the count. */
+  deathrattlePlayRubiesTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    playRubies(ctx, self, num(params.count, 3) * mul(self), str(params.tribe));
+  },
+
   /** Set 2 — Frenzied Excavator: Start of Combat, play `rubies` Rubies on your [tribe] minions for every
    *  `every` cards bought this turn (× golden). Reads the run's per-turn buy count threaded into combat. */
   scPlayRubiesPerBuy: (ctx, self, params) => {

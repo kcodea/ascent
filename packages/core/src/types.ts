@@ -551,6 +551,8 @@ export type EffectFactoryId =
   | 'rallyPlayRubiesTargets' // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
   | 'deathrattleRubyStatGain' // Set 2 — Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
+  | 'deathrattlePlayRubiesTribe' // Set 2 — Kobabyboldies (Echo): on death, play N Rubies on each friendly `tribe`
+  | 'onTribePlayedBuffSelfPerSpell' // Set 2 — Herzog: +N/+N when you play a `tribe`; N = base + floor(spellsCast/per)
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
   | 'rubyStatMultiplier' // Set 2 — Deepdelve Paragon: Rubies applied IN COMBAT are worth 2× (3× Gilded)
@@ -939,7 +941,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -963,6 +965,23 @@ export type QuestReward =
   | { kind: 'runeTwinGilding' }
   // Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast.
   | { kind: 'runeDenMother' }
+  // Rune of the Display Case: your Market Tormentors also enchant the LEFT-most Shop slot (permanently).
+  | { kind: 'runeDisplayCase' }
+  // Rune of Blart: your Bob Blarts gain the stats of BOTH the left and right-most Shop minions at End of Turn.
+  | { kind: 'runeBlart' }
+  // Rune of the Vaultkeeper: your Vaultkeepers also give their per-Dragon grant to an adjacent minion.
+  | { kind: 'runeVaultkeeper' }
+  // Aug-11 economy runes (recruit-phase flags).
+  | { kind: 'runeSellersMarket' }   // whenever you sell a minion, give your minions +4/+3
+  | { kind: 'runeFreshPages' }      // Start of Turn: Discover a Shop spell
+  | { kind: 'runeStrangeCaravan' }  // Start of Turn: get a random minion from a type you do NOT control
+  | { kind: 'runeWindowShopping' }  // your first 4 Refreshes each turn are free
+  | { kind: 'runeOpenEnrollment' }  // after you Refresh, the Shop offers an extra minion of your most common type
+  | { kind: 'runeShopkeep' }        // reduce your Shop's upgrade cost by 3; End of Turn: repeat
+  | { kind: 'runeTradeIn' }         // after your first sale each turn, your next minion of that type costs 1 less
+  | { kind: 'runeRestocking' }      // the first minion you buy each turn refills its slot with a same-Tier 1-Gold minion
+  | { kind: 'runeCollector' }       // buy 3 different types in a turn → Discover a minion of one of them (once/turn)
+  | { kind: 'runeBargainBin' }      // your first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
   | { kind: 'runeScale'; count: number; attack: number; health: number; /** Gold threshold: pay once per `per` Gold, banking the remainder. Absent = once per spend transaction. */ per?: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
@@ -1114,6 +1133,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
   // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
   | 'runeRebirth' | 'runeAftershocks' | 'runeEngraving' | 'runeUnderdog' | 'runeGemGolem' | 'runeChef' | 'runeCarrionCoin' | 'runeFiveBanners' | 'runeCenterline' | 'runeSecondLitter' | 'runeDragonscale' | 'runeTemperedTime' | 'runeSavagery' | 'runeCrucible' | 'runeHerald' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy'
+  // Aug-11 minion-grant runes: Wrangler (Imp Wrangler's imps get Ward+Taunt), Living Geode (Geode Guardian's
+  // Gemheart Golems get Ward), Dawnclaw (Dawnclaws also fire their Echo at Start of Combat), Sylus (Sylus
+  // doubles its own Health at Start of Combat).
+  | 'runeWrangler' | 'runeLivingGeode' | 'runeDawnclaw' | 'runeSylus'
+  // Rune of the Old Pack: the first Beast you resummon each combat returns with its FULL stats.
+  | 'oldPack'
   // The Sealed Vault: your FIRST Avenge each combat triggers twice — the once-per-fight sibling of `runeFury`
   // (which doubles every Avenge). Tracked per side, so a served enemy holding it gets its own single re-fire.
   | 'avengeFirstDouble'
@@ -1382,6 +1407,14 @@ export interface QuestCombatMods {
   runeFloodedVault?: boolean;
   /** Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too. */
   runeBattleRefraction?: boolean;
+  /** Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt. */
+  runeWrangler?: boolean;
+  /** Rune of the Living Geode: Gemheart Golems summoned by your Geode Guardians have Ward. */
+  runeLivingGeode?: boolean;
+  /** Rune of Dawnclaw: your Dawnclaws also trigger their Echo at Start of Combat. */
+  runeDawnclaw?: boolean;
+  /** Rune of Sylus: your Sylus double their own Health at Start of Combat. */
+  runeSylus?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
   /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
@@ -1406,6 +1439,8 @@ export interface QuestCombatMods {
   /** Rune of Mastery (Epic): every "Improve" step this side's effects take applies twice (read via
    *  `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). */
   runeMastery?: boolean;
+  /** Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats. */
+  oldPack?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

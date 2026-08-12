@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-12 — 20 new runes + 2 new minions (Herzog, Kobabyboldies)
+
+A large owner content drop: two new Set-2 minions and twenty runes, plus their art.
+
+**New minions.**
+- **Vaultkeeper** (T6 Dragon 7/7; renamed from "Herzog" the same day, id `d2_herzog` kept) — gain +N/+N whenever
+  you play a Dragon, where N = 1 + floor(Shop Spells cast this run / 4), read live so it's RETROACTIVE (at 15
+  spells it's +4/+4 per Dragon, at 16 +5/+5). New recruit factory `onTribePlayedBuffSelfPerSpell` (hooks the
+  board-wide `onSummon` fan-out) + a live text helper folding the current per-Dragon grant into the printed text.
+  **Rune of the Vaultkeeper** (was Rune of Herzog) now grants the minion AND adds a flag (`runeVaultkeeper`) so
+  your Vaultkeepers also hand the same grant to an adjacent minion; its art is now wired.
+- **Kobabyboldies** (T5 Kobold 3/3) — "Echo: play 3 Rubies on each of your Kobolds." New combat factory
+  `deathrattlePlayRubiesTribe` reusing the `playRubies` primitive with an onDeath self-guard.
+
+**Grant + per-minion-flag runes.** Display Case (Market Tormentor also enchants the LEFT-most Shop slot — a new
+`leftmostSlotBuff` mirror of the Tormentor channel), Wrangler (Imp Wrangler's Imps get Ward+Taunt), Living Geode
+(Geode Guardian's Gemheart Golems get Ward) — both scoped to the summoner via `nearUid` at the summon site;
+Dawnclaw (Dawnclaws also fire their Echo at Start of Combat), Blart (Bob Blart gains BOTH end Shop minions' stats),
+Sylus (Sylus double their own Health at Start of Combat); plus plain grants Rune of Herzog and Rune of Kobold
+Bebes (Kobabyboldies with Taunt + Rise, via `grantKeywords`).
+
+**Economy / shop runes (12).** Open Enrollment (a refresh adds a dominant-type offer), Strange Caravan (Start of
+Turn: a minion of a type you don't control), Lassoing (EoT: cast Lasso + a random friendly +2/+2), Restocking
+(first buy each turn refills its slot with a same-Tier 1-Gold minion), Trade-In (first sale each turn → next
+minion of that type −1 Gold), Window Shopping (first 4 refreshes free), Fresh Pages (Start of Turn: Discover a
+Shop spell), Collector (buy 3 different types in a turn → Discover from one; shows a live 3/3 tally), Shopkeep
+(upgrade cost −3, repeated each EoT), Bargain Bin (first refresh fills the row with 1-Gold minions that sell for
+0 — new `ShopCard.sellZero` → `BoardCard.sellOverride`), Seller's Market (sell → board +4/+3), Old Pack (first
+Beast resummoned each combat returns at full stats — the graveyard now banks pre-death stats).
+
+**Art.** All 20 runes and both minions wired through `npm run art:wire` + `optimize-art` (name-matched; one alias
+for "Rune of the Caravan" → the Strange Caravan). Rune of the Vaultkeeper + the Vaultkeeper portrait were wired
+directly (the rune master was filed under the Beasts minion folder, so it can't come through the runes job).
+
+Verified: typecheck clean, eslint 0 errors, `npm test` (4920), build:web. New regression tests in
+`runeMinionBatchAug11.test.ts` (Herzog scaling, Kobabyboldies Echo, Seller's Market, Window Shopping, Bargain
+Bin sell-for-0, the roster/costs). Fixed alongside: the rune-count tripwire (+20), a Collector tally + a
+Seller's Market meter exemption, and a `runDerive` invariant (a frozen offer bought a turn later now records the
+Gold at purchase time so `goldAfter <= gold` stays honest).
+
 ## 2026-08-12 — Dwarven Ale shop-cast FX: a `spellCast` recruit moment, cursor→target buff volleys, and an Edward echo
 
 **What & why.** The five Set-2 Dwarven Ales (`wo_mine`/`wo_reinforcement`/`wo_champion`/`wo_health`/`wo_attack`)

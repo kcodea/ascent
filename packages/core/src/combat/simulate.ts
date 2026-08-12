@@ -899,7 +899,11 @@ export function simulate(
         const def = cards[rec.cardId];
         if (!def) continue;
         resummonedUids.add(rec.uid);
-        raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden).uid);
+        // Rune of the Old Pack: bring the FIRST resummoned Beast back at its full (pre-death) stats, not base.
+        const copyStats = modsFor(side).oldPack && !oldPackUsed[side] && rec.attack !== undefined && rec.maxHealth !== undefined
+          ? { attack: rec.attack, health: rec.maxHealth, maxHealth: rec.maxHealth } : undefined;
+        if (copyStats) { oldPackUsed[side] = true; fireTrigger('oldPack', side); }
+        raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden, false, copyStats).uid);
         brought += 1;
       }
       return brought;
@@ -1029,6 +1033,19 @@ export function simulate(
       // caught by the chain-termination test).
       const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
       minion.effects = [...minion.effects, eff];
+    }
+    // Aug-11 minion-grant runes — Ward/Taunt on a specific summoner's token. `nearUid` is the summoner's uid
+    // (combatArena.summonToken passes self.uid), so these scope to "summoned by your Imp Wranglers / Geode
+    // Guardians" rather than every Imp / Golem. Granted before the summon snapshot so the keyword shows frame 1.
+    if ((modsFor(side).runeWrangler && card.id === 'impscrap') || (modsFor(side).runeLivingGeode && card.id === 'gemheart-shard')) {
+      const summoner = nearUid ? boards[side].find((m) => m.uid === nearUid) : undefined;
+      const wardOnly = card.id === 'gemheart-shard' && summoner?.cardId === 'k_geode';
+      const wardTaunt = card.id === 'impscrap' && summoner?.cardId === 'dm_wrangler';
+      if (wardOnly || wardTaunt) {
+        minion.divineShield = true;
+        if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+        if (wardTaunt && !minion.keywords.includes('T')) minion.keywords.push('T');
+      }
     }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
@@ -1661,7 +1678,7 @@ export function simulate(
     }
     if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
         && !raisedBodies.has(minion.uid)) {
-      deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden });
+      deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
@@ -1769,7 +1786,9 @@ export function simulate(
   // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
   // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
   // was killed from, so the copy comes back in (or next to) its original slot.
-  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean }[]> = { player: [], enemy: [] };
+  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean; attack?: number; maxHealth?: number }[]> = { player: [], enemy: [] };
+  // Rune of the Old Pack: the FIRST Beast resummoned each combat returns at full stats (per side, once).
+  const oldPackUsed: Record<Side, boolean> = { player: false, enemy: false };
   const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
   const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
   const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
@@ -2633,6 +2652,20 @@ export function simulate(
             }
           }
         }
+      }
+    }
+    // Rune of Dawnclaw: your Dawnclaws ALSO fire their adjacent-Shout Echo at Start of Combat (they don't die).
+    if (rmods.runeDawnclaw) {
+      for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'b2_dawnclaw')) {
+        nextStep(); fireTrigger('runeDawnclaw', rside);
+        FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+      }
+    }
+    // Rune of Sylus: your Sylus double their own Health at Start of Combat.
+    if (rmods.runeSylus) {
+      for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'sylus')) {
+        nextStep(); fireTrigger('runeSylus', rside);
+        ctx.buff(m, 0, m.health, m.uid);
       }
     }
     if (rmods.runeCrucible) {

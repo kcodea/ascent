@@ -6590,38 +6590,12 @@ export function applyEndOfTurn(state: RunState): void {
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
   // applied the first −3). Floored so it can't go negative.
   if (state.runeShopkeep) state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
-  // Rune of the Lapidary: a Ruby on ONE friendly minion of each type. Walks the board in seat order and takes
-  // the first body of each tribe it has not covered yet, so the pick is a seating decision rather than RNG;
-  // a dual-type body covers BOTH its tribes (it is a minion "of each type" for both). Routed through the real
-  // Ruby-play path, so Resonance Idol / Candle Conduit / Ruby Broker all hear it.
-  // Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for EACH card
-  // played this turn — the cursor is re-rolled per Ruby so they spread across independently-random bodies.
-  if (state.runeLapidary) {
-    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-    const a = 1 + rb.attack;
-    const h = 1 + rb.health;
-    const n = (state.playedThisTurn ?? []).length;
-    for (let i = 0; i < n; i++) {
-      if (state.board.length === 0) break;
-      const rng = makeRng(state.rngCursor);
-      const target = state.board[rng.int(state.board.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(target, 'Ruby', a, h);
-      fireOnRubyPlayed(state, target, a, h);
-    }
-  }
-
-  // RUNE OF THE CRUCIBLE CHOIR: End of Turn, your left-most Shout fires, then your left-most Echo. Two
-  // separate left-most picks (they are rarely the same body), and both go through the same replay paths every
-  // other re-fire uses — `replayBattlecry` for the Shout (Myra's path, so a targeted Shout auto-picks the same
-  // way) and `fireRecruitDeathrattles` for the Echo (the shop-side Echo path Gravetwin uses).
-  if (state.runeCrucibleChoir) {
-    const choirCtx = makeContext(state);
-    const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (shout) replayBattlecry(state, shout);
-    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (echo) fireRecruitDeathrattles(choirCtx, echo);
-  }
+  // Rune of the Lapidary + Rune of the Crucible Choir used to run RIGHT HERE, as hardcoded blocks — which
+  // meant no projection beat and no FX: their effects landed silently after the phase flipped (owner report
+  // 2026-08-12, the Lapidary's Rubies). Both are now VIRTUAL recurring-End-of-Turn entries (see
+  // `recurringEotEffects` + their cases in `runRecurringEndOfTurn`), so they get a beat, captured FX, and
+  // Chronos repeats exactly like Rune of Spending / Rune of Action. They fire AFTER the warband's own
+  // End-of-Turn effects now, with the other recurring rewards.
 
   const ctx = makeContext(state);
   const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times
@@ -6641,7 +6615,8 @@ export function applyEndOfTurn(state: RunState): void {
   }
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
-  for (const eff of state.questRecurringEndOfTurn ?? []) {
+  // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir).
+  for (const eff of recurringEotEffects(state)) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
   }
   // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
@@ -6667,6 +6642,18 @@ function stampQuestTendril(state: RunState, effect: string, uid: string): void {
   state.questTendrilSeq = (state.questTendrilSeq ?? 0) + 1;
 }
 
+/** The recurring End-of-Turn effects active on this run: the quest/rune-granted list PLUS the flag-armed rune
+ *  recurrences (Lapidary / Crucible Choir), which are stored as booleans for save compatibility but behave as
+ *  recurring entries. THE single source for `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats`,
+ *  so the commit, the projection and the UI's beat list can never disagree about what fires. */
+export function recurringEotEffects(state: RunState): NonNullable<RunState['questRecurringEndOfTurn']> {
+  return [
+    ...(state.questRecurringEndOfTurn ?? []),
+    ...(state.runeLapidary ? (['runeLapidary'] as const) : []),
+    ...(state.runeCrucibleChoir ? (['runeCrucibleChoir'] as const) : []),
+  ];
+}
+
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache).
@@ -6690,6 +6677,34 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
+  } else if (effect === 'runeLapidary') {
+    // Rune of the Lapidary (owner rework 2026-08-11): play a Ruby on a random minion for EACH card played this
+    // turn — the cursor re-rolls per Ruby so they spread independently. One `step` per Ruby, so the projection
+    // replays them as a sequential cascade (the owner's 2026-08-12 "End-of-Turn ruby animation" ask). Routed
+    // through the real Ruby-play path, so Resonance Idol / Candle Conduit / Ruby Broker all hear it.
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const a = 1 + rb.attack;
+    const h = 1 + rb.health;
+    const n = (state.playedThisTurn ?? []).length;
+    for (let i = 0; i < n; i++) {
+      if (state.board.length === 0) break;
+      step(() => {
+        const rng = makeRng(state.rngCursor);
+        const target = state.board[rng.int(state.board.length)]!;
+        state.rngCursor = rng.state();
+        addBuff(target, 'Ruby', a, h);
+        fireOnRubyPlayed(state, target, a, h);
+      });
+    }
+  } else if (effect === 'runeCrucibleChoir') {
+    // Rune of the Crucible Choir: your left-most Shout fires, then your left-most Echo — two separate picks,
+    // through the same replay paths every other re-fire uses (`replayBattlecry` = Myra's path,
+    // `fireRecruitDeathrattles` = the shop-side Echo path Gravetwin uses). Two steps, so the projection plays
+    // the Shout and the Echo as their own waves.
+    const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (shout) step(() => replayBattlecry(state, shout));
+    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
+    if (echo) { const choirCtx = makeContext(state); step(() => fireRecruitDeathrattles(choirCtx, echo)); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
@@ -6868,6 +6883,11 @@ export interface EotStepFx {
    *  offer uid from `offerBuyStats`, which folds BOTH per-offer buffs (Tormentor) and the run-wide buy bonus
    *  (Soul Defiler / `tavernBuyBonus`), so every shop-buff source animates without per-effect wiring. */
   shopBuff?: { uid: string; attack: number; health: number }[];
+  /** RUBIES this beat played onto board minions (Rune of the Lapidary — owner report 2026-08-12: they applied
+   *  silently after the phase flipped). Same `{uid, count}` shape as the reducer boundary's `rubyLandedFx`, so
+   *  the End-of-Turn beat can fire the SAME gem cascade the shop plays. Diffed from the 'Ruby' buff counts, so
+   *  any future End-of-Turn Ruby source animates without per-effect wiring. */
+  ruby?: { uid: string; count: number }[];
 }
 
 /**
@@ -6914,6 +6934,11 @@ export function projectEndOfTurnSteps(state: RunState): {
     const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
     // Shop-offer effective buy stats before the beat (folds tavernBuyBonus + per-offer + golden), keyed by uid.
     const shopBefore = new Map(clone.shop.map((o) => [o.uid, offerBuyStats(clone, o)]));
+    // Per-minion 'Ruby' buff counts before the beat — the same read the reducer's action boundary uses for
+    // `rubyLandedFx`, so an End-of-Turn Ruby (the Lapidary) fires the same gem cascade the shop plays.
+    const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
+      c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+    const rubyBefore = new Map(clone.board.map((c) => [c.uid, rubyCountOf(c)]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -6944,6 +6969,12 @@ export function projectEndOfTurnSteps(state: RunState): {
       const da = now.attack - before.attack, dh = now.health - before.health;
       if (da > 0 || dh > 0) shopBuff.push({ uid: o.uid, attack: da, health: dh });
     }
+    // Rubies this beat played onto board minions (the Lapidary) — the delta, not the total, like the reducer.
+    const ruby: { uid: string; count: number }[] = [];
+    for (const c of clone.board) {
+      const n = rubyCountOf(c) - (rubyBefore.get(c.uid) ?? 0);
+      if (n > 0) ruby.push({ uid: c.uid, count: n });
+    }
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -6953,6 +6984,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
       ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
       ...(shopBuff.length ? { shopBuff } : {}),
+      ...(ruby.length ? { ruby } : {}),
     });
   };
   for (const card of [...clone.board]) {
@@ -6974,11 +7006,20 @@ export function projectEndOfTurnSteps(state: RunState): {
   // `applyEndOfTurn`) — one projected step per (effect × repeat), in the same order the UI plays them, so
   // Rune of Spending / Rune of Action's stat gains climb on their own beats (and conjures grow the hand).
   // Sourceless (no card to anchor) → their captured buffs replay as descends onto the gaining minions.
-  for (const eff of clone.questRecurringEndOfTurn ?? []) {
+  for (const eff of recurringEotEffects(clone)) {
     for (let r = 0; r < repeats; r++) {
       // itemizeFx: the "+x/+y per z" rewards capture one nested event PER UNIT of the scaler, so the beat
       // replays a sequential descend per step (the outer beat capture skips the itemized targets).
       beat(undefined, () => runRecurringEndOfTurn(clone, eff, true));
+    }
+  }
+  // TURN-LIMITED recurrences (Rune of Quick Study) — the same audit class as the Lapidary (2026-08-12): they
+  // resolved in applyEndOfTurn but were absent from the projection, so their grants landed silently after the
+  // phase flip. One beat per (entry × repeat), mirroring applyEndOfTurn's order. (The turnsLeft tick-down is
+  // commit-side bookkeeping; the clone is throwaway.)
+  for (const entry of clone.questRecurringLimited ?? []) {
+    for (let r = 0; r < repeats; r++) {
+      beat(undefined, () => runRecurringEndOfTurn(clone, entry.effect, true));
     }
   }
   return { steps, fx };
@@ -6990,8 +7031,12 @@ export function projectEndOfTurnSteps(state: RunState): {
 export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string }> {
   const repeats = endOfTurnRepeats(state);
   const out: Array<{ effect: string; label: string }> = [];
-  for (const eff of state.questRecurringEndOfTurn ?? []) {
+  for (const eff of recurringEotEffects(state)) {
     for (let r = 0; r < repeats; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
+  }
+  // Turn-limited recurrences march after the standing ones, mirroring applyEndOfTurn + the projection.
+  for (const entry of state.questRecurringLimited ?? []) {
+    for (let r = 0; r < repeats; r++) out.push({ effect: entry.effect, label: RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn' });
   }
   return out;
 }
@@ -7002,6 +7047,9 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   weldMoneyBotsEdgeMechs: 'Rune of Banking',
   undeadPlayedAtk: 'Forsaken Speed',
   attachClingDrones: 'Clinging On',
+  runeLapidary: 'Rune of the Lapidary',
+  runeCrucibleChoir: 'Rune of the Crucible Choir',
+  quickStudy: 'Rune of Quick Study',
 };
 
 /**

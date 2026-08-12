@@ -4032,8 +4032,14 @@ export function Recruit() {
         // together), paced by the ✨ Buff FX tuner's minimum wave gap rather than beat ÷ event-count —
         // the old formula compressed a big board into an unreadable smear (owner 2026-07-18).
         if (bfx.buffFx.length > 0) {
-          const waveCount = new Set(bfx.buffFx.map((e, k) => e.fxWave ?? -1 - k)).size;
-          replayBuffFxEvents(bfx.buffFx, waveGapFor(Math.min(waveCount, getBuffFxConfig().waveMaxCount)));
+          // Targets that took a RUBY this beat get the gem cascade below instead of the generic descend —
+          // the same "authored replaces stock" rule the shop's `rubyOwned` filter applies (owner 2026-08-12).
+          const rubied = new Set((bfx.ruby ?? []).map((l) => l.uid));
+          const evts = rubied.size > 0 ? bfx.buffFx.filter((e) => !rubied.has(e.targetUid)) : bfx.buffFx;
+          if (evts.length > 0) {
+            const waveCount = new Set(evts.map((e, k) => e.fxWave ?? -1 - k)).size;
+            replayBuffFxEvents(evts, waveGapFor(Math.min(waveCount, getBuffFxConfig().waveMaxCount)));
+          }
         }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
@@ -4051,6 +4057,23 @@ export function Recruit() {
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
           floatSpellPowerNumber(cx, cy - r.height * 0.3, sb.attack, sb.health);
+        }
+        // RUBIES this beat played onto board minions (Rune of the Lapidary) — fire the SAME bound gem cascade
+        // the shop plays, ON the beat: the reducer-keyed cue only advances when `faceOmen` commits, after the
+        // phase has flipped and the board elements are gone (owner report 2026-08-12). The board is still on
+        // screen during the beats, so this is where the gems can land.
+        if (bfx.ruby?.length) {
+          runRecruitMomentCues(
+            { kind: 'rubyLanded', recipients: bfx.ruby.map((l) => ({ uid: l.uid, count: l.count })) },
+            {
+              cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+              measure: (uid) => {
+                const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+                return el ? restingCenterOf(el) : null;
+              },
+              onLand: () => sfx.gemApply(),
+            },
+          );
         }
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.

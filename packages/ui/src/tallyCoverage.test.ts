@@ -185,3 +185,41 @@ describe('rune AVENGE / combat-local meters have a combat tally (audit 2026-08-0
     }
   });
 });
+
+describe('per-turn ACCUMULATOR runes show a live count (audit 2026-08-12)', () => {
+  // The THRESHOLD regex above needs a NUMBER in the text, so "for every card you played this turn" — a meter
+  // with no printed threshold — sailed past it, and Rune of the Lapidary shipped with no counter at all (the
+  // owner's report). This sweep closes that class: every rune whose text banks "for every / for each / per …
+  // this turn" must report a live count through runeTally, or carry a documented exemption.
+  const ACCUMULATOR = /(?:for (?:every|each)|per)[^.]{0,45}this turn/i;
+  const ACC_EXEMPT: Record<string, string> = {};
+  it('every per-turn accumulator rune reports a live count', () => {
+    // A run mid-turn with every accumulator armed and non-zero, so a wired tally must return non-null.
+    const run = {
+      runeLapidary: true,
+      questRecurringEndOfTurn: ['runeAction', 'runeSpending'],
+      playedThisTurn: ['a', 'b'],
+      goldSpentThisTurn: 3,
+    } as unknown as RunState;
+    const acc = [...RUNES, ...EPIC_RUNES].filter((r) => ACCUMULATOR.test(r.text));
+    expect(acc.length, 'the sweep must actually see the accumulator runes').toBeGreaterThanOrEqual(3);
+    const missing = acc
+      .filter((r) => !ACC_EXEMPT[r.id])
+      .filter((r) => runeTally(run, r.id) === null)
+      .map((r) => r.id);
+    expect(missing, 'add the rune to runeTally (or ACC_EXEMPT with the reason)').toEqual([]);
+  });
+  it('the counts read the right meters', () => {
+    const run = {
+      runeLapidary: true,
+      questRecurringEndOfTurn: ['runeAction', 'runeSpending'],
+      playedThisTurn: ['a', 'b', 'c'],
+      goldSpentThisTurn: 7,
+    } as unknown as RunState;
+    expect(runeTally(run, 'rune_lapidary')).toBe('3 cards');
+    expect(runeTally(run, 'rune_action')).toBe('3 cards');
+    expect(runeTally(run, 'rune_spending')).toBe('7g');
+    // Un-armed → no badge (the rune isn't held).
+    expect(runeTally({ playedThisTurn: ['a'] } as unknown as RunState, 'rune_lapidary')).toBeNull();
+  });
+});

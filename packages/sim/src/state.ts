@@ -895,7 +895,8 @@ export interface RunState {
   runeEnchantment?: boolean;
   /** Rune of the Crown: once `spellsCast` reaches `per`, your spells give +attack/+health extra. */
   runeCrown?: { per: number; attack: number; health: number };
-  /** Rune of the Lapidary: End of Turn, a Ruby on one friendly minion of each type. */
+  /** Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for every
+   *  card played this turn. Runs as a VIRTUAL recurring-EoT entry (see `recurringEotEffects`). */
   runeLapidary?: boolean;
   /** Rune of the Deep: each turn setup, a random minion of this tier. */
   runeDeep?: number;
@@ -1207,7 +1208,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

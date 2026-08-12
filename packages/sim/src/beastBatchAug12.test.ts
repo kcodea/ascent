@@ -174,3 +174,58 @@ describe('Kennelmaster — Avenge (4)', () => {
     expect(eff?.params?.count).toBe(4);
   });
 });
+
+// ── Dunkey avenge audit (owner report 2026-08-12) ─────────────────────────────────────────────────────────
+describe('Dunkey — avenge counting includes its own summons', () => {
+  it("a summoned Armadiyo's death counts toward the next Avenge(4); every threshold fires with board room", () => {
+    // With headroom (5-wide board), every multiple of 4 friendly deaths must produce exactly one Armadiyo —
+    // including thresholds reached BY a summoned Armadiyo dying. (On a FULL board the payout is dropped by the
+    // board-cap rule — owner ruling 2026-08-12: "this is the correct rule" — but the tally itself never skips.)
+    const r = sim([
+      bm('b2_dunkey', 'D', 0, 999999),
+      ...Array.from({ length: 4 }, (_, i) => bm('pack', `p${i}`, 2, 1)),
+    ], {}, 7);
+    const deaths = r.events.filter((e) => e.type === 'death' && (e as { side?: string }).side === 'player').length;
+    const armadiyos = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'b2_armadiyo').length;
+    expect(deaths, 'enough deaths to cross several thresholds').toBeGreaterThanOrEqual(8);
+    expect(armadiyos, 'one Armadiyo per 4 deaths — no threshold skipped').toBe(Math.floor(deaths / 4));
+  });
+});
+
+// ── Rise IS a summon, in full (owner ruling 2026-08-12) ───────────────────────────────────────────────────
+describe('Rise fires the full summon-entry suite', () => {
+  it('a risen Beast triggers onSummon watchers (Beardsley buffs it)', () => {
+    // A 0/1 Rise Beast dies to the wall and returns; Beardsley (immortal) must buff the RISEN body +6/+6 —
+    // the onSummon bus now fires on Rise (it used to be quest-tally-only).
+    const r = sim([bm('b2_beardsley', 'B', 0, 999999), bm('alley', 'A', 0, 1, { keywords: ['R'] })]);
+    const beardsleyUid = uidOf(r, 'b2_beardsley');
+    const risenUid = uidOf(r, 'alley');
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number; health: number }[])
+      .some((b) => b.target === risenUid && b.source === beardsleyUid && b.attack === 6 && b.health === 6);
+    expect(got, 'the risen Beast took Beardsley +6/+6').toBe(true);
+  });
+
+  it('a Rise advances the Zoo ordinal (the summon AFTER a Rise reads one step higher)', () => {
+    // With Rune of the Zoo: the Rise is summon #1 (its own Beardsley buff is +6), and a Pup summoned later is
+    // summon #2 → +12. Without the Rise counting, the Pup would read +6.
+    const r = sim([
+      bm('b2_beardsley', 'B', 0, 999999),
+      bm('alley', 'A', 0, 1, { keywords: ['R'] }), // dies + rises first (summon #1), then dies for good
+      bm('pack', 'P', 2, 1), // its Echo Pup lands after → summon #2
+    ], { runeZoo: true });
+    const beardsleyUid = uidOf(r, 'b2_beardsley');
+    const buffsBy = (r.events.filter((e) => e.type === 'buff') as { source: string; attack: number }[])
+      .filter((b) => b.source === beardsleyUid).map((b) => b.attack);
+    expect(buffsBy, 'the Rise took the ordinal-1 grant').toContain(6);
+    expect(buffsBy, 'a later summon reads one ordinal higher because the Rise counted').toContain(12);
+  });
+
+  it('a risen Beast doubles under Rune of the Jungle (summon-scoped runes reach a Rise)', () => {
+    // Rise returns at 1 Health; the Jungle doubles it (+0/+1 buff on the risen body).
+    const r = sim([bm('alley', 'A', 3, 1, { keywords: ['R'] })], { runeJungle: true });
+    const risen = uidOf(r, 'alley');
+    const got = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; health: number }[])
+      .some((b) => b.target === risen && b.source === 'Rune of the Jungle' && b.health === 1);
+    expect(got, 'the risen body doubled its 1 Health').toBe(true);
+  });
+});

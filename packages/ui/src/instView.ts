@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
 
@@ -73,6 +73,9 @@ export interface LiveTextParams {
    *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
    *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
   chosenOption?: number;
+  /** Rune of the Zoo (combat only): the player's combat-summon tally at the current beat — Beardsley prints
+   *  the buff the NEXT summon will actually get (base × golden × (this + 1)). Undefined = no rune / shop. */
+  zooSummons?: number | null;
 }
 
 /**
@@ -117,6 +120,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
+            summonFlatZooText(c.id, p.golden, p.zooSummons) ?? // Beardsley under Rune of the Zoo: the NEXT summon's live grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??

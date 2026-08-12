@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -211,6 +211,16 @@ describe('cardText helpers', () => {
     expect(ritualistText('ritualist', false, 3)).toContain('**+1/+1**'); // the step magnitude is left printed
     expect(ritualistText('ritualist', true, 6)).toContain('{{+8/+8}}'); // golden step 2: accrued 6 + 2 = +8
     expect(ritualistText('sandbag', false, 3)).toBeNull(); // not Ritualist
+  });
+
+  it('summonFlatZooText shows Beardsley’s NEXT-summon grant under Rune of the Zoo', () => {
+    // Ordinal scaling: (summons so far + 1) × base 6 × golden. Null without the rune (undefined zooSummons),
+    // so the printed +6/+6 stands everywhere the rune isn't live.
+    expect(summonFlatZooText('b2_beardsley', false, undefined)).toBeNull();
+    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+6/+6}}');   // next summon is the 1st
+    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+18/+18}}'); // next summon is the 3rd
+    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+24/+24}}');  // gilded ×2 × ordinal 2
+    expect(summonFlatZooText('sandbag', false, 2)).toBeNull(); // not a flat summon-buff card
   });
 
   it('summonBuffText shows Kennelmaster’s live Start-of-Combat Attack aura (base + Avenge bonus)', () => {

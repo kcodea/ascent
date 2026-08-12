@@ -58,6 +58,25 @@ function countPlayed(playedThisTurn: string[] | undefined, tribes: Tribe[]): num
  * Shared by the recruit board (`instView`) and combat units (`Unit`) so a Kennelmaster reads the
  * same boosted value in the shop, the warband, and mid-fight (where `summonBonus` can climb).
  */
+/**
+ * Beardsley under Rune of the Zoo (combat): the flat summon grant scales with the running combat-summon
+ * count — the NEXT summon gets base × golden × (summons so far + 1). The live value is the hard rule: the
+ * combat card must print what the next trigger will actually grant, not the flat base. `zooSummons` is the
+ * player's combat-summon tally at the current beat (null/undefined = no rune / not in combat → printed text).
+ */
+export function summonFlatZooText(cardId: string, golden: boolean, zooSummons: number | null | undefined): string | null {
+  if (zooSummons == null) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffFlat');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number };
+  const reps = Math.max(1, zooSummons + 1); // the NEXT summon's ordinal
+  const m = Number(p?.attack ?? 6) * (golden ? 2 : 1) * reps;
+  const h = Number(p?.health ?? 6) * (golden ? 2 : 1) * reps;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${h}}}`);
+}
+
 export function summonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
   if (summonBonus <= 0) return null; // baseline: fall back to printed text (golden's `doubleNums` handles it)
   const def = CARD_INDEX[cardId];

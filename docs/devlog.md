@@ -26,8 +26,29 @@ golden (×2) and stacking across Beardsleys (each fires per summon). Shop half s
 "in combat". Art wired (`rune_zoo.webp`, RuneOfTheZoo.png source).
 
 Tests: the Rise regression, Echo stacking, Zoo ordinal scaling (+ gild composition + no-rune flat control) in
-`beastBatchAug12.test.ts`; the old Beardsley "combat-only" test flipped to assert the shop grant. Gates all
-green (typecheck / lint / 4958 tests / build:web).
+`beastBatchAug12.test.ts`; the old Beardsley "combat-only" test flipped to assert the shop grant.
+
+**Second pass (owner reports 2026-08-12, same branch):**
+- **Beardsley live text under Rune of the Zoo.** The combat card now prints the buff the NEXT summon will
+  actually get (base × gild × next ordinal) — `summonFlatZooText` in the shared `liveCardText` chain, fed by
+  the replay's live `combatQuestDelta.summonCombat` through a primitive zustand selector in `Unit.tsx` (only
+  re-renders on summon beats, only with the rune held). Enemy Beardsleys fall back to printed text, like the
+  other run-side scalers.
+- **Dunkey avenge AUDIT (owner report: "the Armadiyo that Dunkey summoned died and did not count").** Verified
+  empirically: the tally is CORRECT — a summoned Armadiyo's death counts toward the next Avenge(4), and with
+  board room every threshold fires exactly (regression test added). What CAN happen is the Avenge summon being
+  dropped when the board is momentarily full at the threshold instant (the dying minion's own Echo takes the
+  freed slot first). Owner ruling: **"this is the correct rule"** — full-board summons are lost, consistent
+  with the Aug-11 queue-time cap ruling. No change; documented here.
+- **Rise IS a summon, in full (owner ruling, superseding 2026-07-13's "quest count only" carve-out).** The
+  whole summon-entry suite is now ONE shared function (`summonEntryEffects`) called from both the placement
+  chokepoint and the Rise return: a risen body fires onSummon watchers (Beardsley / King Oona / Groveweaver /
+  Broodwright), advances the Zoo ordinal + the Remains counter, collects Emberline's bank, can be Second
+  Litter's first Beast, and takes Savagery / Jungle / Wolvie. Deliberately NOT extended: the body-construction
+  grants (Hatchery's +3/+3, Undertow's Ward, Food Chain's inherit) — a Rise's returned body is defined by the
+  Rise rule itself (base Attack, 1 Health, printed keywords); flagged for the owner in the PR.
+
+Gates all green (typecheck / lint / 4963 tests / build:web).
 
 ## 2026-08-12 — Art re-wire from the source folder (`npm run art:wire`)
 

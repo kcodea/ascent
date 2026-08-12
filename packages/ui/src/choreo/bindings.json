@@ -94,6 +94,11 @@
         "critDef": "flame-ring-crit"
       }
     },
+    "wo_health": {
+      "spellCast": {
+        "def": "defensive-ale"
+      }
+    },
     "wo_mine": {
       "spellCast": {
         "def": "coin-ale"

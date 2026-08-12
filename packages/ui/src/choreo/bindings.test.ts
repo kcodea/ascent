@@ -181,6 +181,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
   // Golden Ale — the proof-of-path binding for the shop spell-cast site (Task 2): a placeholder def so the
   // release-point emission + generic-spark suppression can be verified end-to-end before an authored def exists.
+  wo_health: { spellCast: { def: 'defensive-ale' } },
   wo_mine: { spellCast: { def: 'coin-ale' } },
   wo_reinforcement: { spellCast: { def: 'reinforcing-ale' } },
 };

@@ -23,12 +23,11 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
   scale:         ['Hold size', '×', 'How much the card grows while held.', 'Weight'],
   threshold:     ['Drag threshold', 'px', 'How far the pointer must move before a press becomes a drag rather than a click.', 'Weight'],
 
-  tiltPerPx:     ['Tilt per pixel', '×', 'How much the card leans per pixel of cursor movement.', 'Tilt'],
-  tiltMax:       ['Tilt cap', '°', 'Ceiling on that lean, so a fast flick cannot spin the card.', 'Tilt'],
-  hLean:         ['Horizontal lean', '×', 'Strength of the sideways lean. Negative flips which way it leans.', 'Tilt'],
-  vLean:         ['Vertical lean', '×', 'Strength of the forward and back lean. Negative flips it.', 'Tilt'],
-  perspective:   ['Perspective', 'px', 'CSS perspective depth. Lower is a more extreme 3D effect.', 'Tilt'],
-  staticRotate:  ['Resting angle', '°', 'A fixed tilt held while dragging, on top of the lean.', 'Tilt'],
+  tiltGain:      ['Dive gain', '×', 'Degrees of dive per px/frame of travel — one gain for both axes; the leading edge dips toward the board.', 'Tilt'],
+  tiltEase:      ['Dive smoothing', '×', 'How the dive builds and settles. 1 tracks raw travel and snaps flat on stop; lower is softer.', 'Tilt'],
+  tiltMax:       ['Tilt cap', '°', 'Ceiling on the dive, so a fast flick cannot over-rotate the card.', 'Tilt'],
+  perspective:   ['Perspective', 'px', 'CSS perspective depth. Lower is a deeper corner pinch / more extreme dive.', 'Tilt'],
+  staticRotate:  ['Resting angle', '°', 'A fixed 2D tilt held while dragging, on top of the dive.', 'Tilt'],
 
   recenter:      ['Recentre speed', '×', 'How quickly the card levels out when the cursor stops moving.', 'Settle'],
   recenterAfter: ['Recentre after', 'px', 'How far the cursor must travel before recentring kicks in.', 'Settle'],
@@ -51,7 +50,7 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof DragFeel)[] = [
   'follow', 'scale', 'threshold',
-  'tiltPerPx', 'tiltMax', 'hLean', 'vLean', 'perspective', 'staticRotate',
+  'tiltGain', 'tiltEase', 'tiltMax', 'perspective', 'staticRotate',
   'recenter', 'recenterAfter', 'handGrabY', 'snapMs',
   'collapseY', 'handFloor', 'handPop',
   'magSlideMs', 'magWeldLeadMs',

@@ -971,6 +971,34 @@ export function simulate(
   }
 
   /**
+   * Dispatch `onSummon` to every LIVING watcher in CURRENT board order, left→right, summoning side first
+   * (owner ruling 2026-08-12: after the auras land, the augmenting triggers — Beardsley / King Oona /
+   * Groveweaver — fire in board order). Replaces the bus broadcast for this event, whose order was
+   * REGISTRATION order and drifted from the visible board as bodies re-slotted and summoned mid-fight.
+   *
+   * Mirrors the `registerEffect` wrapper's guards for this event: a dead watcher fires nothing, an
+   * alignment-gated half stays inert off its side of the sky (alignment is locked at setup, so the
+   * per-fire check equals the registration-time one), and iterating each watcher's CURRENT `effects`
+   * self-disables handlers an ascension swapped out. Boards are snapshotted so a watcher that summons
+   * mid-dispatch can't reshuffle the iteration.
+   */
+  function emitOnSummonOrdered(minion: Minion, side: Side): void {
+    const payload = { minion, side };
+    for (const s of [side, side === 'player' ? 'enemy' : 'player'] as Side[]) {
+      for (const w of [...boards[s]]) {
+        if (w.dead || w.health <= 0) continue;
+        for (const effect of [...w.effects]) {
+          if (effect.on !== 'onSummon') continue;
+          const fn = FACTORIES[effect.do];
+          if (!fn) continue;
+          if (!alignAllows(effect, w.align)) continue;
+          fn(ctx, w, effect.params ?? {}, payload);
+        }
+      }
+    }
+  }
+
+  /**
    * Summon one minion (the single summon chokepoint). Because this lives in the summon path, run-wide
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
@@ -1196,8 +1224,15 @@ export function simulate(
       fireTrigger('runeEmberline', side);
       ctx.buff(minion, bank.attack, bank.health, 'Rune of Emberline');
     }
-    bus.emit('onSummon', { minion, side });
-    applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
+    // ── ORDER (owner ruling 2026-08-12) ──────────────────────────────────────────────────────────────────
+    // AURAS FIRST: the "wherever they are" buffs (Grim / Kennelmaster / Solaris) are always-present state, so
+    // they land on the arriving body before ANY augmenting trigger reads it. A 0/2 Void Cub arriving after
+    // Grim died becomes 8/10 FIRST — and only then do Oona / Savagery / Jungle double the grown stats. (Oona
+    // used to fire off the pre-aura body because the onSummon bus ran before the aura pass.)
+    applyTribeAuras(minion);
+    // …THEN the augmenting onSummon watchers, in CURRENT board order left→right (bus order was registration
+    // order, which drifts from the visible board as bodies re-slot and summon).
+    emitOnSummonOrdered(minion, side);
     // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
     // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
     // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.
@@ -1354,6 +1389,10 @@ export function simulate(
     // registration rather than per fire, because alignment locked at combat setup and cannot change mid-fight
     // (owner ruling 2026-08-03) — so a gate that fails here can never start passing later.
     if (!alignAllows(effect, minion.align)) return;
+    // `onSummon` no longer travels the bus AT ALL: `emitOnSummonOrdered` dispatches it in current board order
+    // (owner ruling 2026-08-12 — auras first, then the augmenting watchers left→right). Registering here too
+    // would double-fire every watcher if a bus emit ever came back, so the event is excluded at the source.
+    if (effect.on === 'onSummon') return;
     bus.on(effect.on, (payload) => {
       // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
       // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
@@ -1897,8 +1936,8 @@ export function simulate(
       boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
       registerEffects(copy);
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
-      bus.emit('onSummon', { minion: copy, side });
-      applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too
+      applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)
+      emitOnSummonOrdered(copy, side); // …then the augmenting watchers, board order left→right
     }
   }
 

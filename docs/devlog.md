@@ -33,6 +33,25 @@ owner's beat-system handoff docs, which independently list every one of this pas
 Verified: typecheck + lint (0 errors) + npm test (4970) + build:web all green; new coverage in
 `eotBeatsAudit.test.ts` + the tallyCoverage accumulator sweep.
 
+## 2026-08-12 — Summon-entry order: auras land FIRST, then augmenters left→right (Oona bug)
+
+Owner report: a 0/2 Void Cub arriving after Grim died was doubled by King Oona at its BARE stats, then took
+Grim's +8/+8 — Oona read the pre-aura body. Cause: the `onSummon` watchers rode the bus, which dispatched
+BEFORE `applyTribeAuras` and in REGISTRATION order (not board order).
+
+The ruling, now the standard: **aura ("wherever they are") buffs are always-present state and land on the
+arriving body first; only then do the augmenting triggers fire — onSummon watchers (Beardsley / King Oona /
+Groveweaver) in CURRENT board order left→right, then Second Litter → Savagery → Jungle → Wolvie as already
+sequenced.** So Grim aura → 8/10 Cub → Oona doubles the post-aura 8 Attack.
+
+Implementation: `onSummon` no longer travels the CombatBus at all — `registerEffect` skips it at the source
+(a re-added bus emit can't double-fire) and a new `emitOnSummonOrdered` dispatches to living watchers in board
+order (summoning side first), mirroring the bus wrapper's guards (dead-watcher skip, alignment gate, current-
+effects self-disable). Both entry paths use it: the summon chokepoint and the Reclaimer resummon (which had the
+same watchers-before-auras order). Regression tests: the owner's exact Grim/Cub/Oona example, Jungle doubling
+the post-aura Health, and the Beardsley-vs-Oona left→right order tell. Gates green (typecheck / lint / 4966
+tests / build:web).
+
 ## 2026-08-12 — Market Tormentor retext
 
 Owner retext: "**Shout:** give the **right-most Shop minion +7/+7** permanently." (gild +14/+14) — the simpler

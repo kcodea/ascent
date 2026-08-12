@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Live "Summon a X/Y Imp" text + two end-of-turn fixes** — any card/rune that summons an Imp now prints the Imp's current stats (base 1/1 + your Imp Aura) as a live green "(X/Y)", everywhere; End-of-Turn Discovers (Moira → Black Belt Brian) auto-grant instead of popping the picker at the combat hand-off; and an End-of-Turn shop buff (Moira beside Market Tormentor) now animates on the beat instead of landing silently.
+
 - **Refresh button restyled + relocated** — the Refresh button now uses a new wide orange "Refresh" pill and sits at the **top-right** of the board (moved from top-centre). Same reducer wiring; the 🔄 dev tuner still fine-tunes its position.
 
 - **Test board option** — Settings now has a **Board** picker to swap the arena backdrop between the shipped board and a new "test board" on trial. Display-only + persisted; the hero-select screen previews the pick too.

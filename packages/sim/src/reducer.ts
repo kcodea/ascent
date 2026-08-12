@@ -303,6 +303,38 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   return true;
 }
 
+/**
+ * Auto-resolve any Discover raised by an END-OF-TURN trigger (e.g. Moira replaying a Discover Shout like Black
+ * Belt Brian) — grant a RANDOM pick from each pool WITHOUT opening the interactive picker (owner ruling
+ * 2026-08-11). The shop is mid-transition to combat here, so a window would block the hand-off and read as a
+ * bug. Mirrors the mid-combat Discover auto-grant in `settleCombat`: the offer is still BUILT by the real
+ * `openDiscover` (same pools / tier rules / rng stream), only the CHOICE is rolled instead of asked, landing
+ * through the same `takeDiscoverPick` a clicked Discover uses. Drains the queue too, so several EoT discovers
+ * (two Brians via a Moira) all resolve.
+ */
+function autoResolveEotDiscovers(s: RunState): void {
+  const clearDiscoverState = (): void => {
+    s.discover = undefined;
+    s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
+    s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined;
+  };
+  let guard = 0;
+  while ((s.discover?.length || (s.discoverQueue?.length ?? 0) > 0) && guard++ < 20) {
+    if (!s.discover?.length) {
+      const spec = s.discoverQueue?.shift();
+      if (!spec) break;
+      openDiscover(s, spec); // the low-level opener sets s.discover directly (no modal/queue check)
+    }
+    if (s.discover?.length) {
+      const rng = makeRng(s.rngCursor);
+      const pick = rng.int(s.discover.length);
+      s.rngCursor = rng.state();
+      takeDiscoverPick(s, pick);
+    }
+    clearDiscoverState();
+  }
+}
+
 export function reduce(state: RunState, action: Action): RunState {
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
@@ -1867,6 +1899,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Any Discover an EoT trigger raised (Moira re-firing a Discover Shout) auto-resolves to a random pick —
+      // no interactive window at the combat hand-off (owner 2026-08-11).
+      autoResolveEotDiscovers(s);
       // Re-Pete's Second Hand: at the END of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
       // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
       // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:

@@ -6745,6 +6745,11 @@ export interface EotStepFx {
    *  `next.phase === 'recruit'` and End of Turn flips to combat, so an End-of-Turn imp buff never washed
    *  (owner report 2026-07-28). The beat still renders the board, so the cue belongs here. */
   impAura?: { attack: number; health: number };
+  /** SHOP-offer growth this beat produced (owner report 2026-08-11: a Moira beside Market Tormentor re-fires
+   *  Tormentor's Shout at End of Turn, growing the right-most Shop minion — but it applied silently). Diffed by
+   *  offer uid from `offerBuyStats`, which folds BOTH per-offer buffs (Tormentor) and the run-wide buy bonus
+   *  (Soul Defiler / `tavernBuyBonus`), so every shop-buff source animates without per-effect wiring. */
+  shopBuff?: { uid: string; attack: number; health: number }[];
 }
 
 /**
@@ -6789,6 +6794,8 @@ export function projectEndOfTurnSteps(state: RunState): {
     const handBefore = new Set(clone.hand.map((c) => c.uid));
     const spBefore = { a: spellAttackBonus(clone), h: spellHealthBonus(clone) };
     const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
+    // Shop-offer effective buy stats before the beat (folds tavernBuyBonus + per-offer + golden), keyed by uid.
+    const shopBefore = new Map(clone.shop.map((o) => [o.uid, offerBuyStats(clone, o)]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -6810,6 +6817,15 @@ export function projectEndOfTurnSteps(state: RunState): {
     // End-of-Turn card that moves either channel animates without touching this code.
     const spDelta = { attack: spellAttackBonus(clone) - spBefore.a, health: spellHealthBonus(clone) - spBefore.h };
     const impDelta = { attack: (clone.impBuff?.attack ?? 0) - impBefore.a, health: (clone.impBuff?.health ?? 0) - impBefore.h };
+    // Shop offers this beat grew (Market Tormentor's re-fired Shout, Soul Defiler's buy-bonus) — one delta per uid.
+    const shopBuff: { uid: string; attack: number; health: number }[] = [];
+    for (const o of clone.shop) {
+      const before = shopBefore.get(o.uid);
+      if (!before) continue;
+      const now = offerBuyStats(clone, o);
+      const da = now.attack - before.attack, dh = now.health - before.health;
+      if (da > 0 || dh > 0) shopBuff.push({ uid: o.uid, attack: da, health: dh });
+    }
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -6818,6 +6834,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       handGrants,
       ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
       ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
+      ...(shopBuff.length ? { shopBuff } : {}),
     });
   };
   for (const card of [...clone.board]) {

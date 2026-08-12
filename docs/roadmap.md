@@ -21,6 +21,11 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Live Imp-stat text + two End-of-Turn fixes — SHIPPED 2026-08-11.** "Summon a X/Y Imp" live text on every
+  imp summoner (cards + runes); EoT-triggered Discovers auto-grant (no window); EoT shop buffs animate on the
+  beat. Follow-up: tick the growing shop offer's printed number up live during the beat (it currently gets a
+  burst + float; the offer is replaced next turn where the buff shows fully). Details in the devlog.
+
 - **Owner rune/minion batch 4 — SHIPPED in full 2026-08-07** (17 Basic runes, 8 Epic runes, 3 T6 minions across
   four tranches; details in the devlog). One piece of follow-up work remains:
 - **Owner rune/minion batch 4 — tranches 2-4 remain.** Tranche 1 (the nine pattern-reuse Basics: Empty Plate,

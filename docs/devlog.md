@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-12 — Art re-wire from the source folder (`npm run art:wire`)
+
+Ran the strict-name-match art pipeline against `C:/Game Assets/Ascent Art` (the owner's authored art, updated
+since the last wire on 2026-08-05 / #876). Result: **3 newly-wired minions** — Bullseye (`b2_bullseye`),
+Beardsley (`b2_beardsley`), Right Hand Hank (`dm_hank`), the 2026-08-12 content batch's minions the owner has
+now drawn — plus **443 updated** existing `.webp` (the source art moved on since Aug 5). `.png` intermediates
+the tool emits are not committed (the repo tracks `.webp` only). Verified with `build:web`.
+
+Still unwired (no source art yet — reported by the tool, not an error): the Beast batch's Wolvie / Armadiyo /
+Dunkey / Voidmother and the four new runes (Burrow, Voidmother, Jungle, Beastial Swarm); they render with the
+placeholder until authored.
+
 ## 2026-08-12 — Content batch: 4 minion reworks, 5 minion + 4 rune archives, 3 new minions
 
 An owner content pass across Set 2 (+ two Set-1 archives), touching content, the effect factories, and one new

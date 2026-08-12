@@ -755,6 +755,12 @@ trigger"; avoid true undo until the rules are sturdier).
 - **Buff / FX live eyeballs** — several session-39 cues (summon-arrival poof, `ascend` flash) were reasoned
   from keyframes, not yet watched live on the cream board; drive a focused Chrome tab and tune.
 - **Recruit-phase hero/spell buffs** get only a sound + CSS glow today — wire them to `pixiFx.pulse`.
+- **Committed FX art doesn't ship to prod** — the `fx/defs/art/*.png` glob is DEV-gated (`shapeLibrary.ts:410`),
+  so any `art:<slug>` shape falls back to a procedural shape in a production build. Surfaced 2026-08-12 while
+  binding Golden Ale's `coin-ale` (its coin layer uses `art:group-14035`; the other four ales and most defs use
+  built-in shapes, so they're unaffected). Same behavior as the shipped `coin-shout`. Decide whether authored
+  art should reach players (a bundling/whitelist path) or stay dev-only. Also minor: an `art:` texture's FIRST
+  cast after load renders nothing until the texture decodes/caches — a prewarm would close it.
 
 ### Audio
 - Record the actual SFX clips into `packages/ui/src/audio/{cards,heroes}/` per the manifest

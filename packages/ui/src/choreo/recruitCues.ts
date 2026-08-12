@@ -47,6 +47,10 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   // The shop being gemmed is ONE event across the row, not a per-card cascade — one spanning play, one sound.
   if (moment.kind === 'shopRubied') return runShopRubiedSpan(moment, ctx);
 
+  // A tavern spell cast — ONE fire at the release point, anchored to `cursor`, keyed by the spell's card id.
+  // No cascade, no DOM measure: the anchor is the point carried on the moment.
+  if (moment.kind === 'spellCast') return runSpellCastFire(moment, ctx);
+
   // Resolved UP FRONT, so an unbound moment costs one table lookup and schedules nothing — and so the
   // binding is read once rather than separately per land, which is two chances to disagree.
   //
@@ -140,6 +144,21 @@ function runShopRubiedSpan(moment: RecruitMoment, ctx: RecruitCueContext): () =>
 /** How long the shop-gem span waits on a REFRESH re-stamp before firing, so it lands with the sliding-in
  *  offers and syncs with the badge roll rather than flashing before the row settles. Owner-set 2026-08-11. */
 const SHOP_SPAN_REFRESH_DELAY_MS = 150;
+
+/**
+ * A `spellCast` moment: ONE fire at the release point carried on the moment, with no DOM measure and no
+ * cascade — a tavern spell has nowhere to travel from/to, so `source`/`target`/`cursor` are all the same
+ * point. Keyed by the spell's own card id (not the kind) so each spell resolves its own binding.
+ */
+function runSpellCastFire(moment: RecruitMoment, _ctx: RecruitCueContext): () => void {
+  const binding = bindingFor(moment.sourceCardId ?? null, 'spellCast');
+  const pt = moment.point;
+  if (!binding || !pt) return () => {};
+  const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: moment.sourceCardId ?? null, target: moment.sourceCardId ?? null } });
+  if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+  return () => {};
+}
 
 /** One land. Measured INSIDE the timer so a stagger that outlives a re-render — a triple collapsing three
  *  bodies into one, a sold minion — misses cleanly instead of firing at a stale rect. */

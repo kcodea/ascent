@@ -62,9 +62,11 @@ export type RecruitMomentKind =
    * what lets each card resolve its OWN binding: two different minions played in the same action would
    * otherwise have to share one, and the second would silently take the first's effect.
    */
-  | 'shout';
+  | 'shout'
+  /** A tavern spell was cast; anchored at the release `point`, keyed by the spell's card id. */
+  | 'spellCast';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'shout'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'shout', 'spellCast'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -79,6 +81,12 @@ export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded',
  */
 export function shoutMoment(uid: string, cardId: string): RecruitMoment {
   return { kind: 'shout', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/** A `spellCast` moment: a tavern spell cast, anchored at the release `point` and keyed by the spell's card
+ *  id so each spell resolves its own binding. `recipients` is empty — the anchor is the raw point, not a unit. */
+export function spellCastMoment(cardId: string, point: { x: number; y: number }): RecruitMoment {
+  return { kind: 'spellCast', sourceCardId: cardId, recipients: [], point };
 }
 
 /** One recipient of a moment, and how many times it received. `count` above 1 is a STACK — two Rubies on
@@ -104,6 +112,8 @@ export interface RecruitMoment {
   /** `shopRubied` only: the gemming was a shop REFRESH re-stamp, not the Veinstorm cast. The cue holds the
    *  span a beat when true, so it lands with the offers rather than while they are still sliding in. */
   onRefresh?: boolean;
+  /** spellCast only: the release point (page coords) the effect fires from — the `cursor` anchor. */
+  point?: { x: number; y: number };
 }
 
 /**

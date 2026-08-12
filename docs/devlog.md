@@ -1,5 +1,11 @@
 # ASCENT — development log
 
+## 2026-08-12 — Market Tormentor retext
+
+Owner retext: "**Shout:** give the **right-most Shop minion +7/+7** permanently." (gild +14/+14) — the simpler
+minion-phrasing matching Right Hand Hank, replacing "the right-most Shop slot gets +7/+7 for the rest of the
+run. Stacks." Mechanic unchanged (the slot accumulator still re-lands each refresh and stacks). Text-only.
+
 ## 2026-08-12 — Wolvie fixes + stacking, Beardsley both-phases, Rune of the Zoo
 
 Four related Beast-summon changes in one pass.

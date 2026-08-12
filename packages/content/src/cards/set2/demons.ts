@@ -109,8 +109,10 @@ export const SET2_DEMONS: CardDef[] = [
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
     // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14).
     effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 7, health: 7 } }],
-    text: '**Shout:** the **right-most Shop slot** gets **+7/+7** for the rest of the run. Stacks.',
-    goldenText: '**Shout:** the **right-most Shop slot** gets **+14/+14** for the rest of the run. Stacks.',
+    // Owner retext 2026-08-12: the simpler "minion + permanently" phrasing (matches Right Hand Hank). The
+    // MECHANIC is unchanged — it's still the slot accumulator that re-lands on every refresh and stacks.
+    text: '**Shout:** give the **right-most Shop minion +7/+7** permanently.',
+    goldenText: '**Shout:** give the **right-most Shop minion +14/+14** permanently.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.

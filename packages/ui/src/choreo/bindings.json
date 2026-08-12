@@ -94,6 +94,11 @@
         "critDef": "flame-ring-crit"
       }
     },
+    "wo_attack": {
+      "spellCast": {
+        "def": "bloody-ale"
+      }
+    },
     "wo_health": {
       "spellCast": {
         "def": "defensive-ale"

@@ -96,7 +96,7 @@
     },
     "wo_mine": {
       "spellCast": {
-        "def": "spell-cast"
+        "def": "coin-ale"
       }
     }
   }

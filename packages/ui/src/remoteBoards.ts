@@ -556,6 +556,9 @@ export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
 
 /** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended. */
 export interface RecentGameRow {
+  /** `auth.users.id` of the player — needed to open THEIR Career from the row (the mutable `author` name must
+   *  never be used to look anything up). Null on pre-accounts rows, which then aren't clickable. */
+  userId: string | null;
   author: string | null;
   heroId: string;
   wins: number;
@@ -572,13 +575,14 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
       Promise.resolve(
-        c.from('run_telemetry').select('author, hero_id, wins, placement, created_at')
+        c.from('run_telemetry').select('user_id, author, hero_id, wins, placement, created_at')
           .order('created_at', { ascending: false }).limit(limit),
       ),
       timeout,
     ]);
     if (!result || result.error || !result.data) return [];
     return (result.data as Array<Record<string, unknown>>).map((r) => ({
+      userId: (r.user_id as string | null) ?? null,
       author: (r.author as string | null) ?? null,
       heroId: String(r.hero_id ?? ''),
       wins: Number(r.wins ?? 0),
@@ -587,6 +591,29 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
     }));
   } catch {
     return [];
+  }
+}
+
+/** Fetch ONE player's leaderboard row by user id — the rating / games-played / favorite-hero the Career header
+ *  needs when a Career is opened from a Recent Games row (run_telemetry carries no rating). Best-effort +
+ *  time-boxed; null when absent / offline / no backend. */
+export async function fetchPlayerById(userId: string): Promise<PlayerRow | null> {
+  const c = client();
+  if (!c || !userId) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(
+        c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
+          .eq('user_id', userId).limit(1),
+      ),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    const r = result.data[0] as { user_id: string; author: string | null; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null };
+    return { userId: r.user_id, author: r.author ?? '', discriminator: r.discriminator ?? undefined, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined };
+  } catch {
+    return null;
   }
 }
 

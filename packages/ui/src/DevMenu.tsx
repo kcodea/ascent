@@ -54,6 +54,7 @@ import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { FxWorkbench } from './fx/ui/Workbench';
 import { ALL_TUNER_SPECS, resetAllTuners } from './tunerAll';
+import { isUiEditMode, setUiEditMode } from './uiEditor/config';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that indexes every tuner panel.
@@ -232,6 +233,8 @@ export function DevMenu() {
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },
     { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
+    { id: 'uiedit', icon: '🎛️', label: 'UI Edit Mode', hint: 'Direct-manipulation editor for in-run UI',
+      run: () => setUiEditMode(!isUiEditMode()), live: () => isUiEditMode() },
     // Destructive and irreversible, so it asks first and names the number — and it says what it does NOT touch,
     // because "reset the tuners" could reasonably be read as including the audio levels.
     {

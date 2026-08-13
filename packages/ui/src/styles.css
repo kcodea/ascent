@@ -1995,6 +1995,16 @@ body.modalup .statusbar .questbadges {
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
+
+/* THE RUNEFORGE FRAME PAINTS OVER THE HERO PANEL + POWER DIAMOND (owner ruling 2026-08-13).
+   Those sit at ROOT level inside `.statusbar` (z-index 40), while every overlay lives inside `.app` — which is
+   `position: relative; z-index: 1`, i.e. its own stacking context. So `.forge-ov`'s z-index 160 is trapped
+   INSIDE `.app` and competes as `.app`'s 1 against the status bar's 40: the hero portrait and the power diamond
+   painted on top of the forge art, which is what the dim-by-filter rule above exists to paper over.
+   Dropping the bar beneath `.app` for the duration is the fix. Scoped to the FORGE with `:has` rather than to
+   `body.modalup`, because Discover and the quest offer deliberately keep those surfaces visible-but-dimmed —
+   only the forge has a full illustrated frame that wants the whole rectangle to itself. */
+body:has(.forge-ov) .statusbar { z-index: 0; }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {

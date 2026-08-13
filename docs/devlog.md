@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-13 — Runeforge frame paints OVER the hero panel + power diamond
+
+Owner report against the live forge: the hero portrait and the Spoils power diamond sat ON TOP of the new frame
+art, cutting its bottom-left corner.
+
+**Why.** Every overlay lives inside `.app`, which is `position: relative; z-index: 1` — its own stacking context.
+So `.forge-ov`'s z-index 160 is trapped INSIDE that context and never competes with anything outside it; what
+actually competes is `.app`'s **1** against `.statusbar`'s **40**, and the status bar wins. That is also why the
+`body.modalup` rule above it dims the hero surfaces by filter rather than simply covering them — the dimming is
+a workaround for exactly this, papering over the fact that they were never behind the modal to begin with.
+
+**Fix:** `body:has(.forge-ov) .statusbar { z-index: 0 }` — drop the bar beneath `.app` for as long as a forge is
+open. Scoped to the FORGE with `:has` rather than applied to `body.modalup`, because Discover and the quest offer
+deliberately keep those surfaces visible-but-dimmed; only the forge has a full illustrated frame that wants the
+whole rectangle to itself. (`:has` is already load-bearing in this stylesheet — see `.questbadges:has(...)`.)
+
+Both `Spoils` and the portrait live inside `.statusbar` (Spoils is Robin's hero POWER, rendered in the
+board-floated hero-power panel), so one rule covers both things the report named.
+
+**Verified:** typecheck + lint (0 errors) + test 5210/5210 + `build:web` 6.50s. Live, hit-tested at the hero
+panel's centre with `elementsFromPoint`: forge open → `.statusbar` computes z-index 0 and `.forge-ov` is the
+topmost element there (it was the hero panel before). Forge closed → z-index back to 40 and `.heropowerbtn` is
+topmost again, so the power stays clickable in normal play. No console errors.
+
 ## 2026-08-13 — Runeforge backdrop: two owner-reported fixes (black surround, dead Zoom slider)
 
 **"Why is there a black background if the background is transparent?"** Because it was not transparent. The

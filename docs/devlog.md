@@ -24,6 +24,49 @@ baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size
 follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
 and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
 unused vertical crystal) is untouched.
+## 2026-08-13 — Beat CHOREOGRAPHER PR 3: prepared-once transaction + shared commit path
+
+Blueprint §5 / §21 PR 3. This is the slice that answers the architectural question the Beat Lab never could:
+*can one real gameplay event be resolved once, animated at authored timing, and committed without resolving
+gameplay twice?* Answer, now proven by test: yes.
+
+**The problem.** `faceOmen` resolves End of Turn, builds the combat, simulates it and flips the phase in ONE
+action — so the instant it dispatches, the recruit screen is gone and every End-of-Turn number has already
+changed. The old UI worked around that by PROJECTING End of Turn (`projectEndOfTurnSteps` — a second,
+hand-maintained model of what the reducer was about to do), animating the projection, then dispatching for
+real. That duplicate truth is the root of "the lab and the game disagree".
+
+- **`prepareActionWithPresentation(state, action)`** (`packages/sim/src/preparedAction.ts`) → `{id, action,
+  before, after, batch}`. The action resolves ONCE, immediately; the UI holds the result while it animates the
+  emitted batch, then commits the already-resolved state. Deliberately NOT a prepare/commit split of the
+  gameplay action — the blueprint is explicit (§5.1) that splitting `faceOmen` would change the replay format,
+  RNG consumption, opponent pinning and telemetry. `id` is deterministic (`faceOmen:w7`), never time/uuid.
+- **`commitResolvedAction()`** — extracted from `dispatch` (~200 lines: action SFX, phase marker, fight-result
+  ledger, telemetry, derivation, captured boards, run-end upload block, replay log, autosave, batch publish).
+  Both an ordinary dispatch and a prepared commit now route through it, so nothing can happen twice or diverge
+  between the two paths. Without this extraction the prepared path would have had to duplicate all of it, and
+  any drift would surface as a run that telemeters twice or a fight recorded twice.
+- **Store**: `presentationTx` (ephemeral, never serialized) + `preparePresentationAction` /
+  `commitPresentationAction` / `cancelPresentationAction`. Commit clears the transaction FIRST so a re-entrant
+  call (playback finishing as the component unmounts) is a no-op rather than a duplicate action. Starting or
+  abandoning a run clears any held transaction.
+
+**The equivalence gate** (`preparedAction.test.ts`, +9): prepared `after` is byte-identical to `reduce(before,
+action)`; RNG cursor, `lastCombat` and `servedBoards` all match; identity is deterministic; the batch is
+carried. And the one that matters for the screen: **preparing leaves board, shop, hand, Gold and phase
+untouched**, so the recruit scene cannot snap to post-End-of-Turn values before a beat has played.
+
+Found and documented along the way: `reduce` deliberately resets four per-action FX scratch fields on the INPUT
+state before its clone (documented at the top of `reduce`), so the "before is untouched" assertion is scoped to
+gameplay state rather than weakened.
+
+Verified: typecheck + lint + `npm test` (5085) + build:web green, plus a live throwaway run in the browser —
+started a run, resolved a Discover, ended the turn, combat resolved, ZERO console errors (the refactored
+`dispatch` is the chokepoint for every action, so it was smoke-tested in the real app, not only in tests).
+
+Next: PR 4 — the presentation projection + live End-of-Turn player, which finally makes Beat-Lab timing drive
+what is on screen.
+
 ## 2026-08-13 — Beat CHOREOGRAPHER PR 2: normalizer + shared timeline compiler
 
 Blueprint §8–§11 / §21 PR 2. Still deliberately NO UI: this is the piece that makes "the tool and the game

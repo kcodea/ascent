@@ -1,5 +1,190 @@
 # ASCENT — development log
 
+## 2026-08-13 — The real stacking fix: hero panel above the board, behind the modal
+
+Third attempt, and the first correct one. The previous two both moved `.statusbar`'s z-index, and both were
+wrong the same way — the second one made the hero panel and power diamond vanish outright (owner report).
+
+**The knob was never the bar.** `.boardbg` is a CHILD of `.app` (fixed, z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). So ANY value that sinks the bar below `.app` sinks it below the BOARD
+too, and it disappears. The bar cannot be interleaved between two layers that live on the other side of a
+stacking-context boundary.
+
+**What works is dissolving that boundary.** `body.modalup .app { z-index: auto }` — still `position: relative`,
+so nothing moves and no layout changes; it simply stops creating a stacking context. Its positioned descendants
+then merge into the ROOT stacking order and the three layers finally sort by their own numbers:
+`.boardbg` 0 < `.statusbar` 40 < `.forge-ov` 160. The hero panel keeps its place above the board and the modal
+covers it — the ordering that was asked for from the start. Scoped to `body.modalup` because dissolving the
+context lets every positioned descendant of `.app` compete at root: harmless under a full-screen overlay, not
+something to leave on during normal play.
+
+**Deleted the hand-rolled dim it made redundant.** `body.modalup .statusbar .hero/.heropanel/.questbadges`
+carried `filter: brightness(0.5) saturate(0.85)` for one reason: those surfaces painted ON TOP of the overlay, so
+they had to be FAKED into looking covered. Now the overlay's scrim passes over them exactly like it passes over
+the board, and keeping the filter would dim them TWICE — darker than the board they exist to match. The
+`pointer-events: none` stays: they are behind the modal and must not take clicks.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5228/5228 + `build:web` 6.32s. Live,
+walking real stacking contexts rather than hit-testing (the bar is `pointer-events: none`, so `elementsFromPoint`
+cannot see it and reports nothing useful): with a modal up, `.boardbg`, `.statusbar` and `.forge-ov` all resolve
+to the SAME stacking context, so their 0 / 40 / 160 sort directly; `.app` reports `z-index: auto` and creates no
+context; the hero panel computes `filter: none` and `pointer-events: none`. Closing the modal restores `.app` to
+z-index 1, the panel to `pointer-events: auto`, and `.heropowerbtn` is topmost at its own centre again — the
+power stays clickable in normal play.
+
+## 2026-08-13 — Hero panel goes UNDER every modal, + the owner's tuned Runeforge backdrop baked
+
+**The power diamond was still on top.** The previous fix scoped the z-index drop to the forge with
+`body:has(.forge-ov)`, which was too narrow for the actual ruling: those surfaces should never sit on top of
+anything but the board. Widened to `body.modalup .statusbar { z-index: 0 }` — so Discover, Choose One, the quest
+offer, a scouted board and the forge all cover the hero portrait and the power diamond outright.
+
+**Why it cannot simply be permanent.** `.boardbg` is a CHILD of `.app` (z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). Anything parked below `.app` is therefore below the BOARD as well and
+disappears completely — "above the board, below everything else" is not expressible from outside `.app`'s
+stacking context and would need the bar moved into that tree (a structural change, not a z-index one). While a
+modal is up the board is covered anyway, so hiding behind `.app` is exactly right; in normal play the bar keeps
+its 40 and the power stays clickable.
+
+`modalup` is already FALSE when an overlay is MINIMIZED (`forgeMin` / `discoverMin` / `questMin`), so
+"Inspect the board" hands the hero panel straight back — verified, that path restores z-index 40 and makes
+`.heropowerbtn` the topmost element at its own centre again.
+
+**Baked the owner's tuned backdrop values** (dialled in the Runeforge Backdrop panel): `auto 78%` at `50% 55%`
+with the scrim at 0.53 — a smaller, slightly-lowered frame over a lighter dim than the
+`auto 100% / 50% 50% / 0.72` first cut. Written into BOTH the shipped `.forge-ov` rule and the tuner's DEFAULTS,
+per that panel's mirror rule, so Reset returns to what players now see.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5218/5218 + `build:web` 6.87s. Live
+with the stored tuner values CLEARED, so the shipped defaults are what rendered: the overlay computes
+`auto 78%` at `50% 55%` with 0.53 in the gradient. Hit-tested at the hero POWER button's centre with
+`elementsFromPoint` — modal up: `.statusbar` is z-index 0 and `.forge-ov` is topmost (it was `.heropowerbtn`);
+minimized: z-index 40 and `.heropowerbtn` topmost again.
+
+## 2026-08-13 — Runeforge frame paints OVER the hero panel + power diamond
+
+Owner report against the live forge: the hero portrait and the Spoils power diamond sat ON TOP of the new frame
+art, cutting its bottom-left corner.
+
+**Why.** Every overlay lives inside `.app`, which is `position: relative; z-index: 1` — its own stacking context.
+So `.forge-ov`'s z-index 160 is trapped INSIDE that context and never competes with anything outside it; what
+actually competes is `.app`'s **1** against `.statusbar`'s **40**, and the status bar wins. That is also why the
+`body.modalup` rule above it dims the hero surfaces by filter rather than simply covering them — the dimming is
+a workaround for exactly this, papering over the fact that they were never behind the modal to begin with.
+
+**Fix:** `body:has(.forge-ov) .statusbar { z-index: 0 }` — drop the bar beneath `.app` for as long as a forge is
+open. Scoped to the FORGE with `:has` rather than applied to `body.modalup`, because Discover and the quest offer
+deliberately keep those surfaces visible-but-dimmed; only the forge has a full illustrated frame that wants the
+whole rectangle to itself. (`:has` is already load-bearing in this stylesheet — see `.questbadges:has(...)`.)
+
+Both `Spoils` and the portrait live inside `.statusbar` (Spoils is Robin's hero POWER, rendered in the
+board-floated hero-power panel), so one rule covers both things the report named.
+
+**Verified:** typecheck + lint (0 errors) + test 5210/5210 + `build:web` 6.50s. Live, hit-tested at the hero
+panel's centre with `elementsFromPoint`: forge open → `.statusbar` computes z-index 0 and `.forge-ov` is the
+topmost element there (it was the hero panel before). Forge closed → z-index back to 40 and `.heropowerbtn` is
+topmost again, so the power stays clickable in normal play. No console errors.
+
+## 2026-08-13 — Runeforge backdrop: two owner-reported fixes (black surround, dead Zoom slider)
+
+**"Why is there a black background if the background is transparent?"** Because it was not transparent. The
+master (`runeforgebg2.png`) is a 3-channel image with NO alpha — the black around the ornate border is baked
+PIXELS, not emptiness — and 18.3% of the image is that near-black surround. Keyed it out on the way to WebP with
+a soft luminance threshold (fully clear below 6, fully opaque above 34, ramped between) so the gold rim keeps its
+antialiasing instead of gaining a hard jaggy edge: 17.4% of the image is now fully transparent, and the file is
+RGBA at 173KB (was 139KB opaque). The keying happens at conversion time; the master is untouched.
+
+That also revealed the asset is a FRAME — an ornate gold border around a flat interior — not a full-bleed
+painting, so `cover` was the wrong treatment: it cropped the ornaments off. The shipped rule now sizes it to FIT
+(`auto 100%`, height-based, width following the aspect) and paints it as the FIRST background layer, i.e. ON TOP
+of the scrim, with the scrim behind it dimming the board and showing through the now-transparent surround. Worth
+an owner opinion: this frames the whole viewport, and a frame arguably belongs around the forge PANEL instead.
+
+**"The tuner zoom scale doesn't work."** Correct, at the shipped default. The first cut offered a Fit mode of
+cover / contain / zoom and the slider only bit in the third — so the obvious move (drag Zoom) did nothing until
+you first found and changed a select above it. A hint cannot rescue a control that appears dead. The Fit select
+is GONE and there is one sizing model: Zoom sets the frame's height as a percentage of the overlay, width follows
+the aspect ratio, and it always moves something. Range widened to 20–300%, and the position sliders now run
+−50–150% so the frame can be pushed deliberately past an edge.
+
+**Verified:** typecheck + lint (0 errors) + test 5177/5177 + `build:web` 6.56s. Live: the served WebP samples
+`[0,0,0,0]` at its corner and `[113,80,57,255]` at centre — alpha confirmed through the real request, not just on
+disk. The overlay computes the image as layer one over the gradient; dragging Zoom to 72 gave `auto 72%` with no
+mode change first, position to 20/80 gave `20% 80%`, scrim to 0.9 reached the gradient, and Reset returned
+`auto 100% @ 50% 50%`.
+
+## 2026-08-13 — Runeforge Backdrop tuner (Stage & Layout)
+
+A DEV tuner for placing the new forge backdrop, since art dropped behind a panel almost never lands right at
+`cover / 50% 50%` and the alternative is editing `styles.css` and reloading.
+
+**Five controls, one composed declaration.** `Fit` (cover / contain / zoom), `Zoom` (%), `Horizontal position`,
+`Vertical position`, and `Scrim` (the dark layer's opacity). Every one is an ingredient of a single `background`
+shorthand rather than a var of its own, so the panel is built on `createCssTunerStore` — the same route the
+Charge Glyph takes — writing a doubled-selector `.forge-ov.forge-ov` override into a `<style>` element that is
+REMOVED on close. It persists (`ascent.runeforgeBgTuner`), like the charge glyph and unlike the frame/palette
+panels: placing art by eye happens over sessions.
+
+`cover` and `contain` are the CSS answers and ignore the Zoom slider (the control carries a `note` saying so).
+`zoom` is the third mode, driving the image's HEIGHT as a % of the overlay with the width following the aspect
+ratio, so you can push past cover and crop into part of the illustration without ever stretching it. The scrim
+gradient stays the FIRST background layer in every mode — CSS paints layer one on top, and that is what keeps
+the engraved banner and rune tablets readable.
+
+**A preview harness, because the forge is on a wave.** The panel's readout has "Open the forge" / Basic-Epic
+buttons that force the real overlay on screen. This is the only tuner that pokes RUN STATE, so it captures the
+previous `runeforgeOffer` / `runeforgeEpic` on the way in and restores them when the toggle goes off OR the panel
+closes — without that, closing the panel would strand a fabricated forge offer in a real run. Disabled with an
+explanatory line when no run exists.
+
+DEFAULTS mirror the shipped `.forge-ov` rule exactly, so opening the panel changes nothing until you move
+something, Reset returns players' look, and "Copy CSS" emits the undoubled rule to paste back into `styles.css`.
+Registered in all three places a panel must be: `PANEL_EMBLEMS`, `ALL_TUNER_SPECS` (so "Reset all tuners"
+includes it), and the DevMenu's Stage & Layout group.
+
+**Verified:** typecheck + lint (0 errors) + test 5036/5036 + `build:web` 7.17s. Live in the dev server: the panel
+opens from the dev menu, its override installs matching the shipped rule byte-for-byte, and driving the real
+inputs produced `... rgba(14,16,22,0.35) ... 50% 20% / auto 160%` on the open overlay's computed style with the
+values persisted to localStorage. Reset restored the shipped string and the stored defaults. The harness opened
+the forge (offer set, `.forge-ov` present), applied `.forge-epic`, and on close restored the prior offer with the
+overlay gone — no leftover state. No console errors.
+
+## 2026-08-13 — Set-2 Demon art re-wire (23 masters) + an illustrated Runeforge backdrop
+
+**Demon art re-wire.** Re-wired every master in `C:\Game Assets\Ascent Art\Set 2 Minions\Demons` onto its card
+by NAME MATCH, then ran `npm run optimize-art` (≤512px, WebP q85) so the new files replaced the existing
+`.webp` build copies in place. 23 files, 50.6MB → 1.24MB (97.5% smaller). No code change — `art.ts` keys art by
+card id, so a re-wire is purely a file swap.
+
+The mapping (art filename → card id), all exact card-NAME matches:
+`AppetiteAgent→dm_agent`, `AvariceIncarnate→dm_avarice`, `BigHuggies→dm_velvet`, `BobBlart→dm_gourmand`,
+`Broodwright→dm_broodwright`, `Chipper→dm_glutton`, `CinderClerk→dm_clerk`, `ContractButcher→dm_butcher`,
+`demonhorse→dm_hungerling`, `EndlessOverseer→dm_overseer`, `ErrandFiend→dm_errand`, `FeastmasterVhal→dm_vhal`,
+`Hellrider→dm_maw`, `Imp→impscrap`, `ImpOverseer→impoverseer`, `ImpWrangler→dm_wrangler`,
+`LegionShepherd→dm_shepherd`, `Malphas→dm_malphas`, `MarketTormentor→dm_tormentor`, `RightHandHank→dm_hank`,
+`RougeRogue→dm_chancellor`, `SoulDefiler→dm_curator`, `VoidCurator→dm_tallymonger`.
+
+Three of those live outside Set 2 but matched a real card name exactly, so they were wired anyway: `impoverseer`
++ `impscrap` are Set-1 (the Imp Overseer card and the shared Imp token), and `dm_tallymonger` / `dm_chancellor`
+are ARCHIVED cards (`cards/archive.ts`) that still carry art. **Two files were deliberately NOT wired** — `Blu.png`
+matches no card in the repo, and `content1544.png` is un-attributed. Per the standing rule we never guess a card
+from an un-attributed filename; if either belongs to a card, the owner can name it and it's a one-file drop.
+
+**Runeforge backdrop.** The Runeforge overlay was a flat slate scrim (`.forge-ov { background: rgba(14,16,22,.72) }`).
+It now paints the owner's `runeforgebg2` art underneath that same scrim — converted to
+`apps/web/public/runeforgebg2.webp` (1536×1024, q82, 139KB) and referenced root-absolute from `styles.css` like the
+other public backdrops. The dark gradient is kept as a layer ON TOP of the image, which is what keeps the engraved
+banner and the rune tablets readable over the illustration. Both forge menus get it: the normal and the Epic
+Runeforge are the same element (`.forge-epic` only re-tones the banner/accents), so one rule covers both. Added to
+`PUBLIC_ART_URLS` in `art.ts` so the boot preloader fetches it — otherwise the forge opens on a bare scrim for a
+frame while the image is fetched. Static layers only; nothing here animates a paint property.
+
+**Verified:** full gate green — typecheck, lint (0 errors, 7 pre-existing warnings), test 5036/5036 across 303
+files, `build:web` in 6.79s. Live in the dev server on a throwaway run: all 23 art URLs resolve and decode at
+512×512 through `artFor()`, and the open `.forge-ov` computes
+`linear-gradient(...), url("/runeforgebg2.webp")` at `cover` with the image loading at its natural 1536×1024. No
+app console errors. NB: a screenshot could not be captured in this session (the Browser pane wasn't displayed),
+so the checks above are DOM/computed-style based — the backdrop's artistic fit is still worth an owner eyeball.
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 13: the audit MEASURES emission
 
 `npm run beats:audit` could always answer "is this effect classified?". It could never answer the question

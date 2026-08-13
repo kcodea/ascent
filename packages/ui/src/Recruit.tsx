@@ -19,8 +19,10 @@ import type { ConsequenceEvent } from '@game/core';
  *   localStorage.setItem('ascent.choreo', '1')   // then reload
  */
 const CHOREO_EOT = (() => {
-  if (!import.meta.env.DEV) return false;
-  try { return localStorage.getItem('ascent.choreo') === '1'; } catch { return false; }
+  // Opt-OUT, not opt-in (owner sign-off 2026-08-13: "end of turn seems right with the fixes in place").
+  // `ascent.choreo = '0'` restores the legacy projection without a rebuild — a rollback valve for a
+  // regression found in the wild, kept for one release and removed with the legacy path itself.
+  try { return localStorage.getItem('ascent.choreo') !== '0'; } catch { return true; }
 })();
 // Dev-only breadcrumb so it is unambiguous WHICH End-of-Turn path a session is running.
 if (import.meta.env.DEV) {
@@ -707,7 +709,6 @@ export function Recruit() {
   // CHOREOGRAPHER PR 4 — the prepared-once End-of-Turn transaction (see `playEndOfTurnAuthoritative`).
   const preparePresentationAction = useGame((s) => s.preparePresentationAction);
   const commitPresentationAction = useGame((s) => s.commitPresentationAction);
-  const cancelPresentationAction = useGame((s) => s.cancelPresentationAction);
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
@@ -3937,12 +3938,12 @@ export function Recruit() {
    */
   const playEndOfTurnAuthoritative = (): boolean => {
     const prepared = preparePresentationAction({ type: 'faceOmen' });
-    if (!prepared?.batch) {
-      // Nothing emitted at all — an early turn with no End-of-Turn content. Hand back to the legacy path
-      // rather than committing silently, so behaviour is unchanged for turns this cannot describe yet.
-      if (import.meta.env.DEV) console.info('[choreographer] no End-of-Turn emission — falling back to the legacy path');
-      cancelPresentationAction('nothing emitted');
-      return false;
+    if (!prepared) return false; // could not prepare at all — let the caller fall back rather than stall
+    if (!prepared.batch) {
+      // Nothing emitted: an early turn with no End-of-Turn content. There is nothing to animate, so commit
+      // straight through. The legacy path would reach the same place, having also found no beats to play.
+      commitPresentationAction();
+      return true;
     }
     // CHOREOGRAPHER PR 10: compile with the COMMITTED config, so a beat tuned in the tool and committed to
     // `beat-defaults.json` actually paces the live game. Without this the compiler used its defaults and

@@ -160,6 +160,13 @@ export function applyConsequenceToProjection(
       const bumped = bumpStat(zone === 'hand' ? projection.handStats : projection.boardStats, c.target.uid, c.attack ?? 0, c.health ?? 0);
       return zone === 'hand' ? { ...withCount, handStats: bumped } : { ...withCount, boardStats: bumped };
     }
+    case 'fodderEaten': {
+      // The eater's stat gain arrives as its own `statsChanged`; this records the DEPARTURE so the token
+      // stops rendering the moment it is eaten rather than at commit.
+      const gone = new Set(projection.destroyedUids);
+      gone.add(`fodder:${c.fodderId}`);
+      return { ...base, destroyedUids: gone };
+    }
     default:
       return base; // spellResolved and anything new: no visual delta of its own
   }

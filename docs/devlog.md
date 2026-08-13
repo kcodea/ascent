@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 11: the Fodder crumble plays on its beat (salvaged from #1005)
+
+The last End-of-Turn visual stuck on the commit path, and the reason it was stuck: the eat choreography flies
+the consumed token's stats INTO its eater, and a `cardDestroyed` carries only a target. There was no way to
+drive it from the events we had, so PR 5 recorded the gap in code rather than faking a half-working version.
+
+PR #1005 (my earlier parallel cutover, now superseded) had already designed the right contract. Lifted it:
+
+- `FodderEatenConsequence` - `eaterUid`, `fodderId`, the token's own stats, and the eater's gain (they differ
+  when a rule scales the meal). Staged on the `consume.depart` marker.
+- The End-of-Turn emitter emits BOTH: `cardDestroyed` (the token leaving play) and `fodderEaten` (the meal).
+  Two consequences on purpose - they answer different questions.
+- The presenter hands the whole meal to `playFodderEat`, which already spoke exactly this shape, and holds the
+  eater's badge gain until the tendril lands (matching the legacy choreography).
+- Unmount cleanup cancels any running crumble, so leaving mid-animation cannot strand one.
+
+With this, every End-of-Turn visual is on the authoritative path. `projectEndOfTurnSteps` is now retirable -
+gated only on an owner side-by-side, which is a judgement about feel rather than a technical gap.
+
+typecheck + lint + npm test (5207) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 10: authored timings reach LIVE playback
 
 The link that makes tuning real, and the last piece of "my edits do nothing".

@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 4: the read-only Beat Lab viewer (checkpoint milestone)
+
+Fourth slice (stacked on PR 3) — the owner's checkpoint milestone. "Start with truth, not tooling": a
+dev-only, read-only overlay that renders the exact source-attributed batch the recruit reducer emitted for the
+last action, before any timing editor exists. If the tree reads correctly, the event stream is trustworthy.
+
+`packages/ui/src/beatLab/BeatLab.tsx` (+ css) reads `latestBatch`/`beatRevision` from the store (published in
+DEV by PR 3) and assembles the flat event list into a trigger tree: consequences and child triggers hang off
+their `parentId`; each trigger row shows resolution step, a policy tint (ownBeat/foldedCue/passive/silent),
+the source label, kind/trigger, and repeat index; consequences render as one-line summaries; unparented
+consequences get their own section. No editing, no persistence, no gameplay effect. Wired into the Dev Menu
+(🥁 Beat Lab) beside the FX Workbench.
+
+Verified LIVE: drove a throwaway run, played Hoard Cleric (a Shout) → the store captured
+`play · 3 events · rev N` and the viewer rendered `[ownBeat] Hoard Cleric minion/onPlay ↳ stats +3/+3 →
+board:b1 ↳ stats +3/+3 → board:b2` — the real onPlay trigger with both buffs parent-attributed. Also
+confirmed the DEV capture path publishes (beatRevision bumps on every dispatch) and that a fresh dev-server
+restart was required (a reused server served stale pre-change code). typecheck + lint + build:web green.
+
+This completes PRs 1–4 (registry → collector → recruit pipeline → viewer) — the owner checkpoint before
+End-of-Turn playback (PR 5+) and any editor.
+
 ## 2026-08-12 — Beat System PR 3: the recruit presentation pipeline
 
 Third slice (stacked on PR 2). Wires the collector into recruit resolution and migrates the FIRST trigger, so

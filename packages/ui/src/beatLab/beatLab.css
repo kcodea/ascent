@@ -1,0 +1,61 @@
+/* BEAT SYSTEM PR 4 — read-only Beat Lab viewer styling. Dev-only; matches the dev-glass theme of the tuners. */
+.bl-overlay {
+  position: fixed;
+  inset: 6vh 6vw;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  background: rgba(14, 16, 22, 0.96);
+  border: 1px solid rgba(120, 140, 200, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  color: #d8dce8;
+  font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.bl-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(120, 140, 200, 0.25);
+}
+.bl-title { font-weight: 700; font-size: 14px; color: #fff; }
+.bl-mode { color: #8a93a8; font-style: italic; }
+.bl-meta { margin-left: auto; color: #9aa3ba; }
+.bl-close {
+  background: transparent;
+  border: 1px solid rgba(160, 170, 200, 0.3);
+  color: #cfd6e6;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.bl-close:hover { background: rgba(160, 170, 200, 0.15); }
+.bl-body { flex: 1; overflow: auto; padding: 14px; }
+.bl-empty { color: #8a93a8; max-width: 60ch; }
+.bl-empty code { color: #cbd3e6; }
+.bl-node { margin: 2px 0; }
+.bl-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(60, 70, 100, 0.25);
+  border-radius: 6px;
+}
+.bl-step { color: #7f8aa6; min-width: 48px; }
+.bl-policy { color: #10131a; font-weight: 700; padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+.bl-source { font-weight: 700; color: #fff; }
+.bl-kind { color: #9aa3ba; }
+.bl-repeat { color: #e0b34d; }
+.bl-cons { margin: 1px 0 1px 26px; color: #b7c0d6; }
+.bl-orphans { margin-top: 16px; padding-top: 10px; border-top: 1px dashed rgba(160, 120, 120, 0.4); }
+.bl-orphan-h { color: #d99; margin-bottom: 4px; }
+
+:root {
+  --bl-ownbeat: #7fd18a;
+  --bl-folded: #8ab6e0;
+  --bl-passive: #c9a0e0;
+  --bl-silent: #8a93a8;
+}

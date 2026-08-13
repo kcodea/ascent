@@ -231,6 +231,33 @@ describe('hand reorder', () => {
   });
 });
 
+describe('spells arm on a lower line than minions (spellFloor)', () => {
+  // playFloor 300 = the minion play line (higher up); spellFloor 400 = the spell line (lower, nearer the hand).
+  const geo = gridGeo({ hand: ['h0', 'h1'], warband: ['t0', 't1', 't2'] });
+  const spell = (): DragLike => drag({ source: 'hand', uid: 'h1', view: view({ spell: true, target: 'friendly' }) });
+
+  it('a spell lifted between the two lines already aims — no hand-reorder gap', () => {
+    const d = deriveDragDecision(input({ drag: spell(), x: 150, y: 350, playFloor: 300, spellFloor: 400, geo }));
+    expect(d.handGapIndex).toBe(-1); // above the spell line → aiming, not reordering
+    expect(d.castTargetUid).toBe('t1'); // x=150 → the friendly under the cursor
+  });
+  it('a MINION at the same height still reorders (it uses the higher play floor)', () => {
+    const d = deriveDragDecision(
+      input({ drag: drag({ source: 'hand', uid: 'h1', view: view({ spell: false }) }), x: 150, y: 350, playFloor: 300, spellFloor: 400, geo }),
+    );
+    expect(d.handGapIndex).toBeGreaterThanOrEqual(0);
+  });
+  it('a spell dropped down near the hand (below its line) reorders', () => {
+    const d = deriveDragDecision(input({ drag: spell(), x: 150, y: 450, playFloor: 300, spellFloor: 400, geo }));
+    expect(d.handGapIndex).toBeGreaterThanOrEqual(0);
+    expect(d.castTargetUid).toBe(null);
+  });
+  it('without a distinct spellFloor, a spell falls back to the play floor (old behaviour)', () => {
+    const d = deriveDragDecision(input({ drag: spell(), x: 150, y: 350, playFloor: 300, geo })); // no spellFloor
+    expect(d.handGapIndex).toBeGreaterThanOrEqual(0); // 350 ≥ playFloor 300 → reorders like before
+  });
+});
+
 describe('dragDecisionEqual (the flushMove gate)', () => {
   it('is true for two decisions that render identically', () => {
     const a = deriveDragDecision(input({ x: 10 }));

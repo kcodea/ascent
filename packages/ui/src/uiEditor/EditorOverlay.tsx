@@ -17,15 +17,21 @@ import { applyAll, applyEntry, clearAll, clearRule } from './overrideSheet';
  * addressed by a generated selector — NOT an inline style on the React element. That's what lets an edit
  * survive React re-renders and GSAP's own inline writes: the rule lives outside both.
  *
- * Persistence is synchronous on every edit (no debounce) — see `scratchpad.ts`'s header comment for why
- * (the FX-workbench Save-bug precedent).
+ * Persistence is synchronous on every DISCRETE edit (no debounce) — see `scratchpad.ts`'s header comment
+ * for why (the FX-workbench Save-bug precedent). A drag gesture is NOT a discrete edit per pointermove:
+ * per-frame `localStorage`/`JSON.stringify`/stylesheet-rebuild work is a hard performance-rule violation
+ * (see root `CLAUDE.md`), so a move/resize drag writes only cheap, uncommitted inline styles on the live
+ * target + the selection box while dragging, and commits ONE `upsertProp` → `applyEntry` → persist at
+ * `pointerup`. Side effects (`applyEntry`/`persist`) are always run OUTSIDE any `setState` updater function
+ * — calling them inside a functional `setSp(prev => ...)` update double-fires them under React StrictMode.
  */
 
 const SCRATCH_KEY = 'ascent.uiEdit.scratchpad';
 const RESTYLE_PROPS = ['font-size', 'color', 'background', 'border-radius', 'padding', 'opacity'] as const;
 
 // Static picker list — every committed in-run image, resolved to a dev-server URL by Vite. `eager` + `?url`
-// mirrors `art.ts`'s own glob so this stays in sync without a second manifest to maintain.
+// mirrors `art.ts`'s own glob so this stays in sync without a second manifest to maintain. Keys are raw
+// module specifiers (not servable); values are the Vite-resolved URLs — always store the VALUE.
 const PICKER_IMAGES = import.meta.glob('../art/**/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
 function persist(sp: Scratchpad): void {
@@ -56,9 +62,44 @@ function isAnimated(el: Element): boolean {
   return el.closest('.card') !== null && document.body.classList.contains('combat');
 }
 
+/**
+ * Resolve a just-uploaded asset to a URL the browser can actually load. The upload endpoint returns a
+ * repo-root-relative path (e.g. `packages/ui/src/assets/ui-editor/foo.png`) for display purposes, which is
+ * NOT a servable URL on its own. Since this module itself lives at `packages/ui/src/uiEditor/`, a relative
+ * `new URL(..., import.meta.url)` reaches the sibling `assets/ui-editor/` directory the exact same way the
+ * dev server already resolves this module's own off-root imports (via Vite's `/@fs/` passthrough).
+ */
+function resolveUploadedAssetUrl(slug: string): string {
+  return new URL(`../assets/ui-editor/${slug}.png`, import.meta.url).href;
+}
+
 type DragState =
   | { kind: 'move'; startX: number; startY: number; baseX: number; baseY: number; baseScale: number }
   | { kind: 'resize'; handle: string; startX: number; startY: number; baseW: number; baseH: number; baseX: number; baseY: number; baseScale: number };
+
+type DragResult = { transform?: string; width?: string; height?: string; offset?: { x: number; y: number }; scale?: number };
+
+/** Pure: turn a drag's accumulated pointer delta into the CSS it should produce. Shared by the cheap
+ *  per-pointermove live preview and the one-time pointerup commit, so they can never disagree. */
+function computeDrag(d: DragState, dx: number, dy: number, scaleAsUnit: boolean, keepAspect: boolean): DragResult {
+  if (d.kind === 'move') {
+    const offset = { x: d.baseX + dx, y: d.baseY + dy };
+    return { transform: composeTransform(offset, d.baseScale), offset, scale: d.baseScale };
+  }
+  const sx = d.handle.includes('w') ? -1 : d.handle.includes('e') ? 1 : 0;
+  const sy = d.handle.includes('n') ? -1 : d.handle.includes('s') ? 1 : 0;
+  const dW = dx * sx;
+  const dH = dy * sy;
+  if (scaleAsUnit) {
+    const ratioW = d.baseW > 0 ? (d.baseW + dW) / d.baseW : 1;
+    const ratioH = d.baseH > 0 ? (d.baseH + dH) / d.baseH : 1;
+    const scale = Math.max(0.05, sx !== 0 ? ratioW : sy !== 0 ? ratioH : Math.max(ratioW, ratioH));
+    const offset = { x: d.baseX, y: d.baseY };
+    return { transform: composeTransform(offset, scale), offset, scale };
+  }
+  const { width, height } = resizeToPx({ w: d.baseW, h: d.baseH }, dW, dH, keepAspect);
+  return { width, height };
+}
 
 const HANDLES: { id: string; style: React.CSSProperties }[] = [
   { id: 'nw', style: { top: -5, left: -5, cursor: 'nwse-resize' } },
@@ -88,6 +129,18 @@ export function EditorOverlay(): JSX.Element | null {
   const scaleRef = useRef(1); // committed scale for the current selection
   const loadedRef = useRef(false); // has the scratchpad been loaded+applied for this "on" session
 
+  // Mirrors of state read from the long-lived drag listeners (added once at pointerdown, removed at
+  // pointerup) so they always see the LATEST selection/scratchpad rather than whatever was current when
+  // the listener was attached.
+  const selectedRef = useRef<Element | null>(null);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  const selectorRef = useRef('');
+  useEffect(() => { selectorRef.current = selector; }, [selector]);
+  const scopeRef = useRef<Scope>('all-like-this');
+  useEffect(() => { scopeRef.current = scope; }, [scope]);
+  const spRef = useRef<Scratchpad>({});
+  useEffect(() => { spRef.current = sp; }, [sp]);
+
   // ---- 1. Mode subscription. OFF => render null, no listeners installed anywhere below. ----
   useEffect(() => subscribeUiEditMode(setOn), []);
 
@@ -100,15 +153,16 @@ export function EditorOverlay(): JSX.Element | null {
     applyAll(loaded);
   }, [on]);
 
+  // Discrete-edit commit: compute off the CURRENT `sp` (a plain value, not a functional updater — the
+  // side effects below must never run twice, which a StrictMode-double-invoked updater would risk), apply
+  // + persist once, then just store the result.
   const setProp = useCallback((prop: string, value: string) => {
     if (!selector) return;
-    setSp((prev) => {
-      const next = upsertProp(prev, selector, scope, prop, value);
-      applyEntry(next[selector]);
-      persist(next);
-      return next;
-    });
-  }, [selector, scope]);
+    const next = upsertProp(sp, selector, scope, prop, value);
+    applyEntry(next[selector]);
+    persist(next);
+    setSp(next);
+  }, [selector, scope, sp]);
 
   const selectElement = useCallback((el: Element) => {
     setSelected(el);
@@ -137,45 +191,57 @@ export function EditorOverlay(): JSX.Element | null {
   }, [on, selectElement]);
 
   // ---- 5/6. Move + resize drag. ----
+  // Per pointermove: CHEAP live preview only — direct inline-style writes on the box + the live target
+  // element. No React state, no upsertProp/applyEntry (stylesheet rebuild), no serialize, no localStorage.
   const onWindowPointerMove = useCallback((e: PointerEvent) => {
     const d = dragRef.current;
-    if (!d || !selRect) return;
+    if (!d) return;
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
+    const result = computeDrag(d, dx, dy, scaleAsUnit, e.shiftKey);
+    const target = selectedRef.current as HTMLElement | null;
 
-    if (d.kind === 'move') {
-      const t = { x: d.baseX + dx, y: d.baseY + dy };
-      offsetRef.current = t;
-      if (boxRef.current) boxRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
-      setProp('transform', composeTransform(t, d.baseScale));
-      return;
+    if (result.transform !== undefined) {
+      const boxTransform = d.kind === 'move' ? `translate(${dx}px, ${dy}px)` : `scale(${result.scale})`;
+      if (boxRef.current) boxRef.current.style.transform = boxTransform;
+      if (target) target.style.transform = result.transform;
+    } else if (result.width !== undefined && result.height !== undefined) {
+      if (boxRef.current) { boxRef.current.style.width = result.width; boxRef.current.style.height = result.height; }
+      if (target) { target.style.width = result.width; target.style.height = result.height; }
     }
+  }, [scaleAsUnit]);
 
-    // resize — 8 handles, growth measured from the fixed corner opposite the dragged one.
-    const sx = d.handle.includes('w') ? -1 : d.handle.includes('e') ? 1 : 0;
-    const sy = d.handle.includes('n') ? -1 : d.handle.includes('s') ? 1 : 0;
-    const dW = dx * sx;
-    const dH = dy * sy;
-
-    if (scaleAsUnit) {
-      const ratioW = d.baseW > 0 ? (d.baseW + dW) / d.baseW : 1;
-      const ratioH = d.baseH > 0 ? (d.baseH + dH) / d.baseH : 1;
-      const scale = Math.max(0.05, sx !== 0 ? ratioW : sy !== 0 ? ratioH : Math.max(ratioW, ratioH));
-      scaleRef.current = scale;
-      if (boxRef.current) boxRef.current.style.transform = `scale(${scale})`;
-      setProp('transform', composeTransform({ x: d.baseX, y: d.baseY }, scale));
-    } else {
-      const { width, height } = resizeToPx({ w: d.baseW, h: d.baseH }, dW, dH, e.shiftKey);
-      if (boxRef.current) { boxRef.current.style.width = width; boxRef.current.style.height = height; }
-      setProp('width', width);
-      setProp('height', height);
-    }
-  }, [selRect, scaleAsUnit, setProp]);
-
-  const endDrag = useCallback(() => {
+  // pointerup: the ONE authoritative commit for the whole gesture — recomputes the same result from the
+  // final pointer position, writes it through `upsertProp` → `applyEntry` → `persist` exactly once, then
+  // clears the temporary inline styles so the injected stylesheet rule is the sole source of truth again.
+  const endDrag = useCallback((e: PointerEvent) => {
+    const d = dragRef.current;
     dragRef.current = null;
     window.removeEventListener('pointermove', onWindowPointerMove);
-  }, [onWindowPointerMove]);
+
+    const target = selectedRef.current as HTMLElement | null;
+    if (target) { target.style.transform = ''; target.style.width = ''; target.style.height = ''; }
+    if (!d) return;
+    const sel = selectorRef.current;
+    if (!sel) return;
+
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    const result = computeDrag(d, dx, dy, scaleAsUnit, e.shiftKey);
+    if (result.offset) offsetRef.current = result.offset;
+    if (result.scale !== undefined) scaleRef.current = result.scale;
+
+    const sc = scopeRef.current;
+    let next = spRef.current;
+    if (result.transform !== undefined) next = upsertProp(next, sel, sc, 'transform', result.transform);
+    if (result.width !== undefined && result.height !== undefined) {
+      next = upsertProp(next, sel, sc, 'width', result.width);
+      next = upsertProp(next, sel, sc, 'height', result.height);
+    }
+    applyEntry(next[sel]);
+    persist(next);
+    setSp(next);
+  }, [onWindowPointerMove, scaleAsUnit]);
 
   useEffect(() => () => window.removeEventListener('pointermove', onWindowPointerMove), [onWindowPointerMove]);
 
@@ -209,16 +275,15 @@ export function EditorOverlay(): JSX.Element | null {
     if (selected) setSelector(buildSelector(selected, next));
   };
 
-  // ---- Image pick / upload. ----
-  const pickImage = (path: string) => {
+  // ---- Image pick / upload. Both paths must store a URL the browser can actually load — `scratchpad.ts`
+  // writes `entry.assetPath` straight into `background-image: url('<assetPath>')`, verbatim. ----
+  const pickImage = (url: string) => {
     if (!selector) return;
     setAssetError(null);
-    setSp((prev) => {
-      const next = setAsset(prev, selector, scope, path);
-      applyEntry(next[selector]);
-      persist(next);
-      return next;
-    });
+    const next = setAsset(sp, selector, scope, url);
+    applyEntry(next[selector]);
+    persist(next);
+    setSp(next);
   };
 
   const onUpload = async (file: File) => {
@@ -243,7 +308,9 @@ export function EditorOverlay(): JSX.Element | null {
       });
       const json = await res.json() as { ok: boolean; path?: string; error?: string };
       if (!json.ok || !json.path) { setAssetError(json.error ?? 'Upload failed.'); return; }
-      pickImage(json.path);
+      // `json.path` is a repo-root-relative path (for the summary / display) — not a servable URL. Resolve
+      // it relative to THIS module so the browser gets a real, loadable URL for the swap.
+      pickImage(resolveUploadedAssetUrl(slug));
     } catch (e) {
       setAssetError(e instanceof Error ? e.message : String(e));
     }
@@ -264,14 +331,14 @@ export function EditorOverlay(): JSX.Element | null {
     if (!selector) return;
     const next = removeEntry(sp, selector);
     clearRule(selector);
-    setSp(next);
     persist(next);
+    setSp(next);
   };
 
   const resetAll = () => {
     clearAll();
-    setSp({});
     persist({});
+    setSp({});
   };
 
   if (!on) return null;
@@ -367,7 +434,7 @@ export function EditorOverlay(): JSX.Element | null {
               <span>image</span>
               <div className="uied-imglist">
                 {Object.entries(PICKER_IMAGES).slice(0, 24).map(([path, url]) => (
-                  <button key={path} className="uied-imgbtn" title={path} onClick={() => pickImage(path)}>
+                  <button key={path} className="uied-imgbtn" title={path} onClick={() => pickImage(url)}>
                     <img src={url} alt="" />
                   </button>
                 ))}

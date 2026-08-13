@@ -7267,12 +7267,18 @@ function withRecruitTrigger(
   if (!collector.enabled) { run(); return; }
   const state = ctx.state;
   const before = snapshotStats(state);
-  // BEAT SYSTEM (PR 6b): additional NON-OVERLAPPING consequence diffs — hand grants (conjures) and shop-offer
-  // buffs. Both are orthogonal to the board/hand STAT diff above (a granted card is new; a shop offer is not on
-  // the board), so they enrich the batch without disturbing the proven statsChanged equivalence. Diffed, not
-  // wired per-effect — same technique projectEndOfTurnSteps uses — so any future granter/shop-buffer is caught.
+  // BEAT SYSTEM (PR 6b/6c): NON-OVERLAPPING consequence diffs beyond stats. All diffed (not wired per-effect —
+  // the technique projectEndOfTurnSteps uses) so any future effect is caught, and all orthogonal to (or, for
+  // rubies, carved out of) the board/hand stat diff so the proven statsChanged equivalence holds.
+  const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+  const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
   const handBefore = new Set(state.hand.map((c) => c.uid));
   const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
+  const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
+  const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
+  const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
+  const eatenBefore = (state.fodderEaten ?? []).length;
+  const rb = state.rubyBonus ?? { attack: 0, health: 0 };
   collector.withTrigger(
     { phase: spec.phase, source: spec.source, trigger: spec.trigger, policy: spec.policy, repeatIndex: spec.repeatIndex, repeatCount: spec.repeatCount },
     () => {
@@ -7280,8 +7286,13 @@ function withRecruitTrigger(
       for (const [uid, was] of before) {
         const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
         if (!now) continue;
-        const da = now.attack - was.a;
-        const dh = now.health - was.h;
+        // BEAT SYSTEM (PR 6c): rubies this trigger played on this minion are their OWN consequence (rubyPlayed),
+        // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
+        // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
+        const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
+        if (rubyN > 0) collector.emit({ type: 'rubyPlayed', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, count: rubyN });
+        const da = now.attack - was.a - rubyN * (1 + rb.attack);
+        const dh = now.health - was.h - rubyN * (1 + rb.health);
         if (da === 0 && dh === 0) continue;
         collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
       }
@@ -7298,6 +7309,21 @@ function withRecruitTrigger(
         const da = now.attack - b.attack;
         const dh = now.health - b.health;
         if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
+      }
+      // BEAT SYSTEM (PR 6c): spell-power / imp-aura rises — two-axis auraChanged (Aeon Guard, Void Curator).
+      const spA = spellAttackBonus(state) - spBefore.a, spH = spellHealthBonus(state) - spBefore.h;
+      if (spA !== 0 || spH !== 0) collector.emit({ type: 'auraChanged', aura: 'spellPower', amount: spA + spH, attack: spA, health: spH });
+      const impA = (state.impBuff?.attack ?? 0) - impBefore.a, impH = (state.impBuff?.health ?? 0) - impBefore.h;
+      if (impA !== 0 || impH !== 0) collector.emit({ type: 'auraChanged', aura: 'impAura', amount: impA + impH, attack: impA, health: impH });
+      // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
+      for (const c of state.board) {
+        const wb = attachBefore.get(c.uid);
+        const now = c.attachments ?? 0;
+        if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now });
+      }
+      // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
+      for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
+        collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
       }
     },
   );

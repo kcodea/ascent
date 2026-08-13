@@ -123,7 +123,12 @@ export interface AuraChangedConsequence extends ConsequenceBase {
   type: 'auraChanged';
   /** e.g. 'impAura', 'spellPower'. */
   aura: string;
+  /** Single-axis magnitude (kept for auras that have one). For the two-axis channels below it equals
+   *  `attack + health`, so a viewer that only reads `amount` still shows a sensible total. */
   amount: number;
+  /** Two-axis channels (spell power, imp aura) carry both parts; absent for single-axis auras. */
+  attack?: number;
+  health?: number;
 }
 export interface CounterChangedConsequence extends ConsequenceBase {
   type: 'counterChanged';

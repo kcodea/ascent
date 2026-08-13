@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, reduce, reduceWithPresentation, type RunState } from './index';
-import type { SourceTriggerEvent, ResourceChangedConsequence, StatsChangedConsequence } from '@game/core';
+import type { SourceTriggerEvent, ResourceChangedConsequence } from '@game/core';
 
 /**
  * BEAT SYSTEM PR 5 — End-of-Turn event migration. `reduceWithPresentation(faceOmen)` must (a) leave gameplay
@@ -61,17 +61,16 @@ describe('reduceWithPresentation(faceOmen) — End-of-Turn emission', () => {
     expect(res!.amount).toBeLessThan(0);
   });
 
-  it('emits the Lapidary recurring reward as a labeled beat with ruby stat consequences', () => {
+  it('emits the Lapidary recurring reward as a labeled beat with rubyPlayed consequences', () => {
     const s = eotState({ runeLapidary: true, playedThisTurn: ['a', 'b', 'c'] });
     const { batch } = reduceWithPresentation(s, faceOmen, true);
     const lap = triggers(batch!.events).find((t) => t.source.id === 'runeLapidary');
     expect(lap, 'Lapidary got a labeled beat').toBeTruthy();
     expect(lap!.source.label).toBe('Rune of the Lapidary');
-    // Its Rubies land on the board minion — captured as statsChanged under the Lapidary trigger.
-    const buffs = batch!.events.filter(
-      (e): e is StatsChangedConsequence => e.type === 'statsChanged' && e.parentId === lap!.id,
-    );
-    expect(buffs.length, 'rubies landed as stat consequences').toBeGreaterThan(0);
+    // Its Rubies land on the board minion — captured as rubyPlayed under the Lapidary trigger (PR 6c
+    // reclassified rubies out of the generic stat channel so the viewer can fire the gem cascade).
+    const rubies = batch!.events.filter((e) => e.type === 'rubyPlayed' && e.parentId === lap!.id);
+    expect(rubies.length, 'rubies landed as rubyPlayed consequences').toBeGreaterThan(0);
   });
 
   it('orders board minion beats before recurring reward beats', () => {

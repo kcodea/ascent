@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, reduceWithPresentation, projectEndOfTurnSteps, type RunState } from './index';
 import { applyEndOfTurn } from './recruit';
-import type { StatsChangedConsequence } from '@game/core';
+import type { RubyPlayedConsequence, StatsChangedConsequence } from '@game/core';
 
 /**
  * BEAT SYSTEM PR 6 — the End-of-Turn equivalence harness. Before the live shop animation can EVER be cut over
@@ -28,19 +28,29 @@ function realDeltas(state: RunState): Delta {
   return d;
 }
 
-/** The batch's per-uid net stat delta from statsChanged consequences. */
+/** The batch's per-uid net stat delta. Rubies are their OWN consequence (rubyPlayed, PR 6c) carved out of
+ *  statsChanged, so reconstruct the total board delta = ordinary stat deltas + ruby count × (1 + rubyBonus).
+ *  Default rubyBonus is 0/0, so each Ruby is +1/+1. */
 function batchDeltas(state: RunState): Delta {
   const { batch } = reduceWithPresentation(state, { type: 'faceOmen' } as never, true);
+  const rb = state.rubyBonus ?? { attack: 0, health: 0 };
   const d: Delta = new Map();
-  for (const e of batch?.events ?? []) {
-    if (e.type !== 'statsChanged') continue;
-    const c = e as StatsChangedConsequence;
-    const uid = c.target.uid;
-    if (!uid) continue;
+  const bump = (uid: string, a: number, h: number): void => {
     const p = d.get(uid) ?? { a: 0, h: 0 };
-    p.a += c.attack; p.h += c.health;
+    p.a += a; p.h += h;
     d.set(uid, p);
+  };
+  for (const e of batch?.events ?? []) {
+    if (e.type === 'statsChanged') {
+      const c = e as StatsChangedConsequence;
+      if (c.target.uid) bump(c.target.uid, c.attack, c.health);
+    } else if (e.type === 'rubyPlayed') {
+      const c = e as RubyPlayedConsequence;
+      if (c.target.uid) bump(c.target.uid, c.count * (1 + rb.attack), c.count * (1 + rb.health));
+    }
   }
+  // Drop zero entries (a carved-out ruby stat delta can leave a 0/0 statsChanged that we never emit anyway).
+  for (const [uid, v] of [...d]) if (v.a === 0 && v.h === 0) d.delete(uid);
   return d;
 }
 

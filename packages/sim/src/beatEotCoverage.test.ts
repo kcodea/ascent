@@ -54,19 +54,16 @@ describe('PR 6b — shop-buff consequences', () => {
   });
 });
 
-describe('PR 6b — stat equivalence is undisturbed', () => {
-  it('grants/shop events do not change the board stat deltas', () => {
+describe('PR 6c — rubies are their own consequence (rubyPlayed), carved out of statsChanged', () => {
+  it('Lapidary rubies emit rubyPlayed and NOT a generic statsChanged', () => {
     const s = eot({ runeLapidary: true, playedThisTurn: ['a', 'b'], questRecurringEndOfTurn: ['grantRandomShout'] });
-    const batchDelta = new Map<string, { a: number; h: number }>();
-    for (const e of evts(s)) {
-      if (e.type !== 'statsChanged') continue;
-      const c = e as StatsChangedConsequence;
-      if (!c.target.uid || c.target.zone !== 'board') continue;
-      const p = batchDelta.get(c.target.uid) ?? { a: 0, h: 0 };
-      p.a += c.attack; p.h += c.health;
-      batchDelta.set(c.target.uid, p);
-    }
-    // The board minion still gets its rubies as stat deltas (2 cards played → 2 rubies → +2/+2).
-    expect(batchDelta.get('b1')).toEqual({ a: 2, h: 2 });
+    const events = evts(s);
+    // 2 cards played → 2 rubies land on the sole board minion b1.
+    const ruby = events.filter((e) => e.type === 'rubyPlayed' && (e as { target: { uid?: string } }).target.uid === 'b1');
+    const rubyCount = ruby.reduce((n, e) => n + (e as { count: number }).count, 0);
+    expect(rubyCount).toBe(2);
+    // …and b1 gets NO ordinary statsChanged (its whole delta was rubies, carved out).
+    const stat = events.filter((e): e is StatsChangedConsequence => e.type === 'statsChanged' && e.target.uid === 'b1');
+    expect(stat.length).toBe(0);
   });
 });

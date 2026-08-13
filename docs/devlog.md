@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 6c: complete End-of-Turn consequence coverage (ruby / auras / welds / fodder)
+
+Continuation slice (stacked on PR 6b) — closes the remaining consequence types so the event stream reaches
+full parity with what the live End-of-Turn animation shows (the prerequisite for the eventual cutover). Owner
+rulings 2026-08-12:
+
+- **ruby → `rubyPlayed`** (owner: "it should be ruby played"): rubies a trigger plays are now their OWN
+  consequence, carved OUT of the generic stat diff (each Ruby = 1+rubyBonus per axis subtracted from the
+  statsChanged delta), so the viewer/player can fire the gem cascade rather than a plain stat bump. The
+  equivalence harness now reconstructs the board total as ordinary deltas + rubyPlayed×(1+bonus).
+- **spell power / imp aura → `auraChanged`**: the aura consequence gained optional `attack`/`health` (these
+  channels are two-axis; `amount` stays = attack+health for single-axis readers). Emitted on the delta.
+- **welds → `counterChanged`** (`attachments`, one per host) and **fodder consumed → `cardDestroyed`** (one
+  per eaten token).
+
+All diffed generically (the projectEndOfTurnSteps technique), so any future effect is caught. Everything except
+rubies is orthogonal to stats; rubies are explicitly carved out and the equivalence test updated to match.
+
+Verified: typecheck + lint + npm test (5006) + build:web green. The live shop End-of-Turn animation remains on
+projectEndOfTurnSteps — the cutover (drive it from events + retire the projector) is still the next, owner-gated
+step (needs a manual playtest).
+
 ## 2026-08-12 — Beat System PR 6b: expanded End-of-Turn consequence coverage (grants + shop buffs)
 
 Continuation slice (stacked on PR 6) toward the eventual live cutover. Extends the shared recruit trigger

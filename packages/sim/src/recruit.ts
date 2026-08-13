@@ -7319,7 +7319,7 @@ function withRecruitTrigger(
       for (const c of state.board) {
         const wb = attachBefore.get(c.uid);
         const now = c.attachments ?? 0;
-        if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now });
+        if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now, target: { zone: 'board', uid: c.uid, side: 'player' } });
       }
       // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
       for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {

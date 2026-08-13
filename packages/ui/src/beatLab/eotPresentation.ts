@@ -20,9 +20,8 @@ export interface EotBeatFx {
   shopBuff: Array<{ uid: string; attack: number; health: number }>;
   spellPower: { attack: number; health: number };
   impAura: { attack: number; health: number };
-  /** Attachments welded this beat. Count only — the `counterChanged` event doesn't carry the host uid yet
-   *  (a known emission gap to close when welds get their own beat). */
-  weldCount: number;
+  /** Host uids that gained an Attachment this beat (welds) — the UI rings each as it fuses. */
+  weldHosts: string[];
   eaten: number;
 }
 
@@ -37,7 +36,7 @@ export function compileEotFx(batch: PresentationBatch): EotBeatFx[] {
   const beats: EotBeatFx[] = [];
   for (const e of batch.events) {
     if (!isTrigger(e)) continue;
-    const fx: EotBeatFx = { trigger: e, stats: [], rubies: [], handGrants: [], shopBuff: [], spellPower: { attack: 0, health: 0 }, impAura: { attack: 0, health: 0 }, weldCount: 0, eaten: 0 };
+    const fx: EotBeatFx = { trigger: e, stats: [], rubies: [], handGrants: [], shopBuff: [], spellPower: { attack: 0, health: 0 }, impAura: { attack: 0, health: 0 }, weldHosts: [], eaten: 0 };
     for (const c of byParent.get(e.id) ?? []) {
       switch (c.type) {
         case 'statsChanged': if (c.target.zone === 'board' && c.target.uid) fx.stats.push({ uid: c.target.uid, attack: c.attack, health: c.health }); break;
@@ -48,7 +47,7 @@ export function compileEotFx(batch: PresentationBatch): EotBeatFx[] {
           if (c.aura === 'spellPower') { fx.spellPower.attack += c.attack ?? 0; fx.spellPower.health += c.health ?? 0; }
           else if (c.aura === 'impAura') { fx.impAura.attack += c.attack ?? 0; fx.impAura.health += c.health ?? 0; }
           break;
-        case 'counterChanged': if (c.counter === 'attachments') fx.weldCount += c.amount; break;
+        case 'counterChanged': if (c.counter === 'attachments' && c.target?.uid) fx.weldHosts.push(c.target.uid); break;
         case 'cardDestroyed': if (c.target.zone === 'board') fx.eaten += 1; break;
         default: break;
       }

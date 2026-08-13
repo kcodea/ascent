@@ -135,6 +135,9 @@ export interface CounterChangedConsequence extends ConsequenceBase {
   counter: string;
   amount: number;
   valueAfter?: number;
+  /** Optional entity the counter is scoped to — e.g. the Mech a weld ('attachments') landed on, so the UI can
+   *  ring that host. Absent for run-wide counters. */
+  target?: ZoneTargetRef;
 }
 export interface RubyPlayedConsequence extends ConsequenceBase {
   type: 'rubyPlayed';

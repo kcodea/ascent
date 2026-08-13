@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat System cutover slice 2b: spell-power / imp-aura / weld FX in the batch player
+
+Fills three of the four FX categories the slice-2 player was missing, so a flag-on playtest reads like the
+legacy path for all but Fodder-eat.
+
+- **Spell power** (Aeon Guard / Void Curator) — from the `auraChanged(spellPower)` consequence, fires
+  `pixiFx.spellPower` + the floating number on the source minion.
+- **Imp aura** (Void Curator) — from `auraChanged(impAura)`, fires the demon aura wash.
+- **Welds** (Combinator / Cling Drones / Money Bots) — the weld `counterChanged('attachments')` event now
+  carries its host uid (added optional `target` to `CounterChangedConsequence`; emitted per host in
+  `withRecruitTrigger`), so the player rings each host via `fireWeldFxBatch`. `compileEotFx` exposes
+  `weldHosts`.
+
+Remaining follow-up before the default flips: **Fodder-eat** (Maw of the Pit / Abyssal Feeder) — the eat
+animation needs the eater uid + gains, which the `cardDestroyed` event doesn't carry yet; a richer fodder
+consequence is the last emission gap.
+
+Verified live (flag on, clean server): Moira+Tormentor+Lapidary End of Turn plays through and commits to combat
+with no crash (an earlier crash was HMR corruption after many hot edits, gone on restart). typecheck + lint +
+npm test (5040) + build:web green.
+
 ## 2026-08-13 — Beat System cutover slice 2: batch-driven End-of-Turn player (behind a dev flag)
 
 Second cutover slice — the live player, behind `localStorage.ascent.beatcutover === '1'` (DEFAULT OFF; the

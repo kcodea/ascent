@@ -3933,6 +3933,20 @@ export function Recruit() {
           requestAnimationFrame(() => requestAnimationFrame(() => { for (const u of uids) releaseStat(u); }));
         }
         if (b.handGrants.length) setEotGrants((g) => [...g, ...b.handGrants]);
+        // Spell-power wash on the source (Aeon Guard / Void Curator) — from the auraChanged consequence.
+        if ((b.spellPower.attack || b.spellPower.health) && srcUid) {
+          const el = document.querySelector<HTMLElement>(`[data-uid="${srcUid}"]`);
+          if (el) {
+            const r = el.getBoundingClientRect();
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+            floatSpellPowerNumber(cx, cy - r.height * 0.3, b.spellPower.attack, b.spellPower.health);
+          }
+        }
+        // Imp-aura wash (Void Curator) — from the auraChanged(impAura) consequence.
+        if (b.impAura.attack || b.impAura.health) fireAuraWave('demon');
+        // Welds (Combinator / Cling Drones / Money Bots) — ring each host that gained an Attachment this beat.
+        if (b.weldHosts.length) fireWeldFxBatch(b.weldHosts, 'auto');
         window.setTimeout(() => {
           setEotProcUids(new Set());
           setEotPulseUids(new Set());

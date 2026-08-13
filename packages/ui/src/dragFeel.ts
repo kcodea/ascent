@@ -88,7 +88,7 @@ const DEFAULTS: DragFeel = {
   collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
   spellLine: 0.55,  // owner-tuned 2026-08-12: spells arm ~55% of the way from the warband down to the hand
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
-  handPop: 0.53,    // owner-tuned 2026-08-11: a stronger upward pop (× --ch)
+  handPop: 0.22,    // owner-tuned 2026-08-12: a gentler upward pop (× --ch) (was 0.53)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight

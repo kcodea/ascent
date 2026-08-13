@@ -18,7 +18,8 @@ dial the line live.
 `dragDecision.ts` gains an optional `spellFloor` input threaded from `Recruit`'s new `spellFloorRef` (computed
 alongside `playFloorRef` from the hand rect). New tests pin the split (spell aims between the two lines while a
 minion at the same height still reorders; spell reorders below its line; fallback = play floor).
-`DRAG_DEFAULTS_VERSION` 6→7 + fingerprint. Verified: typecheck (pkgs+web), eslint 0 errors, 4977 tests,
+`DRAG_DEFAULTS_VERSION` 6→7 + fingerprint. Also folds in an owner drag-feel retune from the same session:
+`handPop` 0.53→0.22 (a gentler hand hover-pop). Verified: typecheck (pkgs+web), eslint 0 errors, 4977 tests,
 build:web.
 
 ## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits

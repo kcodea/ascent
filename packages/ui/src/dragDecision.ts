@@ -59,6 +59,9 @@ export interface DragDecisionInput {
   overZone: Zone | null;
   magSlide: boolean;
   playFloor: number;
+  /** Lower cast/aim line for SPELLS (targeted, untargeted, Ruby). Defaults to `playFloor` when omitted, so a
+   *  spell arms/reorders on the same line as a minion unless a distinct (lower) spell line is supplied. */
+  spellFloor?: number;
   collapseY: number;
   boardMax: number;
   board: readonly MagTarget[];
@@ -108,10 +111,16 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
   const { drag, x, y, overZone, magSlide, playFloor, collapseY, boardMax, board, spellUid, geo } = inp;
   if (!drag) return NO_DRAG_DECISION;
 
+  // A spell arms/reorders on its own (lower) line; minions use the play floor. `spellFloor` falls back to
+  // `playFloor` when a distinct line isn't supplied, preserving the old single-line behaviour.
+  const isSpell = !!drag.view.spell || !!drag.view.ruby;
+  const spellFloor = inp.spellFloor ?? playFloor;
+  const handFloor = isSpell ? spellFloor : playFloor;
+
   // Insertion / hover tracks the dragged card's CENTRE (not the raw pointer, which is offset by wherever you
   // grabbed the card) — so the drop slot lands where the card visually sits.
   const dragCx = x - drag.ox + drag.w / 2;
-  const castingSpell = computeCastingSpell(drag, y, playFloor);
+  const castingSpell = computeCastingSpell(drag, y, spellFloor);
 
   const magHoverTarget =
     drag.active && drag.source === 'hand' && drag.view.keywords.includes('M') && overZone === 'warband'
@@ -156,7 +165,7 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
       ? geo.warbandIndexAt(dragCx, drag.source === 'board' ? drag.uid : undefined)
       : -1;
 
-  const overHandReorder = draggingHand && y >= playFloor;
+  const overHandReorder = draggingHand && y >= handFloor;
   const handGapIndex = overHandReorder ? geo.handIndexAt(dragCx, drag.uid) : -1;
 
   return { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex };

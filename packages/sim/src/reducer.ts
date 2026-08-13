@@ -1,4 +1,4 @@
-import { beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
@@ -2073,6 +2073,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       };
       const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
         ? { ...s.fleetingVigor } : null;
+      // How many combat minions the Vigor actually covered. Imps are pushed AFTER it, so they are not buffed —
+      // the presentation rewind below must not subtract from them.
+      const fleetingCovered = fleeting ? player.length : 0;
       if (fleeting) {
         socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
           const a = fleeting.attack * twilightMult;
@@ -2264,13 +2267,37 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
       // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
       if (fleeting) {
-        const firstUid = s.lastCombat.initial.player[0]?.uid;
+        // CHOREOGRAPHER PR 8 — make the surge actually HAPPEN on screen instead of being pre-applied.
+        //
+        // The buff was baked into the combat board before `simulate`, so `initial` already held the buffed
+        // stats: combat opened with bigger minions and a banner explaining, after the fact, that they had
+        // been bigger all along. That is the owner's report — "Fleeting Vigor triggers the stats before the
+        // start of combat triggers" — and no timing tool could fix it, because the numbers were never
+        // animated at all.
+        //
+        // `initial` is PRESENTATION ONLY: the combat was already simulated from the buffed board, and the
+        // replay is a pure fold of `(initial, events, upto)`. So rewinding `initial` to the pre-buff stats and
+        // adding real `buff` events reconstructs the exact same board — it just shows the gain LANDING at its
+        // Start-of-Combat moment rather than being true from frame one. Gameplay, RNG and the outcome are
+        // untouched; `socBoard` still reads the buffed board because these events sit in the Start-of-Combat
+        // slice it folds through.
+        const a = fleeting.attack * twilightMult;
+        const h = fleeting.health * twilightMult;
+        const buffed = s.lastCombat.initial.player.slice(0, fleetingCovered);
+        const opening: CombatEvent[] = [];
+        const firstUid = buffed[0]?.uid;
         if (firstUid) {
-          s.lastCombat.events.unshift({
+          opening.push({
             type: 'sc', source: firstUid,
-            text: `Fleeting Vigor — your minions entered at +${fleeting.attack}/+${fleeting.health}`,
+            text: `Fleeting Vigor — your minions surge +${a}/+${h}`,
           });
         }
+        for (const m of buffed) {
+          m.attack -= a;   // rewind to the pre-Start-of-Combat board…
+          m.health -= h;
+          opening.push({ type: 'buff', target: m.uid, attack: a, health: h, source: m.uid }); // …and land it here
+        }
+        if (opening.length) s.lastCombat.events.unshift(...opening);
       }
       s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
       s.phase = 'combat';

@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 8: Fleeting Vigor surges ON SCREEN
+
+The owner's second bug, fixed at its root: "Fleeting Vigor still triggers the stats before the start of
+combat triggers."
+
+**What was actually happening.** The buff was baked into the combat board before `simulate`, so
+`lastCombat.initial` already held the buffed stats. Combat opened with bigger minions, and a text banner then
+explained - after the fact - that they had been bigger all along. The numbers were never animated. That is why
+no amount of beat timing could fix it: there was nothing to time.
+
+**The fix, and why it is safe.** `initial` is PRESENTATION ONLY - the fight was already simulated from the
+buffed board, and the replay is a pure fold of `(initial, events, upto)`. So the reducer now rewinds
+`initial` to the pre-Start-of-Combat stats and inserts real `buff` events ahead of the fight. The fold
+reconstructs the exact same board; it just shows the gain LANDING at its Start-of-Combat moment instead of
+being true from frame one. Gameplay, RNG and the outcome are untouched, and `socBoard` still reads the buffed
+board because these events sit in the Start-of-Combat slice it folds through. Imps summoned after the Vigor
+are excluded from the rewind - they were never buffed.
+
+Verified live in the running game:
+
+    initial.player : stray 2/2, stray 3/3        <- the PRE-surge board (was 5/5, 6/6)
+    opening events : sc "Fleeting Vigor - your minions surge +3/+3"
+                     buff m0 +3/+3
+                     buff m1 +3/+3
+                     attack ...                  <- the fight starts AFTER the surge
+
+Tests (+7, and three existing tests corrected): `initial` holds pre-buff stats; one buff event per covered
+minion; folding initial + the opening block reproduces the board the SIMULATION used; the narration still
+opens; the combat outcome is unchanged and deterministic; Imps are not rewound; no Vigor means no rewind.
+
+The three existing tests asserted `initial` held post-buff stats - the exact contract this changes. Each was
+updated to fold the opening block, preserving the gameplay fact it protected (notably Twilight's doubling).
+While doing so I found two of my OWN new tests folded EVERY buff event, including later in-fight ones, and so
+were passing partly by luck; both are now scoped to the opening block.
+
+typecheck + lint + npm test (5166) + build:web green.
+
+NOT isolated visually: the on-screen surge relies on the existing combat replay's handling of `buff` events
+(pre-existing, tested machinery). The event data is verified correct in the live game; I did not manage a
+clean frame-by-frame capture of the combat replay itself.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER: live End-of-Turn VERIFIED, and the bug the playtest found
 
 Finally drove the authoritative End-of-Turn path in the real app. `window.useGame` has been a DEV handle in

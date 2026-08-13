@@ -2828,10 +2828,25 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp' });
     expect(s.fleetingVigor).toEqual({ attack: 2, health: 1 }); // banked
     s = reduce(s, { type: 'faceOmen' }); // combat: the buff lands on the combat board, then is spent
+    // CHOREOGRAPHER PR 8: `initial` is the PRE-Start-of-Combat board and the surge arrives as real `buff`
+    // events, so the gain visibly LANDS instead of the fight opening with already-bigger minions. Fold them
+    // the way the replay does to read the stats it actually fought with.
     const startSandbag = s.lastCombat?.initial.player.find((m) => m.cardId === 'sandbag');
-    expect([startSandbag?.attack, startSandbag?.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1
+    expect([startSandbag?.attack, startSandbag?.health]).toEqual([1, 1]); // the pre-surge board
+    // Only the OPENING block (the narration + its buffs, unshifted ahead of the fight) — later in-combat
+    // buffs target the same minion and would otherwise be counted as part of the surge.
+    const events = s.lastCombat?.events ?? [];
+    const openingEnd = events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff');
+    const surge = events.slice(0, openingEnd === -1 ? events.length : openingEnd).filter(
+      (e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && e.target === startSandbag?.uid,
+    );
+    const fought = surge.reduce(
+      (acc, e) => ({ attack: acc.attack + e.attack, health: acc.health + e.health }),
+      { attack: startSandbag!.attack, health: startSandbag!.health },
+    );
+    expect([fought.attack, fought.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1 — unchanged gameplay
     expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
-    // …and it's telegraphed as a Start-of-Combat narration (otherwise the pre-baked buff is invisible).
+    // …and the narration still opens the sequence.
     expect(s.lastCombat?.events[0]).toMatchObject({ type: 'sc', text: expect.stringContaining('Fleeting Vigor') });
   });
 

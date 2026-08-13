@@ -1,5 +1,5 @@
-import { ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { withActiveCollector } from './activeCollector';
+import { type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { currentCollector, withActiveCollector } from './activeCollector';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -384,6 +384,31 @@ export function reduceWithPresentation(
   const collector = makeCollector(action.type, phase);
   const next = withActiveCollector(collector, () => reduce(state, action));
   return { state: next, batch: collector.finish() };
+}
+
+
+/**
+ * CHOREOGRAPHER PR 9 — run a hero power inside a source-attributed trigger scope.
+ *
+ * Hero powers were the last whole CLASS of automatic effect emitting nothing. That is why reclassifying one
+ * in the Beat Lab did nothing on screen: the tool could change a beat's declared policy, but gameplay never
+ * announced the moment, so there was no beat to reclassify. The registry key is `hero:<id>:<powerKind>` —
+ * keyed on the POWER, not the hero's name, so two heroes sharing a mechanic share its presentation.
+ *
+ * Zero-cost when nothing is capturing (the NOOP collector short-circuits before any object is built).
+ */
+function heroBeat(state: RunState, powerKind: string, label: string, run: () => void): void {
+  const collector = currentCollector();
+  if (!collector.enabled) { run(); return; }
+  collector.withTrigger(
+    {
+      phase: 'endOfTurn',
+      source: { kind: 'hero', id: state.heroId, label, side: 'player' },
+      trigger: powerKind,
+      ...beatIdentity(`hero:${state.heroId}:${powerKind}`),
+    },
+    run,
+  );
 }
 
 export function reduce(state: RunState, action: Action): RunState {
@@ -1993,7 +2018,20 @@ function reduceCore(state: RunState, action: Action): RunState {
       // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
       // end-of-turn, not start-of-shop.)
       if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
-        conjurePlainCopy(s, s.hand[0]!.cardId);
+        // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
+        // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
+        // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
+        // The hero is the SOURCE, so the cue can anchor on the portrait rather than on the card that appears.
+        const heroDef = getHero(s.heroId);
+        const cardId = s.hand[0]!.cardId;
+        heroBeat(s, 'secondHand', heroDef.name, () => {
+          conjurePlainCopy(s, cardId);
+          const made = s.hand[s.hand.length - 1];
+          const c = currentCollector();
+          if (c.enabled && made) {
+            c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: made.uid, cardId: made.cardId, side: 'player' }, cardId: made.cardId });
+          }
+        });
       }
       advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
       // Resolve combat now (deterministic) but don't apply the outcome yet —
@@ -2056,23 +2094,63 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
       // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
       const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
+      // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
+      // problem this project exists to fix: applied silently into the combat board here, before the
+      // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
+      // that appeared already-baked into `lastCombat.initial` — indistinguishable, on screen, from "the
+      // minions just have those stats", which is exactly the owner's report that Fleeting Vigor's stats
+      // land before Start of Combat. Emitting them gives each a real moment to be scheduled against; the
+      // playback half (withholding the value until its beat) is the follow-up.
+      const socCollector = currentCollector();
+      const socBeat = (policyKey: string, id: string, label: string, run: () => void): void => {
+        if (!socCollector.enabled) { run(); return; }
+        socCollector.withTrigger(
+          { phase: 'startOfCombat', source: { kind: 'system', id, label, side: 'player' }, trigger: 'startOfCombat', ...beatIdentity(policyKey) },
+          run,
+        );
+      };
       const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
         ? { ...s.fleetingVigor } : null;
+      // How many combat minions the Vigor actually covered. Imps are pushed AFTER it, so they are not buffed —
+      // the presentation rewind below must not subtract from them.
+      const fleetingCovered = fleeting ? player.length : 0;
       if (fleeting) {
-        for (const m of player) { m.attack += fleeting.attack * twilightMult; m.health += fleeting.health * twilightMult; }
+        socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
+          const a = fleeting.attack * twilightMult;
+          const h = fleeting.health * twilightMult;
+          for (const m of player) {
+            m.attack += a;
+            m.health += h;
+            // One consequence PER MINION, carrying the delta gameplay actually applied — so presentation can
+            // stagger the surge across the board and never has to subtract its way to the number.
+            if (socCollector.enabled) socCollector.emit({
+              type: 'statsChanged',
+              target: { zone: 'board', uid: m.sourceUid, cardId: m.cardId, side: 'player' },
+              attack: a, health: h, permanent: false, channel: 'ordinary',
+            });
+          }
+        });
         s.fleetingVigor = { attack: 0, health: 0 };
       }
       // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
       // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
       // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
       if (s.pendingCombatKeywords?.length) {
-        for (const grant of s.pendingCombatKeywords) {
-          const m = player.find((p) => p.sourceUid === grant.uid);
-          if (!m) continue;
-          m.keywords ??= [];
-          if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
-          if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
-        }
+        const grants = s.pendingCombatKeywords;
+        socBeat('system:startOfCombat:pendingKeywords', 'pendingKeywords', 'Banked keywords', () => {
+          for (const grant of grants) {
+            const m = player.find((p) => p.sourceUid === grant.uid);
+            if (!m) continue; // its minion was sold or died — nothing to grant, and nothing to narrate
+            m.keywords ??= [];
+            if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
+            if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
+            if (socCollector.enabled) socCollector.emit({
+              type: 'keywordChanged',
+              target: { zone: 'board', uid: grant.uid, cardId: m.cardId, side: 'player' },
+              keyword: grant.keyword, gained: true,
+            });
+          }
+        });
         s.pendingCombatKeywords = [];
       }
       // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
@@ -2088,9 +2166,18 @@ function reduceCore(state: RunState, action: Action): RunState {
         const impDef = CARD_INDEX['impscrap'];
         const room = Math.max(0, CONFIG.boardMax - player.length);
         const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
-        for (let k = 0; k < n && impDef; k++) {
-          player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
-        }
+        socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
+          for (let k = 0; k < n && impDef; k++) {
+            player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
+            // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
+            // source's primary delivery — an Imp should be seen arriving, not simply be present.
+            if (socCollector.enabled) socCollector.emit({
+              type: 'cardSummoned',
+              target: { zone: 'board', cardId: 'impscrap', index: player.length - 1, side: 'player' },
+              cardId: 'impscrap', deliveryKey: 'summon.appear',
+            });
+          }
+        });
         s.pendingSCImps = 0;
       }
       // The procedural threat board for this wave — the always-fightable fallback (built from current
@@ -2218,13 +2305,37 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
       // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
       if (fleeting) {
-        const firstUid = s.lastCombat.initial.player[0]?.uid;
+        // CHOREOGRAPHER PR 8 — make the surge actually HAPPEN on screen instead of being pre-applied.
+        //
+        // The buff was baked into the combat board before `simulate`, so `initial` already held the buffed
+        // stats: combat opened with bigger minions and a banner explaining, after the fact, that they had
+        // been bigger all along. That is the owner's report — "Fleeting Vigor triggers the stats before the
+        // start of combat triggers" — and no timing tool could fix it, because the numbers were never
+        // animated at all.
+        //
+        // `initial` is PRESENTATION ONLY: the combat was already simulated from the buffed board, and the
+        // replay is a pure fold of `(initial, events, upto)`. So rewinding `initial` to the pre-buff stats and
+        // adding real `buff` events reconstructs the exact same board — it just shows the gain LANDING at its
+        // Start-of-Combat moment rather than being true from frame one. Gameplay, RNG and the outcome are
+        // untouched; `socBoard` still reads the buffed board because these events sit in the Start-of-Combat
+        // slice it folds through.
+        const a = fleeting.attack * twilightMult;
+        const h = fleeting.health * twilightMult;
+        const buffed = s.lastCombat.initial.player.slice(0, fleetingCovered);
+        const opening: CombatEvent[] = [];
+        const firstUid = buffed[0]?.uid;
         if (firstUid) {
-          s.lastCombat.events.unshift({
+          opening.push({
             type: 'sc', source: firstUid,
-            text: `Fleeting Vigor — your minions entered at +${fleeting.attack}/+${fleeting.health}`,
+            text: `Fleeting Vigor — your minions surge +${a}/+${h}`,
           });
         }
+        for (const m of buffed) {
+          m.attack -= a;   // rewind to the pre-Start-of-Combat board…
+          m.health -= h;
+          opening.push({ type: 'buff', target: m.uid, attack: a, health: h, source: m.uid }); // …and land it here
+        }
+        if (opening.length) s.lastCombat.events.unshift(...opening);
       }
       s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
       s.phase = 'combat';

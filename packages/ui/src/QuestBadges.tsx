@@ -64,7 +64,7 @@ export function QuestBadges() {
           // unit draws its tendril from THIS node. Runes grant those too, so both node kinds carry it.
           // Keyed by SLOT, not id alone (audit fix 2026-08-06): Rune of Duplication legitimately puts the
           // same rune id in `ownedRunes` twice, and duplicate keys mis-reconciled the two badges' pulses.
-          <div className="questbadge runebadge" key={`${id}#${i}`} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
+          <div className="questbadge runebadge" key={`${id}#${i}`} data-source-id={id} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
@@ -183,7 +183,7 @@ export function QuestBadges() {
         };
         const liveTxt = questRewardLiveText(r, live);
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
                 each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>

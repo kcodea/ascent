@@ -80,6 +80,13 @@ export function makeCollector(actionId: string, phase: PresentationPhase): Prese
       source: spec.source,
       trigger: spec.trigger,
       policy: spec.policy,
+      // CHOREOGRAPHER (§7.2): identity fields ride through VERBATIM. The collector never infers them — if
+      // gameplay didn't supply a policyKey, the event says so honestly and the normalizer raises a
+      // diagnostic, rather than presentation guessing an identity and silently mistiming the beat.
+      ...(spec.policyKey ? { policyKey: spec.policyKey } : {}),
+      ...(spec.family ? { family: spec.family } : {}),
+      ...(spec.occurrenceKey ? { occurrenceKey: spec.occurrenceKey } : {}),
+      ...(spec.dependencyIds?.length ? { dependencyIds: [...spec.dependencyIds] } : {}),
       ...(parentId ? { parentId } : {}),
       ...(spec.simultaneousGroupId ? { simultaneousGroupId: spec.simultaneousGroupId } : {}),
       ...(spec.repeatIndex !== undefined ? { repeatIndex: spec.repeatIndex } : {}),

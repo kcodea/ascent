@@ -1,5 +1,5 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, presentationPolicyFor, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { CARD_INDEX, recurringEotOwner } from '@game/content';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -6591,13 +6591,27 @@ export function applyEndOfTurn(state: RunState): void {
   const collector = currentCollector();
   const beatSource = (kind: TriggerSourceRef['kind'], id: string, label: string, uid?: string): TriggerSourceRef =>
     ({ kind, id, label, uid, side: 'player' });
+  /**
+   * CHOREOGRAPHER PR 1: one recurring End-of-Turn effect → its full beat identity. The source is now the
+   * OWNING rune/quest (id + kind from content) instead of the bare effect name tagged `rune` for everything —
+   * so Echoing Roar reads as the quest it is, and the emitted `policyKey` matches the row that classified it.
+   */
+  const recurringBeatSpec = (effect: string): { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; policyKey?: string; family?: string } => {
+    const owner = recurringEotOwner(effect);
+    const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
+    return {
+      source: beatSource(owner?.kind ?? 'rune', owner?.id ?? effect, label),
+      trigger: 'endOfTurn',
+      ...(owner ? beatIdentity(owner.key) : { policy: 'ownBeat' as PresentationPolicy }),
+    };
+  };
   // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
   // that reads maxEmbers this tick already sees the raise. BEAT SYSTEM (PR 5): these two economy runes changed
   // HUD numbers silently (handoff-doc gap §9.1) — now each emits an own-beat resourceChanged consequence.
   if (state.runeCoffers) {
     state.maxEmbers += 1;
     if (collector.enabled) collector.withTrigger(
-      { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_coffers:endOfTurn') },
       () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: 1, valueAfter: state.maxEmbers }),
     );
   }
@@ -6608,7 +6622,7 @@ export function applyEndOfTurn(state: RunState): void {
     state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
     const delta = state.upgradeCost - beforeCost;
     if (collector.enabled && delta !== 0) collector.withTrigger(
-      { phase: 'endOfTurn', source: beatSource('rune', 'rune_shopkeep', 'Rune of Shopkeep'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_shopkeep', 'Rune of Shopkeep'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_shopkeep:endOfTurn') },
       () => collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: delta, valueAfter: state.upgradeCost }),
     );
   }
@@ -6634,11 +6648,12 @@ export function applyEndOfTurn(state: RunState): void {
       if (!alignAllows(effect, eotAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
-      const policy = presentationPolicyFor(`factory:${effect.do}:endOfTurn`)?.policy ?? 'ownBeat';
+      // CHOREOGRAPHER PR 1: the factory key is known HERE and nowhere downstream — stamp it on the event.
+      const identity = beatIdentity(`factory:${effect.do}:endOfTurn`);
       for (let r = 0; r < repeats; r++) {
         withRecruitTrigger(
           ctx,
-          { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', policy, repeatIndex: r, repeatCount: repeats },
+          { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', ...identity, repeatIndex: r, repeatCount: repeats },
           () => fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }),
         );
         fires++;
@@ -6654,7 +6669,7 @@ export function applyEndOfTurn(state: RunState): void {
     for (let r = 0; r < repeats; r++) {
       withRecruitTrigger(
         ctx,
-        { phase: 'endOfTurn', source: beatSource('rune', eff, RECURRING_EOT_LABEL[eff] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+        { phase: 'endOfTurn', ...recurringBeatSpec(eff), repeatIndex: r, repeatCount: repeats },
         () => runRecurringEndOfTurn(state, eff),
       );
       fires++;
@@ -6668,7 +6683,7 @@ export function applyEndOfTurn(state: RunState): void {
       for (let r = 0; r < repeats; r++) {
         withRecruitTrigger(
           ctx,
-          { phase: 'endOfTurn', source: beatSource('quest', entry.effect, RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+          { phase: 'endOfTurn', ...recurringBeatSpec(entry.effect), repeatIndex: r, repeatCount: repeats },
           () => runRecurringEndOfTurn(state, entry.effect),
         );
         fires++;
@@ -7260,7 +7275,7 @@ function snapshotStats(state: RunState): StatSnap {
  */
 function withRecruitTrigger(
   ctx: RecruitContext,
-  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number },
+  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrenceKey?: string },
   run: () => void,
 ): void {
   const collector = ctx.collector;
@@ -7280,7 +7295,8 @@ function withRecruitTrigger(
   const eatenBefore = (state.fodderEaten ?? []).length;
   const rb = state.rubyBonus ?? { attack: 0, health: 0 };
   collector.withTrigger(
-    { phase: spec.phase, source: spec.source, trigger: spec.trigger, policy: spec.policy, repeatIndex: spec.repeatIndex, repeatCount: spec.repeatCount },
+    // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
+    { ...spec },
     () => {
       run();
       for (const [uid, was] of before) {
@@ -7290,7 +7306,15 @@ function withRecruitTrigger(
         // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
         // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
         const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
-        if (rubyN > 0) collector.emit({ type: 'rubyPlayed', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, count: rubyN });
+        // Carry the stat delta alongside the count: `rubyBonus` lives in run state, and making presentation
+        // re-derive it is the exact "subtract your way to the number" trap this system exists to remove.
+        if (rubyN > 0) collector.emit({
+          type: 'rubyPlayed',
+          target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' },
+          count: rubyN,
+          attack: rubyN * (1 + rb.attack),
+          health: rubyN * (1 + rb.health),
+        });
         const da = now.attack - was.a - rubyN * (1 + rb.attack);
         const dh = now.health - was.h - rubyN * (1 + rb.health);
         if (da === 0 && dh === 0) continue;
@@ -7337,7 +7361,7 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
       phase: 'recruit',
       source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: CARD_INDEX[played.cardId]?.name },
       trigger: 'onPlay',
-      policy: presentationPolicyFor(`factory:${effect.do}:onPlay`)?.policy ?? 'ownBeat',
+      ...beatIdentity(`factory:${effect.do}:onPlay`),
     },
     run,
   );

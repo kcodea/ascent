@@ -64,9 +64,12 @@ describe('reduceWithPresentation(faceOmen) — End-of-Turn emission', () => {
   it('emits the Lapidary recurring reward as a labeled beat with rubyPlayed consequences', () => {
     const s = eotState({ runeLapidary: true, playedThisTurn: ['a', 'b', 'c'] });
     const { batch } = reduceWithPresentation(s, faceOmen, true);
-    const lap = triggers(batch!.events).find((t) => t.source.id === 'runeLapidary');
+    // CHOREOGRAPHER PR 1: the source is the OWNING RUNE (`rune_lapidary`), not the bare recurring-effect
+    // name it used to carry — that is what lets the beat name its registry row and group under the rune.
+    const lap = triggers(batch!.events).find((t) => t.source.id === 'rune_lapidary');
     expect(lap, 'Lapidary got a labeled beat').toBeTruthy();
     expect(lap!.source.label).toBe('Rune of the Lapidary');
+    expect(lap!.policyKey).toBe('rune:rune_lapidary:endOfTurn');
     // Its Rubies land on the board minion — captured as rubyPlayed under the Lapidary trigger (PR 6c
     // reclassified rubies out of the generic stat channel so the viewer can fire the gem cascade).
     const rubies = batch!.events.filter((e) => e.type === 'rubyPlayed' && e.parentId === lap!.id);

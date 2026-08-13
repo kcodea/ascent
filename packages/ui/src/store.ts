@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
@@ -285,6 +285,19 @@ interface GameStore {
   exportReplay: () => Replay;
   /** Apply an engine action — the only way run state changes. Pure reducer under the hood. */
   dispatch: (action: Action) => void;
+  /**
+   * CHOREOGRAPHER PR 3 — the prepared presentation transaction (blueprint §5.3). EPHEMERAL: resolved
+   * gameplay held off-screen while its emitted batch animates, so the recruit scene stays mounted and
+   * End of Turn is resolved EXACTLY ONCE instead of being projected and then resolved.
+   * Never serialized (a save only ever holds committed state).
+   */
+  presentationTx: PreparedPresentationAction | null;
+  /** Resolve `action` now and hold it. Returns the prepared transaction so the caller can compile its batch. */
+  preparePresentationAction: (action: Action) => PreparedPresentationAction | null;
+  /** Commit the held transaction through the SAME path an ordinary dispatch uses. Idempotent. */
+  commitPresentationAction: () => void;
+  /** Abandon a held transaction WITHOUT committing (only when the run itself is going away). */
+  cancelPresentationAction: (reason: string) => void;
   /** Toggle Hero Power targeting mode. */
   armHero: () => void;
   /** Open / close the inspect overlay for a card. */
@@ -578,6 +591,258 @@ function combatStartBoard(run: RunState): BoardSnapshot | null {
   return base;
 }
 
+
+/** Zustand's setter, narrowed — the helper below needs it only for deferred (post-run) writes. */
+type StoreSet = (partial: Partial<GameStore> | ((st: GameStore) => Partial<GameStore>)) => void;
+
+/**
+ * BEAT CHOREOGRAPHER PR 3 — the SHARED commit path (blueprint §5.5).
+ *
+ * Everything that must happen exactly once when an action resolves: action SFX, phase marker, fight-result
+ * ledger, telemetry, derivation, captured boards, run-end handling, replay log, autosave, batch publication.
+ *
+ * It was inline in `dispatch`, which meant the prepared End-of-Turn transaction (resolve now, animate, commit
+ * after playback) would have had to DUPLICATE ~200 lines of it — and any divergence would show up as a run
+ * that telemetered twice, or a fight recorded twice, or an autosave that never happened. Extracting it is
+ * what makes "resolve gameplay exactly once, commit through one path" true rather than aspirational.
+ *
+ * Pure w.r.t. the run: it derives the next store slice from (state, action, resolved next) and never resolves
+ * gameplay itself. `set` is passed in for the DEFERRED run-end work only (a `setTimeout` that must never
+ * hitch the end screen).
+ */
+function commitResolvedAction(
+  s: GameStore,
+  action: Action,
+  next: RunState,
+  batch: PresentationBatch | null,
+  captureBeats: boolean,
+  set: StoreSet,
+): Partial<GameStore> {
+    actionSfx(action, s.run, next);
+    // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
+    // log can be read as "this was the shop opening" rather than an unexplained gap.
+    if (next.phase !== s.run.phase) perfMonitor.mark(`phase:${s.run.phase}->${next.phase}`);
+    // Fight-result ledger: on each combat (faceOmen resolves it), attribute the outcome to the SERVED opponent
+    // board, so leaderboard slots + the Career per-round log can show how a board fares when others face it.
+    // The served board is recomputed deterministically from the pre-faceOmen state — the exact input faceOmen
+    // used (nextOpponent is seeded by seed+wave+power). Record any TRACKED (id'd) board, from the BOARD's
+    // perspective (you lose → it wins). We do NOT skip your own boards: this is a single-player game whose pool
+    // is mostly (early: entirely) your own uploads, so skipping them left the ledger empty — a served board is
+    // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice never counts.
+    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
+      const served = nextOpponent(s.run);
+      if (served?.id) {
+        const result = next.lastCombat.result;
+        const outcome = result === 'lose' ? 'win' : result === 'win' ? 'loss' : 'tie'; // the board's perspective
+        void recordFightResult({ boardId: served.id, round: s.run.wave, outcome, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+      }
+    }
+    // LOBBY: capture this wave's board NOW, at the same point `replayRun` would have (`faceOmen` landed and
+    // the combat resolved), so the run never has to be replayed for its boards when it ends. Costs one
+    // `snapshotBoard` per round; replaying for the same result costs ~20 s of re-simulated opponent seats.
+    // Fold this action into the live acquisition log. Mutates in place and returns the same object — this
+    // runs on EVERY dispatched action, so it must not allocate (nothing subscribes to it either). Computed
+    // HERE, above the run-end block, so the deferred upload closure below can capture it.
+    const telemetryLog = recordTelemetryAction(s.telemetryLog, s.run, action, next);
+    // …and the richer derivation, from the SAME (before, action, after) triple. Mutates in place and
+    // returns the same object, exactly like the log above — this runs per dispatched action (a click),
+    // never per frame, so its cost is a handful of object touches at human cadence.
+    const deriveState = observeAction(s.deriveState, s.run, action, next);
+    const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
+      ? [...s.capturedBoards, snapshotBoard(next)]
+      : s.capturedBoards;
+    // A run just ended → capture its boards into the library (loaded into the opponent pool next
+    // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
+    // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
+    // write back (no local capture, no shared upload, no leaderboard) — only scored Ascent runs do.
+    if (
+      (next.phase === 'gameover' || next.phase === 'victory') &&
+      s.run.phase !== 'gameover' &&
+      s.run.phase !== 'victory' &&
+      next.mode !== 'practice'
+    ) {
+      // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
+      // boards were wrong. See `saveRunBoards`.
+      // The action log + seed reconstruct this run's boards (non-lobby) and its balance telemetry
+      // (`reconstructRunTelemetry`). It is NOT a faithful spectator replay — that needs state replay, see
+      // docs/replay-v2-handoff.md.
+      const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action] };
+      // A LOBBY run already holds its boards (captured live above) and must NOT be replayed for them —
+      // replaying re-simulates seven opponent seats and froze the end screen for ~20 s.
+      const lobbyBoards = next.mode === 'lobby' ? capturedBoards : null;
+      const setId = next.setId;
+      // An unnamed (anonymous) player is ASSIGNED a stable temp handle keyed on their account id, so their
+      // leaderboard row + captured boards carry a friendly name instead of a blank (owner ask 2026-08-10).
+      // It's overwritten the moment they set a real name.
+      const author = s.playerName || tempHandle(s.account.userId);
+      const heroOffer = s.lastHeroOffer;
+      // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
+      // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
+      // the end screen; all best-effort and never throw.
+      setTimeout(() => {
+        const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author);
+        set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
+        void uploadBoards(fresh);
+        // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
+        // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
+        // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
+        setTimeout(() => refreshOpponentPoolAndRecords(`${__APP_VERSION__}+`), 4000);
+        // The final board shown on the leaderboard + Career: the END-STATE board (the post-combat run.board,
+        // with combat carry-backs baked in), enriched with the SAME live view the end screen renders — final
+        // stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real grant, not the
+        // printed base). This replaces the old pre-combat, printed-text replay snapshot. Falls back to that
+        // snapshot only if the end-state board is empty (shouldn't happen for a real finish).
+        const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+        // Show the board WITH its final combat's Start-of-Combat buffs (owner request) — the impressive version the
+        // player actually fought with — falling back to the plain end-state board, then a captured pool board.
+        const finalBoard = combatStartBoard(next) ?? highestFresh;
+        // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
+        // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
+        // leaderboard slot.
+        if (finalBoard && highestFresh?.id) finalBoard.id = highestFresh.id;
+        const nowIso = new Date().toISOString();
+        const date = nowIso.slice(0, 10);
+        // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
+        // played come from the action log (the replay), which the run state itself doesn't track.
+        const actions = replay.actions;
+        // APT = player decisions per round (buys, plays, rolls, discovers, …) — exclude the automatic
+        // combat-flow transitions, which fire ~once/round regardless of how you build.
+        const apt = Math.round((actions.filter(isPlayerAction).length / Math.max(1, next.wave)) * 10) / 10;
+        const cardsPlayed = actions.filter((a) => a.type === 'play').length;
+        // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
+        // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
+        // MMR comes from the LOBBY only (owner rework 2026-07-31): a lobby finish resolves a placement-based
+        // rating change; a course/rift finish no longer touches the profile (its end screen shows the Oath
+        // verdict with no rating movement — `lastRating` stays null and the block self-hides).
+        // A LOBBY NEVER REACHES phase 'victory' — `advanceCombat` ends every lobby at 'gameover' whether you
+        // won or lost (its victory branch explicitly excludes lobby mode, because a lobby has no course
+        // clock to complete). So `won` is ALWAYS false here, and a lobby win is placement #1 instead.
+        const lobbySeat = next.lobby?.seats.find((seat) => seat.id === 's0');
+        const lobbyPlacement = next.lobby
+          // `settleRunLobbyRound` stamps a placement on every seat — on elimination, and `1` on whoever is
+          // still standing when the lobby finishes — so the fallback is for a lobby that ended without
+          // finishing (practice's round-15 curtain, which neither rates nor uploads).
+          ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
+          : null;
+        const lobbyWon = lobbyPlacement === 1;
+        const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
+        if (change) {
+          saveProfile(change.profile);
+          set({ profile: change.profile, lastRating: change });
+        } else {
+          set({ lastRating: null });
+        }
+        // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
+        // a career follows the PLAYER instead of the browser.
+        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
+        void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+          .then(() => fetchRunHistory<RunHistoryEntry>())
+          .then((remote) => {
+            // A FAILED read returns null, and we skip the profile write entirely rather than upserting
+            // games-played 0 over a real number — the read is the only source of those totals now.
+            if (!remote) return;
+            const career = careerStats(remote);
+            void uploadPlayerProfile({
+              author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
+              favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+              // C3: the SERVER derives the rating from the placement — `rating` above is only the pre-deploy
+              // fallback. `runId` (the run seed) dedupes so one lobby run rates exactly once. Non-lobby runs
+              // pass no placement and don't move the ladder.
+              runId: String(next.seed), placement: lobbyPlacement ?? undefined,
+            });
+            set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
+          });
+        // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
+        // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
+        // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
+        // real ladder, and course/rift rows would dilute it.
+        if (next.mode === 'lobby') {
+          try {
+            // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
+            // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
+            // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
+            // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
+            // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
+            // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
+            const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
+            const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
+            // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
+            // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
+            // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
+            // is then a new function over runs already banked, not a migration plus a fresh data window.
+            const derived = finishDerive(deriveState, next, {
+              heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
+            });
+            void uploadRunTelemetry(telemetry, {
+              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay,
+            });
+          } catch { /* best-effort — telemetry must never disrupt the end screen */ }
+        }
+        // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
+        // Gated on `lobbyWon`, NOT `won`: a lobby never sets phase 'victory' (see above), so the original
+        // `won &&` here meant the Hall could never populate at all (owner report 2026-07-31).
+        if (lobbyWon && next.mode === 'lobby') {
+          void uploadVictory({
+            mode: 'lobby',
+            heroId: next.heroId, author, wave: next.wave,
+            wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
+            board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+            capturedAt: date,
+            // Per-round W/L spread for the Hall of Champions — one char per round (W/L/D), calibration included.
+            history: next.history.map((r) => (r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D')).join(''),
+          });
+        }
+      }, 0);
+    }
+    const changed = next !== s.run;
+    const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
+    const finished = next.phase === 'gameover' || next.phase === 'victory';
+    // Autosave (A3): persist an in-progress run, and clear it once the run finishes (a finished run isn't
+    // resumable). `savedRun` mirrors the persisted state so the title's Continue works.
+    //
+    // This used to write on EVERY state change, which meant each buy/sell/roll/reorder synchronously
+    // serialized the whole run AND the whole action log to JSON and pushed it through localStorage —
+    // main-thread disk I/O on the interactions that decide whether the shop feels snappy, growing as the
+    // action log grew. Now it writes at PHASE BOUNDARIES only (recruit→combat when the board is committed,
+    // combat→recruit when the next turn's state has settled): the points where something worth resuming
+    // from actually happened. A shop turn is a scratchpad until you commit it.
+    //
+    // Leaving a run mid-turn is covered separately by `flushSave` (quit-to-title + tab hide/close), so the
+    // shorter save cadence costs no durability — see the listeners at the bottom of this file.
+    let savedRun = s.savedRun;
+    if (changed) {
+      if (finished) { clearSave(); savedRun = null; }
+      // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
+      // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
+      else if (next.phase !== s.run.phase && !next.sandbox) {
+        perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog, deriveState));
+        savedRun = next;
+      }
+    }
+    return {
+      run: next,
+      savedRun,
+      heroArmed: false, // any action clears targeting
+      inspect: null, // …and closes the inspect overlay
+      sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
+      // BEAT SYSTEM (PR 3): publish this action's presentation batch (DEV only — null in prod). `beatRevision`
+      // bumps every publish so a viewer re-reads even when two actions produce structurally equal batches.
+      ...(captureBeats ? { latestBatch: batch, beatRevision: s.beatRevision + 1 } : {}),
+      // Record only state-changing actions — together with the seed they reconstruct the run's board /
+      // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
+      // docs/replay-v2-handoff.md).
+      replayActions,
+      capturedBoards,
+      telemetryLog,
+      deriveState,
+      // A REDUCER-driven phase change is by definition a real fight starting (`faceOmen`) or a real fight
+      // being resolved — either way the combat we may now be in is not the sandbox's re-watch. Cleared
+      // here rather than unconditionally so a dispatch that happens to land mid-replay can't strand the
+      // flag off and re-open the "leaving a replay advances the wave" hole.
+      sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
+    };
+}
+
 export const useGame = create<GameStore>((set, get) => ({
   // Boot into the saved in-progress run if there is one (behind the title, which shows a Continue entry);
   // otherwise a throwaway fresh run that Play/Practice will replace.
@@ -706,231 +971,46 @@ export const useGame = create<GameStore>((set, get) => ({
       const beat = perfMonitor.measure(`reduce:${action.type}`, () =>
         captureBeats ? reduceWithPresentation(s.run, action, true) : { state: reduce(s.run, action), batch: null },
       );
-      const next = beat.state;
-      actionSfx(action, s.run, next);
-      // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
-      // log can be read as "this was the shop opening" rather than an unexplained gap.
-      if (next.phase !== s.run.phase) perfMonitor.mark(`phase:${s.run.phase}->${next.phase}`);
-      // Fight-result ledger: on each combat (faceOmen resolves it), attribute the outcome to the SERVED opponent
-      // board, so leaderboard slots + the Career per-round log can show how a board fares when others face it.
-      // The served board is recomputed deterministically from the pre-faceOmen state — the exact input faceOmen
-      // used (nextOpponent is seeded by seed+wave+power). Record any TRACKED (id'd) board, from the BOARD's
-      // perspective (you lose → it wins). We do NOT skip your own boards: this is a single-player game whose pool
-      // is mostly (early: entirely) your own uploads, so skipping them left the ledger empty — a served board is
-      // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice never counts.
-      if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
-        const served = nextOpponent(s.run);
-        if (served?.id) {
-          const result = next.lastCombat.result;
-          const outcome = result === 'lose' ? 'win' : result === 'win' ? 'loss' : 'tie'; // the board's perspective
-          void recordFightResult({ boardId: served.id, round: s.run.wave, outcome, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
-        }
-      }
-      // LOBBY: capture this wave's board NOW, at the same point `replayRun` would have (`faceOmen` landed and
-      // the combat resolved), so the run never has to be replayed for its boards when it ends. Costs one
-      // `snapshotBoard` per round; replaying for the same result costs ~20 s of re-simulated opponent seats.
-      // Fold this action into the live acquisition log. Mutates in place and returns the same object — this
-      // runs on EVERY dispatched action, so it must not allocate (nothing subscribes to it either). Computed
-      // HERE, above the run-end block, so the deferred upload closure below can capture it.
-      const telemetryLog = recordTelemetryAction(s.telemetryLog, s.run, action, next);
-      // …and the richer derivation, from the SAME (before, action, after) triple. Mutates in place and
-      // returns the same object, exactly like the log above — this runs per dispatched action (a click),
-      // never per frame, so its cost is a handful of object touches at human cadence.
-      const deriveState = observeAction(s.deriveState, s.run, action, next);
-      const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
-        ? [...s.capturedBoards, snapshotBoard(next)]
-        : s.capturedBoards;
-      // A run just ended → capture its boards into the library (loaded into the opponent pool next
-      // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
-      // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
-      // write back (no local capture, no shared upload, no leaderboard) — only scored Ascent runs do.
-      if (
-        (next.phase === 'gameover' || next.phase === 'victory') &&
-        s.run.phase !== 'gameover' &&
-        s.run.phase !== 'victory' &&
-        next.mode !== 'practice'
-      ) {
-        // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
-        // boards were wrong. See `saveRunBoards`.
-        // The action log + seed reconstruct this run's boards (non-lobby) and its balance telemetry
-        // (`reconstructRunTelemetry`). It is NOT a faithful spectator replay — that needs state replay, see
-        // docs/replay-v2-handoff.md.
-        const replay = { seed: next.seed, heroId: next.heroId, mode: next.mode, actions: [...s.replayActions, action] };
-        // A LOBBY run already holds its boards (captured live above) and must NOT be replayed for them —
-        // replaying re-simulates seven opponent seats and froze the end screen for ~20 s.
-        const lobbyBoards = next.mode === 'lobby' ? capturedBoards : null;
-        const setId = next.setId;
-        // An unnamed (anonymous) player is ASSIGNED a stable temp handle keyed on their account id, so their
-        // leaderboard row + captured boards carry a friendly name instead of a blank (owner ask 2026-08-10).
-        // It's overwritten the moment they set a real name.
-        const author = s.playerName || tempHandle(s.account.userId);
-        const heroOffer = s.lastHeroOffer;
-        // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
-        // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
-        // the end screen; all best-effort and never throw.
-        setTimeout(() => {
-          const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author);
-          set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
-          void uploadBoards(fresh);
-          // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
-          // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
-          // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
-          setTimeout(() => refreshOpponentPoolAndRecords(`${__APP_VERSION__}+`), 4000);
-          // The final board shown on the leaderboard + Career: the END-STATE board (the post-combat run.board,
-          // with combat carry-backs baked in), enriched with the SAME live view the end screen renders — final
-          // stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real grant, not the
-          // printed base). This replaces the old pre-combat, printed-text replay snapshot. Falls back to that
-          // snapshot only if the end-state board is empty (shouldn't happen for a real finish).
-          const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
-          // Show the board WITH its final combat's Start-of-Combat buffs (owner request) — the impressive version the
-          // player actually fought with — falling back to the plain end-state board, then a captured pool board.
-          const finalBoard = combatStartBoard(next) ?? highestFresh;
-          // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
-          // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
-          // leaderboard slot.
-          if (finalBoard && highestFresh?.id) finalBoard.id = highestFresh.id;
-          const nowIso = new Date().toISOString();
-          const date = nowIso.slice(0, 10);
-          // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
-          // played come from the action log (the replay), which the run state itself doesn't track.
-          const actions = replay.actions;
-          // APT = player decisions per round (buys, plays, rolls, discovers, …) — exclude the automatic
-          // combat-flow transitions, which fire ~once/round regardless of how you build.
-          const apt = Math.round((actions.filter(isPlayerAction).length / Math.max(1, next.wave)) * 10) / 10;
-          const cardsPlayed = actions.filter((a) => a.type === 'play').length;
-          // Rating (career): grade this scored run against its Line and update the persisted profile. Pure
-          // math in @game/sim; the change is surfaced on the end screen (lastRating) + stamped into history.
-          // MMR comes from the LOBBY only (owner rework 2026-07-31): a lobby finish resolves a placement-based
-          // rating change; a course/rift finish no longer touches the profile (its end screen shows the Oath
-          // verdict with no rating movement — `lastRating` stays null and the block self-hides).
-          // A LOBBY NEVER REACHES phase 'victory' — `advanceCombat` ends every lobby at 'gameover' whether you
-          // won or lost (its victory branch explicitly excludes lobby mode, because a lobby has no course
-          // clock to complete). So `won` is ALWAYS false here, and a lobby win is placement #1 instead.
-          const lobbySeat = next.lobby?.seats.find((seat) => seat.id === 's0');
-          const lobbyPlacement = next.lobby
-            // `settleRunLobbyRound` stamps a placement on every seat — on elimination, and `1` on whoever is
-            // still standing when the lobby finishes — so the fallback is for a lobby that ended without
-            // finishing (practice's round-15 curtain, which neither rates nor uploads).
-            ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
-            : null;
-          const lobbyWon = lobbyPlacement === 1;
-          const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
-          if (change) {
-            saveProfile(change.profile);
-            set({ profile: change.profile, lastRating: change });
-          } else {
-            set({ lastRating: null });
-          }
-          // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
-          // a career follows the PLAYER instead of the browser.
-          const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
-          void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
-            .then(() => fetchRunHistory<RunHistoryEntry>())
-            .then((remote) => {
-              // A FAILED read returns null, and we skip the profile write entirely rather than upserting
-              // games-played 0 over a real number — the read is the only source of those totals now.
-              if (!remote) return;
-              const career = careerStats(remote);
-              void uploadPlayerProfile({
-                author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
-                favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-                // C3: the SERVER derives the rating from the placement — `rating` above is only the pre-deploy
-                // fallback. `runId` (the run seed) dedupes so one lobby run rates exactly once. Non-lobby runs
-                // pass no placement and don't move the ladder.
-                runId: String(next.seed), placement: lobbyPlacement ?? undefined,
-              });
-              set((st) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
-            });
-          // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
-          // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
-          // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
-          // real ladder, and course/rift rows would dilute it.
-          if (next.mode === 'lobby') {
-            try {
-              // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
-              // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
-              // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
-              // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
-              // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
-              // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
-              const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
-              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
-              // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
-              // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
-              // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
-              // is then a new function over runs already banked, not a migration plus a fresh data window.
-              const derived = finishDerive(deriveState, next, {
-                heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
-              });
-              void uploadRunTelemetry(telemetry, {
-                author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay,
-              });
-            } catch { /* best-effort — telemetry must never disrupt the end screen */ }
-          }
-          // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
-          // Gated on `lobbyWon`, NOT `won`: a lobby never sets phase 'victory' (see above), so the original
-          // `won &&` here meant the Hall could never populate at all (owner report 2026-07-31).
-          if (lobbyWon && next.mode === 'lobby') {
-            void uploadVictory({
-              mode: 'lobby',
-              heroId: next.heroId, author, wave: next.wave,
-              wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
-              board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              capturedAt: date,
-              // Per-round W/L spread for the Hall of Champions — one char per round (W/L/D), calibration included.
-              history: next.history.map((r) => (r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D')).join(''),
-            });
-          }
-        }, 0);
-      }
-      const changed = next !== s.run;
-      const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
-      const finished = next.phase === 'gameover' || next.phase === 'victory';
-      // Autosave (A3): persist an in-progress run, and clear it once the run finishes (a finished run isn't
-      // resumable). `savedRun` mirrors the persisted state so the title's Continue works.
-      //
-      // This used to write on EVERY state change, which meant each buy/sell/roll/reorder synchronously
-      // serialized the whole run AND the whole action log to JSON and pushed it through localStorage —
-      // main-thread disk I/O on the interactions that decide whether the shop feels snappy, growing as the
-      // action log grew. Now it writes at PHASE BOUNDARIES only (recruit→combat when the board is committed,
-      // combat→recruit when the next turn's state has settled): the points where something worth resuming
-      // from actually happened. A shop turn is a scratchpad until you commit it.
-      //
-      // Leaving a run mid-turn is covered separately by `flushSave` (quit-to-title + tab hide/close), so the
-      // shorter save cadence costs no durability — see the listeners at the bottom of this file.
-      let savedRun = s.savedRun;
-      if (changed) {
-        if (finished) { clearSave(); savedRun = null; }
-        // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
-        // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
-        else if (next.phase !== s.run.phase && !next.sandbox) {
-          perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog, deriveState));
-          savedRun = next;
-        }
-      }
-      return {
-        run: next,
-        savedRun,
-        heroArmed: false, // any action clears targeting
-        inspect: null, // …and closes the inspect overlay
-        sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
-        // BEAT SYSTEM (PR 3): publish this action's presentation batch (DEV only — null in prod). `beatRevision`
-        // bumps every publish so a viewer re-reads even when two actions produce structurally equal batches.
-        ...(captureBeats ? { latestBatch: beat.batch, beatRevision: s.beatRevision + 1 } : {}),
-        // Record only state-changing actions — together with the seed they reconstruct the run's board /
-        // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
-        // docs/replay-v2-handoff.md).
-        replayActions,
-        capturedBoards,
-        telemetryLog,
-        deriveState,
-        // A REDUCER-driven phase change is by definition a real fight starting (`faceOmen`) or a real fight
-        // being resolved — either way the combat we may now be in is not the sandbox's re-watch. Cleared
-        // here rather than unconditionally so a dispatch that happens to land mid-replay can't strand the
-        // flag off and re-open the "leaving a replay advances the wave" hole.
-        sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
-      };
+      // CHOREOGRAPHER PR 3: resolution and commit are now separate steps sharing ONE commit path, so the
+      // prepared End-of-Turn transaction commits identically to an ordinary dispatch.
+      return commitResolvedAction(s, action, beat.state, beat.batch, captureBeats, set);
     }),
+  presentationTx: null,
+  /**
+   * CHOREOGRAPHER PR 3 (blueprint §5.2–§5.4). Resolve the action NOW, keep `before` on screen, hand the
+   * caller the batch to compile and play. No reducer action is dispatched per beat while it plays — the
+   * consequences are a visual projection over `before`, never a second gameplay pass.
+   */
+  preparePresentationAction: (action) => {
+    const s = get();
+    if (s.presentationTx) return s.presentationTx; // already prepared — never resolve twice
+    const prepared = prepareActionWithPresentation(s.run, action);
+    set({ presentationTx: prepared });
+    return prepared;
+  },
+  /**
+   * Commit the held transaction. Routes through `commitResolvedAction`, the SAME helper `dispatch` uses, so
+   * telemetry, the fight ledger, the replay log, autosave and captured boards all happen exactly once and
+   * identically to an ordinary dispatch. Idempotent: a double-commit (playback finishing as the component
+   * unmounts) is a no-op rather than a duplicated action.
+   */
+  commitPresentationAction: () => {
+    const s = get();
+    const tx = s.presentationTx;
+    if (!tx) return;
+    set({ presentationTx: null }); // cleared FIRST, so a re-entrant call can't commit twice
+    set((st) => commitResolvedAction(st, tx.action, tx.after, tx.batch, import.meta.env.DEV, set));
+  },
+  /**
+   * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned
+   * (quit to title, new run) — otherwise End Turn would resolve and then silently un-resolve. Anything else
+   * should commit; the blueprint's failure rule is "never softlock End Turn" (§5.6).
+   */
+  cancelPresentationAction: (reason) => {
+    if (!get().presentationTx) return;
+    if (import.meta.env.DEV) console.warn(`[choreographer] prepared action cancelled: ${reason}`);
+    set({ presentationTx: null });
+  },
   armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
@@ -955,7 +1035,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     });
   },
   newRun: (seed, heroId) => {
@@ -963,7 +1043,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
     });
   },
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
@@ -984,7 +1064,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], sandboxReplay: false };
+      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], sandboxReplay: false };
     });
   },
   sbEditMode: false,

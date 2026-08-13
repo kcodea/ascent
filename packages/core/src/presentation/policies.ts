@@ -7,7 +7,7 @@
  * content-side (`presentationPolicies.test.ts`): an unclassified new effect FAILS CI, a silent entry without
  * a reason fails, and a registry key no live content produces fails (no ghosts).
  */
-import type { PresentationPolicyEntry } from './types';
+import type { PresentationPolicy, PresentationPolicyEntry } from './types';
 
 export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── CARD EFFECTS — factory × trigger (heuristic default by trigger; flagged = owner review) ──
@@ -387,7 +387,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_chorus:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_cinder_ledger:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_cindergem:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_coffers:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_coffers:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_collector:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_conductor:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_conduit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -514,7 +514,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_shared_reflection:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_shared_scripture:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_shared_table:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_shopkeep:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_shopkeep:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_showcase:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_slaying:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_small_fortune:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -669,7 +669,37 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'quest:q_unstable_riches:onComplete': { policy: 'ownBeat', family: 'questReward' },
   'quest:q_war_council:onComplete': { policy: 'ownBeat', family: 'questReward' },
   'quest:q_warm_embers:onComplete': { policy: 'ownBeat', family: 'questReward' },
+  // ── HERO POWERS (CHOREOGRAPHER PR 9). Heroes live in `@game/sim`, which the content-side surface cannot
+  // import (content is a DEPENDENCY of sim, not the reverse) — so hero coverage is enforced sim-side by
+  // `heroBeats.test.ts` instead, and the content ghost-check skips `hero:*`. Classified here so the key,
+  // family and policy stay in ONE registry with everything else.
+  'hero:repete:secondHand': { policy: 'ownBeat', family: 'heroPower' },
+
+  // ── DERIVED / SYSTEM moments (CHOREOGRAPHER PR 7). Engine-derived payouts with no EffectDef of their own;
+  // see `SYSTEM_SURFACE` in content. Each is an own beat because it is a visible thing happening TO the
+  // board at the start of a fight, and the owner's report was precisely that it happened invisibly.
+  'system:startOfCombat:fleetingVigor': { policy: 'ownBeat', family: 'startOfCombat' },
+  'system:startOfCombat:pendingKeywords': { policy: 'ownBeat', family: 'startOfCombat' },
+  'system:startOfCombat:pendingImps': { policy: 'ownBeat', family: 'startOfCombat' },
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */
 export const presentationPolicyFor = (key: string): PresentationPolicyEntry | undefined => PRESENTATION_POLICIES[key];
+
+/**
+ * CHOREOGRAPHER (§7.1, and the "deriving families from source card ID" trap in §25): the ONE way an emitter
+ * turns a registry key into the identity fields it stamps on its event. Emitters call this at the site where
+ * the factory/rune/quest identity is still known, so `policyKey` + `family` + `policy` always agree with the
+ * registry and presentation never has to reconstruct them from a display id.
+ *
+ * An unclassified key still yields a usable spread (the key is carried, `family` is absent) — the normalizer
+ * then reports "missing family" as a diagnostic instead of the beat silently inheriting the wrong template.
+ */
+export function beatIdentity(policyKey: string, fallback: PresentationPolicy = 'ownBeat'): {
+  policyKey: string;
+  family?: string;
+  policy: PresentationPolicy;
+} {
+  const entry = PRESENTATION_POLICIES[policyKey];
+  return { policyKey, ...(entry ? { family: entry.family } : {}), policy: entry?.policy ?? fallback };
+}

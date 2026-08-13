@@ -18,24 +18,22 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  * against a panel you have to re-open each time, so losing the values to a reload costs a real session. Reset
  * returns the shipped look, and "Copy CSS" emits the undoubled rule to paste back into `styles.css`.
  *
- * FIT vs ZOOM. `cover` and `contain` are the two CSS answers and they ignore the zoom slider entirely — cover
- * fills the overlay and crops, contain fits the whole image and may letterbox. `zoom` is the third mode, where
- * the slider sets the image's HEIGHT as a percentage of the overlay and the width follows the aspect ratio, so
- * you can push past cover to crop in on part of the illustration. The position sliders work in all three, but
- * only bite when there is overflow to slide (i.e. not under `contain` on a matching aspect).
+ * ZOOM IS UNCONDITIONAL, and that is a deliberate correction. The first cut of this panel offered a Fit mode of
+ * cover / contain / zoom, where the slider only bit in the third — so the obvious move (drag Zoom) did nothing
+ * at the shipped default, which reads as a broken control however carefully the hint explains it. There is one
+ * sizing model now: Zoom sets the image's HEIGHT as a percentage of the overlay and the width follows the aspect
+ * ratio, so the art never distorts and the slider always moves something.
  */
 interface ForgeBgVals {
-  fit: string;      // 'cover' | 'contain' | 'zoom' — see the FIT vs ZOOM note above
-  zoom: number;     // % of the overlay's HEIGHT, `fit: zoom` only
+  zoom: number;     // % of the overlay's HEIGHT — width follows the aspect ratio
   posX: number;     // % — 0 shows the image's left edge, 100 its right
   posY: number;     // %
-  scrim: number;    // opacity of the dark layer ON TOP of the art
+  scrim: number;    // opacity of the dark layer BEHIND the frame, dimming the board
   [k: string]: number | string;
 }
 
 /** MIRRORS the shipped `.forge-ov` rule in styles.css — so Reset returns you to what players see. */
 const DEFAULTS: ForgeBgVals = {
-  fit: 'cover',
   zoom: 100,
   posX: 50,
   posY: 50,
@@ -44,15 +42,12 @@ const DEFAULTS: ForgeBgVals = {
 
 const num = (v: ForgeBgVals, k: string): number => Number(v[k]);
 
-/** The `background-size` term. `zoom` drives HEIGHT and lets width follow, so the art never distorts. */
-const sizeTerm = (v: ForgeBgVals): string => (v.fit === 'zoom' ? `auto ${num(v, 'zoom')}%` : String(v.fit));
-
-/** The full shorthand: the scrim gradient must stay the FIRST layer — CSS paints layer one on top, and that is
- *  what keeps the engraved banner and the rune tablets readable over the illustration. */
+/** The full shorthand. The art is a FRAME, so it is the FIRST layer — CSS paints layer one on top — and the
+ *  scrim sits BEHIND it dimming the board, showing through the frame's transparent surround. */
 const bg = (v: ForgeBgVals): string => {
   const s = num(v, 'scrim');
-  return `linear-gradient(rgba(14, 16, 22, ${s}), rgba(14, 16, 22, ${s})), `
-    + `url('/runeforgebg2.webp') ${num(v, 'posX')}% ${num(v, 'posY')}% / ${sizeTerm(v)} no-repeat`;
+  return `url('/runeforgebg2.webp') ${num(v, 'posX')}% ${num(v, 'posY')}% / auto ${num(v, 'zoom')}% no-repeat, `
+    + `linear-gradient(rgba(14, 16, 22, ${s}), rgba(14, 16, 22, ${s}))`;
 };
 
 const store = createCssTunerStore<ForgeBgVals>({
@@ -68,26 +63,20 @@ const copyCss = (): string =>
 
 const controls: TunerControl<string>[] = [
   {
-    key: 'fit', label: 'Fit', group: 'Size', kind: 'select', options: ['cover', 'contain', 'zoom'],
-    hint: 'cover fills the overlay and crops; contain fits the whole image and may letterbox; zoom hands sizing to the slider below.',
-    min: 0, max: 0, step: 0,
+    key: 'zoom', label: 'Zoom', unit: '%', group: 'Size', min: 20, max: 300, step: 1,
+    hint: "The frame's height as a percentage of the overlay — width follows the aspect ratio, so the art never stretches. 100 makes it exactly as tall as the screen.",
   },
   {
-    key: 'zoom', label: 'Zoom', unit: '%', group: 'Size', min: 40, max: 260, step: 1,
-    hint: "The image's height as a percentage of the overlay — width follows the aspect ratio, so the art never stretches.",
-    note: 'Only applies when Fit is set to zoom.',
+    key: 'posX', label: 'Horizontal position', unit: '%', group: 'Position', min: -50, max: 150, step: 1,
+    hint: 'Slides the frame across. 50 centres it; the range runs past both edges so it can be pushed off-screen deliberately.',
   },
   {
-    key: 'posX', label: 'Horizontal position', unit: '%', group: 'Position', min: 0, max: 100, step: 1,
-    hint: 'Which part of the image sits in view across — 0 pins its left edge, 100 its right. No effect when there is nothing to crop.',
-  },
-  {
-    key: 'posY', label: 'Vertical position', unit: '%', group: 'Position', min: 0, max: 100, step: 1,
-    hint: 'The same, up and down — lower values bring the top of the illustration into view.',
+    key: 'posY', label: 'Vertical position', unit: '%', group: 'Position', min: -50, max: 150, step: 1,
+    hint: 'The same, up and down.',
   },
   {
     key: 'scrim', label: 'Scrim', unit: 'opacity', group: 'Readability', min: 0, max: 1, step: 0.01,
-    hint: 'The dark layer painted OVER the art. 0 shows the illustration raw; higher values buy back contrast for the engraved banner and the rune tablets.',
+    hint: "The dark layer BEHIND the frame, dimming the board. It shows through the frame's transparent surround; 0 leaves the board undimmed.",
   },
 ];
 
@@ -148,7 +137,6 @@ export const SPEC: TunerSpec<ForgeBgVals> = {
   note: 'dev · live · persists',
   read: store.get,
   write: store.set,
-  writeColor: store.set,           // the schema's string channel — carries the `fit` select
   reset: store.reset,
   defaults: DEFAULTS,
   controls,

@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-13 — Runeforge backdrop: two owner-reported fixes (black surround, dead Zoom slider)
+
+**"Why is there a black background if the background is transparent?"** Because it was not transparent. The
+master (`runeforgebg2.png`) is a 3-channel image with NO alpha — the black around the ornate border is baked
+PIXELS, not emptiness — and 18.3% of the image is that near-black surround. Keyed it out on the way to WebP with
+a soft luminance threshold (fully clear below 6, fully opaque above 34, ramped between) so the gold rim keeps its
+antialiasing instead of gaining a hard jaggy edge: 17.4% of the image is now fully transparent, and the file is
+RGBA at 173KB (was 139KB opaque). The keying happens at conversion time; the master is untouched.
+
+That also revealed the asset is a FRAME — an ornate gold border around a flat interior — not a full-bleed
+painting, so `cover` was the wrong treatment: it cropped the ornaments off. The shipped rule now sizes it to FIT
+(`auto 100%`, height-based, width following the aspect) and paints it as the FIRST background layer, i.e. ON TOP
+of the scrim, with the scrim behind it dimming the board and showing through the now-transparent surround. Worth
+an owner opinion: this frames the whole viewport, and a frame arguably belongs around the forge PANEL instead.
+
+**"The tuner zoom scale doesn't work."** Correct, at the shipped default. The first cut offered a Fit mode of
+cover / contain / zoom and the slider only bit in the third — so the obvious move (drag Zoom) did nothing until
+you first found and changed a select above it. A hint cannot rescue a control that appears dead. The Fit select
+is GONE and there is one sizing model: Zoom sets the frame's height as a percentage of the overlay, width follows
+the aspect ratio, and it always moves something. Range widened to 20–300%, and the position sliders now run
+−50–150% so the frame can be pushed deliberately past an edge.
+
+**Verified:** typecheck + lint (0 errors) + test 5177/5177 + `build:web` 6.56s. Live: the served WebP samples
+`[0,0,0,0]` at its corner and `[113,80,57,255]` at centre — alpha confirmed through the real request, not just on
+disk. The overlay computes the image as layer one over the gradient; dragging Zoom to 72 gave `auto 72%` with no
+mode change first, position to 20/80 gave `20% 80%`, scrim to 0.9 reached the gradient, and Reset returned
+`auto 100% @ 50% 50%`.
+
 ## 2026-08-13 — Runeforge Backdrop tuner (Stage & Layout)
 
 A DEV tuner for placing the new forge backdrop, since art dropped behind a panel almost never lands right at

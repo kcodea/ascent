@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat CHOREOGRAPHER PR 5: the consequence presenter registry
+
+Blueprint §6.4, §15. The other half of the live player: what each emitted consequence actually DRAWS.
+Deliberately NOT the "delete legacy" PR — the blueprint gates that on an owner side-by-side, which hasn't
+happened, so both paths still exist and the flag still defaults off.
+
+**The failure this closes.** The legacy End-of-Turn loop decided what to animate by RE-DERIVING it: scanning
+card definitions for factory ids, diffing projected state, special-casing individual cards. That is why a
+second card raising spell power through a different factory played no cue at all (Void Curator, owner report
+2026-07-28) — the code tested `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's factory and
+nobody else's. A presenter reads the EVENT instead, so any card producing that consequence animates,
+including cards not written yet.
+
+- `consequencePresenters.ts` — a presenter per consequence type, keyed so coverage is enforced by the type
+  system plus a test rather than by someone remembering. Every FX call goes through an injected
+  `PresenterContext`, so the module imports no DOM/Pixi/GSAP and its coverage is testable headlessly.
+  Presenters never mutate gameplay and never dispatch.
+- Notable rulings encoded: spell power / imp aura dispatch on the emitted AURA NAME, not a factory id; rubies
+  use the gem cascade with the emitted count; a non-ordinary stat channel does NOT also draw the generic
+  burst (the "overlapping mess" the owner reported); a consumed shop offer departs rather than drawing as a
+  buff; a counter change attributes to its beat's source (correct for welds, honest for quest counters).
+- `Recruit.tsx` builds the context from the EXISTING FX helpers — what changed is who decides to call them —
+  and the player runs presenters from `onConsequence`, with beats indexed at activation so a consequence can
+  always resolve its source.
+
+Tests (+23): every consequence type in the union has a presenter and the registry has no ghosts beyond it;
+presenters read the event (explicit Void-Curator-gap test); real-batch check that every consequence a real
+turn emits finds a presenter, and that playing a real turn drives presenters without throwing.
+
+STILL LEGACY-ONLY (the honest gap list, and the remaining work before legacy can be retired): the Fodder-eat
+choreography, quest tendrils, weld rings, the tavern gust and Fodder infusion. These are beat//source-level
+sequences rather than one-shot consequence draws, and each needs its own migration.
+
+Verified: typecheck + lint + `npm test` (5135) + build:web green.
+
 ## 2026-08-13 — Beat CHOREOGRAPHER PR 4: presentation projection + live End-of-Turn player
 
 Blueprint §6, §12, §21 PR 4. The slice where the compiled timeline finally drives the SCREEN. Behind a

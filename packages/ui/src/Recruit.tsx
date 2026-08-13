@@ -3,6 +3,9 @@ import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/co
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
+import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
+import type { CompiledBeat } from './choreographer/timelineTypes';
+import type { ConsequenceEvent } from '@game/core';
 
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
@@ -3953,8 +3956,63 @@ export function Recruit() {
     setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
     setEotShopStats(null);
 
+    /**
+     * CHOREOGRAPHER PR 5 — the FX surface the presenters draw through. Every entry is an EXISTING helper;
+     * what changes is who decides to call it. Legacy decided by scanning card definitions for factory ids
+     * (which is how a second card raising spell power played no cue at all — owner report 2026-07-28);
+     * here the emitted consequence says what happened, so any card producing it animates, including ones
+     * not written yet.
+     */
+    const centreOf = (uid: string): { x: number; y: number } | null => {
+      const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    };
+    const presenterCtx: PresenterContext = {
+      statGain: (uid) => {
+        // The generic green burst. Cleared on a timer keyed to the beat's own readable window rather than a
+        // global constant, so a tuned beat's flash tracks it.
+        setBuffedUids((s) => new Set([...s, uid]));
+        window.setTimeout(() => setBuffedUids((s) => { const n = new Set(s); n.delete(uid); return n; }), 600);
+      },
+      rubyLanded: (uid, count) => {
+        runRecruitMomentCues(
+          { kind: 'rubyLanded', recipients: [{ uid, count }] },
+          {
+            cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+            measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+            onLand: () => sfx.gemApply(),
+          },
+        );
+      },
+      spellPower: (sourceUid, attack, health) => {
+        const at = sourceUid ? centreOf(sourceUid) : null;
+        if (at) {
+          pixiFx.spellPower(at.x, at.y, getSpellPowerFxConfig());
+          floatSpellPowerNumber(at.x, at.y - 30, attack, health);
+        }
+        fireSpellBuffOnHandSpells(runRef.current.hand); // the held spells whose printed values just rose
+      },
+      impAura: () => fireAuraWave('demon'),
+      cardGranted: () => { /* the hand preview is driven by the projection; arrival FX lands with the commit */ },
+      cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
+      cardDestroyed: () => { /* Fodder-eat choreography still legacy-only — see the PR 5 gap list */ },
+      shopBuffed: () => { /* the shop climb is driven by the projection's shopStats */ },
+      resourceChanged: () => { /* HUD counters read the projection */ },
+      counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
+      cardTransformed: () => { /* transforms render from the committed state */ },
+      keywordChanged: () => { /* keyword pips render from the projection */ },
+    };
+    const beatsById = new Map<string, CompiledBeat>();
+
     const player = createTimelinePlayer(timeline, {
+      onConsequence: (delivery) => {
+        const beat = beatsById.get(delivery.beatId);
+        if (beat) presentConsequence({ consequence: delivery.consequence.payload as ConsequenceEvent, beat, ctx: presenterCtx });
+      },
       onBeatActivate: (beat) => {
+        beatsById.set(beat.id, beat); // indexed here so a consequence can always resolve its source beat
         // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
         const uid = beat.source.uid;
         setEotProcUids(uid ? new Set([uid]) : new Set());

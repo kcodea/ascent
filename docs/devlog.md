@@ -1,6 +1,17 @@
 # ASCENT — development log
 
-## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
+## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
+
+Owner-tuned the Layout Lab and asked to ship the new positions as defaults. Seven knobs changed, all in the
+shop / shop-controls / warband regions: shop row `X 6→9 / Y −22→27`, shop controls `Scale 1.31→1.52 / X 0→5 /
+Y −92→−45`, warband `X 6→9 / Y −195→−163`. Everything else in the paste already matched.
+
+Updated in BOTH sources of truth, as `layoutConfig.ts` requires: the `def:` fields (dev tuner Reset + dev boot)
+AND the `styles.css` `var(..., fallback)` values (what production actually renders, since `applyLayout` is
+dev-gated and never runs in a shipped build). `--z-wb-y` has two fallback sites (`.zone[data-zone='warband']`
+lines) — both moved. Verified: `typecheck:web` + `build:web` green; grep confirms no stale old-value fallbacks
+remain and neither changed file introduces a lint error. Dev preview is visually unchanged (it already read the
+tuned values from localStorage); the change is what a fresh player / production now gets.
 
 Owner report: Rune of the Lapidary showed no cards-played counter, and its End-of-Turn Rubies never animated.
 Two audits followed (counters; EoT animations), each closing a CLASS, not just the instance.

@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 2: the presentation collector
+
+Second slice of the beat-system arc (stacked on PR 1). Pure new engine plumbing — no gameplay change, nothing
+consumes it yet.
+
+**Contracts** (`packages/core/src/presentation/events.ts`): the shared source-attributed event model from the
+blueprint — `SourceTriggerEvent` (source ref + trigger + policy + parent/step/simultaneity) and a
+`ConsequenceEvent` union describing mutations DIRECTLY (statsChanged, keyword, summon/destroy/transform, card
+grant, spell, resource, shop, aura, counter, ruby) so presentation never diffs state to learn what happened.
+`ZoneTargetRef` carries a zone (board/hand/shop/…), because recruit effects target offers, not only combat uids.
+
+**Collector** (`collector.ts`): `makeCollector(actionId, phase)` stamps deterministic batch-local ids
+(`trigger:<action>:<seq>` / `event:<action>:<seq>` — no time/random, so replays are byte-identical), tracks a
+trigger stack (consequences inherit the active `parentId`; nested triggers inherit their parent), and manages
+resolution-step boundaries (`newStep` per own beat, `currentStep` to fold). `NOOP_COLLECTOR` is the
+zero-cost stand-in for headless bots / gameplay-only reducer calls (`enabled:false` lets hot paths skip
+building drafts). `endTrigger` pops defensively so one missing close can't corrupt later attribution.
+
+Verified: typecheck + lint + npm test (4985; +8 collector determinism/nesting/no-op tests) + build:web all green.
+
 ## 2026-08-12 — Beat System PR 1: the presentation-policy registry + `beats:audit`
 
 Kickoff of the Beat System + Beat Lab project (owner handoff docs in Documents/Codex — universal

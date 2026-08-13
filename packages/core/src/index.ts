@@ -8,3 +8,5 @@ export * from './combat/side';
 export * from './combat/simulate';
 export * from './presentation/types';
 export * from './presentation/policies';
+export * from './presentation/events';
+export * from './presentation/collector';

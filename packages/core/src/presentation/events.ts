@@ -48,6 +48,19 @@ export interface SourceTriggerEvent {
   /** The gameplay condition ('endOfTurn', 'onSummon', 'avenge', 'cast', …). */
   trigger: string;
   policy: PresentationPolicy;
+  /**
+   * CHOREOGRAPHER (§7.1): the REGISTRY key this effect was classified under, emitted by the gameplay code
+   * that knows its factory/rune/quest identity. Presentation must never reconstruct it from the display
+   * source id — that is the documented trap where a minion's card id gets mistaken for its factory id and
+   * timing falls through unpredictably. Optional only during the migration.
+   */
+  policyKey?: string;
+  /** The coarse timing bucket ('endOfTurn', 'shout', 'echo', 'summonReact', …) — normally the registry
+   *  entry's `family` for `policyKey`. The timing resolver keys family templates on it. */
+  family?: string;
+  /** Distinguishes several independently-tunable moments inside ONE source+trigger (a card that acts on the
+   *  left then the right). Identity, never a display label. */
+  occurrenceKey?: string;
   /** Set when this trigger fired inside another (nested Shouts, Oona reacting to a summon). */
   parentId?: string;
   /** Explicit ordering edges beyond parent/step (rare; most order comes from step). */
@@ -65,6 +78,13 @@ interface ConsequenceBase {
   /** The SourceTriggerEvent that caused this (the collector sets it from the active trigger scope). */
   parentId?: string;
   simultaneousGroupId?: string;
+  /**
+   * CHOREOGRAPHER (§7.3): WHICH marker of its source beat delivers this consequence. Defaults to `primary`
+   * (the source's delivery marker). Staged effects name a sub-marker — 'consume.depart', 'consume.arrive',
+   * 'summon.appear', 'attack.contact', 'resource.land'. This is what stops every consequence from being
+   * assumed to land at `start + windup`.
+   */
+  deliveryKey?: string;
 }
 
 export interface StatsChangedConsequence extends ConsequenceBase {
@@ -193,4 +213,11 @@ export interface BeginTriggerSpec {
   simultaneousGroupId?: string;
   repeatIndex?: number;
   repeatCount?: number;
+  /** CHOREOGRAPHER: stable identity, copied verbatim onto the event (see SourceTriggerEvent). The emitting
+   *  gameplay code is the ONLY place that knows these — presentation must not re-derive them. */
+  policyKey?: string;
+  family?: string;
+  occurrenceKey?: string;
+  /** Explicit causal edges beyond parent/step: this beat may not present before those beats' markers. */
+  dependencyIds?: string[];
 }

@@ -24,6 +24,38 @@ baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size
 follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
 and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
 unused vertical crystal) is untouched.
+## 2026-08-13 — Beat CHOREOGRAPHER PR 1: event identity hardening
+
+Start of the pivot laid out in Codex's `beat-choreographer-pivot-handoff.md` + `-implementation-blueprint.md`
+(owner ruling 2026-08-13). The diagnosis those docs make — and the owner independently hit — is that the Beat
+Lab got built AHEAD of the live migration: it edits a preview the live game does not consume, so a toggle in
+the Lab does nothing on screen. The fix is not more editor; it is making one authoritative event stream that
+BOTH the live game and the tool play. This PR is the blueprint's first engineering task (§21 PR 1, §27 step 1).
+
+**The trap it closes (blueprint §25):** presentation reconstructing an effect's identity from its *display*
+source id. A minion's card id is not its factory id, so the timing chain falls through to a global default and
+the beat is mistimed with no error raised anywhere.
+
+- `SourceTriggerEvent` / `BeginTriggerSpec` gained `policyKey`, `family`, `occurrenceKey`, `dependencyIds`;
+  `ConsequenceBase` gained `deliveryKey` (§7.3 — the field that will stop every consequence being assumed to
+  land at `start + windup`). All optional during migration: an un-migrated emitter is honestly ABSENT rather
+  than guessed. The collector copies them verbatim and infers nothing.
+- `beatIdentity(policyKey)` (core) is the single way an emitter turns a registry key into `{policyKey, family,
+  policy}` — called where the factory/rune/quest identity is still known, so event and registry cannot disagree.
+- Every End-of-Turn + Shout emitter now stamps identity: board minions (`factory:<do>:endOfTurn`), Coffers,
+  Shopkeep, recurring and turn-limited rewards.
+- **Recurring End-of-Turn effects now resolve their OWNING rune/quest.** They were emitted as the bare effect
+  name (`runeLapidary`) tagged `kind: 'rune'` for ALL of them — so the quests among them (Echoing Roar) were
+  mis-grouped and none could name a registry row. `recurringEotOwner()` derives effect → owner from the same
+  content walk that builds the surface, so it can't drift.
+- **Phase truthfulness:** `rune_coffers` / `rune_shopkeep` were bucketed `:recruit` but fire (and emit) at End
+  of Turn. Fixed the bucketing and re-keyed their registry rows to `:endOfTurn` with the `endOfTurn` family,
+  rather than letting an emitter stamp a phase-lie to find a row.
+- `beatIdentity.test.ts`: gameplay still byte-identical under capture; every emitted `policyKey` exists in the
+  registry; `family`/`policy` agree with that row; identity is deterministic; recurring owners resolve.
+
+Verified: typecheck + lint + `npm test` (5051, +8) + build:web green. No gameplay change (the equivalence
+assertion is part of the suite). Next: PR 2 — the normalizer + shared timeline compiler (pure, no UI).
 
 ## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
 

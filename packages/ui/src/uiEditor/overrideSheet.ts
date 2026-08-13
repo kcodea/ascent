@@ -21,8 +21,12 @@ function sheet(): CSSStyleSheet {
 export function applyEntry(entry: EditEntry): void {
   const s = sheet();
   clearRule(entry.selector); // idempotent replace
-  const idx = s.insertRule(ruleText(entry), s.cssRules.length);
-  ruleIndex.set(entry.selector, idx);
+  try {
+    const idx = s.insertRule(ruleText(entry), s.cssRules.length);
+    ruleIndex.set(entry.selector, idx);
+  } catch {
+    // Invalid selector typed into the editable field — skip rather than throw out of the caller.
+  }
 }
 
 export function clearRule(selector: string): void {

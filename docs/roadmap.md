@@ -33,6 +33,7 @@ The five buckets below are ordered by when we intend to act, not by size:
   player's Career expanded + scrolled to the specific run (board/runes/details), matched by nearest timestamp.
   Reuses the Leaderboard's view-another-player path; needs the `run_history` cross-user read policy (else the
   career opens empty). Details in the devlog.
+- **In-run UI editor (dev-only) — SHIPPED 2026-08-13.** Direct-manipulation editor for in-run DOM UI — move/resize/restyle, image swap, Approach-A override stylesheet, copyable summary. Details in the devlog.
 - **20 new runes + 2 new minions — SHIPPED 2026-08-12.** Herzog + Kobebes; six grant-a-minion+flag runes;
   twelve shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's
   Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Herzog was renamed to

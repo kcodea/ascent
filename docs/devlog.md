@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER: live End-of-Turn VERIFIED, and the bug the playtest found
+
+Finally drove the authoritative End-of-Turn path in the real app. `window.useGame` has been a DEV handle in
+`store.ts` all along (earlier attempts probed the wrong global and kept landing on a saved run parked in
+combat, where `endTurn` returns at its `inCombat` guard). Staged a throwaway run - two board minions plus
+Coffers/Shopkeep/Lapidary - flipped `ascent.choreo`, pressed End Turn, and sampled the board every 200ms.
+
+**First run - the path ran, and a real bug surfaced.**
+
+    [choreographer] authoritative End of Turn - 3 beats, 4 deliveries, 2130ms
+    0-2100ms  b1=2/2  b2=3/3     <- frozen for the ENTIRE animation
+    ~2200ms   (commit)           <- then snapped to final
+
+Exactly the symptom the owner described in a different context: the stats do not climb, they appear all at
+once. Cause: the Lapidary's gain is emitted as `rubyPlayed`, which the projection tracked as a ruby COUNT
+only. So the gem cascade had its data and the numbers had none - a beat playing over frozen stats.
+
+**The fix, in the spirit of the rest of the system.** `RubyPlayedConsequence` now carries the stat delta it
+applied (`count x (1 + rubyBonus)` per axis), computed in the emitter where `rubyBonus` is known. Presentation
+never re-derives it - the same "no subtracting your way to the number" rule that shaped Fleeting Vigor's
+per-minion consequences. The projection applies it to board/hand stats alongside the count.
+
+**Second run - verified:**
+
+    0-1608ms  b1=2/2  b2=3/3     <- withheld
+    1809ms    b1=4/4  b2=4/4     <- lands ON the Lapidary's beat
+    2208ms    (commit)
+
+The values now appear at their beat rather than when End Turn was pressed. That is the End-of-Turn half of
+the owner's complaint demonstrated fixed in the running game, not just in tests.
+
+Regression tests (+4): `rubyPlayed` applies its delta; a run-wide ruby bonus carries the FULL delta; an event
+without a delta records the count without inventing stats; and a real Lapidary turn shows board stats empty at
+t=0 and non-empty by the end.
+
+typecheck + lint + npm test (5148) + build:web green.
+
 ## 2026-08-13 — Beat CHOREOGRAPHER PR 6: beat-level FX, derived from events
 
 The last legacy-only visuals — quest/rune tendrils, the tavern gust, weld rings — now play on the

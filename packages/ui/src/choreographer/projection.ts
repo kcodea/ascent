@@ -152,7 +152,13 @@ export function applyConsequenceToProjection(
     }
     case 'rubyPlayed': {
       if (!c.target.uid) return base;
-      return { ...base, rubies: bumpNum(projection.rubies, c.target.uid, c.count) };
+      // Rubies move BOTH channels: the gem cascade reads `rubies`, the numbers read the stat delta. Tracking
+      // only the count meant the cascade played while the stats stayed frozen until commit.
+      const withCount = { ...base, rubies: bumpNum(projection.rubies, c.target.uid, c.count) };
+      if (!c.attack && !c.health) return withCount;
+      const zone = c.target.zone;
+      const bumped = bumpStat(zone === 'hand' ? projection.handStats : projection.boardStats, c.target.uid, c.attack ?? 0, c.health ?? 0);
+      return zone === 'hand' ? { ...withCount, handStats: bumped } : { ...withCount, boardStats: bumped };
     }
     default:
       return base; // spellResolved and anything new: no visual delta of its own

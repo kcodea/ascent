@@ -7306,7 +7306,15 @@ function withRecruitTrigger(
         // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
         // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
         const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
-        if (rubyN > 0) collector.emit({ type: 'rubyPlayed', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, count: rubyN });
+        // Carry the stat delta alongside the count: `rubyBonus` lives in run state, and making presentation
+        // re-derive it is the exact "subtract your way to the number" trap this system exists to remove.
+        if (rubyN > 0) collector.emit({
+          type: 'rubyPlayed',
+          target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' },
+          count: rubyN,
+          attack: rubyN * (1 + rb.attack),
+          health: rubyN * (1 + rb.health),
+        });
         const da = now.attack - was.a - rubyN * (1 + rb.attack);
         const dh = now.health - was.h - rubyN * (1 + rb.health);
         if (da === 0 && dh === 0) continue;

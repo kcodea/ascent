@@ -230,3 +230,44 @@ describe('runTimeline drives the player and cleans up', () => {
     expect(player.isComplete()).toBe(false);
   });
 });
+
+describe('Rubies move the numbers, not just the gems (live-playtest regression 2026-08-13)', () => {
+  // Found by playing it: the board sat at its BASE stats for the whole animation and then snapped at commit.
+  // `rubyPlayed` was tracked as a count only, so the Lapidary's cascade played over frozen numbers — the
+  // "stats appear all at once at the end" symptom, in the one place the projection could not see the gain.
+  it('a rubyPlayed consequence applies its stat delta to the board', () => {
+    const p = applyConsequenceToProjection(EMPTY_PROJECTION, {
+      type: 'rubyPlayed', id: 'r', sequence: 0, step: 1,
+      target: { zone: 'board', uid: 'u1' }, count: 2, attack: 2, health: 2,
+    } as ConsequenceEvent);
+    expect(p.rubies.get('u1')).toBe(2);
+    expect(p.boardStats.get('u1')).toEqual({ attack: 2, health: 2 });
+  });
+
+  it('a Ruby with a run-wide bonus carries the FULL delta — the UI never re-derives rubyBonus', () => {
+    const p = applyConsequenceToProjection(EMPTY_PROJECTION, {
+      type: 'rubyPlayed', id: 'r', sequence: 0, step: 1,
+      target: { zone: 'board', uid: 'u1' }, count: 1, attack: 3, health: 3, // 1 Ruby × (1 + bonus 2)
+    } as ConsequenceEvent);
+    expect(p.boardStats.get('u1')).toEqual({ attack: 3, health: 3 });
+  });
+
+  it('an old event with no delta still records the count without inventing stats', () => {
+    const p = applyConsequenceToProjection(EMPTY_PROJECTION, {
+      type: 'rubyPlayed', id: 'r', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, count: 1,
+    } as ConsequenceEvent);
+    expect(p.rubies.get('u1')).toBe(1);
+    expect(p.boardStats.size).toBe(0);
+  });
+
+  it('a real Lapidary turn shows the board CHANGING mid-timeline, not only at the end', () => {
+    const timeline = realTimeline();
+    const player = createTimelinePlayer(timeline);
+    player.advanceTo(0);
+    const atStart = JSON.stringify([...player.projection().boardStats]);
+    player.advanceTo(timeline.durationMs);
+    const atEnd = JSON.stringify([...player.projection().boardStats]);
+    expect(atStart).toBe('[]');
+    expect(atEnd).not.toBe('[]'); // the fixture's Lapidary rubies reach the board through the projection
+  });
+});

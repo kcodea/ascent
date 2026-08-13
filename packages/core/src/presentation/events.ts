@@ -160,6 +160,14 @@ export interface RubyPlayedConsequence extends ConsequenceBase {
   type: 'rubyPlayed';
   target: ZoneTargetRef;
   count: number;
+  /**
+   * The STAT DELTA these Rubies applied — `count × (1 + rubyBonus)` per axis, computed where `rubyBonus` is
+   * known. Without it presentation could show the gem cascade but not the numbers climbing, because a Ruby's
+   * worth depends on run state the UI would have to re-derive. Found by live playtest: the board sat at its
+   * base stats for the whole animation and then snapped at commit (2026-08-13).
+   */
+  attack?: number;
+  health?: number;
 }
 
 export type ConsequenceEvent =

@@ -22,6 +22,24 @@ Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion �
 badge ticks `recruit:1 → recruit:8 → combat:8` (changes on the beat, in recruit, before the phase flip).
 typecheck + lint + build:web green. Standalone fix (off main), independent of the beat-system stack.
 (Possible refinement: the shop number JUMPS via releaseStat; the board ROLLS — could roll the shop too later.)
+## 2026-08-12 — Beat System PR 1: the presentation-policy registry + `beats:audit`
+
+Kickoff of the Beat System + Beat Lab project (owner handoff docs in Documents/Codex — universal
+source-attributed trigger beats + a dev-only timing tuner). Owner rulings at kickoff: review checkpoint after
+PR 4 (the read-only viewer), I build both halves (core/sim + UI, Mike looped on his files), the remaining
+interim fixes (Oona pulse, Aftershocks marker, …) fold into PRs 9–10 rather than double-building, and PR 1's
+classification is mine-to-propose / owner-to-review.
+
+**What shipped.** `packages/core/src/presentation/` — the shared vocabulary (`PresentationPolicy`:
+ownBeat / foldedCue / passive / intentionallySilent, keys, entry shape) and the REGISTRY: all **654**
+automatic-effect keys the live content produces (333 factory×trigger pairs, 218 runes, 103 quests),
+classified by trigger-based heuristics with **42 flagged** for owner review (economy watchers, cast-reactors,
+Shout-reactors, Orbit-fired watchers — the genuinely judgment-call classes). `presentationSurface()`
+(content-side) is the single enumerator; `presentationPolicies.test.ts` is the CI tripwire — an unclassified
+new effect fails, a registry ghost fails, a silent entry without a reason fails. `npm run beats:audit`
+prints the human review table (`--flagged` for the review list, `--json` for the future Beat Lab).
+
+No gameplay change — pure data + tests + tooling. Gates: typecheck / lint / 4977 tests / build:web all green.
 ## 2026-08-12 — Spells arm on their own, lower line (drag-to-cast needs less lift)
 
 Owner: dragging a spell from the hand felt like too long a drag before it "activated as a spell." Root cause:

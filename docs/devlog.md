@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-12 — fix(ui): End-of-Turn shop buffs climb in real time
+
+Owner report: when an End-of-Turn effect buffs a Shop minion — a Moira re-firing Market Tormentor / Contract
+Butcher's Shout at End of Turn — the shop card played only a green burst + a floating "+A/+H", but the printed
+stat number didn't move until the phase flipped to combat and the buff committed. It should tick up ON the beat,
+like a board minion's End-of-Turn gain does.
+
+Fix (Recruit.tsx + shopView): board minions already climb per beat via `eotAnimStats`; shop offers now have the
+parallel `eotShopStats` — a running per-offer buff delta accumulated from the projection's `EotStepFx.shopBuff`
+as each beat fires, folded into the offer's displayed stats by `shopView` (a new `eotBuff` opt). Reset at the
+start of the End-of-Turn animation, drained when the phase commits (the real offers then carry the buff). The
+burst + float still play; now the number underneath them actually rises.
+
+Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion → End Turn → polled the offer's
+rendered stats across the beat: `recruit 1/1 → recruit 8/8 → combat 8/8` (ticks during the beat, before the
+phase flip). typecheck + lint + npm test (4973) + build:web green. Standalone fix (off main), independent of
+the beat-system stack.
+
 ## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
 
 Owner-tuned the Layout Lab and asked to ship the new positions as defaults. Seven knobs changed, all in the

@@ -70,6 +70,25 @@ export function recurringEotOwner(effect: string): { key: string; kind: 'rune' |
   return recurringOwners.get(effect);
 }
 
+/**
+ * CHOREOGRAPHER PR 7 — the DERIVED/SYSTEM manifest (blueprint §15.2).
+ *
+ * Not every automatic effect is a row in card/rune/quest data. Some are moments the ENGINE derives: a spell
+ * banked last shop that pays out at Start of Combat, keyword grants held for the next fight, summons queued
+ * for the coming combat. They have no `EffectDef` to enumerate, so the content walk cannot see them — and
+ * because the surface is what the coverage tripwire checks, "cannot see them" meant they could never be
+ * classified, never be emitted, and never show up as missing. That is precisely how Fleeting Vigor ended up
+ * with no beat while the audit stayed green.
+ *
+ * Listing them explicitly makes them first-class: classified in the registry, emitted by gameplay, and
+ * visible in the Beat Lab as real sources rather than as an unexplained EMPTY row.
+ */
+export const SYSTEM_SURFACE: SurfaceEntry[] = [
+  { key: 'system:startOfCombat:fleetingVigor', users: ['fleeting-vigor'] },
+  { key: 'system:startOfCombat:pendingKeywords', users: ['field-maneuvers', 'last-stand', 'executioners-edge'] },
+  { key: 'system:startOfCombat:pendingImps', users: ['open-the-gates'] },
+];
+
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */
 export function presentationSurface(): SurfaceEntry[] {
   const map = new Map<string, Set<string>>();
@@ -83,5 +102,6 @@ export function presentationSurface(): SurfaceEntry[] {
   }
   for (const r of [...RUNES, ...EPIC_RUNES]) add(runeKey(r), r.id);
   for (const q of QUEST_DEFS) add(questKey(q), q.id);
+  for (const e of SYSTEM_SURFACE) for (const u of e.users) add(e.key, u);
   return [...map.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, users]) => ({ key, users: [...users].sort() }));
 }

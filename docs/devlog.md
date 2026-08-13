@@ -185,6 +185,42 @@ files, `build:web` in 6.79s. Live in the dev server on a throwaway run: all 23 a
 `linear-gradient(...), url("/runeforgebg2.webp")` at `cover` with the image loading at its natural 1536×1024. No
 app console errors. NB: a screenshot could not be captured in this session (the Browser pane wasn't displayed),
 so the checks above are DOM/computed-style based — the backdrop's artistic fit is still worth an owner eyeball.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 14: the authoritative End of Turn is now the DEFAULT
+
+Owner sign-off: "end of turn seems right with the fixes in place. go ahead and unblock it."
+
+End of Turn is now driven by the emitted event batch for everyone, production included. The Beat Lab's
+committed timings pace the real game rather than a dev preview.
+
+- The flag inverts: `ascent.choreo` is an OPT-OUT (`'0'` restores the legacy projection) rather than an
+  opt-in, and it is no longer DEV-only. Kept as a rollback valve for one release - a regression found in the
+  wild can be worked around without a rebuild - and it goes away with the legacy path itself.
+- "Nothing emitted" now commits straight through instead of handing off to legacy. That branch existed to
+  preserve legacy behaviour on turns the new path could not describe; with End-of-Turn emission proven, a turn
+  with no beats is simply a turn with nothing to animate, and legacy would reach the same place having also
+  found nothing to play.
+
+**Perf, measured rather than assumed** (CLAUDE.md requires it - production now captures a presentation batch
+on every End Turn, where before it used the zero-alloc path). `reduce(faceOmen)` vs
+`reduceWithPresentation(faceOmen, capture)` on a full 7-minion board with three runes armed: 0.190 vs
+0.161 ms/op - the capture run measured FASTER, i.e. the overhead is below JIT/GC noise on a ~0.17ms operation
+that happens once per turn at human cadence. `npm run perf` all within budget.
+
+**Verified live, both directions:**
+
+    no flag set     -> choreoEot true, "authoritative End of Turn - 2 beats, 2 deliveries, 1420ms"
+                       b1: 2/2 (762ms) -> 4/4 (1010ms) -> 5/5 (1259ms) -> commit
+    ascent.choreo=0 -> choreoEot false, no choreographer log, legacy projection runs
+
+Two beats landing at distinct moments with the numbers climbing between them - the behaviour the whole arc was
+built for, now the default.
+
+STILL PRESENT: `projectEndOfTurnSteps` and the fixed BEAT/GAP constants remain, reachable only through the
+opt-out. Deleting them is the follow-up once this has been played in anger; doing it in the same change would
+have removed the rollback at the exact moment it was most likely to be wanted.
+
+typecheck + lint + npm test (5228) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 13: the audit MEASURES emission
 
 `npm run beats:audit` could always answer "is this effect classified?". It could never answer the question

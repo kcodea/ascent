@@ -1,4 +1,5 @@
-import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { withActiveCollector } from './activeCollector';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -360,6 +361,29 @@ function autoResolveEotDiscovers(s: RunState): void {
     }
     clearDiscoverState();
   }
+}
+
+/**
+ * BEAT SYSTEM (PR 3) — `reduce` plus a presentation batch. The gameplay result is byte-for-byte what plain
+ * `reduce` produces (the collector only records; it never touches state — see the equivalence test); the batch
+ * is the source-attributed trigger/consequence timeline for this action, or null when `capture` is off.
+ *
+ * `capture` is passed by the caller (the sim package is env-agnostic): the UI store passes `import.meta.env.DEV`
+ * so production and headless callers keep the zero-alloc NOOP path. Bots, balance tools and tests keep calling
+ * plain `reduce`.
+ */
+export function reduceWithPresentation(
+  state: RunState,
+  action: Action,
+  capture = false,
+): { state: RunState; batch: PresentationBatch | null } {
+  if (!capture) return { state: reduce(state, action), batch: null };
+  // `faceOmen` runs End of Turn then hands off to combat — tag its batch `endOfTurn` so the viewer groups it
+  // correctly; every other recruit action is `recruit`. (Per-trigger phase is set at each emit site too.)
+  const phase = action.type === 'faceOmen' ? 'endOfTurn' : 'recruit';
+  const collector = makeCollector(action.type, phase);
+  const next = withActiveCollector(collector, () => reduce(state, action));
+  return { state: next, batch: collector.finish() };
 }
 
 export function reduce(state: RunState, action: Action): RunState {
@@ -2027,10 +2051,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
       // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
       // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
+      // Rune of Twilight doubles Start-of-Combat effects. These pending SoC effects (Fleeting Vigor's buff,
+      // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
+      // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
+      // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
+      const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
       const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
         ? { ...s.fleetingVigor } : null;
       if (fleeting) {
-        for (const m of player) { m.attack += fleeting.attack; m.health += fleeting.health; }
+        for (const m of player) { m.attack += fleeting.attack * twilightMult; m.health += fleeting.health * twilightMult; }
         s.fleetingVigor = { attack: 0, health: 0 };
       }
       // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
@@ -2058,7 +2087,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.pendingSCImps) {
         const impDef = CARD_INDEX['impscrap'];
         const room = Math.max(0, CONFIG.boardMax - player.length);
-        const n = Math.min(s.pendingSCImps, room);
+        const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
         for (let k = 0; k < n && impDef; k++) {
           player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
         }

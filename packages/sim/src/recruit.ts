@@ -1,5 +1,6 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, type EffectArena, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, presentationPolicyFor, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
@@ -26,6 +27,8 @@ import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateS
 interface RecruitContext {
   state: RunState;
   summon(card: CardDef, nearUid: string): BoardCard | undefined;
+  /** BEAT SYSTEM (PR 3): the presentation collector for this resolution (NOOP outside a capture scope). */
+  collector: PresentationCollector;
 }
 
 type RecruitFn = (
@@ -5650,6 +5653,7 @@ export
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
+    collector: currentCollector(),
     summon: (card, nearUid) => {
       if (state.board.length >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
@@ -6584,12 +6588,30 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
+  const collector = currentCollector();
+  const beatSource = (kind: TriggerSourceRef['kind'], id: string, label: string, uid?: string): TriggerSourceRef =>
+    ({ kind, id, label, uid, side: 'player' });
   // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
-  // that reads maxEmbers this tick already sees the raise.
-  if (state.runeCoffers) state.maxEmbers += 1;
+  // that reads maxEmbers this tick already sees the raise. BEAT SYSTEM (PR 5): these two economy runes changed
+  // HUD numbers silently (handoff-doc gap §9.1) — now each emits an own-beat resourceChanged consequence.
+  if (state.runeCoffers) {
+    state.maxEmbers += 1;
+    if (collector.enabled) collector.withTrigger(
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: 1, valueAfter: state.maxEmbers }),
+    );
+  }
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
   // applied the first −3). Floored so it can't go negative.
-  if (state.runeShopkeep) state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
+  if (state.runeShopkeep) {
+    const beforeCost = state.upgradeCost;
+    state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
+    const delta = state.upgradeCost - beforeCost;
+    if (collector.enabled && delta !== 0) collector.withTrigger(
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_shopkeep', 'Rune of Shopkeep'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      () => collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: delta, valueAfter: state.upgradeCost }),
+    );
+  }
   // Rune of the Lapidary + Rune of the Crucible Choir used to run RIGHT HERE, as hardcoded blocks — which
   // meant no projection beat and no FX: their effects landed silently after the phase flipped (owner report
   // 2026-08-12, the Lapidary's Rubies). Both are now VIRTUAL recurring-End-of-Turn entries (see
@@ -6600,6 +6622,9 @@ export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
   const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times
   let fires = 0; // End-of-Turn effect TRIGGERS this turn (feeds Parliament of Flame's "Trigger N End-of-Turn effects")
+  // BEAT SYSTEM (PR 5): board End-of-Turn effects emit source-attributed triggers LEFT-TO-RIGHT (the
+  // resolution order, preserved), each Chronos repeat its own trigger (repeatIndex/repeatCount), stat changes
+  // as consequences. `withRecruitTrigger` is a no-op wrapper when nothing is capturing.
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -6609,22 +6634,45 @@ export function applyEndOfTurn(state: RunState): void {
       if (!alignAllows(effect, eotAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
-      for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }); fires++; }
+      const policy = presentationPolicyFor(`factory:${effect.do}:endOfTurn`)?.policy ?? 'ownBeat';
+      for (let r = 0; r < repeats; r++) {
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', policy, repeatIndex: r, repeatCount: repeats },
+          () => fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }),
+        );
+        fires++;
+      }
       if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
   }
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
-  // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir).
+  // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir). BEAT SYSTEM
+  // (PR 5): each gets its own labeled beat (rune/quest source), after the board effects (owner ruling #987).
   for (const eff of recurringEotEffects(state)) {
-    for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+    for (let r = 0; r < repeats; r++) {
+      withRecruitTrigger(
+        ctx,
+        { phase: 'endOfTurn', source: beatSource('rune', eff, RECURRING_EOT_LABEL[eff] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+        () => runRecurringEndOfTurn(state, eff),
+      );
+      fires++;
+    }
   }
   // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
   // the turn — not once per Chronos repeat, or a doubled End of Turn would burn the limit twice as fast.
   const limited = state.questRecurringLimited;
   if (limited?.length) {
     for (const entry of limited) {
-      for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, entry.effect); fires++; }
+      for (let r = 0; r < repeats; r++) {
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: beatSource('quest', entry.effect, RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+          () => runRecurringEndOfTurn(state, entry.effect),
+        );
+        fires++;
+      }
       entry.turnsLeft -= 1;
     }
     state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
@@ -7192,6 +7240,109 @@ function fireOrbitInner(state: RunState, idx: number, arriver: BoardCard | undef
   }
 }
 
+/**
+ * BEAT SYSTEM — snapshot board+hand stats by uid, for the stat-delta diff below.
+ */
+type StatSnap = Map<string, { a: number; h: number; zone: 'board' | 'hand' }>;
+function snapshotStats(state: RunState): StatSnap {
+  const m: StatSnap = new Map();
+  for (const c of state.board) m.set(c.uid, { a: c.attack, h: c.health, zone: 'board' });
+  for (const c of state.hand) m.set(c.uid, { a: c.attack, h: c.health, zone: 'hand' });
+  return m;
+}
+
+/**
+ * BEAT SYSTEM — run a recruit effect inside a source-attributed trigger scope and emit the stat changes it
+ * produced as `statsChanged` consequences, discovered by diffing board+hand around the effect (recruit buffs
+ * land via many helpers; a diff captures them all without instrumenting each). Read-only w.r.t. gameplay: the
+ * diff never mutates. Bails to a bare `run()` when nothing is capturing, so the common (NOOP) path pays one
+ * boolean. This is the shared primitive behind the migrated Shout (PR 3) and End-of-Turn (PR 5) triggers.
+ */
+function withRecruitTrigger(
+  ctx: RecruitContext,
+  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number },
+  run: () => void,
+): void {
+  const collector = ctx.collector;
+  if (!collector.enabled) { run(); return; }
+  const state = ctx.state;
+  const before = snapshotStats(state);
+  // BEAT SYSTEM (PR 6b/6c): NON-OVERLAPPING consequence diffs beyond stats. All diffed (not wired per-effect —
+  // the technique projectEndOfTurnSteps uses) so any future effect is caught, and all orthogonal to (or, for
+  // rubies, carved out of) the board/hand stat diff so the proven statsChanged equivalence holds.
+  const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+  const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
+  const handBefore = new Set(state.hand.map((c) => c.uid));
+  const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
+  const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
+  const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
+  const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
+  const eatenBefore = (state.fodderEaten ?? []).length;
+  const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+  collector.withTrigger(
+    { phase: spec.phase, source: spec.source, trigger: spec.trigger, policy: spec.policy, repeatIndex: spec.repeatIndex, repeatCount: spec.repeatCount },
+    () => {
+      run();
+      for (const [uid, was] of before) {
+        const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
+        if (!now) continue;
+        // BEAT SYSTEM (PR 6c): rubies this trigger played on this minion are their OWN consequence (rubyPlayed),
+        // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
+        // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
+        const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
+        if (rubyN > 0) collector.emit({ type: 'rubyPlayed', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, count: rubyN });
+        const da = now.attack - was.a - rubyN * (1 + rb.attack);
+        const dh = now.health - was.h - rubyN * (1 + rb.health);
+        if (da === 0 && dh === 0) continue;
+        collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+      }
+      // Cards this trigger put in hand (conjures / grants), in arrival order.
+      for (const c of state.hand) {
+        if (handBefore.has(c.uid)) continue;
+        collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+      }
+      // Shop offers this trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's buy bonus) — one per uid.
+      for (const o of state.shop) {
+        const b = shopBefore.get(o.uid);
+        if (!b) continue;
+        const now = offerBuyStats(state, o);
+        const da = now.attack - b.attack;
+        const dh = now.health - b.health;
+        if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
+      }
+      // BEAT SYSTEM (PR 6c): spell-power / imp-aura rises — two-axis auraChanged (Aeon Guard, Void Curator).
+      const spA = spellAttackBonus(state) - spBefore.a, spH = spellHealthBonus(state) - spBefore.h;
+      if (spA !== 0 || spH !== 0) collector.emit({ type: 'auraChanged', aura: 'spellPower', amount: spA + spH, attack: spA, health: spH });
+      const impA = (state.impBuff?.attack ?? 0) - impBefore.a, impH = (state.impBuff?.health ?? 0) - impBefore.h;
+      if (impA !== 0 || impH !== 0) collector.emit({ type: 'auraChanged', aura: 'impAura', amount: impA + impH, attack: impA, health: impH });
+      // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
+      for (const c of state.board) {
+        const wb = attachBefore.get(c.uid);
+        const now = c.attachments ?? 0;
+        if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now });
+      }
+      // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
+      for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
+        collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
+      }
+    },
+  );
+}
+
+/** BEAT SYSTEM (PR 3) — the migrated Shout (`onPlay`) trigger, expressed via the shared primitive. */
+function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectDef, run: () => void): void {
+  withRecruitTrigger(
+    ctx,
+    {
+      phase: 'recruit',
+      source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: CARD_INDEX[played.cardId]?.name },
+      trigger: 'onPlay',
+      policy: presentationPolicyFor(`factory:${effect.do}:onPlay`)?.policy ?? 'ownBeat',
+    },
+    run,
+  );
+}
+
 export function playCard(state: RunState, played: BoardCard): void {
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
@@ -7234,7 +7385,12 @@ export function playCard(state: RunState, played: BoardCard): void {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
     if (effect.align) noteAlignSpark(state, effect.align); // an aligned Shout half firing sparks its side
-    captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
+    // BEAT SYSTEM (PR 3) — the first migrated recruit trigger: a Shout (`onPlay`) opens a source-attributed
+    // trigger scope, and the stat changes it produces are emitted as consequences (diffed here, not by the UI).
+    // Zero overhead when no collector is capturing: `withPlayTrigger` short-circuits to a bare call for NOOP.
+    withPlayTrigger(ctx, played, effect, () => {
+      captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
+    });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
   if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);

@@ -55,7 +55,7 @@ import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, sp
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
-import { holdStat } from './fx/statHold';
+import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
@@ -463,6 +463,11 @@ function conjuredView(cardId: string, run: RunState): CardView | null {
 interface ShopViewOpts {
   /** "Freedom" rift: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
   freeFirstBuy?: boolean;
+  /** END-OF-TURN animation: the running shop-buff delta this offer has accumulated across the beats so far
+   *  (Moira re-firing Market Tormentor / Contract Butcher's Shout). Added to the DISPLAYED stats so the number
+   *  ticks up in real time on the beat, rather than jumping only after the phase commits (owner ask 2026-08-12).
+   *  In effective (post-golden, display) terms — it comes straight from `offerBuyStats` deltas. */
+  eotBuff?: { attack: number; health: number };
   spellCostMod?: number;
   cardBuffs?: Record<string, { attack: number; health: number }>;
   spellBonus?: number;
@@ -628,7 +633,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
-    attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
+    attack: (c.attack + addAtk) * goldMul + (opts.eotBuff?.attack ?? 0), health: (c.health + addHp) * goldMul + (opts.eotBuff?.health ?? 0),
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
     goldenText: lt.goldenText ?? c.goldenText,
@@ -1312,6 +1317,10 @@ export function Recruit() {
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  // During the same animation, the running SHOP-offer buff delta per offer uid — so a shop minion buffed by an
+  // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
+  // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
+  const [eotShopStats, setEotShopStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
   // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
   // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
   // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
@@ -1492,6 +1501,7 @@ export function Recruit() {
     grantPlayedRef.current = [];
     setEotAnimStats(null); // the End-of-Turn climb is done + baked in; combat shows the real units
     setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
+    setEotShopStats(null); // shop-buff climb is committed too — the real offers now carry it
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
     setCombatStage('closing');
     setEndTurnFlash(true);
@@ -1853,6 +1863,9 @@ export function Recruit() {
   // The Y (viewport px) below which releasing a dragged HAND minion cancels back to hand instead of playing —
   // the "minimum play height". Measured once per drag (see the drag effect); Infinity until then = play anywhere.
   const playFloorRef = useRef(Infinity);
+  // A SPELL arms on its own, LOWER line (closer to the hand) than a minion's play floor — so casting doesn't
+  // need a long drag up. Set alongside playFloor from the live `spellLine` knob. Fallback = playFloor.
+  const spellFloorRef = useRef(Infinity);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   /**
@@ -1893,7 +1906,7 @@ export function Recruit() {
   // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
   // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
   // top-left "ghost card" bug).
-  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, playFloorRef.current);
+  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current);
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
@@ -2144,11 +2157,11 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, eotShopStats],
   );
   const spellView = useMemo(
     () => {
@@ -2413,9 +2426,15 @@ export function Recruit() {
     // the low band by the hand no longer counts as playable. Fallback = Infinity (play anywhere) if unmeasured.
     const wbRect = zoneRects.find((z) => z.zone === 'warband')?.r;
     const tvRect = zoneRects.find((z) => z.zone === 'tavern')?.r;
+    const handRect = zoneRects.find((z) => z.zone === 'hand')?.r;
     playFloorRef.current = wbRect
       ? wbRect.bottom - 0.1 * (tvRect ? wbRect.bottom - tvRect.top : wbRect.height)
       : Infinity;
+    // Spells arm on a lower line: slide it from the warband's bottom (spellLine 0) down toward the hand's top
+    // (spellLine 1) — higher = less drag to cast. Falls back to the minion play floor if the hand is unmeasured.
+    spellFloorRef.current = wbRect && handRect
+      ? wbRect.bottom + getDragFeel().spellLine * (handRect.top - wbRect.bottom)
+      : playFloorRef.current;
     // For a spell drag (targeting a friendly minion / any offer), cache the candidate card rects up front:
     // the board/shop don't shift during a spell drag, so targeting hit-tests these instead of elementFromPoint.
     const measureCards = (sel: string): { uid: string; r: DOMRect }[] =>
@@ -2505,14 +2524,14 @@ export function Recruit() {
       // sell/buy-zone glow + `canDropHand`, and the active flip must never be delayed.
       const decOf = (x: number, y: number, z: Zone | null): DragDecision =>
         deriveDragDecision({
-          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current,
+          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
         !shownDec ||
         !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
-        computeCastingSpell(d0, e.clientY, playFloorRef.current) !== computeCastingSpell(d0, committed!.y, playFloorRef.current);
+        computeCastingSpell(d0, e.clientY, spellFloorRef.current) !== computeCastingSpell(d0, committed!.y, spellFloorRef.current);
       if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
@@ -3494,6 +3513,7 @@ export function Recruit() {
     overZone,
     magSlide,
     playFloor: playFloorRef.current,
+    spellFloor: spellFloorRef.current,
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
     board: run.board,
@@ -3921,6 +3941,7 @@ export function Recruit() {
     if (heroArmed) armHero(); // a stray armed Hero Power shouldn't fire mid-animation
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // lock the shop / board / hero power while the beats play
+    setEotShopStats(null); // fresh shop-buff climb for this turn (drained + baked when combat starts)
     const BEAT = 760;
     const GAP = 170;
     const playBeat = (i: number): void => {
@@ -4050,13 +4071,32 @@ export function Recruit() {
         // Shop offers this beat grew (a Moira re-firing Market Tormentor's Shout at End of Turn; Soul Defiler's
         // buy-bonus) — a green burst + "+A/+H" float on each, so the shop buff plays out while the shop is still
         // on screen instead of landing silently after the phase flips to combat (owner report 2026-08-11).
-        for (const sb of bfx.shopBuff ?? []) {
-          const el = document.querySelector(`[data-zone="tavern"] .card[data-uid="${sb.uid}"]`);
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
-          floatSpellPowerNumber(cx, cy - r.height * 0.3, sb.attack, sb.health);
+        if (bfx.shopBuff?.length) {
+          // Tick the DISPLAYED shop-offer stats up on THIS beat (accumulated across beats), so the number climbs
+          // in real time as the Shout re-fires — not just a float over a static number (owner ask 2026-08-12).
+          setEotShopStats((prev) => {
+            const next = { ...(prev ?? {}) };
+            for (const sb of bfx.shopBuff!) {
+              const cur = next[sb.uid] ?? { attack: 0, health: 0 };
+              next[sb.uid] = { attack: cur.attack + sb.attack, health: cur.health + sb.health };
+            }
+            return next;
+          });
+          // The stat change creates an intrinsic "hold" (Card shows the OLD number until a roll/FX drains it).
+          // Board minions' holds drain via their buff-FX descend; a shop offer has none, so its hold would sit
+          // through the whole animation and the number would appear to change only after End of Turn (owner
+          // report 2026-08-12). Release the hold once the new stats have committed (double rAF: after the render
+          // + the layout effect that CREATES the hold), so the printed number lands on the beat under the float.
+          const buffedUidList = bfx.shopBuff.map((sb) => sb.uid);
+          requestAnimationFrame(() => requestAnimationFrame(() => { for (const u of buffedUidList) releaseStat(u); }));
+          for (const sb of bfx.shopBuff) {
+            const el = document.querySelector(`[data-zone="tavern"] .card[data-uid="${sb.uid}"]`);
+            if (!el) continue;
+            const r = el.getBoundingClientRect();
+            const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+            floatSpellPowerNumber(cx, cy - r.height * 0.3, sb.attack, sb.health);
+          }
         }
         // RUBIES this beat played onto board minions (Rune of the Lapidary) — fire the SAME bound gem cascade
         // the shop plays, ON the beat: the reducer-keyed cue only advances when `faceOmen` commits, after the
@@ -4290,8 +4330,9 @@ export function Recruit() {
     // A HAND card (minion OR spell) released DOWN in the hand region REORDERS it — takes precedence over
     // play/cast, so spells reorder too. Lands where the live gap opened (prevHandGapRef, WYSIWYG). The settle
     // Flip is captured here EXCLUDING the dragged card, so it just appears in its new slot — no replay of the
-    // drag. A drop on its own slot is a no-op (it settles back in place).
-    if (d.source === 'hand' && y >= playFloorRef.current) {
+    // drag. A drop on its own slot is a no-op (it settles back in place). Spells use their own LOWER line, so
+    // they only reorder when dropped down near the hand — lifted a little clear of it already arms the cast.
+    if (d.source === 'hand' && y >= (d.view.spell || d.view.ruby ? spellFloorRef.current : playFloorRef.current)) {
       const from = run.hand.findIndex((c) => c.uid === d.uid);
       const to = prevHandGapRef.current >= 0 ? prevHandGapRef.current : handIndexAt(cx, d.uid);
       if (from >= 0 && from !== to) {
@@ -4301,11 +4342,10 @@ export function Recruit() {
       }
       return true;
     }
-    // Cast a spell — playable anywhere from the warband up (incl. the tavern), since spells can't
-    // be sold. A targeted spell hits the minion under the cursor, or auto-targets the carry when
-    // flung up with no minion under it; an untargeted spell just resolves.
+    // Cast a spell — playable anywhere above the (low) spell line, since spells can't be sold. A targeted
+    // spell hits the minion under the cursor; an untargeted spell just resolves once it's above the line.
     if (d.source === 'hand' && (d.view.spell || d.view.ruby)) {
-      const up = zone === 'warband' || zone === 'tavern';
+      const up = y < spellFloorRef.current;
       if (d.view.target === 'friendly' || d.view.target === 'any') {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).

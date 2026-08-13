@@ -21,6 +21,24 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling
+  2026-08-13): adopted Codex's 12-item Definition of Done as the spec. That doc tracks every item as
+  done-merged / built-unmerged / TODO. The authoring surface is built (much of it unmerged, `#1000–#1004`); the
+  real remaining work is the **live cutover** (retire `projectEndOfTurnSteps`), **heroes** (0 registry entries),
+  **comprehensive emission** (combat/start-of-turn/hero), **folded-cue combat attribution**, **multi-phase
+  sources**, **emission-coverage CI**, and **FX-isolation tests**. Merge `#1000–#1004` first.
+- **DEFERRED (owner, 2026-08-12) — roll the End-of-Turn shop buff instead of jumping.** The EoT shop-buff
+  real-time fix (#996) makes a buffed Shop minion's stat land on the beat, but it JUMPS (via `releaseStat`)
+  rather than rolling up smoothly the way a board minion's End-of-Turn gain does. Owner wants it to roll too.
+  The board rolls because its buff-FX descend drains the stat hold over `rollMs`; the shop offer has no such
+  descend, so its hold is released instantly. To roll: drive the shop offer's hold delivery with a roll
+  (e.g. a `holdStat`/`claimStat` schedule on the offer, or a shop-side descend cue) instead of `releaseStat`.
+  Low priority, revisit later.
+- **BEAT SYSTEM + BEAT LAB — IN PROGRESS (kicked off 2026-08-12).** The next big project: universal
+  source-attributed trigger beats (recruit + combat) + a dev-only Beat Lab tuner (owner handoff docs in
+  Documents/Codex). 13-PR arc, owner checkpoint after PR 4 (read-only viewer). PR 1 (policy registry, 654
+  keys classified, 42 flagged for review, `beats:audit`, CI tripwire) is up. Next: PR 2 (presentation
+  collector), PR 3 (recruit pipeline + one migrated trigger), PR 4 (read-only Beat Lab shell).
 - **Beast batch (owner) — SHIPPED 2026-08-12.** Kennelmaster Avenge 3→4; King Oona doubles Attack only; 4 new
   Beasts (Wolvie, Armadiyo, Dunkey, Voidmother) and 4 new runes (Burrow, Voidmother, Jungle, Beastial Swarm),
   with three new combat mechanics (next-summon queue, resummon-without-Echo, per-death buff + run-persisted

@@ -21,8 +21,395 @@ path (cosmetic); optional re-import of a pasted summary back into the editor.
 Verified: per-module Vitest unit tests (config/resolver/selector/transforms/scratchpad/uiAssetPlugin),
 typecheck + lint + full test suite (5004 tests) + build:web all green; the DOM/pointer overlay code-reviewed
 with live browser verification.
+## 2026-08-12 — Refresh button art swapped (owner-supplied purple pill)
+
+Replaced the Refresh button art with a new owner-supplied purple "Refresh" pill (converted from PNG to WebP at
+800×233, q92 — the shipped format; PNG masters are guarded out of the build). Dropped in at
+`apps/web/public/frames/refresh_button1.webp`, the file `RefreshButton.tsx` renders, so **no code change** — the
+`<img src>` id is unchanged. The wordmark is baked into the art, matching the previous asset.
+
+The new art is a **wider, flatter pill** (aspect 3.43 vs the old 2.36), so it will sit differently at the current
+baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size re-tuning is a deliberate
+follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
+and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
+unused vertical crystal) is untouched.
+
+## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
+
+**Rune of Twilight didn't double Fleeting Vigor's Start-of-Combat buff (gameplay bug).** Twilight ("your
+Start-of-Combat effects trigger an additional time") re-fires minion `startOfCombat` EFFECTS inside the
+simulator. But Fleeting Vigor's buff (and Open the Gates' Imps) are PENDING effects pre-baked into the combat
+board at `faceOmen`, BEFORE the simulator's SoC pass — the sim's Twilight loop never saw them, so they were
+silently exempt. Fixed at the pre-bake site (`reducer.ts`): ×2 when `questFlags.runeTwilight` is armed, for both
+the Fleeting Vigor buff and the pending-Imp summon. Test: base 2/2 + Fleeting +2/+1 → 4/3 without Twilight, 6/4
+with. (Same root cause as why these show as EMPTY in the Beat Lab library — pending SoC lives outside the
+`startOfCombat` path.)
+
+**Beat Lab preview didn't gate consequences by beat timing (authoring-tool bug).** A beat's consequence ("↳
+stats +2/+2") rendered statically, always visible — so setting a windup/hold appeared to do nothing ("the beat
+timing isn't establishing when the buff goes out"). Now a consequence is withheld ("⋯ pending until this beat
+fires") until the playhead reaches its beat's consequence point (start + windup), then lands; at rest the final
+state is shown, during playback/scrub the timing gates it. This is preview fidelity only — the Beat Lab is
+authoring-only; the game's live timing is still driven by `projectEndOfTurnSteps` until the cutover.
+
+Verified: typecheck + lint + npm test (5036; +2 Twilight) + build:web green; live — preview shows consequences
+pending before their beat's windup, landed at rest/after.
+
+## 2026-08-12 — Beat System PR 9: source-grouped Beat Lab library + EMPTY-trigger surfacing
+
+Owner report: the library didn't show effects you'd search for (e.g. "Fleeting Vigor" — no Start-of-Combat
+beat) and was hard to use, because it listed internal FACTORY ids, not card names. Reorganized the whole
+Library around named sources, and surfaced the combat moments that have no beat at all. Dev-only.
+
+**Why Fleeting Vigor was invisible (two distinct reasons, both fixed):** (1) its cast effect was registered as
+`factory:spellPendingSCBuff:cast` and the library showed the factory id, so a name search missed it; (2) the
+Start-of-Combat +2/+1 it plants is applied by the SIMULATOR, not a content EffectDef, so it had no registry
+entry at all — a genuinely EMPTY trigger.
+
+**`sourceLibrary.ts`**: enumerate per named source (card/rune/quest), each with its trigger moments. Content
+EffectDefs → `factory:<do>:<on>` rows (combat triggers like onDeath/onAttack/startOfCombat/avenge are already
+registered — grouping surfaces them). DERIVED moments (the `spellPending*` pattern → Start of Combat) become
+EMPTY rows. Human moment labels ('Shout', 'Start of Combat', 'Echo', …). Per-SOURCE edit keys
+(`source:<kind>:<id>:<trigger>`) so tuning one card never moves a sibling. Searchable by NAME; `emptyOnly`
+filter isolates the unassigned ones.
+
+**`BeatLibrary.tsx` (rewritten)**: a card-grouped tree — search by name → expand a source → its triggers with a
+coverage badge (beat / silent / EMPTY) → inspector (numeric + drag timing + synthetic preview). An EMPTY
+trigger gets a banner explaining it currently emits nothing (a silent simulator moment) and that a timing here
+records the intended beat while actual emission is a one-line engine follow-up. Kind filters + an EMPTY(count)
+filter up top. Replaces the flat factory-id list (`library.ts` deleted).
+
+JUDGMENT CALL (owner-flagged): the derived/combat EMPTY surface is currently the two known `spellPending*`
+factories; other silent-application mechanics get added as identified. FOLLOW-UP: wiring the actual event
+emission for an EMPTY trigger (so its beat plays in-game) is per-trigger engine work, separate from declaring
+its timing here.
+
+Verified live: searched "fleeting" → found Fleeting Vigor by name with a "has EMPTY" flag; its EMPTY Start of
+Combat opened the inspector with the banner + editable timing + drag timeline + preview. typecheck + lint +
+npm test (5034; +7 sourceLibrary) + build:web all green.
+
+## 2026-08-12 — Beat System PR 8b: commit tuned timings to beat-defaults.json (dev endpoint)
+
+Ninth slice (stacked on PR 8) — closes the authoring loop: the Beat Lab's tuned timings can now be COMMITTED to
+a git-tracked file instead of only Copy-JSON'd to the clipboard, so a tune is durable, ships to the other dev,
+and becomes the shipped baseline. Dev-only, no production/gameplay path.
+
+**Committed defaults** (`packages/ui/src/beatLab/beat-defaults.json`, starts `{version:1, timings:{}}`):
+`beatTiming.ts` imports it as `SHIPPED_OVERRIDES` and folds it UNDER the session draft in `resolveBeatTiming`
+(committed → draft → shipped per-policy default, field-level), so a committed tune applies everywhere the
+resolver is read while an uncommitted edit still wins for the same field. `mergeOverrides` is the field-level
+layering helper.
+
+**Dev endpoint** (`apps/web/beatLabPlugin.ts`, `apply:'serve'` — inert in prod, mirrors `fxDefsPlugin`): POST
+`/__beat-lab/defaults` with the whole validation surface in one pure `planBeatDefaultsWrite` (unit-tested
+without a server): version 1, `timings` an object, each key matching the specificity grammar
+(source/family/trigger/policy/global), each patch only windup/hold/recovery finite non-negative numbers,
+prototype-pollution keys rejected. Destination fixed by the plugin (no traversal question). Re-serialized so
+the committed file always diffs cleanly. Registered in `apps/web/vite.config.ts`.
+
+**UI** (`BeatLab.tsx`): a "Commit to repo" button (beside Copy JSON / Reset all) POSTs `mergeOverrides(committed,
+draft)` — accumulating, not replacing — then clears the session draft on success (the write + static import +
+HMR reload the new baseline). Reports the written path or the rejection reason.
+
+Verified live: POST a valid override → `{ok:true, path: packages/ui/src/beatLab/beat-defaults.json}` and the
+file on disk gained the entry; a bad key → 400 with the reason; GET → 405. (Reset the test override so shipped
+defaults stay empty — owner tunes + commits deliberately.) typecheck + lint + npm test (5031; +6 planWrite) +
+build:web all green.
+
+## 2026-08-12 — Beat System PR 8: drag-timeline editing in the Beat Lab
+
+Eighth slice (stacked on PR 7) — a tactile complement to PR 7's numeric fields: a horizontal timeline of the
+scheduled beats where you drag a beat's hold edge to tune its hold time. Dev-only, no gameplay impact.
+
+**Pure geometry** (`timelineMath.ts`, unit-tested): ms↔px mapping, 25ms snapping (Alt disables), per-beat
+region layout (wind-up | hold | recovery + the hold-edge handle x), a fit-to-width scale, `holdFromDragPx`
+(pointer x → snapped holdMs), and round ruler ticks. No DOM — the drag handler stays a thin wrapper that
+measures the track ONCE per drag (the FX Workbench lesson).
+
+**Component** (`BeatTimelineStrip.tsx`): renders the fixture batch's beats as bars on a ms ruler, each with a
+draggable hold handle; dragging writes `holdMs` into the SAME draft slot the numeric Hold field edits, so the
+inspector value, the provenance, and the synthetic preview all update live. A beat is only draggable if its
+trigger resolves to the inspector's edit key (dragging one Lapidary beat moves both its repeats, never an
+unrelated source). Wired into the Library inspector above the preview.
+
+Verified live: dragged rune_lapidary's hold handle right → Hold 420→1200 (snapped 25ms), provenance flipped to
+the exact-source override, preview re-paced 1420→2980ms, draft badge updated. typecheck + lint + npm test
+(5025; +6 timelineMath) + build:web all green. (Still the authoring tool — not the live cutover.)
+
+## 2026-08-12 — Beat System PR 7: timing layer + Beat Lab editor (browse + tune every beat without playing)
+
+Seventh slice — the owner's stated end goal: sort through and modify beats without playing cards. Dev-only,
+no gameplay impact (drafts pace only Beat Lab playback; the live cutover is still separate).
+
+**Timing layer** (`beatTiming.ts`): a specificity-ordered resolver — `source:<kind>:<id>:<trigger>` → registry
+`family:<family>` → `trigger:<trigger>` → `policy:<policy>` → global. Overrides are SPARSE patches merged
+least-to-most-specific so the most specific field wins; with none, it reproduces the PR-6 player's shipped
+per-policy defaults exactly (equivalence first). `timingProvenance` reports which level supplies each field.
+`scheduleBeats` now accepts a per-event resolver so the editor's draft paces the preview.
+
+**Library** (`library.ts` + `BeatLibrary.tsx`): the whole policy registry (654 entries) as a searchable,
+policy-filterable list — browse every automatic effect with NO run required. Selecting one shows an inspector
+(effective windup/hold/recovery + per-field provenance + the exact draft key it writes to) and a SYNTHETIC
+preview batch (the trigger firing twice with stat consequences) played through the same scheduler/player as
+Capture mode — so a numeric edit re-paces the preview immediately. Factory rows edit their FAMILY (a factory
+has no per-card source key); rune/quest rows edit their exact source.
+
+**Draft model** (`BeatLab.tsx`): Capture/Library tabs share one session draft of sparse overrides. NEVER
+persisted, never auto-active on load (the old pacing-tuner failure). `Copy JSON` exports the sparse overrides
+for source control; `Reset all` clears them. The capture viewer + transport were refactored into a shared
+`BatchPlayer` both modes use.
+
+Verified live: opened Library, filtered to rune_lapidary, edited Hold 420→900 — the field flipped to the
+exact-source provenance and the synthetic preview re-paced 1420ms→2380ms on the spot; draft badge + Copy JSON
+appeared. typecheck + lint + npm test (5019; +13 timing/library/timeline) + build:web all green.
+(Note: not the live cutover — the game's End-of-Turn animation still runs on projectEndOfTurnSteps.)
+
+
+## 2026-08-12 — fix(ui): End-of-Turn shop buffs climb in real time
+
+Owner report: when an End-of-Turn effect buffs a Shop minion — a Moira re-firing Market Tormentor / Contract
+Butcher's Shout at End of Turn — the shop card played only a green burst + a floating "+A/+H", but the printed
+stat number didn't move until the phase flipped to combat and the buff committed. It should tick up ON the beat,
+like a board minion's End-of-Turn gain does.
+
+Fix, two parts (Recruit.tsx + shopView): board minions already climb per beat via `eotAnimStats`; shop offers
+now have the parallel `eotShopStats` — a running per-offer buff delta accumulated from the projection's
+`EotStepFx.shopBuff` as each beat fires, folded into the offer's displayed stats by `shopView` (a new `eotBuff`
+opt). Reset at the start of the End-of-Turn animation, drained when the phase commits.
+
+The FIRST cut of that alone did NOT work (owner caught it): a stat change creates an intrinsic "hold" in `Card`
+(it shows the OLD number until a roll/FX drains it — the buff-pop). A board minion's hold is drained by its
+buff-FX descend; a shop offer has none, so the hold sat through the whole animation and the number only appeared
+to change after End of Turn. Part two: `releaseStat(uid)` on the buffed offers once the new stats have committed
+(double rAF, after the layout effect that creates the hold), so the number lands on the beat under the float.
+
+Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion → End Turn → the offer's attack
+badge ticks `recruit:1 → recruit:8 → combat:8` (changes on the beat, in recruit, before the phase flip).
+typecheck + lint + build:web green. Standalone fix (off main), independent of the beat-system stack.
+(Possible refinement: the shop number JUMPS via releaseStat; the board ROLLS — could roll the shop too later.)
+## 2026-08-12 — Beat System PR 6c: complete End-of-Turn consequence coverage (ruby / auras / welds / fodder)
+
+Continuation slice (stacked on PR 6b) — closes the remaining consequence types so the event stream reaches
+full parity with what the live End-of-Turn animation shows (the prerequisite for the eventual cutover). Owner
+rulings 2026-08-12:
+
+- **ruby → `rubyPlayed`** (owner: "it should be ruby played"): rubies a trigger plays are now their OWN
+  consequence, carved OUT of the generic stat diff (each Ruby = 1+rubyBonus per axis subtracted from the
+  statsChanged delta), so the viewer/player can fire the gem cascade rather than a plain stat bump. The
+  equivalence harness now reconstructs the board total as ordinary deltas + rubyPlayed×(1+bonus).
+- **spell power / imp aura → `auraChanged`**: the aura consequence gained optional `attack`/`health` (these
+  channels are two-axis; `amount` stays = attack+health for single-axis readers). Emitted on the delta.
+- **welds → `counterChanged`** (`attachments`, one per host) and **fodder consumed → `cardDestroyed`** (one
+  per eaten token).
+
+All diffed generically (the projectEndOfTurnSteps technique), so any future effect is caught. Everything except
+rubies is orthogonal to stats; rubies are explicitly carved out and the equivalence test updated to match.
+
+Verified: typecheck + lint + npm test (5006) + build:web green. The live shop End-of-Turn animation remains on
+projectEndOfTurnSteps — the cutover (drive it from events + retire the projector) is still the next, owner-gated
+step (needs a manual playtest).
+
+## 2026-08-12 — Beat System PR 6b: expanded End-of-Turn consequence coverage (grants + shop buffs)
+
+Continuation slice (stacked on PR 6) toward the eventual live cutover. Extends the shared recruit trigger
+diff (`withRecruitTrigger`, used by both the Shout and End-of-Turn triggers) to also emit two NON-OVERLAPPING
+consequence types beyond stats:
+
+- **`cardGranted`** — cards a trigger conjured/granted to hand (The Hoard Wakes, Rune of Spending's conjures,
+  grantRandomShout, …), in arrival order.
+- **`shopChanged(buffed)`** — shop offers a trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's
+  buy bonus), one delta per offer uid.
+
+Both are diffed (not wired per-effect — the same technique `projectEndOfTurnSteps` uses) so any future granter
+or shop-buffer is caught, and both are ORTHOGONAL to the board/hand stat diff (a granted card is new; a shop
+offer isn't on the board), so the PR-6 `statsChanged` equivalence is undisturbed — asserted in the new tests.
+
+DELIBERATELY DEFERRED to the live-cutover PR (they need a schema/overlap decision the owner should weigh, and
+the cutover itself needs a manual playtest of Mike's shop animation): ruby-as-`rubyPlayed` (overlaps the stat
+diff), spell-power / imp-aura (`auraChanged` carries one scalar; these are attack+health), welds, and fodder
+consumption. The live shop End-of-Turn animation remains on `projectEndOfTurnSteps` — untouched.
+
+Verified: typecheck + lint + npm test (5006; +3 coverage + stat-equivalence-undisturbed) + build:web green;
+live faceOmen batch showed `cardGranted` (a conjured Shout) beside the Lapidary `statsChanged`.
+
+## 2026-08-12 — Beat System PR 6: beat-player engine + End-of-Turn equivalence (no live cutover)
+
+Sixth slice (stacked on PR 5). Owner-scoped decision: build the playback ENGINE and prove event↔gameplay
+equivalence, but DO NOT cut the live shop animation over yet — PR 5's event stream carries stats + resources
+but not yet the full FX set the live End-of-Turn animation needs (card/hand grants, spell power, imp aura,
+shop buffs, welds, fodder). Cutting over now would regress those; the cutover waits for a later coverage PR.
+
+**Player engine** (`beatLab/beatTimeline.ts`, pure + unit-tested): `scheduleBeats(batch)` compiles a
+PresentationBatch into an ordered, sequentially-timed list of beats (one per trigger, consequences attached by
+parentId), with restrained per-policy default timings (ownBeat holds, foldedCue barely does).
+`activeBeatIndex(beats, ms)` gives the playhead's current beat. Deterministic.
+
+**Beat Lab transport**: the read-only viewer gains ▶/⏸ ⏮ ⏭ ⏹ + a playhead that walks the schedule via rAF,
+highlighting the active beat (blue glow) as it plays — you can watch a captured batch beat-by-beat. Still
+dev-only, still read-only w.r.t. gameplay.
+
+**Equivalence harness** (`beatEotEquivalence.test.ts`): asserts the batch's per-uid stat deltas equal the
+GROUND TRUTH (a real `applyEndOfTurn` diff) — no phantom, no missing stat events — the prerequisite before any
+future live cutover. Also asserts the legacy `projectEndOfTurnSteps` still runs unchanged (live path untouched).
+
+Verified: typecheck + lint + npm test (5003; +8 timeline + equivalence) + build:web green; live — played a
+Shout, opened Beat Lab, hit ▶ and watched the Hoard Cleric beat highlight with its +3/+3 consequences,
+transport reading `beat 1/1 · 710/710ms`.
+
+## 2026-08-12 — Beat System PR 5: End-of-Turn event migration
+
+Fifth slice (stacked on PR 4) — the first real vertical slice from the handoff doc. `applyEndOfTurn` now emits
+a source-attributed End-of-Turn batch as it resolves, so the reported EoT presentation gaps are closed at the
+event level. Gameplay byte-identical to before (equivalence-tested).
+
+**What emits.** Board End-of-Turn effects fire LEFT-TO-RIGHT (resolution order preserved), each Chronos repeat
+its own trigger (`repeatIndex`/`repeatCount`), stat changes as `statsChanged` consequences. Then the recurring
+quest/rune rewards (labeled beats — Lapidary, Crucible Choir, Echoing Roar, …) and the turn-limited
+recurrences (Quick Study) — after the board effects, per owner ruling #987. **Rune of the Coffers** and **Rune
+of Shopkeep** — which changed HUD numbers silently (handoff-doc §9.1 item 1) — now each emit an own-beat
+`resourceChanged` (maxGold +1 / upgradeCost −3).
+
+**How.** The PR-3 diff primitive generalized into `withRecruitTrigger(ctx, {source, trigger, policy, phase,
+repeatIndex, repeatCount}, run)` — opens a source scope, runs the effect, emits the board/hand stat delta;
+bails to a bare call when nothing captures. `withPlayTrigger` (PR 3's Shout) now rides it too. Policies come
+from the PR-1 registry (`factory:<do>:endOfTurn`). `reduceWithPresentation` tags a `faceOmen` batch
+`endOfTurn`.
+
+The OLD visual playback (`projectEndOfTurnSteps` + Recruit.tsx's fixed beat loop) is UNCHANGED and still
+drives the shop animation — PR 6 switches the UI to consume these authoritative events; this PR only makes them
+available (and visible in the Beat Lab viewer).
+
+Verified: typecheck + lint + npm test (4995; +6 equivalence/emission/ordering/determinism) + build:web green;
+live faceOmen on a throwaway run captured `endOfTurn` batch with Coffers + Lapidary own-beats in board→recurring
+order.
+
+## 2026-08-12 — Beat System PR 4: the read-only Beat Lab viewer (checkpoint milestone)
+
+Fourth slice (stacked on PR 3) — the owner's checkpoint milestone. "Start with truth, not tooling": a
+dev-only, read-only overlay that renders the exact source-attributed batch the recruit reducer emitted for the
+last action, before any timing editor exists. If the tree reads correctly, the event stream is trustworthy.
+
+`packages/ui/src/beatLab/BeatLab.tsx` (+ css) reads `latestBatch`/`beatRevision` from the store (published in
+DEV by PR 3) and assembles the flat event list into a trigger tree: consequences and child triggers hang off
+their `parentId`; each trigger row shows resolution step, a policy tint (ownBeat/foldedCue/passive/silent),
+the source label, kind/trigger, and repeat index; consequences render as one-line summaries; unparented
+consequences get their own section. No editing, no persistence, no gameplay effect. Wired into the Dev Menu
+(🥁 Beat Lab) beside the FX Workbench.
+
+Verified LIVE: drove a throwaway run, played Hoard Cleric (a Shout) → the store captured
+`play · 3 events · rev N` and the viewer rendered `[ownBeat] Hoard Cleric minion/onPlay ↳ stats +3/+3 →
+board:b1 ↳ stats +3/+3 → board:b2` — the real onPlay trigger with both buffs parent-attributed. Also
+confirmed the DEV capture path publishes (beatRevision bumps on every dispatch) and that a fresh dev-server
+restart was required (a reused server served stale pre-change code). typecheck + lint + build:web green.
+
+This completes PRs 1–4 (registry → collector → recruit pipeline → viewer) — the owner checkpoint before
+End-of-Turn playback (PR 5+) and any editor.
+
+## 2026-08-12 — Beat System PR 3: the recruit presentation pipeline
+
+Third slice (stacked on PR 2). Wires the collector into recruit resolution and migrates the FIRST trigger, so
+a played Shout produces a real source-attributed batch. Gameplay is byte-identical to before (proven).
+
+**Plumbing.** `activeCollector.ts` — a tiny standalone holder (imports only `@game/core`, so no new cycles):
+`reduce` is synchronous and non-reentrant per action, so a module-scoped "active collector" set once around one
+`reduce` call has exactly the lifetime of one resolution. `makeContext` reads it into `RecruitContext.collector`
+(NOOP outside a capture scope — bots/tests/plain `reduce` pay nothing). `reduceWithPresentation(state, action,
+capture)` returns `{state, batch}`: with `capture` off it's literally `reduce` + null; with it on, it runs
+inside `withActiveCollector` and returns the finished batch.
+
+**First migrated trigger.** `playCard`'s `onPlay` (Shout) loop now runs each effect inside a source-attributed
+trigger scope (`withPlayTrigger`) whose policy comes from the PR-1 registry; the stat changes it produces are
+emitted as `statsChanged` consequences, discovered by diffing board+hand around the effect (read-only — never
+mutates). Bails to a bare call when nothing is capturing, so the NOOP path costs one boolean.
+
+**UI.** `store.ts` (Mike's file — coordinated): additive `latestBatch`/`beatRevision` slice; `dispatch`
+resolves through `reduceWithPresentation` in DEV only (prod + headless keep plain `reduce`) and publishes the
+batch. Never serialized into a save. The Beat Lab viewer (PR 4) consumes it.
+
+Verified: typecheck + lint + npm test (4989; +4 equivalence/emission/determinism tests) + build:web all green.
+
+## 2026-08-12 — Beat System PR 2: the presentation collector
+
+Second slice of the beat-system arc (stacked on PR 1). Pure new engine plumbing — no gameplay change, nothing
+consumes it yet.
+
+**Contracts** (`packages/core/src/presentation/events.ts`): the shared source-attributed event model from the
+blueprint — `SourceTriggerEvent` (source ref + trigger + policy + parent/step/simultaneity) and a
+`ConsequenceEvent` union describing mutations DIRECTLY (statsChanged, keyword, summon/destroy/transform, card
+grant, spell, resource, shop, aura, counter, ruby) so presentation never diffs state to learn what happened.
+`ZoneTargetRef` carries a zone (board/hand/shop/…), because recruit effects target offers, not only combat uids.
+
+**Collector** (`collector.ts`): `makeCollector(actionId, phase)` stamps deterministic batch-local ids
+(`trigger:<action>:<seq>` / `event:<action>:<seq>` — no time/random, so replays are byte-identical), tracks a
+trigger stack (consequences inherit the active `parentId`; nested triggers inherit their parent), and manages
+resolution-step boundaries (`newStep` per own beat, `currentStep` to fold). `NOOP_COLLECTOR` is the
+zero-cost stand-in for headless bots / gameplay-only reducer calls (`enabled:false` lets hot paths skip
+building drafts). `endTrigger` pops defensively so one missing close can't corrupt later attribution.
+
+Verified: typecheck + lint + npm test (4985; +8 collector determinism/nesting/no-op tests) + build:web all green.
+
+## 2026-08-12 — Beat System PR 1: the presentation-policy registry + `beats:audit`
+
+Kickoff of the Beat System + Beat Lab project (owner handoff docs in Documents/Codex — universal
+source-attributed trigger beats + a dev-only timing tuner). Owner rulings at kickoff: review checkpoint after
+PR 4 (the read-only viewer), I build both halves (core/sim + UI, Mike looped on his files), the remaining
+interim fixes (Oona pulse, Aftershocks marker, …) fold into PRs 9–10 rather than double-building, and PR 1's
+classification is mine-to-propose / owner-to-review.
+
+**What shipped.** `packages/core/src/presentation/` — the shared vocabulary (`PresentationPolicy`:
+ownBeat / foldedCue / passive / intentionallySilent, keys, entry shape) and the REGISTRY: all **654**
+automatic-effect keys the live content produces (333 factory×trigger pairs, 218 runes, 103 quests),
+classified by trigger-based heuristics with **42 flagged** for owner review (economy watchers, cast-reactors,
+Shout-reactors, Orbit-fired watchers — the genuinely judgment-call classes). `presentationSurface()`
+(content-side) is the single enumerator; `presentationPolicies.test.ts` is the CI tripwire — an unclassified
+new effect fails, a registry ghost fails, a silent entry without a reason fails. `npm run beats:audit`
+prints the human review table (`--flagged` for the review list, `--json` for the future Beat Lab).
+
+No gameplay change — pure data + tests + tooling. Gates: typecheck / lint / 4977 tests / build:web all green.
+## 2026-08-12 — Spells arm on their own, lower line (drag-to-cast needs less lift)
+
+Owner: dragging a spell from the hand felt like too long a drag before it "activated as a spell." Root cause:
+a spell shared the **minion play line** (`playFloor`, ~10% up from the warband's bottom), so both targeted
+and untargeted spells had to be dragged nearly to the warband before they'd aim/cast.
+
+Fix (UI-only): give spells their own, LOWER line. New `spellFloor` sits between the warband's bottom and the
+hand's top, from a live `spellLine` knob (0 = at the warband, 1 = at the hand's top edge; default **0.55**).
+Everything spell-side now reads `spellFloor` instead of `playFloor`: the aim-reticle gate
+(`computeCastingSpell`), the reorder-vs-cast boundary (a spell only reorders when dropped down near the hand),
+and untargeted casting (`up = y < spellFloor`, replacing the warband/tavern-zone check). Minion play is
+untouched — `playFloor` is unchanged, and `spellFloor` in the pure decision layer falls back to `playFloor`
+when absent (so the old behaviour is the default). Added a **Drag-Feel → Spell cast** slider so the owner can
+dial the line live.
+
+`dragDecision.ts` gains an optional `spellFloor` input threaded from `Recruit`'s new `spellFloorRef` (computed
+alongside `playFloorRef` from the hand rect). New tests pin the split (spell aims between the two lines while a
+minion at the same height still reorders; spell reorders below its line; fallback = play floor).
+`DRAG_DEFAULTS_VERSION` 6→7 + fingerprint. Also folds in an owner drag-feel retune from the same session:
+`handPop` 0.53→0.22 (a gentler hand hover-pop). Verified: typecheck (pkgs+web), eslint 0 errors, 4977 tests,
+build:web.
 
 ## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
+## 2026-08-12 — Bake owner-tuned HAND-row Y default (raise the hand)
+
+Follow-on to #995 (which baked the shop/warband/shop-controls layout defaults): the owner's latest Layout Lab
+export also moved the **hand row up**, `handY` −2 → **−117** — the one value #995 didn't include. Baked in both
+places so dev (Layout Lab `def`) and production (the `--z-hand-y` CSS fallback in `styles.css`) match: a Reset
+and a prod build now both sit the hand at −117. No other layout value differs from the owner's export.
+
+Verified: typecheck (pkgs+web), eslint 0 errors, tests, build:web.
+
+## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
+
+Owner-tuned the Layout Lab and asked to ship the new positions as defaults. Seven knobs changed, all in the
+shop / shop-controls / warband regions: shop row `X 6→9 / Y −22→27`, shop controls `Scale 1.31→1.52 / X 0→5 /
+Y −92→−45`, warband `X 6→9 / Y −195→−163`. Everything else in the paste already matched.
+
+Updated in BOTH sources of truth, as `layoutConfig.ts` requires: the `def:` fields (dev tuner Reset + dev boot)
+AND the `styles.css` `var(..., fallback)` values (what production actually renders, since `applyLayout` is
+dev-gated and never runs in a shipped build). `--z-wb-y` has two fallback sites (`.zone[data-zone='warband']`
+lines) — both moved. Verified: `typecheck:web` + `build:web` green; grep confirms no stale old-value fallbacks
+remain and neither changed file introduces a lint error. Dev preview is visually unchanged (it already read the
+tuned values from localStorage); the change is what a fresh player / production now gets.
 
 Owner report: Rune of the Lapidary showed no cards-played counter, and its End-of-Turn Rubies never animated.
 Two audits followed (counters; EoT animations), each closing a CLASS, not just the instance.

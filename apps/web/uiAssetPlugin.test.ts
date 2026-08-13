@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { planUiAsset, ASSET_DATA_URL_PREFIX, MAX_ASSET_BYTES } from './uiAssetPlugin';
+import { planUiAsset, ASSET_DATA_URL_PREFIX, MAX_ASSET_BYTES, DEFAULT_ASSETS_ROOT } from './uiAssetPlugin';
 
 const ROOT = path.resolve('/repo/packages/ui/src/assets/ui-editor');
 const PNG_HEADER = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -23,5 +23,13 @@ describe('planUiAsset', () => {
   it('rejects an oversize payload', () => {
     const big = ASSET_DATA_URL_PREFIX + 'A'.repeat(MAX_ASSET_BYTES * 2 + 4);
     expect(planUiAsset({ slug: 'x', dataUrl: big }, ROOT).status).toBe(413);
+  });
+});
+
+describe('DEFAULT_ASSETS_ROOT', () => {
+  it('default assets root resolves under packages/ui/src (not apps/packages)', () => {
+    const norm = DEFAULT_ASSETS_ROOT.split(path.sep).join('/');
+    expect(norm.endsWith('packages/ui/src/assets/ui-editor')).toBe(true);
+    expect(norm.includes('apps/packages')).toBe(false);
   });
 });

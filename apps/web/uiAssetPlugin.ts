@@ -53,7 +53,7 @@ export function planUiAsset(body: unknown, assetsRoot: string): WritePlan {
 }
 
 const MAX_BODY_BYTES = MAX_ASSET_BYTES * 2 + 4096;
-const DEFAULT_ROOT = fileURLToPath(new URL('../packages/ui/src/assets/ui-editor', import.meta.url));
+export const DEFAULT_ASSETS_ROOT = fileURLToPath(new URL('../../packages/ui/src/assets/ui-editor', import.meta.url));
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -75,7 +75,7 @@ function send(res: ServerResponse, status: number, payload: unknown): void {
 }
 
 export function uiAssetPlugin(options: { assetsRoot?: string } = {}): Plugin {
-  const assetsRoot = path.resolve(options.assetsRoot ?? DEFAULT_ROOT);
+  const assetsRoot = path.resolve(options.assetsRoot ?? DEFAULT_ASSETS_ROOT);
   const repoRoot = path.resolve(assetsRoot, '..', '..', '..', '..', '..');
   return {
     name: 'ascent:ui-asset',

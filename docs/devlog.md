@@ -23,6 +23,15 @@ minion at the same height still reorders; spell reorders below its line; fallbac
 build:web.
 
 ## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
+## 2026-08-12 — Bake owner-tuned HAND-row Y default (raise the hand)
+
+Follow-on to #995 (which baked the shop/warband/shop-controls layout defaults): the owner's latest Layout Lab
+export also moved the **hand row up**, `handY` −2 → **−117** — the one value #995 didn't include. Baked in both
+places so dev (Layout Lab `def`) and production (the `--z-hand-y` CSS fallback in `styles.css`) match: a Reset
+and a prod build now both sit the hand at −117. No other layout value differs from the owner's export.
+
+Verified: typecheck (pkgs+web), eslint 0 errors, tests, build:web.
+
 ## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
 
 Owner-tuned the Layout Lab and asked to ship the new positions as defaults. Seven knobs changed, all in the

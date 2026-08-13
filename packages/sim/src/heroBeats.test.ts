@@ -100,21 +100,26 @@ describe('gameplay is unchanged', () => {
   });
 });
 
-describe('hero coverage tripwire (heroes cannot ride the content surface)', () => {
-  it('every hero key in the registry is well-formed and classified', () => {
+describe('what this file adds on top of heroPolicies.test.ts', () => {
+  // `heroPolicies.test.ts` owns the ENUMERATION tripwire: every hero in `heroSurface()` has a registry row,
+  // and no hero row is a ghost. That subsumes the key-shape and missing-row checks this file used to repeat,
+  // so they are gone rather than left as a second, weaker copy of the same guarantee.
+  //
+  // What remains here is the part enumeration cannot see: a classified power is not the same as an EMITTING
+  // one. A power can be perfectly classified and still resolve in silence — which is the exact failure this
+  // whole project exists to end, and what the owner hit with Re-Pete.
+
+  it('a classified hero power still needs a family for template timing', () => {
     const heroKeys = Object.keys(PRESENTATION_POLICIES).filter((k) => k.startsWith('hero:'));
-    expect(heroKeys.length, 'at least one hero power is classified').toBeGreaterThan(0);
     for (const key of heroKeys) {
-      expect(key, `${key} must be hero:<id>:<powerKind>`).toMatch(/^hero:[a-z0-9_-]+:[a-zA-Z0-9_-]+$/);
       const entry = PRESENTATION_POLICIES[key];
       expect(entry.family, `${key} needs a family for template timing`).toBeTruthy();
       if (entry.policy === 'intentionallySilent') expect(entry.reason, `${key} must justify silence`).toBeTruthy();
     }
   });
 
-  it('every EMITTING hero power has a registry row', () => {
-    // The list grows as powers are wired. A wired power missing its row would emit an orphan identity, which
-    // presentation could not time — the failure PR 1 exists to prevent.
+  it('every power wired to EMIT resolves through the registry', () => {
+    // Grows as powers are wired. Classification alone was never the finish line.
     for (const key of ['hero:repete:secondHand']) {
       expect(PRESENTATION_POLICIES[key], `${key} is emitted but unclassified`).toBeDefined();
     }

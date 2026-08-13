@@ -5471,7 +5471,21 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
     const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier };
-    if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }));
+    if (!fn) continue;
+    // CHOREOGRAPHER PR 15 — a cast is a SOURCE moment. Every `cast` effect in the game flows through here,
+    // so instrumenting this one site gives the whole spell surface a beat rather than touching 66 factories.
+    // The SPELL is the source, not the minion it lands on: the card is what the player played, and a buff
+    // that credits its target instead reads as the minion having done something to itself.
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: 'recruit',
+        source: { kind: 'spell', id: spellDef.id, label: spellDef.name, side: 'player' },
+        trigger: 'cast',
+        ...beatIdentity(`factory:${effect.do}:cast`),
+      },
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard })),
+    );
   }
 }
 

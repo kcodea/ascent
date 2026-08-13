@@ -168,4 +168,4 @@ export { DEMONS } from './cards/set1/demons';
 export { TOKENS } from './cards/set1/tokens';
 export { SPELLS } from './cards/set1/spells';
 export { ENEMY } from './cards/set1/enemy';
-export { presentationSurface, recurringEotOwner, type SurfaceEntry } from './presentationSurface';
+export { presentationSurface, recurringEotOwner, surfaceKeyForRune, surfaceKeyForQuest, type SurfaceEntry } from './presentationSurface';

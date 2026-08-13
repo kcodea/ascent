@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 15: spell casts + quest/rune rewards emit
+
+Two of the three largest silent blocks in the audit, instrumented at their chokepoints rather than per-effect.
+
+- **Spell casts (66 keys).** Every `cast` effect in the game flows through `applyCastEffects`, so one site
+  gives the whole spell surface a beat instead of touching 66 factories. The SPELL is the source, not the
+  minion it lands on - the card is what the player played, and crediting the target instead reads as the
+  minion having done something to itself.
+- **Quest completions + rune acquisitions (~106 keys).** `applyQuestReward` is the single chokepoint for BOTH.
+  Consequences are discovered by DIFFING the reward - the same technique the End-of-Turn primitive uses,
+  because a reward moves board stats, hand contents and Gold through many helpers and instrumenting each would
+  be a hundred chances to miss one.
+- `surfaceKeyForRune` / `surfaceKeyForQuest` resolve the key the SURFACE files each piece of content under.
+  Guessing a phase segment (`rune:<id>:onAcquire` for everything) would produce an orphan identity for
+  anything bucketed differently - unclassifiable, untimeable, and reported as a ghost.
+
+**Measured effect on the audit:** `cast` fell from 66 not-observed to 13, and observed emission rose from 79
+keys to 132 of 684.
+
+`onComplete` (78) and `onAcquire` (28) still read "not observed" because the PROBE cannot deterministically
+reach a quest completion or a Runeforge pick - an evidence gap, not silence. `rewardBeats.test.ts` is the
+evidence that they do emit: buying a rune emits a source trigger with the surface's own key, its reward lands
+as attributed consequences with zero orphans, gameplay is byte-identical with capture on and off, and an
+unaffordable pick still no-ops and emits nothing.
+
+typecheck + lint + npm test (5265) + build:web green.
+
 ## 2026-08-13 — In-run UI editor (dev-only)
 
 A direct-manipulation editor for the in-run DOM UI: cards, HUD, shop, panels, text. Toggle "UI Edit Mode" in

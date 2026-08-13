@@ -141,9 +141,36 @@ export function shoutScenarios(): ProbeScenario[] {
   return out;
 }
 
-/** Every built-in scenario: the targeted mechanics, broad End-of-Turn cards, and every Shout. */
+/**
+ * Spell (`cast`) coverage: cast each spell onto a board that gives it something to act on.
+ *
+ * A board minion is present because many spells target one; an untargeted spell simply ignores it. Spells
+ * that REQUIRE an explicit target still will not resolve here, so their keys stay "not observed" — an
+ * evidence gap the report is careful to distinguish from "does not emit".
+ */
+export function spellScenarios(): ProbeScenario[] {
+  const out: ProbeScenario[] = [];
+  const spells = ALL_CARDS.filter((c) => c.effects.some((e) => e.on === 'cast'));
+  spells.forEach((def, i) => {
+    out.push({
+      name: `Cast - ${def.id}`,
+      state: ({
+        ...createRun(101 + i, 'warden'),
+        phase: 'recruit',
+        embers: 20,
+        maxEmbers: 20,
+        board: [minion('t0', 'stray')],
+        hand: [{ uid: 'h0', cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false }],
+      }) as RunState,
+      action: { type: 'play', uid: 'h0', targetUid: 't0' } as unknown as Action,
+    });
+  });
+  return out;
+}
+
+/** Every built-in scenario: targeted mechanics, End-of-Turn cards, every Shout, and every spell cast. */
 export function allScenarios(): ProbeScenario[] {
-  return [...defaultScenarios(), ...cardScenarios(), ...shoutScenarios()];
+  return [...defaultScenarios(), ...cardScenarios(), ...shoutScenarios(), ...spellScenarios()];
 }
 
 /** Run the scenarios and report what gameplay ACTUALLY emitted. Pure: no scenario state is shared or mutated. */

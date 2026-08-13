@@ -5867,15 +5867,15 @@ svg { width: 18px; height: 18px; }
   /* Base point is now the board's TOP-RIGHT (owner ask 2026-08-11): anchor the button's centre near the right
      edge + top of the stage; the `--rfb-x/y` tuner offsets fine-tune from there. */
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -73px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 220px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 1.85));
+  top: calc(var(--bar-y) + var(--rfb-y, 214px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 1.68));
   width: calc(170 * var(--u)); height: calc(72 * var(--u)); /* the art's 1927×816 (2.362) aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it drops through */
 .rfbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.61)) saturate(0.7); }
+.rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.63)) saturate(0.7); }
 
 /* The crystal. It no longer rotates on press (owner 2026-07-21) — clicking emits dust + a shine only. */
 .rfb-artbox { position: absolute; inset: 0; display: block; }
@@ -5907,9 +5907,9 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
 .rfb-sheen { position: absolute; inset: 0; overflow: hidden; z-index: 2; pointer-events: none; }
 .rfb-sheen-bar {
   position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, var(--rfb-sheen-alpha, 0)), transparent);
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, var(--rfb-sheen-alpha, 0.04)), transparent);
   transform: translateX(-120%) rotate(8deg);
-  animation: rfbsheen var(--rfb-sheen-cycle, 1s) linear infinite;
+  animation: rfbsheen var(--rfb-sheen-cycle, 2.8s) linear infinite;
   will-change: transform;
 }
 @keyframes rfbsheen { 0% { transform: translateX(-120%) rotate(8deg); } 34%, 100% { transform: translateX(420%) rotate(8deg); } }
@@ -5925,7 +5925,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
     var(--rfb-shine-color, #ffffff) 0%,
     color-mix(in srgb, var(--rfb-shine-color, #ffffff) 55%, transparent) 42%,
     transparent 70%);
-  filter: blur(var(--rfb-shine-blur, 7px));
+  filter: blur(var(--rfb-shine-blur, 49px));
   animation: rfbshine var(--rfb-shine-ms, 280ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
 @keyframes rfbshine {

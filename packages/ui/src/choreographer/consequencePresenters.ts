@@ -60,8 +60,11 @@ export interface PresenterContext {
   tavernGust: (shopUid: string, cardId: string | undefined) => void;
   /** Attachments bolted onto a Mech this beat. */
   weldPulse: (hostUid: string, count: number) => void;
-  /** A Fodder token was consumed off the board — the ghost-crumble eat choreography. */
-  fodderEaten: (uid: string, zone: string) => void;
+  /**
+   * A Fodder token was consumed — the ghost-crumble choreography, flying the meal into its eater. Carries the
+   * full meal because a destroy event alone cannot express it (see `FodderEatenConsequence`).
+   */
+  fodderEaten: (meal: { eaterUid: string; fodderId: string; attack: number; health: number; gainAttack: number; gainHealth: number }) => void;
 }
 
 /** What a presenter is handed: the consequence, the beat that caused it, and the FX surface. */
@@ -116,9 +119,15 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   },
   cardDestroyed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardDestroyed') return;
+    // Just the departure. The crumble rides its own `fodderEaten` consequence, which carries the meal.
     ctx.cardDestroyed(c.target.uid ?? '', c.target.zone);
-    // Fodder consumed off the board gets the full ghost-crumble, not just a removal.
-    if (c.target.zone === 'board') ctx.fodderEaten(c.target.uid ?? '', c.target.zone);
+  },
+  fodderEaten: ({ consequence: c, ctx }) => {
+    if (c.type !== 'fodderEaten') return;
+    ctx.fodderEaten({
+      eaterUid: c.eaterUid, fodderId: c.fodderId,
+      attack: c.attack, health: c.health, gainAttack: c.gainAttack, gainHealth: c.gainHealth,
+    });
   },
   cardTransformed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardTransformed' || !c.target.uid) return;

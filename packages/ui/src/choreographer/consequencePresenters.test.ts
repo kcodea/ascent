@@ -22,6 +22,7 @@ import type { ConsequenceEvent } from '@game/core';
 const ALL_CONSEQUENCE_TYPES = [
   'statsChanged', 'keywordChanged', 'cardSummoned', 'cardDestroyed', 'cardTransformed', 'cardGranted',
   'spellResolved', 'resourceChanged', 'shopChanged', 'auraChanged', 'counterChanged', 'rubyPlayed',
+  'fodderEaten',
 ] as const;
 
 const spyContext = () => ({
@@ -177,10 +178,21 @@ describe('beat-level sequences (PR 6) — derived from events, not hardcoded eff
     expect(ctx.weldPulse).not.toHaveBeenCalled();
   });
 
-  it('a board card destroyed gets the eat choreography; a shop one does not', () => {
+  it('a destroy is just a departure — the crumble rides its own consequence', () => {
+    // PR 11: `cardDestroyed` carries only a target, which cannot express who ate what. Inferring a crumble
+    // from it would fire the choreography with no meal to fly into the eater.
     const board = run({ type: 'cardDestroyed', id: 'd', sequence: 0, step: 1, target: { zone: 'board', uid: 'f1' } } as ConsequenceEvent);
-    expect(board.fodderEaten).toHaveBeenCalledWith('f1', 'board');
-    const shop = run({ type: 'cardDestroyed', id: 'd', sequence: 0, step: 1, target: { zone: 'shop', uid: 'o1' } } as ConsequenceEvent);
-    expect(shop.fodderEaten).not.toHaveBeenCalled();
+    expect(board.cardDestroyed).toHaveBeenCalledWith('f1', 'board');
+    expect(board.fodderEaten).not.toHaveBeenCalled();
+  });
+
+  it('a fodderEaten consequence delivers the whole meal to the choreography', () => {
+    const ctx = run({
+      type: 'fodderEaten', id: 'fe', sequence: 0, step: 1,
+      eaterUid: 'e1', fodderId: 'fred', attack: 1, health: 1, gainAttack: 2, gainHealth: 2,
+    } as ConsequenceEvent);
+    expect(ctx.fodderEaten).toHaveBeenCalledWith({
+      eaterUid: 'e1', fodderId: 'fred', attack: 1, health: 1, gainAttack: 2, gainHealth: 2,
+    });
   });
 });

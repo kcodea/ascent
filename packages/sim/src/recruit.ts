@@ -7347,7 +7347,15 @@ function withRecruitTrigger(
       }
       // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
       for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
+        // TWO consequences on purpose: `cardDestroyed` is the token leaving play, `fodderEaten` is the meal —
+        // who ate it and what they gained. The crumble choreography needs the second; a destroy alone cannot
+        // express it, which is why this visual stayed on the legacy path until now.
         collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
+        collector.emit({
+          type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.fodderId,
+          attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
+          deliveryKey: 'consume.depart',
+        });
       }
     },
   );

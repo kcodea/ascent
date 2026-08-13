@@ -170,6 +170,26 @@ export interface RubyPlayedConsequence extends ConsequenceBase {
   health?: number;
 }
 
+/**
+ * CHOREOGRAPHER PR 11 — a Fodder token consumed off the board.
+ *
+ * Deliberately NOT a plain `cardDestroyed`. The eat choreography flies the consumed token's stats INTO the
+ * eater, so it needs to know who ate what and what they gained — data a destroy event does not carry. When
+ * the presenters were migrated (PR 5) this was the one visual left on the legacy path for exactly that
+ * reason, and the gap was recorded in code rather than faked with a half-working imitation.
+ */
+export interface FodderEatenConsequence extends ConsequenceBase {
+  type: 'fodderEaten';
+  /** The minion that ate it — the FX flies from the Fodder to this card. */
+  eaterUid: string;
+  fodderId: string;
+  /** The consumed token's own stats, and what the eater gained (they differ when a rule scales the meal). */
+  attack: number;
+  health: number;
+  gainAttack: number;
+  gainHealth: number;
+}
+
 export type ConsequenceEvent =
   | StatsChangedConsequence
   | KeywordChangedConsequence
@@ -182,7 +202,8 @@ export type ConsequenceEvent =
   | ShopChangedConsequence
   | AuraChangedConsequence
   | CounterChangedConsequence
-  | RubyPlayedConsequence;
+  | RubyPlayedConsequence
+  | FodderEatenConsequence;
 
 export type GamePresentationEvent = SourceTriggerEvent | ConsequenceEvent;
 
@@ -208,7 +229,8 @@ export type ConsequenceDraft =
   | Omit<ShopChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<AuraChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<CounterChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
-  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
+  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
+  | Omit<FodderEatenConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
 
 /** What a mutation site hands the collector to open a trigger scope. */
 export interface BeginTriggerSpec {

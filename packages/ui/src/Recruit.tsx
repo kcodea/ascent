@@ -1347,11 +1347,20 @@ export function Recruit() {
   // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
   // mid-animation can never strand a prepared transaction with End Turn locked.
   const eotCancelRef = useRef<null | (() => void)>(null);
+  // Fodder-eat choreography raised from End-of-Turn beats: a monotonic key per play, and the cancel fns so
+  // an unmount mid-animation cannot strand a running crumble.
+  const eotFodderSeqRef = useRef(0);
+  const eotFodderCleanupRef = useRef<(() => void)[]>([]);
   // If the recruit screen goes away while the authoritative timeline is playing, stop the loop and DELIVER
   // the rest — which commits the prepared action. The blueprint's rule is that failure or skip must never
   // softlock End Turn (§5.6); because the state was already resolved, finishing early lands exactly the same
   // run as watching it play out.
-  useEffect(() => () => { eotCancelRef.current?.(); eotCancelRef.current = null; }, []);
+  useEffect(() => () => {
+    eotCancelRef.current?.();
+    eotCancelRef.current = null;
+    for (const stop of eotFodderCleanupRef.current) stop();
+    eotFodderCleanupRef.current = [];
+  }, []);
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
@@ -4029,11 +4038,15 @@ export function Recruit() {
         const at = centreOf(hostUid);
         if (at) pixiFx.weldPulse(at.x, at.y, weldCfgFor('auto'));
       },
-      fodderEaten: () => {
-        /* The ghost-crumble choreography is driven by `holdFodderGains` off the committed `fodderEaten`
-           list, which still fires on commit — so the eat reads, but on the commit rather than on its beat.
-           Moving it onto the beat needs the eaten entry's stats in the consequence (a cardDestroyed carries
-           only the target), which is an EMISSION change, not a presenter one. Left honest rather than faked. */
+      fodderEaten: (meal) => {
+        // CHOREOGRAPHER PR 11 — the crumble now plays ON ITS BEAT. Until the `fodderEaten` consequence
+        // existed this was the last End-of-Turn visual stuck on the commit path, because a `cardDestroyed`
+        // carries only a target and the choreography needs the whole meal (who ate what, and the gain).
+        // `playFodderEat` already speaks exactly this shape, so the presenter just hands it the event.
+        const entry = { eaterUid: meal.eaterUid, fodderId: meal.fodderId, attack: meal.attack, health: meal.health, gainA: meal.gainAttack, gainH: meal.gainHealth };
+        // Withhold the eater's badge gain until the tendril lands, matching the legacy choreography.
+        holdFodderGains(fodderGainHolds([entry]));
+        eotFodderCleanupRef.current.push(playFodderEat([entry], ++eotFodderSeqRef.current));
       },
     };
     const beatsById = new Map<string, CompiledBeat>();
@@ -4080,6 +4093,7 @@ export function Recruit() {
         // Dropped in the SAME commit that puts the real cards in hand, or both lists render for a frame.
         setEotGrants([]);
         eotCancelRef.current = null;
+        eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
         commitPresentationAction();
       },
     });

@@ -427,6 +427,25 @@ the beat is mistimed with no error raised anywhere.
 
 Verified: typecheck + lint + `npm test` (5051, +8) + build:web green. No gameplay change (the equivalence
 assertion is part of the suite). Next: PR 2 — the normalizer + shared timeline compiler (pure, no UI).
+## 2026-08-13 — Beat System: hero coverage (DoD item 1b — heroes were 0 in the registry)
+
+Heroes were entirely absent from the presentation registry (Codex's item 1b). They live in `@game/sim` and
+their powers are bespoke logic keyed by `power.kind`, not content `EffectDef`s — so `@game/content`'s
+`presentationSurface` (which can't import sim) can't reach them. Added a sim-side surface + its own tripwire.
+
+- `packages/sim/src/heroSurface.ts`: `heroSurface()` → one key per hero, `hero:<id>:<power.kind>`.
+- `policies.ts`: 27 hero entries, classified by a heuristic (activated powers → ownBeat/heroPower; auto
+  generation/grants → ownBeat/heroPayout; replays → foldedCue/heroReplay; pure calc modifiers → passive), ALL
+  FLAGGED for owner review — heroes are a new class, same review workflow as the original 42.
+- `packages/sim/src/heroPolicies.test.ts`: the sim-side ratchet — every hero classified, no ghosts. A new hero
+  without a policy fails CI here (heroes can't ride the content tripwire).
+- `presentationPolicies.test.ts` (content): its no-ghost check now skips `hero:*` (covered sim-side).
+- `sourceLibrary.ts` + `BeatLibrary.tsx`: heroes are browsable in the Beat Lab (a Heroes filter), each hero's
+  power as one trigger moment.
+- `beats:audit` now includes heroes: 681 keys (654 content + 27 heroes), 27 flagged, 0 ghosts.
+
+Verified: typecheck + lint + npm test (5039; +3 hero tripwire) + build:web green. FOLLOW-UP: actually EMITTING
+hero events (so their beats play) is per-power engine work, like the other EMPTY triggers.
 
 ## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
 

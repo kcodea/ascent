@@ -18,7 +18,7 @@ const FIELDS: Array<{ f: keyof BeatTiming; label: string }> = [
   { f: 'windupMs', label: 'Wind-up' }, { f: 'holdMs', label: 'Hold' }, { f: 'recoveryMs', label: 'Recovery' },
 ];
 const KINDS: Array<{ k: SourceKind; label: string }> = [
-  { k: 'minion', label: 'Minions' }, { k: 'spell', label: 'Spells' }, { k: 'rune', label: 'Runes' }, { k: 'quest', label: 'Quests' },
+  { k: 'minion', label: 'Minions' }, { k: 'spell', label: 'Spells' }, { k: 'rune', label: 'Runes' }, { k: 'quest', label: 'Quests' }, { k: 'hero', label: 'Heroes' },
 ];
 const COVER_TINT: Record<string, string> = { classified: '#7fd18a', silent: '#8a93a8', empty: '#e0b34d' };
 const COVER_LABEL: Record<string, string> = { classified: 'beat', silent: 'silent', empty: 'EMPTY' };

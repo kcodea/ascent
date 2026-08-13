@@ -9,11 +9,15 @@
  */
 import { PRESENTATION_POLICIES } from '@game/core';
 import { presentationSurface } from '@game/content';
+import { heroSurface } from '@game/sim';
 
 const FLAGGED_ONLY = process.argv.includes('--flagged');
 const AS_JSON = process.argv.includes('--json');
 
-const surface = presentationSurface();
+const surface = [
+  ...presentationSurface(),
+  ...heroSurface().map((h) => ({ key: h.key, users: [h.name] })), // heroes live in @game/sim (DoD item 1b)
+];
 const live = new Set(surface.map((s) => s.key));
 
 interface Row { key: string; policy: string; family: string; status: string; users: string }

@@ -1,5 +1,6 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, type EffectArena, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, presentationPolicyFor, type EffectArena, type PresentationCollector, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
@@ -26,6 +27,8 @@ import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateS
 interface RecruitContext {
   state: RunState;
   summon(card: CardDef, nearUid: string): BoardCard | undefined;
+  /** BEAT SYSTEM (PR 3): the presentation collector for this resolution (NOOP outside a capture scope). */
+  collector: PresentationCollector;
 }
 
 type RecruitFn = (
@@ -5650,6 +5653,7 @@ export
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
+    collector: currentCollector(),
     summon: (card, nearUid) => {
       if (state.board.length >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
@@ -7192,6 +7196,40 @@ function fireOrbitInner(state: RunState, idx: number, arriver: BoardCard | undef
   }
 }
 
+/**
+ * BEAT SYSTEM (PR 3) — run one Shout (`onPlay`) effect inside a source-attributed trigger scope and emit the
+ * stat changes it produced as `statsChanged` consequences. The magnitude is discovered by diffing board+hand
+ * stats around the effect (recruit buffs land via many helpers; a diff captures them all without instrumenting
+ * each). Read-only w.r.t. gameplay: the diff never mutates. Bails to a bare `run()` when nothing is capturing,
+ * so the common (NOOP) path pays only one boolean check.
+ */
+function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectDef, run: () => void): void {
+  const collector = ctx.collector;
+  if (!collector.enabled) { run(); return; }
+  const policy: PresentationPolicy = presentationPolicyFor(`factory:${effect.do}:onPlay`)?.policy ?? 'ownBeat';
+  const snap = (): Map<string, { a: number; h: number; zone: 'board' | 'hand' }> => {
+    const m = new Map<string, { a: number; h: number; zone: 'board' | 'hand' }>();
+    for (const c of ctx.state.board) m.set(c.uid, { a: c.attack, h: c.health, zone: 'board' });
+    for (const c of ctx.state.hand) m.set(c.uid, { a: c.attack, h: c.health, zone: 'hand' });
+    return m;
+  };
+  const before = snap();
+  collector.withTrigger(
+    { phase: 'recruit', source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: CARD_INDEX[played.cardId]?.name }, trigger: 'onPlay', policy },
+    () => {
+      run();
+      for (const [uid, was] of before) {
+        const now = ctx.state.board.find((c) => c.uid === uid) ?? ctx.state.hand.find((c) => c.uid === uid);
+        if (!now) continue;
+        const da = now.attack - was.a;
+        const dh = now.health - was.h;
+        if (da === 0 && dh === 0) continue;
+        collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+      }
+    },
+  );
+}
+
 export function playCard(state: RunState, played: BoardCard): void {
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
@@ -7234,7 +7272,12 @@ export function playCard(state: RunState, played: BoardCard): void {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
     if (effect.align) noteAlignSpark(state, effect.align); // an aligned Shout half firing sparks its side
-    captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
+    // BEAT SYSTEM (PR 3) — the first migrated recruit trigger: a Shout (`onPlay`) opens a source-attributed
+    // trigger scope, and the stat changes it produces are emitted as consequences (diffed here, not by the UI).
+    // Zero overhead when no collector is capturing: `withPlayTrigger` short-circuits to a bare call for NOOP.
+    withPlayTrigger(ctx, played, effect, () => {
+      captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
+    });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
   if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);

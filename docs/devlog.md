@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 3: the recruit presentation pipeline
+
+Third slice (stacked on PR 2). Wires the collector into recruit resolution and migrates the FIRST trigger, so
+a played Shout produces a real source-attributed batch. Gameplay is byte-identical to before (proven).
+
+**Plumbing.** `activeCollector.ts` — a tiny standalone holder (imports only `@game/core`, so no new cycles):
+`reduce` is synchronous and non-reentrant per action, so a module-scoped "active collector" set once around one
+`reduce` call has exactly the lifetime of one resolution. `makeContext` reads it into `RecruitContext.collector`
+(NOOP outside a capture scope — bots/tests/plain `reduce` pay nothing). `reduceWithPresentation(state, action,
+capture)` returns `{state, batch}`: with `capture` off it's literally `reduce` + null; with it on, it runs
+inside `withActiveCollector` and returns the finished batch.
+
+**First migrated trigger.** `playCard`'s `onPlay` (Shout) loop now runs each effect inside a source-attributed
+trigger scope (`withPlayTrigger`) whose policy comes from the PR-1 registry; the stat changes it produces are
+emitted as `statsChanged` consequences, discovered by diffing board+hand around the effect (read-only — never
+mutates). Bails to a bare call when nothing is capturing, so the NOOP path costs one boolean.
+
+**UI.** `store.ts` (Mike's file — coordinated): additive `latestBatch`/`beatRevision` slice; `dispatch`
+resolves through `reduceWithPresentation` in DEV only (prod + headless keep plain `reduce`) and publishes the
+batch. Never serialized into a save. The Beat Lab viewer (PR 4) consumes it.
+
+Verified: typecheck + lint + npm test (4989; +4 equivalence/emission/determinism tests) + build:web all green.
+
 ## 2026-08-12 — Beat System PR 2: the presentation collector
 
 Second slice of the beat-system arc (stacked on PR 1). Pure new engine plumbing — no gameplay change, nothing

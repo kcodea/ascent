@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat System cutover slice 1: EoT batch → presentation adapter + equivalence proof
+
+First slice of the live cutover (owner-approved incremental plan). NO live change — this proves the
+authoritative End-of-Turn batch carries everything the legacy `projectEndOfTurnSteps` animation shows, the
+prerequisite before wiring live playback to the event stream.
+
+`packages/ui/src/beatLab/eotPresentation.ts`: `compileEotFx(batch)` turns the EoT PresentationBatch into one
+FX bundle per source-trigger beat, mapping each consequence class to its legacy `EotStepFx` category
+(statsChanged→stat ticks, rubyPlayed→ruby cascade, cardGranted→hand grants, shopChanged→shop growth,
+auraChanged→spell-power/imp-aura washes, counterChanged→welds, cardDestroyed→Fodder). `aggregateEotFx` rolls
+the beats into run-totals.
+
+`eotPresentation.test.ts`: the batch-compiled categories equal the legacy projection's per-beat FX (aggregated)
+— Lapidary rubies per uid, conjured hand-grant cardIds, Moira→Market-Tormentor shop growth (+7/+7 on s2), and a
+no-op End of Turn producing nothing either way. (Stat equivalence is proven separately against ground truth in
+`beatEotEquivalence.test.ts`.) Known gap noted in code: the weld `counterChanged` event doesn't carry the host
+uid yet — tracked for when welds get their own beat.
+
+Verified: typecheck + lint + npm test (5040; +4 equivalence) + build:web green. Next slice: a RecruitBeatPlayer
+behind a dev flag that consumes this, using the shared timing resolver (no BEAT/GAP).
+
 ## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
 
 **Rune of Twilight didn't double Fleeting Vigor's Start-of-Combat buff (gameplay bug).** Twilight ("your

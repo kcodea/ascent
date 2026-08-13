@@ -55,7 +55,7 @@ import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, sp
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
-import { holdStat } from './fx/statHold';
+import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
@@ -4072,6 +4072,13 @@ export function Recruit() {
             }
             return next;
           });
+          // The stat change creates an intrinsic "hold" (Card shows the OLD number until a roll/FX drains it).
+          // Board minions' holds drain via their buff-FX descend; a shop offer has none, so its hold would sit
+          // through the whole animation and the number would appear to change only after End of Turn (owner
+          // report 2026-08-12). Release the hold once the new stats have committed (double rAF: after the render
+          // + the layout effect that CREATES the hold), so the printed number lands on the beat under the float.
+          const buffedUidList = bfx.shopBuff.map((sb) => sb.uid);
+          requestAnimationFrame(() => requestAnimationFrame(() => { for (const u of buffedUidList) releaseStat(u); }));
           for (const sb of bfx.shopBuff) {
             const el = document.querySelector(`[data-zone="tavern"] .card[data-uid="${sb.uid}"]`);
             if (!el) continue;

@@ -51,6 +51,7 @@ import { SPEC as PlateGildSpec } from './PlateGildTuner';
 import { SPEC as QuestTendrilSpec } from './QuestTendrilTuner';
 import { SPEC as RefreshSpec } from './RefreshTuner';
 import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
+import { SPEC as RuneforgeBgSpec } from './RuneforgeBgTuner';
 import { SPEC as SmokeSpec } from './SmokeTuner';
 import { SPEC as SpellBuffFxSpec } from './SpellBuffFxTuner';
 import { SPEC as SpellPowerFxSpec } from './SpellPowerFxTuner';
@@ -102,6 +103,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   QuestTendrilSpec,
   RefreshSpec,
   RubyPowerFxSpec,
+  RuneforgeBgSpec,
   SmokeSpec,
   SpellBuffFxSpec,
   SpellPowerFxSpec,

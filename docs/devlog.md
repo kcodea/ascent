@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-13 — Runeforge Backdrop tuner (Stage & Layout)
+
+A DEV tuner for placing the new forge backdrop, since art dropped behind a panel almost never lands right at
+`cover / 50% 50%` and the alternative is editing `styles.css` and reloading.
+
+**Five controls, one composed declaration.** `Fit` (cover / contain / zoom), `Zoom` (%), `Horizontal position`,
+`Vertical position`, and `Scrim` (the dark layer's opacity). Every one is an ingredient of a single `background`
+shorthand rather than a var of its own, so the panel is built on `createCssTunerStore` — the same route the
+Charge Glyph takes — writing a doubled-selector `.forge-ov.forge-ov` override into a `<style>` element that is
+REMOVED on close. It persists (`ascent.runeforgeBgTuner`), like the charge glyph and unlike the frame/palette
+panels: placing art by eye happens over sessions.
+
+`cover` and `contain` are the CSS answers and ignore the Zoom slider (the control carries a `note` saying so).
+`zoom` is the third mode, driving the image's HEIGHT as a % of the overlay with the width following the aspect
+ratio, so you can push past cover and crop into part of the illustration without ever stretching it. The scrim
+gradient stays the FIRST background layer in every mode — CSS paints layer one on top, and that is what keeps
+the engraved banner and rune tablets readable.
+
+**A preview harness, because the forge is on a wave.** The panel's readout has "Open the forge" / Basic-Epic
+buttons that force the real overlay on screen. This is the only tuner that pokes RUN STATE, so it captures the
+previous `runeforgeOffer` / `runeforgeEpic` on the way in and restores them when the toggle goes off OR the panel
+closes — without that, closing the panel would strand a fabricated forge offer in a real run. Disabled with an
+explanatory line when no run exists.
+
+DEFAULTS mirror the shipped `.forge-ov` rule exactly, so opening the panel changes nothing until you move
+something, Reset returns players' look, and "Copy CSS" emits the undoubled rule to paste back into `styles.css`.
+Registered in all three places a panel must be: `PANEL_EMBLEMS`, `ALL_TUNER_SPECS` (so "Reset all tuners"
+includes it), and the DevMenu's Stage & Layout group.
+
+**Verified:** typecheck + lint (0 errors) + test 5036/5036 + `build:web` 7.17s. Live in the dev server: the panel
+opens from the dev menu, its override installs matching the shipped rule byte-for-byte, and driving the real
+inputs produced `... rgba(14,16,22,0.35) ... 50% 20% / auto 160%` on the open overlay's computed style with the
+values persisted to localStorage. Reset restored the shipped string and the stored defaults. The harness opened
+the forge (offer set, `.forge-ov` present), applied `.forge-epic`, and on close restored the prior offer with the
+overlay gone — no leftover state. No console errors.
+
 ## 2026-08-13 — Set-2 Demon art re-wire (23 masters) + an illustrated Runeforge backdrop
 
 **Demon art re-wire.** Re-wired every master in `C:\Game Assets\Ascent Art\Set 2 Minions\Demons` onto its card

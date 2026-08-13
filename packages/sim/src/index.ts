@@ -10,6 +10,7 @@ export * from './buildTags';
 export * from './contribution';
 export * from './reducer';
 export * from './preparedAction';
+export * from './beatProbe';
 export { currentCollector, withActiveCollector } from './activeCollector';
 export * from './odds';
 export * from './snapshot';

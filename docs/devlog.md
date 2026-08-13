@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 13: the audit MEASURES emission
+
+`npm run beats:audit` could always answer "is this effect classified?". It could never answer the question
+that actually matters - **does gameplay announce it?** That gap is why a green report could sit on top of a
+screen where nothing happened; Fleeting Vigor was classified and silent for weeks.
+
+- `beatProbe.ts` (sim) - runs deterministic scenarios and collects the `policyKey`s gameplay REALLY emitted.
+  Evidence, not inference: no card-text scanning, no "this factory looks like it should fire". Scenario sets:
+  targeted mechanics (economy runes, Lapidary, Fleeting Vigor, banked keywords/Imps, Re-Pete), every
+  End-of-Turn card batched a board at a time, and every Shout played individually. Each scenario runs on its
+  own deep copy, so emission can never depend on the order the report happened to run in.
+- The audit gained an EMISSION column, a by-trigger breakdown of what is never observed, and a count of
+  emitters carrying no identity at all. `--silent` lists just the classified-but-silent rows.
+
+**What it says today** (59 scenarios, 684 keys):
+
+    NOT OBSERVED, BY TRIGGER (the shape of the remaining work):
+      recruit 100 · combat 92 · onComplete 78 · cast 66 · onDeath 41 · onAttack 33
+      onAcquire 28 · endOfTurn 20 · startOfCombat 19 · avenge 16 · onPlay 13 · onSummon 13
+
+Grouped this way the shape is obvious, and it is not "605 broken effects": what is missing is whole PHASES
+that emit nothing yet - combat above all (onDeath/onAttack/avenge/startOfCombat are all combat triggers), plus
+quest completion, spell casts, and rune/quest acquisition. That is the remaining instrumentation work, in
+priority order, derived from measurement rather than opinion.
+
+The report is careful about what it does NOT know: "not observed" means the probe did not reach it, which is a
+gap in EVIDENCE, not proof the effect is dead. Widening `defaultScenarios()` is the honest response to a
+surprising row, and the report says so in place rather than letting a reader over-conclude.
+
+typecheck + lint + npm test (5228) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 11: the Fodder crumble plays on its beat (salvaged from #1005)
 
 The last End-of-Turn visual stuck on the commit path, and the reason it was stuck: the eat choreography flies

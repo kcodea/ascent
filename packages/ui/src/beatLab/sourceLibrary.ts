@@ -15,10 +15,11 @@
  * Other silent-application mechanics get added here as they're identified.
  */
 import { ALL_CARDS, RUNES, EPIC_RUNES, QUEST_DEFS } from '@game/content';
+import { heroSurface } from '@game/sim';
 import { PRESENTATION_POLICIES, type PresentationBatch, type PresentationPolicy } from '@game/core';
 
 export type TriggerCoverage = 'classified' | 'silent' | 'empty';
-export type SourceKind = 'minion' | 'spell' | 'rune' | 'quest';
+export type SourceKind = 'minion' | 'spell' | 'rune' | 'quest' | 'hero';
 
 export interface TriggerRow {
   /** Stable id within its source (used for selection). */
@@ -135,6 +136,16 @@ export function sourceEntries(): SourceEntry[] {
     out.push({
       kind: 'quest', id: q.id, name: q.name, tier: q.tier,
       triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:quest:${q.id}:${found.trigger}` }],
+      hasEmpty: cov.coverage === 'empty',
+    });
+  }
+
+  // Heroes (DoD item 1b) — each hero's automatic power as one trigger moment, from the sim-side hero surface.
+  for (const h of heroSurface()) {
+    const cov = coverageOf(h.key);
+    out.push({
+      kind: 'hero', id: h.heroId, name: h.name,
+      triggers: [{ id: h.powerKind, moment: `hero power · ${h.powerKind}`, trigger: h.powerKind, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:hero:${h.heroId}:${h.powerKind}` }],
       hasEmpty: cov.coverage === 'empty',
     });
   }

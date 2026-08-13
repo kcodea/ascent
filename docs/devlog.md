@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 6b: expanded End-of-Turn consequence coverage (grants + shop buffs)
+
+Continuation slice (stacked on PR 6) toward the eventual live cutover. Extends the shared recruit trigger
+diff (`withRecruitTrigger`, used by both the Shout and End-of-Turn triggers) to also emit two NON-OVERLAPPING
+consequence types beyond stats:
+
+- **`cardGranted`** — cards a trigger conjured/granted to hand (The Hoard Wakes, Rune of Spending's conjures,
+  grantRandomShout, …), in arrival order.
+- **`shopChanged(buffed)`** — shop offers a trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's
+  buy bonus), one delta per offer uid.
+
+Both are diffed (not wired per-effect — the same technique `projectEndOfTurnSteps` uses) so any future granter
+or shop-buffer is caught, and both are ORTHOGONAL to the board/hand stat diff (a granted card is new; a shop
+offer isn't on the board), so the PR-6 `statsChanged` equivalence is undisturbed — asserted in the new tests.
+
+DELIBERATELY DEFERRED to the live-cutover PR (they need a schema/overlap decision the owner should weigh, and
+the cutover itself needs a manual playtest of Mike's shop animation): ruby-as-`rubyPlayed` (overlaps the stat
+diff), spell-power / imp-aura (`auraChanged` carries one scalar; these are attack+health), welds, and fodder
+consumption. The live shop End-of-Turn animation remains on `projectEndOfTurnSteps` — untouched.
+
+Verified: typecheck + lint + npm test (5006; +3 coverage + stat-equivalence-undisturbed) + build:web green;
+live faceOmen batch showed `cardGranted` (a conjured Shout) beside the Lapidary `statsChanged`.
+
 ## 2026-08-12 — Beat System PR 6: beat-player engine + End-of-Turn equivalence (no live cutover)
 
 Sixth slice (stacked on PR 5). Owner-scoped decision: build the playback ENGINE and prove event↔gameplay

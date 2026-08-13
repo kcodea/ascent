@@ -7265,18 +7265,39 @@ function withRecruitTrigger(
 ): void {
   const collector = ctx.collector;
   if (!collector.enabled) { run(); return; }
-  const before = snapshotStats(ctx.state);
+  const state = ctx.state;
+  const before = snapshotStats(state);
+  // BEAT SYSTEM (PR 6b): additional NON-OVERLAPPING consequence diffs — hand grants (conjures) and shop-offer
+  // buffs. Both are orthogonal to the board/hand STAT diff above (a granted card is new; a shop offer is not on
+  // the board), so they enrich the batch without disturbing the proven statsChanged equivalence. Diffed, not
+  // wired per-effect — same technique projectEndOfTurnSteps uses — so any future granter/shop-buffer is caught.
+  const handBefore = new Set(state.hand.map((c) => c.uid));
+  const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
   collector.withTrigger(
     { phase: spec.phase, source: spec.source, trigger: spec.trigger, policy: spec.policy, repeatIndex: spec.repeatIndex, repeatCount: spec.repeatCount },
     () => {
       run();
       for (const [uid, was] of before) {
-        const now = ctx.state.board.find((c) => c.uid === uid) ?? ctx.state.hand.find((c) => c.uid === uid);
+        const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
         if (!now) continue;
         const da = now.attack - was.a;
         const dh = now.health - was.h;
         if (da === 0 && dh === 0) continue;
         collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+      }
+      // Cards this trigger put in hand (conjures / grants), in arrival order.
+      for (const c of state.hand) {
+        if (handBefore.has(c.uid)) continue;
+        collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+      }
+      // Shop offers this trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's buy bonus) — one per uid.
+      for (const o of state.shop) {
+        const b = shopBefore.get(o.uid);
+        if (!b) continue;
+        const now = offerBuyStats(state, o);
+        const da = now.attack - b.attack;
+        const dh = now.health - b.health;
+        if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
       }
     },
   );

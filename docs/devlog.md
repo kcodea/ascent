@@ -24,6 +24,43 @@ baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size
 follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
 and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
 unused vertical crystal) is untouched.
+## 2026-08-13 — Beat CHOREOGRAPHER PR 2: normalizer + shared timeline compiler
+
+Blueprint §8–§11 / §21 PR 2. Still deliberately NO UI: this is the piece that makes "the tool and the game
+play the same thing" mechanically possible, and it is the answer to why the old Beat Lab could look right
+while the screen was wrong — there were two schedulers, so nothing forced them to agree.
+
+New `packages/ui/src/choreographer/`:
+- **`timelineTypes.ts`** — the shared vocabulary. Authored truth is RELATIVE (a semantic anchor + offsets);
+  absolute milliseconds are compiler OUTPUT, never authored or stored. Four user-facing presentation modes
+  (Own Beat / React Inside Parent / Simultaneous / Silent) replace the internal policy words.
+- **`resolveTiming.ts`** — the specificity chain `global → policy → trigger → family → source → source+phase →
+  source+phase+trigger → occurrence → draft`, merged **per FIELD** (a sparse source override keeps its family's
+  pacing) with **field-level provenance** so the inspector can say *inherited from the Echo family* instead of
+  showing an unexplained number. `MODE_DEFAULTS` reproduce the shipped v1 pacing EXACTLY (ownBeat 120/420/170 →
+  delivery 120 / completion 540 / recovery 170), so this is a re-expression, not a re-tuning. `migrateV1Patch`
+  is explicit and never auto-applied on load.
+- **`adapters/presentationBatchAdapter.ts`** — batch → normalized nodes; every structural problem becomes a
+  DIAGNOSTIC instead of a silent repair (orphan consequence, unknown parent, decreasing step, missing
+  policyKey/family). A missing identity is reported, never reconstructed — that is the §25 trap.
+- **`compileTimeline.ts`** — the nine passes, pure and deterministic. The two behaviours that fix what the
+  owner saw:
+  - **nested reactions no longer advance the root cursor** — a folded cue is placed at its parent's DELIVERY
+    and only extends the parent if it genuinely overruns (no more fake sequential pause per modifier);
+  - **consequences land at a delivery marker**, not at `start + windup`, with per-marker target stagger — the
+    mechanism that stops a result appearing before its source has visibly acted.
+  Gameplay causality outranks config (a node with a parent is a reaction even if reclassified). Runtime anchors
+  (attack contact, death completion, summon appearance) are never invented — a missing one degrades to
+  sequential and reports.
+
+Tests (+33): 24 compiler/resolver unit tests, and — the one that matters — 8 against a REAL `faceOmen` batch:
+it compiles with **zero structural errors and zero unidentified beats**, no consequence precedes its source,
+order matches gameplay resolution, compilation resolves gameplay zero extra times, and output is deterministic.
+A synthetic fixture passing was never evidence real emission works; this closes that gap.
+
+typecheck + lint + `npm test` (5076) + build:web green. Next: PR 3 — the prepared-once transaction + shared
+commit helper, which is what finally lets live playback consume this timeline.
+
 ## 2026-08-13 — Beat CHOREOGRAPHER PR 1: event identity hardening
 
 Start of the pivot laid out in Codex's `beat-choreographer-pivot-handoff.md` + `-implementation-blueprint.md`

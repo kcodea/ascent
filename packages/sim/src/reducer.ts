@@ -1,5 +1,5 @@
-import { ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { withActiveCollector } from './activeCollector';
+import { beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { currentCollector, withActiveCollector } from './activeCollector';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
@@ -2056,23 +2056,60 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
       // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
       const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
+      // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
+      // problem this project exists to fix: applied silently into the combat board here, before the
+      // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
+      // that appeared already-baked into `lastCombat.initial` — indistinguishable, on screen, from "the
+      // minions just have those stats", which is exactly the owner's report that Fleeting Vigor's stats
+      // land before Start of Combat. Emitting them gives each a real moment to be scheduled against; the
+      // playback half (withholding the value until its beat) is the follow-up.
+      const socCollector = currentCollector();
+      const socBeat = (policyKey: string, id: string, label: string, run: () => void): void => {
+        if (!socCollector.enabled) { run(); return; }
+        socCollector.withTrigger(
+          { phase: 'startOfCombat', source: { kind: 'system', id, label, side: 'player' }, trigger: 'startOfCombat', ...beatIdentity(policyKey) },
+          run,
+        );
+      };
       const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
         ? { ...s.fleetingVigor } : null;
       if (fleeting) {
-        for (const m of player) { m.attack += fleeting.attack * twilightMult; m.health += fleeting.health * twilightMult; }
+        socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
+          const a = fleeting.attack * twilightMult;
+          const h = fleeting.health * twilightMult;
+          for (const m of player) {
+            m.attack += a;
+            m.health += h;
+            // One consequence PER MINION, carrying the delta gameplay actually applied — so presentation can
+            // stagger the surge across the board and never has to subtract its way to the number.
+            if (socCollector.enabled) socCollector.emit({
+              type: 'statsChanged',
+              target: { zone: 'board', uid: m.sourceUid, cardId: m.cardId, side: 'player' },
+              attack: a, health: h, permanent: false, channel: 'ordinary',
+            });
+          }
+        });
         s.fleetingVigor = { attack: 0, health: 0 };
       }
       // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
       // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
       // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
       if (s.pendingCombatKeywords?.length) {
-        for (const grant of s.pendingCombatKeywords) {
-          const m = player.find((p) => p.sourceUid === grant.uid);
-          if (!m) continue;
-          m.keywords ??= [];
-          if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
-          if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
-        }
+        const grants = s.pendingCombatKeywords;
+        socBeat('system:startOfCombat:pendingKeywords', 'pendingKeywords', 'Banked keywords', () => {
+          for (const grant of grants) {
+            const m = player.find((p) => p.sourceUid === grant.uid);
+            if (!m) continue; // its minion was sold or died — nothing to grant, and nothing to narrate
+            m.keywords ??= [];
+            if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
+            if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
+            if (socCollector.enabled) socCollector.emit({
+              type: 'keywordChanged',
+              target: { zone: 'board', uid: grant.uid, cardId: m.cardId, side: 'player' },
+              keyword: grant.keyword, gained: true,
+            });
+          }
+        });
         s.pendingCombatKeywords = [];
       }
       // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
@@ -2088,9 +2125,18 @@ function reduceCore(state: RunState, action: Action): RunState {
         const impDef = CARD_INDEX['impscrap'];
         const room = Math.max(0, CONFIG.boardMax - player.length);
         const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
-        for (let k = 0; k < n && impDef; k++) {
-          player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
-        }
+        socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
+          for (let k = 0; k < n && impDef; k++) {
+            player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
+            // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
+            // source's primary delivery — an Imp should be seen arriving, not simply be present.
+            if (socCollector.enabled) socCollector.emit({
+              type: 'cardSummoned',
+              target: { zone: 'board', cardId: 'impscrap', index: player.length - 1, side: 'player' },
+              cardId: 'impscrap', deliveryKey: 'summon.appear',
+            });
+          }
+        });
         s.pendingSCImps = 0;
       }
       // The procedural threat board for this wave — the always-fightable fallback (built from current

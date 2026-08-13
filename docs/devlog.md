@@ -137,6 +137,44 @@ test; what remains is an owner playtest to judge FEEL and confirm the FX that ha
 
 Next: PR 5 — migrate the remaining consequence presenters (Fodder consumes, quest tendrils, weld rings, Ruby
 cascade, spell-power flourish), then retire `projectEndOfTurnSteps` + the fixed `BEAT`/`GAP` constants.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 7: Start-of-Combat emission (Fleeting Vigor gets a beat)
+
+Blueprint 16.3 / 15.2. The engine half of the owner's second bug: "Fleeting Vigor still triggers the stats
+before the start of combat triggers."
+
+**The root cause was never timing.** Fleeting Vigor, banked next-combat keyword grants and Open the Gates'
+Imps are applied into the combat board inside the reducer, BEFORE the simulator's Start-of-Combat pass, and
+they emitted NOTHING. The buff was therefore already baked into `lastCombat.initial` before anything could
+animate - on screen, indistinguishable from "those minions simply have those stats". No amount of Beat Lab
+tuning could ever have fixed it, because there was no beat to tune. That is also why the Lab showed the
+trigger as an unexplained EMPTY row.
+
+- **The derived/system manifest** (`SYSTEM_SURFACE`). Not every automatic effect is a row in card/rune/quest
+  data; some are moments the engine derives, with no `EffectDef` for the content walk to see. Since that walk
+  IS what the coverage tripwire checks, invisible-to-the-walk meant they could never be classified, never
+  emitted, and never reported as missing - exactly how this stayed green while being broken. Three are now
+  listed, classified (family `startOfCombat`), and enforced like any other key.
+- **Emission**: each pending payout now runs inside a source-attributed `startOfCombat` trigger scope.
+  Fleeting Vigor emits ONE `statsChanged` per minion carrying the delta gameplay actually applied (so
+  presentation can stagger the surge and never has to subtract its way to a number); banked keywords emit
+  `keywordChanged` per grant that lands (a grant whose minion was sold emits nothing - no phantom cue);
+  pending Imps emit `cardSummoned` per Imp on the `summon.appear` marker, so an Imp is seen ARRIVING rather
+  than simply being present.
+- **Twilight's doubling is visible in the event**, not only in the hidden result - otherwise presentation
+  would animate +2/+2 while the board silently gained +4/+4, which is a worse lie than showing nothing.
+
+Tests (+11): gameplay byte-identical with capture on/off for all three payouts; Fleeting Vigor emits a
+registry-anchored `startOfCombat` trigger with one consequence per minion; Twilight doubles the emitted delta;
+nothing is emitted when nothing is banked; a dead grant narrates nothing; Imps use `summon.appear`; the batch
+is deterministic and every key is registry-anchored.
+
+typecheck + lint + npm test (5055) + build:web green.
+
+Branched off PR 1 rather than the PR-6 tip - this is engine work that needs only event identity, so the stack
+stays two deep instead of seven.
+
+REMAINING for the bug to be visibly fixed: the playback half - withhold the value on the combat board until
+its beat fires, and gate the first attack on Start-of-Combat completion.
 
 ## 2026-08-12 — Refresh button — bake owner-tuned position/scale + click FX for the new pill
 

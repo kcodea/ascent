@@ -22,7 +22,8 @@ export interface EotBeatFx {
   impAura: { attack: number; health: number };
   /** Host uids that gained an Attachment this beat (welds) — the UI rings each as it fuses. */
   weldHosts: string[];
-  eaten: number;
+  /** Fodder consumed this beat, in `playFodderEat`'s shape (eater + gains) so the eat FX can fly to the eater. */
+  eaten: Array<{ eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }>;
 }
 
 const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type === 'sourceTrigger';
@@ -36,7 +37,7 @@ export function compileEotFx(batch: PresentationBatch): EotBeatFx[] {
   const beats: EotBeatFx[] = [];
   for (const e of batch.events) {
     if (!isTrigger(e)) continue;
-    const fx: EotBeatFx = { trigger: e, stats: [], rubies: [], handGrants: [], shopBuff: [], spellPower: { attack: 0, health: 0 }, impAura: { attack: 0, health: 0 }, weldHosts: [], eaten: 0 };
+    const fx: EotBeatFx = { trigger: e, stats: [], rubies: [], handGrants: [], shopBuff: [], spellPower: { attack: 0, health: 0 }, impAura: { attack: 0, health: 0 }, weldHosts: [], eaten: [] };
     for (const c of byParent.get(e.id) ?? []) {
       switch (c.type) {
         case 'statsChanged': if (c.target.zone === 'board' && c.target.uid) fx.stats.push({ uid: c.target.uid, attack: c.attack, health: c.health }); break;
@@ -48,7 +49,7 @@ export function compileEotFx(batch: PresentationBatch): EotBeatFx[] {
           else if (c.aura === 'impAura') { fx.impAura.attack += c.attack ?? 0; fx.impAura.health += c.health ?? 0; }
           break;
         case 'counterChanged': if (c.counter === 'attachments' && c.target?.uid) fx.weldHosts.push(c.target.uid); break;
-        case 'cardDestroyed': if (c.target.zone === 'board') fx.eaten += 1; break;
+        case 'fodderEaten': fx.eaten.push({ eaterUid: c.eaterUid, fodderId: c.fodderId, attack: c.attack, health: c.health, gainA: c.gainAttack, gainH: c.gainHealth }); break;
         default: break;
       }
     }
@@ -84,7 +85,7 @@ export function aggregateEotFx(beats: readonly EotBeatFx[]): {
     for (const sb of b.shopBuff) bump(shopBuff, sb.uid, sb.attack, sb.health);
     spellPower.attack += b.spellPower.attack; spellPower.health += b.spellPower.health;
     impAura.attack += b.impAura.attack; impAura.health += b.impAura.health;
-    eaten += b.eaten;
+    eaten += b.eaten.length;
   }
   return { stats, rubies, handGrants, shopBuff, spellPower, impAura, eaten };
 }

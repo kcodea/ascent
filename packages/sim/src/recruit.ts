@@ -7321,9 +7321,10 @@ function withRecruitTrigger(
         const now = c.attachments ?? 0;
         if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now, target: { zone: 'board', uid: c.uid, side: 'player' } });
       }
-      // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
+      // BEAT SYSTEM: Fodder this trigger consumed → fodderEaten, one per token, carrying the eater + gains so
+      // the live player can fly the eat FX to the eater (PR 6c emitted a lossy cardDestroyed with only the id).
       for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
-        collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
+        collector.emit({ type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.fodderId, attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH });
       }
     },
   );

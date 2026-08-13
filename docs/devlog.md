@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat System cutover slice 2c: Fodder-eat FX — the batch player is now FX-complete
+
+The last of the eight End-of-Turn FX categories. A new `fodderEaten` consequence carries the eater uid + the
+consumed Fodder's stats + the eater's gains (PR 6c had emitted a lossy `cardDestroyed` with only the id), so
+`compileEotFx` reconstructs `playFodderEat`'s exact entry shape and the batch player flies the eat FX to each
+eater (Maw of the Pit / Abyssal Feeder).
+
+`packages/core/src/presentation/events.ts`: `FodderEatenConsequence` added to the union + draft.
+`recruit.ts`: emits it per consumed token. `eotPresentation.ts`: `EotBeatFx.eaten` is now the full entry array;
+`compileEotFx` fills it from `fodderEaten`. `Recruit.tsx`: `playFodderEat(b.eaten, …)` on the beat.
+
+The batch-driven player (behind the `ascent.beatcutover` flag) now reproduces ALL eight categories: stat ticks,
+ruby cascade, shop buffs, hand grants, spell power, imp aura, welds, and Fodder-eat — feature-complete for the
+playtest. Verified live: an End of Turn plays through and commits to combat, no crash (an earlier crash was a
+bad test cardId, not the player).
+
+typecheck + lint + npm test (5040) + build:web green. Remaining before flipping the default: the owner playtest
+(slice 3), then retire `projectEndOfTurnSteps` + BEAT/GAP (slice 4).
+
 ## 2026-08-13 — Beat System cutover slice 2b: spell-power / imp-aura / weld FX in the batch player
 
 Fills three of the four FX categories the slice-2 player was missing, so a flag-on playtest reads like the

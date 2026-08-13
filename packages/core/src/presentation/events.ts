@@ -144,6 +144,17 @@ export interface RubyPlayedConsequence extends ConsequenceBase {
   target: ZoneTargetRef;
   count: number;
 }
+export interface FodderEatenConsequence extends ConsequenceBase {
+  type: 'fodderEaten';
+  /** The minion that ate the Fodder (the eat FX flies from the Fodder to it). */
+  eaterUid: string;
+  fodderId: string;
+  /** The consumed Fodder's own stats, and the stats the eater gains. */
+  attack: number;
+  health: number;
+  gainAttack: number;
+  gainHealth: number;
+}
 
 export type ConsequenceEvent =
   | StatsChangedConsequence
@@ -157,7 +168,8 @@ export type ConsequenceEvent =
   | ShopChangedConsequence
   | AuraChangedConsequence
   | CounterChangedConsequence
-  | RubyPlayedConsequence;
+  | RubyPlayedConsequence
+  | FodderEatenConsequence;
 
 export type GamePresentationEvent = SourceTriggerEvent | ConsequenceEvent;
 
@@ -183,7 +195,8 @@ export type ConsequenceDraft =
   | Omit<ShopChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<AuraChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<CounterChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
-  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
+  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
+  | Omit<FodderEatenConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
 
 /** What a mutation site hands the collector to open a trigger scope. */
 export interface BeginTriggerSpec {

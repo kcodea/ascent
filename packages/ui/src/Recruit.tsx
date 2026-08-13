@@ -3947,6 +3947,8 @@ export function Recruit() {
         if (b.impAura.attack || b.impAura.health) fireAuraWave('demon');
         // Welds (Combinator / Cling Drones / Money Bots) — ring each host that gained an Attachment this beat.
         if (b.weldHosts.length) fireWeldFxBatch(b.weldHosts, 'auto');
+        // Fodder consumed this beat (Maw of the Pit / Abyssal Feeder) — fly the eat FX to each eater.
+        if (b.eaten.length) playFodderEat(b.eaten, ++eotEatKey.current);
         window.setTimeout(() => {
           setEotProcUids(new Set());
           setEotPulseUids(new Set());

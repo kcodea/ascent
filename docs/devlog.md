@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-12 — Refresh button art swapped (owner-supplied purple pill)
+
+Replaced the Refresh button art with a new owner-supplied purple "Refresh" pill (converted from PNG to WebP at
+800×233, q92 — the shipped format; PNG masters are guarded out of the build). Dropped in at
+`apps/web/public/frames/refresh_button1.webp`, the file `RefreshButton.tsx` renders, so **no code change** — the
+`<img src>` id is unchanged. The wordmark is baked into the art, matching the previous asset.
+
+The new art is a **wider, flatter pill** (aspect 3.43 vs the old 2.36), so it will sit differently at the current
+baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size re-tuning is a deliberate
+follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
+and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
+unused vertical crystal) is untouched.
+
 ## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
 
 **Rune of Twilight didn't double Fleeting Vigor's Start-of-Combat buff (gameplay bug).** Twilight ("your
@@ -129,6 +142,7 @@ Verified live: opened Library, filtered to rune_lapidary, edited Hold 420→900 
 exact-source provenance and the synthetic preview re-paced 1420ms→2380ms on the spot; draft badge + Copy JSON
 appeared. typecheck + lint + npm test (5019; +13 timing/library/timeline) + build:web all green.
 (Note: not the live cutover — the game's End-of-Turn animation still runs on projectEndOfTurnSteps.)
+
 
 ## 2026-08-12 — fix(ui): End-of-Turn shop buffs climb in real time
 

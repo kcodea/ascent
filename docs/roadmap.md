@@ -142,8 +142,12 @@ The five buckets below are ordered by when we intend to act, not by size:
   to withhold. A second adopter wants its own resolver alongside it, not a change to the module.
 
 - **Set 2 art — 7 minions still have none.** Storm Chaser, Mineral Master, Runekeg, Moira, Oathbound Avenger,
-  Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired. Also: `BigHuggies.png` was aliased
-  onto **Bug** Huggies (one letter apart) — confirm that is the intended art, and confirm the card name.
+  Bellringer Voss, Lastlight Marshal. Everything else (149 files) is wired — the Demons folder was fully
+  re-wired 2026-08-13 (23 masters). The old `BigHuggies.png` / "**Bug** Huggies" naming question is CLOSED: the
+  card is `dm_velvet`, named "Big Huggies", and the master matches it exactly.
+- **Two Demon art files are unwired — the owner needs to name their card.** `Blu.png` matches no card in the
+  repo, and `content1544.png` is un-attributed; both sit in `Ascent Art\Set 2 Minions\Demons` and were skipped
+  on the 2026-08-13 re-wire rather than guessed at. Name the card for either and it's a one-file drop.
 - **Set 2 balance is unplayed.** 26 quests and 96 runes are implemented and tested, but almost none have been
   played. Objective counts (Endless Inventory's 180 shop stats, Heart of the Mountain's 150) and rune magnitudes
   are starting dials, not tuned numbers. Needs live play before it is trustworthy.

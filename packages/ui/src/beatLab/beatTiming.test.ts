@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBeatTiming, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
+import { resolveBeatTiming, resolvePolicy, readShippedOverrides, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
+import { migrateV1Patch } from '../choreographer/resolveTiming';
 import { scheduleBeats } from './beatTimeline';
 import type { PresentationBatch } from '@game/core';
 
@@ -43,5 +44,60 @@ describe('timing resolution', () => {
     };
     const { totalMs } = scheduleBeats(batch, (t) => resolveBeatTiming(t, { 'source:rune:runeLapidary:endOfTurn': { windupMs: 0, holdMs: 100, recoveryMs: 0 } }));
     expect(totalMs).toBe(100);
+  });
+});
+
+describe('policy overrides (the folded ↔ own-beat toggle)', () => {
+  const repete = { source: { kind: 'hero' as const, id: 'repete' }, trigger: 'secondHand', policy: 'foldedCue' as const };
+
+  it('no override → the emitted policy stands', () => {
+    expect(resolvePolicy(repete)).toBe('foldedCue');
+  });
+
+  it('an override reclassifies the beat (folded → own)', () => {
+    expect(resolvePolicy(repete, { 'source:hero:repete:secondHand': 'ownBeat' })).toBe('ownBeat');
+  });
+
+  it('reclassifying re-bases the timing to the new policy default', () => {
+    const folded = resolveBeatTiming(repete);
+    const own = resolveBeatTiming(repete, {}, { 'source:hero:repete:secondHand': 'ownBeat' });
+    expect(own.holdMs).toBeGreaterThan(folded.holdMs); // ownBeat holds (420) vs foldedCue (160)
+    expect(own).toEqual(POLICY_TIMING.ownBeat);
+  });
+
+  it('a timing override still layers on top of the reclassified base', () => {
+    const t = resolveBeatTiming(repete, { 'source:hero:repete:secondHand': { holdMs: 999 } }, { 'source:hero:repete:secondHand': 'ownBeat' });
+    expect(t.holdMs).toBe(999);
+    expect(t.windupMs).toBe(POLICY_TIMING.ownBeat.windupMs);
+  });
+});
+
+describe('the editor reads whichever config format is on disk (CHOREOGRAPHER PR 12)', () => {
+  // `beat-defaults.json` is a v2 file now, because that is what the live compiler reads. If this editor only
+  // understood `timings`, it would show an EMPTY editor over a file full of committed values — and the next
+  // commit would look like a deliberate reset while silently wiping reviewed work.
+  it('converts a v2 override back into the windup/hold the editor thinks in', () => {
+    const out = readShippedOverrides({
+      version: 2,
+      overrides: { 'source:rune:rune_lapidary:endOfTurn': { deliveryOffsetMs: 100, completionOffsetMs: 600, recoveryMs: 40 } },
+    });
+    expect(out['source:rune:rune_lapidary:endOfTurn']).toEqual({ windupMs: 100, holdMs: 500, recoveryMs: 40 });
+  });
+
+  it('round-trips: v1 → v2 → v1 is lossless', () => {
+    const v1 = { windupMs: 120, holdMs: 420, recoveryMs: 170 };
+    const v2 = migrateV1Patch(v1);
+    const back = readShippedOverrides({ version: 2, overrides: { global: v2 } });
+    expect(back.global).toEqual(v1);
+  });
+
+  it('still reads a v1 file unchanged', () => {
+    const out = readShippedOverrides({ version: 1, timings: { global: { holdMs: 300 } } });
+    expect(out.global).toEqual({ holdMs: 300 });
+  });
+
+  it('a missing or malformed file yields no overrides rather than throwing', () => {
+    expect(readShippedOverrides(undefined)).toEqual({});
+    expect(readShippedOverrides({ version: 2 })).toEqual({});
   });
 });

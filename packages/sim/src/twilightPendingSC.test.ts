@@ -17,11 +17,25 @@ function eot(over: Partial<RunState> = {}): RunState {
   } as RunState;
 }
 
-/** The player minion's stats as they entered combat (base 2/2 + the applied Fleeting Vigor). */
+/**
+ * The player minion's stats as they FOUGHT (base 2/2 + the applied Fleeting Vigor).
+ *
+ * CHOREOGRAPHER PR 8: `initial` now holds the PRE-Start-of-Combat board, with the surge delivered by real
+ * `buff` events, so the gain visibly lands instead of being true from frame one. The gameplay fact this test
+ * protects is unchanged — it just has to fold the events the same way the replay does to read it.
+ */
 function combatStats(s: RunState): { attack: number; health: number } {
   const next = reduce(s, { type: 'faceOmen' } as never);
-  const me = next.lastCombat!.initial.player[0]!;
-  return { attack: me.attack, health: me.health };
+  const lc = next.lastCombat!;
+  const me = lc.initial.player[0]!;
+  let attack = me.attack;
+  let health = me.health;
+  // Only the OPENING block (narration + its buffs); later in-combat buffs hit the same minion.
+  const end = lc.events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff');
+  for (const e of lc.events.slice(0, end === -1 ? lc.events.length : end)) {
+    if (e.type === 'buff' && e.target === me.uid) { attack += e.attack; health += e.health; }
+  }
+  return { attack, health };
 }
 
 describe('Rune of Twilight doubles pending Start-of-Combat effects', () => {

@@ -23,7 +23,9 @@ describe('planBeatDefaultsWrite', () => {
   it('rejects a non-object body / missing json / bad version', () => {
     expect(planBeatDefaultsWrite(42, FILE).status).toBe(400);
     expect(planBeatDefaultsWrite({}, FILE).status).toBe(400);
-    expect(planBeatDefaultsWrite({ json: JSON.stringify({ version: 2, timings: {} }) }, FILE).status).toBe(400);
+    // CHOREOGRAPHER PR 10: version 2 is now a VALID authored format (templates + overrides + modes), so the
+    // unsupported-version case moves to a version that really is unknown.
+    expect(planBeatDefaultsWrite({ json: JSON.stringify({ version: 3, timings: {} }) }, FILE).status).toBe(400);
   });
 
   it('rejects unsafe keys, malformed keys, and unknown fields', () => {
@@ -43,5 +45,54 @@ describe('planBeatDefaultsWrite', () => {
   it('rejects oversize payloads', () => {
     const huge = { json: JSON.stringify({ version: 1, timings: {} }) + ' '.repeat(MAX_DEFAULTS_BYTES) };
     expect(planBeatDefaultsWrite(huge, FILE).status).toBe(413);
+  });
+});
+
+describe('planBeatDefaultsWrite — v2 authored config (CHOREOGRAPHER PR 10)', () => {
+  const FILE2 = '/tmp/beat-defaults.json';
+  const write = (obj: unknown) => planBeatDefaultsWrite({ json: JSON.stringify(obj) }, FILE2);
+
+  it('accepts templates + overrides + modes', () => {
+    const plan = write({
+      version: 2,
+      templates: { 'family:endOfTurn': { deliveryOffsetMs: 160, completionOffsetMs: 520, recoveryMs: 140 } },
+      overrides: { 'source:rune:rune_lapidary:endOfTurn': { completionOffsetMs: 660 } },
+      policies: { 'source:hero:repete:secondHand': 'ownBeat' },
+    });
+    expect(plan.status).toBe(200);
+    expect(plan.data).toContain('"version": 2');
+  });
+
+  it('accepts a semantic anchor with an offset', () => {
+    expect(write({ version: 2, overrides: { global: { anchor: { kind: 'atParentDelivery', offsetMs: 40 } } } }).status).toBe(200);
+  });
+
+  it('rejects an unknown anchor kind rather than writing a value nothing can resolve', () => {
+    expect(write({ version: 2, overrides: { global: { anchor: { kind: 'whenever' } } } }).status).toBe(400);
+  });
+
+  it('rejects an unknown authored field (a typo would silently do nothing forever)', () => {
+    expect(write({ version: 2, overrides: { global: { holdMs: 400 } } }).status).toBe(400);
+  });
+
+  it('rejects completion before delivery — the one ordering invariant', () => {
+    const plan = write({ version: 2, overrides: { global: { deliveryOffsetMs: 500, completionOffsetMs: 100 } } });
+    expect(plan.status).toBe(400);
+    expect(plan.error).toContain('before delivery');
+  });
+
+  it('rejects a negative timing', () => {
+    expect(write({ version: 2, overrides: { global: { recoveryMs: -1 } } }).status).toBe(400);
+  });
+
+  it('rejects a prototype-pollution key', () => {
+    // Written as RAW JSON on purpose: in a JS object literal `__proto__` sets the prototype rather than
+    // creating a key, so the literal form silently tests nothing at all.
+    const raw = '{"version":2,"overrides":{"__proto__":{"recoveryMs":1}}}';
+    expect(planBeatDefaultsWrite({ json: raw }, FILE2).status).toBe(400);
+  });
+
+  it('rejects an unknown mode', () => {
+    expect(write({ version: 2, policies: { global: 'loud' } }).status).toBe(400);
   });
 });

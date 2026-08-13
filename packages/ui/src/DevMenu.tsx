@@ -39,6 +39,7 @@ import { RefreshTuner } from './RefreshTuner';
 import { FreezeTuner } from './FreezeTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
+import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
@@ -109,6 +110,7 @@ const GROUPS: Group[] = [
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Drawer', C: BuffDrawerTuner, hint: 'The run-buffs panel' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
+      { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
     ],
   },
   {

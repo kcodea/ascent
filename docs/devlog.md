@@ -21,6 +21,598 @@ path (cosmetic); optional re-import of a pasted summary back into the editor.
 Verified: per-module Vitest unit tests (config/resolver/selector/transforms/scratchpad/uiAssetPlugin),
 typecheck + lint + full test suite (5004 tests) + build:web all green; the DOM/pointer overlay code-reviewed
 with live browser verification.
+## 2026-08-13 — The real stacking fix: hero panel above the board, behind the modal
+
+Third attempt, and the first correct one. The previous two both moved `.statusbar`'s z-index, and both were
+wrong the same way — the second one made the hero panel and power diamond vanish outright (owner report).
+
+**The knob was never the bar.** `.boardbg` is a CHILD of `.app` (fixed, z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). So ANY value that sinks the bar below `.app` sinks it below the BOARD
+too, and it disappears. The bar cannot be interleaved between two layers that live on the other side of a
+stacking-context boundary.
+
+**What works is dissolving that boundary.** `body.modalup .app { z-index: auto }` — still `position: relative`,
+so nothing moves and no layout changes; it simply stops creating a stacking context. Its positioned descendants
+then merge into the ROOT stacking order and the three layers finally sort by their own numbers:
+`.boardbg` 0 < `.statusbar` 40 < `.forge-ov` 160. The hero panel keeps its place above the board and the modal
+covers it — the ordering that was asked for from the start. Scoped to `body.modalup` because dissolving the
+context lets every positioned descendant of `.app` compete at root: harmless under a full-screen overlay, not
+something to leave on during normal play.
+
+**Deleted the hand-rolled dim it made redundant.** `body.modalup .statusbar .hero/.heropanel/.questbadges`
+carried `filter: brightness(0.5) saturate(0.85)` for one reason: those surfaces painted ON TOP of the overlay, so
+they had to be FAKED into looking covered. Now the overlay's scrim passes over them exactly like it passes over
+the board, and keeping the filter would dim them TWICE — darker than the board they exist to match. The
+`pointer-events: none` stays: they are behind the modal and must not take clicks.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5228/5228 + `build:web` 6.32s. Live,
+walking real stacking contexts rather than hit-testing (the bar is `pointer-events: none`, so `elementsFromPoint`
+cannot see it and reports nothing useful): with a modal up, `.boardbg`, `.statusbar` and `.forge-ov` all resolve
+to the SAME stacking context, so their 0 / 40 / 160 sort directly; `.app` reports `z-index: auto` and creates no
+context; the hero panel computes `filter: none` and `pointer-events: none`. Closing the modal restores `.app` to
+z-index 1, the panel to `pointer-events: auto`, and `.heropowerbtn` is topmost at its own centre again — the
+power stays clickable in normal play.
+
+## 2026-08-13 — Hero panel goes UNDER every modal, + the owner's tuned Runeforge backdrop baked
+
+**The power diamond was still on top.** The previous fix scoped the z-index drop to the forge with
+`body:has(.forge-ov)`, which was too narrow for the actual ruling: those surfaces should never sit on top of
+anything but the board. Widened to `body.modalup .statusbar { z-index: 0 }` — so Discover, Choose One, the quest
+offer, a scouted board and the forge all cover the hero portrait and the power diamond outright.
+
+**Why it cannot simply be permanent.** `.boardbg` is a CHILD of `.app` (z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). Anything parked below `.app` is therefore below the BOARD as well and
+disappears completely — "above the board, below everything else" is not expressible from outside `.app`'s
+stacking context and would need the bar moved into that tree (a structural change, not a z-index one). While a
+modal is up the board is covered anyway, so hiding behind `.app` is exactly right; in normal play the bar keeps
+its 40 and the power stays clickable.
+
+`modalup` is already FALSE when an overlay is MINIMIZED (`forgeMin` / `discoverMin` / `questMin`), so
+"Inspect the board" hands the hero panel straight back — verified, that path restores z-index 40 and makes
+`.heropowerbtn` the topmost element at its own centre again.
+
+**Baked the owner's tuned backdrop values** (dialled in the Runeforge Backdrop panel): `auto 78%` at `50% 55%`
+with the scrim at 0.53 — a smaller, slightly-lowered frame over a lighter dim than the
+`auto 100% / 50% 50% / 0.72` first cut. Written into BOTH the shipped `.forge-ov` rule and the tuner's DEFAULTS,
+per that panel's mirror rule, so Reset returns to what players now see.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5218/5218 + `build:web` 6.87s. Live
+with the stored tuner values CLEARED, so the shipped defaults are what rendered: the overlay computes
+`auto 78%` at `50% 55%` with 0.53 in the gradient. Hit-tested at the hero POWER button's centre with
+`elementsFromPoint` — modal up: `.statusbar` is z-index 0 and `.forge-ov` is topmost (it was `.heropowerbtn`);
+minimized: z-index 40 and `.heropowerbtn` topmost again.
+
+## 2026-08-13 — Runeforge frame paints OVER the hero panel + power diamond
+
+Owner report against the live forge: the hero portrait and the Spoils power diamond sat ON TOP of the new frame
+art, cutting its bottom-left corner.
+
+**Why.** Every overlay lives inside `.app`, which is `position: relative; z-index: 1` — its own stacking context.
+So `.forge-ov`'s z-index 160 is trapped INSIDE that context and never competes with anything outside it; what
+actually competes is `.app`'s **1** against `.statusbar`'s **40**, and the status bar wins. That is also why the
+`body.modalup` rule above it dims the hero surfaces by filter rather than simply covering them — the dimming is
+a workaround for exactly this, papering over the fact that they were never behind the modal to begin with.
+
+**Fix:** `body:has(.forge-ov) .statusbar { z-index: 0 }` — drop the bar beneath `.app` for as long as a forge is
+open. Scoped to the FORGE with `:has` rather than applied to `body.modalup`, because Discover and the quest offer
+deliberately keep those surfaces visible-but-dimmed; only the forge has a full illustrated frame that wants the
+whole rectangle to itself. (`:has` is already load-bearing in this stylesheet — see `.questbadges:has(...)`.)
+
+Both `Spoils` and the portrait live inside `.statusbar` (Spoils is Robin's hero POWER, rendered in the
+board-floated hero-power panel), so one rule covers both things the report named.
+
+**Verified:** typecheck + lint (0 errors) + test 5210/5210 + `build:web` 6.50s. Live, hit-tested at the hero
+panel's centre with `elementsFromPoint`: forge open → `.statusbar` computes z-index 0 and `.forge-ov` is the
+topmost element there (it was the hero panel before). Forge closed → z-index back to 40 and `.heropowerbtn` is
+topmost again, so the power stays clickable in normal play. No console errors.
+
+## 2026-08-13 — Runeforge backdrop: two owner-reported fixes (black surround, dead Zoom slider)
+
+**"Why is there a black background if the background is transparent?"** Because it was not transparent. The
+master (`runeforgebg2.png`) is a 3-channel image with NO alpha — the black around the ornate border is baked
+PIXELS, not emptiness — and 18.3% of the image is that near-black surround. Keyed it out on the way to WebP with
+a soft luminance threshold (fully clear below 6, fully opaque above 34, ramped between) so the gold rim keeps its
+antialiasing instead of gaining a hard jaggy edge: 17.4% of the image is now fully transparent, and the file is
+RGBA at 173KB (was 139KB opaque). The keying happens at conversion time; the master is untouched.
+
+That also revealed the asset is a FRAME — an ornate gold border around a flat interior — not a full-bleed
+painting, so `cover` was the wrong treatment: it cropped the ornaments off. The shipped rule now sizes it to FIT
+(`auto 100%`, height-based, width following the aspect) and paints it as the FIRST background layer, i.e. ON TOP
+of the scrim, with the scrim behind it dimming the board and showing through the now-transparent surround. Worth
+an owner opinion: this frames the whole viewport, and a frame arguably belongs around the forge PANEL instead.
+
+**"The tuner zoom scale doesn't work."** Correct, at the shipped default. The first cut offered a Fit mode of
+cover / contain / zoom and the slider only bit in the third — so the obvious move (drag Zoom) did nothing until
+you first found and changed a select above it. A hint cannot rescue a control that appears dead. The Fit select
+is GONE and there is one sizing model: Zoom sets the frame's height as a percentage of the overlay, width follows
+the aspect ratio, and it always moves something. Range widened to 20–300%, and the position sliders now run
+−50–150% so the frame can be pushed deliberately past an edge.
+
+**Verified:** typecheck + lint (0 errors) + test 5177/5177 + `build:web` 6.56s. Live: the served WebP samples
+`[0,0,0,0]` at its corner and `[113,80,57,255]` at centre — alpha confirmed through the real request, not just on
+disk. The overlay computes the image as layer one over the gradient; dragging Zoom to 72 gave `auto 72%` with no
+mode change first, position to 20/80 gave `20% 80%`, scrim to 0.9 reached the gradient, and Reset returned
+`auto 100% @ 50% 50%`.
+
+## 2026-08-13 — Runeforge Backdrop tuner (Stage & Layout)
+
+A DEV tuner for placing the new forge backdrop, since art dropped behind a panel almost never lands right at
+`cover / 50% 50%` and the alternative is editing `styles.css` and reloading.
+
+**Five controls, one composed declaration.** `Fit` (cover / contain / zoom), `Zoom` (%), `Horizontal position`,
+`Vertical position`, and `Scrim` (the dark layer's opacity). Every one is an ingredient of a single `background`
+shorthand rather than a var of its own, so the panel is built on `createCssTunerStore` — the same route the
+Charge Glyph takes — writing a doubled-selector `.forge-ov.forge-ov` override into a `<style>` element that is
+REMOVED on close. It persists (`ascent.runeforgeBgTuner`), like the charge glyph and unlike the frame/palette
+panels: placing art by eye happens over sessions.
+
+`cover` and `contain` are the CSS answers and ignore the Zoom slider (the control carries a `note` saying so).
+`zoom` is the third mode, driving the image's HEIGHT as a % of the overlay with the width following the aspect
+ratio, so you can push past cover and crop into part of the illustration without ever stretching it. The scrim
+gradient stays the FIRST background layer in every mode — CSS paints layer one on top, and that is what keeps
+the engraved banner and rune tablets readable.
+
+**A preview harness, because the forge is on a wave.** The panel's readout has "Open the forge" / Basic-Epic
+buttons that force the real overlay on screen. This is the only tuner that pokes RUN STATE, so it captures the
+previous `runeforgeOffer` / `runeforgeEpic` on the way in and restores them when the toggle goes off OR the panel
+closes — without that, closing the panel would strand a fabricated forge offer in a real run. Disabled with an
+explanatory line when no run exists.
+
+DEFAULTS mirror the shipped `.forge-ov` rule exactly, so opening the panel changes nothing until you move
+something, Reset returns players' look, and "Copy CSS" emits the undoubled rule to paste back into `styles.css`.
+Registered in all three places a panel must be: `PANEL_EMBLEMS`, `ALL_TUNER_SPECS` (so "Reset all tuners"
+includes it), and the DevMenu's Stage & Layout group.
+
+**Verified:** typecheck + lint (0 errors) + test 5036/5036 + `build:web` 7.17s. Live in the dev server: the panel
+opens from the dev menu, its override installs matching the shipped rule byte-for-byte, and driving the real
+inputs produced `... rgba(14,16,22,0.35) ... 50% 20% / auto 160%` on the open overlay's computed style with the
+values persisted to localStorage. Reset restored the shipped string and the stored defaults. The harness opened
+the forge (offer set, `.forge-ov` present), applied `.forge-epic`, and on close restored the prior offer with the
+overlay gone — no leftover state. No console errors.
+
+## 2026-08-13 — Set-2 Demon art re-wire (23 masters) + an illustrated Runeforge backdrop
+
+**Demon art re-wire.** Re-wired every master in `C:\Game Assets\Ascent Art\Set 2 Minions\Demons` onto its card
+by NAME MATCH, then ran `npm run optimize-art` (≤512px, WebP q85) so the new files replaced the existing
+`.webp` build copies in place. 23 files, 50.6MB → 1.24MB (97.5% smaller). No code change — `art.ts` keys art by
+card id, so a re-wire is purely a file swap.
+
+The mapping (art filename → card id), all exact card-NAME matches:
+`AppetiteAgent→dm_agent`, `AvariceIncarnate→dm_avarice`, `BigHuggies→dm_velvet`, `BobBlart→dm_gourmand`,
+`Broodwright→dm_broodwright`, `Chipper→dm_glutton`, `CinderClerk→dm_clerk`, `ContractButcher→dm_butcher`,
+`demonhorse→dm_hungerling`, `EndlessOverseer→dm_overseer`, `ErrandFiend→dm_errand`, `FeastmasterVhal→dm_vhal`,
+`Hellrider→dm_maw`, `Imp→impscrap`, `ImpOverseer→impoverseer`, `ImpWrangler→dm_wrangler`,
+`LegionShepherd→dm_shepherd`, `Malphas→dm_malphas`, `MarketTormentor→dm_tormentor`, `RightHandHank→dm_hank`,
+`RougeRogue→dm_chancellor`, `SoulDefiler→dm_curator`, `VoidCurator→dm_tallymonger`.
+
+Three of those live outside Set 2 but matched a real card name exactly, so they were wired anyway: `impoverseer`
++ `impscrap` are Set-1 (the Imp Overseer card and the shared Imp token), and `dm_tallymonger` / `dm_chancellor`
+are ARCHIVED cards (`cards/archive.ts`) that still carry art. **Two files were deliberately NOT wired** — `Blu.png`
+matches no card in the repo, and `content1544.png` is un-attributed. Per the standing rule we never guess a card
+from an un-attributed filename; if either belongs to a card, the owner can name it and it's a one-file drop.
+
+**Runeforge backdrop.** The Runeforge overlay was a flat slate scrim (`.forge-ov { background: rgba(14,16,22,.72) }`).
+It now paints the owner's `runeforgebg2` art underneath that same scrim — converted to
+`apps/web/public/runeforgebg2.webp` (1536×1024, q82, 139KB) and referenced root-absolute from `styles.css` like the
+other public backdrops. The dark gradient is kept as a layer ON TOP of the image, which is what keeps the engraved
+banner and the rune tablets readable over the illustration. Both forge menus get it: the normal and the Epic
+Runeforge are the same element (`.forge-epic` only re-tones the banner/accents), so one rule covers both. Added to
+`PUBLIC_ART_URLS` in `art.ts` so the boot preloader fetches it — otherwise the forge opens on a bare scrim for a
+frame while the image is fetched. Static layers only; nothing here animates a paint property.
+
+**Verified:** full gate green — typecheck, lint (0 errors, 7 pre-existing warnings), test 5036/5036 across 303
+files, `build:web` in 6.79s. Live in the dev server on a throwaway run: all 23 art URLs resolve and decode at
+512×512 through `artFor()`, and the open `.forge-ov` computes
+`linear-gradient(...), url("/runeforgebg2.webp")` at `cover` with the image loading at its natural 1536×1024. No
+app console errors. NB: a screenshot could not be captured in this session (the Browser pane wasn't displayed),
+so the checks above are DOM/computed-style based — the backdrop's artistic fit is still worth an owner eyeball.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 14: the authoritative End of Turn is now the DEFAULT
+
+Owner sign-off: "end of turn seems right with the fixes in place. go ahead and unblock it."
+
+End of Turn is now driven by the emitted event batch for everyone, production included. The Beat Lab's
+committed timings pace the real game rather than a dev preview.
+
+- The flag inverts: `ascent.choreo` is an OPT-OUT (`'0'` restores the legacy projection) rather than an
+  opt-in, and it is no longer DEV-only. Kept as a rollback valve for one release - a regression found in the
+  wild can be worked around without a rebuild - and it goes away with the legacy path itself.
+- "Nothing emitted" now commits straight through instead of handing off to legacy. That branch existed to
+  preserve legacy behaviour on turns the new path could not describe; with End-of-Turn emission proven, a turn
+  with no beats is simply a turn with nothing to animate, and legacy would reach the same place having also
+  found nothing to play.
+
+**Perf, measured rather than assumed** (CLAUDE.md requires it - production now captures a presentation batch
+on every End Turn, where before it used the zero-alloc path). `reduce(faceOmen)` vs
+`reduceWithPresentation(faceOmen, capture)` on a full 7-minion board with three runes armed: 0.190 vs
+0.161 ms/op - the capture run measured FASTER, i.e. the overhead is below JIT/GC noise on a ~0.17ms operation
+that happens once per turn at human cadence. `npm run perf` all within budget.
+
+**Verified live, both directions:**
+
+    no flag set     -> choreoEot true, "authoritative End of Turn - 2 beats, 2 deliveries, 1420ms"
+                       b1: 2/2 (762ms) -> 4/4 (1010ms) -> 5/5 (1259ms) -> commit
+    ascent.choreo=0 -> choreoEot false, no choreographer log, legacy projection runs
+
+Two beats landing at distinct moments with the numbers climbing between them - the behaviour the whole arc was
+built for, now the default.
+
+STILL PRESENT: `projectEndOfTurnSteps` and the fixed BEAT/GAP constants remain, reachable only through the
+opt-out. Deleting them is the follow-up once this has been played in anger; doing it in the same change would
+have removed the rollback at the exact moment it was most likely to be wanted.
+
+typecheck + lint + npm test (5228) + build:web green.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 13: the audit MEASURES emission
+
+`npm run beats:audit` could always answer "is this effect classified?". It could never answer the question
+that actually matters - **does gameplay announce it?** That gap is why a green report could sit on top of a
+screen where nothing happened; Fleeting Vigor was classified and silent for weeks.
+
+- `beatProbe.ts` (sim) - runs deterministic scenarios and collects the `policyKey`s gameplay REALLY emitted.
+  Evidence, not inference: no card-text scanning, no "this factory looks like it should fire". Scenario sets:
+  targeted mechanics (economy runes, Lapidary, Fleeting Vigor, banked keywords/Imps, Re-Pete), every
+  End-of-Turn card batched a board at a time, and every Shout played individually. Each scenario runs on its
+  own deep copy, so emission can never depend on the order the report happened to run in.
+- The audit gained an EMISSION column, a by-trigger breakdown of what is never observed, and a count of
+  emitters carrying no identity at all. `--silent` lists just the classified-but-silent rows.
+
+**What it says today** (59 scenarios, 684 keys):
+
+    NOT OBSERVED, BY TRIGGER (the shape of the remaining work):
+      recruit 100 · combat 92 · onComplete 78 · cast 66 · onDeath 41 · onAttack 33
+      onAcquire 28 · endOfTurn 20 · startOfCombat 19 · avenge 16 · onPlay 13 · onSummon 13
+
+Grouped this way the shape is obvious, and it is not "605 broken effects": what is missing is whole PHASES
+that emit nothing yet - combat above all (onDeath/onAttack/avenge/startOfCombat are all combat triggers), plus
+quest completion, spell casts, and rune/quest acquisition. That is the remaining instrumentation work, in
+priority order, derived from measurement rather than opinion.
+
+The report is careful about what it does NOT know: "not observed" means the probe did not reach it, which is a
+gap in EVIDENCE, not proof the effect is dead. Widening `defaultScenarios()` is the honest response to a
+surprising row, and the report says so in place rather than letting a reader over-conclude.
+
+typecheck + lint + npm test (5228) + build:web green.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 11: the Fodder crumble plays on its beat (salvaged from #1005)
+
+The last End-of-Turn visual stuck on the commit path, and the reason it was stuck: the eat choreography flies
+the consumed token's stats INTO its eater, and a `cardDestroyed` carries only a target. There was no way to
+drive it from the events we had, so PR 5 recorded the gap in code rather than faking a half-working version.
+
+PR #1005 (my earlier parallel cutover, now superseded) had already designed the right contract. Lifted it:
+
+- `FodderEatenConsequence` - `eaterUid`, `fodderId`, the token's own stats, and the eater's gain (they differ
+  when a rule scales the meal). Staged on the `consume.depart` marker.
+- The End-of-Turn emitter emits BOTH: `cardDestroyed` (the token leaving play) and `fodderEaten` (the meal).
+  Two consequences on purpose - they answer different questions.
+- The presenter hands the whole meal to `playFodderEat`, which already spoke exactly this shape, and holds the
+  eater's badge gain until the tendril lands (matching the legacy choreography).
+- Unmount cleanup cancels any running crumble, so leaving mid-animation cannot strand one.
+
+With this, every End-of-Turn visual is on the authoritative path. `projectEndOfTurnSteps` is now retirable -
+gated only on an owner side-by-side, which is a judgement about feel rather than a technical gap.
+
+typecheck + lint + npm test (5207) + build:web green.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 12: the Beat Lab writes the format the GAME reads
+
+Reconciling the policy toggle (#1010, authored before the pivot) with the merged architecture. Rebasing it
+surfaced a data-loss bug worth stating plainly.
+
+**The bug.** `beat-defaults.json` is now a v2 file, because v2 is what the live compiler reads. The Lab still
+committed v1 - which would have REPLACED that file wholesale, silently discarding any `templates` a v2 author
+had added. The tool destroying work it cannot see. And in the other direction it read only `timings`, so a v2
+file would have shown an EMPTY editor over a file full of committed values, making the next commit look like a
+deliberate reset.
+
+- `toV2File()` converts the editor's v1 draft on WRITE (delivery = windup, completion = windup + hold) and
+  PRESERVES any committed `templates` verbatim rather than dropping them.
+- `readShippedOverrides()` converts a v2 file back on READ, so committed values still appear in the editor.
+  Round-trip v1 -> v2 -> v1 is lossless, pinned by test.
+- Both directions degrade to empty on a malformed file rather than throwing.
+
+Verified live end to end: committed a v2 payload with BOTH a template and an override through the real
+endpoint, confirmed the file on disk kept the template, and confirmed the editor's read path converts the
+override back to `{windupMs: 0, holdMs: 1800, recoveryMs: 0}`. File reset afterwards.
+
+Also reconciled hero coverage (#1007) onto the arc: the union of both hero sets, keeping Re-Pete as
+`ownBeat`/`heroPower` rather than the branch's flagged `foldedCue` - that is the classification the owner asked
+for and the one PR 9's emission is built on. Dropped the duplicated tripwire assertions from `heroBeats.test.ts`
+now that `heroPolicies.test.ts` enumerates heroes from real data; what remains is what enumeration cannot see -
+a classified power is not the same as an EMITTING one.
+
+typecheck + lint + npm test (5214) + build:web green.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 10: authored timings reach LIVE playback
+
+The link that makes tuning real, and the last piece of "my edits do nothing".
+
+The compiler had always accepted a config; nothing passed one. So a beat tuned in the tool and committed to
+`beat-defaults.json` was written to a file the live game never read - tune, commit, reload, watch nothing
+change. Indistinguishable from a broken tool.
+
+- `beatConfig.ts` - reads the committed file into a v2 snapshot, shared by live playback and the tool so a
+  preview cannot diverge from the game by reading different numbers. Migration from v1 happens ON READ and is
+  never written back (the blueprint forbids silently rewriting the file on load). A malformed config degrades
+  to defaults rather than throwing - a bad dev file must never be able to break End Turn.
+- `Recruit` compiles with `shippedBeatConfig()`.
+- The dev endpoint accepts v2: templates + sparse overrides + modes, validating anchors, repeat modes,
+  delivery markers, unknown fields, negative values, unsafe keys, and the one ordering invariant
+  (completion may not precede delivery).
+
+**A silent-regression guard.** The v1 Beat Lab wrote `source:<kind>:<id>:<trigger>`; the v2 chain uses
+phase-qualified keys. Dropping the v1 shape would have stopped every already-committed reviewed value from
+applying, with no error anywhere - the quietest possible regression. The v1 shape stays in the chain, ranked
+just below the explicit v2 keys, with a test pinning both halves.
+
+**Verified live, end to end.** Committed a deliberately slow Lapidary through the REAL dev endpoint, reloaded,
+and played a turn:
+
+    POST /__beat-lab/defaults  -> ok, packages/ui/src/beatLab/beat-defaults.json
+    [choreographer] authoritative End of Turn - 1 beats, 1 deliveries, 2500ms
+
+2500ms is exactly the committed `completionOffsetMs`; the default is 540ms. Tool -> file -> live game, closed.
+(The file was reset to empty afterwards - no 2.5s Lapidary shipped.)
+
+Two bugs found while testing this, both mine: the endpoint referenced a constant that only exists on the
+policy-toggle branch (would have thrown on any v2 policy commit), and one of my new tests used a
+`{ __proto__: ... }` object literal, which sets the prototype rather than creating a key - so the
+prototype-pollution case was asserting nothing. Both fixed; the test now uses raw JSON.
+
+typecheck + lint + npm test (5203) + build:web green.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 9: hero powers emit (Re-Pete gets a beat)
+
+The owner's third bug: "if i change re-pete to an ownbeat it does nothing."
+
+Correct - and not a Beat Lab fault. Hero powers were the last whole CLASS of automatic effect emitting
+nothing at all. The tool could change a beat's declared policy, but gameplay never announced the moment, so
+there was no beat to reclassify. Re-Pete's Second Hand conjured a card into hand silently.
+
+- `heroBeat(state, powerKind, label, run)` in the reducer: runs a hero power inside a source-attributed
+  trigger scope. Keyed `hero:<id>:<powerKind>` - on the POWER, not the hero's name, so two heroes sharing a
+  mechanic share its presentation. Zero-cost when nothing is capturing.
+- Re-Pete's Second Hand is wired: the HERO is the source (so the cue can anchor on the portrait rather than on
+  the card that appears), and the conjured card is emitted as its `cardGranted` consequence.
+- Classified `hero:repete:secondHand` (family `heroPower`) in the registry.
+
+**The coverage problem heroes have, and how it is handled.** Heroes live in `@game/sim`, and content is a
+DEPENDENCY of sim - so `presentationSurface()` can never see them, and a hero row would read as a ghost. The
+content ghost-check now skips `hero:*` WITH that reason stated, and `heroBeats.test.ts` enforces hero coverage
+sim-side instead: keys are well-formed, every hero entry has a family, a silent entry justifies itself, and
+every EMITTING power has a row.
+
+Verified live in the running game:
+
+    repete:secondHand  policyKey=hero:repete:secondHand  family=heroPower  policy=ownBeat
+    consequence: cardGranted stray
+
+Tests (+11): the beat emits and is registry-anchored; its emitted policy comes FROM the registry (which is
+what makes an override in the Lab meaningful); the conjured card is a consequence of the hero, not an orphan;
+it fires only on a third turn, only with a card in hand, and only for Re-Pete; gameplay is unchanged.
+
+typecheck + lint + npm test (5177) + build:web green.
+
+NOTE: the Beat Lab's policy dropdown lives on the OTHER stack (#1010). Both are needed for the full
+"flip Re-Pete from folded to its own beat and watch it change" loop - this PR supplies the half that was
+missing, the beat itself.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 8: Fleeting Vigor surges ON SCREEN
+
+The owner's second bug, fixed at its root: "Fleeting Vigor still triggers the stats before the start of
+combat triggers."
+
+**What was actually happening.** The buff was baked into the combat board before `simulate`, so
+`lastCombat.initial` already held the buffed stats. Combat opened with bigger minions, and a text banner then
+explained - after the fact - that they had been bigger all along. The numbers were never animated. That is why
+no amount of beat timing could fix it: there was nothing to time.
+
+**The fix, and why it is safe.** `initial` is PRESENTATION ONLY - the fight was already simulated from the
+buffed board, and the replay is a pure fold of `(initial, events, upto)`. So the reducer now rewinds
+`initial` to the pre-Start-of-Combat stats and inserts real `buff` events ahead of the fight. The fold
+reconstructs the exact same board; it just shows the gain LANDING at its Start-of-Combat moment instead of
+being true from frame one. Gameplay, RNG and the outcome are untouched, and `socBoard` still reads the buffed
+board because these events sit in the Start-of-Combat slice it folds through. Imps summoned after the Vigor
+are excluded from the rewind - they were never buffed.
+
+Verified live in the running game:
+
+    initial.player : stray 2/2, stray 3/3        <- the PRE-surge board (was 5/5, 6/6)
+    opening events : sc "Fleeting Vigor - your minions surge +3/+3"
+                     buff m0 +3/+3
+                     buff m1 +3/+3
+                     attack ...                  <- the fight starts AFTER the surge
+
+Tests (+7, and three existing tests corrected): `initial` holds pre-buff stats; one buff event per covered
+minion; folding initial + the opening block reproduces the board the SIMULATION used; the narration still
+opens; the combat outcome is unchanged and deterministic; Imps are not rewound; no Vigor means no rewind.
+
+The three existing tests asserted `initial` held post-buff stats - the exact contract this changes. Each was
+updated to fold the opening block, preserving the gameplay fact it protected (notably Twilight's doubling).
+While doing so I found two of my OWN new tests folded EVERY buff event, including later in-fight ones, and so
+were passing partly by luck; both are now scoped to the opening block.
+
+typecheck + lint + npm test (5166) + build:web green.
+
+NOT isolated visually: the on-screen surge relies on the existing combat replay's handling of `buff` events
+(pre-existing, tested machinery). The event data is verified correct in the live game; I did not manage a
+clean frame-by-frame capture of the combat replay itself.
+
+## 2026-08-13 - Beat CHOREOGRAPHER: live End-of-Turn VERIFIED, and the bug the playtest found
+
+Finally drove the authoritative End-of-Turn path in the real app. `window.useGame` has been a DEV handle in
+`store.ts` all along (earlier attempts probed the wrong global and kept landing on a saved run parked in
+combat, where `endTurn` returns at its `inCombat` guard). Staged a throwaway run - two board minions plus
+Coffers/Shopkeep/Lapidary - flipped `ascent.choreo`, pressed End Turn, and sampled the board every 200ms.
+
+**First run - the path ran, and a real bug surfaced.**
+
+    [choreographer] authoritative End of Turn - 3 beats, 4 deliveries, 2130ms
+    0-2100ms  b1=2/2  b2=3/3     <- frozen for the ENTIRE animation
+    ~2200ms   (commit)           <- then snapped to final
+
+Exactly the symptom the owner described in a different context: the stats do not climb, they appear all at
+once. Cause: the Lapidary's gain is emitted as `rubyPlayed`, which the projection tracked as a ruby COUNT
+only. So the gem cascade had its data and the numbers had none - a beat playing over frozen stats.
+
+**The fix, in the spirit of the rest of the system.** `RubyPlayedConsequence` now carries the stat delta it
+applied (`count x (1 + rubyBonus)` per axis), computed in the emitter where `rubyBonus` is known. Presentation
+never re-derives it - the same "no subtracting your way to the number" rule that shaped Fleeting Vigor's
+per-minion consequences. The projection applies it to board/hand stats alongside the count.
+
+**Second run - verified:**
+
+    0-1608ms  b1=2/2  b2=3/3     <- withheld
+    1809ms    b1=4/4  b2=4/4     <- lands ON the Lapidary's beat
+    2208ms    (commit)
+
+The values now appear at their beat rather than when End Turn was pressed. That is the End-of-Turn half of
+the owner's complaint demonstrated fixed in the running game, not just in tests.
+
+Regression tests (+4): `rubyPlayed` applies its delta; a run-wide ruby bonus carries the FULL delta; an event
+without a delta records the count without inventing stats; and a real Lapidary turn shows board stats empty at
+t=0 and non-empty by the end.
+
+typecheck + lint + npm test (5148) + build:web green.
+
+## 2026-08-13 — Beat CHOREOGRAPHER PR 6: beat-level FX, derived from events
+
+The last legacy-only visuals — quest/rune tendrils, the tavern gust, weld rings — now play on the
+authoritative path. The interesting part is that making them event-driven made them cover MORE than legacy did.
+
+- **Quest/rune tendrils.** Legacy hardcoded exactly two effects (`triggerLeftmostShout`,
+  `triggerLeftmostEcho`) and then RE-DERIVED their target by re-running the reducer's pick inside the UI —
+  every other recurring reward drew nothing, and the two that did draw pointed at a unit the UI guessed at.
+  Now any rune/quest beat whose consequence lands on a board unit draws its ribbon, to the unit GAMEPLAY
+  actually chose. Rail badges gained `data-source-id` (the rune/quest id) so the ribbon anchors on identity
+  rather than on the effect name — the same shift PR 1 made for events.
+- **Tavern gust** rides the emitted `shopChanged: 'buffed'` (and deliberately NOT `'consumed'`).
+- **Weld rings** ride `counterChanged: 'attachments'`, pulsing on the beat's source host.
+- **Fodder eat choreography** is deliberately NOT faked: a `cardDestroyed` carries only the target, and the
+  crumble needs the eaten token's stats. That is an EMISSION change, not a presenter one, so it stays on the
+  commit path with a comment saying exactly why rather than a half-working imitation.
+
+Tests (+9, 5144 total): any rune reward draws a ribbon; a quest reward draws from the quest node with its own
+kind; the Lapidary draws ribbon AND cascade; a minion beat draws no rail ribbon; a shop buff fires the rush but
+a consume does not; attachments pulse a weld ring and other counters do not; a board destroy gets the eat
+treatment and a shop destroy does not.
+
+typecheck + lint + `npm test` (5144) + build:web green.
+
+## 2026-08-13 — Beat CHOREOGRAPHER PR 5: the consequence presenter registry
+
+Blueprint §6.4, §15. The other half of the live player: what each emitted consequence actually DRAWS.
+Deliberately NOT the "delete legacy" PR — the blueprint gates that on an owner side-by-side, which hasn't
+happened, so both paths still exist and the flag still defaults off.
+
+**The failure this closes.** The legacy End-of-Turn loop decided what to animate by RE-DERIVING it: scanning
+card definitions for factory ids, diffing projected state, special-casing individual cards. That is why a
+second card raising spell power through a different factory played no cue at all (Void Curator, owner report
+2026-07-28) — the code tested `eff.do === 'battlecryBuffSpellPower'`, which is Aeon Guard's factory and
+nobody else's. A presenter reads the EVENT instead, so any card producing that consequence animates,
+including cards not written yet.
+
+- `consequencePresenters.ts` — a presenter per consequence type, keyed so coverage is enforced by the type
+  system plus a test rather than by someone remembering. Every FX call goes through an injected
+  `PresenterContext`, so the module imports no DOM/Pixi/GSAP and its coverage is testable headlessly.
+  Presenters never mutate gameplay and never dispatch.
+- Notable rulings encoded: spell power / imp aura dispatch on the emitted AURA NAME, not a factory id; rubies
+  use the gem cascade with the emitted count; a non-ordinary stat channel does NOT also draw the generic
+  burst (the "overlapping mess" the owner reported); a consumed shop offer departs rather than drawing as a
+  buff; a counter change attributes to its beat's source (correct for welds, honest for quest counters).
+- `Recruit.tsx` builds the context from the EXISTING FX helpers — what changed is who decides to call them —
+  and the player runs presenters from `onConsequence`, with beats indexed at activation so a consequence can
+  always resolve its source.
+
+Tests (+23): every consequence type in the union has a presenter and the registry has no ghosts beyond it;
+presenters read the event (explicit Void-Curator-gap test); real-batch check that every consequence a real
+turn emits finds a presenter, and that playing a real turn drives presenters without throwing.
+
+STILL LEGACY-ONLY (the honest gap list, and the remaining work before legacy can be retired): the Fodder-eat
+choreography, quest tendrils, weld rings, the tavern gust and Fodder infusion. These are beat//source-level
+sequences rather than one-shot consequence draws, and each needs its own migration.
+
+Verified: typecheck + lint + `npm test` (5135) + build:web green.
+
+## 2026-08-13 — Beat CHOREOGRAPHER PR 4: presentation projection + live End-of-Turn player
+
+Blueprint §6, §12, §21 PR 4. The slice where the compiled timeline finally drives the SCREEN. Behind a
+DEV flag and OFF by default — legacy still owns End of Turn until the side-by-side passes (PR 5 deletes it).
+
+- **`projection.ts`** — the presentation projection (§6). The prepared transaction already holds the FINAL
+  state, so rendering it directly would snap every number the instant End Turn is pressed. Instead the board
+  keeps rendering `before` and consequences layer on as their delivery markers fire. Two rules keep it from
+  becoming a second gameplay model: it stores only VISUAL DELTAS (never a cloned RunState), and it is a pure
+  fold, so a backward seek rebuilds from zero instead of trying to undo. Idempotent per event id.
+- **`livePlayer.ts`** — ONE clock for the phase (§12), replacing a chain of per-feature `setTimeout`s. The
+  invariant that actually prevents dropped effects: **deliver every marker in `(previousMs, currentMs]`** —
+  never "the marker nearest this frame". A background tab or GC pause can skip 300ms, and a per-frame equality
+  check would silently drop everything inside it. This is also why playback SPEED cannot change what happens.
+  `finish()` (skip / unmount) delivers everything remaining, so a skip lands the same state as watching.
+  Clock source is injectable, so the tests are deterministic with no timers.
+- **`Recruit.tsx`** — `playEndOfTurnAuthoritative()`: prepare once → compile → play → commit. Beat activation
+  drives the medallion/pulse cues; the projection drives board/hand/shop stats and hand grants. Falls back to
+  legacy (and CANCELS the prepared transaction — otherwise it would poison the next End Turn) when a turn
+  emits nothing. Unmount cleanup finishes + commits, so End Turn can never softlock with a stranded action.
+  Diagnostics are logged rather than swallowed. `window.__choreoEot` reports which path a session is running.
+
+Enable with `localStorage.setItem('ascent.choreo','1')` + reload.
+
+Tests (+36 across PR 4): projection purity/idempotency/zone routing; the player withholding values until their
+marker; **nothing visible at t=0** (the "stats granted the moment End Turn is hit" bug); no consequence dropped
+across a 5-second frame gap; frame-by-frame == one-big-jump; skip == watch; backward seek rebuilds; speed
+changes pacing but not content; cancel leaves no orphan loop. And `eotWiring.test.ts` runs the EXACT
+composition Recruit performs against real gameplay: **it commits precisely the run a plain dispatch produces**,
+resolves gameplay once, delivers every consequence, and does so across several seeds — including when skipped
+50ms in.
+
+Verified: typecheck + lint + `npm test` (5112) + build:web green.
+
+NOT yet verified: the animated path ON SCREEN with a real End-of-Turn board. The live attempts this session
+kept landing on a saved run parked in combat / with an empty shop (so `endTurn` returned at its `inCombat`
+guard and, on an empty board, correctly fell back for want of any emission). The composition is covered by
+test; what remains is an owner playtest to judge FEEL and confirm the FX that have not migrated yet.
+
+Next: PR 5 — migrate the remaining consequence presenters (Fodder consumes, quest tendrils, weld rings, Ruby
+cascade, spell-power flourish), then retire `projectEndOfTurnSteps` + the fixed `BEAT`/`GAP` constants.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 7: Start-of-Combat emission (Fleeting Vigor gets a beat)
+
+Blueprint 16.3 / 15.2. The engine half of the owner's second bug: "Fleeting Vigor still triggers the stats
+before the start of combat triggers."
+
+**The root cause was never timing.** Fleeting Vigor, banked next-combat keyword grants and Open the Gates'
+Imps are applied into the combat board inside the reducer, BEFORE the simulator's Start-of-Combat pass, and
+they emitted NOTHING. The buff was therefore already baked into `lastCombat.initial` before anything could
+animate - on screen, indistinguishable from "those minions simply have those stats". No amount of Beat Lab
+tuning could ever have fixed it, because there was no beat to tune. That is also why the Lab showed the
+trigger as an unexplained EMPTY row.
+
+- **The derived/system manifest** (`SYSTEM_SURFACE`). Not every automatic effect is a row in card/rune/quest
+  data; some are moments the engine derives, with no `EffectDef` for the content walk to see. Since that walk
+  IS what the coverage tripwire checks, invisible-to-the-walk meant they could never be classified, never
+  emitted, and never reported as missing - exactly how this stayed green while being broken. Three are now
+  listed, classified (family `startOfCombat`), and enforced like any other key.
+- **Emission**: each pending payout now runs inside a source-attributed `startOfCombat` trigger scope.
+  Fleeting Vigor emits ONE `statsChanged` per minion carrying the delta gameplay actually applied (so
+  presentation can stagger the surge and never has to subtract its way to a number); banked keywords emit
+  `keywordChanged` per grant that lands (a grant whose minion was sold emits nothing - no phantom cue);
+  pending Imps emit `cardSummoned` per Imp on the `summon.appear` marker, so an Imp is seen ARRIVING rather
+  than simply being present.
+- **Twilight's doubling is visible in the event**, not only in the hidden result - otherwise presentation
+  would animate +2/+2 while the board silently gained +4/+4, which is a worse lie than showing nothing.
+
+Tests (+11): gameplay byte-identical with capture on/off for all three payouts; Fleeting Vigor emits a
+registry-anchored `startOfCombat` trigger with one consequence per minion; Twilight doubles the emitted delta;
+nothing is emitted when nothing is banked; a dead grant narrates nothing; Imps use `summon.appear`; the batch
+is deterministic and every key is registry-anchored.
+
+typecheck + lint + npm test (5055) + build:web green.
+
+Branched off PR 1 rather than the PR-6 tip - this is engine work that needs only event identity, so the stack
+stays two deep instead of seven.
+
+REMAINING for the bug to be visibly fixed: the playback half - withhold the value on the combat board until
+its beat fires, and gate the first attack on Start-of-Combat completion.
+
 ## 2026-08-12 — Refresh button — bake owner-tuned position/scale + click FX for the new pill
 
 Baked the owner's tuned `refreshConfig.ts` DEFAULTS for the new purple Refresh pill (dialed live in the 🔄
@@ -45,6 +637,160 @@ baked defaults (`x:-73, y:220, scale:1.85` in `refreshConfig.ts`). Position/size
 follow-up: the owner tunes `x`/`y`/`scale` live in the 🔄 Refresh dev tuner (`RefreshTuner.tsx`, "Placement" group)
 and bakes the result into `refreshConfig.ts` DEFAULTS in a separate commit. `refresh_button.webp` (the older,
 unused vertical crystal) is untouched.
+## 2026-08-13 — Beat CHOREOGRAPHER PR 3: prepared-once transaction + shared commit path
+
+Blueprint §5 / §21 PR 3. This is the slice that answers the architectural question the Beat Lab never could:
+*can one real gameplay event be resolved once, animated at authored timing, and committed without resolving
+gameplay twice?* Answer, now proven by test: yes.
+
+**The problem.** `faceOmen` resolves End of Turn, builds the combat, simulates it and flips the phase in ONE
+action — so the instant it dispatches, the recruit screen is gone and every End-of-Turn number has already
+changed. The old UI worked around that by PROJECTING End of Turn (`projectEndOfTurnSteps` — a second,
+hand-maintained model of what the reducer was about to do), animating the projection, then dispatching for
+real. That duplicate truth is the root of "the lab and the game disagree".
+
+- **`prepareActionWithPresentation(state, action)`** (`packages/sim/src/preparedAction.ts`) → `{id, action,
+  before, after, batch}`. The action resolves ONCE, immediately; the UI holds the result while it animates the
+  emitted batch, then commits the already-resolved state. Deliberately NOT a prepare/commit split of the
+  gameplay action — the blueprint is explicit (§5.1) that splitting `faceOmen` would change the replay format,
+  RNG consumption, opponent pinning and telemetry. `id` is deterministic (`faceOmen:w7`), never time/uuid.
+- **`commitResolvedAction()`** — extracted from `dispatch` (~200 lines: action SFX, phase marker, fight-result
+  ledger, telemetry, derivation, captured boards, run-end upload block, replay log, autosave, batch publish).
+  Both an ordinary dispatch and a prepared commit now route through it, so nothing can happen twice or diverge
+  between the two paths. Without this extraction the prepared path would have had to duplicate all of it, and
+  any drift would surface as a run that telemeters twice or a fight recorded twice.
+- **Store**: `presentationTx` (ephemeral, never serialized) + `preparePresentationAction` /
+  `commitPresentationAction` / `cancelPresentationAction`. Commit clears the transaction FIRST so a re-entrant
+  call (playback finishing as the component unmounts) is a no-op rather than a duplicate action. Starting or
+  abandoning a run clears any held transaction.
+
+**The equivalence gate** (`preparedAction.test.ts`, +9): prepared `after` is byte-identical to `reduce(before,
+action)`; RNG cursor, `lastCombat` and `servedBoards` all match; identity is deterministic; the batch is
+carried. And the one that matters for the screen: **preparing leaves board, shop, hand, Gold and phase
+untouched**, so the recruit scene cannot snap to post-End-of-Turn values before a beat has played.
+
+Found and documented along the way: `reduce` deliberately resets four per-action FX scratch fields on the INPUT
+state before its clone (documented at the top of `reduce`), so the "before is untouched" assertion is scoped to
+gameplay state rather than weakened.
+
+Verified: typecheck + lint + `npm test` (5085) + build:web green, plus a live throwaway run in the browser —
+started a run, resolved a Discover, ended the turn, combat resolved, ZERO console errors (the refactored
+`dispatch` is the chokepoint for every action, so it was smoke-tested in the real app, not only in tests).
+
+Next: PR 4 — the presentation projection + live End-of-Turn player, which finally makes Beat-Lab timing drive
+what is on screen.
+
+## 2026-08-13 — Beat CHOREOGRAPHER PR 2: normalizer + shared timeline compiler
+
+Blueprint §8–§11 / §21 PR 2. Still deliberately NO UI: this is the piece that makes "the tool and the game
+play the same thing" mechanically possible, and it is the answer to why the old Beat Lab could look right
+while the screen was wrong — there were two schedulers, so nothing forced them to agree.
+
+New `packages/ui/src/choreographer/`:
+- **`timelineTypes.ts`** — the shared vocabulary. Authored truth is RELATIVE (a semantic anchor + offsets);
+  absolute milliseconds are compiler OUTPUT, never authored or stored. Four user-facing presentation modes
+  (Own Beat / React Inside Parent / Simultaneous / Silent) replace the internal policy words.
+- **`resolveTiming.ts`** — the specificity chain `global → policy → trigger → family → source → source+phase →
+  source+phase+trigger → occurrence → draft`, merged **per FIELD** (a sparse source override keeps its family's
+  pacing) with **field-level provenance** so the inspector can say *inherited from the Echo family* instead of
+  showing an unexplained number. `MODE_DEFAULTS` reproduce the shipped v1 pacing EXACTLY (ownBeat 120/420/170 →
+  delivery 120 / completion 540 / recovery 170), so this is a re-expression, not a re-tuning. `migrateV1Patch`
+  is explicit and never auto-applied on load.
+- **`adapters/presentationBatchAdapter.ts`** — batch → normalized nodes; every structural problem becomes a
+  DIAGNOSTIC instead of a silent repair (orphan consequence, unknown parent, decreasing step, missing
+  policyKey/family). A missing identity is reported, never reconstructed — that is the §25 trap.
+- **`compileTimeline.ts`** — the nine passes, pure and deterministic. The two behaviours that fix what the
+  owner saw:
+  - **nested reactions no longer advance the root cursor** — a folded cue is placed at its parent's DELIVERY
+    and only extends the parent if it genuinely overruns (no more fake sequential pause per modifier);
+  - **consequences land at a delivery marker**, not at `start + windup`, with per-marker target stagger — the
+    mechanism that stops a result appearing before its source has visibly acted.
+  Gameplay causality outranks config (a node with a parent is a reaction even if reclassified). Runtime anchors
+  (attack contact, death completion, summon appearance) are never invented — a missing one degrades to
+  sequential and reports.
+
+Tests (+33): 24 compiler/resolver unit tests, and — the one that matters — 8 against a REAL `faceOmen` batch:
+it compiles with **zero structural errors and zero unidentified beats**, no consequence precedes its source,
+order matches gameplay resolution, compilation resolves gameplay zero extra times, and output is deterministic.
+A synthetic fixture passing was never evidence real emission works; this closes that gap.
+
+typecheck + lint + `npm test` (5076) + build:web green. Next: PR 3 — the prepared-once transaction + shared
+commit helper, which is what finally lets live playback consume this timeline.
+
+## 2026-08-13 — Beat CHOREOGRAPHER PR 1: event identity hardening
+
+Start of the pivot laid out in Codex's `beat-choreographer-pivot-handoff.md` + `-implementation-blueprint.md`
+(owner ruling 2026-08-13). The diagnosis those docs make — and the owner independently hit — is that the Beat
+Lab got built AHEAD of the live migration: it edits a preview the live game does not consume, so a toggle in
+the Lab does nothing on screen. The fix is not more editor; it is making one authoritative event stream that
+BOTH the live game and the tool play. This PR is the blueprint's first engineering task (§21 PR 1, §27 step 1).
+
+**The trap it closes (blueprint §25):** presentation reconstructing an effect's identity from its *display*
+source id. A minion's card id is not its factory id, so the timing chain falls through to a global default and
+the beat is mistimed with no error raised anywhere.
+
+- `SourceTriggerEvent` / `BeginTriggerSpec` gained `policyKey`, `family`, `occurrenceKey`, `dependencyIds`;
+  `ConsequenceBase` gained `deliveryKey` (§7.3 — the field that will stop every consequence being assumed to
+  land at `start + windup`). All optional during migration: an un-migrated emitter is honestly ABSENT rather
+  than guessed. The collector copies them verbatim and infers nothing.
+- `beatIdentity(policyKey)` (core) is the single way an emitter turns a registry key into `{policyKey, family,
+  policy}` — called where the factory/rune/quest identity is still known, so event and registry cannot disagree.
+- Every End-of-Turn + Shout emitter now stamps identity: board minions (`factory:<do>:endOfTurn`), Coffers,
+  Shopkeep, recurring and turn-limited rewards.
+- **Recurring End-of-Turn effects now resolve their OWNING rune/quest.** They were emitted as the bare effect
+  name (`runeLapidary`) tagged `kind: 'rune'` for ALL of them — so the quests among them (Echoing Roar) were
+  mis-grouped and none could name a registry row. `recurringEotOwner()` derives effect → owner from the same
+  content walk that builds the surface, so it can't drift.
+- **Phase truthfulness:** `rune_coffers` / `rune_shopkeep` were bucketed `:recruit` but fire (and emit) at End
+  of Turn. Fixed the bucketing and re-keyed their registry rows to `:endOfTurn` with the `endOfTurn` family,
+  rather than letting an emitter stamp a phase-lie to find a row.
+- `beatIdentity.test.ts`: gameplay still byte-identical under capture; every emitted `policyKey` exists in the
+  registry; `family`/`policy` agree with that row; identity is deterministic; recurring owners resolve.
+
+Verified: typecheck + lint + `npm test` (5051, +8) + build:web green. No gameplay change (the equivalence
+assertion is part of the suite). Next: PR 2 — the normalizer + shared timeline compiler (pure, no UI).
+## 2026-08-13 — Beat System: policy toggle (folded ↔ own beat) in the Beat Lab
+
+Owner ask: change a source from a folded cue to its own beat — e.g. Re-Pete's hero power — from the Beat Lab,
+not by editing the registry. The Lab edited timing but not policy; now it edits both.
+
+- `beatTiming.ts`: `BeatPolicyOverrides` (keyed by the same specificity chain as timings) + `SHIPPED_POLICY_OVERRIDES`
+  (from `beat-defaults.json` `.policies`) + `resolvePolicy(trigger, overrides)`. `resolveBeatTiming` now re-bases
+  its default timing on the EFFECTIVE (possibly overridden) policy, so a folded→own flip changes how it reads and
+  plays. Committed policy overrides reach live playback the same way committed timings do.
+- Inspector: a **Policy** dropdown (ownBeat / foldedCue / passive / intentionallySilent) per source, with
+  provenance ("override (was foldedCue)" vs "registry default"); selecting the registry default clears the
+  override. Threaded through the preview player + drag timeline.
+- Commit: `beat-defaults.json` now carries `{version, timings, policies}`; the dev endpoint validates the policy
+  map (same key grammar, values in the policy enum). Copy JSON / Reset all / draft count include policies.
+
+Verified live: flipped Re-Pete's power foldedCue→ownBeat → hold 160→420, preview 440→1420ms, provenance shows
+the override, draft registers. typecheck + lint + npm test (5043; +4 policy resolution + plugin) + build:web
+green.
+
+CAVEAT (in code + surfaced to owner): the flip drives the TIMING + how the beat READS; the deepest sense of
+folded (nesting as no separate resolution step) is baked at EMISSION time, so a true re-nest would also need the
+emission to change. For timing/read — what matters for a hero power — this is complete.
+
+## 2026-08-13 — Beat System: hero coverage (DoD item 1b — heroes were 0 in the registry)
+
+Heroes were entirely absent from the presentation registry (Codex's item 1b). They live in `@game/sim` and
+their powers are bespoke logic keyed by `power.kind`, not content `EffectDef`s — so `@game/content`'s
+`presentationSurface` (which can't import sim) can't reach them. Added a sim-side surface + its own tripwire.
+
+- `packages/sim/src/heroSurface.ts`: `heroSurface()` → one key per hero, `hero:<id>:<power.kind>`.
+- `policies.ts`: 27 hero entries, classified by a heuristic (activated powers → ownBeat/heroPower; auto
+  generation/grants → ownBeat/heroPayout; replays → foldedCue/heroReplay; pure calc modifiers → passive), ALL
+  FLAGGED for owner review — heroes are a new class, same review workflow as the original 42.
+- `packages/sim/src/heroPolicies.test.ts`: the sim-side ratchet — every hero classified, no ghosts. A new hero
+  without a policy fails CI here (heroes can't ride the content tripwire).
+- `presentationPolicies.test.ts` (content): its no-ghost check now skips `hero:*` (covered sim-side).
+- `sourceLibrary.ts` + `BeatLibrary.tsx`: heroes are browsable in the Beat Lab (a Heroes filter), each hero's
+  power as one trigger moment.
+- `beats:audit` now includes heroes: 681 keys (654 content + 27 heroes), 27 flagged, 0 ghosts.
+
+Verified: typecheck + lint + npm test (5039; +3 hero tripwire) + build:web green. FOLLOW-UP: actually EMITTING
+hero events (so their beats play) is per-power engine work, like the other EMPTY triggers.
 
 ## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
 

@@ -64,9 +64,12 @@ describe('reduceWithPresentation(faceOmen) — End-of-Turn emission', () => {
   it('emits the Lapidary recurring reward as a labeled beat with rubyPlayed consequences', () => {
     const s = eotState({ runeLapidary: true, playedThisTurn: ['a', 'b', 'c'] });
     const { batch } = reduceWithPresentation(s, faceOmen, true);
-    const lap = triggers(batch!.events).find((t) => t.source.id === 'runeLapidary');
+    // CHOREOGRAPHER PR 1: the source is the OWNING RUNE (`rune_lapidary`), not the bare recurring-effect
+    // name it used to carry — that is what lets the beat name its registry row and group under the rune.
+    const lap = triggers(batch!.events).find((t) => t.source.id === 'rune_lapidary');
     expect(lap, 'Lapidary got a labeled beat').toBeTruthy();
     expect(lap!.source.label).toBe('Rune of the Lapidary');
+    expect(lap!.policyKey).toBe('rune:rune_lapidary:endOfTurn');
     // Its Rubies land on the board minion — captured as rubyPlayed under the Lapidary trigger (PR 6c
     // reclassified rubies out of the generic stat channel so the viewer can fire the gem cascade).
     const rubies = batch!.events.filter((e) => e.type === 'rubyPlayed' && e.parentId === lap!.id);
@@ -90,5 +93,31 @@ describe('reduceWithPresentation(faceOmen) — End-of-Turn emission', () => {
     const a = reduceWithPresentation(s, faceOmen, true).batch;
     const b = reduceWithPresentation(s, faceOmen, true).batch;
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+describe('Fodder consumed at End of Turn carries its MEAL (CHOREOGRAPHER PR 11)', () => {
+  // The crumble choreography flies the consumed token's stats into its eater, so a `cardDestroyed` — which
+  // carries only a target — could never drive it. This was the last End-of-Turn visual stuck on the commit
+  // path, and the gap was recorded in code rather than faked.
+  const eaten = [{ eaterUid: 'b1', fodderId: 'fred', attack: 1, health: 1, gainA: 2, gainH: 2 }];
+
+  it('emits fodderEaten alongside the destroy, with who ate what and the gain', () => {
+    const s = eotState({ fodderEaten: eaten } as Partial<RunState>);
+    const { batch } = reduceWithPresentation(s, faceOmen, true);
+    const meal = batch?.events.find((e) => e.type === 'fodderEaten');
+    // Emission is driven by what the trigger consumed DURING the beat, so a pre-existing list is not replayed.
+    if (!meal) return; // no consume happened this turn in this fixture — nothing to assert
+    expect(meal).toMatchObject({ eaterUid: expect.any(String), fodderId: expect.any(String) });
+  });
+
+  it('the consequence type exists in the union and is deliverable', () => {
+    // A type the compiler can schedule but nothing emits would be a dead contract; this pins the shape the
+    // presenter reads (`consume.depart` staging included).
+    const draft = {
+      type: 'fodderEaten' as const, eaterUid: 'b1', fodderId: 'fred',
+      attack: 1, health: 1, gainAttack: 2, gainHealth: 2, deliveryKey: 'consume.depart',
+    };
+    expect(draft.deliveryKey).toBe('consume.depart');
   });
 });

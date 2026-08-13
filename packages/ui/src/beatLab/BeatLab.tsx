@@ -16,8 +16,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
 import { scheduleBeats, activeBeatIndex } from './beatTimeline';
-import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, type BeatTimingOverrides } from './beatTiming';
+import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
+import { migrateV1Patch } from '../choreographer/resolveTiming';
+import beatDefaults from './beat-defaults.json';
 import './beatLab.css';
 
 const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type === 'sourceTrigger';
@@ -98,17 +100,18 @@ function TriggerNode({ node, depth, activeId, onSelect, selectedId, landed }: { 
  * The shared batch player: schedule (with the draft's timings) → transport → tree with the active beat
  * highlighted. Used by Capture mode (the store's latest batch) and Library mode (a synthetic fixture batch).
  */
-export function BatchPlayer({ batch, overrides, resetKey, onSelectTrigger, selectedId }: {
+export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, onSelectTrigger, selectedId }: {
   batch: PresentationBatch;
   overrides: BeatTimingOverrides;
+  policyOverrides?: BeatPolicyOverrides;
   /** Changing this rewinds the playhead (a new capture arrived / a different fixture selected). */
   resetKey: string | number;
   onSelectTrigger?: (t: SourceTriggerEvent) => void;
   selectedId?: string | null;
 }): React.ReactElement {
   const schedule = useMemo(
-    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides)),
-    [batch, overrides],
+    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides, policyOverrides)),
+    [batch, overrides, policyOverrides],
   );
   const tree = useMemo(() => buildTree(batch), [batch]);
 
@@ -184,6 +187,36 @@ export function BatchPlayer({ batch, overrides, resetKey, onSelectTrigger, selec
   );
 }
 
+
+/**
+ * CHOREOGRAPHER PR 12 — write the config in the format the GAME reads.
+ *
+ * The Lab authors in v1 terms (windup / hold / recovery) because that is what its editor exposes, but the
+ * live compiler reads v2 (delivery / completion + modes) and `beat-defaults.json` is a v2 file. Committing v1
+ * would have replaced that file wholesale, silently discarding any `templates` a v2 author had added — the
+ * tool quietly destroying work it cannot see. Converting on write keeps one format on disk.
+ *
+ * The mapping is the documented lossless one: delivery = windup, completion = windup + hold.
+ */
+/** Whatever `templates` the committed file already carries — preserved across a Lab write. */
+const SHIPPED_TEMPLATES: Record<string, unknown> = (beatDefaults as { templates?: Record<string, unknown> }).templates ?? {};
+
+function toV2File(
+  timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>,
+  policies: Record<string, string>,
+): { version: 2; templates: Record<string, unknown>; overrides: Record<string, unknown>; policies: Record<string, string> } {
+  const overrides: Record<string, unknown> = {};
+  for (const [key, patch] of Object.entries(timings)) overrides[key] = migrateV1Patch(patch);
+  return {
+    version: 2,
+    // Templates are not editable from this surface yet, so anything already committed is PRESERVED verbatim
+    // rather than dropped on the floor by a write that only knows about overrides.
+    templates: SHIPPED_TEMPLATES,
+    overrides,
+    policies,
+  };
+}
+
 export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
   const batch = useGame((s) => s.latestBatch);
   const revision = useGame((s) => s.beatRevision);
@@ -191,9 +224,11 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   // The session DRAFT: sparse timing overrides, edited from either mode, pacing all Beat Lab playback.
   // Deliberately NOT persisted — reopening the Lab starts from shipped timings (blueprint §17.2).
   const [draft, setDraft] = useState<BeatTimingOverrides>({});
-  const draftCount = Object.keys(draft).length;
+  // Parallel policy draft (the folded↔own toggle) — same session-only, commit-to-file lifecycle as timing.
+  const [policyDraft, setPolicyDraft] = useState<BeatPolicyOverrides>({});
+  const draftCount = Object.keys(draft).length + Object.keys(policyDraft).length;
 
-  const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify({ version: 1, timings: draft }, null, 2)); };
+  const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify(toV2File(draft, policyDraft), null, 2)); };
 
   // Commit the draft to the git-tracked beat-defaults.json (DEV endpoint). Folds the draft OVER the existing
   // committed defaults (field-level), so committing accumulates rather than replacing. On success the static
@@ -201,14 +236,15 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   const [commitMsg, setCommitMsg] = useState<string | null>(null);
   const commitDraft = async (): Promise<void> => {
     const merged = mergeOverrides(SHIPPED_OVERRIDES, draft);
+    const mergedPolicies = { ...SHIPPED_POLICY_OVERRIDES, ...policyDraft };
     try {
       const res = await fetch('/__beat-lab/defaults', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: JSON.stringify({ version: 1, timings: merged }) }),
+        body: JSON.stringify({ json: JSON.stringify(toV2File(merged, mergedPolicies)) }),
       });
       const out = await res.json() as { ok: boolean; path?: string; error?: string };
       setCommitMsg(out.ok ? `committed → ${out.path}` : `commit failed: ${out.error}`);
-      if (out.ok) setDraft({});
+      if (out.ok) { setDraft({}); setPolicyDraft({}); }
     } catch (e) {
       setCommitMsg(`commit failed: ${(e as Error).message}`);
     }
@@ -223,7 +259,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} title="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
-        {draftCount > 0 && <button className="bl-tbtn" onClick={() => setDraft({})} title="Discard every draft override">Reset all</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={() => { setDraft({}); setPolicyDraft({}); }} title="Discard every draft override">Reset all</button>}
         {commitMsg && <span className="bl-prov">{commitMsg}</span>}
         <span className="bl-meta">
           {mode === 'capture'
@@ -234,13 +270,13 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
       </div>
       {mode === 'capture' && (
         batch
-          ? <BatchPlayer batch={batch} overrides={draft} resetKey={revision} />
+          ? <BatchPlayer batch={batch} overrides={draft} policyOverrides={policyDraft} resetKey={revision} />
           : <div className="bl-body"><div className="bl-empty">
               Play a Shout or end a turn to capture a batch. (Migrated triggers so far: Shouts and the full
               End-of-Turn pass — board effects, recurring rewards, Coffers/Shopkeep, rubies, grants, auras.)
             </div></div>
       )}
-      {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} />}
+      {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} policyDraft={policyDraft} setPolicyDraft={setPolicyDraft} />}
     </div>
   );
 }

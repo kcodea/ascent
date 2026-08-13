@@ -20,7 +20,10 @@ describe('presentation-policy registry (beat system PR 1)', () => {
 
   it('the registry carries no ghosts — every key is produced by live content', () => {
     const live = new Set(surface.map((s) => s.key));
-    const ghosts = Object.keys(PRESENTATION_POLICIES).filter((k) => !live.has(k));
+    // `hero:*` is enumerated SIM-side (`heroBeats.test.ts`): heroes live in @game/sim, and content is a
+    // dependency of sim, so this walk cannot see them. Skipping them here keeps the check honest rather than
+    // reporting every hero as a ghost.
+    const ghosts = Object.keys(PRESENTATION_POLICIES).filter((k) => !live.has(k) && !k.startsWith('hero:'));
     expect(ghosts, 'remove these dead entries (their content was removed or re-bucketed)').toEqual([]);
   });
 

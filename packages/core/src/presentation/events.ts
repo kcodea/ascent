@@ -48,6 +48,19 @@ export interface SourceTriggerEvent {
   /** The gameplay condition ('endOfTurn', 'onSummon', 'avenge', 'cast', …). */
   trigger: string;
   policy: PresentationPolicy;
+  /**
+   * CHOREOGRAPHER (§7.1): the REGISTRY key this effect was classified under, emitted by the gameplay code
+   * that knows its factory/rune/quest identity. Presentation must never reconstruct it from the display
+   * source id — that is the documented trap where a minion's card id gets mistaken for its factory id and
+   * timing falls through unpredictably. Optional only during the migration.
+   */
+  policyKey?: string;
+  /** The coarse timing bucket ('endOfTurn', 'shout', 'echo', 'summonReact', …) — normally the registry
+   *  entry's `family` for `policyKey`. The timing resolver keys family templates on it. */
+  family?: string;
+  /** Distinguishes several independently-tunable moments inside ONE source+trigger (a card that acts on the
+   *  left then the right). Identity, never a display label. */
+  occurrenceKey?: string;
   /** Set when this trigger fired inside another (nested Shouts, Oona reacting to a summon). */
   parentId?: string;
   /** Explicit ordering edges beyond parent/step (rare; most order comes from step). */
@@ -65,6 +78,13 @@ interface ConsequenceBase {
   /** The SourceTriggerEvent that caused this (the collector sets it from the active trigger scope). */
   parentId?: string;
   simultaneousGroupId?: string;
+  /**
+   * CHOREOGRAPHER (§7.3): WHICH marker of its source beat delivers this consequence. Defaults to `primary`
+   * (the source's delivery marker). Staged effects name a sub-marker — 'consume.depart', 'consume.arrive',
+   * 'summon.appear', 'attack.contact', 'resource.land'. This is what stops every consequence from being
+   * assumed to land at `start + windup`.
+   */
+  deliveryKey?: string;
 }
 
 export interface StatsChangedConsequence extends ConsequenceBase {
@@ -140,6 +160,34 @@ export interface RubyPlayedConsequence extends ConsequenceBase {
   type: 'rubyPlayed';
   target: ZoneTargetRef;
   count: number;
+  /**
+   * The STAT DELTA these Rubies applied — `count × (1 + rubyBonus)` per axis, computed where `rubyBonus` is
+   * known. Without it presentation could show the gem cascade but not the numbers climbing, because a Ruby's
+   * worth depends on run state the UI would have to re-derive. Found by live playtest: the board sat at its
+   * base stats for the whole animation and then snapped at commit (2026-08-13).
+   */
+  attack?: number;
+  health?: number;
+}
+
+/**
+ * CHOREOGRAPHER PR 11 — a Fodder token consumed off the board.
+ *
+ * Deliberately NOT a plain `cardDestroyed`. The eat choreography flies the consumed token's stats INTO the
+ * eater, so it needs to know who ate what and what they gained — data a destroy event does not carry. When
+ * the presenters were migrated (PR 5) this was the one visual left on the legacy path for exactly that
+ * reason, and the gap was recorded in code rather than faked with a half-working imitation.
+ */
+export interface FodderEatenConsequence extends ConsequenceBase {
+  type: 'fodderEaten';
+  /** The minion that ate it — the FX flies from the Fodder to this card. */
+  eaterUid: string;
+  fodderId: string;
+  /** The consumed token's own stats, and what the eater gained (they differ when a rule scales the meal). */
+  attack: number;
+  health: number;
+  gainAttack: number;
+  gainHealth: number;
 }
 
 export type ConsequenceEvent =
@@ -154,7 +202,8 @@ export type ConsequenceEvent =
   | ShopChangedConsequence
   | AuraChangedConsequence
   | CounterChangedConsequence
-  | RubyPlayedConsequence;
+  | RubyPlayedConsequence
+  | FodderEatenConsequence;
 
 export type GamePresentationEvent = SourceTriggerEvent | ConsequenceEvent;
 
@@ -180,7 +229,8 @@ export type ConsequenceDraft =
   | Omit<ShopChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<AuraChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<CounterChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
-  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
+  | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
+  | Omit<FodderEatenConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
 
 /** What a mutation site hands the collector to open a trigger scope. */
 export interface BeginTriggerSpec {
@@ -193,4 +243,11 @@ export interface BeginTriggerSpec {
   simultaneousGroupId?: string;
   repeatIndex?: number;
   repeatCount?: number;
+  /** CHOREOGRAPHER: stable identity, copied verbatim onto the event (see SourceTriggerEvent). The emitting
+   *  gameplay code is the ONLY place that knows these — presentation must not re-derive them. */
+  policyKey?: string;
+  family?: string;
+  occurrenceKey?: string;
+  /** Explicit causal edges beyond parent/step: this beat may not present before those beats' markers. */
+  dependencyIds?: string[];
 }

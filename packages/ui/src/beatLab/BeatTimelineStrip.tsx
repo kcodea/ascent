@@ -7,7 +7,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { PresentationBatch } from '@game/core';
 import { scheduleBeats } from './beatTimeline';
-import { resolveBeatTiming, type BeatTiming, type BeatTimingOverrides } from './beatTiming';
+import { resolveBeatTiming, type BeatTiming, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { beatRegionsPx, fitScale, holdFromDragPx, rulerTicks, msToPx } from './timelineMath';
 import { timingKeysFor } from './beatTiming';
 
@@ -15,16 +15,17 @@ const TRACK_W = 640;
 const SNAP = 25;
 const POLICY_TINT: Record<string, string> = { ownBeat: '#7fd18a', foldedCue: '#8ab6e0', passive: '#c9a0e0', intentionallySilent: '#8a93a8' };
 
-export function BeatTimelineStrip({ batch, overrides, editKey, onHoldChange }: {
+export function BeatTimelineStrip({ batch, overrides, policyOverrides = {}, editKey, onHoldChange }: {
   batch: PresentationBatch;
   overrides: BeatTimingOverrides;
+  policyOverrides?: BeatPolicyOverrides;
   /** The draft key edits write to (from the selected library row) — a hold drag patches its holdMs. */
   editKey: string;
   onHoldChange: (key: string, holdMs: number) => void;
 }): React.ReactElement {
   const schedule = useMemo(
-    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides)),
-    [batch, overrides],
+    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides, policyOverrides)),
+    [batch, overrides, policyOverrides],
   );
   const pxPerMs = useMemo(() => fitScale(schedule.totalMs, TRACK_W), [schedule.totalMs]);
   const trackRef = useRef<HTMLDivElement>(null);

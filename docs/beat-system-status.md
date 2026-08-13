@@ -14,7 +14,7 @@
 | # | Item | Status | Where / gap |
 |---|------|--------|-------------|
 | 1a | Minion/spell/rune/quest automatic effects classified | ✅ | 654 keys, `#988`/`#998` |
-| 1b | **Hero** automatic effects classified | 🔴 | **0 `hero:*` entries** — registry, `presentationSurface`, and `sourceLibrary` all skip heroes |
+| 1b | **Hero** automatic effects classified | 🟡 | `#1007` — 27 heroes classified (sim-side `heroSurface` + tripwire + Beat Lab Heroes filter), flagged for owner review; **emission is per-power follow-up** |
 | 2 | Every reachable `ownBeat` effect **emits** a source event | 🟡/🔴 | recruit `onPlay` + End-of-Turn emit (✅ merged); **combat / start-of-turn / hero do not** |
 | 3 | Every emitted own beat is **consumed by live presentation** | 🔴 | **the cutover** — live EoT still animates via the legacy path |
 | 4 | End of Turn resolves **exactly once** | 🔴 | cutover (today: reducer resolves, then `projectEndOfTurnSteps` re-projects) |

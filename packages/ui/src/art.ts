@@ -134,6 +134,8 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
 const PUBLIC_ART_URLS: string[] = [
   `${import.meta.env.BASE_URL}ascentboardnostuff.webp`, // the primary board (all resolutions)
   `${import.meta.env.BASE_URL}homescreen.webp`,
+  `${import.meta.env.BASE_URL}runeforgebg2.webp`, // Runeforge overlay backdrop — preloaded so the forge doesn't open on an empty scrim
+
   `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
   `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,
   `${import.meta.env.BASE_URL}cursors/hand_closed.svg`,

@@ -386,6 +386,31 @@ export function reduceWithPresentation(
   return { state: next, batch: collector.finish() };
 }
 
+
+/**
+ * CHOREOGRAPHER PR 9 — run a hero power inside a source-attributed trigger scope.
+ *
+ * Hero powers were the last whole CLASS of automatic effect emitting nothing. That is why reclassifying one
+ * in the Beat Lab did nothing on screen: the tool could change a beat's declared policy, but gameplay never
+ * announced the moment, so there was no beat to reclassify. The registry key is `hero:<id>:<powerKind>` —
+ * keyed on the POWER, not the hero's name, so two heroes sharing a mechanic share its presentation.
+ *
+ * Zero-cost when nothing is capturing (the NOOP collector short-circuits before any object is built).
+ */
+function heroBeat(state: RunState, powerKind: string, label: string, run: () => void): void {
+  const collector = currentCollector();
+  if (!collector.enabled) { run(); return; }
+  collector.withTrigger(
+    {
+      phase: 'endOfTurn',
+      source: { kind: 'hero', id: state.heroId, label, side: 'player' },
+      trigger: powerKind,
+      ...beatIdentity(`hero:${state.heroId}:${powerKind}`),
+    },
+    run,
+  );
+}
+
 export function reduce(state: RunState, action: Action): RunState {
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
@@ -1993,7 +2018,20 @@ function reduceCore(state: RunState, action: Action): RunState {
       // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
       // end-of-turn, not start-of-shop.)
       if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
-        conjurePlainCopy(s, s.hand[0]!.cardId);
+        // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
+        // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
+        // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
+        // The hero is the SOURCE, so the cue can anchor on the portrait rather than on the card that appears.
+        const heroDef = getHero(s.heroId);
+        const cardId = s.hand[0]!.cardId;
+        heroBeat(s, 'secondHand', heroDef.name, () => {
+          conjurePlainCopy(s, cardId);
+          const made = s.hand[s.hand.length - 1];
+          const c = currentCollector();
+          if (c.enabled && made) {
+            c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: made.uid, cardId: made.cardId, side: 'player' }, cardId: made.cardId });
+          }
+        });
       }
       advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
       // Resolve combat now (deterministic) but don't apply the outcome yet —

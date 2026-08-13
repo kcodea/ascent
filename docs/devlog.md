@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 9: hero powers emit (Re-Pete gets a beat)
+
+The owner's third bug: "if i change re-pete to an ownbeat it does nothing."
+
+Correct - and not a Beat Lab fault. Hero powers were the last whole CLASS of automatic effect emitting
+nothing at all. The tool could change a beat's declared policy, but gameplay never announced the moment, so
+there was no beat to reclassify. Re-Pete's Second Hand conjured a card into hand silently.
+
+- `heroBeat(state, powerKind, label, run)` in the reducer: runs a hero power inside a source-attributed
+  trigger scope. Keyed `hero:<id>:<powerKind>` - on the POWER, not the hero's name, so two heroes sharing a
+  mechanic share its presentation. Zero-cost when nothing is capturing.
+- Re-Pete's Second Hand is wired: the HERO is the source (so the cue can anchor on the portrait rather than on
+  the card that appears), and the conjured card is emitted as its `cardGranted` consequence.
+- Classified `hero:repete:secondHand` (family `heroPower`) in the registry.
+
+**The coverage problem heroes have, and how it is handled.** Heroes live in `@game/sim`, and content is a
+DEPENDENCY of sim - so `presentationSurface()` can never see them, and a hero row would read as a ghost. The
+content ghost-check now skips `hero:*` WITH that reason stated, and `heroBeats.test.ts` enforces hero coverage
+sim-side instead: keys are well-formed, every hero entry has a family, a silent entry justifies itself, and
+every EMITTING power has a row.
+
+Verified live in the running game:
+
+    repete:secondHand  policyKey=hero:repete:secondHand  family=heroPower  policy=ownBeat
+    consequence: cardGranted stray
+
+Tests (+11): the beat emits and is registry-anchored; its emitted policy comes FROM the registry (which is
+what makes an override in the Lab meaningful); the conjured card is a consequence of the hero, not an orphan;
+it fires only on a third turn, only with a card in hand, and only for Re-Pete; gameplay is unchanged.
+
+typecheck + lint + npm test (5177) + build:web green.
+
+NOTE: the Beat Lab's policy dropdown lives on the OTHER stack (#1010). Both are needed for the full
+"flip Re-Pete from folded to its own beat and watch it change" loop - this PR supplies the half that was
+missing, the beat itself.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 8: Fleeting Vigor surges ON SCREEN
 
 The owner's second bug, fixed at its root: "Fleeting Vigor still triggers the stats before the start of

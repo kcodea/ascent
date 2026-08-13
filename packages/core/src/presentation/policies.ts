@@ -669,6 +669,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'quest:q_unstable_riches:onComplete': { policy: 'ownBeat', family: 'questReward' },
   'quest:q_war_council:onComplete': { policy: 'ownBeat', family: 'questReward' },
   'quest:q_warm_embers:onComplete': { policy: 'ownBeat', family: 'questReward' },
+  // ── HERO POWERS (CHOREOGRAPHER PR 9). Heroes live in `@game/sim`, which the content-side surface cannot
+  // import (content is a DEPENDENCY of sim, not the reverse) — so hero coverage is enforced sim-side by
+  // `heroBeats.test.ts` instead, and the content ghost-check skips `hero:*`. Classified here so the key,
+  // family and policy stay in ONE registry with everything else.
+  'hero:repete:secondHand': { policy: 'ownBeat', family: 'heroPower' },
+
   // ── DERIVED / SYSTEM moments (CHOREOGRAPHER PR 7). Engine-derived payouts with no EffectDef of their own;
   // see `SYSTEM_SURFACE` in content. Each is an own beat because it is a visible thing happening TO the
   // board at the start of a fight, and the owner's report was precisely that it happened invisibly.

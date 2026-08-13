@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat } from '@game/sim';
+import type { PresentationBatch } from '@game/core';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
  *  `userId` is what the run history is fetched by, and `author` is display-only. */
@@ -274,6 +275,11 @@ interface GameStore {
    *  thread, measured), and the boards come out identical either way — so a lobby keeps them as it goes.
    *  Persisted with the save so a quit-and-resume doesn't lose the boards played before the reload. */
   capturedBoards: BoardSnapshot[];
+  /** BEAT SYSTEM (PR 3) — the latest recruit presentation batch, published by `dispatch` in DEV only (prod +
+   *  headless keep the zero-alloc path). Ephemeral: never serialized into a save. Read by the Beat Lab viewer
+   *  (PR 4); `beatRevision` bumps on each publish so subscribers can react even when a batch repeats. */
+  latestBatch: PresentationBatch | null;
+  beatRevision: number;
   /** Export the current run as a tiny deterministic replay `{ seed, heroId, actions }` (DEV: grab it
    *  via `useGame.getState().exportReplay()`; feed it to `replayRun` / the replay harness). */
   exportReplay: () => Replay;
@@ -682,6 +688,8 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatSpeed });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
+  latestBatch: null,
+  beatRevision: 0,
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],
@@ -691,7 +699,14 @@ export const useGame = create<GameStore>((set, get) => ({
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
       // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here
       // with the action that caused it. No-op passthrough when the monitor is off.
-      const next = perfMonitor.measure(`reduce:${action.type}`, () => reduce(s.run, action));
+      // BEAT SYSTEM (PR 3): in DEV, resolve through `reduceWithPresentation` to capture the source-attributed
+      // batch for the Beat Lab viewer; prod stays on plain `reduce` (zero collector allocation). Gameplay
+      // result is identical either way — the collector only records (proven by the equivalence test).
+      const captureBeats = import.meta.env.DEV;
+      const beat = perfMonitor.measure(`reduce:${action.type}`, () =>
+        captureBeats ? reduceWithPresentation(s.run, action, true) : { state: reduce(s.run, action), batch: null },
+      );
+      const next = beat.state;
       actionSfx(action, s.run, next);
       // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
       // log can be read as "this was the shop opening" rather than an unexplained gap.
@@ -899,6 +914,9 @@ export const useGame = create<GameStore>((set, get) => ({
         heroArmed: false, // any action clears targeting
         inspect: null, // …and closes the inspect overlay
         sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
+        // BEAT SYSTEM (PR 3): publish this action's presentation batch (DEV only — null in prod). `beatRevision`
+        // bumps every publish so a viewer re-reads even when two actions produce structurally equal batches.
+        ...(captureBeats ? { latestBatch: beat.batch, beatRevision: s.beatRevision + 1 } : {}),
         // Record only state-changing actions — together with the seed they reconstruct the run's board /
         // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
         // docs/replay-v2-handoff.md).

@@ -141,6 +141,15 @@ export function planBeatDefaultsWrite(body: unknown, file: string): WritePlan {
       if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return bad(400, `'${key}.${f}' must be a non-negative number.`);
     }
   }
+  // The policy overrides (the folded↔own toggle) — optional; same key grammar, values in the policy enum.
+  if (parsed.policies !== undefined) {
+    if (!isRecord(parsed.policies)) return bad(400, '`policies` must be an object.');
+    for (const [key, pol] of Object.entries(parsed.policies)) {
+      if (UNSAFE_KEYS.includes(key)) return bad(400, `'${key}' is an unsafe key and can never be loaded.`);
+      if (!KEY_RE.test(key)) return bad(400, `'${key}' is not a valid policy key.`);
+      if (!POLICY_VALUES.includes(pol as string)) return bad(400, `'${key}' policy must be one of ${POLICY_VALUES.join(', ')}.`);
+    }
+  }
   // Re-serialized (not echoed) so the committed file is always well-formed, stably formatted JSON.
   return { status: 200, file, data: `${JSON.stringify(parsed, null, 2)}\n` };
 }

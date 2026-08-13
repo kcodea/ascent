@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBeatTiming, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
+import { resolveBeatTiming, resolvePolicy, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
 import { scheduleBeats } from './beatTimeline';
 import type { PresentationBatch } from '@game/core';
 
@@ -43,5 +43,30 @@ describe('timing resolution', () => {
     };
     const { totalMs } = scheduleBeats(batch, (t) => resolveBeatTiming(t, { 'source:rune:runeLapidary:endOfTurn': { windupMs: 0, holdMs: 100, recoveryMs: 0 } }));
     expect(totalMs).toBe(100);
+  });
+});
+
+describe('policy overrides (the folded ↔ own-beat toggle)', () => {
+  const repete = { source: { kind: 'hero' as const, id: 'repete' }, trigger: 'secondHand', policy: 'foldedCue' as const };
+
+  it('no override → the emitted policy stands', () => {
+    expect(resolvePolicy(repete)).toBe('foldedCue');
+  });
+
+  it('an override reclassifies the beat (folded → own)', () => {
+    expect(resolvePolicy(repete, { 'source:hero:repete:secondHand': 'ownBeat' })).toBe('ownBeat');
+  });
+
+  it('reclassifying re-bases the timing to the new policy default', () => {
+    const folded = resolveBeatTiming(repete);
+    const own = resolveBeatTiming(repete, {}, { 'source:hero:repete:secondHand': 'ownBeat' });
+    expect(own.holdMs).toBeGreaterThan(folded.holdMs); // ownBeat holds (420) vs foldedCue (160)
+    expect(own).toEqual(POLICY_TIMING.ownBeat);
+  });
+
+  it('a timing override still layers on top of the reclassified base', () => {
+    const t = resolveBeatTiming(repete, { 'source:hero:repete:secondHand': { holdMs: 999 } }, { 'source:hero:repete:secondHand': 'ownBeat' });
+    expect(t.holdMs).toBe(999);
+    expect(t.windupMs).toBe(POLICY_TIMING.ownBeat.windupMs);
   });
 });

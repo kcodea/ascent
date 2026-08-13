@@ -448,6 +448,29 @@ the beat is mistimed with no error raised anywhere.
 
 Verified: typecheck + lint + `npm test` (5051, +8) + build:web green. No gameplay change (the equivalence
 assertion is part of the suite). Next: PR 2 — the normalizer + shared timeline compiler (pure, no UI).
+## 2026-08-13 — Beat System: policy toggle (folded ↔ own beat) in the Beat Lab
+
+Owner ask: change a source from a folded cue to its own beat — e.g. Re-Pete's hero power — from the Beat Lab,
+not by editing the registry. The Lab edited timing but not policy; now it edits both.
+
+- `beatTiming.ts`: `BeatPolicyOverrides` (keyed by the same specificity chain as timings) + `SHIPPED_POLICY_OVERRIDES`
+  (from `beat-defaults.json` `.policies`) + `resolvePolicy(trigger, overrides)`. `resolveBeatTiming` now re-bases
+  its default timing on the EFFECTIVE (possibly overridden) policy, so a folded→own flip changes how it reads and
+  plays. Committed policy overrides reach live playback the same way committed timings do.
+- Inspector: a **Policy** dropdown (ownBeat / foldedCue / passive / intentionallySilent) per source, with
+  provenance ("override (was foldedCue)" vs "registry default"); selecting the registry default clears the
+  override. Threaded through the preview player + drag timeline.
+- Commit: `beat-defaults.json` now carries `{version, timings, policies}`; the dev endpoint validates the policy
+  map (same key grammar, values in the policy enum). Copy JSON / Reset all / draft count include policies.
+
+Verified live: flipped Re-Pete's power foldedCue→ownBeat → hold 160→420, preview 440→1420ms, provenance shows
+the override, draft registers. typecheck + lint + npm test (5043; +4 policy resolution + plugin) + build:web
+green.
+
+CAVEAT (in code + surfaced to owner): the flip drives the TIMING + how the beat READS; the deepest sense of
+folded (nesting as no separate resolution step) is baked at EMISSION time, so a true re-nest would also need the
+emission to change. For timing/read — what matters for a hero power — this is complete.
+
 ## 2026-08-13 — Beat System: hero coverage (DoD item 1b — heroes were 0 in the registry)
 
 Heroes were entirely absent from the presentation registry (Codex's item 1b). They live in `@game/sim` and

@@ -12,7 +12,10 @@ import { useMemo, useState } from 'react';
 import { BatchPlayer, POLICY_TINT } from './BeatLab';
 import { BeatTimelineStrip } from './BeatTimelineStrip';
 import { sourceEntries, filterSources, fixtureBatchForTrigger, type SourceEntry, type TriggerRow, type SourceKind } from './sourceLibrary';
-import { resolveBeatTiming, timingProvenance, type BeatTiming, type BeatTimingOverrides } from './beatTiming';
+import { resolveBeatTiming, resolvePolicy, timingProvenance, type BeatTiming, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
+import type { PresentationPolicy } from '@game/core';
+
+const POLICIES: PresentationPolicy[] = ['ownBeat', 'foldedCue', 'passive', 'intentionallySilent'];
 
 const FIELDS: Array<{ f: keyof BeatTiming; label: string }> = [
   { f: 'windupMs', label: 'Wind-up' }, { f: 'holdMs', label: 'Hold' }, { f: 'recoveryMs', label: 'Recovery' },
@@ -23,9 +26,11 @@ const KINDS: Array<{ k: SourceKind; label: string }> = [
 const COVER_TINT: Record<string, string> = { classified: '#7fd18a', silent: '#8a93a8', empty: '#e0b34d' };
 const COVER_LABEL: Record<string, string> = { classified: 'beat', silent: 'silent', empty: 'EMPTY' };
 
-export function BeatLibrary({ draft, setDraft }: {
+export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
   draft: BeatTimingOverrides;
   setDraft: React.Dispatch<React.SetStateAction<BeatTimingOverrides>>;
+  policyDraft: BeatPolicyOverrides;
+  setPolicyDraft: React.Dispatch<React.SetStateAction<BeatPolicyOverrides>>;
 }): React.ReactElement {
   const all = useMemo(() => sourceEntries(), []);
   const [query, setQuery] = useState('');
@@ -41,8 +46,17 @@ export function BeatLibrary({ draft, setDraft }: {
   const row: TriggerRow | null = source && sel ? source.triggers.find((t) => t.id === sel.triggerId) ?? null : null;
 
   const trig = source && row ? { source: { kind: (source.kind === 'spell' ? 'spell' : source.kind) as never, id: source.id }, trigger: row.trigger, policy: row.policy ?? 'ownBeat' } : null;
-  const effective = trig ? resolveBeatTiming(trig, draft) : null;
+  const effective = trig ? resolveBeatTiming(trig, draft, policyDraft) : null;
   const prov = trig ? timingProvenance(trig, draft) : null;
+  const effectivePolicy = trig ? resolvePolicy(trig, policyDraft) : null;
+  const setPolicy = (p: PresentationPolicy): void => {
+    if (!row) return;
+    // Setting the effective policy back to the registry default clears the override rather than pinning it.
+    setPolicyDraft((d) => {
+      if (row.policy && p === row.policy) { const { [row.editKey]: _gone, ...rest } = d; return rest; }
+      return { ...d, [row.editKey]: p };
+    });
+  };
 
   const edit = (f: keyof BeatTiming, value: number): void => {
     if (!row) return;
@@ -106,6 +120,18 @@ export function BeatLibrary({ draft, setDraft }: {
               <span className="bl-kind">{source.kind}:{source.id} · {row.factory ? `factory ${row.factory}` : 'derived (simulator)'}{row.family ? ` · family ${row.family}` : ''}</span>
               <span className="bl-kind">edits write to <code>{row.editKey}</code> (this {source.kind} only)</span>
             </div>
+            {/* Policy toggle: flip folded ↔ own beat (etc.). Re-bases the timing and drives how it reads. */}
+            <div className="bl-policy-row">
+              <span>Policy</span>
+              <select value={effectivePolicy ?? 'ownBeat'} onChange={(e) => setPolicy(e.target.value as PresentationPolicy)}>
+                {POLICIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <span className="bl-prov">
+                {policyDraft[row.editKey]
+                  ? `override (was ${row.policy ?? 'unclassified'})`
+                  : `registry default${row.policy ? ` · ${row.policy}` : ''}`}
+              </span>
+            </div>
             {row.coverage === 'empty' && (
               <div className="bl-empty-banner">
                 <b>EMPTY trigger — no beat emitted yet.</b> This is a combat moment the simulator applies silently
@@ -124,9 +150,9 @@ export function BeatLibrary({ draft, setDraft }: {
               ))}
               {hasEdit && <button className="bl-tbtn" onClick={resetSelected}>Reset to inherited</button>}
             </div>
-            <BeatTimelineStrip batch={fixtureBatchForTrigger(source, row)} overrides={draft} editKey={row.editKey} onHoldChange={setHold} />
+            <BeatTimelineStrip batch={fixtureBatchForTrigger(source, row)} overrides={draft} policyOverrides={policyDraft} editKey={row.editKey} onHoldChange={setHold} />
             <div className="bl-fixture-banner">SYNTHETIC PREVIEW — fixture targets, not game state</div>
-            <BatchPlayer batch={fixtureBatchForTrigger(source, row)} overrides={draft} resetKey={`${source.id}:${row.id}|${JSON.stringify(draft[row.editKey] ?? {})}`} />
+            <BatchPlayer batch={fixtureBatchForTrigger(source, row)} overrides={draft} policyOverrides={policyDraft} resetKey={`${source.id}:${row.id}|${JSON.stringify(draft[row.editKey] ?? {})}|${effectivePolicy}`} />
           </>
         )}
       </div>

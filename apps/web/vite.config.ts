@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fxDefsPlugin } from './fxDefsPlugin';
+import { uiAssetPlugin } from './uiAssetPlugin';
 import { beatLabPlugin } from './beatLabPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -25,11 +26,11 @@ export default defineConfig(({ command }) => ({
     __APP_VERSION__: JSON.stringify(pkgVersion),
     __BUILD_SHA__: JSON.stringify(buildSha),
   },
-  // `fxDefsPlugin` is `apply: 'serve'` — it adds the FX workbench's /__fx/def + /__fx/art write endpoints to
-  // the dev server ONLY, and is inert (never instantiated) in a production build.
-  // `beatLabPlugin` is likewise `apply: 'serve'` — it adds the Beat Lab's /__beat-lab/defaults commit endpoint
-  // to the dev server ONLY (writes packages/ui/src/beatLab/beat-defaults.json), inert in a production build.
-  plugins: [react(), fxDefsPlugin(), beatLabPlugin()],
+  // `fxDefsPlugin`, `uiAssetPlugin`, and `beatLabPlugin` are all `apply: 'serve'` — they add write endpoints to
+  // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX
+  // workbench's /__fx/def + /__fx/art; `uiAssetPlugin` = the in-run UI editor's /__ui/asset image upload;
+  // `beatLabPlugin` = the Beat Lab's /__beat-lab/defaults commit (writes packages/ui/src/beatLab/beat-defaults.json).
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin()],
   resolve: {
     alias: {
       '@game/core': r('../../packages/core/src/index.ts'),

@@ -1983,33 +1983,35 @@ img.tierbadge.tierstars,
    "discovers are a big one"). A slightly deeper solid scrim backgrounds the board just as well without the
    per-composite cost. The matching hero/questbadges dim below drops its blur too, so the look stays uniform. */
 .discover-ov { position: fixed; inset: 0; background: rgba(30, 20, 8, 0.74); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
-/* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest
-   badges sit OUTSIDE its backdrop root (own fixed stacking contexts) — blur + dim them by hand so they match
-   the covered board behind the modal. The filter sits ON each element (never an ancestor of the fixed diamond:
-   a filtered ancestor becomes its containing block and would break the stage pinning). One-shot transition —
-   not a looping paint animation. Interaction is parked while covered. */
+/* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest badges
+   are parked — they are behind the modal now (see the stacking-context fix below) and must not take clicks.
+   The hand-rolled dim they used to carry here (`filter: brightness(0.5) saturate(0.85)`) is GONE as of the
+   2026-08-13 stacking fix: it existed only because these surfaces painted ON TOP of the overlay and had to be
+   faked into looking covered. Now the overlay's own scrim passes over them like it does the board, so keeping
+   the filter would dim them TWICE — darker than the board they are supposed to match. */
 body.modalup .statusbar .hero,
 body.modalup .statusbar .heropanel,
 body.modalup .statusbar .questbadges {
-  filter: brightness(0.5) saturate(0.85); /* dim + desaturate only — blur dropped to match the un-blurred board (perf) */
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
 
-/* A MODAL COVERS THE HERO PANEL + POWER DIAMOND OUTRIGHT (owner ruling 2026-08-13: those surfaces should never
-   sit on top of anything but the board).
-   Those live at ROOT level inside `.statusbar` (z-index 40), while every overlay lives inside `.app` — which is
-   `position: relative; z-index: 1`, i.e. its own stacking context. So `.forge-ov`'s z-index 160 is trapped
-   INSIDE `.app` and never competes with the bar at all; what competes is `.app`'s 1 against the bar's 40, and
-   the bar wins. That is the whole reason the dim-by-filter rule above exists — it papers over surfaces that were
-   never behind the modal to begin with. Dropping the bar beneath `.app` for the duration is the actual fix.
-   WHY ONLY WHILE A MODAL IS UP, and not permanently: `.boardbg` is a CHILD of `.app` (z-index 0), so a status
-   bar parked below `.app` is below the BOARD too and vanishes entirely. Above-the-board-but-below-everything-
-   else is not expressible from outside `.app`'s stacking context — it would need the bar moved into that tree.
-   While a modal is up the board is covered anyway, so hiding behind `.app` is exactly right; in normal play the
-   bar keeps its 40 and the power stays clickable.
-   The filter-dim rule above is now belt-and-braces (it still covers the fade in and out). */
-body.modalup .statusbar { z-index: 0; }
+/* THE HERO PANEL + POWER DIAMOND SIT ABOVE THE BOARD BUT BEHIND A MODAL (owner ruling 2026-08-13).
+   Those live at ROOT level in `.statusbar` (z-index 40); every overlay lives inside `.app`, which is
+   `position: relative; z-index: 1` — its own stacking context. So `.forge-ov`'s z-index 160 is TRAPPED inside
+   `.app` and never competes with the bar at all: what competes is `.app`'s 1 against the bar's 40, and the bar
+   wins. That is the whole reason the dim-by-filter rule above exists — it papers over surfaces that were never
+   behind the modal to begin with.
+   The knob is NOT the bar's z-index. Two earlier attempts moved the bar instead, and both were wrong in the same
+   way: `.boardbg` is a CHILD of `.app` (fixed, z-index 0), so any value that puts the bar under `.app` puts it
+   under the BOARD as well and the hero panel disappears outright.
+   What actually works is dissolving `.app`'s stacking context for the duration. With `z-index: auto` (still
+   `position: relative`, so nothing moves) its descendants merge into the ROOT stacking order and the three
+   layers finally sort by their own numbers: `.boardbg` 0 < `.statusbar` 40 < `.forge-ov` 160. The panel keeps
+   its place above the board and the modal covers it, which is the ordering that was wanted all along.
+   Scoped to `body.modalup` because dissolving the context lets every positioned descendant of `.app` compete at
+   root — harmless while a full-screen overlay is up, not something to leave on during normal play. */
+body.modalup .app { z-index: auto; }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {

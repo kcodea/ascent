@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-13 — The real stacking fix: hero panel above the board, behind the modal
+
+Third attempt, and the first correct one. The previous two both moved `.statusbar`'s z-index, and both were
+wrong the same way — the second one made the hero panel and power diamond vanish outright (owner report).
+
+**The knob was never the bar.** `.boardbg` is a CHILD of `.app` (fixed, z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). So ANY value that sinks the bar below `.app` sinks it below the BOARD
+too, and it disappears. The bar cannot be interleaved between two layers that live on the other side of a
+stacking-context boundary.
+
+**What works is dissolving that boundary.** `body.modalup .app { z-index: auto }` — still `position: relative`,
+so nothing moves and no layout changes; it simply stops creating a stacking context. Its positioned descendants
+then merge into the ROOT stacking order and the three layers finally sort by their own numbers:
+`.boardbg` 0 < `.statusbar` 40 < `.forge-ov` 160. The hero panel keeps its place above the board and the modal
+covers it — the ordering that was asked for from the start. Scoped to `body.modalup` because dissolving the
+context lets every positioned descendant of `.app` compete at root: harmless under a full-screen overlay, not
+something to leave on during normal play.
+
+**Deleted the hand-rolled dim it made redundant.** `body.modalup .statusbar .hero/.heropanel/.questbadges`
+carried `filter: brightness(0.5) saturate(0.85)` for one reason: those surfaces painted ON TOP of the overlay, so
+they had to be FAKED into looking covered. Now the overlay's scrim passes over them exactly like it passes over
+the board, and keeping the filter would dim them TWICE — darker than the board they exist to match. The
+`pointer-events: none` stays: they are behind the modal and must not take clicks.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5228/5228 + `build:web` 6.32s. Live,
+walking real stacking contexts rather than hit-testing (the bar is `pointer-events: none`, so `elementsFromPoint`
+cannot see it and reports nothing useful): with a modal up, `.boardbg`, `.statusbar` and `.forge-ov` all resolve
+to the SAME stacking context, so their 0 / 40 / 160 sort directly; `.app` reports `z-index: auto` and creates no
+context; the hero panel computes `filter: none` and `pointer-events: none`. Closing the modal restores `.app` to
+z-index 1, the panel to `pointer-events: auto`, and `.heropowerbtn` is topmost at its own centre again — the
+power stays clickable in normal play.
+
 ## 2026-08-13 — Hero panel goes UNDER every modal, + the owner's tuned Runeforge backdrop baked
 
 **The power diamond was still on top.** The previous fix scoped the z-index drop to the forge with

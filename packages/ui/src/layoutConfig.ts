@@ -65,7 +65,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // >0 = a real gap between fanned cards.
   { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.15, fmt: 'mul' },
   { key: 'handX', cssVar: '--z-hand-x', label: 'X offset', group: 'Hand', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -2, fmt: 'px' },
+  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -117, fmt: 'px' },
   // How large a hand card grows when moused over (the hover pop). 1 = no growth.
   { key: 'handHoverS', cssVar: '--z-hand-hover-s', label: 'Hover size', group: 'Hand', min: 1, max: 1.9, step: 0.01, def: 1.34, fmt: 'mul' },
 

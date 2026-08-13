@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **Owner-tuned layout defaults** — the shop row, shop-controls tray, and warband are baked to the owner's tuned positions/scale (updated in both the Layout Lab defaults and the production CSS fallbacks).
+- **Owner-tuned layout defaults** — the shop row, shop-controls tray, warband, and hand row are baked to the owner's tuned positions/scale (updated in both the Layout Lab defaults and the production CSS fallbacks).
 
 - **Beast batch** — four new Beasts (**Wolvie**, **Armadiyo**, **Dunkey**, **Voidmother**) and four new runes (the Burrow, the Voidmother, the Jungle, Beastial Swarm), plus Kennelmaster (Avenge 4) and King Oona (doubles Attack only) tweaks. **Grim** joins Set 2 with a new flat "+8/+8 to your Beasts" Echo.
 

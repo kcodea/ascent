@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 8b: commit tuned timings to beat-defaults.json (dev endpoint)
+
+Ninth slice (stacked on PR 8) — closes the authoring loop: the Beat Lab's tuned timings can now be COMMITTED to
+a git-tracked file instead of only Copy-JSON'd to the clipboard, so a tune is durable, ships to the other dev,
+and becomes the shipped baseline. Dev-only, no production/gameplay path.
+
+**Committed defaults** (`packages/ui/src/beatLab/beat-defaults.json`, starts `{version:1, timings:{}}`):
+`beatTiming.ts` imports it as `SHIPPED_OVERRIDES` and folds it UNDER the session draft in `resolveBeatTiming`
+(committed → draft → shipped per-policy default, field-level), so a committed tune applies everywhere the
+resolver is read while an uncommitted edit still wins for the same field. `mergeOverrides` is the field-level
+layering helper.
+
+**Dev endpoint** (`apps/web/beatLabPlugin.ts`, `apply:'serve'` — inert in prod, mirrors `fxDefsPlugin`): POST
+`/__beat-lab/defaults` with the whole validation surface in one pure `planBeatDefaultsWrite` (unit-tested
+without a server): version 1, `timings` an object, each key matching the specificity grammar
+(source/family/trigger/policy/global), each patch only windup/hold/recovery finite non-negative numbers,
+prototype-pollution keys rejected. Destination fixed by the plugin (no traversal question). Re-serialized so
+the committed file always diffs cleanly. Registered in `apps/web/vite.config.ts`.
+
+**UI** (`BeatLab.tsx`): a "Commit to repo" button (beside Copy JSON / Reset all) POSTs `mergeOverrides(committed,
+draft)` — accumulating, not replacing — then clears the session draft on success (the write + static import +
+HMR reload the new baseline). Reports the written path or the rejection reason.
+
+Verified live: POST a valid override → `{ok:true, path: packages/ui/src/beatLab/beat-defaults.json}` and the
+file on disk gained the entry; a bad key → 400 with the reason; GET → 405. (Reset the test override so shipped
+defaults stay empty — owner tunes + commits deliberately.) typecheck + lint + npm test (5031; +6 planWrite) +
+build:web all green.
+
 ## 2026-08-12 — Beat System PR 8: drag-timeline editing in the Beat Lab
 
 Eighth slice (stacked on PR 7) — a tactile complement to PR 7's numeric fields: a horizontal timeline of the

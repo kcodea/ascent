@@ -14,6 +14,7 @@
  */
 import type { PresentationPolicy, SourceTriggerEvent } from '@game/core';
 import { presentationPolicyFor } from '@game/core';
+import beatDefaults from './beat-defaults.json';
 
 export interface BeatTiming {
   windupMs: number;
@@ -34,6 +35,19 @@ export const GLOBAL_TIMING: BeatTiming = POLICY_TIMING.ownBeat;
 
 /** Sparse override map, keyed by the specificity chain's key strings. */
 export type BeatTimingOverrides = Record<string, BeatTimingPatch>;
+
+/** Committed, source-controlled timing overrides (PR 8b) — `beat-defaults.json`, written by the Beat Lab's
+ *  "Commit to repo" button. Applied UNDER the session draft so a committed tune becomes the shipped baseline
+ *  everywhere `resolveBeatTiming` is read. Empty until the owner commits something. */
+export const SHIPPED_OVERRIDES: BeatTimingOverrides = (beatDefaults as { timings?: BeatTimingOverrides }).timings ?? {};
+
+/** Field-level merge of two sparse override maps (b wins per field). Used to layer the session draft over the
+ *  committed defaults, and by the Commit button to fold a draft into the committed file. */
+export function mergeOverrides(a: BeatTimingOverrides, b: BeatTimingOverrides): BeatTimingOverrides {
+  const out: BeatTimingOverrides = { ...a };
+  for (const [k, patch] of Object.entries(b)) out[k] = { ...out[k], ...patch };
+  return out;
+}
 
 /** The specificity chain for one trigger event, most-specific first (registry family included when known). */
 export function timingKeysFor(t: Pick<SourceTriggerEvent, 'source' | 'trigger' | 'policy'>): string[] {
@@ -59,9 +73,12 @@ export function resolveBeatTiming(
 ): BeatTiming {
   const base = POLICY_TIMING[t.policy] ?? GLOBAL_TIMING;
   let out: BeatTiming = { ...base };
+  // Committed defaults first, then the session draft on top (field-level) — so an uncommitted edit overrides a
+  // committed one for the same key/field, and both override the shipped per-policy default.
+  const all = mergeOverrides(SHIPPED_OVERRIDES, overrides);
   const chain = timingKeysFor(t);
   for (let i = chain.length - 1; i >= 0; i--) {
-    const patch = overrides[chain[i]!];
+    const patch = all[chain[i]!];
     if (patch) out = { ...out, ...patch };
   }
   return out;
@@ -76,8 +93,9 @@ export function timingProvenance(
   const prov: Record<keyof BeatTiming, string> = {
     windupMs: `policy:${t.policy}`, holdMs: `policy:${t.policy}`, recoveryMs: `policy:${t.policy}`,
   };
+  const all = mergeOverrides(SHIPPED_OVERRIDES, overrides);
   for (let i = chain.length - 1; i >= 0; i--) {
-    const patch = overrides[chain[i]!];
+    const patch = all[chain[i]!];
     if (!patch) continue;
     for (const f of ['windupMs', 'holdMs', 'recoveryMs'] as const) if (patch[f] !== undefined) prov[f] = chain[i]!;
   }

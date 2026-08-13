@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
 import { scheduleBeats, activeBeatIndex } from './beatTimeline';
-import { resolveBeatTiming, type BeatTimingOverrides } from './beatTiming';
+import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, type BeatTimingOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
 import './beatLab.css';
 
@@ -181,6 +181,25 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
 
   const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify({ version: 1, timings: draft }, null, 2)); };
 
+  // Commit the draft to the git-tracked beat-defaults.json (DEV endpoint). Folds the draft OVER the existing
+  // committed defaults (field-level), so committing accumulates rather than replacing. On success the static
+  // import + HMR reloads the new baseline; the session draft is cleared (now baked into SHIPPED_OVERRIDES).
+  const [commitMsg, setCommitMsg] = useState<string | null>(null);
+  const commitDraft = async (): Promise<void> => {
+    const merged = mergeOverrides(SHIPPED_OVERRIDES, draft);
+    try {
+      const res = await fetch('/__beat-lab/defaults', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ json: JSON.stringify({ version: 1, timings: merged }) }),
+      });
+      const out = await res.json() as { ok: boolean; path?: string; error?: string };
+      setCommitMsg(out.ok ? `committed → ${out.path}` : `commit failed: ${out.error}`);
+      if (out.ok) setDraft({});
+    } catch (e) {
+      setCommitMsg(`commit failed: ${(e as Error).message}`);
+    }
+  };
+
   return (
     <div className="bl-overlay" role="dialog" aria-label="Beat Lab">
       <div className="bl-topbar">
@@ -189,7 +208,9 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} title="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => setDraft({})} title="Discard every draft override">Reset all</button>}
+        {commitMsg && <span className="bl-prov">{commitMsg}</span>}
         <span className="bl-meta">
           {mode === 'capture'
             ? batch ? `${batch.actionId} · ${batch.events.length} events · rev ${revision}` : 'no batch captured yet'

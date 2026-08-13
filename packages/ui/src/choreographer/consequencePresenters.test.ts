@@ -28,6 +28,7 @@ const spyContext = () => ({
   statGain: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(),
   cardGranted: vi.fn(), cardSummoned: vi.fn(), cardDestroyed: vi.fn(), shopBuffed: vi.fn(),
   resourceChanged: vi.fn(), counterChanged: vi.fn(), cardTransformed: vi.fn(), keywordChanged: vi.fn(),
+  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(),
 }) satisfies PresenterContext;
 
 const beat = { id: 'beat:1', source: { kind: 'minion', id: 'c', uid: 'src' } } as CompiledBeat;
@@ -124,5 +125,62 @@ describe('against a real End-of-Turn batch', () => {
     // The Lapidary's rubies and the economy runes' HUD moves are the two we know this fixture produces.
     const calls = Object.values(ctx).reduce((n, fn) => n + fn.mock.calls.length, 0);
     expect(calls, 'a real turn drew something').toBeGreaterThan(0);
+  });
+});
+
+describe('beat-level sequences (PR 6) — derived from events, not hardcoded effect lists', () => {
+  const runeBeat = { id: 'beat:r', source: { kind: 'rune', id: 'rune_lapidary' } } as CompiledBeat;
+  const questBeat = { id: 'beat:q', source: { kind: 'quest', id: 'q_echoing_roar' } } as CompiledBeat;
+
+  it('ANY rune reward landing on a unit draws its ribbon — legacy only did two named effects', () => {
+    const ctx = spyContext();
+    presentConsequence({ beat: runeBeat, ctx, index: 0, consequence: { type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, attack: 1, health: 1, permanent: true } as ConsequenceEvent });
+    expect(ctx.questTendril).toHaveBeenCalledWith('rune', 'rune_lapidary', 'u1', 0);
+  });
+
+  it('a quest reward draws from the QUEST node, with its own kind', () => {
+    const ctx = spyContext();
+    presentConsequence({ beat: questBeat, ctx, index: 1, consequence: { type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u2' }, attack: 1, health: 1, permanent: true } as ConsequenceEvent });
+    expect(ctx.questTendril).toHaveBeenCalledWith('quest', 'q_echoing_roar', 'u2', 1);
+  });
+
+  it("the Lapidary's Rubies draw a ribbon AND the gem cascade", () => {
+    const ctx = spyContext();
+    presentConsequence({ beat: runeBeat, ctx, consequence: { type: 'rubyPlayed', id: 'r', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, count: 2 } as ConsequenceEvent });
+    expect(ctx.questTendril).toHaveBeenCalled();
+    expect(ctx.rubyLanded).toHaveBeenCalledWith('u1', 2);
+  });
+
+  it('a MINION beat draws no rail ribbon — it has no rail node to draw from', () => {
+    const ctx = run({ type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, attack: 1, health: 1, permanent: true } as ConsequenceEvent);
+    expect(ctx.questTendril).not.toHaveBeenCalled();
+  });
+
+  it('a shop buff fires the tavern rush alongside the stat climb', () => {
+    const ctx = run({ type: 'shopChanged', id: 'sh', sequence: 0, step: 1, change: 'buffed', target: { zone: 'shop', uid: 'o1', cardId: 'fred' }, attack: 1, health: 1 } as ConsequenceEvent);
+    expect(ctx.shopBuffed).toHaveBeenCalled();
+    expect(ctx.tavernGust).toHaveBeenCalledWith('o1', 'fred');
+  });
+
+  it('a CONSUMED shop offer does not fire the rush', () => {
+    const ctx = run({ type: 'shopChanged', id: 'sh', sequence: 0, step: 1, change: 'consumed', target: { zone: 'shop', uid: 'o1' } } as ConsequenceEvent);
+    expect(ctx.tavernGust).not.toHaveBeenCalled();
+  });
+
+  it('welded attachments pulse on the host', () => {
+    const ctx = run({ type: 'counterChanged', id: 'ct', sequence: 0, step: 1, counter: 'attachments', amount: 2 } as ConsequenceEvent);
+    expect(ctx.weldPulse).toHaveBeenCalledWith('src', 2);
+  });
+
+  it('a non-attachment counter does NOT pulse a weld ring', () => {
+    const ctx = run({ type: 'counterChanged', id: 'ct', sequence: 0, step: 1, counter: 'questProgress', amount: 1 } as ConsequenceEvent);
+    expect(ctx.weldPulse).not.toHaveBeenCalled();
+  });
+
+  it('a board card destroyed gets the eat choreography; a shop one does not', () => {
+    const board = run({ type: 'cardDestroyed', id: 'd', sequence: 0, step: 1, target: { zone: 'board', uid: 'f1' } } as ConsequenceEvent);
+    expect(board.fodderEaten).toHaveBeenCalledWith('f1', 'board');
+    const shop = run({ type: 'cardDestroyed', id: 'd', sequence: 0, step: 1, target: { zone: 'shop', uid: 'o1' } } as ConsequenceEvent);
+    expect(shop.fodderEaten).not.toHaveBeenCalled();
   });
 });

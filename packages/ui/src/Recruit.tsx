@@ -4003,6 +4003,34 @@ export function Recruit() {
       counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
       cardTransformed: () => { /* transforms render from the committed state */ },
       keywordChanged: () => { /* keyword pips render from the projection */ },
+      // ── PR 6: the beat-level sequences, now event-derived rather than hardcoded per effect ──
+      questTendril: (kind, sourceId, targetUid, index) => {
+        if (!getQuestTendrilConfig().enabled) return;
+        // Anchored by the rune/quest ID (`data-source-id`, added alongside this) rather than by the effect
+        // name legacy matched on — so EVERY rune/quest reward that lands on a unit draws its ribbon, not the
+        // two effects that were spelled out in the UI.
+        const nodeEl = document.querySelector(`.questbadges [data-source-id="${sourceId}"]`);
+        const unitEl = document.querySelector(`[data-uid="${targetUid}"]`);
+        if (!nodeEl || !unitEl) return;
+        const nr = nodeEl.getBoundingClientRect();
+        const ur = unitEl.getBoundingClientRect();
+        pixiFx.buffTendril(
+          { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+          { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+          tendrilCfgFor(index % 2 === 0 ? 1 : -1), // alternate the arc so a wave of ribbons stays readable
+        );
+      },
+      tavernGust: () => fireTavernGust(),
+      weldPulse: (hostUid) => {
+        const at = centreOf(hostUid);
+        if (at) pixiFx.weldPulse(at.x, at.y, weldCfgFor('auto'));
+      },
+      fodderEaten: () => {
+        /* The ghost-crumble choreography is driven by `holdFodderGains` off the committed `fodderEaten`
+           list, which still fires on commit — so the eat reads, but on the commit rather than on its beat.
+           Moving it onto the beat needs the eaten entry's stats in the consequence (a cardDestroyed carries
+           only the target), which is an EMISSION change, not a presenter one. Left honest rather than faked. */
+      },
     };
     const beatsById = new Map<string, CompiledBeat>();
 

@@ -45,6 +45,23 @@ export interface PresenterContext {
   cardTransformed: (uid: string, toCardId: string) => void;
   /** A keyword was gained or lost. */
   keywordChanged: (uid: string, keyword: string, gained: boolean) => void;
+
+  // ── PR 6: beat-level sequences. These were the last legacy-only visuals. Each is now derived from the
+  // EVENT rather than from a hardcoded list of card/effect ids, which is why they cover more than legacy did.
+  /**
+   * A gold ribbon from a rune/quest rail node to the unit its reward hit. Legacy hardcoded exactly two
+   * effects (`triggerLeftmostShout`, `triggerLeftmostEcho`) and re-derived their target by re-running the
+   * reducer's pick in the UI; every other recurring reward drew nothing. Driven by the emitted target, ANY
+   * rune/quest reward that lands on a unit now draws its ribbon — and it points at the unit gameplay
+   * actually chose, not one the UI guessed at.
+   */
+  questTendril: (sourceKind: 'rune' | 'quest', sourceId: string, targetUid: string, index: number) => void;
+  /** The tavern rush when a shop offer is buffed (Maw / Ritualist's Fodder pump). */
+  tavernGust: (shopUid: string, cardId: string | undefined) => void;
+  /** Attachments bolted onto a Mech this beat. */
+  weldPulse: (hostUid: string, count: number) => void;
+  /** A Fodder token was consumed off the board — the ghost-crumble eat choreography. */
+  fodderEaten: (uid: string, zone: string) => void;
 }
 
 /** What a presenter is handed: the consequence, the beat that caused it, and the FX surface. */
@@ -52,6 +69,8 @@ export interface PresenterArgs {
   consequence: ConsequenceEvent;
   beat: CompiledBeat;
   ctx: PresenterContext;
+  /** Position within this beat's deliveries — lets a ribbon alternate its arc so a wave doesn't overlap. */
+  index?: number;
 }
 
 export type ConsequencePresenter = (args: PresenterArgs) => void;
@@ -61,16 +80,24 @@ export type ConsequencePresenter = (args: PresenterArgs) => void;
  * rather than something a human has to remember when adding a consequence.
  */
 export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], ConsequencePresenter> = {
-  statsChanged: ({ consequence: c, ctx }) => {
+  statsChanged: ({ consequence: c, beat, ctx, index = 0 }) => {
     if (c.type !== 'statsChanged' || !c.target.uid) return;
+    // A rune/quest reward that lands on a unit draws its ribbon from the rail to that unit.
+    if ((beat.source.kind === 'rune' || beat.source.kind === 'quest') && c.target.zone === 'board') {
+      ctx.questTendril(beat.source.kind, beat.source.id, c.target.uid, index);
+    }
     // The channel says WHICH visual language this gain speaks — the same +2/+2 reads differently as a ruby,
     // a spell-power tick or an ordinary buff. Ruby/aura channels are delivered by their own consequences,
     // so only the ordinary channel draws the generic burst here.
     if (c.channel && c.channel !== 'ordinary') return;
     ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health);
   },
-  rubyPlayed: ({ consequence: c, ctx }) => {
+  rubyPlayed: ({ consequence: c, beat, ctx, index = 0 }) => {
     if (c.type !== 'rubyPlayed' || !c.target.uid) return;
+    // The Lapidary's Rubies are a rune reward landing on a unit — ribbon AND cascade.
+    if (beat.source.kind === 'rune' || beat.source.kind === 'quest') {
+      ctx.questTendril(beat.source.kind, beat.source.id, c.target.uid, index);
+    }
     ctx.rubyLanded(c.target.uid, c.count);
   },
   auraChanged: ({ consequence: c, beat, ctx }) => {
@@ -90,6 +117,8 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   cardDestroyed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardDestroyed') return;
     ctx.cardDestroyed(c.target.uid ?? '', c.target.zone);
+    // Fodder consumed off the board gets the full ghost-crumble, not just a removal.
+    if (c.target.zone === 'board') ctx.fodderEaten(c.target.uid ?? '', c.target.zone);
   },
   cardTransformed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardTransformed' || !c.target.uid) return;
@@ -101,8 +130,9 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   },
   shopChanged: ({ consequence: c, ctx }) => {
     if (c.type !== 'shopChanged' || !c.target.uid) return;
-    if (c.change === 'consumed' || c.change === 'destroyed') ctx.cardDestroyed(c.target.uid, 'shop');
-    else ctx.shopBuffed(c.target.uid, c.attack ?? 0, c.health ?? 0);
+    if (c.change === 'consumed' || c.change === 'destroyed') { ctx.cardDestroyed(c.target.uid, 'shop'); return; }
+    ctx.shopBuffed(c.target.uid, c.attack ?? 0, c.health ?? 0);
+    ctx.tavernGust(c.target.uid, c.target.cardId); // the shop-wide rush that accompanies the climb
   },
   resourceChanged: ({ consequence: c, ctx }) => {
     if (c.type !== 'resourceChanged') return;
@@ -113,6 +143,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     // A counter change carries no target of its own today, so it attributes to the beat's source — which is
     // correct for welds (the Mech being bolted onto is the source) and honest for quest counters.
     ctx.counterChanged(c.counter, c.amount, beat.source.uid);
+    if (c.counter === 'attachments' && beat.source.uid) ctx.weldPulse(beat.source.uid, c.amount);
   },
   // A spell resolving is narrated by the beat itself (the source cue) — it has no separate visual of its own.
   spellResolved: () => {},

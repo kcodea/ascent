@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat CHOREOGRAPHER PR 6: beat-level FX, derived from events
+
+The last legacy-only visuals — quest/rune tendrils, the tavern gust, weld rings — now play on the
+authoritative path. The interesting part is that making them event-driven made them cover MORE than legacy did.
+
+- **Quest/rune tendrils.** Legacy hardcoded exactly two effects (`triggerLeftmostShout`,
+  `triggerLeftmostEcho`) and then RE-DERIVED their target by re-running the reducer's pick inside the UI —
+  every other recurring reward drew nothing, and the two that did draw pointed at a unit the UI guessed at.
+  Now any rune/quest beat whose consequence lands on a board unit draws its ribbon, to the unit GAMEPLAY
+  actually chose. Rail badges gained `data-source-id` (the rune/quest id) so the ribbon anchors on identity
+  rather than on the effect name — the same shift PR 1 made for events.
+- **Tavern gust** rides the emitted `shopChanged: 'buffed'` (and deliberately NOT `'consumed'`).
+- **Weld rings** ride `counterChanged: 'attachments'`, pulsing on the beat's source host.
+- **Fodder eat choreography** is deliberately NOT faked: a `cardDestroyed` carries only the target, and the
+  crumble needs the eaten token's stats. That is an EMISSION change, not a presenter one, so it stays on the
+  commit path with a comment saying exactly why rather than a half-working imitation.
+
+Tests (+9, 5144 total): any rune reward draws a ribbon; a quest reward draws from the quest node with its own
+kind; the Lapidary draws ribbon AND cascade; a minion beat draws no rail ribbon; a shop buff fires the rush but
+a consume does not; attachments pulse a weld ring and other counters do not; a board destroy gets the eat
+treatment and a shop destroy does not.
+
+typecheck + lint + `npm test` (5144) + build:web green.
+
 ## 2026-08-13 — Beat CHOREOGRAPHER PR 5: the consequence presenter registry
 
 Blueprint §6.4, §15. The other half of the live player: what each emitted consequence actually DRAWS.

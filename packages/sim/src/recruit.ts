@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, presentationPolicyFor, type EffectArena, type PresentationCollector, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, presentationPolicyFor, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -6588,12 +6588,30 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
+  const collector = currentCollector();
+  const beatSource = (kind: TriggerSourceRef['kind'], id: string, label: string, uid?: string): TriggerSourceRef =>
+    ({ kind, id, label, uid, side: 'player' });
   // Rune of the Coffers: every End of Turn raises the ceiling by 1 — before the EoT effects run, so anything
-  // that reads maxEmbers this tick already sees the raise.
-  if (state.runeCoffers) state.maxEmbers += 1;
+  // that reads maxEmbers this tick already sees the raise. BEAT SYSTEM (PR 5): these two economy runes changed
+  // HUD numbers silently (handoff-doc gap §9.1) — now each emits an own-beat resourceChanged consequence.
+  if (state.runeCoffers) {
+    state.maxEmbers += 1;
+    if (collector.enabled) collector.withTrigger(
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: 1, valueAfter: state.maxEmbers }),
+    );
+  }
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
   // applied the first −3). Floored so it can't go negative.
-  if (state.runeShopkeep) state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
+  if (state.runeShopkeep) {
+    const beforeCost = state.upgradeCost;
+    state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
+    const delta = state.upgradeCost - beforeCost;
+    if (collector.enabled && delta !== 0) collector.withTrigger(
+      { phase: 'endOfTurn', source: beatSource('rune', 'rune_shopkeep', 'Rune of Shopkeep'), trigger: 'endOfTurn', policy: 'ownBeat' },
+      () => collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: delta, valueAfter: state.upgradeCost }),
+    );
+  }
   // Rune of the Lapidary + Rune of the Crucible Choir used to run RIGHT HERE, as hardcoded blocks — which
   // meant no projection beat and no FX: their effects landed silently after the phase flipped (owner report
   // 2026-08-12, the Lapidary's Rubies). Both are now VIRTUAL recurring-End-of-Turn entries (see
@@ -6604,6 +6622,9 @@ export function applyEndOfTurn(state: RunState): void {
   const ctx = makeContext(state);
   const repeats = endOfTurnRepeats(state); // Chronos + Chrono Staff + Parliament: End-of-Turn effects trigger extra times
   let fires = 0; // End-of-Turn effect TRIGGERS this turn (feeds Parliament of Flame's "Trigger N End-of-Turn effects")
+  // BEAT SYSTEM (PR 5): board End-of-Turn effects emit source-attributed triggers LEFT-TO-RIGHT (the
+  // resolution order, preserved), each Chronos repeat its own trigger (repeatIndex/repeatCount), stat changes
+  // as consequences. `withRecruitTrigger` is a no-op wrapper when nothing is capturing.
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -6613,22 +6634,45 @@ export function applyEndOfTurn(state: RunState): void {
       if (!alignAllows(effect, eotAlign)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
-      for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }); fires++; }
+      const policy = presentationPolicyFor(`factory:${effect.do}:endOfTurn`)?.policy ?? 'ownBeat';
+      for (let r = 0; r < repeats; r++) {
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', policy, repeatIndex: r, repeatCount: repeats },
+          () => fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }),
+        );
+        fires++;
+      }
       if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
   }
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
-  // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir).
+  // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir). BEAT SYSTEM
+  // (PR 5): each gets its own labeled beat (rune/quest source), after the board effects (owner ruling #987).
   for (const eff of recurringEotEffects(state)) {
-    for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+    for (let r = 0; r < repeats; r++) {
+      withRecruitTrigger(
+        ctx,
+        { phase: 'endOfTurn', source: beatSource('rune', eff, RECURRING_EOT_LABEL[eff] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+        () => runRecurringEndOfTurn(state, eff),
+      );
+      fires++;
+    }
   }
   // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
   // the turn — not once per Chronos repeat, or a doubled End of Turn would burn the limit twice as fast.
   const limited = state.questRecurringLimited;
   if (limited?.length) {
     for (const entry of limited) {
-      for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, entry.effect); fires++; }
+      for (let r = 0; r < repeats; r++) {
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: beatSource('quest', entry.effect, RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn'), trigger: 'endOfTurn', policy: 'ownBeat', repeatIndex: r, repeatCount: repeats },
+          () => runRecurringEndOfTurn(state, entry.effect),
+        );
+        fires++;
+      }
       entry.turnsLeft -= 1;
     }
     state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
@@ -7197,25 +7241,33 @@ function fireOrbitInner(state: RunState, idx: number, arriver: BoardCard | undef
 }
 
 /**
- * BEAT SYSTEM (PR 3) — run one Shout (`onPlay`) effect inside a source-attributed trigger scope and emit the
- * stat changes it produced as `statsChanged` consequences. The magnitude is discovered by diffing board+hand
- * stats around the effect (recruit buffs land via many helpers; a diff captures them all without instrumenting
- * each). Read-only w.r.t. gameplay: the diff never mutates. Bails to a bare `run()` when nothing is capturing,
- * so the common (NOOP) path pays only one boolean check.
+ * BEAT SYSTEM — snapshot board+hand stats by uid, for the stat-delta diff below.
  */
-function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectDef, run: () => void): void {
+type StatSnap = Map<string, { a: number; h: number; zone: 'board' | 'hand' }>;
+function snapshotStats(state: RunState): StatSnap {
+  const m: StatSnap = new Map();
+  for (const c of state.board) m.set(c.uid, { a: c.attack, h: c.health, zone: 'board' });
+  for (const c of state.hand) m.set(c.uid, { a: c.attack, h: c.health, zone: 'hand' });
+  return m;
+}
+
+/**
+ * BEAT SYSTEM — run a recruit effect inside a source-attributed trigger scope and emit the stat changes it
+ * produced as `statsChanged` consequences, discovered by diffing board+hand around the effect (recruit buffs
+ * land via many helpers; a diff captures them all without instrumenting each). Read-only w.r.t. gameplay: the
+ * diff never mutates. Bails to a bare `run()` when nothing is capturing, so the common (NOOP) path pays one
+ * boolean. This is the shared primitive behind the migrated Shout (PR 3) and End-of-Turn (PR 5) triggers.
+ */
+function withRecruitTrigger(
+  ctx: RecruitContext,
+  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number },
+  run: () => void,
+): void {
   const collector = ctx.collector;
   if (!collector.enabled) { run(); return; }
-  const policy: PresentationPolicy = presentationPolicyFor(`factory:${effect.do}:onPlay`)?.policy ?? 'ownBeat';
-  const snap = (): Map<string, { a: number; h: number; zone: 'board' | 'hand' }> => {
-    const m = new Map<string, { a: number; h: number; zone: 'board' | 'hand' }>();
-    for (const c of ctx.state.board) m.set(c.uid, { a: c.attack, h: c.health, zone: 'board' });
-    for (const c of ctx.state.hand) m.set(c.uid, { a: c.attack, h: c.health, zone: 'hand' });
-    return m;
-  };
-  const before = snap();
+  const before = snapshotStats(ctx.state);
   collector.withTrigger(
-    { phase: 'recruit', source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: CARD_INDEX[played.cardId]?.name }, trigger: 'onPlay', policy },
+    { phase: spec.phase, source: spec.source, trigger: spec.trigger, policy: spec.policy, repeatIndex: spec.repeatIndex, repeatCount: spec.repeatCount },
     () => {
       run();
       for (const [uid, was] of before) {
@@ -7227,6 +7279,20 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
         collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
       }
     },
+  );
+}
+
+/** BEAT SYSTEM (PR 3) — the migrated Shout (`onPlay`) trigger, expressed via the shared primitive. */
+function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectDef, run: () => void): void {
+  withRecruitTrigger(
+    ctx,
+    {
+      phase: 'recruit',
+      source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: CARD_INDEX[played.cardId]?.name },
+      trigger: 'onPlay',
+      policy: presentationPolicyFor(`factory:${effect.do}:onPlay`)?.policy ?? 'ownBeat',
+    },
+    run,
   );
 }
 

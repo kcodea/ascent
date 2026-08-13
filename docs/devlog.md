@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 5: End-of-Turn event migration
+
+Fifth slice (stacked on PR 4) — the first real vertical slice from the handoff doc. `applyEndOfTurn` now emits
+a source-attributed End-of-Turn batch as it resolves, so the reported EoT presentation gaps are closed at the
+event level. Gameplay byte-identical to before (equivalence-tested).
+
+**What emits.** Board End-of-Turn effects fire LEFT-TO-RIGHT (resolution order preserved), each Chronos repeat
+its own trigger (`repeatIndex`/`repeatCount`), stat changes as `statsChanged` consequences. Then the recurring
+quest/rune rewards (labeled beats — Lapidary, Crucible Choir, Echoing Roar, …) and the turn-limited
+recurrences (Quick Study) — after the board effects, per owner ruling #987. **Rune of the Coffers** and **Rune
+of Shopkeep** — which changed HUD numbers silently (handoff-doc §9.1 item 1) — now each emit an own-beat
+`resourceChanged` (maxGold +1 / upgradeCost −3).
+
+**How.** The PR-3 diff primitive generalized into `withRecruitTrigger(ctx, {source, trigger, policy, phase,
+repeatIndex, repeatCount}, run)` — opens a source scope, runs the effect, emits the board/hand stat delta;
+bails to a bare call when nothing captures. `withPlayTrigger` (PR 3's Shout) now rides it too. Policies come
+from the PR-1 registry (`factory:<do>:endOfTurn`). `reduceWithPresentation` tags a `faceOmen` batch
+`endOfTurn`.
+
+The OLD visual playback (`projectEndOfTurnSteps` + Recruit.tsx's fixed beat loop) is UNCHANGED and still
+drives the shop animation — PR 6 switches the UI to consume these authoritative events; this PR only makes them
+available (and visible in the Beat Lab viewer).
+
+Verified: typecheck + lint + npm test (4995; +6 equivalence/emission/ordering/determinism) + build:web green;
+live faceOmen on a throwaway run captured `endOfTurn` batch with Coffers + Lapidary own-beats in board→recurring
+order.
+
 ## 2026-08-12 — Beat System PR 4: the read-only Beat Lab viewer (checkpoint milestone)
 
 Fourth slice (stacked on PR 3) — the owner's checkpoint milestone. "Start with truth, not tooling": a

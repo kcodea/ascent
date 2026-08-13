@@ -378,7 +378,10 @@ export function reduceWithPresentation(
   capture = false,
 ): { state: RunState; batch: PresentationBatch | null } {
   if (!capture) return { state: reduce(state, action), batch: null };
-  const collector = makeCollector(action.type, 'recruit');
+  // `faceOmen` runs End of Turn then hands off to combat — tag its batch `endOfTurn` so the viewer groups it
+  // correctly; every other recruit action is `recruit`. (Per-trigger phase is set at each emit site too.)
+  const phase = action.type === 'faceOmen' ? 'endOfTurn' : 'recruit';
+  const collector = makeCollector(action.type, phase);
   const next = withActiveCollector(collector, () => reduce(state, action));
   return { state: next, batch: collector.finish() };
 }

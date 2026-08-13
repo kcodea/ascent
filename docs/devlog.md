@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat System cutover slice 2: batch-driven End-of-Turn player (behind a dev flag)
+
+Second cutover slice — the live player, behind `localStorage.ascent.beatcutover === '1'` (DEFAULT OFF; the
+legacy `projectEndOfTurnSteps` + BEAT/GAP path stays live until playtested). This is the first time a Beat Lab
+timing tune can reach actual gameplay presentation (DoD item 9).
+
+`Recruit.tsx` gains `playEotFromBatch`: same "project on a throwaway, commit once" shape as the legacy path —
+`reduceWithPresentation(run, faceOmen)` computes the authoritative batch WITHOUT touching the store (returns a
+fresh state we discard), we animate `compileEotFx(batch)` on the still-recruit board, then dispatch the real
+`faceOmen` once to commit + enter combat. Per beat: source pulse, then after the resolver's WIND-UP the
+consequence lands (stat ticks from accumulated deltas + ruby stat-equivalents, ruby gem cascade, shop-offer
+growth + hold-release, hand grants), a readability HOLD, then a RECOVERY gap — all from `resolveBeatTiming`
+(committed defaults + policy), no fixed BEAT/GAP.
+
+Verified live (flag on): Moira → Market Tormentor ticks the shop offer 1 → 8 on the beat in recruit, the run
+plays through, then commits to combat; the committed board shows the 2 Lapidary rubies applied EXACTLY ONCE
+(no double-application) and the shop offer carrying +7/+7. Flag off = legacy path, unchanged.
+
+Scope note: this slice reproduces the core categories (stats, rubies, shop buffs, hand grants). spell-power /
+imp-aura / weld / fodder FX are follow-ups before the default flips; the DATA for them is proven present in
+slice 1's equivalence test. typecheck + lint + npm test (5040) + build:web green.
+
 ## 2026-08-13 — Beat System cutover slice 1: EoT batch → presentation adapter + equivalence proof
 
 First slice of the live cutover (owner-approved incremental plan). NO live change — this proves the

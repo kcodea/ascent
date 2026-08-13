@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, reduceWithPresentation, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -53,6 +53,8 @@ import { playDef } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
+import { compileEotFx } from './beatLab/eotPresentation';
+import { resolveBeatTiming } from './beatLab/beatTiming';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
@@ -3881,8 +3883,69 @@ export function Recruit() {
   // proc flourish under its card plus a tailored effect: Ritualist washes the whole shop purple (it
   // buffs the Fodder there), Combinator electrifies the Mechs it magnetizes onto. Then it faces the
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
+  // BEAT SYSTEM cutover (slice 2) — drive the End-of-Turn animation from the AUTHORITATIVE event batch + the
+  // shared timing resolver, instead of `projectEndOfTurnSteps` + fixed BEAT/GAP. Behind a dev flag
+  // (`localStorage.ascent.beatcutover === '1'`), DEFAULT OFF — the legacy path stays live until playtested.
+  //
+  // Same "project on a throwaway, commit once" shape as the legacy path: `reduceWithPresentation(run, faceOmen)`
+  // computes the batch WITHOUT touching the store (it returns a fresh state we discard); we animate that batch
+  // on the still-recruit board, then dispatch the real `faceOmen` once to commit + enter combat. Timing comes
+  // from `resolveBeatTiming` (committed defaults + policy), so a Beat Lab tune reaches live play (DoD item 9).
+  const playEotFromBatch = (): void => {
+    const { batch } = reduceWithPresentation(run, { type: 'faceOmen' } as Parameters<typeof dispatch>[0], true);
+    const beats = batch ? compileEotFx(batch) : [];
+    if (beats.length === 0) { dispatch({ type: 'faceOmen' }); return; }
+    if (heroArmed) armHero();
+    endTurnPendingRef.current = true;
+    setEndTurnAnimating(true);
+    setEotShopStats(null);
+    const rb = run.rubyBonus ?? { attack: 0, health: 0 };
+    const cumulative: Record<string, { attack: number; health: number }> = {};
+    for (const c of [...run.board, ...run.hand]) cumulative[c.uid] = { attack: c.attack, health: c.health };
+    const play = (i: number): void => {
+      if (i >= beats.length) {
+        setEotProcUids(new Set());
+        setEotPulseUids(new Set());
+        setEndTurnAnimating(false);
+        setEotGrants([]);
+        dispatch({ type: 'faceOmen' });
+        return;
+      }
+      const b = beats[i]!;
+      const t = resolveBeatTiming(b.trigger); // shared resolver — no BEAT/GAP
+      const srcUid = b.trigger.source.uid;
+      if (srcUid) { setEotProcUids(new Set([srcUid])); setEotPulseUids(new Set([srcUid])); sfx.triggerPulse(); }
+      else sfx.triggerGlow();
+      // The consequence LANDS after the beat's wind-up (this is what makes Beat Lab timing establish when the
+      // buff goes out — DoD item 9), holds, then a recovery gap before the next beat.
+      window.setTimeout(() => {
+        for (const s of b.stats) { const p = cumulative[s.uid]; if (p) { p.attack += s.attack; p.health += s.health; } }
+        for (const r of b.rubies) { const p = cumulative[r.uid]; if (p) { p.attack += r.count * (1 + rb.attack); p.health += r.count * (1 + rb.health); } }
+        setEotAnimStats({ ...cumulative });
+        if (b.rubies.length) runRecruitMomentCues(
+          { kind: 'rubyLanded', recipients: b.rubies.map((r) => ({ uid: r.uid, count: r.count })) },
+          { cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
+            measure: (uid) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
+            onLand: () => sfx.gemApply() });
+        if (b.shopBuff.length) {
+          setEotShopStats((prev) => { const next = { ...(prev ?? {}) }; for (const sb of b.shopBuff) { const cur = next[sb.uid] ?? { attack: 0, health: 0 }; next[sb.uid] = { attack: cur.attack + sb.attack, health: cur.health + sb.health }; } return next; });
+          const uids = b.shopBuff.map((sb) => sb.uid);
+          requestAnimationFrame(() => requestAnimationFrame(() => { for (const u of uids) releaseStat(u); }));
+        }
+        if (b.handGrants.length) setEotGrants((g) => [...g, ...b.handGrants]);
+        window.setTimeout(() => {
+          setEotProcUids(new Set());
+          setEotPulseUids(new Set());
+          window.setTimeout(() => play(i + 1), t.recoveryMs);
+        }, t.holdMs);
+      }, t.windupMs);
+    };
+    play(0);
+  };
+
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('ascent.beatcutover') === '1') { playEotFromBatch(); return; }
     const repeats = endOfTurnRepeats(run);
     type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];

@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-12 — two bug fixes (owner report): Rune of Twilight × pending SoC, + Beat Lab preview timing
+
+**Rune of Twilight didn't double Fleeting Vigor's Start-of-Combat buff (gameplay bug).** Twilight ("your
+Start-of-Combat effects trigger an additional time") re-fires minion `startOfCombat` EFFECTS inside the
+simulator. But Fleeting Vigor's buff (and Open the Gates' Imps) are PENDING effects pre-baked into the combat
+board at `faceOmen`, BEFORE the simulator's SoC pass — the sim's Twilight loop never saw them, so they were
+silently exempt. Fixed at the pre-bake site (`reducer.ts`): ×2 when `questFlags.runeTwilight` is armed, for both
+the Fleeting Vigor buff and the pending-Imp summon. Test: base 2/2 + Fleeting +2/+1 → 4/3 without Twilight, 6/4
+with. (Same root cause as why these show as EMPTY in the Beat Lab library — pending SoC lives outside the
+`startOfCombat` path.)
+
+**Beat Lab preview didn't gate consequences by beat timing (authoring-tool bug).** A beat's consequence ("↳
+stats +2/+2") rendered statically, always visible — so setting a windup/hold appeared to do nothing ("the beat
+timing isn't establishing when the buff goes out"). Now a consequence is withheld ("⋯ pending until this beat
+fires") until the playhead reaches its beat's consequence point (start + windup), then lands; at rest the final
+state is shown, during playback/scrub the timing gates it. This is preview fidelity only — the Beat Lab is
+authoring-only; the game's live timing is still driven by `projectEndOfTurnSteps` until the cutover.
+
+Verified: typecheck + lint + npm test (5036; +2 Twilight) + build:web green; live — preview shows consequences
+pending before their beat's windup, landed at rest/after.
+
 ## 2026-08-12 — Beat System PR 9: source-grouped Beat Lab library + EMPTY-trigger surfacing
 
 Owner report: the library didn't show effects you'd search for (e.g. "Fleeting Vigor" — no Start-of-Combat

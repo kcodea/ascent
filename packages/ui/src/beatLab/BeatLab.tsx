@@ -70,7 +70,7 @@ function buildTree(batch: PresentationBatch): { roots: Node[]; orphans: Conseque
   return { roots, orphans };
 }
 
-function TriggerNode({ node, depth, activeId, onSelect, selectedId }: { node: Node; depth: number; activeId: string | null; onSelect?: (t: SourceTriggerEvent) => void; selectedId?: string | null }): React.ReactElement {
+function TriggerNode({ node, depth, activeId, onSelect, selectedId, landed }: { node: Node; depth: number; activeId: string | null; onSelect?: (t: SourceTriggerEvent) => void; selectedId?: string | null; landed: (id: string) => boolean }): React.ReactElement {
   const t = node.trigger;
   return (
     <div className="bl-node" style={{ marginLeft: depth * 18 }}>
@@ -85,9 +85,11 @@ function TriggerNode({ node, depth, activeId, onSelect, selectedId }: { node: No
         {t.repeatCount ? <span className="bl-repeat">×{(t.repeatIndex ?? 0) + 1}/{t.repeatCount}</span> : null}
       </div>
       {node.consequences.map((c) => (
-        <div key={c.id} className="bl-cons">↳ {describe(c)}</div>
+        <div key={c.id} className={`bl-cons${landed(c.id) ? ' bl-cons-landed' : ' bl-cons-pending'}`}>
+          {landed(c.id) ? <>↳ {describe(c)}</> : <>⋯ <span className="bl-pending-tag">pending until this beat fires</span></>}
+        </div>
       ))}
-      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} activeId={activeId} onSelect={onSelect} selectedId={selectedId} />)}
+      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} activeId={activeId} onSelect={onSelect} selectedId={selectedId} landed={landed} />)}
     </div>
   );
 }
@@ -145,6 +147,18 @@ export function BatchPlayer({ batch, overrides, resetKey, onSelectTrigger, selec
     setPlayheadMs(schedule.beats[i]!.startMs);
   };
 
+  // BUG FIX (owner report 2026-08-12): a consequence LANDS at its beat's consequence point (start + windup),
+  // so the timing visibly gates when the buff "goes out" — it was showing statically before, which read as
+  // "the beat timing does nothing." At rest (fresh, playhead 0, not playing) show the final state; once you
+  // play or scrub, each consequence is withheld until its beat fires.
+  const consequenceMsById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of schedule.beats) for (const c of b.consequences) m.set(c.id, b.consequenceMs);
+    return m;
+  }, [schedule]);
+  const atRest = !playing && playheadMs === 0;
+  const landed = (id: string): boolean => atRest || playheadMs >= (consequenceMsById.get(id) ?? 0);
+
   return (
     <>
       {beatCount > 0 && (
@@ -158,7 +172,7 @@ export function BatchPlayer({ batch, overrides, resetKey, onSelectTrigger, selec
       )}
       <div className="bl-body">
         {tree.roots.length === 0 && <div className="bl-empty">This batch produced no source-attributed triggers.</div>}
-        {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} activeId={activeId} onSelect={onSelectTrigger} selectedId={selectedId} />)}
+        {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} activeId={activeId} onSelect={onSelectTrigger} selectedId={selectedId} landed={landed} />)}
         {tree.orphans.length > 0 && (
           <div className="bl-orphans">
             <div className="bl-orphan-h">unparented consequences ({tree.orphans.length})</div>

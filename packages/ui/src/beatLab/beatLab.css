@@ -137,3 +137,8 @@
 .bl-cover { color: #10131a; font-weight: 700; padding: 1px 6px; border-radius: 10px; font-size: 9px; min-width: 34px; text-align: center; }
 .bl-empty-banner { margin: 8px 14px; padding: 8px 10px; background: rgba(224,179,77,0.12); border: 1px solid rgba(224,179,77,0.45); border-radius: 6px; color: #e6d3a0; font-size: 11px; line-height: 1.5; }
 .bl-empty-banner b { color: #e0b34d; }
+
+/* Bug fix — consequences land at their beat's timing in the preview */
+.bl-cons-pending { opacity: 0.38; font-style: italic; }
+.bl-cons-landed { opacity: 1; transition: opacity 90ms ease-out; }
+.bl-pending-tag { color: #6f7a96; font-size: 10px; }

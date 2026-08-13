@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **DEFERRED (owner, 2026-08-12) — roll the End-of-Turn shop buff instead of jumping.** The EoT shop-buff
+  real-time fix (#996) makes a buffed Shop minion's stat land on the beat, but it JUMPS (via `releaseStat`)
+  rather than rolling up smoothly the way a board minion's End-of-Turn gain does. Owner wants it to roll too.
+  The board rolls because its buff-FX descend drains the stat hold over `rollMs`; the shop offer has no such
+  descend, so its hold is released instantly. To roll: drive the shop offer's hold delivery with a roll
+  (e.g. a `holdStat`/`claimStat` schedule on the offer, or a shop-side descend cue) instead of `releaseStat`.
+  Low priority, revisit later.
 - **Beast batch (owner) — SHIPPED 2026-08-12.** Kennelmaster Avenge 3→4; King Oona doubles Attack only; 4 new
   Beasts (Wolvie, Armadiyo, Dunkey, Voidmother) and 4 new runes (Burrow, Voidmother, Jungle, Beastial Swarm),
   with three new combat mechanics (next-summon queue, resummon-without-Echo, per-death buff + run-persisted

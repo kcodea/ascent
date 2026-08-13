@@ -4,6 +4,7 @@ import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
+import { shippedBeatConfig } from './choreographer/beatConfig';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent } from '@game/core';
 
@@ -3934,7 +3935,10 @@ export function Recruit() {
       cancelPresentationAction('nothing emitted');
       return false;
     }
-    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch));
+    // CHOREOGRAPHER PR 10: compile with the COMMITTED config, so a beat tuned in the tool and committed to
+    // `beat-defaults.json` actually paces the live game. Without this the compiler used its defaults and
+    // authored timings were written to a file nothing read — the last piece of "my edits do nothing".
+    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), { config: shippedBeatConfig() });
     if (import.meta.env.DEV && timeline.diagnostics.length) {
       // Surfaced, not swallowed: a diagnostic here is a real coverage gap, and the whole point of this pivot
       // is that such gaps stop being invisible.

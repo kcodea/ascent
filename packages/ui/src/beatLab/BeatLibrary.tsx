@@ -8,6 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { BatchPlayer, POLICY_TINT } from './BeatLab';
+import { BeatTimelineStrip } from './BeatTimelineStrip';
 import { fixtureBatch, filterRows, libraryRows, type LibraryRow } from './library';
 import { resolveBeatTiming, timingProvenance, type BeatTiming, type BeatTimingOverrides } from './beatTiming';
 
@@ -41,6 +42,10 @@ export function BeatLibrary({ draft, setDraft }: {
   const edit = (f: keyof BeatTiming, value: number): void => {
     if (!selected) return;
     setDraft((d) => ({ ...d, [selected.editKey]: { ...d[selected.editKey], [f]: Math.max(0, Math.round(value)) } }));
+  };
+  // Drag-timeline hold changes write the same draft slot as the numeric Hold field.
+  const setHold = (key: string, holdMs: number): void => {
+    setDraft((d) => ({ ...d, [key]: { ...d[key], holdMs } }));
   };
   const resetSelected = (): void => {
     if (!selected) return;
@@ -116,6 +121,7 @@ export function BeatLibrary({ draft, setDraft }: {
               ))}
               {hasEdit && <button className="bl-tbtn" onClick={resetSelected}>Reset to inherited</button>}
             </div>
+            <BeatTimelineStrip batch={fixtureBatch(selected)} overrides={draft} editKey={selected.editKey} onHoldChange={setHold} />
             <div className="bl-fixture-banner">SYNTHETIC PREVIEW — fixture targets, not game state</div>
             <BatchPlayer batch={fixtureBatch(selected)} overrides={draft} resetKey={`${selected.key}|${JSON.stringify(draft[selected.editKey] ?? {})}`} />
           </>

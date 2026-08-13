@@ -109,3 +109,17 @@
 .bl-field input { width: 84px; background: rgba(20,24,34,0.8); border: 1px solid rgba(150,160,200,0.3); color: #e6ebf6; border-radius: 6px; padding: 3px 6px; font: inherit; }
 .bl-prov { color: #6f7a96; font-size: 10px; }
 .bl-fixture-banner { margin: 4px 14px; padding: 3px 8px; background: rgba(224,179,77,0.15); border: 1px dashed rgba(224,179,77,0.5); border-radius: 6px; color: #e0b34d; font-size: 11px; }
+
+/* PR 8 — drag timeline */
+.bl-tl { margin: 8px 14px; }
+.bl-tl-ruler { position: relative; height: 14px; }
+.bl-tl-tick { position: absolute; transform: translateX(-50%); color: #6f7a96; font-size: 9px; }
+.bl-tl-track { position: relative; height: 30px; background: rgba(20,24,34,0.6); border: 1px solid rgba(120,140,200,0.2); border-radius: 6px; overflow: hidden; }
+.bl-tl-beat { position: absolute; top: 0; bottom: 0; display: flex; }
+.bl-tl-windup { background: #3a4468; }
+.bl-tl-hold { opacity: 0.85; }
+.bl-tl-recovery { background: #2a3048; }
+.bl-tl-handle { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; cursor: ew-resize; background: rgba(255,255,255,0.55); box-shadow: 0 0 4px rgba(255,255,255,0.6); }
+.bl-tl-handle:hover { background: #fff; }
+.bl-tl-legend { display: flex; gap: 12px; align-items: center; margin-top: 4px; color: #9aa3ba; font-size: 10px; }
+.bl-tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }

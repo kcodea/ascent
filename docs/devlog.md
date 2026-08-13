@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 8: drag-timeline editing in the Beat Lab
+
+Eighth slice (stacked on PR 7) — a tactile complement to PR 7's numeric fields: a horizontal timeline of the
+scheduled beats where you drag a beat's hold edge to tune its hold time. Dev-only, no gameplay impact.
+
+**Pure geometry** (`timelineMath.ts`, unit-tested): ms↔px mapping, 25ms snapping (Alt disables), per-beat
+region layout (wind-up | hold | recovery + the hold-edge handle x), a fit-to-width scale, `holdFromDragPx`
+(pointer x → snapped holdMs), and round ruler ticks. No DOM — the drag handler stays a thin wrapper that
+measures the track ONCE per drag (the FX Workbench lesson).
+
+**Component** (`BeatTimelineStrip.tsx`): renders the fixture batch's beats as bars on a ms ruler, each with a
+draggable hold handle; dragging writes `holdMs` into the SAME draft slot the numeric Hold field edits, so the
+inspector value, the provenance, and the synthetic preview all update live. A beat is only draggable if its
+trigger resolves to the inspector's edit key (dragging one Lapidary beat moves both its repeats, never an
+unrelated source). Wired into the Library inspector above the preview.
+
+Verified live: dragged rune_lapidary's hold handle right → Hold 420→1200 (snapped 25ms), provenance flipped to
+the exact-source override, preview re-paced 1420→2980ms, draft badge updated. typecheck + lint + npm test
+(5025; +6 timelineMath) + build:web all green. (Still the authoring tool — not the live cutover.)
+
 ## 2026-08-12 — Beat System PR 7: timing layer + Beat Lab editor (browse + tune every beat without playing)
 
 Seventh slice — the owner's stated end goal: sort through and modify beats without playing cards. Dev-only,

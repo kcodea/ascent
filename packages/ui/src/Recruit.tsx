@@ -1853,6 +1853,9 @@ export function Recruit() {
   // The Y (viewport px) below which releasing a dragged HAND minion cancels back to hand instead of playing —
   // the "minimum play height". Measured once per drag (see the drag effect); Infinity until then = play anywhere.
   const playFloorRef = useRef(Infinity);
+  // A SPELL arms on its own, LOWER line (closer to the hand) than a minion's play floor — so casting doesn't
+  // need a long drag up. Set alongside playFloor from the live `spellLine` knob. Fallback = playFloor.
+  const spellFloorRef = useRef(Infinity);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
   /**
@@ -1893,7 +1896,7 @@ export function Recruit() {
   // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
   // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
   // top-left "ghost card" bug).
-  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, playFloorRef.current);
+  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current);
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
@@ -2413,9 +2416,15 @@ export function Recruit() {
     // the low band by the hand no longer counts as playable. Fallback = Infinity (play anywhere) if unmeasured.
     const wbRect = zoneRects.find((z) => z.zone === 'warband')?.r;
     const tvRect = zoneRects.find((z) => z.zone === 'tavern')?.r;
+    const handRect = zoneRects.find((z) => z.zone === 'hand')?.r;
     playFloorRef.current = wbRect
       ? wbRect.bottom - 0.1 * (tvRect ? wbRect.bottom - tvRect.top : wbRect.height)
       : Infinity;
+    // Spells arm on a lower line: slide it from the warband's bottom (spellLine 0) down toward the hand's top
+    // (spellLine 1) — higher = less drag to cast. Falls back to the minion play floor if the hand is unmeasured.
+    spellFloorRef.current = wbRect && handRect
+      ? wbRect.bottom + getDragFeel().spellLine * (handRect.top - wbRect.bottom)
+      : playFloorRef.current;
     // For a spell drag (targeting a friendly minion / any offer), cache the candidate card rects up front:
     // the board/shop don't shift during a spell drag, so targeting hit-tests these instead of elementFromPoint.
     const measureCards = (sel: string): { uid: string; r: DOMRect }[] =>
@@ -2505,14 +2514,14 @@ export function Recruit() {
       // sell/buy-zone glow + `canDropHand`, and the active flip must never be delayed.
       const decOf = (x: number, y: number, z: Zone | null): DragDecision =>
         deriveDragDecision({
-          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current,
+          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
         !shownDec ||
         !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
-        computeCastingSpell(d0, e.clientY, playFloorRef.current) !== computeCastingSpell(d0, committed!.y, playFloorRef.current);
+        computeCastingSpell(d0, e.clientY, spellFloorRef.current) !== computeCastingSpell(d0, committed!.y, spellFloorRef.current);
       if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
@@ -3494,6 +3503,7 @@ export function Recruit() {
     overZone,
     magSlide,
     playFloor: playFloorRef.current,
+    spellFloor: spellFloorRef.current,
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
     board: run.board,
@@ -4290,8 +4300,9 @@ export function Recruit() {
     // A HAND card (minion OR spell) released DOWN in the hand region REORDERS it — takes precedence over
     // play/cast, so spells reorder too. Lands where the live gap opened (prevHandGapRef, WYSIWYG). The settle
     // Flip is captured here EXCLUDING the dragged card, so it just appears in its new slot — no replay of the
-    // drag. A drop on its own slot is a no-op (it settles back in place).
-    if (d.source === 'hand' && y >= playFloorRef.current) {
+    // drag. A drop on its own slot is a no-op (it settles back in place). Spells use their own LOWER line, so
+    // they only reorder when dropped down near the hand — lifted a little clear of it already arms the cast.
+    if (d.source === 'hand' && y >= (d.view.spell || d.view.ruby ? spellFloorRef.current : playFloorRef.current)) {
       const from = run.hand.findIndex((c) => c.uid === d.uid);
       const to = prevHandGapRef.current >= 0 ? prevHandGapRef.current : handIndexAt(cx, d.uid);
       if (from >= 0 && from !== to) {
@@ -4301,11 +4312,10 @@ export function Recruit() {
       }
       return true;
     }
-    // Cast a spell — playable anywhere from the warband up (incl. the tavern), since spells can't
-    // be sold. A targeted spell hits the minion under the cursor, or auto-targets the carry when
-    // flung up with no minion under it; an untargeted spell just resolves.
+    // Cast a spell — playable anywhere above the (low) spell line, since spells can't be sold. A targeted
+    // spell hits the minion under the cursor; an untargeted spell just resolves once it's above the line.
     if (d.source === 'hand' && (d.view.spell || d.view.ruby)) {
-      const up = zone === 'warband' || zone === 'tavern';
+      const up = y < spellFloorRef.current;
       if (d.view.target === 'friendly' || d.view.target === 'any') {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).

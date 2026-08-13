@@ -1,5 +1,27 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
+import { compileTimeline } from './choreographer/compileTimeline';
+import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
+import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
+
+/**
+ * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
+ *
+ * DEV-only and OFF by default: the legacy projection path still carries FX the new presenters have not
+ * inherited yet (Fodder consumes, quest tendrils, weld rings, the Ruby cascade), so flipping the default
+ * before those migrate would be a visible regression. Blueprint PR 4 keeps both paths for comparison; PR 5
+ * deletes the old one once the side-by-side checklist passes.
+ *
+ *   localStorage.setItem('ascent.choreo', '1')   // then reload
+ */
+const CHOREO_EOT = (() => {
+  if (!import.meta.env.DEV) return false;
+  try { return localStorage.getItem('ascent.choreo') === '1'; } catch { return false; }
+})();
+// Dev-only breadcrumb so it is unambiguous WHICH End-of-Turn path a session is running.
+if (import.meta.env.DEV) {
+  (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
+}
 import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
@@ -678,6 +700,10 @@ export function Recruit() {
   const compactCards = useGame((s) => s.compactCards);
   const armHero = useGame((s) => s.armHero);
   const setEndTurnAnimating = useGame((s) => s.setEndTurnAnimating);
+  // CHOREOGRAPHER PR 4 — the prepared-once End-of-Turn transaction (see `playEndOfTurnAuthoritative`).
+  const preparePresentationAction = useGame((s) => s.preparePresentationAction);
+  const commitPresentationAction = useGame((s) => s.commitPresentationAction);
+  const cancelPresentationAction = useGame((s) => s.cancelPresentationAction);
   // The end-of-turn proc beats are playing (set in endTurn below) — locks every recruit action until done.
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
@@ -1314,6 +1340,14 @@ export function Recruit() {
   const [lossShake, setLossShake] = useState(false); // screen shake on the blast impact
   const lossSeqRef = useRef(false);                // guards single-run per combat
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
+  // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
+  // mid-animation can never strand a prepared transaction with End Turn locked.
+  const eotCancelRef = useRef<null | (() => void)>(null);
+  // If the recruit screen goes away while the authoritative timeline is playing, stop the loop and DELIVER
+  // the rest — which commits the prepared action. The blueprint's rule is that failure or skip must never
+  // softlock End Turn (§5.6); because the state was already resolved, finishing early lands exactly the same
+  // run as watching it play out.
+  useEffect(() => () => { eotCancelRef.current?.(); eotCancelRef.current = null; }, []);
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
@@ -3875,6 +3909,98 @@ export function Recruit() {
     playDef('click-puff', { source: { x: e.clientX, y: e.clientY }, target: { x: e.clientX, y: e.clientY } });
   };
 
+  /**
+   * CHOREOGRAPHER PR 4 — End of Turn driven by the AUTHORITATIVE event batch (blueprint §21 PR 4).
+   *
+   * The difference from the legacy path below is not cosmetic. Legacy *projects* what the reducer is about to
+   * do (`projectEndOfTurnSteps`), animates that projection on two hardcoded constants, and only then
+   * dispatches `faceOmen` — two models of one turn, which is why Beat Lab timing could never reach the screen.
+   *
+   * Here: resolve once → compile the emitted batch → play it → commit the state that was already resolved.
+   * The board keeps rendering `before`; each value appears when its delivery marker fires, never sooner.
+   *
+   * Returns false if it cannot run (nothing emitted), so the caller falls back to legacy rather than
+   * softlocking End Turn — the blueprint's hard failure rule (§5.6).
+   */
+  const playEndOfTurnAuthoritative = (): boolean => {
+    const prepared = preparePresentationAction({ type: 'faceOmen' });
+    if (!prepared?.batch) {
+      // Nothing emitted at all — an early turn with no End-of-Turn content. Hand back to the legacy path
+      // rather than committing silently, so behaviour is unchanged for turns this cannot describe yet.
+      if (import.meta.env.DEV) console.info('[choreographer] no End-of-Turn emission — falling back to the legacy path');
+      cancelPresentationAction('nothing emitted');
+      return false;
+    }
+    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch));
+    if (import.meta.env.DEV && timeline.diagnostics.length) {
+      // Surfaced, not swallowed: a diagnostic here is a real coverage gap, and the whole point of this pivot
+      // is that such gaps stop being invisible.
+      console.info('[choreographer] End-of-Turn diagnostics', timeline.diagnostics);
+    }
+    if (import.meta.env.DEV) {
+      console.info(`[choreographer] authoritative End of Turn — ${timeline.beats.length} beats, ${timeline.consequenceDeliveries.length} deliveries, ${Math.round(timeline.durationMs)}ms`);
+    }
+    // Nothing emitted (an early turn with no End-of-Turn content) — commit straight through rather than
+    // holding a lock for an empty animation.
+    if (timeline.beats.length === 0) { commitPresentationAction(); return true; }
+
+    // Absolute stat floor the projection's deltas are applied to — the board as it looks right now.
+    const baseStats: Record<string, { attack: number; health: number }> = {};
+    for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
+
+    if (heroArmed) armHero(); // a stray armed Hero Power must not fire mid-animation
+    endTurnPendingRef.current = true;
+    setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
+    setEotShopStats(null);
+
+    const player = createTimelinePlayer(timeline, {
+      onBeatActivate: (beat) => {
+        // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
+        const uid = beat.source.uid;
+        setEotProcUids(uid ? new Set([uid]) : new Set());
+        setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
+        if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
+        if (uid) {
+          const card = run.board.find((c) => c.uid === uid);
+          if (card) setEotAnimTick((prev) => ({ ...(prev ?? {}), [uid]: (card.eotTick ?? 0) + 1 }));
+        }
+      },
+      onProjection: (p) => {
+        // Board + hand: absolute values = the pre-End-of-Turn floor plus everything delivered SO FAR. This is
+        // the mechanism that makes a buff appear on its beat instead of the moment End Turn is pressed.
+        const stats: Record<string, { attack: number; health: number }> = {};
+        for (const [uid, floor] of Object.entries(baseStats)) {
+          const d = p.boardStats.get(uid) ?? p.handStats.get(uid);
+          stats[uid] = d ? { attack: floor.attack + d.attack, health: floor.health + d.health } : floor;
+        }
+        setEotAnimStats(stats);
+        if (p.shopStats.size) {
+          const shop: Record<string, { attack: number; health: number }> = {};
+          for (const [uid, d] of p.shopStats) shop[uid] = { attack: d.attack, health: d.health };
+          setEotShopStats(shop);
+        }
+        if (p.grantedCards.length) setEotGrants(p.grantedCards.map((g) => g.cardId));
+      },
+      onComplete: () => {
+        setEotProcUids(new Set());
+        setEotPulseUids(new Set());
+        setElectrifyUids(new Set());
+        endTurnPendingRef.current = false;
+        setEndTurnAnimating(false);
+        // Dropped in the SAME commit that puts the real cards in hand, or both lists render for a frame.
+        setEotGrants([]);
+        eotCancelRef.current = null;
+        commitPresentationAction();
+      },
+    });
+
+    const cancel = runTimeline(player, { speed: 1 });
+    // Unmount safety net (§5.6): cancel the loop and COMMIT — never leave End Turn locked with a prepared
+    // action stranded. `finish()` delivers everything remaining, so a skip lands the same state as watching.
+    eotCancelRef.current = () => { cancel(); player.finish(); };
+    return true;
+  };
+
   // End Turn → face the Omen. End-of-Turn effects play out *one at a time* on the still-mounted
   // recruit board so the player sees each one fire — and each repeats `chronosRepeats` times when a
   // Chronos is in play (mirrors `applyEndOfTurn`'s per-card-then-repeat order). Each beat flashes the
@@ -3883,6 +4009,10 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
+    // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
+    // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
+    if (CHOREO_EOT && playEndOfTurnAuthoritative()) return;
     const repeats = endOfTurnRepeats(run);
     type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];

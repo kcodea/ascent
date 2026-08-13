@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-08-13 — Beat CHOREOGRAPHER PR 4: presentation projection + live End-of-Turn player
+
+Blueprint §6, §12, §21 PR 4. The slice where the compiled timeline finally drives the SCREEN. Behind a
+DEV flag and OFF by default — legacy still owns End of Turn until the side-by-side passes (PR 5 deletes it).
+
+- **`projection.ts`** — the presentation projection (§6). The prepared transaction already holds the FINAL
+  state, so rendering it directly would snap every number the instant End Turn is pressed. Instead the board
+  keeps rendering `before` and consequences layer on as their delivery markers fire. Two rules keep it from
+  becoming a second gameplay model: it stores only VISUAL DELTAS (never a cloned RunState), and it is a pure
+  fold, so a backward seek rebuilds from zero instead of trying to undo. Idempotent per event id.
+- **`livePlayer.ts`** — ONE clock for the phase (§12), replacing a chain of per-feature `setTimeout`s. The
+  invariant that actually prevents dropped effects: **deliver every marker in `(previousMs, currentMs]`** —
+  never "the marker nearest this frame". A background tab or GC pause can skip 300ms, and a per-frame equality
+  check would silently drop everything inside it. This is also why playback SPEED cannot change what happens.
+  `finish()` (skip / unmount) delivers everything remaining, so a skip lands the same state as watching.
+  Clock source is injectable, so the tests are deterministic with no timers.
+- **`Recruit.tsx`** — `playEndOfTurnAuthoritative()`: prepare once → compile → play → commit. Beat activation
+  drives the medallion/pulse cues; the projection drives board/hand/shop stats and hand grants. Falls back to
+  legacy (and CANCELS the prepared transaction — otherwise it would poison the next End Turn) when a turn
+  emits nothing. Unmount cleanup finishes + commits, so End Turn can never softlock with a stranded action.
+  Diagnostics are logged rather than swallowed. `window.__choreoEot` reports which path a session is running.
+
+Enable with `localStorage.setItem('ascent.choreo','1')` + reload.
+
+Tests (+36 across PR 4): projection purity/idempotency/zone routing; the player withholding values until their
+marker; **nothing visible at t=0** (the "stats granted the moment End Turn is hit" bug); no consequence dropped
+across a 5-second frame gap; frame-by-frame == one-big-jump; skip == watch; backward seek rebuilds; speed
+changes pacing but not content; cancel leaves no orphan loop. And `eotWiring.test.ts` runs the EXACT
+composition Recruit performs against real gameplay: **it commits precisely the run a plain dispatch produces**,
+resolves gameplay once, delivers every consequence, and does so across several seeds — including when skipped
+50ms in.
+
+Verified: typecheck + lint + `npm test` (5112) + build:web green.
+
+NOT yet verified: the animated path ON SCREEN with a real End-of-Turn board. The live attempts this session
+kept landing on a saved run parked in combat / with an empty shop (so `endTurn` returned at its `inCombat`
+guard and, on an empty board, correctly fell back for want of any emission). The composition is covered by
+test; what remains is an owner playtest to judge FEEL and confirm the FX that have not migrated yet.
+
+Next: PR 5 — migrate the remaining consequence presenters (Fodder consumes, quest tendrils, weld rings, Ruby
+cascade, spell-power flourish), then retire `projectEndOfTurnSteps` + the fixed `BEAT`/`GAP` constants.
+
 ## 2026-08-12 — Refresh button — bake owner-tuned position/scale + click FX for the new pill
 
 Baked the owner's tuned `refreshConfig.ts` DEFAULTS for the new purple Refresh pill (dialed live in the 🔄

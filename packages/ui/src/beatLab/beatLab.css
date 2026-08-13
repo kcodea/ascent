@@ -123,3 +123,17 @@
 .bl-tl-handle:hover { background: #fff; }
 .bl-tl-legend { display: flex; gap: 12px; align-items: center; margin-top: 4px; color: #9aa3ba; font-size: 10px; }
 .bl-tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
+
+/* PR 9 — source-grouped library */
+.bl-src { margin-bottom: 1px; }
+.bl-src-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+.bl-src-head:hover { background: rgba(60,70,100,0.3); }
+.bl-src-head.bl-has-empty { border-left: 2px solid #e0b34d; }
+.bl-src-caret { color: #7f8aa6; width: 10px; }
+.bl-trig { display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 26px; border-radius: 6px; cursor: pointer; }
+.bl-trig:hover { background: rgba(60,70,100,0.25); }
+.bl-trig.bl-selected { background: rgba(120,150,220,0.35); }
+.bl-trig-moment { color: #cfd6e6; }
+.bl-cover { color: #10131a; font-weight: 700; padding: 1px 6px; border-radius: 10px; font-size: 9px; min-width: 34px; text-align: center; }
+.bl-empty-banner { margin: 8px 14px; padding: 8px 10px; background: rgba(224,179,77,0.12); border: 1px solid rgba(224,179,77,0.45); border-radius: 6px; color: #e6d3a0; font-size: 11px; line-height: 1.5; }
+.bl-empty-banner b { color: #e0b34d; }

@@ -21,6 +21,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **BEAT SYSTEM follow-up (2026-08-12) — emit events for EMPTY triggers.** The Beat Lab Library now surfaces
+  combat moments with no beat (e.g. Fleeting Vigor's Start-of-Combat buff, the `spellPending*` pattern) and lets
+  the owner declare their timing. Making each actually PLAY needs a per-trigger engine change to emit the
+  source-attributed event in the simulator. Do these as the owner assigns beats to them.
 - **DEFERRED (owner, 2026-08-12) — roll the End-of-Turn shop buff instead of jumping.** The EoT shop-buff
   real-time fix (#996) makes a buffed Shop minion's stat land on the beat, but it JUMPS (via `releaseStat`)
   rather than rolling up smoothly the way a board minion's End-of-Turn gain does. Owner wants it to roll too.

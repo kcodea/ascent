@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 9: source-grouped Beat Lab library + EMPTY-trigger surfacing
+
+Owner report: the library didn't show effects you'd search for (e.g. "Fleeting Vigor" — no Start-of-Combat
+beat) and was hard to use, because it listed internal FACTORY ids, not card names. Reorganized the whole
+Library around named sources, and surfaced the combat moments that have no beat at all. Dev-only.
+
+**Why Fleeting Vigor was invisible (two distinct reasons, both fixed):** (1) its cast effect was registered as
+`factory:spellPendingSCBuff:cast` and the library showed the factory id, so a name search missed it; (2) the
+Start-of-Combat +2/+1 it plants is applied by the SIMULATOR, not a content EffectDef, so it had no registry
+entry at all — a genuinely EMPTY trigger.
+
+**`sourceLibrary.ts`**: enumerate per named source (card/rune/quest), each with its trigger moments. Content
+EffectDefs → `factory:<do>:<on>` rows (combat triggers like onDeath/onAttack/startOfCombat/avenge are already
+registered — grouping surfaces them). DERIVED moments (the `spellPending*` pattern → Start of Combat) become
+EMPTY rows. Human moment labels ('Shout', 'Start of Combat', 'Echo', …). Per-SOURCE edit keys
+(`source:<kind>:<id>:<trigger>`) so tuning one card never moves a sibling. Searchable by NAME; `emptyOnly`
+filter isolates the unassigned ones.
+
+**`BeatLibrary.tsx` (rewritten)**: a card-grouped tree — search by name → expand a source → its triggers with a
+coverage badge (beat / silent / EMPTY) → inspector (numeric + drag timing + synthetic preview). An EMPTY
+trigger gets a banner explaining it currently emits nothing (a silent simulator moment) and that a timing here
+records the intended beat while actual emission is a one-line engine follow-up. Kind filters + an EMPTY(count)
+filter up top. Replaces the flat factory-id list (`library.ts` deleted).
+
+JUDGMENT CALL (owner-flagged): the derived/combat EMPTY surface is currently the two known `spellPending*`
+factories; other silent-application mechanics get added as identified. FOLLOW-UP: wiring the actual event
+emission for an EMPTY trigger (so its beat plays in-game) is per-trigger engine work, separate from declaring
+its timing here.
+
+Verified live: searched "fleeting" → found Fleeting Vigor by name with a "has EMPTY" flag; its EMPTY Start of
+Combat opened the inspector with the banner + editable timing + drag timeline + preview. typecheck + lint +
+npm test (5034; +7 sourceLibrary) + build:web all green.
+
 ## 2026-08-12 — Beat System PR 8b: commit tuned timings to beat-defaults.json (dev endpoint)
 
 Ninth slice (stacked on PR 8) — closes the authoring loop: the Beat Lab's tuned timings can now be COMMITTED to

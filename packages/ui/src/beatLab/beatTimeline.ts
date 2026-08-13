@@ -41,7 +41,9 @@ const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type 
  */
 export function scheduleBeats(
   batch: PresentationBatch,
-  timing: Record<PresentationPolicy, BeatTiming> = DEFAULT_TIMING,
+  // PR 7: either the legacy per-policy map OR a per-event resolver (the timing layer's specificity chain —
+  // see beatTiming.ts). The resolver form is what the Beat Lab editor drives with its draft overrides.
+  timing: Record<PresentationPolicy, BeatTiming> | ((t: SourceTriggerEvent) => BeatTiming) = DEFAULT_TIMING,
 ): { beats: ScheduledBeat[]; totalMs: number } {
   const consByParent = new Map<string, ConsequenceEvent[]>();
   for (const e of batch.events) {
@@ -53,7 +55,7 @@ export function scheduleBeats(
   let cursor = 0;
   for (const e of batch.events) {
     if (!isTrigger(e)) continue;
-    const t = timing[e.policy] ?? DEFAULT_TIMING.ownBeat;
+    const t = typeof timing === 'function' ? timing(e) : timing[e.policy] ?? DEFAULT_TIMING.ownBeat;
     const startMs = cursor;
     const consequenceMs = startMs + t.windupMs;
     const endMs = consequenceMs + t.holdMs;

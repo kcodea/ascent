@@ -2051,10 +2051,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
       // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
       // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
+      // Rune of Twilight doubles Start-of-Combat effects. These pending SoC effects (Fleeting Vigor's buff,
+      // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
+      // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
+      // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
+      const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
       const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
         ? { ...s.fleetingVigor } : null;
       if (fleeting) {
-        for (const m of player) { m.attack += fleeting.attack; m.health += fleeting.health; }
+        for (const m of player) { m.attack += fleeting.attack * twilightMult; m.health += fleeting.health * twilightMult; }
         s.fleetingVigor = { attack: 0, health: 0 };
       }
       // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
@@ -2082,7 +2087,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.pendingSCImps) {
         const impDef = CARD_INDEX['impscrap'];
         const room = Math.max(0, CONFIG.boardMax - player.length);
-        const n = Math.min(s.pendingSCImps, room);
+        const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
         for (let k = 0; k < n && impDef; k++) {
           player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
         }

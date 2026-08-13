@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling
+  2026-08-13): adopted Codex's 12-item Definition of Done as the spec. That doc tracks every item as
+  done-merged / built-unmerged / TODO. The authoring surface is built (much of it unmerged, `#1000–#1004`); the
+  real remaining work is the **live cutover** (retire `projectEndOfTurnSteps`), **heroes** (0 registry entries),
+  **comprehensive emission** (combat/start-of-turn/hero), **folded-cue combat attribution**, **multi-phase
+  sources**, **emission-coverage CI**, and **FX-isolation tests**. Merge `#1000–#1004` first.
 - **DEFERRED (owner, 2026-08-12) — roll the End-of-Turn shop buff instead of jumping.** The EoT shop-buff
   real-time fix (#996) makes a buffed Shop minion's stat land on the beat, but it JUMPS (via `releaseStat`)
   rather than rolling up smoothly the way a board minion's End-of-Turn gain does. Owner wants it to roll too.

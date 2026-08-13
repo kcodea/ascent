@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **DEFERRED (owner, 2026-08-12) — roll the End-of-Turn shop buff instead of jumping.** The EoT shop-buff
+  real-time fix (#996) makes a buffed Shop minion's stat land on the beat, but it JUMPS (via `releaseStat`)
+  rather than rolling up smoothly the way a board minion's End-of-Turn gain does. Owner wants it to roll too.
+  The board rolls because its buff-FX descend drains the stat hold over `rollMs`; the shop offer has no such
+  descend, so its hold is released instantly. To roll: drive the shop offer's hold delivery with a roll
+  (e.g. a `holdStat`/`claimStat` schedule on the offer, or a shop-side descend cue) instead of `releaseStat`.
+  Low priority, revisit later.
 - **BEAT SYSTEM + BEAT LAB — IN PROGRESS (kicked off 2026-08-12).** The next big project: universal
   source-attributed trigger beats (recruit + combat) + a dev-only Beat Lab tuner (owner handoff docs in
   Documents/Codex). 13-PR arc, owner checkpoint after PR 4 (read-only viewer). PR 1 (policy registry, 654

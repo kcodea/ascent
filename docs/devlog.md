@@ -7,16 +7,21 @@ Butcher's Shout at End of Turn — the shop card played only a green burst + a f
 stat number didn't move until the phase flipped to combat and the buff committed. It should tick up ON the beat,
 like a board minion's End-of-Turn gain does.
 
-Fix (Recruit.tsx + shopView): board minions already climb per beat via `eotAnimStats`; shop offers now have the
-parallel `eotShopStats` — a running per-offer buff delta accumulated from the projection's `EotStepFx.shopBuff`
-as each beat fires, folded into the offer's displayed stats by `shopView` (a new `eotBuff` opt). Reset at the
-start of the End-of-Turn animation, drained when the phase commits (the real offers then carry the buff). The
-burst + float still play; now the number underneath them actually rises.
+Fix, two parts (Recruit.tsx + shopView): board minions already climb per beat via `eotAnimStats`; shop offers
+now have the parallel `eotShopStats` — a running per-offer buff delta accumulated from the projection's
+`EotStepFx.shopBuff` as each beat fires, folded into the offer's displayed stats by `shopView` (a new `eotBuff`
+opt). Reset at the start of the End-of-Turn animation, drained when the phase commits.
 
-Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion → End Turn → polled the offer's
-rendered stats across the beat: `recruit 1/1 → recruit 8/8 → combat 8/8` (ticks during the beat, before the
-phase flip). typecheck + lint + npm test (4973) + build:web green. Standalone fix (off main), independent of
-the beat-system stack.
+The FIRST cut of that alone did NOT work (owner caught it): a stat change creates an intrinsic "hold" in `Card`
+(it shows the OLD number until a roll/FX drains it — the buff-pop). A board minion's hold is drained by its
+buff-FX descend; a shop offer has none, so the hold sat through the whole animation and the number only appeared
+to change after End of Turn. Part two: `releaseStat(uid)` on the buffed offers once the new stats have committed
+(double rAF, after the layout effect that creates the hold), so the number lands on the beat under the float.
+
+Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion → End Turn → the offer's attack
+badge ticks `recruit:1 → recruit:8 → combat:8` (changes on the beat, in recruit, before the phase flip).
+typecheck + lint + build:web green. Standalone fix (off main), independent of the beat-system stack.
+(Possible refinement: the shop number JUMPS via releaseStat; the board ROLLS — could roll the shop too later.)
 
 ## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
 

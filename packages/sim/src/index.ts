@@ -9,6 +9,7 @@ export * from './quests';
 export * from './buildTags';
 export * from './contribution';
 export * from './reducer';
+export { currentCollector, withActiveCollector } from './activeCollector';
 export * from './odds';
 export * from './snapshot';
 export * from './boardSide';

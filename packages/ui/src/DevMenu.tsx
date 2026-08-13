@@ -53,6 +53,7 @@ import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { FxWorkbench } from './fx/ui/Workbench';
+import { BeatLab } from './beatLab/BeatLab';
 import { ALL_TUNER_SPECS, resetAllTuners } from './tunerAll';
 
 /**
@@ -206,6 +207,7 @@ export function DevMenu() {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const [wbOpen, setWbOpen] = useState(false);
+  const [blOpen, setBlOpen] = useState(false);
   const [q, setQ] = useState('');
   const [cursor, setCursor] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -232,6 +234,7 @@ export function DevMenu() {
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },
     { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
+    { id: 'beatlab', icon: '🥁', label: 'Beat Lab', hint: 'Read-only viewer: the source-attributed trigger/consequence tree of the last action', run: () => setBlOpen(true) },
     // Destructive and irreversible, so it asks first and names the number — and it says what it does NOT touch,
     // because "reset the tuners" could reasonably be read as including the audio levels.
     {
@@ -420,6 +423,7 @@ export function DevMenu() {
           close, doesn't use that hook, and has no key in the groups above — wrapping it would imply a
           relationship it doesn't have. */}
       {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
+      {blOpen && <BeatLab onClose={() => setBlOpen(false)} />}
     </>
   );
 }

@@ -22,6 +22,167 @@ Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion �
 badge ticks `recruit:1 → recruit:8 → combat:8` (changes on the beat, in recruit, before the phase flip).
 typecheck + lint + build:web green. Standalone fix (off main), independent of the beat-system stack.
 (Possible refinement: the shop number JUMPS via releaseStat; the board ROLLS — could roll the shop too later.)
+## 2026-08-12 — Beat System PR 6c: complete End-of-Turn consequence coverage (ruby / auras / welds / fodder)
+
+Continuation slice (stacked on PR 6b) — closes the remaining consequence types so the event stream reaches
+full parity with what the live End-of-Turn animation shows (the prerequisite for the eventual cutover). Owner
+rulings 2026-08-12:
+
+- **ruby → `rubyPlayed`** (owner: "it should be ruby played"): rubies a trigger plays are now their OWN
+  consequence, carved OUT of the generic stat diff (each Ruby = 1+rubyBonus per axis subtracted from the
+  statsChanged delta), so the viewer/player can fire the gem cascade rather than a plain stat bump. The
+  equivalence harness now reconstructs the board total as ordinary deltas + rubyPlayed×(1+bonus).
+- **spell power / imp aura → `auraChanged`**: the aura consequence gained optional `attack`/`health` (these
+  channels are two-axis; `amount` stays = attack+health for single-axis readers). Emitted on the delta.
+- **welds → `counterChanged`** (`attachments`, one per host) and **fodder consumed → `cardDestroyed`** (one
+  per eaten token).
+
+All diffed generically (the projectEndOfTurnSteps technique), so any future effect is caught. Everything except
+rubies is orthogonal to stats; rubies are explicitly carved out and the equivalence test updated to match.
+
+Verified: typecheck + lint + npm test (5006) + build:web green. The live shop End-of-Turn animation remains on
+projectEndOfTurnSteps — the cutover (drive it from events + retire the projector) is still the next, owner-gated
+step (needs a manual playtest).
+
+## 2026-08-12 — Beat System PR 6b: expanded End-of-Turn consequence coverage (grants + shop buffs)
+
+Continuation slice (stacked on PR 6) toward the eventual live cutover. Extends the shared recruit trigger
+diff (`withRecruitTrigger`, used by both the Shout and End-of-Turn triggers) to also emit two NON-OVERLAPPING
+consequence types beyond stats:
+
+- **`cardGranted`** — cards a trigger conjured/granted to hand (The Hoard Wakes, Rune of Spending's conjures,
+  grantRandomShout, …), in arrival order.
+- **`shopChanged(buffed)`** — shop offers a trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's
+  buy bonus), one delta per offer uid.
+
+Both are diffed (not wired per-effect — the same technique `projectEndOfTurnSteps` uses) so any future granter
+or shop-buffer is caught, and both are ORTHOGONAL to the board/hand stat diff (a granted card is new; a shop
+offer isn't on the board), so the PR-6 `statsChanged` equivalence is undisturbed — asserted in the new tests.
+
+DELIBERATELY DEFERRED to the live-cutover PR (they need a schema/overlap decision the owner should weigh, and
+the cutover itself needs a manual playtest of Mike's shop animation): ruby-as-`rubyPlayed` (overlaps the stat
+diff), spell-power / imp-aura (`auraChanged` carries one scalar; these are attack+health), welds, and fodder
+consumption. The live shop End-of-Turn animation remains on `projectEndOfTurnSteps` — untouched.
+
+Verified: typecheck + lint + npm test (5006; +3 coverage + stat-equivalence-undisturbed) + build:web green;
+live faceOmen batch showed `cardGranted` (a conjured Shout) beside the Lapidary `statsChanged`.
+
+## 2026-08-12 — Beat System PR 6: beat-player engine + End-of-Turn equivalence (no live cutover)
+
+Sixth slice (stacked on PR 5). Owner-scoped decision: build the playback ENGINE and prove event↔gameplay
+equivalence, but DO NOT cut the live shop animation over yet — PR 5's event stream carries stats + resources
+but not yet the full FX set the live End-of-Turn animation needs (card/hand grants, spell power, imp aura,
+shop buffs, welds, fodder). Cutting over now would regress those; the cutover waits for a later coverage PR.
+
+**Player engine** (`beatLab/beatTimeline.ts`, pure + unit-tested): `scheduleBeats(batch)` compiles a
+PresentationBatch into an ordered, sequentially-timed list of beats (one per trigger, consequences attached by
+parentId), with restrained per-policy default timings (ownBeat holds, foldedCue barely does).
+`activeBeatIndex(beats, ms)` gives the playhead's current beat. Deterministic.
+
+**Beat Lab transport**: the read-only viewer gains ▶/⏸ ⏮ ⏭ ⏹ + a playhead that walks the schedule via rAF,
+highlighting the active beat (blue glow) as it plays — you can watch a captured batch beat-by-beat. Still
+dev-only, still read-only w.r.t. gameplay.
+
+**Equivalence harness** (`beatEotEquivalence.test.ts`): asserts the batch's per-uid stat deltas equal the
+GROUND TRUTH (a real `applyEndOfTurn` diff) — no phantom, no missing stat events — the prerequisite before any
+future live cutover. Also asserts the legacy `projectEndOfTurnSteps` still runs unchanged (live path untouched).
+
+Verified: typecheck + lint + npm test (5003; +8 timeline + equivalence) + build:web green; live — played a
+Shout, opened Beat Lab, hit ▶ and watched the Hoard Cleric beat highlight with its +3/+3 consequences,
+transport reading `beat 1/1 · 710/710ms`.
+
+## 2026-08-12 — Beat System PR 5: End-of-Turn event migration
+
+Fifth slice (stacked on PR 4) — the first real vertical slice from the handoff doc. `applyEndOfTurn` now emits
+a source-attributed End-of-Turn batch as it resolves, so the reported EoT presentation gaps are closed at the
+event level. Gameplay byte-identical to before (equivalence-tested).
+
+**What emits.** Board End-of-Turn effects fire LEFT-TO-RIGHT (resolution order preserved), each Chronos repeat
+its own trigger (`repeatIndex`/`repeatCount`), stat changes as `statsChanged` consequences. Then the recurring
+quest/rune rewards (labeled beats — Lapidary, Crucible Choir, Echoing Roar, …) and the turn-limited
+recurrences (Quick Study) — after the board effects, per owner ruling #987. **Rune of the Coffers** and **Rune
+of Shopkeep** — which changed HUD numbers silently (handoff-doc §9.1 item 1) — now each emit an own-beat
+`resourceChanged` (maxGold +1 / upgradeCost −3).
+
+**How.** The PR-3 diff primitive generalized into `withRecruitTrigger(ctx, {source, trigger, policy, phase,
+repeatIndex, repeatCount}, run)` — opens a source scope, runs the effect, emits the board/hand stat delta;
+bails to a bare call when nothing captures. `withPlayTrigger` (PR 3's Shout) now rides it too. Policies come
+from the PR-1 registry (`factory:<do>:endOfTurn`). `reduceWithPresentation` tags a `faceOmen` batch
+`endOfTurn`.
+
+The OLD visual playback (`projectEndOfTurnSteps` + Recruit.tsx's fixed beat loop) is UNCHANGED and still
+drives the shop animation — PR 6 switches the UI to consume these authoritative events; this PR only makes them
+available (and visible in the Beat Lab viewer).
+
+Verified: typecheck + lint + npm test (4995; +6 equivalence/emission/ordering/determinism) + build:web green;
+live faceOmen on a throwaway run captured `endOfTurn` batch with Coffers + Lapidary own-beats in board→recurring
+order.
+
+## 2026-08-12 — Beat System PR 4: the read-only Beat Lab viewer (checkpoint milestone)
+
+Fourth slice (stacked on PR 3) — the owner's checkpoint milestone. "Start with truth, not tooling": a
+dev-only, read-only overlay that renders the exact source-attributed batch the recruit reducer emitted for the
+last action, before any timing editor exists. If the tree reads correctly, the event stream is trustworthy.
+
+`packages/ui/src/beatLab/BeatLab.tsx` (+ css) reads `latestBatch`/`beatRevision` from the store (published in
+DEV by PR 3) and assembles the flat event list into a trigger tree: consequences and child triggers hang off
+their `parentId`; each trigger row shows resolution step, a policy tint (ownBeat/foldedCue/passive/silent),
+the source label, kind/trigger, and repeat index; consequences render as one-line summaries; unparented
+consequences get their own section. No editing, no persistence, no gameplay effect. Wired into the Dev Menu
+(🥁 Beat Lab) beside the FX Workbench.
+
+Verified LIVE: drove a throwaway run, played Hoard Cleric (a Shout) → the store captured
+`play · 3 events · rev N` and the viewer rendered `[ownBeat] Hoard Cleric minion/onPlay ↳ stats +3/+3 →
+board:b1 ↳ stats +3/+3 → board:b2` — the real onPlay trigger with both buffs parent-attributed. Also
+confirmed the DEV capture path publishes (beatRevision bumps on every dispatch) and that a fresh dev-server
+restart was required (a reused server served stale pre-change code). typecheck + lint + build:web green.
+
+This completes PRs 1–4 (registry → collector → recruit pipeline → viewer) — the owner checkpoint before
+End-of-Turn playback (PR 5+) and any editor.
+
+## 2026-08-12 — Beat System PR 3: the recruit presentation pipeline
+
+Third slice (stacked on PR 2). Wires the collector into recruit resolution and migrates the FIRST trigger, so
+a played Shout produces a real source-attributed batch. Gameplay is byte-identical to before (proven).
+
+**Plumbing.** `activeCollector.ts` — a tiny standalone holder (imports only `@game/core`, so no new cycles):
+`reduce` is synchronous and non-reentrant per action, so a module-scoped "active collector" set once around one
+`reduce` call has exactly the lifetime of one resolution. `makeContext` reads it into `RecruitContext.collector`
+(NOOP outside a capture scope — bots/tests/plain `reduce` pay nothing). `reduceWithPresentation(state, action,
+capture)` returns `{state, batch}`: with `capture` off it's literally `reduce` + null; with it on, it runs
+inside `withActiveCollector` and returns the finished batch.
+
+**First migrated trigger.** `playCard`'s `onPlay` (Shout) loop now runs each effect inside a source-attributed
+trigger scope (`withPlayTrigger`) whose policy comes from the PR-1 registry; the stat changes it produces are
+emitted as `statsChanged` consequences, discovered by diffing board+hand around the effect (read-only — never
+mutates). Bails to a bare call when nothing is capturing, so the NOOP path costs one boolean.
+
+**UI.** `store.ts` (Mike's file — coordinated): additive `latestBatch`/`beatRevision` slice; `dispatch`
+resolves through `reduceWithPresentation` in DEV only (prod + headless keep plain `reduce`) and publishes the
+batch. Never serialized into a save. The Beat Lab viewer (PR 4) consumes it.
+
+Verified: typecheck + lint + npm test (4989; +4 equivalence/emission/determinism tests) + build:web all green.
+
+## 2026-08-12 — Beat System PR 2: the presentation collector
+
+Second slice of the beat-system arc (stacked on PR 1). Pure new engine plumbing — no gameplay change, nothing
+consumes it yet.
+
+**Contracts** (`packages/core/src/presentation/events.ts`): the shared source-attributed event model from the
+blueprint — `SourceTriggerEvent` (source ref + trigger + policy + parent/step/simultaneity) and a
+`ConsequenceEvent` union describing mutations DIRECTLY (statsChanged, keyword, summon/destroy/transform, card
+grant, spell, resource, shop, aura, counter, ruby) so presentation never diffs state to learn what happened.
+`ZoneTargetRef` carries a zone (board/hand/shop/…), because recruit effects target offers, not only combat uids.
+
+**Collector** (`collector.ts`): `makeCollector(actionId, phase)` stamps deterministic batch-local ids
+(`trigger:<action>:<seq>` / `event:<action>:<seq>` — no time/random, so replays are byte-identical), tracks a
+trigger stack (consequences inherit the active `parentId`; nested triggers inherit their parent), and manages
+resolution-step boundaries (`newStep` per own beat, `currentStep` to fold). `NOOP_COLLECTOR` is the
+zero-cost stand-in for headless bots / gameplay-only reducer calls (`enabled:false` lets hot paths skip
+building drafts). `endTrigger` pops defensively so one missing close can't corrupt later attribution.
+
+Verified: typecheck + lint + npm test (4985; +8 collector determinism/nesting/no-op tests) + build:web all green.
+
 ## 2026-08-12 — Beat System PR 1: the presentation-policy registry + `beats:audit`
 
 Kickoff of the Beat System + Beat Lab project (owner handoff docs in Documents/Codex — universal

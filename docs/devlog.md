@@ -21,6 +21,18 @@ path (cosmetic); optional re-import of a pasted summary back into the editor.
 Verified: per-module Vitest unit tests (config/resolver/selector/transforms/scratchpad/uiAssetPlugin),
 typecheck + lint + full test suite (5004 tests) + build:web all green; the DOM/pointer overlay code-reviewed
 with live browser verification.
+## 2026-08-12 — Refresh button — bake owner-tuned position/scale + click FX for the new pill
+
+Baked the owner's tuned `refreshConfig.ts` DEFAULTS for the new purple Refresh pill (dialed live in the 🔄
+tuner). Changed: `y` 220→214 and `scale` 1.85→1.68 (fit the wider/flatter art), a faint ambient sheen
+(`sheenAlpha` 0→0.04, `sheenCycle` 1→2.8s), a softer click flare (`shineBlur` 3→49), a bigger/looser/purple
+click blast (`blastCount` 21→33, `blastSpeed` 420→600, `blastSpread` 0.8→3.2, `blastSize` 0.45→0.6, `blastColor`
+#ffb08f→#beadff), and `artDim` 0.61→0.63. The six CSS-reflected values (`--rfb-y`, `--rfb-s`, `--rfb-art-dim`,
+`--rfb-sheen-alpha`, `--rfb-sheen-cycle`, `--rfb-shine-blur`) had their `styles.css` fallbacks updated in lockstep,
+per the config's mirror rule. Values-only; verified with the full gate (typecheck + lint + test 5036/5036 + build).
+The button's box dimensions (170×72) are unchanged — the tuner only drives the RefreshConfig values, which the
+owner dialed against that box.
+
 ## 2026-08-12 — Refresh button art swapped (owner-supplied purple pill)
 
 Replaced the Refresh button art with a new owner-supplied purple "Refresh" pill (converted from PNG to WebP at

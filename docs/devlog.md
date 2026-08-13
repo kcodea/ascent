@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 7: timing layer + Beat Lab editor (browse + tune every beat without playing)
+
+Seventh slice — the owner's stated end goal: sort through and modify beats without playing cards. Dev-only,
+no gameplay impact (drafts pace only Beat Lab playback; the live cutover is still separate).
+
+**Timing layer** (`beatTiming.ts`): a specificity-ordered resolver — `source:<kind>:<id>:<trigger>` → registry
+`family:<family>` → `trigger:<trigger>` → `policy:<policy>` → global. Overrides are SPARSE patches merged
+least-to-most-specific so the most specific field wins; with none, it reproduces the PR-6 player's shipped
+per-policy defaults exactly (equivalence first). `timingProvenance` reports which level supplies each field.
+`scheduleBeats` now accepts a per-event resolver so the editor's draft paces the preview.
+
+**Library** (`library.ts` + `BeatLibrary.tsx`): the whole policy registry (654 entries) as a searchable,
+policy-filterable list — browse every automatic effect with NO run required. Selecting one shows an inspector
+(effective windup/hold/recovery + per-field provenance + the exact draft key it writes to) and a SYNTHETIC
+preview batch (the trigger firing twice with stat consequences) played through the same scheduler/player as
+Capture mode — so a numeric edit re-paces the preview immediately. Factory rows edit their FAMILY (a factory
+has no per-card source key); rune/quest rows edit their exact source.
+
+**Draft model** (`BeatLab.tsx`): Capture/Library tabs share one session draft of sparse overrides. NEVER
+persisted, never auto-active on load (the old pacing-tuner failure). `Copy JSON` exports the sparse overrides
+for source control; `Reset all` clears them. The capture viewer + transport were refactored into a shared
+`BatchPlayer` both modes use.
+
+Verified live: opened Library, filtered to rune_lapidary, edited Hold 420→900 — the field flipped to the
+exact-source provenance and the synthetic preview re-paced 1420ms→2380ms on the spot; draft badge + Copy JSON
+appeared. typecheck + lint + npm test (5019; +13 timing/library/timeline) + build:web all green.
+(Note: not the live cutover — the game's End-of-Turn animation still runs on projectEndOfTurnSteps.)
+
 ## 2026-08-12 — fix(ui): End-of-Turn shop buffs climb in real time
 
 Owner report: when an End-of-Turn effect buffs a Shop minion — a Moira re-firing Market Tormentor / Contract

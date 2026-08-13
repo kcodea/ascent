@@ -1,23 +1,28 @@
 /**
- * BEAT SYSTEM PR 4 — the READ-ONLY Beat Lab viewer.
+ * BEAT SYSTEM — the Beat Lab (dev-only).
  *
- * "Start with truth, not tooling" (blueprint §30): before any timing editor exists, this shows the exact
- * source-attributed batch the recruit reducer emitted for the last action — the trigger/consequence tree with
- * real source ids, resolution steps, policies, and parent nesting. If this reads correctly, the event stream
- * is trustworthy and the editor (later PRs) becomes straightforward; if it doesn't, we fix the stream first.
+ * PR 4 built the read-only CAPTURE viewer ("start with truth, not tooling"): the source-attributed
+ * trigger/consequence tree of the last action, straight from the store's `latestBatch`. PR 6 added the
+ * transport (play/step a schedule with the active beat highlighted). PR 7 adds the LIBRARY + timing editor:
+ * browse every registered automatic effect without playing a card, edit its timing numerically as a sparse
+ * session DRAFT (never persisted, never auto-active — the old pacing-tuner failure), and watch the result on
+ * a synthetic preview through the same scheduler/player the capture uses.
  *
- * Dev-only: mounted behind `import.meta.env.DEV` by the Dev Menu, and it only ever READS `latestBatch` from the
- * store (published by `dispatch` in DEV — PR 3). No editing, no persistence, no gameplay effect.
+ * Nothing here touches gameplay: the game's live playback does not consume these timings yet (that's the
+ * cutover); drafts pace only Beat Lab playback. `Copy JSON` exports the sparse overrides for source control
+ * when a set is worth shipping.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
 import { scheduleBeats, activeBeatIndex } from './beatTimeline';
+import { resolveBeatTiming, type BeatTimingOverrides } from './beatTiming';
+import { BeatLibrary } from './BeatLibrary';
 import './beatLab.css';
 
 const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type === 'sourceTrigger';
 
-const POLICY_TINT: Record<string, string> = {
+export const POLICY_TINT: Record<string, string> = {
   ownBeat: 'var(--bl-ownbeat)',
   foldedCue: 'var(--bl-folded)',
   passive: 'var(--bl-passive)',
@@ -37,7 +42,7 @@ function describe(c: ConsequenceEvent): string {
     case 'spellResolved': return `spell ${c.cardId}${c.copied ? ' (copy)' : ''}`;
     case 'resourceChanged': return `${c.resource} ${c.amount >= 0 ? '+' : ''}${c.amount}${c.valueAfter !== undefined ? ` → ${c.valueAfter}` : ''}`;
     case 'shopChanged': return `shop ${c.change} ${t}`;
-    case 'auraChanged': return `aura ${c.aura} ${c.amount >= 0 ? '+' : ''}${c.amount}`;
+    case 'auraChanged': return `aura ${c.aura} ${c.attack !== undefined ? `+${c.attack}/+${c.health}` : (c.amount >= 0 ? '+' : '') + c.amount}`;
     case 'counterChanged': return `counter ${c.counter} ${c.amount >= 0 ? '+' : ''}${c.amount}`;
     case 'rubyPlayed': return `ruby ×${c.count} → ${t}`;
     default: return (c as { type: string }).type;
@@ -65,11 +70,14 @@ function buildTree(batch: PresentationBatch): { roots: Node[]; orphans: Conseque
   return { roots, orphans };
 }
 
-function TriggerNode({ node, depth, activeId }: { node: Node; depth: number; activeId: string | null }): React.ReactElement {
+function TriggerNode({ node, depth, activeId, onSelect, selectedId }: { node: Node; depth: number; activeId: string | null; onSelect?: (t: SourceTriggerEvent) => void; selectedId?: string | null }): React.ReactElement {
   const t = node.trigger;
   return (
     <div className="bl-node" style={{ marginLeft: depth * 18 }}>
-      <div className={`bl-trigger${t.id === activeId ? ' bl-active' : ''}`}>
+      <div
+        className={`bl-trigger${t.id === activeId ? ' bl-active' : ''}${t.id === selectedId ? ' bl-selected' : ''}${onSelect ? ' bl-clickable' : ''}`}
+        onClick={onSelect ? () => onSelect(t) : undefined}
+      >
         <span className="bl-step">step {t.step}</span>
         <span className="bl-policy" style={{ background: POLICY_TINT[t.policy] ?? '#666' }}>{t.policy}</span>
         <span className="bl-source">{t.source.label ?? t.source.id}</span>
@@ -79,28 +87,38 @@ function TriggerNode({ node, depth, activeId }: { node: Node; depth: number; act
       {node.consequences.map((c) => (
         <div key={c.id} className="bl-cons">↳ {describe(c)}</div>
       ))}
-      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} activeId={activeId} />)}
+      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} activeId={activeId} onSelect={onSelect} selectedId={selectedId} />)}
     </div>
   );
 }
 
-export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
-  const batch = useGame((s) => s.latestBatch);
-  const revision = useGame((s) => s.beatRevision);
-  const tree = useMemo(() => (batch ? buildTree(batch) : null), [batch]);
-  const schedule = useMemo(() => (batch ? scheduleBeats(batch) : null), [batch]);
+/**
+ * The shared batch player: schedule (with the draft's timings) → transport → tree with the active beat
+ * highlighted. Used by Capture mode (the store's latest batch) and Library mode (a synthetic fixture batch).
+ */
+export function BatchPlayer({ batch, overrides, resetKey, onSelectTrigger, selectedId }: {
+  batch: PresentationBatch;
+  overrides: BeatTimingOverrides;
+  /** Changing this rewinds the playhead (a new capture arrived / a different fixture selected). */
+  resetKey: string | number;
+  onSelectTrigger?: (t: SourceTriggerEvent) => void;
+  selectedId?: string | null;
+}): React.ReactElement {
+  const schedule = useMemo(
+    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides)),
+    [batch, overrides],
+  );
+  const tree = useMemo(() => buildTree(batch), [batch]);
 
-  // Transport: a playhead (ms) that walks the schedule. `playing` advances it via rAF; the active beat is the
-  // last one whose window has started. Reset whenever a new batch arrives.
   const [playheadMs, setPlayheadMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
 
-  useEffect(() => { setPlayheadMs(0); setPlaying(false); }, [revision]);
+  useEffect(() => { setPlayheadMs(0); setPlaying(false); }, [resetKey]);
 
   useEffect(() => {
-    if (!playing || !schedule) return;
+    if (!playing) return;
     const tick = (ts: number): void => {
       const last = lastTsRef.current;
       lastTsRef.current = ts;
@@ -117,27 +135,19 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); lastTsRef.current = null; };
   }, [playing, schedule]);
 
-  const activeIdx = schedule ? activeBeatIndex(schedule.beats, playing || playheadMs > 0 ? playheadMs : -1) : -1;
-  const activeId = activeIdx >= 0 && schedule ? schedule.beats[activeIdx]!.id : null;
-  const beatCount = schedule?.beats.length ?? 0;
+  const activeIdx = activeBeatIndex(schedule.beats, playing || playheadMs > 0 ? playheadMs : -1);
+  const activeId = activeIdx >= 0 ? schedule.beats[activeIdx]!.id : null;
+  const beatCount = schedule.beats.length;
 
   const stepTo = (i: number): void => {
-    if (!schedule || i < 0 || i >= schedule.beats.length) return;
+    if (i < 0 || i >= schedule.beats.length) return;
     setPlaying(false);
     setPlayheadMs(schedule.beats[i]!.startMs);
   };
 
   return (
-    <div className="bl-overlay" role="dialog" aria-label="Beat Lab">
-      <div className="bl-topbar">
-        <span className="bl-title">Beat Lab</span>
-        <span className="bl-mode">read-only viewer</span>
-        <span className="bl-meta">
-          {batch ? `${batch.actionId} · ${batch.events.length} events · rev ${revision}` : 'no batch captured yet'}
-        </span>
-        <button className="bl-close" onClick={onClose} aria-label="Close Beat Lab">✕</button>
-      </div>
-      {schedule && beatCount > 0 && (
+    <>
+      {beatCount > 0 && (
         <div className="bl-transport">
           <button className="bl-tbtn" onClick={() => stepTo(activeIdx - 1)} disabled={activeIdx <= 0} aria-label="Previous beat">⏮</button>
           <button className="bl-tbtn" onClick={() => { if (playheadMs >= schedule.totalMs) setPlayheadMs(0); setPlaying((p) => !p); }} aria-label={playing ? 'Pause' : 'Play'}>{playing ? '⏸' : '▶'}</button>
@@ -147,25 +157,55 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         </div>
       )}
       <div className="bl-body">
-        {!batch && (
-          <div className="bl-empty">
-            Play a Shout in the shop to capture a batch. (Only migrated triggers emit so far — PR 3 wired the
-            <code> onPlay</code> Shout path; more triggers arrive in later PRs.)
+        {tree.roots.length === 0 && <div className="bl-empty">This batch produced no source-attributed triggers.</div>}
+        {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} activeId={activeId} onSelect={onSelectTrigger} selectedId={selectedId} />)}
+        {tree.orphans.length > 0 && (
+          <div className="bl-orphans">
+            <div className="bl-orphan-h">unparented consequences ({tree.orphans.length})</div>
+            {tree.orphans.map((c) => <div key={c.id} className="bl-cons">• {describe(c)}</div>)}
           </div>
         )}
-        {tree && (
-          <>
-            {tree.roots.length === 0 && <div className="bl-empty">This action produced no source-attributed triggers.</div>}
-            {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} activeId={activeId} />)}
-            {tree.orphans.length > 0 && (
-              <div className="bl-orphans">
-                <div className="bl-orphan-h">unparented consequences ({tree.orphans.length})</div>
-                {tree.orphans.map((c) => <div key={c.id} className="bl-cons">• {describe(c)}</div>)}
-              </div>
-            )}
-          </>
-        )}
       </div>
+    </>
+  );
+}
+
+export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
+  const batch = useGame((s) => s.latestBatch);
+  const revision = useGame((s) => s.beatRevision);
+  const [mode, setMode] = useState<'capture' | 'library'>('capture');
+  // The session DRAFT: sparse timing overrides, edited from either mode, pacing all Beat Lab playback.
+  // Deliberately NOT persisted — reopening the Lab starts from shipped timings (blueprint §17.2).
+  const [draft, setDraft] = useState<BeatTimingOverrides>({});
+  const draftCount = Object.keys(draft).length;
+
+  const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify({ version: 1, timings: draft }, null, 2)); };
+
+  return (
+    <div className="bl-overlay" role="dialog" aria-label="Beat Lab">
+      <div className="bl-topbar">
+        <span className="bl-title">Beat Lab</span>
+        <button className={`bl-tab${mode === 'capture' ? ' bl-tab-on' : ''}`} onClick={() => setMode('capture')}>Capture</button>
+        <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
+        {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={() => setDraft({})} title="Discard every draft override">Reset all</button>}
+        <span className="bl-meta">
+          {mode === 'capture'
+            ? batch ? `${batch.actionId} · ${batch.events.length} events · rev ${revision}` : 'no batch captured yet'
+            : 'every registered beat — no playing required'}
+        </span>
+        <button className="bl-close" onClick={onClose} aria-label="Close Beat Lab">✕</button>
+      </div>
+      {mode === 'capture' && (
+        batch
+          ? <BatchPlayer batch={batch} overrides={draft} resetKey={revision} />
+          : <div className="bl-body"><div className="bl-empty">
+              Play a Shout or end a turn to capture a batch. (Migrated triggers so far: Shouts and the full
+              End-of-Turn pass — board effects, recurring rewards, Coffers/Shopkeep, rubies, grants, auras.)
+            </div></div>
+      )}
+      {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} />}
     </div>
   );
 }

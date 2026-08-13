@@ -18,6 +18,8 @@ import { useGame } from '../store';
 import { scheduleBeats, activeBeatIndex } from './beatTimeline';
 import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
+import { migrateV1Patch } from '../choreographer/resolveTiming';
+import beatDefaults from './beat-defaults.json';
 import './beatLab.css';
 
 const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type === 'sourceTrigger';
@@ -185,6 +187,36 @@ export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, 
   );
 }
 
+
+/**
+ * CHOREOGRAPHER PR 12 — write the config in the format the GAME reads.
+ *
+ * The Lab authors in v1 terms (windup / hold / recovery) because that is what its editor exposes, but the
+ * live compiler reads v2 (delivery / completion + modes) and `beat-defaults.json` is a v2 file. Committing v1
+ * would have replaced that file wholesale, silently discarding any `templates` a v2 author had added — the
+ * tool quietly destroying work it cannot see. Converting on write keeps one format on disk.
+ *
+ * The mapping is the documented lossless one: delivery = windup, completion = windup + hold.
+ */
+/** Whatever `templates` the committed file already carries — preserved across a Lab write. */
+const SHIPPED_TEMPLATES: Record<string, unknown> = (beatDefaults as { templates?: Record<string, unknown> }).templates ?? {};
+
+function toV2File(
+  timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>,
+  policies: Record<string, string>,
+): { version: 2; templates: Record<string, unknown>; overrides: Record<string, unknown>; policies: Record<string, string> } {
+  const overrides: Record<string, unknown> = {};
+  for (const [key, patch] of Object.entries(timings)) overrides[key] = migrateV1Patch(patch);
+  return {
+    version: 2,
+    // Templates are not editable from this surface yet, so anything already committed is PRESERVED verbatim
+    // rather than dropped on the floor by a write that only knows about overrides.
+    templates: SHIPPED_TEMPLATES,
+    overrides,
+    policies,
+  };
+}
+
 export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
   const batch = useGame((s) => s.latestBatch);
   const revision = useGame((s) => s.beatRevision);
@@ -196,7 +228,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   const [policyDraft, setPolicyDraft] = useState<BeatPolicyOverrides>({});
   const draftCount = Object.keys(draft).length + Object.keys(policyDraft).length;
 
-  const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify({ version: 1, timings: draft, policies: policyDraft }, null, 2)); };
+  const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify(toV2File(draft, policyDraft), null, 2)); };
 
   // Commit the draft to the git-tracked beat-defaults.json (DEV endpoint). Folds the draft OVER the existing
   // committed defaults (field-level), so committing accumulates rather than replacing. On success the static
@@ -208,7 +240,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
     try {
       const res = await fetch('/__beat-lab/defaults', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: JSON.stringify({ version: 1, timings: merged, policies: mergedPolicies }) }),
+        body: JSON.stringify({ json: JSON.stringify(toV2File(merged, mergedPolicies)) }),
       });
       const out = await res.json() as { ok: boolean; path?: string; error?: string };
       setCommitMsg(out.ok ? `committed → ${out.path}` : `commit failed: ${out.error}`);

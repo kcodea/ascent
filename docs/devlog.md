@@ -20,6 +20,34 @@ With this, every End-of-Turn visual is on the authoritative path. `projectEndOfT
 gated only on an owner side-by-side, which is a judgement about feel rather than a technical gap.
 
 typecheck + lint + npm test (5207) + build:web green.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 12: the Beat Lab writes the format the GAME reads
+
+Reconciling the policy toggle (#1010, authored before the pivot) with the merged architecture. Rebasing it
+surfaced a data-loss bug worth stating plainly.
+
+**The bug.** `beat-defaults.json` is now a v2 file, because v2 is what the live compiler reads. The Lab still
+committed v1 - which would have REPLACED that file wholesale, silently discarding any `templates` a v2 author
+had added. The tool destroying work it cannot see. And in the other direction it read only `timings`, so a v2
+file would have shown an EMPTY editor over a file full of committed values, making the next commit look like a
+deliberate reset.
+
+- `toV2File()` converts the editor's v1 draft on WRITE (delivery = windup, completion = windup + hold) and
+  PRESERVES any committed `templates` verbatim rather than dropping them.
+- `readShippedOverrides()` converts a v2 file back on READ, so committed values still appear in the editor.
+  Round-trip v1 -> v2 -> v1 is lossless, pinned by test.
+- Both directions degrade to empty on a malformed file rather than throwing.
+
+Verified live end to end: committed a v2 payload with BOTH a template and an override through the real
+endpoint, confirmed the file on disk kept the template, and confirmed the editor's read path converts the
+override back to `{windupMs: 0, holdMs: 1800, recoveryMs: 0}`. File reset afterwards.
+
+Also reconciled hero coverage (#1007) onto the arc: the union of both hero sets, keeping Re-Pete as
+`ownBeat`/`heroPower` rather than the branch's flagged `foldedCue` - that is the classification the owner asked
+for and the one PR 9's emission is built on. Dropped the duplicated tripwire assertions from `heroBeats.test.ts`
+now that `heroPolicies.test.ts` enumerates heroes from real data; what remains is what enumeration cannot see -
+a classified power is not the same as an EMITTING one.
+
+typecheck + lint + npm test (5214) + build:web green.
 
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 10: authored timings reach LIVE playback
 

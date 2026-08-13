@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBeatTiming, resolvePolicy, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
+import { resolveBeatTiming, resolvePolicy, readShippedOverrides, timingKeysFor, timingProvenance, POLICY_TIMING } from './beatTiming';
+import { migrateV1Patch } from '../choreographer/resolveTiming';
 import { scheduleBeats } from './beatTimeline';
 import type { PresentationBatch } from '@game/core';
 
@@ -68,5 +69,35 @@ describe('policy overrides (the folded ↔ own-beat toggle)', () => {
     const t = resolveBeatTiming(repete, { 'source:hero:repete:secondHand': { holdMs: 999 } }, { 'source:hero:repete:secondHand': 'ownBeat' });
     expect(t.holdMs).toBe(999);
     expect(t.windupMs).toBe(POLICY_TIMING.ownBeat.windupMs);
+  });
+});
+
+describe('the editor reads whichever config format is on disk (CHOREOGRAPHER PR 12)', () => {
+  // `beat-defaults.json` is a v2 file now, because that is what the live compiler reads. If this editor only
+  // understood `timings`, it would show an EMPTY editor over a file full of committed values — and the next
+  // commit would look like a deliberate reset while silently wiping reviewed work.
+  it('converts a v2 override back into the windup/hold the editor thinks in', () => {
+    const out = readShippedOverrides({
+      version: 2,
+      overrides: { 'source:rune:rune_lapidary:endOfTurn': { deliveryOffsetMs: 100, completionOffsetMs: 600, recoveryMs: 40 } },
+    });
+    expect(out['source:rune:rune_lapidary:endOfTurn']).toEqual({ windupMs: 100, holdMs: 500, recoveryMs: 40 });
+  });
+
+  it('round-trips: v1 → v2 → v1 is lossless', () => {
+    const v1 = { windupMs: 120, holdMs: 420, recoveryMs: 170 };
+    const v2 = migrateV1Patch(v1);
+    const back = readShippedOverrides({ version: 2, overrides: { global: v2 } });
+    expect(back.global).toEqual(v1);
+  });
+
+  it('still reads a v1 file unchanged', () => {
+    const out = readShippedOverrides({ version: 1, timings: { global: { holdMs: 300 } } });
+    expect(out.global).toEqual({ holdMs: 300 });
+  });
+
+  it('a missing or malformed file yields no overrides rather than throwing', () => {
+    expect(readShippedOverrides(undefined)).toEqual({});
+    expect(readShippedOverrides({ version: 2 })).toEqual({});
   });
 });

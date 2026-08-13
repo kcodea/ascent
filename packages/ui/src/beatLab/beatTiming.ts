@@ -39,7 +39,35 @@ export type BeatTimingOverrides = Record<string, BeatTimingPatch>;
 /** Committed, source-controlled timing overrides (PR 8b) — `beat-defaults.json`, written by the Beat Lab's
  *  "Commit to repo" button. Applied UNDER the session draft so a committed tune becomes the shipped baseline
  *  everywhere `resolveBeatTiming` is read. Empty until the owner commits something. */
-export const SHIPPED_OVERRIDES: BeatTimingOverrides = (beatDefaults as { timings?: BeatTimingOverrides }).timings ?? {};
+/**
+ * CHOREOGRAPHER PR 12 — read whichever format is on disk.
+ *
+ * `beat-defaults.json` is now a v2 file (delivery / completion), because that is what the live compiler reads.
+ * This editor still thinks in v1 (windup / hold), so a v2 file has to be converted back on the way IN — read
+ * only for `timings`, the Lab would show an empty editor over a file full of committed values, and the next
+ * commit would look like a reset.
+ *
+ * The inverse of the documented migration: windup = delivery, hold = completion - delivery.
+ */
+export function readShippedOverrides(raw: unknown): BeatTimingOverrides {
+  const f = raw as { version?: number; timings?: BeatTimingOverrides; overrides?: Record<string, { deliveryOffsetMs?: number; completionOffsetMs?: number; recoveryMs?: number }> };
+  if (f?.version === 2) {
+    const out: BeatTimingOverrides = {};
+    for (const [key, patch] of Object.entries(f.overrides ?? {})) {
+      const windupMs = patch.deliveryOffsetMs;
+      const holdMs = patch.completionOffsetMs !== undefined ? patch.completionOffsetMs - (patch.deliveryOffsetMs ?? 0) : undefined;
+      out[key] = {
+        ...(windupMs !== undefined ? { windupMs } : {}),
+        ...(holdMs !== undefined ? { holdMs } : {}),
+        ...(patch.recoveryMs !== undefined ? { recoveryMs: patch.recoveryMs } : {}),
+      };
+    }
+    return out;
+  }
+  return f?.timings ?? {};
+}
+
+export const SHIPPED_OVERRIDES: BeatTimingOverrides = readShippedOverrides(beatDefaults);
 
 /** Sparse POLICY overrides (the policy toggle) — reclassify a source's beat, e.g. Re-Pete's hero power from
  *  `foldedCue` to `ownBeat` so it reads as its own paused moment. Keyed by the same specificity chain as

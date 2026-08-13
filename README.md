@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **In-run UI editor (dev-only)** — a direct-manipulation editor for the in-run DOM UI (cards, HUD, shop, panels, text) with live override stylesheet, move/resize, restyle knobs, image swap, and a copyable summary for chat-driven fixes.
+
 - **Beast batch** — four new Beasts (**Wolvie**, **Armadiyo**, **Dunkey**, **Voidmother**) and four new runes (the Burrow, the Voidmother, the Jungle, Beastial Swarm), plus Kennelmaster (Avenge 4) and King Oona (doubles Attack only) tweaks. **Grim** joins Set 2 with a new flat "+8/+8 to your Beasts" Echo.
 
 - **Content batch** — four Set-2 minion reworks (Market Tormentor now +7/+7; Menagerie Mammoth summons 3 random other Beasts on death; Feastmaster Vhal buffs a Shop minion every 10 Gold spent; Endless Overseer summons Taunt+Ward Imps on Avenge), three new minions (**Right Hand Hank**, **Bullseye**, **Beardsley**), and nine cards archived out of the pools (5 minions + 4 runes).

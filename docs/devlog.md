@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-13 — In-run UI editor (dev-only)
+
+A direct-manipulation editor for the in-run DOM UI: cards, HUD, shop, panels, text. Toggle "UI Edit Mode" in
+the DevMenu; single-click selects the nearest meaningful element (anchor resolver); move/resize via a selection
+box + handles; restyle knobs (font-size, color, background, border-radius, padding, opacity); swap image from
+existing art or upload a PNG (dev-only `/__ui/asset` Vite route writes to `packages/ui/src/assets/ui-editor/`);
+edits apply live via an injected override stylesheet (Approach A — survives React re-renders and GSAP because
+rules live outside the element's style prop). A "Copy Summary" button emits a paste-to-chat text block (selector
++ scope + CSS + asset path) that a chat session turns into the real code change. Nothing ships on its own —
+it's a live scratchpad; persistence is to localStorage, committed on discrete edits / drag-end (deliberately off
+the per-pointermove path for performance). Presentation-seam only; no engine/content/sim changes. New modules
+under `packages/ui/src/uiEditor/` (config, resolver, selector, transforms, scratchpad, overrideSheet,
+EditorOverlay) plus `apps/web/uiAssetPlugin.ts`.
+
+Follow-ups worth noting: webp/jpg upload support (PNG only in v1); adding stable `data-ui` hooks to chrome
+elements as they're selected; Copy Summary currently emits a resolved dev-server URL rather than a bare repo
+path (cosmetic); optional re-import of a pasted summary back into the editor.
+
+Verified: per-module Vitest unit tests (config/resolver/selector/transforms/scratchpad/uiAssetPlugin),
+typecheck + lint + full test suite (5004 tests) + build:web all green; the DOM/pointer overlay code-reviewed
+with live browser verification.
+
 ## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
 
 Owner report: Rune of the Lapidary showed no cards-played counter, and its End-of-Turn Rubies never animated.

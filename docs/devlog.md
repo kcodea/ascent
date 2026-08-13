@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 10: authored timings reach LIVE playback
+
+The link that makes tuning real, and the last piece of "my edits do nothing".
+
+The compiler had always accepted a config; nothing passed one. So a beat tuned in the tool and committed to
+`beat-defaults.json` was written to a file the live game never read - tune, commit, reload, watch nothing
+change. Indistinguishable from a broken tool.
+
+- `beatConfig.ts` - reads the committed file into a v2 snapshot, shared by live playback and the tool so a
+  preview cannot diverge from the game by reading different numbers. Migration from v1 happens ON READ and is
+  never written back (the blueprint forbids silently rewriting the file on load). A malformed config degrades
+  to defaults rather than throwing - a bad dev file must never be able to break End Turn.
+- `Recruit` compiles with `shippedBeatConfig()`.
+- The dev endpoint accepts v2: templates + sparse overrides + modes, validating anchors, repeat modes,
+  delivery markers, unknown fields, negative values, unsafe keys, and the one ordering invariant
+  (completion may not precede delivery).
+
+**A silent-regression guard.** The v1 Beat Lab wrote `source:<kind>:<id>:<trigger>`; the v2 chain uses
+phase-qualified keys. Dropping the v1 shape would have stopped every already-committed reviewed value from
+applying, with no error anywhere - the quietest possible regression. The v1 shape stays in the chain, ranked
+just below the explicit v2 keys, with a test pinning both halves.
+
+**Verified live, end to end.** Committed a deliberately slow Lapidary through the REAL dev endpoint, reloaded,
+and played a turn:
+
+    POST /__beat-lab/defaults  -> ok, packages/ui/src/beatLab/beat-defaults.json
+    [choreographer] authoritative End of Turn - 1 beats, 1 deliveries, 2500ms
+
+2500ms is exactly the committed `completionOffsetMs`; the default is 540ms. Tool -> file -> live game, closed.
+(The file was reset to empty afterwards - no 2.5s Lapidary shipped.)
+
+Two bugs found while testing this, both mine: the endpoint referenced a constant that only exists on the
+policy-toggle branch (would have thrown on any v2 policy commit), and one of my new tests used a
+`{ __proto__: ... }` object literal, which sets the prototype rather than creating a key - so the
+prototype-pollution case was asserting nothing. Both fixed; the test now uses raw JSON.
+
+typecheck + lint + npm test (5203) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 9: hero powers emit (Re-Pete gets a beat)
 
 The owner's third bug: "if i change re-pete to an ownbeat it does nothing."

@@ -104,6 +104,11 @@ export function timingKeysFor(node: TimelineSourceNode): string[] {
     `trigger:${node.trigger}`,
     ...(node.family ? [`family:${node.family}`] : []),
     `source:${s.kind}:${s.id}`,
+    // BACKWARD COMPATIBILITY: the v1 Beat Lab wrote `source:<kind>:<id>:<trigger>` (no phase segment). Any
+    // tuning already committed uses that shape, and dropping it would silently stop applying reviewed values
+    // — the quietest possible regression. Kept in the chain, just below the phase-qualified v2 keys so an
+    // explicit v2 key still wins.
+    `source:${s.kind}:${s.id}:${node.trigger}`,
     `source:${s.kind}:${s.id}:phase:${node.phase}`,
     `source:${s.kind}:${s.id}:phase:${node.phase}:trigger:${node.trigger}`,
   ];

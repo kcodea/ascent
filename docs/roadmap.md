@@ -21,6 +21,11 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **BEAT SYSTEM + BEAT LAB — IN PROGRESS (kicked off 2026-08-12).** The next big project: universal
+  source-attributed trigger beats (recruit + combat) + a dev-only Beat Lab tuner (owner handoff docs in
+  Documents/Codex). 13-PR arc, owner checkpoint after PR 4 (read-only viewer). PR 1 (policy registry, 654
+  keys classified, 42 flagged for review, `beats:audit`, CI tripwire) is up. Next: PR 2 (presentation
+  collector), PR 3 (recruit pipeline + one migrated trigger), PR 4 (read-only Beat Lab shell).
 - **Beast batch (owner) — SHIPPED 2026-08-12.** Kennelmaster Avenge 3→4; King Oona doubles Attack only; 4 new
   Beasts (Wolvie, Armadiyo, Dunkey, Voidmother) and 4 new runes (Burrow, Voidmother, Jungle, Beastial Swarm),
   with three new combat mechanics (next-summon queue, resummon-without-Echo, per-death buff + run-persisted

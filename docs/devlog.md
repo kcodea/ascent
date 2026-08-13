@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 1: the presentation-policy registry + `beats:audit`
+
+Kickoff of the Beat System + Beat Lab project (owner handoff docs in Documents/Codex — universal
+source-attributed trigger beats + a dev-only timing tuner). Owner rulings at kickoff: review checkpoint after
+PR 4 (the read-only viewer), I build both halves (core/sim + UI, Mike looped on his files), the remaining
+interim fixes (Oona pulse, Aftershocks marker, …) fold into PRs 9–10 rather than double-building, and PR 1's
+classification is mine-to-propose / owner-to-review.
+
+**What shipped.** `packages/core/src/presentation/` — the shared vocabulary (`PresentationPolicy`:
+ownBeat / foldedCue / passive / intentionallySilent, keys, entry shape) and the REGISTRY: all **654**
+automatic-effect keys the live content produces (333 factory×trigger pairs, 218 runes, 103 quests),
+classified by trigger-based heuristics with **42 flagged** for owner review (economy watchers, cast-reactors,
+Shout-reactors, Orbit-fired watchers — the genuinely judgment-call classes). `presentationSurface()`
+(content-side) is the single enumerator; `presentationPolicies.test.ts` is the CI tripwire — an unclassified
+new effect fails, a registry ghost fails, a silent entry without a reason fails. `npm run beats:audit`
+prints the human review table (`--flagged` for the review list, `--json` for the future Beat Lab).
+
+No gameplay change — pure data + tests + tooling. Gates: typecheck / lint / 4977 tests / build:web all green.
+
 ## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
 
 Owner report: Rune of the Lapidary showed no cards-played counter, and its End-of-Turn Rubies never animated.

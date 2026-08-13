@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-13 — Hero panel goes UNDER every modal, + the owner's tuned Runeforge backdrop baked
+
+**The power diamond was still on top.** The previous fix scoped the z-index drop to the forge with
+`body:has(.forge-ov)`, which was too narrow for the actual ruling: those surfaces should never sit on top of
+anything but the board. Widened to `body.modalup .statusbar { z-index: 0 }` — so Discover, Choose One, the quest
+offer, a scouted board and the forge all cover the hero portrait and the power diamond outright.
+
+**Why it cannot simply be permanent.** `.boardbg` is a CHILD of `.app` (z-index 0) and `.statusbar` is a
+root-level SIBLING of `.app` (z-index 1). Anything parked below `.app` is therefore below the BOARD as well and
+disappears completely — "above the board, below everything else" is not expressible from outside `.app`'s
+stacking context and would need the bar moved into that tree (a structural change, not a z-index one). While a
+modal is up the board is covered anyway, so hiding behind `.app` is exactly right; in normal play the bar keeps
+its 40 and the power stays clickable.
+
+`modalup` is already FALSE when an overlay is MINIMIZED (`forgeMin` / `discoverMin` / `questMin`), so
+"Inspect the board" hands the hero panel straight back — verified, that path restores z-index 40 and makes
+`.heropowerbtn` the topmost element at its own centre again.
+
+**Baked the owner's tuned backdrop values** (dialled in the Runeforge Backdrop panel): `auto 78%` at `50% 55%`
+with the scrim at 0.53 — a smaller, slightly-lowered frame over a lighter dim than the
+`auto 100% / 50% 50% / 0.72` first cut. Written into BOTH the shipped `.forge-ov` rule and the tuner's DEFAULTS,
+per that panel's mirror rule, so Reset returns to what players now see.
+
+**Verified:** typecheck + lint (0 errors; 8 pre-existing warnings) + test 5218/5218 + `build:web` 6.87s. Live
+with the stored tuner values CLEARED, so the shipped defaults are what rendered: the overlay computes
+`auto 78%` at `50% 55%` with 0.53 in the gradient. Hit-tested at the hero POWER button's centre with
+`elementsFromPoint` — modal up: `.statusbar` is z-index 0 and `.forge-ov` is topmost (it was `.heropowerbtn`);
+minimized: z-index 40 and `.heropowerbtn` topmost again.
+
 ## 2026-08-13 — Runeforge frame paints OVER the hero panel + power diamond
 
 Owner report against the live forge: the hero portrait and the Spoils power diamond sat ON TOP of the new frame

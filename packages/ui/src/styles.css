@@ -1996,15 +1996,20 @@ body.modalup .statusbar .questbadges {
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
 
-/* THE RUNEFORGE FRAME PAINTS OVER THE HERO PANEL + POWER DIAMOND (owner ruling 2026-08-13).
-   Those sit at ROOT level inside `.statusbar` (z-index 40), while every overlay lives inside `.app` — which is
+/* A MODAL COVERS THE HERO PANEL + POWER DIAMOND OUTRIGHT (owner ruling 2026-08-13: those surfaces should never
+   sit on top of anything but the board).
+   Those live at ROOT level inside `.statusbar` (z-index 40), while every overlay lives inside `.app` — which is
    `position: relative; z-index: 1`, i.e. its own stacking context. So `.forge-ov`'s z-index 160 is trapped
-   INSIDE `.app` and competes as `.app`'s 1 against the status bar's 40: the hero portrait and the power diamond
-   painted on top of the forge art, which is what the dim-by-filter rule above exists to paper over.
-   Dropping the bar beneath `.app` for the duration is the fix. Scoped to the FORGE with `:has` rather than to
-   `body.modalup`, because Discover and the quest offer deliberately keep those surfaces visible-but-dimmed —
-   only the forge has a full illustrated frame that wants the whole rectangle to itself. */
-body:has(.forge-ov) .statusbar { z-index: 0; }
+   INSIDE `.app` and never competes with the bar at all; what competes is `.app`'s 1 against the bar's 40, and
+   the bar wins. That is the whole reason the dim-by-filter rule above exists — it papers over surfaces that were
+   never behind the modal to begin with. Dropping the bar beneath `.app` for the duration is the actual fix.
+   WHY ONLY WHILE A MODAL IS UP, and not permanently: `.boardbg` is a CHILD of `.app` (z-index 0), so a status
+   bar parked below `.app` is below the BOARD too and vanishes entirely. Above-the-board-but-below-everything-
+   else is not expressible from outside `.app`'s stacking context — it would need the bar moved into that tree.
+   While a modal is up the board is covered anyway, so hiding behind `.app` is exactly right; in normal play the
+   bar keeps its 40 and the power stays clickable.
+   The filter-dim rule above is now belt-and-braces (it still covers the fade in and out). */
+body.modalup .statusbar { z-index: 0; }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
 /* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
 .forge-gold {
@@ -2101,8 +2106,8 @@ body:has(.forge-ov) .statusbar { z-index: 0; }
    this costs one paint when the overlay opens. Every value is dialled by the 🪨 Runeforge Backdrop tuner. */
 .forge-ov {
   background:
-    url('/runeforgebg2.webp') 50% 50% / auto 100% no-repeat,
-    linear-gradient(rgba(14, 16, 22, 0.72), rgba(14, 16, 22, 0.72));
+    url('/runeforgebg2.webp') 50% 55% / auto 78% no-repeat,
+    linear-gradient(rgba(14, 16, 22, 0.53), rgba(14, 16, 22, 0.53));
 }
 .forge-banner {
   background: linear-gradient(180deg, #6a6f7a 0%, #4a4e57 55%, #363a42 100%);

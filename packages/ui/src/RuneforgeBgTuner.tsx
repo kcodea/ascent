@@ -32,12 +32,13 @@ interface ForgeBgVals {
   [k: string]: number | string;
 }
 
-/** MIRRORS the shipped `.forge-ov` rule in styles.css — so Reset returns you to what players see. */
+/** MIRRORS the shipped `.forge-ov` rule in styles.css — so Reset returns you to what players see. These are the
+ *  owner's tuned values, dialled in this panel and baked 2026-08-13; keep the two in lockstep. */
 const DEFAULTS: ForgeBgVals = {
-  zoom: 100,
+  zoom: 78,
   posX: 50,
-  posY: 50,
-  scrim: 0.72,
+  posY: 55,
+  scrim: 0.53,
 };
 
 const num = (v: ForgeBgVals, k: string): number => Number(v[k]);

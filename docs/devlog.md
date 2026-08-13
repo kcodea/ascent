@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-13 — Set-2 Demon art re-wire (23 masters) + an illustrated Runeforge backdrop
+
+**Demon art re-wire.** Re-wired every master in `C:\Game Assets\Ascent Art\Set 2 Minions\Demons` onto its card
+by NAME MATCH, then ran `npm run optimize-art` (≤512px, WebP q85) so the new files replaced the existing
+`.webp` build copies in place. 23 files, 50.6MB → 1.24MB (97.5% smaller). No code change — `art.ts` keys art by
+card id, so a re-wire is purely a file swap.
+
+The mapping (art filename → card id), all exact card-NAME matches:
+`AppetiteAgent→dm_agent`, `AvariceIncarnate→dm_avarice`, `BigHuggies→dm_velvet`, `BobBlart→dm_gourmand`,
+`Broodwright→dm_broodwright`, `Chipper→dm_glutton`, `CinderClerk→dm_clerk`, `ContractButcher→dm_butcher`,
+`demonhorse→dm_hungerling`, `EndlessOverseer→dm_overseer`, `ErrandFiend→dm_errand`, `FeastmasterVhal→dm_vhal`,
+`Hellrider→dm_maw`, `Imp→impscrap`, `ImpOverseer→impoverseer`, `ImpWrangler→dm_wrangler`,
+`LegionShepherd→dm_shepherd`, `Malphas→dm_malphas`, `MarketTormentor→dm_tormentor`, `RightHandHank→dm_hank`,
+`RougeRogue→dm_chancellor`, `SoulDefiler→dm_curator`, `VoidCurator→dm_tallymonger`.
+
+Three of those live outside Set 2 but matched a real card name exactly, so they were wired anyway: `impoverseer`
++ `impscrap` are Set-1 (the Imp Overseer card and the shared Imp token), and `dm_tallymonger` / `dm_chancellor`
+are ARCHIVED cards (`cards/archive.ts`) that still carry art. **Two files were deliberately NOT wired** — `Blu.png`
+matches no card in the repo, and `content1544.png` is un-attributed. Per the standing rule we never guess a card
+from an un-attributed filename; if either belongs to a card, the owner can name it and it's a one-file drop.
+
+**Runeforge backdrop.** The Runeforge overlay was a flat slate scrim (`.forge-ov { background: rgba(14,16,22,.72) }`).
+It now paints the owner's `runeforgebg2` art underneath that same scrim — converted to
+`apps/web/public/runeforgebg2.webp` (1536×1024, q82, 139KB) and referenced root-absolute from `styles.css` like the
+other public backdrops. The dark gradient is kept as a layer ON TOP of the image, which is what keeps the engraved
+banner and the rune tablets readable over the illustration. Both forge menus get it: the normal and the Epic
+Runeforge are the same element (`.forge-epic` only re-tones the banner/accents), so one rule covers both. Added to
+`PUBLIC_ART_URLS` in `art.ts` so the boot preloader fetches it — otherwise the forge opens on a bare scrim for a
+frame while the image is fetched. Static layers only; nothing here animates a paint property.
+
+**Verified:** full gate green — typecheck, lint (0 errors, 7 pre-existing warnings), test 5036/5036 across 303
+files, `build:web` in 6.79s. Live in the dev server on a throwaway run: all 23 art URLs resolve and decode at
+512×512 through `artFor()`, and the open `.forge-ov` computes
+`linear-gradient(...), url("/runeforgebg2.webp")` at `cover` with the image loading at its natural 1536×1024. No
+app console errors. NB: a screenshot could not be captured in this session (the Browser pane wasn't displayed),
+so the checks above are DOM/computed-style based — the backdrop's artistic fit is still worth an owner eyeball.
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 13: the audit MEASURES emission
 
 `npm run beats:audit` could always answer "is this effect classified?". It could never answer the question

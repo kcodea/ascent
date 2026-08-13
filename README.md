@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **New Demon art + an illustrated Runeforge** — every Set-2 Demon (plus the Imp token and Imp Overseer) wears new illustrated art, and the Runeforge menus now open on a painted forge backdrop instead of a flat slate scrim.
+
 - **Spells cast with less drag** — a spell dragged from the hand now arms on its own, lower line (near the hand) instead of the minion play line up by the warband, so targeted and untargeted spells both activate sooner. Tunable via a new Drag-Feel → Spell cast slider; minion play is unchanged.
 - **Owner-tuned layout defaults** — the shop row, shop-controls tray, and warband are baked to the owner's tuned positions/scale (updated in both the Layout Lab defaults and the production CSS fallbacks).
 - **Owner-tuned layout defaults** — the shop row, shop-controls tray, warband, and hand row are baked to the owner's tuned positions/scale (updated in both the Layout Lab defaults and the production CSS fallbacks).

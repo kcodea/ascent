@@ -2083,7 +2083,14 @@ body.modalup .statusbar .questbadges {
 
 /* ── Runeforge (Runesmith, turn 6) — a STONE/ENGRAVED shop, deliberately cold + carved vs the warm gold Quest
    panel: slate backdrop, a chiseled stone banner with engraved text, and carved rune tablets. ── */
-.forge-ov { background: rgba(14, 16, 22, 0.72); }
+/* Illustrated forge backdrop, under a slate scrim: the gradient layer is what keeps the engraved banner and the
+   rune tablets readable over the art (and matches the cold tone the rest of the panel is built around). Static
+   layers only — no animation on this background, so it costs one paint when the overlay opens. */
+.forge-ov {
+  background:
+    linear-gradient(rgba(14, 16, 22, 0.72), rgba(14, 16, 22, 0.72)),
+    url('/runeforgebg2.webp') center / cover no-repeat;
+}
 .forge-banner {
   background: linear-gradient(180deg, #6a6f7a 0%, #4a4e57 55%, #363a42 100%);
   border: 3px solid #23262d; border-radius: calc(11 * var(--u));

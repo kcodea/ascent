@@ -56,3 +56,10 @@
 7. Expand the source-grouped library to multi-phase sources.
 8. Add emission-fixture CI + FX-isolation tests.
 9. Full browser acceptance scenarios (the EoT + Start-of-Combat acceptance fixtures) and tune timings.
+
+## Deferred watch-items (revisit at the end)
+- **Spurious minion trigger-pulses when a spell "beats"** (owner report 2026-08-13). In the LIVE game, when a
+  spell like Fleeting Vigor plays its beat, board minions show their trigger medallions pulsing as if THEY
+  triggered — a mis-attribution in the current End-of-Turn playback. May self-resolve once the cutover's
+  event-driven player only pulses the actual source; if not, fix it after the cutover lands.
+- **Roll the End-of-Turn shop buff instead of jumping** (owner, 2026-08-12) — see roadmap "Now".

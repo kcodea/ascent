@@ -9,9 +9,10 @@
  * Dev-only: mounted behind `import.meta.env.DEV` by the Dev Menu, and it only ever READS `latestBatch` from the
  * store (published by `dispatch` in DEV — PR 3). No editing, no persistence, no gameplay effect.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
+import { scheduleBeats, activeBeatIndex } from './beatTimeline';
 import './beatLab.css';
 
 const isTrigger = (e: GamePresentationEvent): e is SourceTriggerEvent => e.type === 'sourceTrigger';
@@ -64,11 +65,11 @@ function buildTree(batch: PresentationBatch): { roots: Node[]; orphans: Conseque
   return { roots, orphans };
 }
 
-function TriggerNode({ node, depth }: { node: Node; depth: number }): React.ReactElement {
+function TriggerNode({ node, depth, activeId }: { node: Node; depth: number; activeId: string | null }): React.ReactElement {
   const t = node.trigger;
   return (
     <div className="bl-node" style={{ marginLeft: depth * 18 }}>
-      <div className="bl-trigger">
+      <div className={`bl-trigger${t.id === activeId ? ' bl-active' : ''}`}>
         <span className="bl-step">step {t.step}</span>
         <span className="bl-policy" style={{ background: POLICY_TINT[t.policy] ?? '#666' }}>{t.policy}</span>
         <span className="bl-source">{t.source.label ?? t.source.id}</span>
@@ -78,7 +79,7 @@ function TriggerNode({ node, depth }: { node: Node; depth: number }): React.Reac
       {node.consequences.map((c) => (
         <div key={c.id} className="bl-cons">↳ {describe(c)}</div>
       ))}
-      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} />)}
+      {node.children.map((ch) => <TriggerNode key={ch.trigger.id} node={ch} depth={depth + 1} activeId={activeId} />)}
     </div>
   );
 }
@@ -87,6 +88,44 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   const batch = useGame((s) => s.latestBatch);
   const revision = useGame((s) => s.beatRevision);
   const tree = useMemo(() => (batch ? buildTree(batch) : null), [batch]);
+  const schedule = useMemo(() => (batch ? scheduleBeats(batch) : null), [batch]);
+
+  // Transport: a playhead (ms) that walks the schedule. `playing` advances it via rAF; the active beat is the
+  // last one whose window has started. Reset whenever a new batch arrives.
+  const [playheadMs, setPlayheadMs] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const lastTsRef = useRef<number | null>(null);
+
+  useEffect(() => { setPlayheadMs(0); setPlaying(false); }, [revision]);
+
+  useEffect(() => {
+    if (!playing || !schedule) return;
+    const tick = (ts: number): void => {
+      const last = lastTsRef.current;
+      lastTsRef.current = ts;
+      if (last != null) {
+        setPlayheadMs((ms) => {
+          const nextMs = ms + (ts - last);
+          if (nextMs >= schedule.totalMs) { setPlaying(false); return schedule.totalMs; }
+          return nextMs;
+        });
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); lastTsRef.current = null; };
+  }, [playing, schedule]);
+
+  const activeIdx = schedule ? activeBeatIndex(schedule.beats, playing || playheadMs > 0 ? playheadMs : -1) : -1;
+  const activeId = activeIdx >= 0 && schedule ? schedule.beats[activeIdx]!.id : null;
+  const beatCount = schedule?.beats.length ?? 0;
+
+  const stepTo = (i: number): void => {
+    if (!schedule || i < 0 || i >= schedule.beats.length) return;
+    setPlaying(false);
+    setPlayheadMs(schedule.beats[i]!.startMs);
+  };
 
   return (
     <div className="bl-overlay" role="dialog" aria-label="Beat Lab">
@@ -98,6 +137,15 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         </span>
         <button className="bl-close" onClick={onClose} aria-label="Close Beat Lab">✕</button>
       </div>
+      {schedule && beatCount > 0 && (
+        <div className="bl-transport">
+          <button className="bl-tbtn" onClick={() => stepTo(activeIdx - 1)} disabled={activeIdx <= 0} aria-label="Previous beat">⏮</button>
+          <button className="bl-tbtn" onClick={() => { if (playheadMs >= schedule.totalMs) setPlayheadMs(0); setPlaying((p) => !p); }} aria-label={playing ? 'Pause' : 'Play'}>{playing ? '⏸' : '▶'}</button>
+          <button className="bl-tbtn" onClick={() => stepTo(activeIdx + 1)} disabled={activeIdx >= beatCount - 1} aria-label="Next beat">⏭</button>
+          <button className="bl-tbtn" onClick={() => { setPlaying(false); setPlayheadMs(0); }} aria-label="Rewind">⏹</button>
+          <span className="bl-time">beat {Math.max(0, activeIdx + 1)}/{beatCount} · {Math.round(playheadMs)}/{Math.round(schedule.totalMs)}ms</span>
+        </div>
+      )}
       <div className="bl-body">
         {!batch && (
           <div className="bl-empty">
@@ -108,7 +156,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         {tree && (
           <>
             {tree.roots.length === 0 && <div className="bl-empty">This action produced no source-attributed triggers.</div>}
-            {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} />)}
+            {tree.roots.map((n) => <TriggerNode key={n.trigger.id} node={n} depth={0} activeId={activeId} />)}
             {tree.orphans.length > 0 && (
               <div className="bl-orphans">
                 <div className="bl-orphan-h">unparented consequences ({tree.orphans.length})</div>

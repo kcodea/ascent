@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-12 — Beat System PR 6: beat-player engine + End-of-Turn equivalence (no live cutover)
+
+Sixth slice (stacked on PR 5). Owner-scoped decision: build the playback ENGINE and prove event↔gameplay
+equivalence, but DO NOT cut the live shop animation over yet — PR 5's event stream carries stats + resources
+but not yet the full FX set the live End-of-Turn animation needs (card/hand grants, spell power, imp aura,
+shop buffs, welds, fodder). Cutting over now would regress those; the cutover waits for a later coverage PR.
+
+**Player engine** (`beatLab/beatTimeline.ts`, pure + unit-tested): `scheduleBeats(batch)` compiles a
+PresentationBatch into an ordered, sequentially-timed list of beats (one per trigger, consequences attached by
+parentId), with restrained per-policy default timings (ownBeat holds, foldedCue barely does).
+`activeBeatIndex(beats, ms)` gives the playhead's current beat. Deterministic.
+
+**Beat Lab transport**: the read-only viewer gains ▶/⏸ ⏮ ⏭ ⏹ + a playhead that walks the schedule via rAF,
+highlighting the active beat (blue glow) as it plays — you can watch a captured batch beat-by-beat. Still
+dev-only, still read-only w.r.t. gameplay.
+
+**Equivalence harness** (`beatEotEquivalence.test.ts`): asserts the batch's per-uid stat deltas equal the
+GROUND TRUTH (a real `applyEndOfTurn` diff) — no phantom, no missing stat events — the prerequisite before any
+future live cutover. Also asserts the legacy `projectEndOfTurnSteps` still runs unchanged (live path untouched).
+
+Verified: typecheck + lint + npm test (5003; +8 timeline + equivalence) + build:web green; live — played a
+Shout, opened Beat Lab, hit ▶ and watched the Hoard Cleric beat highlight with its +3/+3 consequences,
+transport reading `beat 1/1 · 710/710ms`.
+
 ## 2026-08-12 — Beat System PR 5: End-of-Turn event migration
 
 Fifth slice (stacked on PR 4) — the first real vertical slice from the handoff doc. `applyEndOfTurn` now emits

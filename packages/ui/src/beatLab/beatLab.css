@@ -32,6 +32,27 @@
   cursor: pointer;
 }
 .bl-close:hover { background: rgba(160, 170, 200, 0.15); }
+.bl-transport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(120, 140, 200, 0.2);
+  background: rgba(30, 34, 46, 0.6);
+}
+.bl-tbtn {
+  background: rgba(90, 100, 140, 0.25);
+  border: 1px solid rgba(150, 160, 200, 0.3);
+  color: #e6ebf6;
+  border-radius: 6px;
+  min-width: 32px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.bl-tbtn:hover:not(:disabled) { background: rgba(120, 130, 175, 0.4); }
+.bl-tbtn:disabled { opacity: 0.35; cursor: default; }
+.bl-time { margin-left: 8px; color: #9aa3ba; }
 .bl-body { flex: 1; overflow: auto; padding: 14px; }
 .bl-empty { color: #8a93a8; max-width: 60ch; }
 .bl-empty code { color: #cbd3e6; }
@@ -43,6 +64,11 @@
   padding: 4px 8px;
   background: rgba(60, 70, 100, 0.25);
   border-radius: 6px;
+  transition: background 80ms, box-shadow 80ms;
+}
+.bl-trigger.bl-active {
+  background: rgba(120, 150, 220, 0.45);
+  box-shadow: 0 0 0 1px rgba(160, 190, 255, 0.7), 0 0 12px rgba(120, 150, 220, 0.5);
 }
 .bl-step { color: #7f8aa6; min-width: 48px; }
 .bl-policy { color: #10131a; font-weight: 700; padding: 1px 7px; border-radius: 10px; font-size: 10px; }

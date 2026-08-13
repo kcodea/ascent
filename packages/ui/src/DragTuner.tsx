@@ -38,6 +38,8 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
   handFloor:     ['Hand card floor', '×', 'Where a hovered hand card’s BOTTOM lands, as a multiple of card height. Works against the pop lift — higher sits lower.', 'Row behaviour'],
   handPop:       ['Hand card pop', '×', 'How far a hovered hand card pops up, as a multiple of card height.', 'Row behaviour'],
 
+  spellLine:     ['Spell cast line', '×', 'How far a SPELL must be lifted from the hand before it arms. 0 = up at the warband (a long drag); 1 = right at the hand’s top edge. Higher = less drag to cast. Spells only — minions unchanged.', 'Spell cast'],
+
   magSlideMs:    ['Magnet slide', 'ms', 'How long an Attachment takes to slide onto its host.', 'Attachment'],
   magWeldLeadMs: ['Weld lead', 'ms', 'How early before the slide ends the weld commits, so its ring OVERLAPS the tail of the slide instead of starting after it. 0 is back-to-back.', 'Attachment'],
 
@@ -53,6 +55,7 @@ const ORDER: (keyof DragFeel)[] = [
   'tiltGain', 'tiltEase', 'tiltMax', 'perspective', 'staticRotate',
   'recenter', 'recenterAfter', 'handGrabY', 'snapMs',
   'collapseY', 'handFloor', 'handPop',
+  'spellLine',
   'magSlideMs', 'magWeldLeadMs',
   'shGrow', 'shLift', 'shBlur', 'shFade',
 ];

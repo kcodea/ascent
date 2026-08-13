@@ -271,7 +271,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    vars (--cw/--ccw) so it actually resizes the hand cards, instead of only inflating --ch → --hand-tuck (which
    just slid the hand up/down — the reported bug). The width is built from the ROOT basis (--ch-base * --card-scale,
    NOT the 1.18-inflated --ch) × the lever, so at the default 1 the hand card is exactly a shop/warband card. */
-.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: calc(var(--z-hand-x, 0px) * var(--scale)) calc(var(--z-hand-y, -2px) * var(--scale)); }
+.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: calc(var(--z-hand-x, 0px) * var(--scale)) calc(var(--z-hand-y, -117px) * var(--scale)); }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1) * var(--hud-mobile, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }

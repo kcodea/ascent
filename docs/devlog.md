@@ -22,6 +22,37 @@ Verified live: board [Moira, Market Tormentor] + a 1/1 right-most Shop minion �
 badge ticks `recruit:1 → recruit:8 → combat:8` (changes on the beat, in recruit, before the phase flip).
 typecheck + lint + build:web green. Standalone fix (off main), independent of the beat-system stack.
 (Possible refinement: the shop number JUMPS via releaseStat; the board ROLLS — could roll the shop too later.)
+## 2026-08-12 — Spells arm on their own, lower line (drag-to-cast needs less lift)
+
+Owner: dragging a spell from the hand felt like too long a drag before it "activated as a spell." Root cause:
+a spell shared the **minion play line** (`playFloor`, ~10% up from the warband's bottom), so both targeted
+and untargeted spells had to be dragged nearly to the warband before they'd aim/cast.
+
+Fix (UI-only): give spells their own, LOWER line. New `spellFloor` sits between the warband's bottom and the
+hand's top, from a live `spellLine` knob (0 = at the warband, 1 = at the hand's top edge; default **0.55**).
+Everything spell-side now reads `spellFloor` instead of `playFloor`: the aim-reticle gate
+(`computeCastingSpell`), the reorder-vs-cast boundary (a spell only reorders when dropped down near the hand),
+and untargeted casting (`up = y < spellFloor`, replacing the warband/tavern-zone check). Minion play is
+untouched — `playFloor` is unchanged, and `spellFloor` in the pure decision layer falls back to `playFloor`
+when absent (so the old behaviour is the default). Added a **Drag-Feel → Spell cast** slider so the owner can
+dial the line live.
+
+`dragDecision.ts` gains an optional `spellFloor` input threaded from `Recruit`'s new `spellFloorRef` (computed
+alongside `playFloorRef` from the hand rect). New tests pin the split (spell aims between the two lines while a
+minion at the same height still reorders; spell reorders below its line; fallback = play floor).
+`DRAG_DEFAULTS_VERSION` 6→7 + fingerprint. Also folds in an owner drag-feel retune from the same session:
+`handPop` 0.53→0.22 (a gentler hand hover-pop). Verified: typecheck (pkgs+web), eslint 0 errors, 4977 tests,
+build:web.
+
+## 2026-08-12 — Lapidary counter + EoT beat; the counter & EoT-animation audits
+## 2026-08-12 — Bake owner-tuned HAND-row Y default (raise the hand)
+
+Follow-on to #995 (which baked the shop/warband/shop-controls layout defaults): the owner's latest Layout Lab
+export also moved the **hand row up**, `handY` −2 → **−117** — the one value #995 didn't include. Baked in both
+places so dev (Layout Lab `def`) and production (the `--z-hand-y` CSS fallback in `styles.css`) match: a Reset
+and a prod build now both sit the hand at −117. No other layout value differs from the owner's export.
+
+Verified: typecheck (pkgs+web), eslint 0 errors, tests, build:web.
 
 ## 2026-08-12 — Bake owner-tuned shop/warband layout defaults
 

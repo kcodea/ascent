@@ -5,6 +5,8 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { shippedBeatConfig } from './choreographer/beatConfig';
+import { draftToEngine } from './beatLab/labSchedule';
+import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent } from '@game/core';
 
@@ -3950,7 +3952,17 @@ export function Recruit() {
     // CHOREOGRAPHER PR 10: compile with the COMMITTED config, so a beat tuned in the tool and committed to
     // `beat-defaults.json` actually paces the live game. Without this the compiler used its defaults and
     // authored timings were written to a file nothing read — the last piece of "my edits do nothing".
-    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), { config: shippedBeatConfig() });
+    // PR 19: when the Beat Lab's LIVE toggle is on, the UNCOMMITTED session draft layers on top — tune a
+    // beat, close the Lab, end a real turn, judge. DEV only, explicit opt-in, banner shown while active
+    // (blueprint §15: "live gameplay must not silently use unsaved draft values").
+    const liveDraft = import.meta.env.DEV && useGame.getState().beatDraftLive ? useGame.getState().beatDraft : null;
+    const converted = liveDraft
+      ? draftToEngine(liveDraft.timings as BeatTimingOverrides, liveDraft.policies as BeatPolicyOverrides)
+      : null;
+    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), {
+      config: shippedBeatConfig(),
+      ...(converted ? { draft: converted.draft, modeDraft: converted.modeDraft } : {}),
+    });
     if (import.meta.env.DEV && timeline.diagnostics.length) {
       // Surfaced, not swallowed: a diagnostic here is a real coverage gap, and the whole point of this pivot
       // is that such gaps stop being invisible.

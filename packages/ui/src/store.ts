@@ -3,6 +3,7 @@ import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
+import { setCombatDraftProvider } from './choreographer/combatHolds';
 import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
@@ -286,6 +287,16 @@ interface GameStore {
    *  Lab to inspect (DEV only; null in prod). Read-only: combat still plays on its own runtime, this only
    *  re-describes the fight. */
   latestCombatTimeline: CompiledTimeline | null;
+  /**
+   * CHOREOGRAPHER PR 19 — the Beat Lab's session draft, published for LIVE playback (blueprint §15).
+   * Ephemeral and never serialized: closing the app loses it, exactly like the Lab's own state. `beatDraftLive`
+   * is the explicit opt-in — normal play uses shipped config unless the owner flips it, and a persistent
+   * banner shows whenever draft values are pacing the real game. DEV only; prod never reads either field.
+   */
+  beatDraft: { timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>; policies: Record<string, string> } | null;
+  beatDraftLive: boolean;
+  setBeatDraft: (draft: GameStore['beatDraft']) => void;
+  setBeatDraftLive: (on: boolean) => void;
   /** Export the current run as a tiny deterministic replay `{ seed, heroId, actions }` (DEV: grab it
    *  via `useGame.getState().exportReplay()`; feed it to `replayRun` / the replay harness). */
   exportReplay: () => Replay;
@@ -965,6 +976,10 @@ export const useGame = create<GameStore>((set, get) => ({
   latestBatch: null,
   beatRevision: 0,
   latestCombatTimeline: null,
+  beatDraft: null,
+  beatDraftLive: false,
+  setBeatDraft: (beatDraft) => set({ beatDraft }),
+  setBeatDraftLive: (beatDraftLive) => set({ beatDraftLive }),
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],
@@ -1206,6 +1221,15 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+
+// CHOREOGRAPHER PR 21: hand the LIVE Beat-Lab draft to combat pacing through a provider — the clock module
+// cannot import the store (cycle through the combat-timeline composition). DEV-only, like the draft itself.
+if (import.meta.env.DEV) {
+  setCombatDraftProvider(() => {
+    const s = useGame.getState();
+    return s.beatDraftLive && s.beatDraft ? (s.beatDraft as { timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>; policies: Record<string, string> } as never) : null;
+  });
+}
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

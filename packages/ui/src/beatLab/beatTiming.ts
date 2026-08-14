@@ -1,16 +1,16 @@
 /**
- * BEAT SYSTEM PR 7 — the beat-timing layer: shipped defaults + a specificity-ordered override resolver.
+ * BEAT SYSTEM — the Beat Lab's config-file layer (slimmed in CHOREOGRAPHER PR 18).
  *
- * Timing for a beat resolves through a fallback chain (blueprint §14.2), most-specific first:
- *   1. `source:<kind>:<id>:<trigger>` — one exact card/rune/quest trigger (make ONE thing more deliberate)
- *   2. `family:<family>`              — a registry timing family ('avenge', 'castPayoff', …)
- *   3. `trigger:<trigger>`            — every 'endOfTurn', every 'onPlay', …
- *   4. `policy:<policy>`              — the per-policy shipped defaults (ownBeat holds, foldedCue barely does)
- *   5. global fallback
- * Overrides are SPARSE patches — a draft that sets only `holdMs` inherits the rest from the next level down.
+ * This module used to carry a full v1 timing RESOLVER (`resolveBeatTiming`, `POLICY_TIMING`, provenance) —
+ * a second engine beside the live compiler, which is exactly the "lab shows what the game won't play" drift
+ * the pivot exists to end. The resolver is gone: every Lab preview now schedules through
+ * `labSchedule.ts` → `compileTimeline`, the same engine and committed config live playback uses.
  *
- * Shipped defaults reproduce the PR-6 player exactly (equivalence first, tuning after — blueprint §14.3).
- * Drafts live in the Beat Lab store, session-only, never auto-active on load (the old pacing-tuner failure).
+ * What remains here is the file/draft plumbing the editor still needs:
+ *   - the editor's v1 vocabulary types (wind-up / hold / recovery — the owner's plain-words dials);
+ *   - reading `beat-defaults.json` back into that vocabulary (v2 → v1 on the way IN);
+ *   - field-level draft merging for the Commit button;
+ *   - the v1 key grammar (`timingKeysFor`) that edit keys are written in.
  */
 import type { PresentationPolicy, SourceTriggerEvent } from '@game/core';
 import { presentationPolicyFor } from '@game/core';
@@ -22,16 +22,6 @@ export interface BeatTiming {
   recoveryMs: number;
 }
 export type BeatTimingPatch = Partial<BeatTiming>;
-
-/** Shipped per-policy defaults — identical to the PR-6 player's DEFAULT_TIMING (behavior-preserving). */
-export const POLICY_TIMING: Record<PresentationPolicy, BeatTiming> = {
-  ownBeat: { windupMs: 120, holdMs: 420, recoveryMs: 170 },
-  foldedCue: { windupMs: 0, holdMs: 160, recoveryMs: 60 },
-  passive: { windupMs: 0, holdMs: 0, recoveryMs: 0 },
-  intentionallySilent: { windupMs: 0, holdMs: 0, recoveryMs: 0 },
-};
-
-export const GLOBAL_TIMING: BeatTiming = POLICY_TIMING.ownBeat;
 
 /** Sparse override map, keyed by the specificity chain's key strings. */
 export type BeatTimingOverrides = Record<string, BeatTimingPatch>;
@@ -96,59 +86,4 @@ export function timingKeysFor(t: Pick<SourceTriggerEvent, 'source' | 'trigger' |
   if (entry?.family) keys.push(`family:${entry.family}`);
   keys.push(`trigger:${t.trigger}`, `policy:${t.policy}`);
   return keys;
-}
-
-/**
- * The EFFECTIVE policy for a beat: the registry/emitted policy, unless a policy override (committed or draft)
- * reclassifies it — most-specific wins, same chain as timing. This is what the "folded → own beat" toggle sets.
- */
-export function resolvePolicy(
-  t: Pick<SourceTriggerEvent, 'source' | 'trigger' | 'policy'>,
-  overrides: BeatPolicyOverrides = {},
-): PresentationPolicy {
-  const all = { ...SHIPPED_POLICY_OVERRIDES, ...overrides };
-  const chain = timingKeysFor(t);
-  for (let i = 0; i < chain.length; i++) { const p = all[chain[i]!]; if (p) return p; } // most-specific first
-  return t.policy;
-}
-
-/**
- * Resolve one beat's effective timing: start from the per-policy shipped default (of the EFFECTIVE policy, so a
- * folded→own toggle re-bases the timing), then merge sparse timing overrides from LEAST to MOST specific.
- */
-export function resolveBeatTiming(
-  t: Pick<SourceTriggerEvent, 'source' | 'trigger' | 'policy'>,
-  overrides: BeatTimingOverrides = {},
-  policyOverrides: BeatPolicyOverrides = {},
-): BeatTiming {
-  const policy = resolvePolicy(t, policyOverrides);
-  const base = POLICY_TIMING[policy] ?? GLOBAL_TIMING;
-  let out: BeatTiming = { ...base };
-  // Committed defaults first, then the session draft on top (field-level) — so an uncommitted edit overrides a
-  // committed one for the same key/field, and both override the (effective-policy) shipped default.
-  const all = mergeOverrides(SHIPPED_OVERRIDES, overrides);
-  const chain = timingKeysFor(t);
-  for (let i = chain.length - 1; i >= 0; i--) {
-    const patch = all[chain[i]!];
-    if (patch) out = { ...out, ...patch };
-  }
-  return out;
-}
-
-/** Which override key actually supplies each field (for the inspector's "inherited from" readout). */
-export function timingProvenance(
-  t: Pick<SourceTriggerEvent, 'source' | 'trigger' | 'policy'>,
-  overrides: BeatTimingOverrides = {},
-): Record<keyof BeatTiming, string> {
-  const chain = timingKeysFor(t);
-  const prov: Record<keyof BeatTiming, string> = {
-    windupMs: `policy:${t.policy}`, holdMs: `policy:${t.policy}`, recoveryMs: `policy:${t.policy}`,
-  };
-  const all = mergeOverrides(SHIPPED_OVERRIDES, overrides);
-  for (let i = chain.length - 1; i >= 0; i--) {
-    const patch = all[chain[i]!];
-    if (!patch) continue;
-    for (const f of ['windupMs', 'holdMs', 'recoveryMs'] as const) if (patch[f] !== undefined) prov[f] = chain[i]!;
-  }
-  return prov;
 }

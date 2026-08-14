@@ -15,9 +15,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
-import { scheduleBeats, activeBeatIndex } from './beatTimeline';
-import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
+import { labSchedule, activeBeatIndex } from './labSchedule';
+import { mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
+import { CombatTimelineView } from './CombatTimelineView';
 import { migrateV1Patch } from '../choreographer/resolveTiming';
 import beatDefaults from './beat-defaults.json';
 import './beatLab.css';
@@ -109,8 +110,10 @@ export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, 
   onSelectTrigger?: (t: SourceTriggerEvent) => void;
   selectedId?: string | null;
 }): React.ReactElement {
+  // ONE ENGINE (PR 18): the preview schedules through the SAME compiler + committed config live playback
+  // uses, so what the Lab shows is what the game plays — nesting, staggers and family templates included.
   const schedule = useMemo(
-    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides, policyOverrides)),
+    () => labSchedule(batch, overrides, policyOverrides),
     [batch, overrides, policyOverrides],
   );
   const tree = useMemo(() => buildTree(batch), [batch]);
@@ -154,11 +157,9 @@ export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, 
   // so the timing visibly gates when the buff "goes out" — it was showing statically before, which read as
   // "the beat timing does nothing." At rest (fresh, playhead 0, not playing) show the final state; once you
   // play or scrub, each consequence is withheld until its beat fires.
-  const consequenceMsById = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const b of schedule.beats) for (const c of b.consequences) m.set(c.id, b.consequenceMs);
-    return m;
-  }, [schedule]);
+  // Per-consequence landing times come straight from the compiled deliveries — STAGGERED, so a multi-target
+  // wave lands one by one in the tree exactly as it does on the board.
+  const consequenceMsById = schedule.consequenceAtMs;
   const atRest = !playing && playheadMs === 0;
   const landed = (id: string): boolean => atRest || playheadMs >= (consequenceMsById.get(id) ?? 0);
 
@@ -217,16 +218,92 @@ function toV2File(
   };
 }
 
+/**
+ * Window-chrome prefs (position / size / text size) — PURE UI preferences, so unlike timing drafts they are
+ * fine to persist in localStorage: they say how the owner likes the window, not how the game should pace.
+ * Owner report 2026-08-13: the fixed full-screen inset forced closing the Lab to play at all.
+ */
+interface LabUiPrefs { left: number; top: number; width: number; height: number; fontPx: number }
+const UI_PREFS_KEY = 'ascent.beatlab.ui';
+function loadUiPrefs(): LabUiPrefs {
+  const fallback: LabUiPrefs = {
+    left: Math.round(window.innerWidth * 0.06),
+    top: Math.round(window.innerHeight * 0.06),
+    width: Math.round(window.innerWidth * 0.88),
+    height: Math.round(window.innerHeight * 0.88),
+    fontPx: 12,
+  };
+  try {
+    const raw = JSON.parse(localStorage.getItem(UI_PREFS_KEY) ?? '') as Partial<LabUiPrefs>;
+    const p = { ...fallback, ...raw };
+    // Clamp into the current viewport — a saved position from a bigger monitor must not strand the window
+    // (and its close button) off-screen.
+    p.width = Math.min(Math.max(520, p.width), window.innerWidth - 16);
+    p.height = Math.min(Math.max(320, p.height), window.innerHeight - 16);
+    p.left = Math.min(Math.max(0, p.left), window.innerWidth - 120);
+    p.top = Math.min(Math.max(0, p.top), window.innerHeight - 60);
+    p.fontPx = Math.min(18, Math.max(10, p.fontPx));
+    return p;
+  } catch { return fallback; }
+}
+const saveUiPrefs = (p: LabUiPrefs): void => { try { localStorage.setItem(UI_PREFS_KEY, JSON.stringify(p)); } catch { /* ignore */ } };
+
 export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
+  // ── window chrome: drag the topbar to move, native CSS handle (bottom-right) to resize, slider for text ──
+  const [ui, setUi] = useState<LabUiPrefs>(loadUiPrefs);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  useEffect(() => saveUiPrefs(ui), [ui]);
+  // Native `resize: both` changes the element without telling React — observe it so the size persists.
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      setUi((u) => (Math.abs(r.width - u.width) > 1 || Math.abs(r.height - u.height) > 1 ? { ...u, width: Math.round(r.width), height: Math.round(r.height) } : u));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const onBarPointerDown = (e: React.PointerEvent): void => {
+    // Buttons/inputs on the bar keep their own behavior; empty bar space is the move handle.
+    if ((e.target as Element).closest('button, input, select')) return;
+    dragRef.current = { dx: e.clientX - ui.left, dy: e.clientY - ui.top };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onBarPointerMove = (e: React.PointerEvent): void => {
+    const d = dragRef.current;
+    if (!d) return;
+    setUi((u) => ({
+      ...u,
+      left: Math.min(Math.max(0, e.clientX - d.dx), window.innerWidth - 120),
+      top: Math.min(Math.max(0, e.clientY - d.dy), window.innerHeight - 40),
+    }));
+  };
+  const onBarPointerUp = (): void => { dragRef.current = null; };
+
   const batch = useGame((s) => s.latestBatch);
   const revision = useGame((s) => s.beatRevision);
-  const [mode, setMode] = useState<'capture' | 'library'>('capture');
+  const beatDraftLive = useGame((s) => s.beatDraftLive);
+  const setBeatDraft = useGame((s) => s.setBeatDraft);
+  const setBeatDraftLive = useGame((s) => s.setBeatDraftLive);
+  const [mode, setMode] = useState<'capture' | 'library' | 'combat'>('capture');
   // The session DRAFT: sparse timing overrides, edited from either mode, pacing all Beat Lab playback.
-  // Deliberately NOT persisted — reopening the Lab starts from shipped timings (blueprint §17.2).
-  const [draft, setDraft] = useState<BeatTimingOverrides>({});
-  // Parallel policy draft (the folded↔own toggle) — same session-only, commit-to-file lifecycle as timing.
-  const [policyDraft, setPolicyDraft] = useState<BeatPolicyOverrides>({});
+  // Session-only (a reload starts from shipped timings — blueprint §17.2), but it SURVIVES closing and
+  // reopening the Lab: the store's published copy is the source on mount. Owner report 2026-08-13 — the
+  // workflow is tune → close → play, and a fresh empty Lab was silently clobbering the published draft.
+  const [draft, setDraft] = useState<BeatTimingOverrides>(() => (useGame.getState().beatDraft?.timings as BeatTimingOverrides) ?? {});
+  // Parallel policy draft (the folded↔own toggle) — same lifecycle as timing.
+  const [policyDraft, setPolicyDraft] = useState<BeatPolicyOverrides>(() => (useGame.getState().beatDraft?.policies as BeatPolicyOverrides) ?? {});
   const draftCount = Object.keys(draft).length + Object.keys(policyDraft).length;
+
+  // CHOREOGRAPHER PR 19 — publish the draft for LIVE playback (blueprint §15). Always published (it is
+  // ephemeral store state, not a save), but the game only READS it when the owner flips the Live toggle —
+  // and a persistent banner marks every End Turn it paces. Deliberately kept when the Lab closes, so the
+  // workflow is: tune → close the Lab → play the real turn → judge.
+  useEffect(() => {
+    setBeatDraft(draftCount > 0 ? { timings: draft, policies: policyDraft } : null);
+  }, [draft, policyDraft, draftCount, setBeatDraft]);
 
   const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify(toV2File(draft, policyDraft), null, 2)); };
 
@@ -251,12 +328,33 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   };
 
   return (
-    <div className="bl-overlay" role="dialog" aria-label="Beat Lab">
-      <div className="bl-topbar">
+    <div
+      ref={overlayRef}
+      className="bl-overlay"
+      role="dialog"
+      aria-label="Beat Lab"
+      style={{ left: ui.left, top: ui.top, width: ui.width, height: ui.height, fontSize: ui.fontPx }}
+    >
+      <div
+        className="bl-topbar bl-draggable"
+        onPointerDown={onBarPointerDown}
+        onPointerMove={onBarPointerMove}
+        onPointerUp={onBarPointerUp}
+        title="Drag to move · resize from the bottom-right corner"
+      >
         <span className="bl-title">Beat Lab</span>
         <button className={`bl-tab${mode === 'capture' ? ' bl-tab-on' : ''}`} onClick={() => setMode('capture')}>Capture</button>
         <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
+        <button className={`bl-tab${mode === 'combat' ? ' bl-tab-on' : ''}`} onClick={() => setMode('combat')} title="The last resolved fight on the shared timeline (read-only)">Combat</button>
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
+        <button
+          className={`bl-tab${beatDraftLive ? ' bl-tab-on' : ''}`}
+          style={beatDraftLive ? { borderColor: '#e0b34d', color: '#e0b34d' } : undefined}
+          onClick={() => setBeatDraftLive(!beatDraftLive)}
+          title="Pace the REAL game with this draft (uncommitted). A banner shows while it is on; committed values are unaffected."
+        >
+          {beatDraftLive ? '● LIVE' : 'Live'}
+        </button>
         {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} title="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => { setDraft({}); setPolicyDraft({}); }} title="Discard every draft override">Reset all</button>}
@@ -264,8 +362,14 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         <span className="bl-meta">
           {mode === 'capture'
             ? batch ? `${batch.actionId} · ${batch.events.length} events · rev ${revision}` : 'no batch captured yet'
-            : 'every registered beat — no playing required'}
+            : mode === 'library' ? 'every registered beat — no playing required'
+            : 'the last resolved fight, read-only'}
         </span>
+        <label className="bl-fontslider" title={`Text size: ${ui.fontPx}px`}>
+          <span>A</span>
+          <input type="range" min={10} max={18} step={1} value={ui.fontPx} onChange={(e) => setUi((u) => ({ ...u, fontPx: Number(e.target.value) }))} />
+          <span style={{ fontSize: 15 }}>A</span>
+        </label>
         <button className="bl-close" onClick={onClose} aria-label="Close Beat Lab">✕</button>
       </div>
       {mode === 'capture' && (
@@ -277,6 +381,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
             </div></div>
       )}
       {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} policyDraft={policyDraft} setPolicyDraft={setPolicyDraft} />}
+      {mode === 'combat' && <CombatTimelineView />}
     </div>
   );
 }

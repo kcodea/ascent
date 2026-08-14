@@ -20,6 +20,7 @@
  */
 import type { CombatEvent } from '@game/core';
 import { combatFlagOwner } from '@game/content';
+import { PRESENTATION_POLICIES } from '@game/core';
 import type { Moment } from '../../choreo/compile';
 import type { MomentKind } from '../../choreo/kinds';
 import type {
@@ -118,6 +119,11 @@ export function adaptCombatMoments(
     // addressable (Rune of Attacking Gems, etc.). Everything else stays honestly identity-less.
     const flag = (moment.primary as { flag?: string }).flag;
     const owner = flag ? combatFlagOwner(flag) : undefined;
+    // PR 23 — a MINION effect's events now carry the effect's own registry key (`factory:<do>:<on>`) and the
+    // card that ran it, stamped by the simulator's dispatch context. That makes the whole class addressable —
+    // Oona's onSummon, every onAttack/onDeath/avenge — with identity gameplay stamped, never guessed.
+    const stamped = moment.primary as { key?: string; srcCard?: string };
+    const effectKey = !owner && stamped.key && PRESENTATION_POLICIES[stamped.key] ? stamped.key : undefined;
 
     const consequences: TimelineConsequenceNode[] = [];
     for (const group of moment.stepGroups) {
@@ -138,18 +144,20 @@ export function adaptCombatMoments(
       }
     }
 
-    if (owner) identified++;
+    if (owner || effectKey) identified++;
     const node: TimelineSourceNode = {
       id: `combat:m:${index}`,
       phase: 'combat',
       source: owner
         ? { kind: owner.kind, id: owner.id, side: src.side, label: flag }
-        : { kind: 'minion', id: cardId ?? src.id, uid: src.uid, side: src.side, label: cardId ?? moment.kind },
+        : effectKey
+          ? { kind: 'minion', id: stamped.srcCard ?? cardId ?? src.id, side: src.side, label: stamped.srcCard ?? cardId ?? moment.kind }
+          : { kind: 'minion', id: cardId ?? src.id, uid: src.uid, side: src.side, label: cardId ?? moment.kind },
       trigger: moment.kind,
       // A quest/rune trigger gets its real key from the flag it carries (see above). Every other moment
       // stays identity-less: it has a card id and a kind, not the factory identity a key needs, and inventing
       // one would be the very trap PR 1 closed. The diagnostic below reports how many remain un-keyed.
-      ...(owner ? { policyKey: owner.key } : {}),
+      ...(owner ? { policyKey: owner.key } : effectKey ? { policyKey: effectKey } : {}),
       family,
       emittedPolicy: (isReaction ? 'reactInsideParent' : 'ownBeat') as PresentationMode,
       step: index,

@@ -12,7 +12,8 @@ import { useMemo, useState } from 'react';
 import { BatchPlayer, POLICY_TINT } from './BeatLab';
 import { BeatTimelineStrip } from './BeatTimelineStrip';
 import { sourceEntries, filterSources, fixtureBatchForTrigger, type SourceEntry, type TriggerRow, type SourceKind } from './sourceLibrary';
-import { resolveBeatTiming, resolvePolicy, timingProvenance, type BeatTiming, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
+import { labSchedule, labEffectiveTiming, modeToPolicyWord } from './labSchedule';
+import type { BeatTiming, BeatTimingOverrides, BeatPolicyOverrides } from './beatTiming';
 import type { PresentationPolicy } from '@game/core';
 
 const POLICIES: PresentationPolicy[] = ['ownBeat', 'foldedCue', 'passive', 'intentionallySilent'];
@@ -45,10 +46,16 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
   const source: SourceEntry | null = sel ? all.find((s) => s.id === sel.sourceId) ?? null : null;
   const row: TriggerRow | null = source && sel ? source.triggers.find((t) => t.id === sel.triggerId) ?? null : null;
 
-  const trig = source && row ? { source: { kind: (source.kind === 'spell' ? 'spell' : source.kind) as never, id: source.id }, trigger: row.trigger, policy: row.policy ?? 'ownBeat' } : null;
-  const effective = trig ? resolveBeatTiming(trig, draft, policyDraft) : null;
-  const prov = trig ? timingProvenance(trig, draft) : null;
-  const effectivePolicy = trig ? resolvePolicy(trig, policyDraft) : null;
+  // ONE ENGINE (PR 18): the inspector's numbers are read off the COMPILED fixture — the same compile the
+  // strip and preview render — so the fields, the drawing, the playback and the live game can only ever be
+  // the same numbers. There is no second resolver to disagree with.
+  const fixture = useMemo(() => (source && row ? fixtureBatchForTrigger(source, row) : null), [source, row]);
+  const compiled = useMemo(() => (fixture ? labSchedule(fixture, draft, policyDraft) : null), [fixture, draft, policyDraft]);
+  const primary = compiled?.timeline.beats[0] ?? null;
+  const eff = primary ? labEffectiveTiming(primary) : null;
+  const effective = eff?.timing ?? null;
+  const prov = eff?.prov ?? null;
+  const effectivePolicy = eff ? modeToPolicyWord(eff.mode, row?.policy) : null;
   const setPolicy = (p: PresentationPolicy): void => {
     if (!row) return;
     // Setting the effective policy back to the registry default clears the override rather than pinning it.
@@ -58,11 +65,21 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
     });
   };
 
+  /**
+   * Edits write the DENSE triple — the current effective values with the edited field replaced — not a sparse
+   * single field. Found live (PR 18): the editor's "hold" is RELATIVE (time after the wind-up) but the engine
+   * stores an ABSOLUTE completion offset, so a sparse hold-only patch migrated as `completion = 0 + hold` and
+   * the nonzero default wind-up silently ate part of it (typed 1200, got 1080). A dense patch pins all three
+   * numbers you are looking at, so what you type is exactly what plays.
+   */
   const edit = (f: keyof BeatTiming, value: number): void => {
-    if (!row) return;
-    setDraft((d) => ({ ...d, [row.editKey]: { ...d[row.editKey], [f]: Math.max(0, Math.round(value)) } }));
+    if (!row || !effective) return;
+    setDraft((d) => ({ ...d, [row.editKey]: { ...effective, ...d[row.editKey], [f]: Math.max(0, Math.round(value)) } }));
   };
-  const setHold = (key: string, holdMs: number): void => setDraft((d) => ({ ...d, [key]: { ...d[key], holdMs } }));
+  const setHold = (key: string, holdMs: number): void => {
+    if (!effective) return;
+    setDraft((d) => ({ ...d, [key]: { ...effective, ...d[key], holdMs } }));
+  };
   const resetSelected = (): void => {
     if (!row) return;
     setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== row.editKey)));
@@ -150,9 +167,9 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
               ))}
               {hasEdit && <button className="bl-tbtn" onClick={resetSelected}>Reset to inherited</button>}
             </div>
-            <BeatTimelineStrip batch={fixtureBatchForTrigger(source, row)} overrides={draft} policyOverrides={policyDraft} editKey={row.editKey} onHoldChange={setHold} />
+            <BeatTimelineStrip batch={fixture!} overrides={draft} policyOverrides={policyDraft} editKey={row.editKey} onHoldChange={setHold} />
             <div className="bl-fixture-banner">SYNTHETIC PREVIEW — fixture targets, not game state</div>
-            <BatchPlayer batch={fixtureBatchForTrigger(source, row)} overrides={draft} policyOverrides={policyDraft} resetKey={`${source.id}:${row.id}|${JSON.stringify(draft[row.editKey] ?? {})}|${effectivePolicy}`} />
+            <BatchPlayer batch={fixture!} overrides={draft} policyOverrides={policyDraft} resetKey={`${source.id}:${row.id}|${JSON.stringify(draft[row.editKey] ?? {})}|${effectivePolicy}`} />
           </>
         )}
       </div>

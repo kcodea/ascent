@@ -15,8 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConsequenceEvent, GamePresentationEvent, PresentationBatch, SourceTriggerEvent } from '@game/core';
 import { useGame } from '../store';
-import { scheduleBeats, activeBeatIndex } from './beatTimeline';
-import { resolveBeatTiming, mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
+import { labSchedule, activeBeatIndex } from './labSchedule';
+import { mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
 import { migrateV1Patch } from '../choreographer/resolveTiming';
 import beatDefaults from './beat-defaults.json';
@@ -109,8 +109,10 @@ export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, 
   onSelectTrigger?: (t: SourceTriggerEvent) => void;
   selectedId?: string | null;
 }): React.ReactElement {
+  // ONE ENGINE (PR 18): the preview schedules through the SAME compiler + committed config live playback
+  // uses, so what the Lab shows is what the game plays — nesting, staggers and family templates included.
   const schedule = useMemo(
-    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides, policyOverrides)),
+    () => labSchedule(batch, overrides, policyOverrides),
     [batch, overrides, policyOverrides],
   );
   const tree = useMemo(() => buildTree(batch), [batch]);
@@ -154,11 +156,9 @@ export function BatchPlayer({ batch, overrides, policyOverrides = {}, resetKey, 
   // so the timing visibly gates when the buff "goes out" — it was showing statically before, which read as
   // "the beat timing does nothing." At rest (fresh, playhead 0, not playing) show the final state; once you
   // play or scrub, each consequence is withheld until its beat fires.
-  const consequenceMsById = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const b of schedule.beats) for (const c of b.consequences) m.set(c.id, b.consequenceMs);
-    return m;
-  }, [schedule]);
+  // Per-consequence landing times come straight from the compiled deliveries — STAGGERED, so a multi-target
+  // wave lands one by one in the tree exactly as it does on the board.
+  const consequenceMsById = schedule.consequenceAtMs;
   const atRest = !playing && playheadMs === 0;
   const landed = (id: string): boolean => atRest || playheadMs >= (consequenceMsById.get(id) ?? 0);
 

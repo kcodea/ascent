@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { msToPx, pxToMs, snapMs, beatRegionsPx, fitScale, holdFromDragPx, rulerTicks } from './timelineMath';
-import type { ScheduledBeat } from './beatTimeline';
+import type { ScheduledBeat } from './labSchedule';
 
 /** BEAT SYSTEM PR 8 — pure timeline geometry. */
 const beat: ScheduledBeat = {

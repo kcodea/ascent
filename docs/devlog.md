@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 18: ONE ENGINE - the Beat Lab previews on the live compiler
+
+The owner's step-back audit (2026-08-13) restated the tool's objectives: live-modify beats of all events,
+never touch order of operations, only tune "how long a trigger shows it proc'd" and "own beat vs inherit
+parent", easy to use, cannot break the game. The audit's biggest finding was drift I introduced: the Lab
+previewed with its own v1 scheduler (`scheduleBeats` + `resolveBeatTiming`) while the game played the shared
+compiler - two engines, the exact "lab shows what the game won't play" failure the pivot exists to end.
+
+- `labSchedule.ts` is now the ONLY way the Lab schedules anything: it feeds `compileTimeline` with
+  `shippedBeatConfig()` plus the session draft (v1 vocabulary converted at this one seam), and re-projects the
+  compiled timeline into the shape the Lab's views already render. The editor keeps its plain-words dials -
+  wind-up / hold / recovery and the policy dropdown - unchanged.
+- The inspector's numbers are read OFF THE COMPILED BEAT (config + provenance), not from a second resolver -
+  the fields, the strip, the preview and the live game can only ever be the same numbers.
+- RETIRED: `beatTimeline.ts` (the v1 scheduler) deleted; `beatTiming.ts` slimmed to the file/draft layer
+  (readers, merge, key grammar). Resolution behaviour has exactly one home.
+- Fixtures now stamp `family`, so committed family templates pace the preview exactly as they pace live -
+  previously the preview silently fell through to policy defaults.
+- Two honest preview CHANGES (both are the live truth the old scheduler could not show): a folded cue now
+  previews INSIDE its parent instead of queueing sequentially, and multi-target consequences land staggered.
+
+**Bug found BY the live verification, mid-PR:** typed hold=1200 in the inspector, the field read back 1080.
+The editor's hold is RELATIVE (time after wind-up) but the engine stores an ABSOLUTE completion offset, so a
+sparse hold-only patch migrated as `completion = 0 + hold` and the nonzero default wind-up ate 120ms of it.
+Fix: inspector edits (numeric + drag) write the DENSE triple - the effective values with the edited field
+replaced - so what you type is exactly what plays. Regression tests pin both the fix and WHY sparse was lossy.
+
+Verified live end to end: Lapidary inspector shows 120/420/170 with engine provenance (`default:ownBeat`);
+typing hold 1200 reads back 1200 and the preview re-paces to 2980ms = 2x(120+1200+170) - the compiler's exact
+arithmetic. `labSchedule.test.ts` pins BYTE equivalence between the Lab's schedule and a direct
+`compileTimeline` with the shipped config, with and without drafts and policy toggles.
+
+typecheck + lint + npm test (5278; +12 new, v1 resolver tests retired with their engine) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 17: combat quest/rune triggers are ADDRESSABLE
 
 PR 16 made combat inspectable but identity-less. This gives the quest/rune combat triggers - the ~92 combat

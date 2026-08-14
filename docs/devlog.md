@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-14 — bake owner drag-feel tune (grab-shrink + a softer recentre)
+
+Baked the owner's tuned `dragFeel.ts` DEFAULTS: `shrinkMs` 160→360 and `shrinkFrom` 1.25→1.37 (the grab-shrink
+lands slower and starts a touch bigger), plus `recenter` 1→0.8 (a slightly eased glide onto the cursor instead of
+instant). The two shrink values reflect to CSS vars, so their `styles.css` fallbacks (`--drag-shrink-ms`,
+`--drag-shrink-from`) were updated in lockstep; `recenter` is read in the drag rAF (no CSS var). Bumped
+`DRAG_DEFAULTS_VERSION` 8→9 (+ fingerprint) so stale local overrides self-clear on sync. The other 21 knobs were
+unchanged. Verified with the full gate (typecheck + test 5340/5340 + build).
+
 ## 2026-08-14 — UI editor: Esc + ✕ to close (it could trap you)
 
 Owner report: opening the dev UI editor (🎛️ UI Edit Mode) with no way out — its overlay can cover the DevMenu's

@@ -25,6 +25,27 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Combat tab polish: real names + a track that follows the window
+
+Owner feedback on the new Combat tab, both items real:
+
+1. **"we need actual names and not the id_names"** - rows read `d2_chorus` / `k_candleback` /
+   `runeAttackingGems`. The adapter labels with ids because it cannot import content; the UI-side composition
+   (`combatTimelineFrom`) CAN, so it now resolves every source to the recognizable name - card ids through
+   CARD_INDEX, keyed rune/quest triggers through RUNE_INDEX/QUEST_INDEX. Unresolvable ids keep the id (honest
+   beats pretty). Moment kinds are humanized too (`attackExchange` -> "attack", `toHand` -> "to hand"), and an
+   aggregate moment with no owner (a buff wave) shows the kind once instead of the "buffWave buff wave"
+   stutter.
+2. **"resizing the window seems to kinda bug out the sizing of the combat view"** - the track was a fixed
+   640px inside a now-resizable window, leaving the fight squeezed into a corner of a stretched Lab. The track
+   now fills whatever width the window gives it (ResizeObserver on the body; label column reserved; floor for
+   tiny windows), and the keyed badge sits outside the name's ellipsis so it can't truncate to "keye".
+
+Verified live: rows read "Stray · attack", "Rune of Attacking Gems · trigger · keyed", "Embermouth Whelp ·
+damage"; track measured 1363px inside a 1683px overlay and tracks further resizes.
+
+typecheck + lint + npm test (5278) + build:web green. Rides #1030.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 20: the Combat tab (step 3 of the audit plan)
 
 PR 16 published every resolved fight as a CompiledTimeline; nothing displayed it. The Lab now has a third

@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-14 - End of Turn: ruby-strength procs + shop consumes now animate on their beat
+
+Two owner-reported End-of-Turn presentation gaps, same root cause: an effect mutated state but emitted no
+consequence, so the authoritative EoT player had nothing to animate and the change only appeared at commit.
+
+- **Deepvein Tender's ruby buff was silent.** `rubyStatGain` ("your Rubies gain +1 Health") raises run-wide
+  `rubyBonus`, but `withRecruitTrigger` never diffed it — so a proc that only raised ruby strength (no Ruby
+  held to bump) emitted nothing. Re-fired by Moira at EoT it showed no beat, while an adjacent Shout's "+1 atk!"
+  did. Fix: emit `auraChanged` with `aura: 'ruby'` (parallel to the existing spellPower/impAura aura emits),
+  routed to a new `rubyAura` presenter that plays the existing ruby-power flourish + held-Ruby cue on the beat.
+- **Bob Blart's Consume didn't show.** `consumeShopRightmost` splices the offer out of `state.shop`; the
+  surviving-offer diff never sees a removed one, so no consequence was emitted and the minion snapped out only
+  at commit. Fix (mirrors the Fodder-eat migration): record the offer `uid` on `state.shopEaten`, then emit
+  `shopChanged: 'consumed'` (departure — the offer now leaves the row on the eater's beat via a new
+  `eotConsumedUids` filter on `displayShop`) plus `fodderEaten` (the crumble choreography, shared for now).
+  The commit-time legacy watchers (`shopEatenSeq` crumble + hold) are advanced past the committed seq in
+  `onComplete` so they don't replay what already played on the beat.
+
+Both are emission-first: gameplay is byte-identical (asserted on `reduceWithPresentation` capture on/off). New
+tests: `eotConsumeRubyEmission.test.ts` (Blart emits consumed+meal; Deepvein-via-Moira emits `aura:'ruby'`) and
+a ruby case in `consequencePresenters.test.ts`. Verified: typecheck + lint clean, 5347 tests pass, build green.
+
+Still swallowed at EoT (reported, not yet fixed — some intentional): `cardTransformed` and `cardGranted`
+arrival FX render from the commit, not the beat; `resourceChanged`/`keywordChanged` render from the projection
+(fine). Candidates for a follow-up if the owner wants EoT transforms/grants to animate on-beat too.
+
 ## 2026-08-14 - fix: Appetite Agent's un-aimed re-fire picks a RANDOM eligible Demon
 
 Owner report: Appetite Agent "always selects the left-most demon." The `battlecryTargetConsumesShop` auto-pick

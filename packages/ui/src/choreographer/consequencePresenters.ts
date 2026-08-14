@@ -29,6 +29,8 @@ export interface PresenterContext {
   spellPower: (sourceUid: string | undefined, attack: number, health: number) => void;
   /** Imp aura washed (Void Curator). */
   impAura: () => void;
+  /** Ruby strength rose ("Your Rubies gain +X" — Deepvein Tender, Facetwright): float + glow on held Rubies. */
+  rubyAura: (sourceUid: string | undefined, attack: number, health: number) => void;
   /** A card arrived in hand. */
   cardGranted: (cardId: string, uid: string) => void;
   /** A minion was summoned to the board. */
@@ -108,6 +110,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     // Driven by the emitted aura NAME, not by matching a factory id — the fix for the Void Curator gap.
     if (c.aura === 'spellPower') ctx.spellPower(beat.source.uid, c.attack ?? c.amount, c.health ?? 0);
     else if (c.aura === 'impAura') ctx.impAura();
+    else if (c.aura === 'ruby') ctx.rubyAura(beat.source.uid, c.attack ?? c.amount, c.health ?? 0);
   },
   cardGranted: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardGranted') return;

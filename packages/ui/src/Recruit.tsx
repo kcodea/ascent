@@ -1362,6 +1362,10 @@ export function Recruit() {
   // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
   // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
   const [eotShopStats, setEotShopStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  // Shop offers CONSUMED during the End-of-Turn animation (Bob Blart's Consume) — hidden from the row on the
+  // eater's beat so they visibly leave in real time, instead of snapping out only at commit (owner report
+  // 2026-08-14). Cleared when the animation completes; the committed state has already removed them by then.
+  const [eotConsumedUids, setEotConsumedUids] = useState<ReadonlySet<string>>(new Set());
   // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
   // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
   // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
@@ -3581,7 +3585,7 @@ export function Recruit() {
     [displayBoard],
   );
   const draggingShop = !!drag?.active && drag.source === 'shop';
-  const displayShop = run.shop;
+  const displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
   // SANDBOX ONLY: the pinned opponent board (if any) for the CURRENT wave, and the click handler that opens
   // the unit editor on one of its slots. Mirrors `sbEditing`'s uid+rect pattern, but keyed by index — a
   // `BoardSnapshot`'s minions are a plain array with no uid of their own.
@@ -4018,9 +4022,31 @@ export function Recruit() {
         fireSpellBuffOnHandSpells(runRef.current.hand); // the held spells whose printed values just rose
       },
       impAura: () => fireAuraWave('demon'),
+      rubyAura: (sourceUid, attack, health) => {
+        // "Your Rubies gain +X" landing on its beat — the ruby twin of `spellPower` above, reusing the exact
+        // FX the legacy `rubyPowerFxSeq` watcher plays. Anchor over the source card, else a held Ruby, else the
+        // hand row (where the Rubies that just grew actually are). Before this, a proc that only raised ruby
+        // STRENGTH (Deepvein via Moira) emitted nothing and showed no beat (owner report 2026-08-14).
+        const el = (sourceUid && document.querySelector(`[data-uid="${sourceUid}"]`))
+          ?? document.querySelector('.row.hand .card.rubycard')
+          ?? document.querySelector('.row.hand')
+          ?? document.querySelector('[data-zone="tavern"]');
+        if (el) {
+          const r = el.getBoundingClientRect();
+          const x = r.left + r.width / 2, y = r.top + r.height / 2;
+          pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+          floatRubyPowerNumber(x, y - r.height * 0.3, attack, health);
+        }
+        fireSpellBuffOnHandRubies(runRef.current.hand);
+      },
       cardGranted: () => { /* the hand preview is driven by the projection; arrival FX lands with the commit */ },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
-      cardDestroyed: () => { /* Fodder-eat choreography still legacy-only — see the PR 5 gap list */ },
+      cardDestroyed: (uid, zone) => {
+        // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion
+        // disappears as the eater procs, not at commit (owner report 2026-08-14). The crumble choreography
+        // rides the paired `fodderEaten` consequence (below); this is just the departure.
+        if (zone === 'shop' && uid) setEotConsumedUids((s) => new Set([...s, uid]));
+      },
       shopBuffed: () => { /* the shop climb is driven by the projection's shopStats */ },
       resourceChanged: () => { /* HUD counters read the projection */ },
       counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
@@ -4105,6 +4131,13 @@ export function Recruit() {
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
         commitPresentationAction();
+        // The shop-consume crumble + eater-gain hold already played on their beats (the `fodderEaten` presenter);
+        // advance both legacy commit-time watchers' refs past the now-committed seq so they don't replay them.
+        // Mid-shop consumes (not the authoritative EoT) still animate — those bump the seq outside this path.
+        const committedShopEatSeq = useGame.getState().run.shopEatenSeq;
+        prevShopEatSeq.current = committedShopEatSeq;
+        prevShopEatHoldSeq.current = committedShopEatSeq;
+        setEotConsumedUids(new Set());
       },
     });
 

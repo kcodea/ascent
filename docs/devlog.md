@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 17: combat quest/rune triggers are ADDRESSABLE
+
+PR 16 made combat inspectable but identity-less. This gives the quest/rune combat triggers - the ~92 combat
+flags, Rune of Attacking Gems among them - their real registry key, so they can be targeted in the Beat Lab.
+
+The insight: a combat trigger already carries its `flag` (`runeAttackingGems`) on the `questTrigger` event -
+a stable, gameplay-stamped identifier. That flag IS the identity; it only needed resolving to the registry key
+its owner is filed under.
+
+- `combatFlagOwner(flag)` in content - flag -> `{ key, kind, id }`, derived from the same content walk that
+  builds the surface (exactly like `recurringEotOwner`), so the resolved key can never drift from the
+  classified one. Resolved in content, not the simulator: the map needs content, and `@game/core` (where
+  combat runs) cannot import it.
+- The combat adapter stamps `policyKey` + a proper rune/quest source for a moment whose primary carries a
+  known flag. Every OTHER moment stays honestly identity-less - a plain attack has a card id and a kind, not a
+  factory identity, and inventing one is the trap PR 1 closed. The diagnostic now reports "N of M keyed"
+  rather than "all un-keyed".
+
+Verified: a synthesized `questTrigger` for `runeAttackingGems` adapts to `rune:rune_attacking_gems:combat`,
+kind `rune`. And a new `combatFlagKeys.test.ts` walks EVERY `combatFlag` reward the content defines and asserts
+its resolved key exists in the registry - so no combat rune/quest can produce an orphan identity, now or when
+one is added.
+
+WHERE THIS LEAVES ATTACKING GEMS: it is now visible AND addressable, classified `foldedCue`. The owner's note
+was that it "needs its own beat" - reclassifying it to `ownBeat` is now a Beat Lab / registry change rather
+than code. The remaining piece is milestone 2: the combat runtime CONSUMING compiled timing, so a reclassified
+beat actually re-paces the fight (and a compressed-repeat mode keeps a per-attack trigger from bloating it).
+
+typecheck + lint + npm test (5279) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 16: combat is inspectable on the shared timeline (read-only)
 
 The first combat milestone from blueprint §17, and the answer to the owner's Attacking Gems question: combat

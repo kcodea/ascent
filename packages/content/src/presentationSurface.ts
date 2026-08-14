@@ -71,6 +71,34 @@ export function recurringEotOwner(effect: string): { key: string; kind: 'rune' |
 }
 
 /**
+ * CHOREOGRAPHER PR 17 — a combat FLAG to the registry key of the rune/quest that owns it.
+ *
+ * When a rune/quest fires in combat it emits a `questTrigger`/`questComplete` carrying its `combatFlag` value
+ * (e.g. `runeAttackingGems`) — a stable, gameplay-stamped identifier. That flag IS the identity; this resolves
+ * it to the registry key the surface files that rune/quest under, so the combat adapter can stamp a real
+ * `policyKey` instead of leaving the moment identity-less.
+ *
+ * Derived from the same content walk that builds the surface (exactly like `recurringEotOwner`), so the
+ * resolved key can never drift from the classified one. Resolving here rather than in the simulator is
+ * deliberate: the flag→key map needs content, and `@game/core` (where combat runs) cannot import content.
+ */
+let combatFlagOwners: Map<string, { key: string; kind: 'rune' | 'quest'; id: string }> | null = null;
+
+export function combatFlagOwner(flag: string): { key: string; kind: 'rune' | 'quest'; id: string } | undefined {
+  if (!combatFlagOwners) {
+    combatFlagOwners = new Map();
+    const scan = (reward: unknown, kind: 'rune' | 'quest', id: string, key: string): void => {
+      const rw = reward as { kind: string; flag?: string; rewards?: unknown[] };
+      if (rw.kind === 'multi') { for (const r of rw.rewards ?? []) scan(r, kind, id, key); return; }
+      if (rw.kind === 'combatFlag' && rw.flag) combatFlagOwners!.set(rw.flag, { key, kind, id });
+    };
+    for (const r of [...RUNES, ...EPIC_RUNES]) scan(r.reward, 'rune', r.id, runeKey(r));
+    for (const q of QUEST_DEFS) scan(q.reward, 'quest', q.id, questKey(q));
+  }
+  return combatFlagOwners.get(flag);
+}
+
+/**
  * CHOREOGRAPHER PR 15 — a rune/quest id to the registry key the SURFACE files it under.
  *
  * The emitter knows which rune or quest is paying out, but not which bucket the surface chose for it — and

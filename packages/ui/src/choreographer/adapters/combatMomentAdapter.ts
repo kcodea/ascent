@@ -19,6 +19,7 @@
  * simulator itself is instrumented. Inventing a key here would recreate the exact trap PR 1 closed.
  */
 import type { CombatEvent } from '@game/core';
+import { combatFlagOwner } from '@game/content';
 import type { Moment } from '../../choreo/compile';
 import type { MomentKind } from '../../choreo/kinds';
 import type {
@@ -106,11 +107,17 @@ export function adaptCombatMoments(
   const nodes: TimelineSourceNode[] = [];
   let lastRootId: string | undefined;
 
+  let identified = 0;
   moments.forEach((moment, index) => {
     const family = FAMILY_BY_MOMENT[moment.kind] ?? 'combat';
     const src = sourceOf(moment.primary);
     const cardId = src.uid ? options.cardIdOf?.(src.uid) ?? undefined : undefined;
     const isReaction = REACTION_KINDS.has(moment.kind);
+    // CHOREOGRAPHER PR 17 — a quest/rune combat trigger carries its `flag`, a stable gameplay-stamped
+    // identifier. Resolve it to the registry key its owner is filed under, so THESE moments become
+    // addressable (Rune of Attacking Gems, etc.). Everything else stays honestly identity-less.
+    const flag = (moment.primary as { flag?: string }).flag;
+    const owner = flag ? combatFlagOwner(flag) : undefined;
 
     const consequences: TimelineConsequenceNode[] = [];
     for (const group of moment.stepGroups) {
@@ -131,20 +138,18 @@ export function adaptCombatMoments(
       }
     }
 
+    if (owner) identified++;
     const node: TimelineSourceNode = {
       id: `combat:m:${index}`,
       phase: 'combat',
-      source: {
-        kind: 'minion',
-        id: cardId ?? src.id,
-        uid: src.uid,
-        side: src.side,
-        label: cardId ?? moment.kind,
-      },
+      source: owner
+        ? { kind: owner.kind, id: owner.id, side: src.side, label: flag }
+        : { kind: 'minion', id: cardId ?? src.id, uid: src.uid, side: src.side, label: cardId ?? moment.kind },
       trigger: moment.kind,
-      // NO policyKey. A moment carries a card id and a kind, not the factory identity a registry key needs.
-      // Inventing one would be the very trap PR 1 closed — a plausible-but-wrong key that resolves to the
-      // wrong timing with no error anywhere. The diagnostic below says so out loud.
+      // A quest/rune trigger gets its real key from the flag it carries (see above). Every other moment
+      // stays identity-less: it has a card id and a kind, not the factory identity a key needs, and inventing
+      // one would be the very trap PR 1 closed. The diagnostic below reports how many remain un-keyed.
+      ...(owner ? { policyKey: owner.key } : {}),
       family,
       emittedPolicy: (isReaction ? 'reactInsideParent' : 'ownBeat') as PresentationMode,
       step: index,
@@ -161,14 +166,15 @@ export function adaptCombatMoments(
     nodes.push(node);
   });
 
-  if (nodes.length) {
+  const unkeyed = nodes.length - identified;
+  if (unkeyed > 0) {
     diagnostics.push({
       severity: 'info',
       code: 'missingPolicyKey',
       message:
-        `${nodes.length} combat moments adapted for DISPLAY. They carry no policyKey because the simulator does ` +
-        'not stamp one yet, so they resolve on family/mode timing only and cannot be tuned per source. ' +
-        'Instrumenting the simulator is what turns these into authorable beats.',
+        `${identified} of ${nodes.length} combat moments are keyed (quest/rune triggers, via their flag); ` +
+        `${unkeyed} carry no policyKey — a moment has a card id and a kind, not the factory identity a key ` +
+        'needs. Those resolve on family/mode timing only until the simulator stamps them.',
     });
   }
 

@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-14 — bake owner's Layout Lab defaults (shop/warband/hand/inspect/sell-zone)
+
+Baked the owner's tuned Layout Lab values into `layoutConfig.ts` `LAYOUT_VARS[].def`, with the matching
+`styles.css` var fallbacks updated in lockstep (production never mounts the tuner, so the CSS fallback is what
+ships — the same mirror rule `buttonFallbacks.test.ts` guards for the buttons). Eight values changed: shop row
+Y `27→-4`; shop-controls tray Y `-45→-89`; warband gap `22→23`, X `9→8`, Y `-163→-174`; hand hover size
+`1.34→1.51`; card hover-preview size `1.34→1.52`; and the drag-to-SELL edge `0→-188` (a bigger sell region —
+JS-computed via `getLayout()`, so it has no CSS fallback, only the `def`). The other 37 knobs were already at the
+dumped values. Verified with the full gate (typecheck + lint + test 5279/5279 + build).
+
 ## 2026-08-14 — a hovered hand card now lifts above the HUD (hero power, gold, shop buttons)
 
 Owner report: hovering a card in hand pops it up but it renders BEHIND the HUD (the hero power button and the

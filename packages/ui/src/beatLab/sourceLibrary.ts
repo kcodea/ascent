@@ -37,6 +37,15 @@ export interface TriggerRow {
   derived: boolean;
   /** Where a timing edit for this trigger writes — per-source, so tuning one card doesn't move every sibling. */
   editKey: string;
+  /**
+   * CHOREOGRAPHER (owner report 2026-08-13, "nothing i do in the lab seems to affect the timing in game"):
+   * whether editing THIS trigger reaches live playback today, or only the preview. The owner had flipped
+   * King Oona folded→own and seen nothing change — correct behaviour (combat does not read Lab timing yet),
+   * but the tool never said so. Live today = the End-of-Turn batch (the one phase the game plays through the
+   * compiler), plus Re-Pete's power (emitted inside that batch). Everything else is preview-only until its
+   * phase is wired.
+   */
+  live: boolean;
 }
 
 export interface SourceEntry {
@@ -86,6 +95,11 @@ const runeKeyPrefixTrigger = (id: string): { key: string; trigger: string } | nu
   return null;
 };
 
+
+/** Is a trigger's phase consumed by LIVE playback today? See TriggerRow.live. */
+const liveToday = (kind: string, sourceId: string, trigger: string): boolean =>
+  trigger === 'endOfTurn' || (kind === 'hero' && sourceId === 'repete');
+
 export function sourceEntries(): SourceEntry[] {
   const out: SourceEntry[] = [];
 
@@ -103,6 +117,7 @@ export function sourceEntries(): SourceEntry[] {
           id: rowId, moment: label(e.on), trigger: e.on, factory: e.do,
           policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false,
           editKey: `source:${kind}:${c.id}:${e.on}`,
+          live: liveToday(kind, c.id, e.on),
         });
       }
       // A derived Start-of-Combat moment (Fleeting Vigor, pending SC Imps) — an EMPTY trigger.
@@ -112,6 +127,7 @@ export function sourceEntries(): SourceEntry[] {
         triggers.push({
           id: 'derived:startOfCombat', moment: dm, trigger: 'startOfCombat', factory: e.do,
           coverage: 'empty', derived: true, editKey: `source:${kind}:${c.id}:startOfCombat`,
+          live: false,
         });
       }
     }
@@ -124,7 +140,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(found.key);
     out.push({
       kind: 'rune', id: r.id, name: r.name, tier: r.epic ? 'epic' : 'basic',
-      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:rune:${r.id}:${found.trigger}` }],
+      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:rune:${r.id}:${found.trigger}`, live: liveToday('rune', r.id, found.trigger) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }
@@ -135,7 +151,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(found.key);
     out.push({
       kind: 'quest', id: q.id, name: q.name, tier: q.tier,
-      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:quest:${q.id}:${found.trigger}` }],
+      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:quest:${q.id}:${found.trigger}`, live: liveToday('quest', q.id, found.trigger) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }
@@ -145,7 +161,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(h.key);
     out.push({
       kind: 'hero', id: h.heroId, name: h.name,
-      triggers: [{ id: h.powerKind, moment: `hero power · ${h.powerKind}`, trigger: h.powerKind, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:hero:${h.heroId}:${h.powerKind}` }],
+      triggers: [{ id: h.powerKind, moment: `hero power · ${h.powerKind}`, trigger: h.powerKind, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:hero:${h.heroId}:${h.powerKind}`, live: liveToday('hero', h.heroId, h.powerKind) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }

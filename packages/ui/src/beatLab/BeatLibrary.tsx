@@ -117,6 +117,9 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                     onClick={() => { setSel({ sourceId: s.id, triggerId: t.id }); setOpenId(s.id); }}
                   >
                     <span className="bl-cover" style={{ background: COVER_TINT[t.coverage] }}>{COVER_LABEL[t.coverage]}</span>
+                    <span className="bl-cover" style={{ background: t.live ? '#7fd18a' : '#3a4468', color: t.live ? '#10131a' : '#8a93a8' }} title={t.live ? 'Edits here change the real game (End-of-Turn playback).' : 'Preview only — this phase is not wired to live playback yet.'}>
+                      {t.live ? 'LIVE' : 'preview'}
+                    </span>
                     <span className="bl-trig-moment">{t.moment}</span>
                     {t.policy && <span className="bl-policy" style={{ background: POLICY_TINT[t.policy] ?? '#666' }}>{t.policy}</span>}
                     {draft[t.editKey] && <span className="bl-draft">✎</span>}
@@ -137,6 +140,15 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
               <span className="bl-kind">{source.kind}:{source.id} · {row.factory ? `factory ${row.factory}` : 'derived (simulator)'}{row.family ? ` · family ${row.family}` : ''}</span>
               <span className="bl-kind">edits write to <code>{row.editKey}</code> (this {source.kind} only)</span>
             </div>
+            {!row.live && (
+              <div className="bl-empty-banner">
+                <b>PREVIEW ONLY — this edit does not reach the game yet.</b> Live playback currently consumes
+                the <b>End-of-Turn</b> batch only; this trigger fires in a phase ({row.trigger}) that still
+                plays on its own runtime. Your draft is real and will apply the moment that phase is wired —
+                but flipping it today changes the preview below, not the fight. (This is the gap the combat
+                milestones close.)
+              </div>
+            )}
             {/* Policy toggle: flip folded ↔ own beat (etc.). Re-bases the timing and drives how it reads. */}
             <div className="bl-policy-row">
               <span>Policy</span>

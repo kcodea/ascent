@@ -25,6 +25,34 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat Lab honesty: LIVE vs preview-only badges (the Oona report)
+
+Owner report: "nothing i do in the lab seems to affect the timing in game ... i was trying to make oona an
+own beat vs folded."
+
+Two causes, both real:
+
+1. **King Oona's trigger fires in COMBAT, and combat does not read Lab timing yet.** Only the End-of-Turn
+   batch is live-consumed today. The owner's edit worked in the preview - and the Lab silently accepted it
+   with zero indication it would never reach the fight. The silence is the bug: a tool that takes an edit it
+   knows cannot apply, without saying so, is indistinguishable from a broken tool.
+2. **The dev server was serving stale transforms.** After many same-session branch switches, disk edits
+   (including the LIVE toggle and window chrome) were not reaching the browser even across hard reloads - the
+   same failure mode as the stale art glob (memory: restart the server, a reload is not enough). A restart
+   fixed it; the owner's session was likely running older code than either of us assumed.
+
+The fix for #1:
+- Every library trigger row now carries a **LIVE** (green) or **preview** (grey) badge: LIVE = the End-of-Turn
+  batch (plus Re-Pete's power, which emits inside it); preview = every phase not yet wired (combat,
+  onPlay/cast recruit actions, un-emitted hero powers).
+- Selecting a preview-only row shows a banner stating it plainly: "PREVIEW ONLY - this edit does not reach the
+  game yet... your draft is real and will apply the moment that phase is wired."
+
+Verified live after a server restart: Oona's row reads `beat · preview · on summon` with the banner;
+Lapidary's reads `beat · LIVE · End of Turn`.
+
+typecheck + lint + npm test (5278) + build:web green. Rides #1029.
+
 ## 2026-08-13 - Beat Lab usability: movable/resizable window, text-size slider, drafts survive reopen
 
 Owner report while trying the tool: the Lab was a fixed full-screen overlay - "i need to close the window out

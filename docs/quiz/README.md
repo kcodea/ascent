@@ -13,7 +13,7 @@ game plays. That constraint is enforced in `daily-prompt.md`.
 - A **scheduled cloud agent** (a "routine") wakes up every morning (8:00am ET) with a fresh checkout of the
   repo and **no memory** of past days.
 - It runs the instructions in [`daily-prompt.md`](daily-prompt.md): read progress, read the real source,
-  generate 5 grounded multiple-choice questions, build an interactive HTML quiz, and update progress.
+  generate 10 grounded multiple-choice questions, build an interactive HTML quiz, and update progress.
 - The quiz is delivered as an **interactive Artifact** in that morning's run — Mike opens it, clicks
   answers, and it grades + explains instantly. A self-contained copy is also archived in `archive/`.
 - All state lives on the **`quiz` branch** (this branch). The routine never touches `main`.

@@ -62,9 +62,9 @@ For the freshest possible code you may `git fetch origin main` and read a file w
 references a file, name the real path. Do not invent APIs, file names, or behavior — if unsure, read the
 file and confirm before writing the question.
 
-## Step 4 — Pick today's 5 topics (adaptive)
+## Step 4 — Pick today's 10 topics (adaptive)
 
-Choose exactly **5** questions. Selection rules, in priority order:
+Choose exactly **10** questions. Selection rules, in priority order:
 
 1. **Re-teach weak spots first.** Any topic in `progress.json.topics` with `mastery < 2` OR that was
    missed recently is a strong candidate — re-ask it from a *fresh angle* (new question, not a copy).
@@ -72,13 +72,14 @@ Choose exactly **5** questions. Selection rules, in priority order:
    `progress.json.curriculum` (they are ordered easy → deeper).
 3. **Match the current `difficulty`.** Keep questions at or just below `progress.json.difficulty`.
    Never jump more than one difficulty step above where Mike has shown mastery.
-4. **Variety.** Don't ask 5 questions about the same file. Mix engine, content, UI, and general-coding.
+4. **Variety.** Don't cluster many questions on the same file. Mix engine, content, UI, and general-coding.
+   With 10 questions you can cover several topics AND ask two angles on a couple of the trickier ones.
 
-If `topics`/`history` are empty (first run), just take the earliest 5 curriculum topics in order.
+If `topics`/`history` are empty (first run), just take the earliest 10 curriculum topics in order.
 
 ## Step 5 — Write the questions
 
-For each of the 5 questions produce:
+For each of the 10 questions produce:
 
 - `topicId` — the curriculum id it maps to (or a short new kebab-case id if genuinely new).
 - `question` — one clear sentence. Concrete and grounded (reference the real file/behavior when apt).
@@ -99,7 +100,7 @@ by opening it directly in a browser. It must:
 
 - Show one question at a time (or a simple scrollable list), 4 clickable choices each.
 - On answering: lock the choice, mark correct/incorrect with color, reveal the explanation inline.
-- Show a running score and a final "You scored X / 5" summary with an encouraging line.
+- Show a running score and a final "You scored X / 10" summary with an encouraging line.
 - Be theme-friendly and readable on a laptop. Keep it clean and game-like; no libraries.
 - Title it "Ascent Quiz #<N> — <date>" where N = `totalQuizzes + 1`.
 - **Not reveal answers until Mike has answered each question** (answers/explanations live in the page, but
@@ -138,10 +139,10 @@ Never push to `main`. Never force-push.
 
 End with a short, friendly summary he'll see as the notification. Include:
 
-- "🎓 Ascent Quiz #<N> is ready — 5 questions on: <plain-English topic list>."
+- "🎓 Ascent Quiz #<N> is ready — 10 questions on: <plain-English topic list>."
 - A one-line pointer to open the Artifact above (and the archive path as backup).
 - **Do NOT reveal the answers or which choices are correct** in this message — that spoils the quiz.
-- Invite him to reply with his score (e.g. "4/5, missed the RNG one") so tomorrow adapts.
+- Invite him to reply with his score (e.g. "8/10, missed the RNG one") so tomorrow adapts.
 
 ---
 

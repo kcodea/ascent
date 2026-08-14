@@ -7487,6 +7487,27 @@ function withRecruitTrigger(
   );
 }
 
+/**
+ * Wrap an End-of-Turn Discover auto-grant (Moira re-firing Black Belt Brian) so the card it lands in hand emits
+ * a `cardGranted` consequence on its own beat. The projection + coalesce path then materialises it in the hand
+ * DURING End-of-Turn playback — like a shop conjure — instead of snapping in at the combat hand-off (owner
+ * report 2026-08-14). GAMEPLAY-NEUTRAL: `run` executes exactly as before, and with no active collector
+ * `withRecruitTrigger` is a bare call, so the reduce/reduceWithPresentation equivalence holds.
+ */
+export function withEotDiscoverGrantBeat(state: RunState, run: () => void): void {
+  withRecruitTrigger(
+    makeContext(state),
+    {
+      phase: 'endOfTurn',
+      source: { kind: 'system', id: 'eotDiscover', label: 'Discover', side: 'player' },
+      trigger: 'endOfTurn',
+      policy: 'ownBeat',
+      policyKey: 'system:eotDiscover:grant',
+    },
+    run,
+  );
+}
+
 /** BEAT SYSTEM (PR 3) — the migrated Shout (`onPlay`) trigger, expressed via the shared primitive. */
 function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectDef, run: () => void): void {
   withRecruitTrigger(

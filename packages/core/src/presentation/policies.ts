@@ -684,6 +684,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'system:startOfCombat:fleetingVigor': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingKeywords': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingImps': { policy: 'ownBeat', family: 'startOfCombat' },
+  // An End-of-Turn Discover that AUTO-resolves (Moira re-firing Black Belt Brian) grants a card at the combat
+  // hand-off. Its own beat so the granted card coalesces into the hand DURING the End-of-Turn playback (like a
+  // shop conjure) instead of snapping in at commit (owner report 2026-08-14).
+  'system:eotDiscover:grant': { policy: 'ownBeat', family: 'grant' },
   // ── HEROES — hero:<id>:<power.kind> (DoD item 1b; heuristic classification, all flagged for owner review) ──
   // PR 22: Bag It is an ACTIVATED payout (click → Gold now, climbing each turn) — `passive` was
   // factually wrong; the reducer has an activation branch for it. Still flagged for the owner pass.

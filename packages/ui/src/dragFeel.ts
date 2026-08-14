@@ -87,7 +87,7 @@ const DEFAULTS: DragFeel = {
   scale: 1.21,      // clearly lifted off the table
   staticRotate: 0,  // owner-tuned 2026-08-10: sits flat while held (was -1.5)
   threshold: 0,     // drag engages immediately
-  recenter: 1,      // owner-tuned 2026-08-10: instant glide onto the cursor (was 0.28)
+  recenter: 0.8,    // owner-tuned 2026-08-14: a slightly eased glide onto the cursor (was 1, instant)
   recenterAfter: 0, // recentre immediately
   handGrabY: 1,     // owner-tuned 2026-08-10: a hand card hangs from its bottom edge
   snapMs: 110,
@@ -101,8 +101,8 @@ const DEFAULTS: DragFeel = {
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
   shFade: 0.54,     // owner-tuned: noticeably lighter than the resting solid shadow
-  shrinkMs: 160,    // ease the grab-shrink over ~160ms (0 = instant)
-  shrinkFrom: 1.25, // start ≈ the hover-popped size (1.51 hover / 1.21 hold), shrink to 1
+  shrinkMs: 360,    // owner-tuned 2026-08-14: ease the grab-shrink over 360ms (0 = instant)
+  shrinkFrom: 1.37, // owner-tuned 2026-08-14: start size (× held) dialed to match the hover pop
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -180,7 +180,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 8;
+export const DRAG_DEFAULTS_VERSION = 9;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

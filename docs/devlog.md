@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-14 - Beat Lab: the LIVE toggle is the single switch for combat too
+
+Owner ask: "when i manually flip this to ownBeat, [make] it automatically produce that in game — i don't want
+to go to the console or do anything weird, i just want to manually and simply add/modify beats and timings in
+this tool right now." Combat pacing was gated behind a *second, hidden* switch — the `ascent.combatbeats`
+localStorage flag — separate from the top-bar **LIVE** toggle that drove End of Turn. So a combat-class edit
+(Oona's `onSummon` → `ownBeat`) sat badged `flag`, doing nothing, until you opened the console.
+
+Unified to one switch:
+- **`combatBeatsEnabled()`** now consults a live provider first (`setCombatLiveProvider`), wired in the store
+  to `beatDraftLive` — the LIVE toggle. Flip LIVE and combat consumes Beat Lab timing (committed values +
+  the LIVE session draft); flip it off and fights are byte-identical to today. The legacy `ascent.combatbeats`
+  flag is still honored independently (forces it on for a Lab-closed fight), so nothing regresses.
+- The draft already reached combat gated on `beatDraftLive` (the provider from PR 21); this closes the last
+  gap so the *enable* gate follows the same toggle instead of a console flag.
+- **Copy** across BeatLibrary (flag badge tooltip + inspector banner), CombatTimelineView (both banner states
+  + keyed tooltip), sourceLibrary (the `live/flag/immediate` doc) and combatHolds (module doc) now say "flip
+  the LIVE toggle," not "set localStorage." The three-state badge is unchanged: `flag` now means "one click
+  away," not "one console command away."
+
+Verified: `typecheck:web` clean; lint clean (pre-existing `_gone` warning only); combatHolds suite 16/16
+(added two — the provider drives `combatBeatsEnabled`, and a keyed trigger paces the moment LIVE is on with no
+explicit `enabled` option); full beatLab + choreographer combat suites green; dev server HMR'd the store
+chokepoint with no errors. Shop actions remain instant by design (untouched — the north star holds).
+
 ## 2026-08-14 - End of Turn: ruby-strength procs + shop consumes now animate on their beat
 
 Two owner-reported End-of-Turn presentation gaps, same root cause: an effect mutated state but emitted no

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isUiEditMode, subscribeUiEditMode } from './config';
+import { isUiEditMode, setUiEditMode, subscribeUiEditMode } from './config';
 import { resolveAnchor, selectParent } from './resolver';
 import { buildSelector, matchCount, type Scope } from './selector';
 import { composeTransform, resizeToPx } from './transforms';
@@ -143,6 +143,21 @@ export function EditorOverlay(): JSX.Element | null {
 
   // ---- 1. Mode subscription. OFF => render null, no listeners installed anywhere below. ----
   useEffect(() => subscribeUiEditMode(setOn), []);
+
+  // Esc exits edit mode — the editor is a modal-ish overlay and without this the ONLY way out is the DevMenu
+  // toggle, which the overlay can cover (owner got trapped). Capture-phase + stopPropagation so Esc closes the
+  // editor INSTEAD of also opening the Settings menu (Game.tsx's bubble-phase Esc handler). Only while ON.
+  useEffect(() => {
+    if (!on) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setUiEditMode(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [on]);
 
   // First turn-ON: load the persisted scratchpad and re-apply every rule so prior edits are visible.
   useEffect(() => {
@@ -379,6 +394,13 @@ export function EditorOverlay(): JSX.Element | null {
         <div className="uied-row uied-head">
           <span>🎛️ UI Edit Mode</span>
           {toast && <span className="uied-toast">{toast}</span>}
+          <button
+            className="uied-btn uied-close"
+            data-ui-editor="close"
+            onClick={() => setUiEditMode(false)}
+            title="Close UI Edit Mode (Esc)"
+            aria-label="Close UI Edit Mode"
+          >✕</button>
         </div>
 
         {!selected && <div className="uied-hint">Click an element to select it.</div>}
@@ -503,4 +525,5 @@ const CSS = `
 .uied-upload { display: inline-block; text-align: center; }
 .uied-error { color: #ff8a9a; font-size: 11px; }
 .uied-actions { flex-wrap: wrap; }
+.uied-close { margin-left: auto; padding: 2px 8px; line-height: 1; }
 `;

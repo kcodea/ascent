@@ -25,6 +25,29 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 20: the Combat tab (step 3 of the audit plan)
+
+PR 16 published every resolved fight as a CompiledTimeline; nothing displayed it. The Lab now has a third
+tab - Combat - rendering the last fight on the shared timeline vocabulary, READ-ONLY.
+
+Read-only is the point, not a limitation to apologize for: combat still plays on its own runtime, so an
+editable surface here would be the same silent lie the LIVE/preview badges just removed - accepting edits a
+fight will never honor. The banner says so in plain words. Rows whose beat carries a policyKey (quest/rune
+combat triggers) wear a **keyed** badge: those are the addressable ones, first in line to become tunable when
+combat starts consuming compiled timing (step 4).
+
+Verified live with the owner's own example: staged a run with Rune of Attacking Gems armed, fought a real
+combat, opened the tab -
+
+    stray · attackExchange
+    runeAttackingGems · questTrigger  [keyed]   <- rune:rune_attacking_gems:combat @ 710ms
+    buffWave · buffWave
+    d2_embermouth · damage
+
+4 beats, 2840ms, ruler + per-beat bars with delivery ticks, reaction lanes indented.
+
+typecheck + lint + npm test (5278) + build:web green. Stacked on #1029.
+
 ## 2026-08-13 - Beat Lab honesty: LIVE vs preview-only badges (the Oona report)
 
 Owner report: "nothing i do in the lab seems to affect the timing in game ... i was trying to make oona an

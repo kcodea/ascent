@@ -159,3 +159,11 @@
 .bl-policy-row { display: flex; align-items: center; gap: 10px; margin: 8px 14px; }
 .bl-policy-row > span:first-child { color: #cfd6e6; font-weight: 700; }
 .bl-policy-row select { background: rgba(30,34,46,0.9); color: #e6ebf6; border: 1px solid rgba(150,160,200,0.35); border-radius: 6px; padding: 3px 8px; font: inherit; }
+
+/* PR 20 — the Combat tab (read-only fight timeline) */
+.bl-cbt-ruler { position: relative; height: 14px; margin: 4px 0 2px; }
+.bl-cbt-row { display: flex; align-items: center; gap: 10px; padding: 1px 0; }
+.bl-cbt-label { width: 240px; min-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cfd6e6; }
+.bl-cbt-track { position: relative; height: 14px; background: rgba(20,24,34,0.5); border-radius: 4px; }
+.bl-cbt-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+.bl-cbt-delivery { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fff; opacity: 0.8; }

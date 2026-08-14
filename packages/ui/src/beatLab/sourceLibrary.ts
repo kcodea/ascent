@@ -45,9 +45,13 @@ export interface TriggerRow {
    *               is on, since PR 21/23 made both the quest/rune flags and the minion class consumable).
    *   'flag'    — WOULD be live, one switch away: a combat-class row while `ascent.combatbeats` is off.
    *               Without this state the whole combat surface read as unwired when it is actually gated.
-   *   'preview' — genuinely not consumed yet (recruit-action playback: Shouts, casts, hero-power moments).
+   *   'immediate' — a SHOP action (Shout, cast, hero power). Deliberately NOT staged: shop actions fire
+   *                 instantly, by design, because snappy fast-paced play is a north star (owner ruling
+   *                 2026-08-14: "shop actions MUST remain immediate"). Its beat is still inspectable here,
+   *                 and its consequence still emits for the record — the game just never holds the shop to
+   *                 play it. This is a permanent design state, not a milestone.
    */
-  live: 'live' | 'flag' | 'preview';
+  live: 'live' | 'flag' | 'immediate';
 }
 
 export interface SourceEntry {
@@ -105,12 +109,12 @@ const COMBAT_ONS = new Set([
 ]);
 
 /** What editing a trigger reaches — see TriggerRow.live. Read at enumeration time; reopen after flag flips. */
-function liveToday(kind: string, sourceId: string, trigger: string): 'live' | 'flag' | 'preview' {
+function liveToday(kind: string, sourceId: string, trigger: string): 'live' | 'flag' | 'immediate' {
   if (trigger === 'endOfTurn' || (kind === 'hero' && sourceId === 'repete')) return 'live';
   const combatRow = ((kind === 'rune' || kind === 'quest') && trigger === 'combat')
     || (kind === 'minion' && COMBAT_ONS.has(trigger));
   if (combatRow) return combatBeatsEnabled() ? 'live' : 'flag';
-  return 'preview';
+  return 'immediate'; // a shop action — instant by design, never staged (see TriggerRow.live)
 }
 
 export function sourceEntries(): SourceEntry[] {
@@ -140,7 +144,7 @@ export function sourceEntries(): SourceEntry[] {
         triggers.push({
           id: 'derived:startOfCombat', moment: dm, trigger: 'startOfCombat', factory: e.do,
           coverage: 'empty', derived: true, editKey: `source:${kind}:${c.id}:startOfCombat`,
-          live: 'preview',
+          live: 'immediate',
         });
       }
     }

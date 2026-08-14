@@ -123,14 +123,14 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                         ? { background: '#7fd18a', color: '#10131a' }
                         : t.live === 'flag'
                           ? { background: '#3a3324', color: '#e0b34d', border: '1px solid #e0b34d' }
-                          : { background: '#3a4468', color: '#8a93a8' }}
+                          : { background: '#2f3a2e', color: '#9fc7a0' }}
                       title={t.live === 'live'
                         ? 'Edits here change the real game.'
                         : t.live === 'flag'
                           ? "One switch away: set localStorage ascent.combatbeats = '1' and this row paces real fights."
-                          : 'Preview only — this phase is not wired to live playback yet.'}
+                          : 'Instant by design — a shop action fires immediately; its beat is inspectable but never staged, so the shop stays snappy.'}
                     >
-                      {t.live === 'live' ? 'LIVE' : t.live === 'flag' ? 'flag' : 'preview'}
+                      {t.live === 'live' ? 'LIVE' : t.live === 'flag' ? 'flag' : 'instant'}
                     </span>
                     <span className="bl-trig-moment">{t.moment}</span>
                     {t.policy && <span className="bl-policy" style={{ background: POLICY_TINT[t.policy] ?? '#666' }}>{t.policy}</span>}
@@ -160,12 +160,13 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                 drafts layering on top, exactly like End of Turn).
               </div>
             )}
-            {row.live === 'preview' && (
-              <div className="bl-empty-banner">
-                <b>PREVIEW ONLY — this edit does not reach the game yet.</b> This trigger fires during recruit
-                actions ({row.trigger}), whose live animations do not consume beats yet — the remaining
-                playback milestone. Your draft is real and will apply the moment that phase is wired; today it
-                changes the preview below, not the game.
+            {row.live === 'immediate' && (
+              <div className="bl-empty-banner" style={{ borderColor: '#4a6a4a', color: '#c4e0c4', background: 'rgba(74,106,74,0.12)' }}>
+                <b>INSTANT BY DESIGN — a shop action.</b> This fires during a shop action ({row.trigger}), which
+                the game plays <i>immediately</i>: snappy, fast-paced play is a north star, so the shop is never
+                held to stage a beat. The timing below is inspectable and its consequence still emits for the
+                record, but shop actions are not — and will not be — paced by the Lab. Beat pacing is for the
+                sequenced phases (End of Turn, combat), where holding to read a beat is the point.
               </div>
             )}
             {/* Policy toggle: flip folded ↔ own beat (etc.). Re-bases the timing and drives how it reads. */}

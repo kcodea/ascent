@@ -130,6 +130,29 @@ coverage in `contentBatchAug14.test.ts` (the three cards incl. the Engrave-vs-bu
 `drunkenOafText` case in `cardText.test.ts`; the Toll test now pins the mint **channel and count** rather than
 `toContain('ruby')`, which could not tell one grant from two. Note `art:wire` re-encodes unrelated `.webp`s and
 drops untracked `.png` intermediates — reverted all of that, so only the 3 new art files are in the diff.
+## 2026-08-14 - Beat Lab: shop-action rows are 'instant by design', not 'preview'
+
+Owner ruling on the recruit-action-playback fork: "shop actions MUST remain immediate. remember our north
+stars are snappy play, high performance, and fast paced mechanical play."
+
+Investigating the path confirmed WHY: End of Turn stages cleanly because you are LEAVING the shop, so a brief
+interaction-lock while beats play is natural. A shop action (Shout, cast, hero power) leaves you IN the shop
+expecting to act again immediately - routing those through the beat player would lock the shop ~400-540ms per
+action. That is inherent to the hold-before-proceeding model, not a bug to engineer away, and it trades
+directly against the snappy north star. So shop actions are NOT staged, by design.
+
+That makes the Library's shop-action rows a permanent DESIGN state, not a TODO. Re-toned so the tool says so:
+- The third badge state renamed `preview` -> **`instant`** (green-grey, reads as intentional rather than
+  "coming soon"), with a matching hover.
+- Its inspector banner rewritten from "PREVIEW ONLY - does not reach the game yet ... the remaining playback
+  milestone" to "INSTANT BY DESIGN - a shop action ... snappy play is a north star, so the shop is never held
+  to stage a beat ... beat pacing is for the sequenced phases (End of Turn, combat), where holding to read a
+  beat is the point."
+- The inspectable timing + the emitted consequence remain (for the record and the synthetic preview); only
+  the false promise that it would someday pace the shop is gone.
+
+Pure presentation re-tone: `liveToday`'s live/flag/combat logic is unchanged (the state value 'preview' was
+renamed to 'immediate'); no behavioural delta. typecheck + lint + npm test (5309) + build:web green.
 
 ## 2026-08-14 — bake owner's Layout Lab defaults (shop/warband/hand/inspect/sell-zone)
 

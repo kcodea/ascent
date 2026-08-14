@@ -1,7 +1,7 @@
 /* BEAT SYSTEM PR 4 — read-only Beat Lab viewer styling. Dev-only; matches the dev-glass theme of the tuners. */
 .bl-overlay {
   position: fixed;
-  inset: 6vh 6vw;
+  /* Position + size are inline (movable/resizable window — owner ask 2026-08-13); these are fallbacks. */
   z-index: 100000;
   display: flex;
   flex-direction: column;
@@ -10,8 +10,20 @@
   border-radius: 10px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   color: #d8dce8;
-  font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Size in EM everywhere below inherits from this font-size, so the text slider scales the whole UI. */
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: both;            /* native resize handle, bottom-right */
+  overflow: hidden;        /* required for `resize`; the body region scrolls on its own */
+  min-width: 520px;
+  min-height: 320px;
 }
+.bl-draggable { cursor: grab; user-select: none; }
+.bl-draggable:active { cursor: grabbing; }
+.bl-fontslider { display: flex; align-items: center; gap: 4px; color: #9aa3ba; }
+.bl-fontslider span { font-size: 0.83em; }
+.bl-fontslider input { width: 70px; accent-color: #8ab6e0; }
 .bl-topbar {
   display: flex;
   align-items: center;
@@ -19,7 +31,7 @@
   padding: 10px 14px;
   border-bottom: 1px solid rgba(120, 140, 200, 0.25);
 }
-.bl-title { font-weight: 700; font-size: 14px; color: #fff; }
+.bl-title { font-weight: 700; font-size: 1.17em; color: #fff; }
 .bl-mode { color: #8a93a8; font-style: italic; }
 .bl-meta { margin-left: auto; color: #9aa3ba; }
 .bl-close {
@@ -48,7 +60,7 @@
   min-width: 32px;
   height: 26px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 1em;
 }
 .bl-tbtn:hover:not(:disabled) { background: rgba(120, 130, 175, 0.4); }
 .bl-tbtn:disabled { opacity: 0.35; cursor: default; }
@@ -71,7 +83,7 @@
   box-shadow: 0 0 0 1px rgba(160, 190, 255, 0.7), 0 0 12px rgba(120, 150, 220, 0.5);
 }
 .bl-step { color: #7f8aa6; min-width: 48px; }
-.bl-policy { color: #10131a; font-weight: 700; padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+.bl-policy { color: #10131a; font-weight: 700; padding: 1px 7px; border-radius: 10px; font-size: 0.83em; }
 .bl-source { font-weight: 700; color: #fff; }
 .bl-kind { color: #9aa3ba; }
 .bl-repeat { color: #e0b34d; }
@@ -87,10 +99,10 @@
 }
 
 /* PR 7 — tabs, library, inspector */
-.bl-tab { background: rgba(70,80,110,0.2); border: 1px solid rgba(150,160,200,0.3); color: #cfd6e6; border-radius: 6px; padding: 2px 10px; height: 24px; cursor: pointer; font-size: 11px; }
+.bl-tab { background: rgba(70,80,110,0.2); border: 1px solid rgba(150,160,200,0.3); color: #cfd6e6; border-radius: 6px; padding: 2px 10px; height: 24px; cursor: pointer; font-size: 0.92em; }
 .bl-tab:hover { background: rgba(110,120,160,0.35); }
 .bl-tab-on { background: rgba(120,150,220,0.45); color: #fff; }
-.bl-draft { color: #e0b34d; font-size: 11px; }
+.bl-draft { color: #e0b34d; font-size: 0.92em; }
 .bl-trigger.bl-clickable { cursor: pointer; }
 .bl-trigger.bl-selected { outline: 1px solid rgba(224,179,77,0.8); }
 .bl-lib { flex: 1; display: flex; min-height: 0; }
@@ -105,15 +117,15 @@
 .bl-insp-head { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-bottom: 1px solid rgba(120,140,200,0.15); }
 .bl-insp-head code { color: #cbd3e6; }
 .bl-insp-fields { display: flex; align-items: flex-end; gap: 14px; padding: 12px 14px; flex-wrap: wrap; }
-.bl-field { display: flex; flex-direction: column; gap: 3px; color: #9aa3ba; font-size: 11px; }
+.bl-field { display: flex; flex-direction: column; gap: 3px; color: #9aa3ba; font-size: 0.92em; }
 .bl-field input { width: 84px; background: rgba(20,24,34,0.8); border: 1px solid rgba(150,160,200,0.3); color: #e6ebf6; border-radius: 6px; padding: 3px 6px; font: inherit; }
-.bl-prov { color: #6f7a96; font-size: 10px; }
-.bl-fixture-banner { margin: 4px 14px; padding: 3px 8px; background: rgba(224,179,77,0.15); border: 1px dashed rgba(224,179,77,0.5); border-radius: 6px; color: #e0b34d; font-size: 11px; }
+.bl-prov { color: #6f7a96; font-size: 0.83em; }
+.bl-fixture-banner { margin: 4px 14px; padding: 3px 8px; background: rgba(224,179,77,0.15); border: 1px dashed rgba(224,179,77,0.5); border-radius: 6px; color: #e0b34d; font-size: 0.92em; }
 
 /* PR 8 — drag timeline */
 .bl-tl { margin: 8px 14px; }
 .bl-tl-ruler { position: relative; height: 14px; }
-.bl-tl-tick { position: absolute; transform: translateX(-50%); color: #6f7a96; font-size: 9px; }
+.bl-tl-tick { position: absolute; transform: translateX(-50%); color: #6f7a96; font-size: 0.75em; }
 .bl-tl-track { position: relative; height: 30px; background: rgba(20,24,34,0.6); border: 1px solid rgba(120,140,200,0.2); border-radius: 6px; overflow: hidden; }
 .bl-tl-beat { position: absolute; top: 0; bottom: 0; display: flex; }
 .bl-tl-windup { background: #3a4468; }
@@ -121,7 +133,7 @@
 .bl-tl-recovery { background: #2a3048; }
 .bl-tl-handle { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; cursor: ew-resize; background: rgba(255,255,255,0.55); box-shadow: 0 0 4px rgba(255,255,255,0.6); }
 .bl-tl-handle:hover { background: #fff; }
-.bl-tl-legend { display: flex; gap: 12px; align-items: center; margin-top: 4px; color: #9aa3ba; font-size: 10px; }
+.bl-tl-legend { display: flex; gap: 12px; align-items: center; margin-top: 4px; color: #9aa3ba; font-size: 0.83em; }
 .bl-tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
 
 /* PR 9 — source-grouped library */
@@ -134,16 +146,27 @@
 .bl-trig:hover { background: rgba(60,70,100,0.25); }
 .bl-trig.bl-selected { background: rgba(120,150,220,0.35); }
 .bl-trig-moment { color: #cfd6e6; }
-.bl-cover { color: #10131a; font-weight: 700; padding: 1px 6px; border-radius: 10px; font-size: 9px; min-width: 34px; text-align: center; }
-.bl-empty-banner { margin: 8px 14px; padding: 8px 10px; background: rgba(224,179,77,0.12); border: 1px solid rgba(224,179,77,0.45); border-radius: 6px; color: #e6d3a0; font-size: 11px; line-height: 1.5; }
+.bl-cover { color: #10131a; font-weight: 700; padding: 1px 6px; border-radius: 10px; font-size: 0.75em; min-width: 34px; text-align: center; }
+.bl-empty-banner { margin: 8px 14px; padding: 8px 10px; background: rgba(224,179,77,0.12); border: 1px solid rgba(224,179,77,0.45); border-radius: 6px; color: #e6d3a0; font-size: 0.92em; line-height: 1.5; }
 .bl-empty-banner b { color: #e0b34d; }
 
 /* Bug fix — consequences land at their beat's timing in the preview */
 .bl-cons-pending { opacity: 0.38; font-style: italic; }
 .bl-cons-landed { opacity: 1; transition: opacity 90ms ease-out; }
-.bl-pending-tag { color: #6f7a96; font-size: 10px; }
+.bl-pending-tag { color: #6f7a96; font-size: 0.83em; }
 
 /* policy toggle (folded ↔ own beat) */
 .bl-policy-row { display: flex; align-items: center; gap: 10px; margin: 8px 14px; }
 .bl-policy-row > span:first-child { color: #cfd6e6; font-weight: 700; }
 .bl-policy-row select { background: rgba(30,34,46,0.9); color: #e6ebf6; border: 1px solid rgba(150,160,200,0.35); border-radius: 6px; padding: 3px 8px; font: inherit; }
+
+/* PR 20 — the Combat tab (read-only fight timeline) */
+.bl-cbt-ruler { position: relative; height: 14px; margin: 4px 0 2px; }
+.bl-cbt-row { display: flex; align-items: center; gap: 10px; padding: 1px 0; }
+.bl-cbt-label { display: flex; align-items: center; gap: 6px; width: 280px; min-width: 280px; color: #cfd6e6; }
+.bl-cbt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+.bl-cbt-label .bl-kind { white-space: nowrap; }
+.bl-cbt-label .bl-cover { white-space: nowrap; flex: 0 0 auto; }
+.bl-cbt-track { position: relative; height: 14px; background: rgba(20,24,34,0.5); border-radius: 4px; }
+.bl-cbt-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+.bl-cbt-delivery { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fff; opacity: 0.8; }

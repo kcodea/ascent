@@ -1833,7 +1833,12 @@ export type CombatEvent = (
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
-) & { step?: number; avenge?: true }; // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
+) & { step?: number; avenge?: true; key?: string; srcCard?: string };
+// `key`/`srcCard` (CHOREOGRAPHER PR 23): the registry key of the minion EFFECT that emitted this event
+// (`factory:<do>:<on>`) and the card that ran it — stamped by the simulator's dispatch context, exactly like
+// `step`/`avenge`. Pure presentation metadata: never read by resolution, so outcomes cannot depend on it.
+// This is what makes minion combat triggers (Oona's onSummon, every onAttack/onDeath/avenge) ADDRESSABLE as
+// a class instead of identity-less moments the Beat Lab can only display. // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 

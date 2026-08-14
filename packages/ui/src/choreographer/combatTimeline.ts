@@ -9,6 +9,7 @@
  * This does not touch playback. Combat still runs on its own runtime; this only re-describes the result.
  */
 import type { CombatEvent } from '@game/core';
+import { CARD_INDEX, RUNE_INDEX, QUEST_INDEX } from '@game/content';
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { adaptCombatMoments } from './adapters/combatMomentAdapter';
 import { compileTimeline } from './compileTimeline';
@@ -42,5 +43,16 @@ export function combatTimelineFrom(combat: ResolvedCombatLike | null | undefined
   // wrong events.
   const ordered = replayOrder(combat.events);
   const input = adaptCombatMoments(moments, ordered, { cardIdOf: (uid) => cards.get(uid) ?? null });
+  // DISPLAY NAMES (owner report 2026-08-13: "we need actual names and not the id_names"). The adapter labels
+  // with ids because it cannot import content; this composition CAN, so it resolves every source to the name
+  // the owner actually recognizes — card ids through CARD_INDEX, keyed rune/quest triggers through their own
+  // indexes. Unresolvable ids (system tags, tokens from removed cards) keep the id: honest beats pretty.
+  for (const node of input.nodes) {
+    const src = node.source;
+    const name = src.kind === 'rune' ? RUNE_INDEX[src.id]?.name
+      : src.kind === 'quest' ? QUEST_INDEX[src.id]?.name
+      : CARD_INDEX[src.id]?.name;
+    if (name) src.label = name;
+  }
   return compileTimeline(input);
 }

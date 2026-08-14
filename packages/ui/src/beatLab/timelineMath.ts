@@ -3,7 +3,7 @@
  * per-beat region layout, so the interaction is unit-testable and the drag handler stays a thin wrapper (the
  * FX Workbench lesson — measure once, compute in pure functions; blueprint §16.5).
  */
-import type { ScheduledBeat } from './beatTimeline';
+import type { ScheduledBeat } from './labSchedule';
 
 export const msToPx = (ms: number, pxPerMs: number): number => ms * pxPerMs;
 export const pxToMs = (px: number, pxPerMs: number): number => (pxPerMs > 0 ? px / pxPerMs : 0);

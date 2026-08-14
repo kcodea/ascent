@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DevPanelContext } from './useDraggablePanel';
+import { useGame } from './store';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { CritFxTuner } from './CritFxTuner';
@@ -429,6 +430,35 @@ export function DevMenu() {
           relationship it doesn't have. */}
       {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
       {blOpen && <BeatLab onClose={() => setBlOpen(false)} />}
+      <BeatDraftBanner />
     </>
+  );
+}
+
+/**
+ * CHOREOGRAPHER PR 19 — the persistent "unsaved timings are pacing the real game" banner (blueprint §15).
+ * Rendered by the DevMenu (always mounted in DEV) rather than the Lab, so it stays visible after the Lab
+ * closes — the whole workflow is tune → close → play a real turn, and the banner is what keeps "why does the
+ * game feel different" from ever being a mystery. Click it to turn the override off.
+ */
+function BeatDraftBanner(): React.ReactElement | null {
+  const live = useGame((s) => s.beatDraftLive);
+  const draft = useGame((s) => s.beatDraft);
+  const setLive = useGame((s) => s.setBeatDraftLive);
+  if (!live || !draft) return null;
+  const n = Object.keys(draft.timings).length + Object.keys(draft.policies).length;
+  return (
+    <button
+      onClick={() => setLive(false)}
+      title="Uncommitted Beat Lab draft is pacing End of Turn. Click to disable."
+      style={{
+        position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 100001,
+        background: 'rgba(224,179,77,0.92)', color: '#1a1408', border: '1px solid #8a6d1f', borderRadius: 6,
+        font: '700 11px/1.6 ui-monospace, Consolas, monospace', padding: '2px 10px', cursor: 'pointer',
+        letterSpacing: '0.06em',
+      }}
+    >
+      ● DEV BEAT OVERRIDES ACTIVE — {n} draft key{n === 1 ? '' : 's'} pacing End of Turn (click to disable)
+    </button>
   );
 }

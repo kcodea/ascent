@@ -16,6 +16,7 @@
  */
 import { ALL_CARDS, RUNES, EPIC_RUNES, QUEST_DEFS } from '@game/content';
 import { heroSurface } from '@game/sim';
+import { combatBeatsEnabled } from '../choreographer/combatHolds';
 import { PRESENTATION_POLICIES, type PresentationBatch, type PresentationPolicy } from '@game/core';
 
 export type TriggerCoverage = 'classified' | 'silent' | 'empty';
@@ -37,6 +38,16 @@ export interface TriggerRow {
   derived: boolean;
   /** Where a timing edit for this trigger writes — per-source, so tuning one card doesn't move every sibling. */
   editKey: string;
+  /**
+   * CHOREOGRAPHER — what editing THIS trigger reaches (owner reports 2026-08-13, twice: "nothing i do in the
+   * lab seems to affect the timing in game", then "i still see a lot of previews in the library"):
+   *   'live'    — paces the real game right now (End of Turn always; combat rows when `ascent.combatbeats`
+   *               is on, since PR 21/23 made both the quest/rune flags and the minion class consumable).
+   *   'flag'    — WOULD be live, one switch away: a combat-class row while `ascent.combatbeats` is off.
+   *               Without this state the whole combat surface read as unwired when it is actually gated.
+   *   'preview' — genuinely not consumed yet (recruit-action playback: Shouts, casts, hero-power moments).
+   */
+  live: 'live' | 'flag' | 'preview';
 }
 
 export interface SourceEntry {
@@ -86,6 +97,22 @@ const runeKeyPrefixTrigger = (id: string): { key: string; trigger: string } | nu
   return null;
 };
 
+
+/** Minion effect triggers that fire IN COMBAT — the class PR 23 stamped, consumable behind the flag. */
+const COMBAT_ONS = new Set([
+  'onDeath', 'onAttack', 'onSummon', 'avenge', 'onKill', 'onDamaged', 'onGainAttack',
+  'battlecryTriggered', 'summonOverflow', 'spellCast', 'startOfCombat', 'orbit', 'orbitFired',
+]);
+
+/** What editing a trigger reaches — see TriggerRow.live. Read at enumeration time; reopen after flag flips. */
+function liveToday(kind: string, sourceId: string, trigger: string): 'live' | 'flag' | 'preview' {
+  if (trigger === 'endOfTurn' || (kind === 'hero' && sourceId === 'repete')) return 'live';
+  const combatRow = ((kind === 'rune' || kind === 'quest') && trigger === 'combat')
+    || (kind === 'minion' && COMBAT_ONS.has(trigger));
+  if (combatRow) return combatBeatsEnabled() ? 'live' : 'flag';
+  return 'preview';
+}
+
 export function sourceEntries(): SourceEntry[] {
   const out: SourceEntry[] = [];
 
@@ -103,6 +130,7 @@ export function sourceEntries(): SourceEntry[] {
           id: rowId, moment: label(e.on), trigger: e.on, factory: e.do,
           policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false,
           editKey: `source:${kind}:${c.id}:${e.on}`,
+          live: liveToday(kind, c.id, e.on),
         });
       }
       // A derived Start-of-Combat moment (Fleeting Vigor, pending SC Imps) — an EMPTY trigger.
@@ -112,6 +140,7 @@ export function sourceEntries(): SourceEntry[] {
         triggers.push({
           id: 'derived:startOfCombat', moment: dm, trigger: 'startOfCombat', factory: e.do,
           coverage: 'empty', derived: true, editKey: `source:${kind}:${c.id}:startOfCombat`,
+          live: 'preview',
         });
       }
     }
@@ -124,7 +153,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(found.key);
     out.push({
       kind: 'rune', id: r.id, name: r.name, tier: r.epic ? 'epic' : 'basic',
-      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:rune:${r.id}:${found.trigger}` }],
+      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:rune:${r.id}:${found.trigger}`, live: liveToday('rune', r.id, found.trigger) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }
@@ -135,7 +164,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(found.key);
     out.push({
       kind: 'quest', id: q.id, name: q.name, tier: q.tier,
-      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:quest:${q.id}:${found.trigger}` }],
+      triggers: [{ id: found.trigger, moment: label(found.trigger), trigger: found.trigger, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:quest:${q.id}:${found.trigger}`, live: liveToday('quest', q.id, found.trigger) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }
@@ -145,7 +174,7 @@ export function sourceEntries(): SourceEntry[] {
     const cov = coverageOf(h.key);
     out.push({
       kind: 'hero', id: h.heroId, name: h.name,
-      triggers: [{ id: h.powerKind, moment: `hero power · ${h.powerKind}`, trigger: h.powerKind, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:hero:${h.heroId}:${h.powerKind}` }],
+      triggers: [{ id: h.powerKind, moment: `hero power · ${h.powerKind}`, trigger: h.powerKind, policy: cov.policy, family: cov.family, coverage: cov.coverage, derived: false, editKey: `source:hero:${h.heroId}:${h.powerKind}`, live: liveToday('hero', h.heroId, h.powerKind) }],
       hasEmpty: cov.coverage === 'empty',
     });
   }
@@ -174,9 +203,11 @@ export function fixtureBatchForTrigger(entry: SourceEntry, row: TriggerRow): Pre
     actionId: `fixture:${entry.id}:${row.id}`,
     phase,
     events: [
-      { type: 'sourceTrigger', id: 'fx:t1', sequence: 0, step: 1, phase, source: src, trigger: row.trigger, policy, repeatIndex: 0, repeatCount: 2 },
+      // `family` rides on the fixture (PR 18) so committed family templates pace the preview exactly as
+      // they pace the live game — without it the preview silently fell through to policy defaults.
+      { type: 'sourceTrigger', id: 'fx:t1', sequence: 0, step: 1, phase, source: src, trigger: row.trigger, policy, ...(row.family ? { family: row.family } : {}), repeatIndex: 0, repeatCount: 2 },
       { type: 'statsChanged', id: 'fx:c1', sequence: 1, step: 1, parentId: 'fx:t1', target: { zone: 'board', uid: 'fixture-a' }, attack: 2, health: 2, permanent: true },
-      { type: 'sourceTrigger', id: 'fx:t2', sequence: 2, step: 2, phase, source: src, trigger: row.trigger, policy, repeatIndex: 1, repeatCount: 2 },
+      { type: 'sourceTrigger', id: 'fx:t2', sequence: 2, step: 2, phase, source: src, trigger: row.trigger, policy, ...(row.family ? { family: row.family } : {}), repeatIndex: 1, repeatCount: 2 },
       { type: 'statsChanged', id: 'fx:c2', sequence: 3, step: 2, parentId: 'fx:t2', target: { zone: 'board', uid: 'fixture-b' }, attack: 2, health: 2, permanent: true },
     ],
   };

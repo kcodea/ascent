@@ -18,6 +18,7 @@ import { useGame } from '../store';
 import { labSchedule, activeBeatIndex } from './labSchedule';
 import { mergeOverrides, SHIPPED_OVERRIDES, SHIPPED_POLICY_OVERRIDES, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { BeatLibrary } from './BeatLibrary';
+import { CombatTimelineView } from './CombatTimelineView';
 import { migrateV1Patch } from '../choreographer/resolveTiming';
 import beatDefaults from './beat-defaults.json';
 import './beatLab.css';
@@ -286,7 +287,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   const beatDraftLive = useGame((s) => s.beatDraftLive);
   const setBeatDraft = useGame((s) => s.setBeatDraft);
   const setBeatDraftLive = useGame((s) => s.setBeatDraftLive);
-  const [mode, setMode] = useState<'capture' | 'library'>('capture');
+  const [mode, setMode] = useState<'capture' | 'library' | 'combat'>('capture');
   // The session DRAFT: sparse timing overrides, edited from either mode, pacing all Beat Lab playback.
   // Session-only (a reload starts from shipped timings — blueprint §17.2), but it SURVIVES closing and
   // reopening the Lab: the store's published copy is the source on mount. Owner report 2026-08-13 — the
@@ -344,6 +345,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         <span className="bl-title">Beat Lab</span>
         <button className={`bl-tab${mode === 'capture' ? ' bl-tab-on' : ''}`} onClick={() => setMode('capture')}>Capture</button>
         <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
+        <button className={`bl-tab${mode === 'combat' ? ' bl-tab-on' : ''}`} onClick={() => setMode('combat')} title="The last resolved fight on the shared timeline (read-only)">Combat</button>
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
         <button
           className={`bl-tab${beatDraftLive ? ' bl-tab-on' : ''}`}
@@ -360,7 +362,8 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         <span className="bl-meta">
           {mode === 'capture'
             ? batch ? `${batch.actionId} · ${batch.events.length} events · rev ${revision}` : 'no batch captured yet'
-            : 'every registered beat — no playing required'}
+            : mode === 'library' ? 'every registered beat — no playing required'
+            : 'the last resolved fight, read-only'}
         </span>
         <label className="bl-fontslider" title={`Text size: ${ui.fontPx}px`}>
           <span>A</span>
@@ -378,6 +381,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
             </div></div>
       )}
       {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} policyDraft={policyDraft} setPolicyDraft={setPolicyDraft} />}
+      {mode === 'combat' && <CombatTimelineView />}
     </div>
   );
 }

@@ -71,6 +71,23 @@ export function recurringEotOwner(effect: string): { key: string; kind: 'rune' |
 }
 
 /**
+ * CHOREOGRAPHER PR 15 — a rune/quest id to the registry key the SURFACE files it under.
+ *
+ * The emitter knows which rune or quest is paying out, but not which bucket the surface chose for it — and
+ * guessing (`rune:<id>:onAcquire`) would produce an orphan identity for anything bucketed differently. Reusing
+ * the same `runeKey`/`questKey` the surface uses is the only way the emitted key and the classified key can be
+ * guaranteed to agree.
+ */
+export function surfaceKeyForRune(id: string): string | undefined {
+  const rune = [...RUNES, ...EPIC_RUNES].find((r) => r.id === id);
+  return rune ? runeKey(rune) : undefined;
+}
+export function surfaceKeyForQuest(id: string): string | undefined {
+  const quest = QUEST_DEFS.find((q) => q.id === id);
+  return quest ? questKey(quest) : undefined;
+}
+
+/**
  * CHOREOGRAPHER PR 7 — the DERIVED/SYSTEM manifest (blueprint §15.2).
  *
  * Not every automatic effect is a row in card/rune/quest data. Some are moments the ENGINE derives: a spell

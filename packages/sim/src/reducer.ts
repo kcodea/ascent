@@ -1,6 +1,6 @@
 import { type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { currentCollector, withActiveCollector } from './activeCollector';
-import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
+import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
@@ -1694,7 +1694,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (action.kind === 'rune') {
         const rune = RUNE_INDEX[action.id];
         if (!rune) return state;
-        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
         (s.ownedRunes ??= []).push(rune.id);
       } else {
         const def = QUEST_INDEX[action.id];
@@ -1745,13 +1745,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.embers < runeCost) return state; // can't afford — no-op (the UI greys it out)
       spendGold(s, runeCost);
       // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
-      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
       // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
       // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
       // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
       if (s.runeDuplication && s.runeforgeEpic) {
         s.runeDuplication = undefined;
-        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
         (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
       }
       (s.ownedRunes ??= []).push(rune.id);
@@ -3706,7 +3706,62 @@ function openNextStartOfTurnModal(s: RunState): void {
   if (s.holdFodderConsume) { s.holdFodderConsume = undefined; consumeTavernFodder(s); }
 }
 
-function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
+/**
+ * CHOREOGRAPHER PR 15 — quest/rune payouts announce themselves.
+ *
+ * `applyQuestReward` is the single chokepoint for BOTH quest completions and rune acquisitions, so wrapping
+ * it here gives ~100 classified-but-silent keys a beat without touching a hundred reward branches.
+ *
+ * Consequences are discovered by DIFFING the reward, the same technique the End-of-Turn primitive uses: a
+ * reward can move board stats, hand contents and Gold through many helpers, and instrumenting each one would
+ * be a hundred chances to miss one. Read-only with respect to gameplay — the diff never mutates.
+ */
+function withQuestRewardBeat(s: RunState, key: string | undefined, label: string, kind: 'quest' | 'rune', id: string, run: () => void): void {
+  const collector = currentCollector();
+  if (!collector.enabled || !key) { run(); return; }
+  const statOf = (c: { uid: string; attack: number; health: number }) => [c.uid, { a: c.attack, h: c.health }] as const;
+  const before = new Map([...s.board, ...s.hand].map(statOf));
+  const handBefore = new Set(s.hand.map((c) => c.uid));
+  const goldBefore = s.embers;
+  const maxGoldBefore = s.maxEmbers;
+  collector.withTrigger(
+    { phase: 'recruit', source: { kind, id, label, side: 'player' }, trigger: 'reward', ...beatIdentity(key) },
+    () => {
+      run();
+      for (const c of [...s.board, ...s.hand]) {
+        const was = before.get(c.uid);
+        if (!was) continue; // a card that did not exist before is a GRANT, emitted below
+        const da = c.attack - was.a;
+        const dh = c.health - was.h;
+        if (da === 0 && dh === 0) continue;
+        const zone = s.hand.some((h) => h.uid === c.uid) ? 'hand' : 'board';
+        collector.emit({ type: 'statsChanged', target: { zone, uid: c.uid, cardId: c.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+      }
+      for (const c of s.hand) {
+        if (handBefore.has(c.uid)) continue;
+        collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+      }
+      if (s.embers !== goldBefore) collector.emit({ type: 'resourceChanged', resource: 'gold', amount: s.embers - goldBefore, valueAfter: s.embers });
+      if (s.maxEmbers !== maxGoldBefore) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: s.maxEmbers - maxGoldBefore, valueAfter: s.maxEmbers });
+    },
+  );
+}
+
+function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {
+  const collector = currentCollector();
+  if (collector.enabled) {
+    // Resolve the key the SURFACE files this content under, rather than guessing a phase segment — a guessed
+    // key would be an orphan identity presentation could not time.
+    const key = sourceKind === 'rune' ? surfaceKeyForRune(def.id) : surfaceKeyForQuest(def.id);
+    if (key) {
+      withQuestRewardBeat(s, key, def.name, sourceKind, def.id, () => applyQuestRewardInner(s, def, allowRepeat));
+      return;
+    }
+  }
+  applyQuestRewardInner(s, def, allowRepeat);
+}
+
+function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
   switch (r.kind) {
     case 'buffBoard':

@@ -68,6 +68,14 @@ export interface DragFeel {
   shBlur: number;
   /** Shadow opacity while dragging (lighter = higher/airier). */
   shFade: number;
+  /** DRAG-SHRINK — a hand card, hovered, is bigger than it is once lifted; grabbing it swaps in the floating
+   *  `.dragcard` at its held size instantly. These animate that shrink instead. Reflected to `--drag-shrink-*`,
+   *  consumed by `.dragcard.fromhand .dragshrink` in styles.css. Hand drags only. */
+  /** How long the grab-shrink takes (ms). 0 = instant (the old behaviour). */
+  shrinkMs: number;
+  /** The size the lifted card STARTS at, as a multiple of its held size — it eases from here to 1. Dial it so
+   *  the first frame matches the hover-popped size (no jump); ~1.25 ≈ the 1.51 hover over the 1.21 hold. */
+  shrinkFrom: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -93,6 +101,8 @@ const DEFAULTS: DragFeel = {
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
   shFade: 0.54,     // owner-tuned: noticeably lighter than the resting solid shadow
+  shrinkMs: 160,    // ease the grab-shrink over ~160ms (0 = instant)
+  shrinkFrom: 1.25, // start ≈ the hover-popped size (1.51 hover / 1.21 hold), shrink to 1
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -119,6 +129,8 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   shLift: [0, 80, 1],
   shBlur: [0, 50, 1],
   shFade: [0, 1, 0.02],
+  shrinkMs: [0, 500, 10],
+  shrinkFrom: [1, 1.6, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -145,6 +157,8 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   shLift: 'Drag shadow OFFSET below the lifted card (px). Further = higher off the table.',
   shBlur: 'Drag shadow SOFTNESS while lifted (blur px). Softer = higher off the table.',
   shFade: 'Drag shadow OPACITY while lifted. Lower = a lighter, airier shadow (reads as higher/further).',
+  shrinkMs: 'How long a card takes to shrink from its hover size down to its held size when you grab it (ms). 0 = instant.',
+  shrinkFrom: 'The size a grabbed card STARTS at (× its held size), easing to 1. Dial it to match the hover pop so there’s no jump. Hand drags only.',
 };
 
 const KEY = 'ascent.dragfeel';
@@ -166,7 +180,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 7;
+export const DRAG_DEFAULTS_VERSION = 8;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };
@@ -218,6 +232,9 @@ export function applyDragFeelVars(): void {
   root.setProperty('--dsh-lift', `${cfg.shLift}px`);
   root.setProperty('--dsh-blur', `${cfg.shBlur}px`);
   root.setProperty('--dsh-fade', String(cfg.shFade));
+  // Grab-shrink — consumed by `.dragcard.fromhand .dragshrink` in styles.css.
+  root.setProperty('--drag-shrink-ms', `${cfg.shrinkMs}ms`);
+  root.setProperty('--drag-shrink-from', String(cfg.shrinkFrom));
 }
 export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };

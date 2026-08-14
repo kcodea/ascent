@@ -21,6 +21,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, string]> = {
   follow:        ['Catch-up speed', '×', 'How fast the card catches up to the cursor. LOWER is heavier and laggier; 1 is instant, with no lag at all.', 'Weight'],
   scale:         ['Hold size', '×', 'How much the card grows while held.', 'Weight'],
+  shrinkMs:      ['Grab-shrink time', 'ms', 'How long a card takes to shrink from its hover size down to its held size when grabbed. 0 = instant.', 'Weight'],
+  shrinkFrom:    ['Grab-shrink from', '×', 'The size a grabbed card STARTS at (× its held size), easing to 1. Dial it to match the hover pop so there’s no jump. Hand drags only.', 'Weight'],
   threshold:     ['Drag threshold', 'px', 'How far the pointer must move before a press becomes a drag rather than a click.', 'Weight'],
 
   tiltGain:      ['Dive gain', '×', 'Degrees of dive per px/frame of travel — one gain for both axes; the leading edge dips toward the board.', 'Tilt'],
@@ -51,7 +53,7 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof DragFeel)[] = [
-  'follow', 'scale', 'threshold',
+  'follow', 'scale', 'shrinkMs', 'shrinkFrom', 'threshold',
   'tiltGain', 'tiltEase', 'tiltMax', 'perspective', 'staticRotate',
   'recenter', 'recenterAfter', 'handGrabY', 'snapMs',
   'collapseY', 'handFloor', 'handPop',

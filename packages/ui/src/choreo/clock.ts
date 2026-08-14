@@ -1,6 +1,7 @@
 import type { Moment } from './compile';
 import { RESULT_TYPES } from '../combatBeats';
 import { getLungeConfig } from '../lungeConfig';
+import { combatKeyedHoldMs } from '../choreographer/combatHolds';
 import { getChoreoConfig, beatDelay } from './choreoConfig';
 
 /**
@@ -26,6 +27,16 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
   const cfg = getChoreoConfig();
   const c = getLungeConfig();
   const spd = combatSpeed > 0 ? combatSpeed : 1;
+  // CHOREOGRAPHER PR 21 (audit step 4): a KEYED quest/rune trigger's authored hold is how long it stays on
+  // screen — checked on SHOWN, not `next`, and that distinction was found live, not in review. `holdMs(next,
+  // shown)` is the delay before showing NEXT, so a beat's read time is the hold computed while it is the
+  // shown one. Keying on `next` looked right and did nothing: a gems fire always follows an attack, and the
+  // post-attack transition skips holdMs entirely (engine-advanced, contact-anchored) — so the next-keyed
+  // check sat on the one transition that never runs. The owner's own words are the spec here: "how long
+  // individual triggers have to show they have triggered." Checked BEFORE the overlap rules so an authored
+  // read outranks ride-the-previous. Null everywhere else — byte-identical pacing to today.
+  const keyedShown = shown ? combatKeyedHoldMs(shown.primary as { type: string; flag?: string }) : null;
+  if (keyedShown != null) return keyedShown / spd;
   if (shown && OVERLAP_INTO.has(next.primary.type)) return cfg.overlapMs / spd; // ride on the preceding FX
   // A REPEATED NARRATION rides the one before it, for the same reason those consequence beats do.
   //

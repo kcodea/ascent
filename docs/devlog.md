@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-14 - Beat Lab: finish pass — accuracy over more emission
+
+"Finish remaining work on the beat tool." The honest finish here is ACCURACY, not more machinery: the tool's
+copy still described shipped work as future, and the last remaining emission targets are correctly out of
+scope.
+
+Copy the arc had left stale:
+- **Capture empty-state** said "Migrated triggers so far: Shouts and the full End-of-Turn pass" — implying
+  migration was partial. Every class emits now; rewritten to say so and point at Library/Combat.
+- **Combat-tab banner** said keyed rows "become tunable first when combat starts consuming compiled timing —
+  the next milestone." That milestone SHIPPED (combat consumes compiled timing behind `ascent.combatbeats`,
+  PRs 21/23). The banner is now flag-aware: with the flag ON it reads "LIVE — keyed rows pace real fights,
+  tune them in the Library"; with it off, "one switch away." The "keyed" tooltip and module doc were
+  corrected the same way (the minion combat class is keyed too, not just quest/rune flags).
+
+The three REACTIVE hero payouts (Robin's sell-Gold, Gorr's fourth-buy, Goldcrafter's turn-payout) are left
+un-emitted on purpose, and it is the north-star-aligned call: they fire DURING shop actions (or a turn
+advance), and shop actions are instant by design (owner ruling 2026-08-14). A beat for them would be instant
+regardless, so wiring emission would add DEV-path cost to the snappy buy/sell loop for zero tunability. The
+tool is accurate about them — they show the `instant` badge, like every shop-action effect.
+
+State of the tool: every STAGEABLE event (End of Turn, combat incl. the minion class + flags + activated
+heroes) is addressable and tunable; shop actions are instant by design and labelled so; the tool's own copy
+now matches what shipped. That is the finish line for the objectives the owner set.
+
+Pure copy/accuracy pass. typecheck + lint + npm test + build:web green.
+
 ## 2026-08-14 — grabbing a hand card eases its shrink instead of snapping
 
 Owner ask: a hovered hand card is bigger (the hover pop, `--z-hand-hover-s` 1.51) than it is once lifted (the

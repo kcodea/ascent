@@ -39,6 +39,11 @@ The five buckets below are ordered by when we intend to act, not by size:
   Documents/Codex). 13-PR arc, owner checkpoint after PR 4 (read-only viewer). PR 1 (policy registry, 654
   keys classified, 42 flagged for review, `beats:audit`, CI tripwire) is up. Next: PR 2 (presentation
   collector), PR 3 (recruit pipeline + one migrated trigger), PR 4 (read-only Beat Lab shell).
+- **Board buttons re-art + hero-power circle + FX + editor fixes — SHIPPED 2026-08-14.** Freeze/End Turn base+gem
+  layers with cracked-on-press; Hero Power → circle; "Freeze" label pill; gem/pill tuner sliders + baked defaults;
+  FX bindings (freeze-blast, hero-power-spark, hero-power-target, coin-on-sell, click-puff fix); green buff-burst
+  removed; timer label removed; in-run UI editor fixes (drag scale, undo/deselect/exit, unique selector, image
+  panel). Details in the devlog.
 - **Beast batch (owner) — SHIPPED 2026-08-12.** Kennelmaster Avenge 3→4; King Oona doubles Attack only; 4 new
   Beasts (Wolvie, Armadiyo, Dunkey, Voidmother) and 4 new runes (Burrow, Voidmother, Jungle, Beastial Swarm),
   with three new combat mechanics (next-summon queue, resummon-without-Echo, per-death buff + run-persisted

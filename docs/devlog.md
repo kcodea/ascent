@@ -25,6 +25,32 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 19: LIVE draft - uncommitted Lab edits pace the real game
+
+Step 2 of the owner's audit plan, and the moment the tool meets the owner's stated best outcome: "live-modify
+beats of events in the game." Until now the loop was tune -> commit -> HMR reload -> play. Now it is tune ->
+flip LIVE -> play; the next real End Turn runs at the draft's pacing, no commit, no reload.
+
+Blueprint §15's rule is load-bearing here: "live gameplay must not silently use unsaved draft values." So:
+- The Lab publishes its session draft to the store (ephemeral, never serialized), but the game only READS it
+  when the owner flips an explicit **LIVE** toggle in the Lab's topbar - off by default, every session.
+- While active, a persistent amber banner - "DEV BEAT OVERRIDES ACTIVE - N draft keys pacing End of Turn" -
+  renders from the DevMenu (always mounted in DEV), so it survives the Lab closing; the intended workflow IS
+  tune -> close the Lab -> play a real turn -> judge. Clicking the banner turns the override off.
+- DEV only at the consumption site: prod never reads either field, so this cannot ship to players.
+- Drafts survive the Lab closing but not a reload - exactly the Lab's own draft lifecycle.
+
+Verified live, both directions, in the running game:
+
+    LIVE on:  draft hold 2000 on the Lapidary -> "1 beats, 1 deliveries, 2290ms"  (120+2000+170)
+    banner clicked (off): same turn re-run    -> "1 beats, 1 deliveries, 710ms"   (120+540+170, shipped)
+
+The banner appears with the draft count and disappears when clicked; the shipped config is untouched
+throughout. No new tests beyond the existing labSchedule equivalence suite - the conversion path this rides is
+the one PR 18 pinned byte-for-byte; the wiring itself was verified in the browser.
+
+typecheck + lint + npm test (5278) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 18: ONE ENGINE - the Beat Lab previews on the live compiler
 
 The owner's step-back audit (2026-08-13) restated the tool's objectives: live-modify beats of all events,

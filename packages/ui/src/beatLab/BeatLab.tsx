@@ -220,6 +220,9 @@ function toV2File(
 export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElement {
   const batch = useGame((s) => s.latestBatch);
   const revision = useGame((s) => s.beatRevision);
+  const beatDraftLive = useGame((s) => s.beatDraftLive);
+  const setBeatDraft = useGame((s) => s.setBeatDraft);
+  const setBeatDraftLive = useGame((s) => s.setBeatDraftLive);
   const [mode, setMode] = useState<'capture' | 'library'>('capture');
   // The session DRAFT: sparse timing overrides, edited from either mode, pacing all Beat Lab playback.
   // Deliberately NOT persisted — reopening the Lab starts from shipped timings (blueprint §17.2).
@@ -227,6 +230,14 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
   // Parallel policy draft (the folded↔own toggle) — same session-only, commit-to-file lifecycle as timing.
   const [policyDraft, setPolicyDraft] = useState<BeatPolicyOverrides>({});
   const draftCount = Object.keys(draft).length + Object.keys(policyDraft).length;
+
+  // CHOREOGRAPHER PR 19 — publish the draft for LIVE playback (blueprint §15). Always published (it is
+  // ephemeral store state, not a save), but the game only READS it when the owner flips the Live toggle —
+  // and a persistent banner marks every End Turn it paces. Deliberately kept when the Lab closes, so the
+  // workflow is: tune → close the Lab → play the real turn → judge.
+  useEffect(() => {
+    setBeatDraft(draftCount > 0 ? { timings: draft, policies: policyDraft } : null);
+  }, [draft, policyDraft, draftCount, setBeatDraft]);
 
   const copyDraft = (): void => { void navigator.clipboard?.writeText(JSON.stringify(toV2File(draft, policyDraft), null, 2)); };
 
@@ -257,6 +268,14 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         <button className={`bl-tab${mode === 'capture' ? ' bl-tab-on' : ''}`} onClick={() => setMode('capture')}>Capture</button>
         <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
+        <button
+          className={`bl-tab${beatDraftLive ? ' bl-tab-on' : ''}`}
+          style={beatDraftLive ? { borderColor: '#e0b34d', color: '#e0b34d' } : undefined}
+          onClick={() => setBeatDraftLive(!beatDraftLive)}
+          title="Pace the REAL game with this draft (uncommitted). A banner shows while it is on; committed values are unaffected."
+        >
+          {beatDraftLive ? '● LIVE' : 'Live'}
+        </button>
         {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} title="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
         {draftCount > 0 && <button className="bl-tbtn" onClick={() => { setDraft({}); setPolicyDraft({}); }} title="Discard every draft override">Reset all</button>}

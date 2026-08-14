@@ -125,3 +125,73 @@ describe('what this file adds on top of heroPolicies.test.ts', () => {
     }
   });
 });
+
+describe('PR 22 — ALL activated hero powers emit at the action chokepoint', () => {
+  /**
+   * The wrap lives in `reduceWithPresentation`, not inside the 140-line reducer case — so every activated
+   * power, current and future, is covered by construction. These sample across the mechanically distinct
+   * branches: a targeted board buff, an untargeted resource payout, a Discover with its own cost, and a
+   * once-per-game targeted transform.
+   */
+  const powerOn = (heroId: string, over: Partial<RunState> = {}, uid?: string) => {
+    const s = {
+      ...createRun(21, heroId), phase: 'recruit', embers: 10, heroReady: true,
+      board: [{ uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      ...over,
+    } as RunState;
+    return { before: s, out: reduceWithPresentation(s, { type: 'heroPower', uid } as never, true) };
+  };
+  const heroTrigger = (events: readonly unknown[] | undefined) =>
+    (events ?? []).find((e) => (e as SourceTriggerEvent).type === 'sourceTrigger' && (e as SourceTriggerEvent).source.kind === 'hero') as SourceTriggerEvent | undefined;
+
+  it("Warden's Ward: hero beat + the target's keywordChanged", () => {
+    // First written expecting statsChanged — wrong: warden's power GRANTS A KEYWORD, and the diff had no
+    // keyword coverage at all. The failing test found a real hole, not a typo.
+    const { out } = powerOn('warden', {}, 'b1');
+    const t = heroTrigger(out.batch?.events);
+    expect(t?.policyKey).toBe('hero:warden:grantWard');
+    const kw = out.batch!.events.find((e) => e.type === 'keywordChanged' && e.parentId === t!.id);
+    expect(kw, 'the Ward landed as a consequence of the hero').toBeTruthy();
+  });
+
+  it("Nadja's Mana Font: hero beat + a maxGold consequence", () => {
+    const { out } = powerOn('nadja');
+    const t = heroTrigger(out.batch?.events);
+    expect(t?.policyKey).toBe('hero:nadja:gainMaxMana');
+    expect(out.batch!.events.some((e) => e.type === 'resourceChanged' && e.resource === 'maxGold' && e.parentId === t!.id)).toBe(true);
+  });
+
+  it("Bagger Ben's Bag It (was misfiled `passive`): hero beat + a gold consequence", () => {
+    const { out } = powerOn('baggerben');
+    const t = heroTrigger(out.batch?.events);
+    expect(t?.policyKey).toBe('hero:baggerben:scalingGold');
+    expect(out.batch!.events.some((e) => e.type === 'resourceChanged' && e.resource === 'gold' && e.amount > 0)).toBe(true);
+  });
+
+  it('a REJECTED click (power not ready) emits nothing — no moment in which nothing happened', () => {
+    const { out } = powerOn('warden', { heroReady: false } as Partial<RunState>, 'b1');
+    expect(out.batch).toBeNull();
+  });
+
+  it('gameplay is byte-identical with capture on and off, across the sampled powers', () => {
+    for (const [heroId, uid] of [['warden', 'b1'], ['nadja', undefined], ['baggerben', undefined]] as const) {
+      const s = {
+        ...createRun(21, heroId), phase: 'recruit', embers: 10, heroReady: true,
+        board: [{ uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      } as RunState;
+      const action = { type: 'heroPower', uid } as never;
+      expect(JSON.stringify(reduceWithPresentation(s, action, true).state), heroId)
+        .toBe(JSON.stringify(reduce(s, action)));
+    }
+  });
+
+  it('every activated power that resolves emits a registry-anchored key (sampled sweep)', () => {
+    for (const heroId of ['warden', 'nadja', 'baggerben', 'darah', 'soren']) {
+      const { out } = powerOn(heroId, {}, 'b1');
+      if (!out.batch) continue; // a power this fixture cannot legally fire — absence is honest
+      const t = heroTrigger(out.batch.events);
+      expect(t, heroId).toBeTruthy();
+      expect(PRESENTATION_POLICIES[t!.policyKey!], `${heroId} → ${t!.policyKey}`).toBeDefined();
+    }
+  });
+});

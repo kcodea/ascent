@@ -682,7 +682,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'system:startOfCombat:pendingKeywords': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingImps': { policy: 'ownBeat', family: 'startOfCombat' },
   // ── HEROES — hero:<id>:<power.kind> (DoD item 1b; heuristic classification, all flagged for owner review) ──
-  'hero:baggerben:scalingGold': { policy: 'passive', family: 'passive', flagged: true },
+  // PR 22: Bag It is an ACTIVATED payout (click → Gold now, climbing each turn) — `passive` was
+  // factually wrong; the reducer has an activation branch for it. Still flagged for the owner pass.
+  'hero:baggerben:scalingGold': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
   'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
@@ -706,7 +708,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:runeguard:epicRuneforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:runesmith:runeforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:soren:resummon': { policy: 'ownBeat', family: 'heroPower', flagged: true },
-  'hero:tiff:dragonTamer': { policy: 'passive', family: 'passive', flagged: true },
+  // PR 22: Dragon Tamer is an ACTIVATED Discover (click → pay shrinking cost → Discover a Dragon) —
+  // `passive` was factually wrong. Still flagged for the owner pass.
+  'hero:tiff:dragonTamer': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:warden:grantWard': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };

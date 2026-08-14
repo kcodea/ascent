@@ -25,6 +25,37 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat Lab usability: movable/resizable window, text-size slider, drafts survive reopen
+
+Owner report while trying the tool: the Lab was a fixed full-screen overlay - "i need to close the window out
+in order to play the game", "can you make the window adjustable and give me a text slider" - plus the load-
+bearing question "if i close the window do changes go away?"
+
+**The question found a real bug.** Closing the Lab kept the draft pacing the game (the store copy lives on),
+but REOPENING it wiped the draft: the fresh Lab mounted with empty state and its publish effect immediately
+clobbered the store copy with null. For the exact workflow the tool is built around - tune, close, play,
+reopen to adjust - the drafts were being destroyed by the reopen. Fix: the Lab's draft state initializes FROM
+the store's published copy on mount, making the store the surviving source of truth. Verified in-browser:
+edit hold to 999 -> close -> store still carries it -> reopen -> "draft: 1 key" with the same values.
+
+- **Movable**: drag the topbar (buttons/inputs on it keep their own behavior; empty bar space is the handle).
+- **Resizable**: native CSS `resize: both` handle at the bottom-right; a ResizeObserver mirrors native resizes
+  back into state so the size persists.
+- **Text slider**: A–A range control (10-18px) in the topbar; child font sizes converted from px to EM so the
+  whole UI scales from the one base size.
+- Position / size / text size persist in localStorage (`ascent.beatlab.ui`) - pure UI preferences, unlike
+  timing drafts which stay session-only by design. Loaded values are CLAMPED to the current viewport so a
+  saved position from a bigger monitor can't strand the window (and its close button) off-screen.
+
+Verified live: drag moved (115,79)->(315,204); slider to 16px scaled the title to 18.72px (1.17em); prefs
+persisted; close/reopen preserved the draft.
+
+Answer to the owner's question, now true in both halves: closing the window loses NOTHING (drafts survive
+close AND reopen, and keep pacing the game if LIVE is on); a page reload clears drafts by design - "Commit to
+repo" is what makes a tuning permanent.
+
+typecheck + lint + npm test (5278) + build:web green. Rides the open #1029 (same workflow surface).
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 19: LIVE draft - uncommitted Lab edits pace the real game
 
 Step 2 of the owner's audit plan, and the moment the tool meets the owner's stated best outcome: "live-modify

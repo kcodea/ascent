@@ -25,6 +25,26 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Library badges: three states, so the previews explain themselves
+
+Owner: "i still see a lot of previews in the library, is that intentional." Partly - and the stale part was
+an hour old: PR 23 made the whole minion combat class tunable behind `ascent.combatbeats`, but the badge
+logic predated it and still called every combat row "preview". Worse, a gated row and a genuinely unwired row
+looked identical, so the combat surface read as unwired when it was one switch away.
+
+Badges now have three states:
+- **LIVE** (green) - paces the real game now: End of Turn always; ALL combat rows (quest/rune flags + the
+  minion class) when `ascent.combatbeats` is on.
+- **flag** (amber outline) - one switch away: a combat row while the flag is off. Its banner names the exact
+  switch.
+- **preview** (grey) - genuinely not consumed yet: recruit-action playback (Shouts, casts, hero-power
+  moments) - the one remaining playback milestone.
+
+Verified live in all three: flag off -> Oona reads `flag` with the ONE SWITCH AWAY banner; flag on -> Oona
+and an Echo (on-death) row read LIVE; Jensen's hero power correctly stays `preview` either way.
+
+typecheck + lint + npm test (5306) + build:web green. Rides #1033.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 23: minion combat effects carry their identity - the CLASS, not Oona
 
 The owner's ruling, verbatim: "dont make oona herself work, let's just keep working through our workload

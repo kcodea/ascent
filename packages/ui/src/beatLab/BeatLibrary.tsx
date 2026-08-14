@@ -117,8 +117,20 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                     onClick={() => { setSel({ sourceId: s.id, triggerId: t.id }); setOpenId(s.id); }}
                   >
                     <span className="bl-cover" style={{ background: COVER_TINT[t.coverage] }}>{COVER_LABEL[t.coverage]}</span>
-                    <span className="bl-cover" style={{ background: t.live ? '#7fd18a' : '#3a4468', color: t.live ? '#10131a' : '#8a93a8' }} title={t.live ? 'Edits here change the real game (End-of-Turn playback).' : 'Preview only — this phase is not wired to live playback yet.'}>
-                      {t.live ? 'LIVE' : 'preview'}
+                    <span
+                      className="bl-cover"
+                      style={t.live === 'live'
+                        ? { background: '#7fd18a', color: '#10131a' }
+                        : t.live === 'flag'
+                          ? { background: '#3a3324', color: '#e0b34d', border: '1px solid #e0b34d' }
+                          : { background: '#3a4468', color: '#8a93a8' }}
+                      title={t.live === 'live'
+                        ? 'Edits here change the real game.'
+                        : t.live === 'flag'
+                          ? "One switch away: set localStorage ascent.combatbeats = '1' and this row paces real fights."
+                          : 'Preview only — this phase is not wired to live playback yet.'}
+                    >
+                      {t.live === 'live' ? 'LIVE' : t.live === 'flag' ? 'flag' : 'preview'}
                     </span>
                     <span className="bl-trig-moment">{t.moment}</span>
                     {t.policy && <span className="bl-policy" style={{ background: POLICY_TINT[t.policy] ?? '#666' }}>{t.policy}</span>}
@@ -140,13 +152,20 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
               <span className="bl-kind">{source.kind}:{source.id} · {row.factory ? `factory ${row.factory}` : 'derived (simulator)'}{row.family ? ` · family ${row.family}` : ''}</span>
               <span className="bl-kind">edits write to <code>{row.editKey}</code> (this {source.kind} only)</span>
             </div>
-            {!row.live && (
+            {row.live === 'flag' && (
               <div className="bl-empty-banner">
-                <b>PREVIEW ONLY — this edit does not reach the game yet.</b> Live playback currently consumes
-                the <b>End-of-Turn</b> batch only; this trigger fires in a phase ({row.trigger}) that still
-                plays on its own runtime. Your draft is real and will apply the moment that phase is wired —
-                but flipping it today changes the preview below, not the fight. (This is the gap the combat
-                milestones close.)
+                <b>ONE SWITCH AWAY.</b> This is a combat trigger, and combat consumes Beat Lab timing behind
+                the dev flag: run <code>localStorage.ascent.combatbeats = '1'</code> in the console, reopen the
+                Lab, and this row goes LIVE — your hold and policy edits then pace real fights (with LIVE
+                drafts layering on top, exactly like End of Turn).
+              </div>
+            )}
+            {row.live === 'preview' && (
+              <div className="bl-empty-banner">
+                <b>PREVIEW ONLY — this edit does not reach the game yet.</b> This trigger fires during recruit
+                actions ({row.trigger}), whose live animations do not consume beats yet — the remaining
+                playback milestone. Your draft is real and will apply the moment that phase is wired; today it
+                changes the preview below, not the game.
               </div>
             )}
             {/* Policy toggle: flip folded ↔ own beat (etc.). Re-bases the timing and drives how it reads. */}

@@ -39,14 +39,15 @@ export interface TriggerRow {
   /** Where a timing edit for this trigger writes — per-source, so tuning one card doesn't move every sibling. */
   editKey: string;
   /**
-   * CHOREOGRAPHER (owner report 2026-08-13, "nothing i do in the lab seems to affect the timing in game"):
-   * whether editing THIS trigger reaches live playback today, or only the preview. The owner had flipped
-   * King Oona folded→own and seen nothing change — correct behaviour (combat does not read Lab timing yet),
-   * but the tool never said so. Live today = the End-of-Turn batch (the one phase the game plays through the
-   * compiler), plus Re-Pete's power (emitted inside that batch). Everything else is preview-only until its
-   * phase is wired.
+   * CHOREOGRAPHER — what editing THIS trigger reaches (owner reports 2026-08-13, twice: "nothing i do in the
+   * lab seems to affect the timing in game", then "i still see a lot of previews in the library"):
+   *   'live'    — paces the real game right now (End of Turn always; combat rows when `ascent.combatbeats`
+   *               is on, since PR 21/23 made both the quest/rune flags and the minion class consumable).
+   *   'flag'    — WOULD be live, one switch away: a combat-class row while `ascent.combatbeats` is off.
+   *               Without this state the whole combat surface read as unwired when it is actually gated.
+   *   'preview' — genuinely not consumed yet (recruit-action playback: Shouts, casts, hero-power moments).
    */
-  live: boolean;
+  live: 'live' | 'flag' | 'preview';
 }
 
 export interface SourceEntry {
@@ -97,13 +98,20 @@ const runeKeyPrefixTrigger = (id: string): { key: string; trigger: string } | nu
 };
 
 
-/** Is a trigger's phase consumed by LIVE playback today? See TriggerRow.live. */
-const liveToday = (kind: string, sourceId: string, trigger: string): boolean =>
-  trigger === 'endOfTurn'
-  || (kind === 'hero' && sourceId === 'repete')
-  // PR 21: keyed quest/rune COMBAT triggers are live behind the dev flag (their hold comes from this config).
-  // Read at enumeration time — reopen the Lab after flipping the flag for fresh badges.
-  || ((kind === 'rune' || kind === 'quest') && trigger === 'combat' && combatBeatsEnabled());
+/** Minion effect triggers that fire IN COMBAT — the class PR 23 stamped, consumable behind the flag. */
+const COMBAT_ONS = new Set([
+  'onDeath', 'onAttack', 'onSummon', 'avenge', 'onKill', 'onDamaged', 'onGainAttack',
+  'battlecryTriggered', 'summonOverflow', 'spellCast', 'startOfCombat', 'orbit', 'orbitFired',
+]);
+
+/** What editing a trigger reaches — see TriggerRow.live. Read at enumeration time; reopen after flag flips. */
+function liveToday(kind: string, sourceId: string, trigger: string): 'live' | 'flag' | 'preview' {
+  if (trigger === 'endOfTurn' || (kind === 'hero' && sourceId === 'repete')) return 'live';
+  const combatRow = ((kind === 'rune' || kind === 'quest') && trigger === 'combat')
+    || (kind === 'minion' && COMBAT_ONS.has(trigger));
+  if (combatRow) return combatBeatsEnabled() ? 'live' : 'flag';
+  return 'preview';
+}
 
 export function sourceEntries(): SourceEntry[] {
   const out: SourceEntry[] = [];
@@ -132,7 +140,7 @@ export function sourceEntries(): SourceEntry[] {
         triggers.push({
           id: 'derived:startOfCombat', moment: dm, trigger: 'startOfCombat', factory: e.do,
           coverage: 'empty', derived: true, editKey: `source:${kind}:${c.id}:startOfCombat`,
-          live: false,
+          live: 'preview',
         });
       }
     }

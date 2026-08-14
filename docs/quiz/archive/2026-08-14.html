@@ -1,0 +1,506 @@
+<title>Ascent Quiz #1</title>
+<style>
+  :root {
+    --ink: #1b2027;
+    --ink-soft: #4a5364;
+    --paper: #eef0f2;
+    --paper-raised: #ffffff;
+    --line-rule: #d5d9e0;
+    --accent: #a9701f;
+    --accent-soft: #f2e4cd;
+    --indigo: #3d5185;
+    --good: #2f7a52;
+    --good-bg: #e2f3ea;
+    --bad: #b8402f;
+    --bad-bg: #fbe6e2;
+    --radius: 14px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e9ebf0;
+      --ink-soft: #a7aebb;
+      --paper: #14171d;
+      --paper-raised: #1c2029;
+      --line-rule: #2c313c;
+      --accent: #d99a3f;
+      --accent-soft: #3a2f1c;
+      --indigo: #8fa3d9;
+      --good: #5cc98c;
+      --good-bg: #163527;
+      --bad: #e07a68;
+      --bad-bg: #3a1e1a;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #e9ebf0;
+    --ink-soft: #a7aebb;
+    --paper: #14171d;
+    --paper-raised: #1c2029;
+    --line-rule: #2c313c;
+    --accent: #d99a3f;
+    --accent-soft: #3a2f1c;
+    --indigo: #8fa3d9;
+    --good: #5cc98c;
+    --good-bg: #163527;
+    --bad: #e07a68;
+    --bad-bg: #3a1e1a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 18px 64px;
+    min-height: 100vh;
+  }
+
+  main {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+
+  .wordmark {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .wordmark strong {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .quiz-meta {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    text-align: right;
+  }
+
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 26px;
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+
+  .sub {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+
+  .progress-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+
+  .pip {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--line-rule);
+    transition: background 0.25s ease;
+  }
+
+  .pip.done { background: var(--indigo); }
+  .pip.correct { background: var(--good); }
+  .pip.incorrect { background: var(--bad); }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line-rule);
+    border-radius: var(--radius);
+    padding: 26px 26px 24px;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  .question-text {
+    font-size: 18px;
+    line-height: 1.5;
+    margin: 0 0 22px;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--paper);
+    border: 1px solid var(--line-rule);
+    border-radius: 10px;
+    padding: 13px 15px;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+
+  .choice:hover:not(:disabled) {
+    border-color: var(--indigo);
+  }
+
+  .choice:focus-visible {
+    outline: 2px solid var(--indigo);
+    outline-offset: 2px;
+  }
+
+  .choice:active:not(:disabled) { transform: scale(0.997); }
+
+  .choice:disabled { cursor: default; }
+
+  .choice .letter {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    width: 1.1em;
+  }
+
+  .choice.correct-pick {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct-pick .letter { color: var(--good); }
+
+  .choice.wrong-pick {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.wrong-pick .letter { color: var(--bad); }
+
+  .choice.reveal-correct-unpicked {
+    border-color: var(--good);
+    border-style: dashed;
+  }
+
+  .result-line {
+    margin-top: 16px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .result-line.good-text { color: var(--good); }
+  .result-line.bad-text { color: var(--bad); }
+
+  .explanation {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: var(--accent-soft);
+    border-radius: 10px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  .explanation code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: rgba(0,0,0,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  :root:not([data-theme="light"]) .explanation code,
+  :root[data-theme="dark"] .explanation code {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .next-btn {
+    margin-top: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--indigo);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 11px 18px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .next-btn:hover { filter: brightness(1.08); }
+  .next-btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+
+  .hidden { display: none !important; }
+
+  .final-score {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 44px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    margin: 4px 0 6px;
+  }
+
+  .final-note {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0 0 6px;
+  }
+
+  .final-hint {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-rule);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<main>
+  <header>
+    <div class="wordmark"><strong>Ascent</strong> · Daily Code Quiz</div>
+    <div class="quiz-meta">Quiz #1<br>2026-08-14</div>
+  </header>
+
+  <h1>Five questions on how your game is actually built.</h1>
+  <p class="sub">Grounded in the real Ascent codebase — click an answer to lock it in, then read the explanation. No going back once you've answered.</p>
+
+  <div class="progress-row" id="progressRow"></div>
+
+  <div class="card" id="quizCard"></div>
+
+  <footer>Reply with your score when you're done — tomorrow's quiz adapts to it.</footer>
+</main>
+
+<script>
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      question: "Ascent's combat engine has a function `simulate(playerSide, enemySide, rng, cards)`. In plain English, what is a function?",
+      choices: [
+        "A block of code that takes some inputs, does work with them, and gives back an output — like simulate taking two boards and returning the fight's results.",
+        "A file that stores game data, like a list of cards.",
+        "A saved copy of the game's state that can be restored later.",
+        "A button in the UI that the player clicks."
+      ],
+      answer: 0,
+      explanation: "A function is input → work → output. <code>simulate()</code> in packages/core takes a player board, an enemy board, an RNG, and the card definitions, and returns <code>{ events, result, playerDamage, initial }</code>. Data files (like the ones under packages/content/src/cards/) store facts, not behavior — that's the tempting mix-up in choice B."
+    },
+    {
+      topicId: "shop-vs-combat",
+      question: "Each round in Ascent alternates between two phases. What actually happens in each one?",
+      choices: [
+        "In the shop phase you buy/sell minions and arrange your board; in combat the fight auto-resolves — you don't click anything mid-fight.",
+        "In the shop phase you fight the enemy board directly; combat is where you spend gold on new minions.",
+        "Both phases let you control your minions turn-by-turn, like a chess match.",
+        "The shop phase only happens once, at the very start of the run."
+      ],
+      answer: 0,
+      explanation: "Per CLAUDE.md and docs/GAME-RULES.md: “Each round: shop the tavern (buy/sell/reroll/tier-up), arrange your board and hand, then Face the Omen to fight the served opponent.” Combat is a pure simulation that plays out on its own — there's no turn-by-turn control once it starts, which rules out C."
+    },
+    {
+      topicId: "auto-battler-loop",
+      question: "Ascent calls itself an 'auto-battler' running a 17-round course. What does the 'auto' actually refer to?",
+      choices: [
+        "Once you commit your board and start the fight, combat plays out entirely on its own — you don't direct individual attacks.",
+        "The game automatically saves your progress every few seconds.",
+        "New cards are automatically added to your hand at random every round.",
+        "The course automatically ends after round 10, no matter what."
+      ],
+      answer: 0,
+      explanation: "That's the genre-defining trait: you build a board in the shop phase, then the fight resolves by itself — no clicking to attack. The course is a fixed 17 rounds (docs/GAME-RULES.md: 2 calibration + 15 scored), not 10, which is what makes D wrong."
+    },
+    {
+      topicId: "deterministic-sim",
+      question: "CLAUDE.md describes combat as a “deterministic simulation.” What does 'deterministic' mean here?",
+      choices: [
+        "Given the exact same inputs — the two boards, the RNG seed, the card data — simulate() will produce the exact same event log and outcome every single time.",
+        "The outcome is decided by whichever player clicks 'fight' first.",
+        "The simulation picks a random winner unless a player interferes.",
+        "It means the game's difficulty never changes."
+      ],
+      answer: 0,
+      explanation: "Determinism is what makes replays, shareable seeds, and daily runs possible: same inputs in → same outputs out, always. This only works because the RNG is seeded (next question) rather than truly random — a genuinely random source would break the reproducibility choice A describes."
+    },
+    {
+      topicId: "seeded-rng",
+      question: "In packages/core/src/rng.ts, why does Ascent use a seeded RNG (mulberry32) instead of JavaScript's Math.random() inside the engine?",
+      choices: [
+        "A seeded RNG replays the exact same sequence of 'random' numbers whenever it's given the same seed, which is what makes combats, shop offers, and replays reproducible — Math.random() can't be reproduced, so it's ESLint-banned in core/content/sim.",
+        "Math.random() runs too slowly to be used inside a combat loop.",
+        "Seeded RNGs are only used for cosmetic effects like animations, never for real gameplay decisions.",
+        "mulberry32 lets multiple players share the same random number over the network at the same time."
+      ],
+      answer: 0,
+      explanation: "rng.ts's own comment says it plainly: it's the “single source of randomness for the entire engine — shop offers, combat targeting, summons all flow through this,” and “never use Math.random in the engine.” It's about reproducibility, not speed (B) — and Ascent is single-player, so there's no network sync to worry about (D)."
+    }
+  ];
+
+  var score = 0;
+  var current = 0;
+  var results = [];
+
+  var progressRow = document.getElementById("progressRow");
+  var card = document.getElementById("quizCard");
+
+  QUESTIONS.forEach(function () {
+    var pip = document.createElement("div");
+    pip.className = "pip";
+    progressRow.appendChild(pip);
+  });
+
+  function letterFor(i) { return String.fromCharCode(65 + i); }
+
+  function renderQuestion(index) {
+    var q = QUESTIONS[index];
+    card.innerHTML = "";
+
+    var eyebrow = document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "Question " + (index + 1) + " of " + QUESTIONS.length;
+    card.appendChild(eyebrow);
+
+    var qText = document.createElement("p");
+    qText.className = "question-text";
+    qText.textContent = q.question;
+    card.appendChild(qText);
+
+    var choicesWrap = document.createElement("div");
+    choicesWrap.className = "choices";
+    card.appendChild(choicesWrap);
+
+    var resultLine = document.createElement("p");
+    resultLine.className = "result-line hidden";
+    card.appendChild(resultLine);
+
+    var explanation = document.createElement("div");
+    explanation.className = "explanation hidden";
+    explanation.innerHTML = q.explanation;
+    card.appendChild(explanation);
+
+    var nextBtn = document.createElement("button");
+    nextBtn.className = "next-btn hidden";
+    nextBtn.textContent = index === QUESTIONS.length - 1 ? "See my score →" : "Next question →";
+    card.appendChild(nextBtn);
+
+    var buttons = [];
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letterFor(i) + "</span><span>" + choiceText + "</span>";
+      btn.addEventListener("click", function () {
+        buttons.forEach(function (b) { b.disabled = true; });
+
+        var correct = i === q.answer;
+        btn.classList.add(correct ? "correct-pick" : "wrong-pick");
+        if (!correct) {
+          buttons[q.answer].classList.add("reveal-correct-unpicked");
+        }
+
+        resultLine.textContent = correct ? "Correct!" : "Not quite — here's why:";
+        resultLine.classList.remove("hidden", "good-text", "bad-text");
+        resultLine.classList.add(correct ? "good-text" : "bad-text");
+
+        explanation.classList.remove("hidden");
+        nextBtn.classList.remove("hidden");
+
+        var pips = progressRow.children;
+        pips[index].classList.add(correct ? "correct" : "incorrect");
+
+        if (correct) score++;
+        results.push({ topicId: q.topicId, correct: correct });
+      });
+      buttons.push(btn);
+      choicesWrap.appendChild(btn);
+    });
+
+    nextBtn.addEventListener("click", function () {
+      if (index + 1 < QUESTIONS.length) {
+        renderQuestion(index + 1);
+      } else {
+        renderFinal();
+      }
+    });
+  }
+
+  function renderFinal() {
+    card.innerHTML = "";
+
+    var eyebrow = document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "Quiz complete";
+    card.appendChild(eyebrow);
+
+    var scoreEl = document.createElement("p");
+    scoreEl.className = "final-score";
+    scoreEl.textContent = score + " / " + QUESTIONS.length;
+    card.appendChild(scoreEl);
+
+    var lines = [
+      "Rough day at the tavern — that's exactly what re-asking these topics tomorrow is for.",
+      "Getting there. A couple of these ideas just need to click.",
+      "Solid! You're starting to read the engine like a native.",
+      "Excellent — nothing here is giving you trouble.",
+      "Flawless run. Every one of these landed."
+    ];
+    var note = document.createElement("p");
+    note.className = "final-note";
+    note.textContent = lines[score];
+    card.appendChild(note);
+
+    var hint = document.createElement("p");
+    hint.className = "final-hint";
+    hint.textContent = "Reply in chat with your score (e.g. “" + score + "/" + QUESTIONS.length + ", missed the RNG one”) so tomorrow's quiz can adapt — easier where it's still fuzzy, further ahead where it's solid.";
+    card.appendChild(hint);
+  }
+
+  renderQuestion(0);
+</script>

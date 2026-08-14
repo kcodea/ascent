@@ -4,9 +4,15 @@
   "level": "beginner",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function). 5 = deep (trace an event through the sim). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 0,
+  "totalQuizzes": 1,
   "recentScores": [],
-  "topics": {},
+  "topics": {
+    "what-is-a-function": { "asked": 1, "lastAsked": "2026-08-14" },
+    "shop-vs-combat": { "asked": 1, "lastAsked": "2026-08-14" },
+    "auto-battler-loop": { "asked": 1, "lastAsked": "2026-08-14" },
+    "deterministic-sim": { "asked": 1, "lastAsked": "2026-08-14" },
+    "seeded-rng": { "asked": 1, "lastAsked": "2026-08-14" }
+  },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core as the concrete example: inputs -> output.", "difficulty": 1 },
     { "id": "shop-vs-combat", "title": "The two phases: shop (recruit) vs combat", "hint": "docs/GAME-RULES.md + CLAUDE.md: build a board, then it auto-resolves.", "difficulty": 1 },
@@ -27,6 +33,14 @@
     { "id": "eslint-rules", "title": "Lint rules that protect the design", "hint": "The Math.random ban is ESLint-enforced in core/content/sim.", "difficulty": 4 },
     { "id": "performance-memo", "title": "Performance: React.memo and stable props", "hint": "docs/performance.md; animate transform/opacity only.", "difficulty": 4 }
   ],
-  "history": [],
-  "notes": "Seeded 2026-08-14. Empty topics/history until the first run. The daily routine reads and rewrites this file."
+  "history": [
+    {
+      "date": "2026-08-14",
+      "quizNumber": 1,
+      "difficulty": 1,
+      "topics": ["what-is-a-function", "shop-vs-combat", "auto-battler-loop", "deterministic-sim", "seeded-rng"],
+      "scored": null
+    }
+  ],
+  "notes": "Seeded 2026-08-14. First quiz run 2026-08-14 (quiz #1): the curriculum only has 3 difficulty-1 topics (not 4 as the prompt's first-run rule assumes), so quiz #1 used all 3 plus the first 2 difficulty-2 topics in curriculum order to reach 5 questions."
 }

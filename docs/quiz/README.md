@@ -4,6 +4,10 @@ A daily, multiple-choice quiz that teaches Mike how Ascent is coded — beginner
 grounded in the real codebase. It exists to slowly build up his ability to read and reason about the game's
 code (and coding in general).
 
+**Scope: architecture only.** Questions are about how the game is *built* (the sim/UI split, the monorepo,
+pure functions, the seeded RNG, the event log, cards-as-data, etc.) — never about game rules or how the
+game plays. That constraint is enforced in `daily-prompt.md`.
+
 ## How it works
 
 - A **scheduled cloud agent** (a "routine") wakes up every morning (8:00am ET) with a fresh checkout of the

@@ -2,36 +2,37 @@
   "learner": "Mike",
   "startedOn": "2026-08-14",
   "level": "beginner",
+  "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
-  "difficultyScale": "1 = gentlest (what is a function). 5 = deep (trace an event through the sim). Ramp only per the rules in daily-prompt.md.",
+  "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
   "totalQuizzes": 1,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 1, "lastAsked": "2026-08-14" },
-    "shop-vs-combat": { "asked": 1, "lastAsked": "2026-08-14" },
-    "auto-battler-loop": { "asked": 1, "lastAsked": "2026-08-14" },
     "deterministic-sim": { "asked": 1, "lastAsked": "2026-08-14" },
     "seeded-rng": { "asked": 1, "lastAsked": "2026-08-14" }
   },
   "curriculum": [
-    { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core as the concrete example: inputs -> output.", "difficulty": 1 },
-    { "id": "shop-vs-combat", "title": "The two phases: shop (recruit) vs combat", "hint": "docs/GAME-RULES.md + CLAUDE.md: build a board, then it auto-resolves.", "difficulty": 1 },
-    { "id": "auto-battler-loop", "title": "What an auto-battler is / the core loop", "hint": "17-round course, boards fight on their own.", "difficulty": 1 },
-    { "id": "deterministic-sim", "title": "What 'deterministic' means", "hint": "Same inputs -> same outputs, every time. Why replays work.", "difficulty": 2 },
-    { "id": "seeded-rng", "title": "The seeded RNG (mulberry32) and fork()", "hint": "packages/core/src/rng.ts. Why Math.random is banned.", "difficulty": 2 },
-    { "id": "pure-functions", "title": "Pure functions (no side effects)", "hint": "simulate() computes an event log; the UI never computes outcomes.", "difficulty": 2 },
-    { "id": "data-vs-code", "title": "Data-driven cards: data vs code", "hint": "Cards are data + effect subscriptions, not bespoke classes.", "difficulty": 2 },
-    { "id": "monorepo-packages", "title": "The monorepo: core / content / sim / ui", "hint": "CLAUDE.md Monorepo section. What each package is responsible for.", "difficulty": 2 },
-    { "id": "event-log-replay", "title": "The event log and replay", "hint": "simulate returns { events, result, ... }; UI animates the log on its own clock.", "difficulty": 3 },
-    { "id": "types-basics", "title": "TypeScript basics: types and unions", "hint": "packages/core/src/types.ts, the CombatEvent union.", "difficulty": 3 },
-    { "id": "immutability", "title": "Immutability: never mutate shared CardDefs", "hint": "Clone into combat Minion instances.", "difficulty": 3 },
-    { "id": "reducer-run-state", "title": "The reducer and run state", "hint": "packages/sim/src/reducer.ts + state.ts drive a run.", "difficulty": 3 },
-    { "id": "zustand-store", "title": "UI state with Zustand", "hint": "packages/ui/src/store.ts holds presentation state.", "difficulty": 3 },
-    { "id": "cards-in-sets", "title": "Cards live in SETS", "hint": "packages/content/src/sets.ts; a run pins its set.", "difficulty": 3 },
-    { "id": "effects-as-subscriptions", "title": "Effects as data subscriptions", "hint": "Battlecry/Deathrattle etc. as effect factories, not classes.", "difficulty": 4 },
-    { "id": "testing-vitest", "title": "Testing: vitest, determinism + golden tests", "hint": "npm test; golden/determinism tests lock behavior.", "difficulty": 4 },
-    { "id": "eslint-rules", "title": "Lint rules that protect the design", "hint": "The Math.random ban is ESLint-enforced in core/content/sim.", "difficulty": 4 },
-    { "id": "performance-memo", "title": "Performance: React.memo and stable props", "hint": "docs/performance.md; animate transform/opacity only.", "difficulty": 4 }
+    { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
+    { "id": "sim-ui-decoupling", "title": "The core split: deterministic sim, decoupled from the UI", "hint": "CLAUDE.md 'Architecture': the sim computes outcomes; the UI only animates them. The single most important architectural idea.", "difficulty": 1 },
+    { "id": "monorepo-packages", "title": "The monorepo: core / content / sim / ui / tools", "hint": "CLAUDE.md 'Monorepo': what each package owns and the dependency direction (ui -> all, core -> nothing).", "difficulty": 2 },
+    { "id": "deterministic-sim", "title": "What 'deterministic' means in the engine", "hint": "Same inputs -> same outputs, every time. Why replays + shareable seeds work.", "difficulty": 2 },
+    { "id": "seeded-rng", "title": "The seeded RNG (mulberry32) and fork()", "hint": "packages/core/src/rng.ts. One RNG threaded via fork(); Math.random is banned.", "difficulty": 2 },
+    { "id": "pure-functions", "title": "Pure functions (no side effects)", "hint": "simulate() returns { events, result, ... }; it never mutates outside state or touches the DOM.", "difficulty": 2 },
+    { "id": "data-vs-code", "title": "Data-driven cards: data vs code", "hint": "Cards are data + effect subscriptions (zod-validated), not bespoke classes. packages/content/src.", "difficulty": 2 },
+    { "id": "event-log-replay", "title": "The event log + replay architecture", "hint": "simulate emits an events array; the UI animates the log on its own clock and never computes outcomes.", "difficulty": 3 },
+    { "id": "types-basics", "title": "TypeScript types and unions", "hint": "packages/core/src/types.ts; the CombatEvent union is the source of truth for the combat vocabulary.", "difficulty": 3 },
+    { "id": "immutability", "title": "Immutability: never mutate shared CardDefs", "hint": "Clone CardDefs into combat Minion instances; the reducer shares lastCombat by reference.", "difficulty": 3 },
+    { "id": "reducer-run-state", "title": "The reducer + run state", "hint": "packages/sim/src/reducer.ts + state.ts drive a run's state transitions.", "difficulty": 3 },
+    { "id": "zustand-store", "title": "UI state with Zustand", "hint": "packages/ui/src/store.ts holds presentation state, separate from sim state.", "difficulty": 3 },
+    { "id": "event-bus", "title": "The event bus / event vocabulary", "hint": "packages/core/src/events.ts + the CombatEvent union in types.ts.", "difficulty": 3 },
+    { "id": "cards-in-sets", "title": "How cards are organized into SETS", "hint": "packages/content/src/sets.ts; a run pins its set and reads it via poolOf(state). Code organization, not rules.", "difficulty": 3 },
+    { "id": "package-boundaries", "title": "Package boundaries + public entrypoints", "hint": "CLAUDE.md: ui depends on others only through public package entrypoints; importing an internal leaks the boundary.", "difficulty": 4 },
+    { "id": "effects-as-subscriptions", "title": "Effects as data subscriptions (factories)", "hint": "Battlecry/Deathrattle etc. are effect factories whitelisted in the content schema, not classes.", "difficulty": 4 },
+    { "id": "effect-timing-pipeline", "title": "Effect timing: recruit-phase bake vs combat-time", "hint": "Recruit effects bake into stats before combat; the simulator runs combat-time effects. Architecture of WHEN effects apply.", "difficulty": 4 },
+    { "id": "testing-vitest", "title": "Testing: vitest, determinism + golden tests", "hint": "npm test; determinism/golden tests lock engine behavior against regressions.", "difficulty": 4 },
+    { "id": "eslint-rules", "title": "Lint rules that protect the architecture", "hint": "The Math.random ban is ESLint-enforced in core/content/sim to keep the sim deterministic.", "difficulty": 4 },
+    { "id": "performance-memo", "title": "Performance architecture: React.memo + stable props", "hint": "docs/performance.md; memoized list items, animate transform/opacity only.", "difficulty": 4 }
   ],
   "history": [
     {
@@ -39,8 +40,9 @@
       "quizNumber": 1,
       "difficulty": 1,
       "topics": ["what-is-a-function", "shop-vs-combat", "auto-battler-loop", "deterministic-sim", "seeded-rng"],
-      "scored": null
+      "scored": null,
+      "note": "Pre-refocus quiz. shop-vs-combat + auto-battler-loop were game-rules topics, since removed from the curriculum."
     }
   ],
-  "notes": "Seeded 2026-08-14. First quiz run 2026-08-14 (quiz #1): the curriculum only has 3 difficulty-1 topics (not 4 as the prompt's first-run rule assumes), so quiz #1 used all 3 plus the first 2 difficulty-2 topics in curriculum order to reach 5 questions."
+  "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."
 }

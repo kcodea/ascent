@@ -25,6 +25,42 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 21: combat consumes compiled timing - keyed triggers, flagged (audit step 4)
+
+The first change that alters how a fight PLAYS, scoped to the narrowest useful slice:
+
+- Only `questTrigger`/`questComplete` moments - the ~57 quest/rune combat flags (Rune of Attacking Gems, the
+  owner's acceptance case). They carry a gameplay-stamped identity; everything else keeps its exact pacing.
+- Only the HOLD - the inter-beat pause `clock.holdMs` already owns. Attack contact, summon withholding and
+  damage pacing untouched (the blueprint's hard line, and the owner's: order of operations is out of scope).
+- Behind `localStorage.ascent.combatbeats = '1'`, OFF by default. Flag off is byte-identical to today - the
+  unit suite pins the negative space (every ordinary moment type returns null; unknown flags never guessed).
+
+`combatHolds.ts` resolves a keyed trigger through the SAME chain as everything else: registry row ->
+committed config -> LIVE session draft. The store hands the draft through an injected provider (the clock
+cannot import the store - cycle through the combat-timeline composition).
+
+**Two real bugs found by walking the owner's actual path, not the happy path:**
+
+1. **Keyed on the wrong side of the transition.** `holdMs(next, shown)` is the delay before showing NEXT, so
+   a beat's on-screen time is the hold computed while it is SHOWN. Keying on `next` looked right and did
+   nothing - a gems fire always follows an attack, and the post-attack transition skips holdMs entirely
+   (engine-advanced, contact-anchored), so the check sat on the one transition that never runs. The owner's
+   own sentence is the spec: "how long individual triggers have to show they have triggered."
+2. **Resolved on the wrong key.** The Library writes edit keys from the surface (`source:rune:X:combat`);
+   resolving on the event type (`:questTrigger`) meant an edit made through the actual UI never matched.
+   The resolver now uses the surface's phase segment.
+
+Also: Library badges tell the truth about the flag - keyed rune/quest combat rows read LIVE when
+`ascent.combatbeats` is on (enumerated at Lab open).
+
+**Verified live, wall-clock, same seeded fight** (5x speed, one gems fire): flag off 1202ms; flag on with a
+3000ms draft via the hand-built key 1651ms; via the UI's OWN key shape 1653ms. Delta ~+450ms = the authored
+600ms read replacing the ~150ms default. Module-level probes on the live bundle confirm the contract: shown
+keyed beat -> authored hold; transition INTO it -> default (attack owns arrival); flag off -> identical.
+
+typecheck + lint + npm test (5287, +9) + build:web green. Stacked on #1030.
+
 ## 2026-08-13 - Combat tab polish: real names + a track that follows the window
 
 Owner feedback on the new Combat tab, both items real:

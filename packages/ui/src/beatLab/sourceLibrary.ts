@@ -16,6 +16,7 @@
  */
 import { ALL_CARDS, RUNES, EPIC_RUNES, QUEST_DEFS } from '@game/content';
 import { heroSurface } from '@game/sim';
+import { combatBeatsEnabled } from '../choreographer/combatHolds';
 import { PRESENTATION_POLICIES, type PresentationBatch, type PresentationPolicy } from '@game/core';
 
 export type TriggerCoverage = 'classified' | 'silent' | 'empty';
@@ -98,7 +99,11 @@ const runeKeyPrefixTrigger = (id: string): { key: string; trigger: string } | nu
 
 /** Is a trigger's phase consumed by LIVE playback today? See TriggerRow.live. */
 const liveToday = (kind: string, sourceId: string, trigger: string): boolean =>
-  trigger === 'endOfTurn' || (kind === 'hero' && sourceId === 'repete');
+  trigger === 'endOfTurn'
+  || (kind === 'hero' && sourceId === 'repete')
+  // PR 21: keyed quest/rune COMBAT triggers are live behind the dev flag (their hold comes from this config).
+  // Read at enumeration time — reopen the Lab after flipping the flag for fresh badges.
+  || ((kind === 'rune' || kind === 'quest') && trigger === 'combat' && combatBeatsEnabled());
 
 export function sourceEntries(): SourceEntry[] {
   const out: SourceEntry[] = [];

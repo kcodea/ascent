@@ -3,6 +3,7 @@ import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
+import { setCombatDraftProvider } from './choreographer/combatHolds';
 import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
@@ -1220,6 +1221,15 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+
+// CHOREOGRAPHER PR 21: hand the LIVE Beat-Lab draft to combat pacing through a provider — the clock module
+// cannot import the store (cycle through the combat-timeline composition). DEV-only, like the draft itself.
+if (import.meta.env.DEV) {
+  setCombatDraftProvider(() => {
+    const s = useGame.getState();
+    return s.beatDraftLive && s.beatDraft ? (s.beatDraft as { timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>; policies: Record<string, string> } as never) : null;
+  });
+}
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds. The `typeof window` guard matters:

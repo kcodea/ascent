@@ -127,7 +127,7 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                       title={t.live === 'live'
                         ? 'Edits here change the real game.'
                         : t.live === 'flag'
-                          ? "One switch away: set localStorage ascent.combatbeats = '1' and this row paces real fights."
+                          ? 'One click away: flip the LIVE toggle (top bar) and this combat row paces real fights.'
                           : 'Instant by design — a shop action fires immediately; its beat is inspectable but never staged, so the shop stays snappy.'}
                     >
                       {t.live === 'live' ? 'LIVE' : t.live === 'flag' ? 'flag' : 'instant'}
@@ -154,10 +154,10 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
             </div>
             {row.live === 'flag' && (
               <div className="bl-empty-banner">
-                <b>ONE SWITCH AWAY.</b> This is a combat trigger, and combat consumes Beat Lab timing behind
-                the dev flag: run <code>localStorage.ascent.combatbeats = '1'</code> in the console, reopen the
-                Lab, and this row goes LIVE — your hold and policy edits then pace real fights (with LIVE
-                drafts layering on top, exactly like End of Turn).
+                <b>ONE CLICK AWAY.</b> This is a combat trigger. Flip the <b>LIVE</b> toggle in the top bar and
+                this row goes live — your hold and policy edits (an <code>ownBeat</code> flip included) then
+                pace real fights immediately, exactly like End of Turn. No console, no reopen. Turn LIVE off and
+                fights snap back to their native pacing.
               </div>
             )}
             {row.live === 'immediate' && (

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { combatKeyedHoldMs } from './combatHolds';
+import { describe, it, expect, afterEach } from 'vitest';
+import { combatKeyedHoldMs, combatBeatsEnabled, setCombatLiveProvider } from './combatHolds';
 import { MODE_DEFAULTS } from './resolveTiming';
 import type { BeatConfigSnapshot } from './resolveTiming';
 
@@ -12,6 +12,24 @@ import type { BeatConfigSnapshot } from './resolveTiming';
  */
 const EMPTY: BeatConfigSnapshot = { version: 2, templates: {}, overrides: {} };
 const gems = { type: 'questTrigger', flag: 'runeAttackingGems' };
+
+describe('the LIVE toggle is the single switch (owner ask 2026-08-14 — one click, no console)', () => {
+  afterEach(() => setCombatLiveProvider(() => false));
+
+  it('combatBeatsEnabled follows the live provider — flip it on and combat is enabled', () => {
+    setCombatLiveProvider(() => true);
+    expect(combatBeatsEnabled()).toBe(true);
+    setCombatLiveProvider(() => false);
+    // With the provider off and no localStorage flag in this env, it falls back to off.
+    expect(combatBeatsEnabled()).toBe(false);
+  });
+
+  it('a keyed trigger paces from config the moment the toggle is on, with no explicit enabled option', () => {
+    setCombatLiveProvider(() => true);
+    // No `enabled` in options → it reads the real gate, which the provider now drives.
+    expect(combatKeyedHoldMs(gems, { config: EMPTY })).not.toBeNull();
+  });
+});
 
 describe('the negative space — when combat pacing must be untouched', () => {
   it('flag off → null, regardless of the moment', () => {

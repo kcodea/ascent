@@ -60,7 +60,7 @@ function BeatRow({ b, pxPerMs, trackW }: { b: CompiledBeat; pxPerMs: number; tra
         <span className="bl-cbt-name">{b.lane === 'reaction' ? '↳ ' : ''}{(b.source.label ?? b.source.id) === b.trigger ? '—' : b.source.label ?? b.source.id}</span>
         <span className="bl-kind">{KIND_LABEL[b.trigger] ?? b.trigger}</span>
         {b.policyKey && <span className="bl-cover" style={{ background: '#e0b34d' }} title={`${b.policyKey}
-Keyed — tunable in the Library when ascent.combatbeats is on.`}>keyed</span>}
+Keyed — tunable in the Library when the LIVE toggle is on.`}>keyed</span>}
       </span>
       <div className="bl-cbt-track" style={{ width: trackW }}>
         <div
@@ -100,7 +100,7 @@ export function CombatTimelineView(): React.ReactElement {
         {combatBeatsEnabled() ? (
           <>
             <b>LIVE — keyed rows pace real fights.</b> This is the last fight ({timeline.beats.length} beats ·{' '}
-            {Math.round(timeline.durationMs)}ms · {keyed} keyed). <code>ascent.combatbeats</code> is on, so any row
+            {Math.round(timeline.durationMs)}ms · {keyed} keyed). The LIVE toggle is on, so any row
             marked <span className="bl-cover" style={{ background: '#e0b34d', margin: '0 4px' }}>keyed</span>
             takes its hold from the Library — tune it there (with the LIVE draft, or committed) and the fight re-paces.
           </>
@@ -109,7 +109,7 @@ export function CombatTimelineView(): React.ReactElement {
             <b>READ-ONLY display — the fight runs on its own runtime.</b> This is the last fight
             ({timeline.beats.length} beats · {Math.round(timeline.durationMs)}ms · {keyed} keyed). Rows marked
             <span className="bl-cover" style={{ background: '#e0b34d', margin: '0 4px' }}>keyed</span>
-            are tunable one switch away: set <code>localStorage.ascent.combatbeats = '1'</code>, and their Library
+            are tunable one click away: flip the <b>LIVE</b> toggle (top bar), and their Library
             edits pace real fights. Everything else keeps its native combat scheduling.
           </>
         )}

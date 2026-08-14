@@ -9,9 +9,10 @@
  *   - Only the HOLD — the inter-beat pause `clock.holdMs` already owns. Attack contact, summon withholding
  *     and damage pacing are untouched (the blueprint's hard line, and the owner's: "what i will not do is
  *     change order of operations").
- *   - Behind an explicit dev flag, OFF by default: `localStorage.ascent.combatbeats = '1'`. Flag ON means
- *     keyed combat triggers pace from the Beat Lab's config — committed values, the LIVE session draft when
- *     enabled, and the mode defaults under both. Flag OFF is byte-identical to today.
+ *   - Gated by the Beat Lab's LIVE toggle (the single switch — see `combatBeatsEnabled`), OFF by default. ON
+ *     means keyed combat triggers pace from the Beat Lab's config — committed values, the LIVE session draft
+ *     when enabled, and the mode defaults under both. OFF is byte-identical to today. (The legacy
+ *     `localStorage.ascent.combatbeats = '1'` flag still forces it on independently, for a Lab-closed fight.)
  *
  * The store cannot be imported here (this module is reached from the choreo clock, which the store's own
  * combat-timeline composition transitively loads — a cycle). The LIVE draft arrives through an injected
@@ -38,9 +39,22 @@ export function setCombatDraftProvider(fn: () => LiveBeatDraft | null): void {
   draftProvider = fn;
 }
 
-/** The dev opt-in. Read per call — it is one localStorage hit at beat cadence, and a stale cache here would
- *  mean "I flipped the flag and nothing changed", the exact confusion this project keeps paying down. */
+let liveProvider: (() => boolean) | null = null;
+
+/** Wired once by the store (DEV): makes the Lab's LIVE toggle the SINGLE switch that turns combat pacing on.
+ *  One click in the Lab — no console, no second flag. This is the friction the owner asked us to remove
+ *  (2026-08-14): "i just want to manually and simply add/modify beats and timings in this tool right now." */
+export function setCombatLiveProvider(fn: () => boolean): void {
+  liveProvider = fn;
+}
+
+/** Is combat consuming Beat Lab timing? The Lab's LIVE toggle is the primary switch (flip it and real fights
+ *  re-pace, no console). The legacy `ascent.combatbeats` localStorage flag still forces it on independently —
+ *  so a fight can be paced from committed values with the Lab closed. Read per call — one localStorage hit at
+ *  beat cadence, and a stale cache would mean "I flipped it and nothing changed", the confusion we keep paying
+ *  down. */
 export function combatBeatsEnabled(): boolean {
+  if (liveProvider?.()) return true;
   try { return localStorage.getItem('ascent.combatbeats') === '1'; } catch { return false; }
 }
 

@@ -3,7 +3,7 @@ import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
-import { setCombatDraftProvider } from './choreographer/combatHolds';
+import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
 import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
@@ -1229,6 +1229,10 @@ if (import.meta.env.DEV) {
     const s = useGame.getState();
     return s.beatDraftLive && s.beatDraft ? (s.beatDraft as { timings: Record<string, { windupMs?: number; holdMs?: number; recoveryMs?: number }>; policies: Record<string, string> } as never) : null;
   });
+  // The LIVE toggle is the SINGLE switch: when it's on, combat consumes Beat Lab timing too — not just End of
+  // Turn — so flipping a combat row (Oona's onSummon → ownBeat, say) in the Lab re-paces real fights with no
+  // console step. Off → fights are byte-identical to today. (Owner ask 2026-08-14.)
+  setCombatLiveProvider(() => useGame.getState().beatDraftLive === true);
 }
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

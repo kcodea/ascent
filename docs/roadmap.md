@@ -34,11 +34,14 @@ The five buckets below are ordered by when we intend to act, not by size:
   descend, so its hold is released instantly. To roll: drive the shop offer's hold delivery with a roll
   (e.g. a `holdStat`/`claimStat` schedule on the offer, or a shop-side descend cue) instead of `releaseStat`.
   Low priority, revisit later.
-- **BEAT SYSTEM + BEAT LAB — IN PROGRESS (kicked off 2026-08-12).** The next big project: universal
-  source-attributed trigger beats (recruit + combat) + a dev-only Beat Lab tuner (owner handoff docs in
-  Documents/Codex). 13-PR arc, owner checkpoint after PR 4 (read-only viewer). PR 1 (policy registry, 654
-  keys classified, 42 flagged for review, `beats:audit`, CI tripwire) is up. Next: PR 2 (presentation
-  collector), PR 3 (recruit pipeline + one migrated trigger), PR 4 (read-only Beat Lab shell).
+- **BEAT SYSTEM + BEAT LAB — CORE COMPLETE (2026-08-14).** Universal source-attributed trigger beats (recruit
+  + combat) + a dev-only Beat Lab tuner. The full 13-PR arc shipped (registry → collector → recruit pipeline →
+  read-only viewer → editor → one-engine preview → LIVE playback → combat consumption → minion identity →
+  finish pass). As of 2026-08-14 the top-bar **LIVE** toggle is the single switch for BOTH End of Turn and
+  combat — flip it and Lab edits (holds + `ownBeat`/`foldedCue` policy) pace real fights; off is byte-identical;
+  shop actions stay instant by design. Optional/deferred (owner's call): review the ~29 remaining `flag`ged
+  classifications; retire the legacy End-of-Turn path; promote committed combat values on without the toggle.
+
 - **Board buttons re-art + hero-power circle + FX + editor fixes — SHIPPED 2026-08-14.** Freeze/End Turn base+gem
   layers with cracked-on-press; Hero Power → circle; "Freeze" label pill; gem/pill tuner sliders + baked defaults;
   FX bindings (freeze-blast, hero-power-spark, hero-power-target, coin-on-sell, click-puff fix); green buff-burst

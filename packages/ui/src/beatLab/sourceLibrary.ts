@@ -41,9 +41,9 @@ export interface TriggerRow {
   /**
    * CHOREOGRAPHER — what editing THIS trigger reaches (owner reports 2026-08-13, twice: "nothing i do in the
    * lab seems to affect the timing in game", then "i still see a lot of previews in the library"):
-   *   'live'    — paces the real game right now (End of Turn always; combat rows when `ascent.combatbeats`
-   *               is on, since PR 21/23 made both the quest/rune flags and the minion class consumable).
-   *   'flag'    — WOULD be live, one switch away: a combat-class row while `ascent.combatbeats` is off.
+   *   'live'    — paces the real game right now (End of Turn always; combat rows when the LIVE toggle is on,
+   *               since PR 21/23 made both the quest/rune flags and the minion class consumable).
+   *   'flag'    — WOULD be live, one click away: a combat-class row while the LIVE toggle is off.
    *               Without this state the whole combat surface read as unwired when it is actually gated.
    *   'immediate' — a SHOP action (Shout, cast, hero power). Deliberately NOT staged: shop actions fire
    *                 instantly, by design, because snappy fast-paced play is a north star (owner ruling

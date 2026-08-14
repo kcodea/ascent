@@ -244,9 +244,14 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
           src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
           (pressed2 by default; pressed3 — the cracked gem — via the tuner's variant switch) holds through
           the whole combat screen; the lit gem returns with the shop. */}
-      <img className="etb-art lit" src={`${F}end_button.webp`} alt="" draggable={false} />
-      <img className="etb-art dim" src={`${F}end_button_pressed2.webp`} alt="" draggable={false} />
-      <img className="etb-art dim3" src={`${F}end_button_pressed3.webp`} alt="" draggable={false} />
+      {/* Base housing (owner's new art, gem baked in) — always shown; the bronze never dims (board furniture). */}
+      <img className="etb-base" src={`${F}end_button_base.webp`} alt="" draggable={false} />
+      {/* The gem as its OWN layer, seated over the baked gem — the target for any gem effect. It dims to the
+          "spent" look on press (CSS), so no whole-art src swap is needed. `--etb-gem-*` seat it. */}
+      <span className="etb-gembox" aria-hidden="true">
+        <img className="etb-gem lit" src={`${F}end_button_gem.webp`} alt="" draggable={false} />
+        <img className="etb-gem cracked" src={`${F}end_button_gem_cracked.webp`} alt="" draggable={false} />
+      </span>
       {/* Ambient SHEEN — a periodic glare sweeping the gem's face (lit AND pressed), clipped to the gem's
           diamond. The bar animates TRANSFORM only inside a static clip-path (compositor-cheap loop). */}
       <span className="etb-sheen" aria-hidden="true"><span className="etb-sheen-bar" /></span>
@@ -254,7 +259,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
           one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
       {striking && <img className="etb-flash" src={`${F}end_button_gem.webp`} alt="" draggable={false} aria-hidden="true" />}
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
-      {relighting && <img className="etb-flash relight" src={`${F}end_button.webp`} alt="" draggable={false} aria-hidden="true" />}
+      {relighting && <img className="etb-flash relight" src={`${F}end_button_base.webp`} alt="" draggable={false} aria-hidden="true" />}
       <span className="etb-tip">{combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}</span>
     </button>
   );

@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-08-14 — board buttons re-art, hero-power circle, FX bindings + in-run UI editor fixes
+
+A large owner-directed presentation pass, all live-tuned in a worktree then baked:
+
+- **Freeze & End Turn buttons** — re-layered as a full base art + a separate gem `<img>` layer (the TavernUp
+  pattern) so effects can hang on the gem alone; a **cracked gem** shows on press (frozen / spent), both mounted
+  with a CSS flip (no swap flash). New art: `freeze_base/gem/gem_cracked`, `end_button_base/gem/gem_cracked`.
+- **Hero Power** — the diamond frame png is removed; it's now a **perfect circle** of just the power art, with
+  the ready/refresh cues re-done as pure-CSS circular glows (the diamond face-glow's colour/blur/offset sliders
+  were reconnected to the box-shadow ring).
+- **Tuners** — gem-nudge sliders on the ❄️/💎 tuners, a new **"Freeze" label pill** (styled like the tier pill)
+  with X/Y/size sliders, and all owner-tuned defaults baked into the configs **and** the `styles.css` fallbacks.
+- **FX bindings** (authored in the FX workbench, bound to the saved `<slug>.json`): `freeze-blast` on the Freeze
+  press, `hero-power-spark` on the hero-power press, `hero-power-target` on the targeted unit, `coin` on selling
+  a minion (fired at the **gold pill** — the old call hit `.statcell.gold`, which no longer exists), and a
+  `click-puff` fix (its `cursor` anchor got no point, so it emitted at ORIGIN — now the click point is fed to
+  the cursor anchor too). Removed the old green `flashBuffed` buff-burst on hero-power-target. Call-site tables
+  (`directCalls`, `playDefUids`) updated.
+- **Turn timer** — the "Time" / "Setup Time" label removed; clock icon + digits only.
+- **In-run UI editor fixes** — scale-corrected drag (the element now tracks its selection box under the board's
+  CSS scale), deselect + Esc, undo + Ctrl+Z, an explicit ✕ exit (edit mode could trap you — every click was
+  captured), a **unique `this-element` selector** (`:nth-of-type` path so it matches exactly one node), and an
+  image section that shows the selected element's own current image.
+
+Verified: typecheck + lint + full test (5340) + build:web, all green on the merged tree.
+
+## 2026-08-14 — restore the owner's shop/warband layout (over #1035's re-bake)
+
+Two sessions baked Layout Lab defaults close together: #995 (owner paste this session) and #1035 (a concurrent
+session), the later winning. A diff of the owner's paste vs the shipped `layoutConfig.ts` defaults found 9
+disagreements. Four (`handY`, `handHoverS`, `inspectS`, `sellZoneY`) were knobs the paste left at the OLD
+defaults while #1035 deliberately tuned them — kept as #1035's. The other five were the shop area, where #1035
+had overwritten the owner's values: `shopY 27→-4`, `shopUiY -45→-89`, `wbY -163→-174`, `wbX 9→8`,
+`wbGap 22→23` (the shop cards ~31px, controls tray ~44px off). Restored those five to the owner's paste in both
+sources of truth — `def:` fields + the `styles.css` `var(…, fallback)` values (production reads the fallbacks;
+`applyLayout` is dev-gated). `--z-wb-y` has two fallback sites (both moved) and `--z-wb-gap` lives on
+`.row.warband`. Verified: paste now matches on all shop/warband knobs (only the 4 intentional hand/inspect/sell
+keeps remain), no stale old fallbacks, `typecheck:web` + `build:web` green.
+
 ## 2026-08-14 — bake owner drag-feel tune (grab-shrink + a softer recentre)
 
 Baked the owner's tuned `dragFeel.ts` DEFAULTS: `shrinkMs` 160→360 and `shrinkFrom` 1.25→1.37 (the grab-shrink

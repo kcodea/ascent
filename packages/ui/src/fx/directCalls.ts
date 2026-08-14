@@ -28,9 +28,13 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'click-puff': ['Recruit.tsx'],
-  coins: ['Recruit.tsx', 'useCombatReplay.ts'],
+  coin: ['Recruit.tsx'],
+  coins: ['useCombatReplay.ts'],
   'damage-burst': ['Recruit.tsx', 'useCombatReplay.ts'],
   'death-dissolve': ['useCombatReplay.ts'],
+  'freeze-blast': ['FreezeButton.tsx'],
+  'hero-power-spark': ['StatusBar.tsx'],
+  'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'TavernUpButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
   // Recruit.tsx dropped off this list on 2026-08-08: the SHOP half is now played through a

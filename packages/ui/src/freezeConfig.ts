@@ -16,15 +16,33 @@ export interface FreezeConfig {
   y: number;
   /** Overall button scale (×). */
   scale: number;
+  /** Gem overlay — horizontal nudge onto the baked gem, design px (× --u). +x → right. */
+  gemX: number;
+  /** Gem overlay — vertical nudge onto the baked gem, design px (× --u). +y → down. */
+  gemY: number;
+  /** Gem overlay — fit (× the default ≈ 50% of the base width). */
+  gemS: number;
+  /** "Freeze" label pill — horizontal offset from the button centre, design px (× --u). +x → right. */
+  pillX: number;
+  /** "Freeze" label pill — vertical offset from the button centre, design px (× --u). +y → down. */
+  pillY: number;
+  /** "Freeze" label pill — size (×). */
+  pillS: number;
 }
 
 // Mirrors the Tavern stone's anchor on the opposite side (its x is 8 at 0.155 of the stage; this sits at
 // 0.845), so the two read as a matched pair until the real art arrives and it gets tuned properly.
 const DEFAULTS: FreezeConfig = {
   // Base point is the board's TOP-CENTRE now (see styles.css .frzwrap); x/y fine-tune from there.
-  x: 10,
-  y: 206,
-  scale: 1,
+  x: 8,
+  y: 217,
+  scale: 1.36,
+  gemX: 0,
+  gemY: -4.5,
+  gemS: 1.02,
+  pillX: 65.5,
+  pillY: -26.5,
+  pillS: 1.04,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -32,6 +50,12 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   x: [-800, 800, 1],
   y: [-500, 500, 1],
   scale: [0.4, 2.5, 0.01],
+  gemX: [-120, 120, 0.5],
+  gemY: [-120, 120, 0.5],
+  gemS: [0.3, 2, 0.01],
+  pillX: [-200, 200, 0.5],
+  pillY: [-200, 200, 0.5],
+  pillS: [0.3, 2.5, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -39,9 +63,15 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   x: 'Horizontal offset (px × scale) from the stage-pinned base point on the board’s right.',
   y: 'Vertical offset (px × scale) from the base point. Positive = down.',
   scale: 'Overall button size (×).',
+  gemX: 'Nudge the gem overlay horizontally onto the baked gem (design px).',
+  gemY: 'Nudge the gem overlay vertically onto the baked gem (design px).',
+  gemS: 'Gem overlay fit (× the default seat).',
+  pillX: 'Freeze label pill — horizontal offset from the button centre (design px).',
+  pillY: 'Freeze label pill — vertical offset from the button centre (design px).',
+  pillS: 'Freeze label pill — size (×).',
 };
 
-export const FRZ_NUM_KEYS = ['x', 'y', 'scale'] as const;
+export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FRZ_DEFAULTS };
 
@@ -68,6 +98,12 @@ export function applyFreezeVars(): void {
   root.setProperty('--frz-x', `${cfg.x}px`);
   root.setProperty('--frz-y', `${cfg.y}px`);
   root.setProperty('--frz-s', String(cfg.scale));
+  root.setProperty('--frz-gem-x', String(cfg.gemX));
+  root.setProperty('--frz-gem-y', String(cfg.gemY));
+  root.setProperty('--frz-gem-s', String(cfg.gemS));
+  root.setProperty('--frz-pill-x', String(cfg.pillX));
+  root.setProperty('--frz-pill-y', String(cfg.pillY));
+  root.setProperty('--frz-pill-s', String(cfg.pillS));
 }
 
 export function setFreezeValue(key: keyof FreezeConfig, value: number): void {

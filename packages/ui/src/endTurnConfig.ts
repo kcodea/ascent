@@ -24,6 +24,12 @@ export interface EndTurnConfig {
   y: number;
   /** Overall button scale (×). The base art renders at 128px wide before this. */
   scale: number;
+  /** Gem overlay — horizontal nudge onto the baked gem (design px, × --u). +x → right. */
+  gemX: number;
+  /** Gem overlay — vertical nudge onto the baked gem (design px, × --u). +y → down. */
+  gemY: number;
+  /** Gem overlay — fit (× the default seat ≈ 58% of the base width). */
+  gemS: number;
   /** Glow — blur radius (px) of each drop-shadow pass. */
   glowBlur: number;
   /** Glow — peak opacity of the glow layer (0–1). 0 disables the glow entirely. */
@@ -89,11 +95,14 @@ export interface EndTurnConfig {
 // the CRACKED gem (pressedVariant 3). Mirror position/scale/glow changes into the styles.css
 // `var(--etb-*, …)` fallbacks.
 const DEFAULTS: EndTurnConfig = {
-  x: 70,
-  y: -64,
-  scale: 0.95,
-  glowBlur: 1,
-  glowAlpha: 0.93,
+  x: 65,
+  y: -55,
+  scale: 1.25,
+  gemX: -1,
+  gemY: -3,
+  gemS: 1.03,
+  glowBlur: 0,
+  glowAlpha: 0.32,
   glowStrength: 6,
   glowPulse: 0.7,
   glowPulseDepth: 0.11,
@@ -127,6 +136,9 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   x: [-800, 800, 1],
   y: [-500, 500, 1],
   scale: [0.4, 2.5, 0.01],
+  gemX: [-140, 140, 0.5],
+  gemY: [-140, 140, 0.5],
+  gemS: [0.3, 2, 0.01],
   glowBlur: [0, 48, 1],
   glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
@@ -160,6 +172,9 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   x: 'Horizontal offset (px × scale) from the stage-pinned base point on the board’s middle-right.',
   y: 'Vertical offset (px × scale) from the base point. Positive = down.',
   scale: 'Overall button size (×).',
+  gemX: 'Nudge the gem overlay horizontally onto the baked gem (design px).',
+  gemY: 'Nudge the gem overlay vertically onto the baked gem (design px).',
+  gemS: 'Gem overlay fit (× the default seat).',
   glowBlur: 'Diamond glow softness — blur radius (px) of each drop-shadow pass.',
   glowAlpha: 'Diamond glow peak opacity. 0 turns the glow off.',
   glowStrength: 'Glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
@@ -227,6 +242,9 @@ export function applyEndTurnVars(): void {
   root.setProperty('--etb-x', `${cfg.x}px`);
   root.setProperty('--etb-y', `${cfg.y}px`);
   root.setProperty('--etb-s', String(cfg.scale));
+  root.setProperty('--etb-gem-x', String(cfg.gemX));
+  root.setProperty('--etb-gem-y', String(cfg.gemY));
+  root.setProperty('--etb-gem-s', String(cfg.gemS));
   // Glow alignment — unitless design-px (the CSS multiplies by --u) + fit scale factors.
   root.setProperty('--etb-glow-x', String(cfg.glowX));
   root.setProperty('--etb-glow-y', String(cfg.glowY));

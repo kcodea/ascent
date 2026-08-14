@@ -28,6 +28,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeShieldAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeSummon:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeSummonAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
+  'factory:avengeGrantRandomTribeMinion:avenge': { policy: 'ownBeat', family: 'avenge' }, // Grobbus
   'factory:avengeSummonImps:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:battlecryAllDemonsConsume:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryArmGrimoire:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -80,7 +81,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:buffShopPermanent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:buffShopPermanent:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:cardsBoughtGrantRandomSpell:cardsBought': { policy: 'ownBeat', family: 'economy' },
-  'factory:cardsPlayedPlayRubies:cardsPlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:castSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:combatGrantAle:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:combatGrantAle:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -137,7 +137,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCopyNeighbour:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnEndDemonsConsumeSides:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnFeastConsume:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnGainRightmostShopStats:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'factory:consumeShopRightmost:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Bob Blart (2026-08-14)
   'factory:endOfTurnGetRandomSpells:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGetRubies:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGrantRandomTierCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -154,6 +154,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:getRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
+  'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
   'factory:goldSpentBuffRightmostSlot:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentBuffTribeAttack:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGrantTribeMinion:goldSpent': { policy: 'ownBeat', family: 'economy' },
@@ -198,7 +199,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
-  'factory:onShopRefreshConsume:shopRefreshed': { policy: 'ownBeat', family: 'economy' },
+  'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
   'factory:onSpellCastBuffOnePerTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastBuffRandomTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastFirstBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
@@ -263,6 +264,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveNeighbor:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scEngraveTribeNeighboursBuffTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Transcendence
   'factory:scGainFodderStats:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainKeyword:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGrantEnemyTaunt:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -270,6 +272,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scGrantSpellCastExtra:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scSummonCopy:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scTribeBuffImproving:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scBuffRandomTribePerAle:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Drunken Oaf
   'factory:scTribeBuffPerAle:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scTribeBuffPerSpellImproving:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:setArmor:cast': { policy: 'ownBeat', family: 'spellCast' },
@@ -682,7 +685,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'system:startOfCombat:pendingKeywords': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingImps': { policy: 'ownBeat', family: 'startOfCombat' },
   // ── HEROES — hero:<id>:<power.kind> (DoD item 1b; heuristic classification, all flagged for owner review) ──
-  'hero:baggerben:scalingGold': { policy: 'passive', family: 'passive', flagged: true },
+  // PR 22: Bag It is an ACTIVATED payout (click → Gold now, climbing each turn) — `passive` was
+  // factually wrong; the reducer has an activation branch for it. Still flagged for the owner pass.
+  'hero:baggerben:scalingGold': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
   'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
@@ -706,7 +711,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:runeguard:epicRuneforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:runesmith:runeforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:soren:resummon': { policy: 'ownBeat', family: 'heroPower', flagged: true },
-  'hero:tiff:dragonTamer': { policy: 'passive', family: 'passive', flagged: true },
+  // PR 22: Dragon Tamer is an ACTIVATED Discover (click → pay shrinking cost → Discover a Dragon) —
+  // `passive` was factually wrong. Still flagged for the owner pass.
+  'hero:tiff:dragonTamer': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:warden:grantWard': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };

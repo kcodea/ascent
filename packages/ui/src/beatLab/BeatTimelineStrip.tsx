@@ -6,10 +6,9 @@
  */
 import { useMemo, useRef, useState } from 'react';
 import type { PresentationBatch } from '@game/core';
-import { scheduleBeats } from './beatTimeline';
-import { resolveBeatTiming, type BeatTiming, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
+import { labSchedule } from './labSchedule';
+import { timingKeysFor, type BeatTiming, type BeatTimingOverrides, type BeatPolicyOverrides } from './beatTiming';
 import { beatRegionsPx, fitScale, holdFromDragPx, rulerTicks, msToPx } from './timelineMath';
-import { timingKeysFor } from './beatTiming';
 
 const TRACK_W = 640;
 const SNAP = 25;
@@ -23,8 +22,9 @@ export function BeatTimelineStrip({ batch, overrides, policyOverrides = {}, edit
   editKey: string;
   onHoldChange: (key: string, holdMs: number) => void;
 }): React.ReactElement {
+  // ONE ENGINE (PR 18): the strip draws the compiled timeline — the same one live playback runs.
   const schedule = useMemo(
-    () => scheduleBeats(batch, (t) => resolveBeatTiming(t, overrides, policyOverrides)),
+    () => labSchedule(batch, overrides, policyOverrides),
     [batch, overrides, policyOverrides],
   );
   const pxPerMs = useMemo(() => fitScale(schedule.totalMs, TRACK_W), [schedule.totalMs]);

@@ -291,8 +291,9 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Start of Combat:** give your Dwarves **+10/+10** for every **Dwarven Ale** you cast last turn.',
   },
   {
-    // The Dwarf/Kobold bridge: it pays the Ruby engine from the Dwarves' card-throughput side. The tally is
-    // CUMULATIVE (`playTick`) — `playedThisTurn` clears each turn and could never reach 8 on a normal curve.
+    // The Dwarf/Kobold bridge: it pays the Ruby engine from the Dwarves' side. Owner rework 2026-08-14 — the
+    // meter moved from cards PLAYED to Gold SPENT (every 8), and the payout is now split: 2 Rubies to HAND plus
+    // one played on each Kobold. The `every` threshold is metered per-instance by `applyGoldSpent`.
     id: 'dw_mountainbond',
     name: 'Mountainbond',
     tribe: 'dwarf',
@@ -301,9 +302,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'cardsPlayed', do: 'cardsPlayedPlayRubies', params: { every: 5, count: 2 } }],
-    text: 'After you play **5 cards**, play **2 Rubies** on your minions.',
-    goldenText: 'After you play **5 cards**, play **4 Rubies** on your minions.',
+    effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 2, tribe: 'kobold' } }],
+    text: 'When you spend **8 Gold**, get **2 Rubies** and play a **Ruby** on your **Kobolds**.',
+    goldenText: 'When you spend **8 Gold**, get **4 Rubies** and play **2 Rubies** on your **Kobolds**.',
   },
 ];
 
@@ -351,8 +352,11 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune of Baal
     effects: [{ on: 'spellCast', do: 'spellCastDemonConsumesShop', params: { every: 2 } }],
-    text: 'Whenever you cast **2 spells**, a friendly **Demon** consumes a minion in the **Shop**.',
-    goldenText: 'Whenever you cast **2 spells**, a friendly **Demon** consumes **2 minions** in the **Shop**.',
+    // Owner fix 2026-08-14: "2 spells" was under-specified. The meter is the SHOP-SPELL counter (`spellCast`) —
+    // the same one Vaultkeeper and Runic Apprenticeship print as "Shop spells" — so the card now says so.
+    // Text-only: the effect is unchanged.
+    text: 'Whenever you cast **2 Shop spells**, a friendly **Demon** consumes a minion in the **Shop**.',
+    goldenText: 'Whenever you cast **2 Shop spells**, a friendly **Demon** consumes **2 minions** in the **Shop**.',
   },
   {
     id: 'dw_brill',
@@ -411,5 +415,22 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     token: true, // forge-only: Source = Rune
     text: 'When you cast **8 Shop spells**, trigger an **adjacent Shout**.',
     goldenText: 'When you cast **8 Shop spells**, trigger **both adjacent Shouts**.',
+  },
+  {
+    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
+    // each rep re-rolling its target (owner ruling) so a long brew sprays the line instead of spiking one body.
+    // Unlike Bucky this is buyable, not forge-only, and it reads the shop phase that just ended — see the note on
+    // `scBuffRandomTribePerAle` for why the underlying read is still called "last turn". Live text folds in the
+    // actual rep count (`cardText.ts`), so it never prints the base rate alone.
+    id: 'dw_oaf',
+    name: 'Drunken Oaf',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 2, health: 2 } }],
+    text: '**Start of Combat:** give a **Dwarf +2/+2**. Repeat for every **Dwarven Ale** cast this turn.',
+    goldenText: '**Start of Combat:** give a **Dwarf +4/+4**. Repeat for every **Dwarven Ale** cast this turn.',
   },
 ];

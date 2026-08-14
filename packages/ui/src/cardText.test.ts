@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -35,6 +35,21 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
 });
 
 describe('cardText helpers', () => {
+  it('drunkenOafText prints the live rep count once an Ale has been cast', () => {
+    // The card-text rule: "Repeat for every ale cast this turn" is live state, so the printed line must fold in
+    // the number of repeats it will ACTUALLY do — 1 + Ales, not the base rate alone.
+    expect(drunkenOafText('dw_oaf', false, 0), 'a dry turn needs no live value').toBeNull();
+    expect(drunkenOafText('dw_oaf', false, undefined), 'no Ale data → printed text stands').toBeNull();
+    expect(drunkenOafText('dw_oaf', false, 1)).toContain('{{2 times}}');   // 1 Ale → base + 1
+    expect(drunkenOafText('dw_oaf', false, 3)).toContain('{{4 times}}');
+    expect(drunkenOafText('dw_oaf', false, 3)).toContain('+2/+2');        // the per-rep rate is unchanged
+    expect(drunkenOafText('dw_oaf', true, 3)).toContain('+4/+4');         // golden doubles the rate...
+    expect(drunkenOafText('dw_oaf', true, 3)).toContain('{{4 times}}');   // ...not the rep count
+    expect(drunkenOafText('dw_oaf', false, 1)).toContain('**1** Ale cast');   // singular
+    expect(drunkenOafText('dw_oaf', false, 2)).toContain('**2** Ales cast');  // plural
+    expect(drunkenOafText('sandbag', false, 3), 'other cards are untouched').toBeNull();
+  });
+
   it('chefRaagText shows the live Imp-Aura grant, floored at +1/+1 (golden-aware)', () => {
     expect(chefRaagText('chefraag', false, undefined)).toBeNull();                       // no aura → printed +1/+1 stands
     expect(chefRaagText('chefraag', false, { attack: 0, health: 0 })).toBeNull();        // still the floor

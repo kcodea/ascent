@@ -338,4 +338,21 @@ export const SET2_DRAGONS: CardDef[] = [
     text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 Shop Spells** cast this game.',
     goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 Shop Spells** cast this game.',
   },
+  {
+    // Owner add 2026-08-14. The Dragon line's PERMANENCE card: a warded T4 whose Start of Combat Engraves its
+    // Dragon neighbours and then buffs the whole flight. The order inside `scEngraveTribeNeighboursBuffTribe`
+    // is load-bearing — the Engrave lands FIRST, so this very fight's +3/+3 is part of what the neighbours keep
+    // (an EG carrier accrues its combat gains into `permaGain` → carried back by `playerPermaBuffs`). Every
+    // other Dragon still gets the +3/+3, it just doesn't keep it. Golden doubles the buff, not the Engrave.
+    id: 'd2_transcendence',
+    name: 'Transcendence',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: ['DS', 'SC'], // Ward + the Start-of-Combat pill
+    effects: [{ on: 'startOfCombat', do: 'scEngraveTribeNeighboursBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
+    text: '**Ward.** **Start of Combat:** **Engrave** adjacent **Dragons**. Give your **Dragons +3/+3**.',
+    goldenText: '**Ward.** **Start of Combat:** **Engrave** adjacent **Dragons**. Give your **Dragons +6/+6**.',
+  },
 ];

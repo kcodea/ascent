@@ -1,10 +1,10 @@
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, dominantBoardTribe, hasTier7Access, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { CONFIG, dominantBoardTribe, hasTier7Access, rubyStatBonus, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
@@ -73,6 +73,10 @@ export interface LiveTextParams {
    *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
    *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
   chosenOption?: number;
+  /** Dwarven Ales cast this recruit turn (`run.alesCastThisTurn`) — Drunken Oaf prints how many times its
+   *  Start of Combat will actually fire. Player-only: an enemy's snapshot carries no Ale count, so a served
+   *  Oaf falls back to its printed text like every other run-scoped scaler. */
+  alesThisTurn?: number;
   /** Rune of the Zoo (combat only): the player's combat-summon tally at the current beat — Beardsley prints
    *  the buff the NEXT summon will actually get (base × golden × (this + 1)). Undefined = no rune / shop. */
   zooSummons?: number | null;
@@ -118,6 +122,8 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
+            drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
+
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
             summonFlatZooText(c.id, p.golden, p.zooSummons) ?? // Beardsley under Rune of the Zoo: the NEXT summon's live grant
@@ -194,7 +200,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -211,7 +217,7 @@ export function instView(
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, alesThisTurn: live?.alesThisTurn,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
@@ -304,7 +310,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
     },

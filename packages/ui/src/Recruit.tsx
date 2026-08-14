@@ -5,6 +5,8 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { shippedBeatConfig } from './choreographer/beatConfig';
+import { draftToEngine } from './beatLab/labSchedule';
+import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent } from '@game/core';
 
@@ -28,7 +30,7 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -534,6 +536,8 @@ interface ShopViewOpts {
   playedThisTurn?: string[];
   /** Squirl Scout's run-wide accrued grant size. */
   squirlScoutBuff?: number;
+  /** Dwarven Ales cast this turn — Drunken Oaf's offer shows how many times it will actually repeat. */
+  alesThisTurn?: number;
   /** Name of the most recent spell cast this run — Steward of Spells shows what it copies. */
   lastSpellName?: string;
   firstSpellThisTurnName?: string;
@@ -566,11 +570,11 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     growthBonus: run.growthBonus,
     frontToBackBonusH: run.frontToBackBonusH + (run.fxEscalationPreview?.health ?? 0),
     goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
-    squirlScoutBuff: run.squirlScoutBuff,
+    squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn,
     lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
     firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
     lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-    topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),
+    topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
   };
 }
@@ -583,7 +587,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura,
-    goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff,
+    goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff, alesThisTurn: o.alesThisTurn,
     lastSpellName: o.lastSpellName, firstSpellThisTurnName: o.firstSpellThisTurnName, lastSpellThisTurnName: o.lastSpellThisTurnName, topTribe: o.topTribe, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
   };
 }
@@ -2194,15 +2198,15 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, eotShopStats],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, eotShopStats],
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
@@ -2244,12 +2248,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
   );
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -3943,7 +3947,17 @@ export function Recruit() {
     // CHOREOGRAPHER PR 10: compile with the COMMITTED config, so a beat tuned in the tool and committed to
     // `beat-defaults.json` actually paces the live game. Without this the compiler used its defaults and
     // authored timings were written to a file nothing read — the last piece of "my edits do nothing".
-    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), { config: shippedBeatConfig() });
+    // PR 19: when the Beat Lab's LIVE toggle is on, the UNCOMMITTED session draft layers on top — tune a
+    // beat, close the Lab, end a real turn, judge. DEV only, explicit opt-in, banner shown while active
+    // (blueprint §15: "live gameplay must not silently use unsaved draft values").
+    const liveDraft = import.meta.env.DEV && useGame.getState().beatDraftLive ? useGame.getState().beatDraft : null;
+    const converted = liveDraft
+      ? draftToEngine(liveDraft.timings as BeatTimingOverrides, liveDraft.policies as BeatPolicyOverrides)
+      : null;
+    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), {
+      config: shippedBeatConfig(),
+      ...(converted ? { draft: converted.draft, modeDraft: converted.modeDraft } : {}),
+    });
     if (import.meta.env.DEV && timeline.diagnostics.length) {
       // Surfaced, not swallowed: a diagnostic here is a real coverage gap, and the whole point of this pivot
       // is that such gaps stop being invisible.
@@ -5096,7 +5110,7 @@ export function Recruit() {
       {drag?.active && !castingSpell && (
         <div
           ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,
@@ -5123,7 +5137,11 @@ export function Recruit() {
           {/* Inner tilt layer: the rAF writes rotateX/rotateY here (dive about the card's own centre). During
               snap/magnet-slide React flattens it so the frozen last-frame rotation clears. */}
           <div className="dragtilt" ref={dragTiltRef} style={{ transform: reactDrivesDrag ? 'none' : undefined }}>
-            <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+            {/* Grab-shrink layer — eases the hover→held size change (hand drags only). Its own layer so the
+                one-shot scale can't fight the rAF's position/tilt writes above. See `.dragshrink` in styles.css. */}
+            <div className="dragshrink">
+              <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+            </div>
           </div>
         </div>
       )}

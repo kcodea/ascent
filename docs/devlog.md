@@ -1,5 +1,537 @@
 # ASCENT — development log
 
+## 2026-08-14 — bake owner drag-feel tune (grab-shrink + a softer recentre)
+
+Baked the owner's tuned `dragFeel.ts` DEFAULTS: `shrinkMs` 160→360 and `shrinkFrom` 1.25→1.37 (the grab-shrink
+lands slower and starts a touch bigger), plus `recenter` 1→0.8 (a slightly eased glide onto the cursor instead of
+instant). The two shrink values reflect to CSS vars, so their `styles.css` fallbacks (`--drag-shrink-ms`,
+`--drag-shrink-from`) were updated in lockstep; `recenter` is read in the drag rAF (no CSS var). Bumped
+`DRAG_DEFAULTS_VERSION` 8→9 (+ fingerprint) so stale local overrides self-clear on sync. The other 21 knobs were
+unchanged. Verified with the full gate (typecheck + test 5340/5340 + build).
+
+## 2026-08-14 — UI editor: Esc + ✕ to close (it could trap you)
+
+Owner report: opening the dev UI editor (🎛️ UI Edit Mode) with no way out — its overlay can cover the DevMenu's
+🛠️ button, which was the ONLY toggle, so interaction was blocked. Added two exits to `EditorOverlay.tsx`: an
+**Esc** key handler and a visible **✕** button in the toolbar header, both calling `setUiEditMode(false)`. The Esc
+listener is capture-phase and `stopPropagation`s, so Esc closes the editor INSTEAD of also opening the Settings
+menu (Game.tsx's bubble-phase Esc), and it's only attached while edit mode is on. DEV-only change; the pre-existing
+`.uied-*` panel styling (a plain dark dev tool, off the game design system) is untouched. Full gate green
+(typecheck + lint + test 5340/5340 + build).
+
+(Unblocking an already-stuck session doesn't need this build — it's local `localStorage` state: run
+`localStorage.setItem('ascent.uiEdit','0'); location.reload()` in the browser console.)
+
+## 2026-08-14 - Beat Lab: finish pass — accuracy over more emission
+
+"Finish remaining work on the beat tool." The honest finish here is ACCURACY, not more machinery: the tool's
+copy still described shipped work as future, and the last remaining emission targets are correctly out of
+scope.
+
+Copy the arc had left stale:
+- **Capture empty-state** said "Migrated triggers so far: Shouts and the full End-of-Turn pass" — implying
+  migration was partial. Every class emits now; rewritten to say so and point at Library/Combat.
+- **Combat-tab banner** said keyed rows "become tunable first when combat starts consuming compiled timing —
+  the next milestone." That milestone SHIPPED (combat consumes compiled timing behind `ascent.combatbeats`,
+  PRs 21/23). The banner is now flag-aware: with the flag ON it reads "LIVE — keyed rows pace real fights,
+  tune them in the Library"; with it off, "one switch away." The "keyed" tooltip and module doc were
+  corrected the same way (the minion combat class is keyed too, not just quest/rune flags).
+
+The three REACTIVE hero payouts (Robin's sell-Gold, Gorr's fourth-buy, Goldcrafter's turn-payout) are left
+un-emitted on purpose, and it is the north-star-aligned call: they fire DURING shop actions (or a turn
+advance), and shop actions are instant by design (owner ruling 2026-08-14). A beat for them would be instant
+regardless, so wiring emission would add DEV-path cost to the snappy buy/sell loop for zero tunability. The
+tool is accurate about them — they show the `instant` badge, like every shop-action effect.
+
+State of the tool: every STAGEABLE event (End of Turn, combat incl. the minion class + flags + activated
+heroes) is addressable and tunable; shop actions are instant by design and labelled so; the tool's own copy
+now matches what shipped. That is the finish line for the objectives the owner set.
+
+Pure copy/accuracy pass. typecheck + lint + npm test + build:web green.
+
+## 2026-08-14 — grabbing a hand card eases its shrink instead of snapping
+
+Owner ask: a hovered hand card is bigger (the hover pop, `--z-hand-hover-s` 1.51) than it is once lifted (the
+floating `.dragcard` at `zoom` = drag-feel `scale` 1.21), and grabbing it swapped the two instantly. Now it eases.
+
+The size and position live on separate properties (size = `zoom`, position/tilt = `transform`, both written by the
+drag rAF), and `zoom` doesn't transition — so the shrink rides its OWN layer: a new `.dragshrink` wrapper between
+`.dragtilt` and the `<Card>`, whose one-shot `@keyframes dragshrink` scales from `--drag-shrink-from` down to 1 on
+mount. Being its own layer, the scale can't fight the per-frame position/tilt writes above it. Hand drags only
+(`.dragcard.fromhand`), `animation-fill-mode: both` so frame one is already the start size (no flash).
+
+Tunable, per house style: two new drag-feel dials — `shrinkMs` (duration, default 160ms) and `shrinkFrom` (start
+size × the held size, default 1.25 ≈ 1.51/1.21) — reflected to `--drag-shrink-ms`/`--drag-shrink-from` and exposed
+in the 🖐️ Drag tuner's Weight group, so the owner dials the exact start size for a seamless t=0 and bakes. Bumped
+`DRAG_DEFAULTS_VERSION` 7→8 (+ fingerprint) so stale local overrides self-clear on sync. Full gate green
+(typecheck + lint + test 5340/5340 + build); the animation feel is the owner's to confirm/tune.
+
+## 2026-08-14 — Mountainbond rework, Baal retext, Spellstone Ruby synergy, and the hand-hover HUD fix
+
+**Mountainbond** (owner rework). The meter moved from cards PLAYED to **Gold spent** — every 8 Gold, get 2
+Rubies AND play a Ruby on each of your **Kobolds** (owner ruling: every Kobold, not one). New factory
+`goldSpentGetRubiesPlayOnTribe`; the `every` gate is `applyGoldSpent`'s job as usual. The two halves use
+deliberately different channels: the hand half is `mintRubies` (so the Rubies arrive at live strength and fire
+the "when you GET a Ruby" watchers), the board half is `addBuff('Ruby') + fireOnRubyPlayed` (so Ruby Broker /
+Resonance Idol still see them). Golden doubles both. Mountainbond was the only card on the `cardsPlayed` EVENT,
+so its policy key went with it — the meter itself lives on for Rune of Mountain Trade.
+
+**Baal — text fix.** "Whenever you cast **2 spells**" was under-specified: the meter is the SHOP-SPELL counter
+(`spellCast`), the same one Vaultkeeper and Runic Apprenticeship already print as "Shop spells". Text only; the
+effect and threshold are untouched.
+
+**Rune of the Spellstone — Rubies now inherit spell buffs** (owner ask). The rune promised "Rubies you cast
+count as Shop spells", but that only made a Ruby *tick the spell-cast watchers*: it counted as a spell for every
+purpose except the one thing a spell is actually worth. Rubies now also pick up the run's **spell power**, and
+everything downstream inherits it — combat-played Rubies, Veinstorm's shop stamp *and its bank*, Motherlode,
+Mountainbond, Gemspam/Lapidary/Excavation, and the printed card text.
+
+Implemented as ONE shared read, `rubyStatBonus(state)` = `rubyBonus` + (Spellstone ? spell power : 0), replacing
+the ~10 scattered `state.rubyBonus ?? {0,0}` value reads. The two sites that WRITE the accumulator
+(`grantRubyPower`, `rubyStatGain`) and the FX before/after snapshot still read it raw. Combat needs no knowledge
+of the rune at all: `resolveCombat` folds the value into the snapshot's `rubyBonus`, and `rubyBonusFor` reads it
+verbatim. Gemcutting's fixed 3/3 override still wins outright. Spell power is folded **per stat** (it is an
+asymmetric pair) and the rune text now says so.
+
+Two bookkeeping cases a minted Ruby forces, because it BAKES its stats into the hand card:
+- a later spell-power **gain** walks the hand and grows held Rubies (the delta block in `reduce`), so held and
+  freshly-minted Rubies never drift;
+- **buying** the rune retro-folds current spell power into Rubies already in hand — the delta walk can't cover
+  this, since a purchase moves no delta. Found by a test, not by hand.
+
+**Bug fix — the HUD vanished on hand hover** (owner report: hovering a card in hand after a buy made the hero
+portrait, Resolve box and hero-power diamond disappear). This was a regression from the 2026-08-13 hand-lift fix
+(#1034), which raised `.app` to `z-index: 70`. **`.app` is the wrong knob**: `.boardbg` is a CHILD of it — fixed,
+inset:0, full-viewport board art — so lifting `.app` carried the BOARD above `.statusbar` (z40) and it painted
+right over the hero panel. The identical trap is already documented 900 lines further down on
+`body.modalup .app`; the `.questbadges` precedent the fix cited does not transfer, because that element has no
+`.boardbg` inside it. It read as buy-triggered only because buying is what puts a card in hand for the selector
+to match.
+
+Fixed with two rules, both needed — there are TWO nested caps, not one: (1) dissolve `.app`'s stacking context
+(`z-index: auto`, the `body.modalup` move) so `.boardbg` stays at 0 instead of riding up; (2) raise the HAND
+ZONE, the inner cap at z25, which was still trapping the card's z50 below the HUD. The zone holds no board art,
+so it is the one thing safe to lift.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5340/5340 tests
+pass**. New `spellstoneRubySynergy.test.ts` (13 cases) covers the shared read, minting, both hand-tracking
+cases, the played-Ruby value, the Veinstorm stamp + bank, the combat fold, and the rune/Baal text. The two
+Mountainbond tests were rewritten for the Gold meter — and the "cards-played counts SPELLS, not just minions"
+regression guard from 2026-07-29 was **re-pointed at Rune of Mountain Trade** rather than deleted, since it
+guards `applyCardsPlayed` and must follow whatever still drives that meter.
+
+The CSS fix was verified live in the browser, not by reading: with a hand card hovered, `.app` computes to
+`auto`, the hand zone to 70, `.boardbg` stays 0, `elementsFromPoint` over the hero panel returns
+`heropowerbtn` topmost — and where the popped card *does* overlap the panel, the card is topmost instead. Both
+properties hold at once, which is the whole point.
+
+## 2026-08-14 — owner balance batch: 5 Demon changes, 3 new minions, and the Candlelight Toll Ruby fix
+
+**Balance (owner sheet).** Five Set-2 Demons retuned, two of them swapping jobs:
+- **Right Hand Hank** — Echo buff `+6/+3 → +3/+2` (gild `+12/+6 → +6/+4`). A 4/1 built to die was stacking the
+  right-most-slot accumulator far too fast for how cheaply it replays.
+- **Market Tormentor** — Shout buff `+7/+7 → +7/+6` (gild `+14/+14 → +14/+12`).
+- **Bob Blart** — `T5 7/7 → T4 6/5`, and he **Consumes** the right-most offer instead of copying its stats
+  (`endOfTurnGainRightmostShopStats` → `consumeShopRightmost`). The offer now leaves the row and the consume
+  payoffs fire (Avarice, Pactstone, Bottomless Banquet), which the copy shape deliberately skipped.
+- **Chipper** — `T4 4/4 → T5 8/7`.
+- **Hellrider** — stops eating and takes over Blart's old copy-don't-eat shape: every 4 refreshes it gains the
+  right-most Shop minion's stats and leaves it buyable (new `onShopRefreshGainRightmostShopStats`, the same
+  per-instance `eotTick` refresh meter). The two Demons traded jobs on purpose — the cheap one eats the row, the
+  Tier-6 one farms it without shrinking your options.
+
+**Follow-on the batch forced: Rune of Blart.** Its "also take the LEFT-most" clause lived *inside* the factory
+Bob Blart just moved off, so the rework would have silently reduced a 6-cost epic to "get a Bob Blart" and
+nothing else. The clause moved with the card into `consumeShopRightmost` — as a second **eat**, not a second
+stat-copy — and the rune's text was updated to say Consume. The left-most is re-found *after* the right-most is
+eaten so a one-offer shop can't be double-eaten.
+
+**New minions (3).** Art wired from `Set 2 Minions/` (all three matched by name; no aliases needed):
+- **Grobbus** — T4 Demon 5/5. *Avenge (3): get a random Demon.* New `avengeGrantRandomTribeMinion`, routed
+  through `ctx.grantRandomMinion` so the pick comes from the run's buyable pool at settle (≤ tavern tier,
+  pinned set) and respects the hand cap. Golden grants 2.
+- **Transcendence** — T4 Dragon 4/5, Ward. *Start of Combat: Engrave adjacent Dragons. Give your Dragons +3/+3.*
+  New `scEngraveTribeNeighboursBuffTribe`. The order inside it is load-bearing: the Engrave lands **first**, so
+  this fight's +3/+3 is part of what the neighbours keep. Off-tribe neighbours are skipped; golden doubles the
+  buff, not the Engrave.
+- **Drunken Oaf** — T4 Dwarf 4/4. *Start of Combat: give a Dwarf +2/+2. Repeat for every ale cast this turn.*
+  New `scBuffRandomTribePerAle`; reps are `1 + ales` (a dry turn still pays once). Owner ruling: each rep
+  **re-rolls its target**, so a long brew sprays the line rather than spiking one body. Per the card-text rule
+  the rep count is live: `drunkenOafText` folds it into both chains (`liveCardText` + `Unit.tsx`), which meant
+  threading `alesThisTurn` through `LiveTextParams`, `ShopViewOpts`, `liveOptsFromRun`, the `live` memo and the
+  combat path. Player-only — an enemy snapshot carries no Ale tally, so a served Oaf reads its printed text.
+
+**Bug fix — Candlelight Toll granted 1/1 Rubies** (owner report, with a screenshot of a +1/+1 Ruby beside the
+run's +3/+3 ones). The quest's dying-Kobold grant used `ctx.grantToHand('ruby', …)`, which carries back a **raw
+pool copy** of the Ruby card — a flat 1/1 — so a Kobold deck that had built its Ruby strength up got junk out of
+its own quest while every other source paid full value. Rubies are **minted, never conjured**: switched to
+`ctx.grantRubies`, which rides `playerRubyGrants` and runs the run's real `mintRubies` at settle with the live
+`rubyBonus` baked in (and fires the "when you GET a Ruby" watchers — Motherlode, Candle Conduit — that the
+hand-grant channel also skipped). Same replay `toHand` event either way.
+
+Registry upkeep: 4 new `EffectFactoryId`s + schema whitelist entries; 5 presentation-policy keys added and the
+2 now-dead ones (`endOfTurnGainRightmostShopStats:endOfTurn`, `onShopRefreshConsume:shopRefreshed`) removed, so
+`presentationPolicies.test.ts` stays ghost-free.
+
+**Verified.** `typecheck` + `lint` + `build:web` green; **5297/5297 tests pass** (5279 before, +18 new). New
+coverage in `contentBatchAug14.test.ts` (the three cards incl. the Engrave-vs-buff distinction via
+`playerPermaBuffs`, the Rune of Blart double-eat + its one-offer edge, Hellrider eating nothing) and a
+`drunkenOafText` case in `cardText.test.ts`; the Toll test now pins the mint **channel and count** rather than
+`toContain('ruby')`, which could not tell one grant from two. Note `art:wire` re-encodes unrelated `.webp`s and
+drops untracked `.png` intermediates — reverted all of that, so only the 3 new art files are in the diff.
+## 2026-08-14 - Beat Lab: shop-action rows are 'instant by design', not 'preview'
+
+Owner ruling on the recruit-action-playback fork: "shop actions MUST remain immediate. remember our north
+stars are snappy play, high performance, and fast paced mechanical play."
+
+Investigating the path confirmed WHY: End of Turn stages cleanly because you are LEAVING the shop, so a brief
+interaction-lock while beats play is natural. A shop action (Shout, cast, hero power) leaves you IN the shop
+expecting to act again immediately - routing those through the beat player would lock the shop ~400-540ms per
+action. That is inherent to the hold-before-proceeding model, not a bug to engineer away, and it trades
+directly against the snappy north star. So shop actions are NOT staged, by design.
+
+That makes the Library's shop-action rows a permanent DESIGN state, not a TODO. Re-toned so the tool says so:
+- The third badge state renamed `preview` -> **`instant`** (green-grey, reads as intentional rather than
+  "coming soon"), with a matching hover.
+- Its inspector banner rewritten from "PREVIEW ONLY - does not reach the game yet ... the remaining playback
+  milestone" to "INSTANT BY DESIGN - a shop action ... snappy play is a north star, so the shop is never held
+  to stage a beat ... beat pacing is for the sequenced phases (End of Turn, combat), where holding to read a
+  beat is the point."
+- The inspectable timing + the emitted consequence remain (for the record and the synthetic preview); only
+  the false promise that it would someday pace the shop is gone.
+
+Pure presentation re-tone: `liveToday`'s live/flag/combat logic is unchanged (the state value 'preview' was
+renamed to 'immediate'); no behavioural delta. typecheck + lint + npm test (5309) + build:web green.
+
+## 2026-08-14 — bake owner's Layout Lab defaults (shop/warband/hand/inspect/sell-zone)
+
+Baked the owner's tuned Layout Lab values into `layoutConfig.ts` `LAYOUT_VARS[].def`, with the matching
+`styles.css` var fallbacks updated in lockstep (production never mounts the tuner, so the CSS fallback is what
+ships — the same mirror rule `buttonFallbacks.test.ts` guards for the buttons). Eight values changed: shop row
+Y `27→-4`; shop-controls tray Y `-45→-89`; warband gap `22→23`, X `9→8`, Y `-163→-174`; hand hover size
+`1.34→1.51`; card hover-preview size `1.34→1.52`; and the drag-to-SELL edge `0→-188` (a bigger sell region —
+JS-computed via `getLayout()`, so it has no CSS fallback, only the `def`). The other 37 knobs were already at the
+dumped values. Verified with the full gate (typecheck + lint + test 5279/5279 + build).
+
+## 2026-08-14 — a hovered hand card now lifts above the HUD (hero power, gold, shop buttons)
+
+Owner report: hovering a card in hand pops it up but it renders BEHIND the HUD (the hero power button and the
+gold/refresh/end-turn buttons). Root cause is a stacking-context trap, not a too-low z-index: the hand zone is a
+`z-index:25` **fixed child of `.app`**, and `.app` is itself a `z-index:1` stacking context — so the hovered
+card's `z-index:50` only ranks it *within* `.app`, and `.app` as a whole stays pinned below the fixed HUD
+siblings that live outside it (`.statusbar` z40 → hero power; the z41 gold/refresh/end-turn/tavern buttons;
+`.topright` z60). Raising the card or the hand zone can't escape that cap.
+
+Fix (one CSS rule, `styles.css`): lift the whole board context above the HUD **only while a hand card is
+hovered** — `body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: 70; }`. Same container-on-hover
+trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped to not-dragging because a drag
+tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
+and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
+`build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-14 - Combat-holds regression fix: authored holds scoped to plain read-kinds
+
+A paired measurement caught a real hang in PR 23 as first pushed: with `ascent.combatbeats` on, an Oona+Pack
+fight never settled (12s cap) against a 1.7s flag-off baseline. Cause: once minion effects were stamped,
+SUMMON moments carried keys too - and a summon's pacing is engine-coupled (withholding, cue release, death
+leads). Overriding its hold stalls that machinery. The earlier gems verification passed only because its
+keyed moment was a questTrigger, a plain read.
+
+Fix: the clock consults the authored hold ONLY for read-kinds whose hold really is a timeout
+(`KEYED_HOLD_KINDS`: questTrigger/questComplete, buffWave, improve, keyword(+lost), tribeAura, hpGrant,
+toHand, maxGold, spellProgress). Summons, attacks, damage, deaths, rises, reborn, rally, shield pops keep
+their native scheduling whatever the config says.
+
+Process note, recorded so it isn't repeated: the fix was first applied UNCOMMITTED in the primary checkout,
+and a branch switch there (the owner's own balance work - the checkout is theirs) discarded it, leaving the
+pushed branch carrying the known hang. Re-landed from a dedicated WORKTREE per docs/concurrency.md (with its
+own npm install), plus a regression test (`keyedHold.test.ts`) with a stubbed flag so the scoping cannot be
+lost silently again: a keyed buffWave takes the compiled hold, a keyed summon is byte-identical to flag-off,
+and the safe list provably never contains engine-coupled kinds.
+
+typecheck + lint + npm test (5309, +3) + build:web green - all from the worktree.
+
+## 2026-08-13 - Library badges: three states, so the previews explain themselves
+
+Owner: "i still see a lot of previews in the library, is that intentional." Partly - and the stale part was
+an hour old: PR 23 made the whole minion combat class tunable behind `ascent.combatbeats`, but the badge
+logic predated it and still called every combat row "preview". Worse, a gated row and a genuinely unwired row
+looked identical, so the combat surface read as unwired when it was one switch away.
+
+Badges now have three states:
+- **LIVE** (green) - paces the real game now: End of Turn always; ALL combat rows (quest/rune flags + the
+  minion class) when `ascent.combatbeats` is on.
+- **flag** (amber outline) - one switch away: a combat row while the flag is off. Its banner names the exact
+  switch.
+- **preview** (grey) - genuinely not consumed yet: recruit-action playback (Shouts, casts, hero-power
+  moments) - the one remaining playback milestone.
+
+Verified live in all three: flag off -> Oona reads `flag` with the ONE SWITCH AWAY banner; flag on -> Oona
+and an Echo (on-death) row read LIVE; Jensen's hero power correctly stays `preview` either way.
+
+typecheck + lint + npm test (5306) + build:web green. Rides #1033.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 23: minion combat effects carry their identity - the CLASS, not Oona
+
+The owner's ruling, verbatim: "dont make oona herself work, let's just keep working through our workload
+until this is all done and inclusive." So: the ~109 identity-less minion combat triggers (onSummon, onAttack,
+onDeath, avenge, onKill, startOfCombat...) become addressable AS A CLASS, with King Oona as the acceptance
+case rather than a special case.
+
+**The mechanism** mirrors `inAvenge`, the file's own precedent: an ACTIVE EFFECT context in `simulate`. While
+any minion's combat effect runs, every event it emits is stamped with `key` (`factory:<do>:<on>` - the
+registry's own grammar) and `srcCard`. All 18 dispatch sites wrapped (the bus, `emitOnSummonOrdered`,
+deathrattles, Rally/on-kill chains, Start-of-Combat casts, Twilight replays). Identity travels ON the events
+gameplay already emits: no new event types, no count/order changes, so replay grouping is untouched and NO
+golden regenerated - the full suite passed unchanged. `CombatEvent` gains the fields on its existing
+intersection, beside `step`/`avenge`, as pure presentation metadata.
+
+**Consumers:**
+- The combat adapter keys any moment whose primary carries a registry-known stamp - source = the CARD, so the
+  Combat tab shows "King Oona - buffWave [keyed]" under her own name.
+- `combatKeyedHoldMs` accepts the minion shape beside the quest/rune flags: same gate
+  (`ascent.combatbeats`), same LIVE-draft layering, and the LIBRARY's own edit key
+  (`source:minion:<cardId>:<on>`) matches the chain - so flipping Oona folded->own in the Lab now re-bases
+  her read in a real fight, exactly the owner's original report, delivered as one member of a class.
+- A stamped key the registry does not carry is never keyed and never guessed (PR 1's rule, held in combat).
+
+Verified live: an Oona + Pack (Deathrattle Pups) fight publishes
+"Mama Pup - summon - factory:deathrattleSummon:onDeath" and
+"King Oona - buffWave - factory:onSummonTribeBuffThenDouble:onSummon" - two effects, two identities, real
+names. Unit-level: outcomes byte-identical with the stamp stripped; deterministic; attacks/damage unstamped.
+
+typecheck + lint + npm test (5306, +13) + build:web + npm run perf all green (combat hot path touched -
+perf measured per CLAUDE.md).
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 22: every ACTIVATED hero power emits (audit step 5)
+
+The owner's direction: no one-off fixes (King Oona stays un-special-cased) - work through the classes until
+coverage is inclusive. Heroes were the next class.
+
+**Where the wrap lives is the design decision.** Not inside the reducer's 140-line `case 'heroPower'` (early
+returns everywhere, high surgery risk) - in `reduceWithPresentation`, the one chokepoint every activation
+passes through. Open a hero trigger scope, run the reducer, diff the two immutable states for consequences,
+close the scope. Every activated power CURRENT AND FUTURE is covered by construction; a rejected click
+(locked/unaffordable/passive kind) returns the same state and emits nothing; anything a power triggers
+internally (Myra replaying a Battlecry) nests under the hero's beat automatically.
+
+- `emitHeroPowerDiff`: board/hand stats, keywords gained, hand grants, board summons, shop-offer buffs
+  (a targeted Fortify on a tavern minion), Gold, and max Gold (incl. the `maxGoldBonus` channel Nadja uses).
+- **Two registry rows were factually wrong and are fixed**: Bagger Ben's `scalingGold` and Tiff's
+  `dragonTamer` were classified `passive`, but both have activation branches in the reducer (click -> Gold /
+  click -> Discover). Reclassified ownBeat (heroPayout / heroPower), still flagged for the owner pass.
+- **A failing test found a real hole**: the Warden test was first written expecting `statsChanged` - wrong,
+  warden's power grants a KEYWORD, and the diff had no keyword coverage at all. Added, not papered over.
+
+Coverage after this: 7 hero rows are `passive` by design (no beat is correct); every ACTIVATED power emits
+through the chokepoint; the handful of REACTIVE payouts that fire outside the action (Robin's sell Gold,
+Gorr's fourth-buy, Goldcrafter's turn payout, the quest-granting powers whose payouts already emit through
+the quest system) remain listed for a follow-up pass - documented, not silently skipped.
+
+Tests (+6): targeted keyword (Warden), untargeted maxGold (Nadja), the reclassified Bag It payout, a rejected
+click emits NOTHING, byte-identical gameplay capture on/off across sampled powers, and a sweep asserting every
+emitting power's key is registry-anchored.
+
+typecheck + lint + npm test (5293) + build:web green. Stacked on #1031.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 21: combat consumes compiled timing - keyed triggers, flagged (audit step 4)
+
+The first change that alters how a fight PLAYS, scoped to the narrowest useful slice:
+
+- Only `questTrigger`/`questComplete` moments - the ~57 quest/rune combat flags (Rune of Attacking Gems, the
+  owner's acceptance case). They carry a gameplay-stamped identity; everything else keeps its exact pacing.
+- Only the HOLD - the inter-beat pause `clock.holdMs` already owns. Attack contact, summon withholding and
+  damage pacing untouched (the blueprint's hard line, and the owner's: order of operations is out of scope).
+- Behind `localStorage.ascent.combatbeats = '1'`, OFF by default. Flag off is byte-identical to today - the
+  unit suite pins the negative space (every ordinary moment type returns null; unknown flags never guessed).
+
+`combatHolds.ts` resolves a keyed trigger through the SAME chain as everything else: registry row ->
+committed config -> LIVE session draft. The store hands the draft through an injected provider (the clock
+cannot import the store - cycle through the combat-timeline composition).
+
+**Two real bugs found by walking the owner's actual path, not the happy path:**
+
+1. **Keyed on the wrong side of the transition.** `holdMs(next, shown)` is the delay before showing NEXT, so
+   a beat's on-screen time is the hold computed while it is SHOWN. Keying on `next` looked right and did
+   nothing - a gems fire always follows an attack, and the post-attack transition skips holdMs entirely
+   (engine-advanced, contact-anchored), so the check sat on the one transition that never runs. The owner's
+   own sentence is the spec: "how long individual triggers have to show they have triggered."
+2. **Resolved on the wrong key.** The Library writes edit keys from the surface (`source:rune:X:combat`);
+   resolving on the event type (`:questTrigger`) meant an edit made through the actual UI never matched.
+   The resolver now uses the surface's phase segment.
+
+Also: Library badges tell the truth about the flag - keyed rune/quest combat rows read LIVE when
+`ascent.combatbeats` is on (enumerated at Lab open).
+
+**Verified live, wall-clock, same seeded fight** (5x speed, one gems fire): flag off 1202ms; flag on with a
+3000ms draft via the hand-built key 1651ms; via the UI's OWN key shape 1653ms. Delta ~+450ms = the authored
+600ms read replacing the ~150ms default. Module-level probes on the live bundle confirm the contract: shown
+keyed beat -> authored hold; transition INTO it -> default (attack owns arrival); flag off -> identical.
+
+typecheck + lint + npm test (5287, +9) + build:web green. Stacked on #1030.
+
+## 2026-08-13 - Combat tab polish: real names + a track that follows the window
+
+Owner feedback on the new Combat tab, both items real:
+
+1. **"we need actual names and not the id_names"** - rows read `d2_chorus` / `k_candleback` /
+   `runeAttackingGems`. The adapter labels with ids because it cannot import content; the UI-side composition
+   (`combatTimelineFrom`) CAN, so it now resolves every source to the recognizable name - card ids through
+   CARD_INDEX, keyed rune/quest triggers through RUNE_INDEX/QUEST_INDEX. Unresolvable ids keep the id (honest
+   beats pretty). Moment kinds are humanized too (`attackExchange` -> "attack", `toHand` -> "to hand"), and an
+   aggregate moment with no owner (a buff wave) shows the kind once instead of the "buffWave buff wave"
+   stutter.
+2. **"resizing the window seems to kinda bug out the sizing of the combat view"** - the track was a fixed
+   640px inside a now-resizable window, leaving the fight squeezed into a corner of a stretched Lab. The track
+   now fills whatever width the window gives it (ResizeObserver on the body; label column reserved; floor for
+   tiny windows), and the keyed badge sits outside the name's ellipsis so it can't truncate to "keye".
+
+Verified live: rows read "Stray · attack", "Rune of Attacking Gems · trigger · keyed", "Embermouth Whelp ·
+damage"; track measured 1363px inside a 1683px overlay and tracks further resizes.
+
+typecheck + lint + npm test (5278) + build:web green. Rides #1030.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 20: the Combat tab (step 3 of the audit plan)
+
+PR 16 published every resolved fight as a CompiledTimeline; nothing displayed it. The Lab now has a third
+tab - Combat - rendering the last fight on the shared timeline vocabulary, READ-ONLY.
+
+Read-only is the point, not a limitation to apologize for: combat still plays on its own runtime, so an
+editable surface here would be the same silent lie the LIVE/preview badges just removed - accepting edits a
+fight will never honor. The banner says so in plain words. Rows whose beat carries a policyKey (quest/rune
+combat triggers) wear a **keyed** badge: those are the addressable ones, first in line to become tunable when
+combat starts consuming compiled timing (step 4).
+
+Verified live with the owner's own example: staged a run with Rune of Attacking Gems armed, fought a real
+combat, opened the tab -
+
+    stray · attackExchange
+    runeAttackingGems · questTrigger  [keyed]   <- rune:rune_attacking_gems:combat @ 710ms
+    buffWave · buffWave
+    d2_embermouth · damage
+
+4 beats, 2840ms, ruler + per-beat bars with delivery ticks, reaction lanes indented.
+
+typecheck + lint + npm test (5278) + build:web green. Stacked on #1029.
+
+## 2026-08-13 - Beat Lab honesty: LIVE vs preview-only badges (the Oona report)
+
+Owner report: "nothing i do in the lab seems to affect the timing in game ... i was trying to make oona an
+own beat vs folded."
+
+Two causes, both real:
+
+1. **King Oona's trigger fires in COMBAT, and combat does not read Lab timing yet.** Only the End-of-Turn
+   batch is live-consumed today. The owner's edit worked in the preview - and the Lab silently accepted it
+   with zero indication it would never reach the fight. The silence is the bug: a tool that takes an edit it
+   knows cannot apply, without saying so, is indistinguishable from a broken tool.
+2. **The dev server was serving stale transforms.** After many same-session branch switches, disk edits
+   (including the LIVE toggle and window chrome) were not reaching the browser even across hard reloads - the
+   same failure mode as the stale art glob (memory: restart the server, a reload is not enough). A restart
+   fixed it; the owner's session was likely running older code than either of us assumed.
+
+The fix for #1:
+- Every library trigger row now carries a **LIVE** (green) or **preview** (grey) badge: LIVE = the End-of-Turn
+  batch (plus Re-Pete's power, which emits inside it); preview = every phase not yet wired (combat,
+  onPlay/cast recruit actions, un-emitted hero powers).
+- Selecting a preview-only row shows a banner stating it plainly: "PREVIEW ONLY - this edit does not reach the
+  game yet... your draft is real and will apply the moment that phase is wired."
+
+Verified live after a server restart: Oona's row reads `beat · preview · on summon` with the banner;
+Lapidary's reads `beat · LIVE · End of Turn`.
+
+typecheck + lint + npm test (5278) + build:web green. Rides #1029.
+
+## 2026-08-13 - Beat Lab usability: movable/resizable window, text-size slider, drafts survive reopen
+
+Owner report while trying the tool: the Lab was a fixed full-screen overlay - "i need to close the window out
+in order to play the game", "can you make the window adjustable and give me a text slider" - plus the load-
+bearing question "if i close the window do changes go away?"
+
+**The question found a real bug.** Closing the Lab kept the draft pacing the game (the store copy lives on),
+but REOPENING it wiped the draft: the fresh Lab mounted with empty state and its publish effect immediately
+clobbered the store copy with null. For the exact workflow the tool is built around - tune, close, play,
+reopen to adjust - the drafts were being destroyed by the reopen. Fix: the Lab's draft state initializes FROM
+the store's published copy on mount, making the store the surviving source of truth. Verified in-browser:
+edit hold to 999 -> close -> store still carries it -> reopen -> "draft: 1 key" with the same values.
+
+- **Movable**: drag the topbar (buttons/inputs on it keep their own behavior; empty bar space is the handle).
+- **Resizable**: native CSS `resize: both` handle at the bottom-right; a ResizeObserver mirrors native resizes
+  back into state so the size persists.
+- **Text slider**: A–A range control (10-18px) in the topbar; child font sizes converted from px to EM so the
+  whole UI scales from the one base size.
+- Position / size / text size persist in localStorage (`ascent.beatlab.ui`) - pure UI preferences, unlike
+  timing drafts which stay session-only by design. Loaded values are CLAMPED to the current viewport so a
+  saved position from a bigger monitor can't strand the window (and its close button) off-screen.
+
+Verified live: drag moved (115,79)->(315,204); slider to 16px scaled the title to 18.72px (1.17em); prefs
+persisted; close/reopen preserved the draft.
+
+Answer to the owner's question, now true in both halves: closing the window loses NOTHING (drafts survive
+close AND reopen, and keep pacing the game if LIVE is on); a page reload clears drafts by design - "Commit to
+repo" is what makes a tuning permanent.
+
+typecheck + lint + npm test (5278) + build:web green. Rides the open #1029 (same workflow surface).
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 19: LIVE draft - uncommitted Lab edits pace the real game
+
+Step 2 of the owner's audit plan, and the moment the tool meets the owner's stated best outcome: "live-modify
+beats of events in the game." Until now the loop was tune -> commit -> HMR reload -> play. Now it is tune ->
+flip LIVE -> play; the next real End Turn runs at the draft's pacing, no commit, no reload.
+
+Blueprint §15's rule is load-bearing here: "live gameplay must not silently use unsaved draft values." So:
+- The Lab publishes its session draft to the store (ephemeral, never serialized), but the game only READS it
+  when the owner flips an explicit **LIVE** toggle in the Lab's topbar - off by default, every session.
+- While active, a persistent amber banner - "DEV BEAT OVERRIDES ACTIVE - N draft keys pacing End of Turn" -
+  renders from the DevMenu (always mounted in DEV), so it survives the Lab closing; the intended workflow IS
+  tune -> close the Lab -> play a real turn -> judge. Clicking the banner turns the override off.
+- DEV only at the consumption site: prod never reads either field, so this cannot ship to players.
+- Drafts survive the Lab closing but not a reload - exactly the Lab's own draft lifecycle.
+
+Verified live, both directions, in the running game:
+
+    LIVE on:  draft hold 2000 on the Lapidary -> "1 beats, 1 deliveries, 2290ms"  (120+2000+170)
+    banner clicked (off): same turn re-run    -> "1 beats, 1 deliveries, 710ms"   (120+540+170, shipped)
+
+The banner appears with the draft count and disappears when clicked; the shipped config is untouched
+throughout. No new tests beyond the existing labSchedule equivalence suite - the conversion path this rides is
+the one PR 18 pinned byte-for-byte; the wiring itself was verified in the browser.
+
+typecheck + lint + npm test (5278) + build:web green.
+
+## 2026-08-13 - Beat CHOREOGRAPHER PR 18: ONE ENGINE - the Beat Lab previews on the live compiler
+
+The owner's step-back audit (2026-08-13) restated the tool's objectives: live-modify beats of all events,
+never touch order of operations, only tune "how long a trigger shows it proc'd" and "own beat vs inherit
+parent", easy to use, cannot break the game. The audit's biggest finding was drift I introduced: the Lab
+previewed with its own v1 scheduler (`scheduleBeats` + `resolveBeatTiming`) while the game played the shared
+compiler - two engines, the exact "lab shows what the game won't play" failure the pivot exists to end.
+
+- `labSchedule.ts` is now the ONLY way the Lab schedules anything: it feeds `compileTimeline` with
+  `shippedBeatConfig()` plus the session draft (v1 vocabulary converted at this one seam), and re-projects the
+  compiled timeline into the shape the Lab's views already render. The editor keeps its plain-words dials -
+  wind-up / hold / recovery and the policy dropdown - unchanged.
+- The inspector's numbers are read OFF THE COMPILED BEAT (config + provenance), not from a second resolver -
+  the fields, the strip, the preview and the live game can only ever be the same numbers.
+- RETIRED: `beatTimeline.ts` (the v1 scheduler) deleted; `beatTiming.ts` slimmed to the file/draft layer
+  (readers, merge, key grammar). Resolution behaviour has exactly one home.
+- Fixtures now stamp `family`, so committed family templates pace the preview exactly as they pace live -
+  previously the preview silently fell through to policy defaults.
+- Two honest preview CHANGES (both are the live truth the old scheduler could not show): a folded cue now
+  previews INSIDE its parent instead of queueing sequentially, and multi-target consequences land staggered.
+
+**Bug found BY the live verification, mid-PR:** typed hold=1200 in the inspector, the field read back 1080.
+The editor's hold is RELATIVE (time after wind-up) but the engine stores an ABSOLUTE completion offset, so a
+sparse hold-only patch migrated as `completion = 0 + hold` and the nonzero default wind-up ate 120ms of it.
+Fix: inspector edits (numeric + drag) write the DENSE triple - the effective values with the edited field
+replaced - so what you type is exactly what plays. Regression tests pin both the fix and WHY sparse was lossy.
+
+Verified live end to end: Lapidary inspector shows 120/420/170 with engine provenance (`default:ownBeat`);
+typing hold 1200 reads back 1200 and the preview re-paces to 2980ms = 2x(120+1200+170) - the compiler's exact
+arithmetic. `labSchedule.test.ts` pins BYTE equivalence between the Lab's schedule and a direct
+`compileTimeline` with the shipped config, with and without drafts and policy toggles.
+
+typecheck + lint + npm test (5278; +12 new, v1 resolver tests retired with their engine) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 17: combat quest/rune triggers are ADDRESSABLE
 
 PR 16 made combat inspectable but identity-less. This gives the quest/rune combat triggers - the ~92 combat

@@ -82,7 +82,17 @@ export function simulate(
   // handler emits during that window is stamped `avenge:true` — pure presentation metadata (like `step`) that
   // lets the replay hold Avenge payoff beats until after the death's summons deploy. Zero effect on outcomes.
   let inAvenge = false;
-  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}) }); };
+  // CHOREOGRAPHER PR 23 — the ACTIVE EFFECT context, mirroring `inAvenge`: while a minion's combat effect
+  // runs, every event it emits is stamped with the effect's registry key + the card that ran it. Identity
+  // travels ON the events gameplay already emits — no new event types, no count/order changes, so replay
+  // grouping is untouched. Presentation metadata only; resolution never reads it.
+  let effectCtx: { key: string; srcCard: string } | null = null;
+  const withEffect = (self: Minion, effect: EffectDef, run: () => void): void => {
+    const prev = effectCtx;
+    effectCtx = { key: `factory:${effect.do}:${effect.on}`, srcCard: self.cardId };
+    try { run(); } finally { effectCtx = prev; }
+  };
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}) }); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
@@ -913,7 +923,7 @@ export function simulate(
         emit({ type: 'sc', source: shout.uid, text: 'Shout' });
         for (const effect of shout.effects) {
           if (effect.on !== 'onPlay') continue;
-          FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side });
+          withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
         }
       }
       if (rally) fireFreeRally(rally, side);
@@ -992,7 +1002,7 @@ export function simulate(
           const fn = FACTORIES[effect.do];
           if (!fn) continue;
           if (!alignAllows(effect, w.align)) continue;
-          fn(ctx, w, effect.params ?? {}, payload);
+          withEffect(w, effect, () => fn(ctx, w, effect.params ?? {}, payload));
         }
       }
     }
@@ -1317,7 +1327,7 @@ export function simulate(
     if (minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack')) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onAttack') continue;
-        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     }
     if ((minion.rallyMechAtk ?? 0) > 0) {
@@ -1421,8 +1431,8 @@ export function simulate(
       // watcher, and a watcher reacting to someone else's death (Brood Matron, Endless Overseer) is not its
       // own Echo firing — wrapping those made Aftershocks pay once per rattle-body per death.
       const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;
-      if (ownEcho) asEcho(minion.side, () => fn(ctx, minion, params, payload));
-      else fn(ctx, minion, params, payload);
+      if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)));
+      else withEffect(minion, effect, () => fn(ctx, minion, params, payload));
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
@@ -1561,7 +1571,7 @@ export function simulate(
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer }));
+        asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })));
       }
     };
     fireOnce();
@@ -1723,7 +1733,7 @@ export function simulate(
       emit({ type: 'sc', source: minion.uid, text: 'Shout' });
       for (const effect of minion.effects) {
         if (effect.on !== 'onPlay') continue;
-        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     }
     // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
@@ -1801,8 +1811,15 @@ export function simulate(
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
+    //
+    // BUG FIX 2026-08-14 (owner report): this used `grantToHand('ruby', …)`, which carries back a RAW POOL COPY
+    // of the Ruby card — a flat 1/1 — so a Kobold deck that had built its Rubies up to +3/+3 got 1/1 Rubies out
+    // of the quest while every other source paid full strength. Rubies are MINTED, never conjured: `grantRubies`
+    // rides `playerRubyGrants`, which runs the run's real `mintRubies` at settle with the live `rubyBonus` baked
+    // in (and fires the Motherlode / Candle Conduit "when you GET a Ruby" watchers, which the hand-grant channel
+    // also skipped). Same replay `toHand` event either way.
     if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
-      ctx.grantToHand('ruby', minion.side, minion.uid);
+      ctx.grantRubies(1, minion.side, minion.uid);
     }
     // Rune of the Gem Golem: a dying Kobold leaves a token with stats equal to the RUBIES it was carrying.
     // `rubyTallyOf` is the same read the Gemheart line uses (the carried 'Ruby' snapshot + this fight's gains),
@@ -1851,7 +1868,7 @@ export function simulate(
       asEcho(minion.side, () => {
         for (const effect of minion.effects) {
           if (effect.on !== 'onDeath') continue;
-          FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
         }
       });
     }
@@ -2119,7 +2136,7 @@ export function simulate(
           emit({ type: 'sc', source: lead.uid, text: 'Shout' });
           for (const effect of lead.effects) {
             if (effect.on !== 'onPlay') continue;
-            FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side });
+            withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
           }
         }
       }
@@ -2153,7 +2170,7 @@ export function simulate(
       for (let i = 0; i < rallyExtra; i++) {
         for (const effect of attacker.effects) {
           if (effect.on !== 'onAttack') continue;
-          FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target });
+          withEffect(attacker, effect, () => FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target }));
         }
       }
       // …and each of those extra fires COUNTS as a Rally trigger, exactly like the additive doublers below
@@ -2194,7 +2211,7 @@ export function simulate(
           asEcho(attacker.side, () => {
             for (const effect of echo.effects) {
               if (effect.on !== 'onDeath') continue;
-              FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side });
+              withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
             }
           });
         }
@@ -2209,7 +2226,7 @@ export function simulate(
         for (let r = 0; r < extras && !attacker.dead && attacker.health > 0; r++) {
           for (const effect of attacker.effects) {
             if (effect.on !== 'onAttack') continue;
-            FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side });
+            withEffect(attacker, effect, () => FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side }));
           }
         }
         if (attacker.side === 'player') bumpRally(extras);
@@ -2331,7 +2348,7 @@ export function simulate(
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {
               if (effect.on !== 'onKill') continue;
-              FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+              withEffect(killer, effect, () => FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m }));
             }
           }
           // Each Uron re-fire that actually re-triggers a Slaughter EFFECT counts toward "Trigger N Slaughters"
@@ -2363,7 +2380,7 @@ export function simulate(
               let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
-                FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                withEffect(killer, effect, () => FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m }));
                 refired = true;
               }
               // The extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
@@ -2378,7 +2395,7 @@ export function simulate(
               for (let r = 0; r < slfe; r++) {
                 for (const effect of killer.effects) {
                   if (effect.on !== 'onKill') continue;
-                  FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                  withEffect(killer, effect, () => FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m }));
                 }
               }
               // Each extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
@@ -2557,7 +2574,7 @@ export function simulate(
         // CELESTIAL: skip a half gated to the other alignment (see `registerEffect` — SC is dispatched
         // directly, so it needs its own gate).
         if (!alignAllows(effect, minion.align)) continue;
-        if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {}); }
+        if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {})); }
       }
     }
   }
@@ -2575,7 +2592,7 @@ export function simulate(
           // in `registerEffect` does NOT cover it — this is the second half of the same rule.
           if (!alignAllows(effect, minion.align)) continue;
           const fn = FACTORIES[effect.do];
-          if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+          if (fn) { nextStep(); withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {})); }
         }
       }
     }
@@ -2615,7 +2632,7 @@ export function simulate(
           if (fn) {
             nextStep();
             if (!twilightFired) { twilightFired = true; fireTrigger('runeTwilight', rside); }
-            fn(ctx, minion, effect.params ?? {}, {});
+            withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {}));
           }
         }
       }
@@ -2772,7 +2789,7 @@ export function simulate(
             ctx.countDeathrattle?.(target.side);
             for (const effect of target.effects) {
               if (effect.on !== 'onDeath') continue;
-              FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+              withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
             }
           }
         }

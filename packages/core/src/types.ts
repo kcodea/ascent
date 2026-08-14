@@ -230,7 +230,11 @@ export type EffectFactoryId =
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
-  | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
+  | 'endOfTurnGainRightmostShopStats' // Set 2 — (legacy Bob Blart) gain the right-most shop minion's stats (no consume)
+  | 'onShopRefreshGainRightmostShopStats' // Set 2 — Hellrider: every N refreshes, gain the right-most Shop minion's stats (no consume)
+  | 'avengeGrantRandomTribeMinion' // Set 2 — Grobbus: Avenge (X) — get a random minion of a tribe
+  | 'scEngraveTribeNeighboursBuffTribe' // Set 2 — Transcendence: SoC Engrave adjacent tribe-mates, then buff the tribe
+  | 'scBuffRandomTribePerAle' // Set 2 — Drunken Oaf: SoC buff a random tribe minion, once + once per Ale cast this turn
   | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — (legacy) the first consume each turn pays a flat Gold amount
@@ -520,6 +524,7 @@ export type EffectFactoryId =
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
+  | 'goldSpentGetRubiesPlayOnTribe' // Set 2 — Mountainbond: every N Gold, mint Rubies to hand + play one on each tribe minion
   | 'cardsBoughtGetRubies'
   | 'grantRandomAle' // Set 2 Dwarves
   | 'battlecryBuffTribeOthersAttack' // Set 2 Dwarves
@@ -1833,7 +1838,12 @@ export type CombatEvent = (
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
-) & { step?: number; avenge?: true }; // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
+) & { step?: number; avenge?: true; key?: string; srcCard?: string };
+// `key`/`srcCard` (CHOREOGRAPHER PR 23): the registry key of the minion EFFECT that emitted this event
+// (`factory:<do>:<on>`) and the card that ran it — stamped by the simulator's dispatch context, exactly like
+// `step`/`avenge`. Pure presentation metadata: never read by resolution, so outcomes cannot depend on it.
+// This is what makes minion combat triggers (Oona's onSummon, every onAttack/onDeath/avenge) ADDRESSABLE as
+// a class instead of identity-less moments the Beat Lab can only display. // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 

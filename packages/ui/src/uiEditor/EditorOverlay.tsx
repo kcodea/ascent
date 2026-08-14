@@ -218,6 +218,21 @@ export function EditorOverlay(): JSX.Element | null {
   // ---- 1. Mode subscription. OFF => render null, no listeners installed anywhere below. ----
   useEffect(() => subscribeUiEditMode(setOn), []);
 
+  // Esc exits edit mode — the editor is a modal-ish overlay and without this the ONLY way out is the DevMenu
+  // toggle, which the overlay can cover (owner got trapped). Capture-phase + stopPropagation so Esc closes the
+  // editor INSTEAD of also opening the Settings menu (Game.tsx's bubble-phase Esc handler). Only while ON.
+  useEffect(() => {
+    if (!on) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setUiEditMode(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [on]);
+
   // First turn-ON: load the persisted scratchpad and re-apply every rule so prior edits are visible.
   useEffect(() => {
     if (!on || loadedRef.current) return;
@@ -619,4 +634,5 @@ const CSS = `
 .uied-upload { display: inline-block; text-align: center; }
 .uied-error { color: #ff8a9a; font-size: 11px; }
 .uied-actions { flex-wrap: wrap; }
+.uied-close { margin-left: auto; padding: 2px 8px; line-height: 1; }
 `;

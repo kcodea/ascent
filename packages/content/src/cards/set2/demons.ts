@@ -107,12 +107,12 @@ export const SET2_DEMONS: CardDef[] = [
     // roll's right-most, STACKS across plays (two normals + a gilded = +28/+28), and does NOT need the
     // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
-    // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14).
-    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 7, health: 7 } }],
+    // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14). Owner balance 2026-08-14: +7/+7 → +7/+6.
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 7, health: 6 } }],
     // Owner retext 2026-08-12: the simpler "minion + permanently" phrasing (matches Right Hand Hank). The
     // MECHANIC is unchanged — it's still the slot accumulator that re-lands on every refresh and stacks.
-    text: '**Shout:** give the **right-most Shop minion +7/+7** permanently.',
-    goldenText: '**Shout:** give the **right-most Shop minion +14/+14** permanently.',
+    text: '**Shout:** give the **right-most Shop minion +7/+6** permanently.',
+    goldenText: '**Shout:** give the **right-most Shop minion +14/+12** permanently.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
@@ -132,9 +132,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_glutton',
     name: 'Chipper',
     tribe: 'demon',
-    tier: 4,
-    attack: 4,
-    health: 4,
+    tier: 5, // owner balance 2026-08-14: T4 4/4 → T5 8/7
+    attack: 8,
+    health: 7,
     keywords: ['T'], // Taunt
     effects: [{ on: 'onSummon', do: 'onTribePlayedConsumeShop', params: { tribe: 'demon', times: 1, self: true } }],
     text: '**Taunt.** Whenever you play a **Demon**, this Consumes a minion in the Shop.',
@@ -156,19 +156,20 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'Whenever you summon an **Imp**, give it **+4/+4**. **Avenge (3):** improve this by **+2/+2**.',
   },
   {
-    // Takes the stats WITHOUT eating — the offer stays buyable, which is the difference from Demon Horse.
-    // (Owner fix 2026-08-01: the old factory Consumed the fattest Shop minion — the comment was the spec,
-    // the code wasn't. It now copies the right-most offer's stats, exactly as printed.)
+    // Owner rework 2026-08-14: Blart now EATS the offer instead of copying its stats — same right-most target,
+    // but it leaves the row (and fires the consume payoffs: Avarice, Pactstone, Bottomless Banquet). Stats and
+    // tier came down with it (T5 7/7 → T4 6/5) because the eat is the stronger half of the trade.
+    // (The old copy-don't-eat shape is still live on `endOfTurnGainRightmostShopStats`, which Hellrider uses.)
     id: 'dm_gourmand',
     name: 'Bob Blart',
     tribe: 'demon',
-    tier: 5, // owner balance 2026-08-11: T4 → T5
-    attack: 7,
-    health: 7,
+    tier: 4, // owner balance 2026-08-11: T4 → T5; 2026-08-14: back to T4
+    attack: 6,
+    health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnGainRightmostShopStats', params: { times: 1 } }],
-    text: "**End of Turn:** gain the **right-most** Shop minion's stats.",
-    goldenText: "**End of Turn:** gain the **right-most** Shop minion's stats **twice**.",
+    effects: [{ on: 'endOfTurn', do: 'consumeShopRightmost', params: { times: 1 } }],
+    text: '**End of Turn:** Consume the **right-most** minion in the Shop.',
+    goldenText: '**End of Turn:** Consume the **right-most** minion in the Shop and gain **double** its stats.',
   },
   {
     id: 'dm_velvet',
@@ -249,9 +250,12 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 8,
     health: 8,
     keywords: [],
-    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshConsume', params: { every: 4, times: 1 } }],
-    text: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop.',
-    goldenText: 'Every **4 refreshes**, Consume the **right-most** minion in the Shop and gain **double** its stats.',
+    // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
+    // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
+    // cheap one eats the row, the Tier-6 one farms it without shrinking your options.
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 4, times: 1 } }],
+    text: "Every **4 refreshes**, gain the **right-most** Shop minion's stats.",
+    goldenText: "Every **4 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
   },
   {
     // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
@@ -288,7 +292,8 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // Owner add 2026-08-12. A glass-cannon 4/1 built to die: its Echo feeds your shop. The buff is a combat→run
     // carry-back (`grantRightmostSlotBuff`) onto Market Tormentor's right-most-slot accumulator, so it survives
-    // into the next recruit phase and re-lands on every fresh roll. Golden gives +12/+6.
+    // into the next recruit phase and re-lands on every fresh roll. Owner balance 2026-08-14: +6/+3 → +3/+2
+    // (gild +6/+4) — the Echo stacked far too fast on a body this cheap to replay.
     id: 'dm_hank',
     name: 'Right Hand Hank',
     tribe: 'demon',
@@ -296,8 +301,24 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 6, health: 3 } }],
-    text: '**Echo:** give the **right-most Shop minion +6/+3** permanently.',
-    goldenText: '**Echo:** give the **right-most Shop minion +12/+6** permanently.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 3, health: 2 } }],
+    text: '**Echo:** give the **right-most Shop minion +3/+2** permanently.',
+    goldenText: '**Echo:** give the **right-most Shop minion +6/+4** permanently.',
+  },
+  {
+    // Owner add 2026-08-14. The tribe's Avenge body-refiller: a fat T4 stat-line that turns friendly deaths into
+    // more Demons in hand. `avengeGrantRandomTribeMinion` picks from the run's BUYABLE pool at settle (≤ tavern
+    // tier, pinned set), so an early Grobbus hands you Tier-1s and a late one hands you the real thing. No
+    // keyword pill, matching every other Avenge card. Golden grants 2 per proc.
+    id: 'dm_grobbus',
+    name: 'Grobbus',
+    tribe: 'demon',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
+    text: '**Avenge (3):** get a random **Demon**.',
+    goldenText: '**Avenge (3):** get **2 random Demons**.',
   },
 ];

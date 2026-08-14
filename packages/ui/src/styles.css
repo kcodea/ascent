@@ -170,8 +170,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 27px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 9px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -163px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 9px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, -4px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 9px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -174px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 8px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -185,7 +185,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
    +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
-.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -163px) + var(--wb-drop, 0px)) * var(--scale)); }
+.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -174px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
@@ -460,7 +460,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    positions — owner report 2026-08-11). The CONTENTS still size off `--u` (which includes the scale) and simply
    `overflow: visible` past the fixed box when scaled up. X/Y offsets use `top/left` on a relative box, which
    never reflowed siblings to begin with. */
-.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.52)); top: calc(var(--z-shopui-y, -45px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.52)); top: calc(var(--z-shopui-y, -89px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -1007,7 +1007,7 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    while the gap shrinks WITH the cards on a phone (raw px left 22px gaps between ~0.3-scale cards → the 7th
    warband minion fell off the board). */
 .zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
-.row.warband { gap: calc(var(--z-wb-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.row.warband { gap: calc(var(--z-wb-gap, 23px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
@@ -1043,10 +1043,32 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    card is the same height anyway, and the panel hangs below at a fixed offset). A soft dark drop-shadow
    (follows the card's alpha, so it hugs the frame) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(var(--z-hand-hover-s, 1.34)); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.2)))) rotate(0deg) scale(var(--z-hand-hover-s, 1.51)); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
+/* A hovered hand card must sit ABOVE the HUD (hero power, gold, the shop buttons). It can't on its own: the
+   hand zone is a z-index:25 FIXED child of `.app`, and `.app` is a z-index:1 stacking context — so the card's
+   z-index:50 only ranks it WITHIN `.app`, which as a whole stays pinned below the fixed HUD siblings that live
+   outside it (`.statusbar` z40 holds the hero power, the z41 gold/refresh/end-turn/tavern buttons, `.topright`
+   z60). Not during a drag: the hand tucks (the rule above kills the hover-lift), so there is nothing to raise
+   and the dragged card owns its own top layer.
+
+   RAISING `.app` IS THE WRONG KNOB (owner report 2026-08-14: hovering a hand card made the hero portrait,
+   Resolve box and hero-power diamond vanish). `.boardbg` is a CHILD of `.app` — fixed, inset:0, z-index:0,
+   full-viewport board art — so lifting `.app` to 70 carried the BOARD above `.statusbar` too and it painted
+   right over the hero panel. This is the identical trap already documented on `body.modalup .app` below; the
+   `.questbadges` precedent cited here does not transfer, because that element has no `.boardbg` inside it.
+
+   Two rules instead, and both are needed — there are TWO nested caps, not one:
+     1. Dissolve `.app`'s stacking context (`z-index: auto`, still `position: relative`, so nothing moves), the
+        same move `body.modalup` makes. Its descendants now sort at ROOT by their own numbers, which keeps
+        `.boardbg` at 0 — safely under `.statusbar` 40 — instead of riding up with the container.
+     2. Raise the HAND ZONE, which is the inner cap: it is z-index:25, so the card's z-index:50 was trapped
+        below the HUD by the zone even once `.app` stopped capping it. The zone holds no board art, so it is
+        the one thing here that is safe to lift. */
+body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: auto; }
+body:not(.dragging) .app:has(.row.hand .card:hover) .zone[data-zone='hand'] { z-index: 70; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.
@@ -2214,7 +2236,7 @@ body.modalup .app { z-index: auto; }
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
 /* `--inspect-zoom` is the device base (1 desktop, 1.3 mobile, set in Game.tsx); `--z-inspect-s` is the Layout
    Lab's live size dial for the hover/inspect preview (owner ask 2026-08-11) — they multiply. */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.34)); }
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 /* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
    flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
    overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
@@ -2281,6 +2303,14 @@ body.modalup .app { z-index: auto; }
    sideways slide. See the drag-motion rAF in Recruit.tsx. */
 .dragcard .dragtilt { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: transform; }
 .dragcard .card { width: 100%; height: 100%; margin: 0; animation: none; }
+/* GRAB-SHRINK — a hand card is BIGGER while hovered (the hover pop, --z-hand-hover-s) than once lifted; grabbing
+   it swaps in the floating .dragcard at its held size (zoom = drag-feel `scale`), an instant size jump. This
+   eases it. It rides its OWN layer between the tilt and the card, so the scale can't fight the per-frame writes
+   the outer (position) and `.dragtilt` (dive) own. One-shot on mount, HAND drags only. `both` holds the start
+   size on frame one so there's no flash. Duration + start size are the `shrinkMs`/`shrinkFrom` drag-feel dials. */
+.dragcard .dragshrink { width: 100%; height: 100%; transform-origin: 50% 50%; }
+.dragcard.fromhand .dragshrink { animation: dragshrink var(--drag-shrink-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes dragshrink { from { transform: scale(var(--drag-shrink-from, 1.37)); } to { transform: scale(1); } }
 /* A hand card drags as the FULL card (forceFull: art + text drawer), but the drag box is sized to the GRAB
    rect — the hovered hand tile, which is compact and/or hover-scaled. Stretching the full card to that box
    makes the drawer wider than the art (the "askew text box"). Pin the full drag-card to its natural --ccw

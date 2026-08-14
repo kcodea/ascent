@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 22: every ACTIVATED hero power emits (audit step 5)
+
+The owner's direction: no one-off fixes (King Oona stays un-special-cased) - work through the classes until
+coverage is inclusive. Heroes were the next class.
+
+**Where the wrap lives is the design decision.** Not inside the reducer's 140-line `case 'heroPower'` (early
+returns everywhere, high surgery risk) - in `reduceWithPresentation`, the one chokepoint every activation
+passes through. Open a hero trigger scope, run the reducer, diff the two immutable states for consequences,
+close the scope. Every activated power CURRENT AND FUTURE is covered by construction; a rejected click
+(locked/unaffordable/passive kind) returns the same state and emits nothing; anything a power triggers
+internally (Myra replaying a Battlecry) nests under the hero's beat automatically.
+
+- `emitHeroPowerDiff`: board/hand stats, keywords gained, hand grants, board summons, shop-offer buffs
+  (a targeted Fortify on a tavern minion), Gold, and max Gold (incl. the `maxGoldBonus` channel Nadja uses).
+- **Two registry rows were factually wrong and are fixed**: Bagger Ben's `scalingGold` and Tiff's
+  `dragonTamer` were classified `passive`, but both have activation branches in the reducer (click -> Gold /
+  click -> Discover). Reclassified ownBeat (heroPayout / heroPower), still flagged for the owner pass.
+- **A failing test found a real hole**: the Warden test was first written expecting `statsChanged` - wrong,
+  warden's power grants a KEYWORD, and the diff had no keyword coverage at all. Added, not papered over.
+
+Coverage after this: 7 hero rows are `passive` by design (no beat is correct); every ACTIVATED power emits
+through the chokepoint; the handful of REACTIVE payouts that fire outside the action (Robin's sell Gold,
+Gorr's fourth-buy, Goldcrafter's turn payout, the quest-granting powers whose payouts already emit through
+the quest system) remain listed for a follow-up pass - documented, not silently skipped.
+
+Tests (+6): targeted keyword (Warden), untargeted maxGold (Nadja), the reclassified Bag It payout, a rejected
+click emits NOTHING, byte-identical gameplay capture on/off across sampled powers, and a sweep asserting every
+emitting power's key is registry-anchored.
+
+typecheck + lint + npm test (5293) + build:web green. Stacked on #1031.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 21: combat consumes compiled timing - keyed triggers, flagged (audit step 4)
 
 The first change that alters how a fight PLAYS, scoped to the narrowest useful slice:

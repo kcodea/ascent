@@ -1,4 +1,4 @@
-import { type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type PresentationCollector, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
@@ -382,8 +382,77 @@ export function reduceWithPresentation(
   // correctly; every other recruit action is `recruit`. (Per-trigger phase is set at each emit site too.)
   const phase = action.type === 'faceOmen' ? 'endOfTurn' : 'recruit';
   const collector = makeCollector(action.type, phase);
+
+  // CHOREOGRAPHER PR 22 — hero powers emit, ALL of them, at the one chokepoint every activation passes
+  // through. Wrapping the ACTION here rather than surgery inside the 140-line `case 'heroPower'` means every
+  // power current and future is covered by construction, a rejected click (locked / unaffordable / passive
+  // kind) emits nothing because the reducer returned the same state, and anything the power triggers
+  // internally (Myra replaying a Battlecry → `withPlayTrigger`) nests under the hero's beat automatically.
+  if (action.type === 'heroPower') {
+    const hero = getHero(state.heroId);
+    let next: RunState = state;
+    withActiveCollector(collector, () => {
+      const handle = collector.beginTrigger({
+        phase: 'recruit',
+        source: { kind: 'hero', id: state.heroId, label: hero.name, side: 'player' },
+        trigger: hero.power.kind,
+        ...beatIdentity(`hero:${state.heroId}:${hero.power.kind}`),
+      });
+      next = reduce(state, action);
+      // Consequences by DIFF of two immutable states — the same technique the End-of-Turn primitive and the
+      // quest-reward wrap use, because a power moves stats, hand, board and Gold through many helpers and
+      // instrumenting each would be that many chances to miss one. Pure: reads both states, mutates neither.
+      if (next !== state) emitHeroPowerDiff(collector, state, next);
+      collector.endTrigger(handle);
+    });
+    // A rejected click resolved to the same state — discard the lone trigger rather than announcing a
+    // moment in which nothing happened.
+    return next === state ? { state, batch: null } : { state: next, batch: collector.finish() };
+  }
+
   const next = withActiveCollector(collector, () => reduce(state, action));
   return { state: next, batch: collector.finish() };
+}
+
+/** The visible results of a hero power, read off (before, after). Anything not diffed here still has its
+ *  MOMENT (the trigger above) — it just carries no itemized consequence yet. */
+function emitHeroPowerDiff(collector: PresentationCollector, before: RunState, after: RunState): void {
+  const statOf = new Map([...before.board, ...before.hand].map((c) => [c.uid, { a: c.attack, h: c.health }] as const));
+  const handBefore = new Set(before.hand.map((c) => c.uid));
+  const boardBefore = new Set(before.board.map((c) => c.uid));
+  for (const c of [...after.board, ...after.hand]) {
+    const was = statOf.get(c.uid);
+    if (!was) continue;
+    const da = c.attack - was.a;
+    const dh = c.health - was.h;
+    if (da === 0 && dh === 0) continue;
+    const zone = after.hand.some((h) => h.uid === c.uid) ? 'hand' as const : 'board' as const;
+    collector.emit({ type: 'statsChanged', target: { zone, uid: c.uid, cardId: c.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+  }
+  // Keywords a power granted (Warden's Ward) — compared per uid, emitted per keyword gained.
+  const kwBefore = new Map(before.board.map((c) => [c.uid, new Set(c.keywords)] as const));
+  for (const c of after.board) {
+    const was = kwBefore.get(c.uid);
+    if (!was) continue;
+    for (const kw of c.keywords) {
+      if (!was.has(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
+    }
+  }
+  for (const c of after.hand) if (!handBefore.has(c.uid)) collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+  for (const c of after.board) if (!boardBefore.has(c.uid)) collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+  // Shop offers a targeted power buffed (Warden's Fortify on a tavern minion).
+  const offerBefore = new Map(before.shop.map((o) => [o.uid, { a: o.atk ?? 0, h: o.hp ?? 0 }] as const));
+  for (const o of after.shop) {
+    const was = offerBefore.get(o.uid);
+    if (!was) continue;
+    const da = (o.atk ?? 0) - was.a;
+    const dh = (o.hp ?? 0) - was.h;
+    if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
+  }
+  if (after.embers !== before.embers) collector.emit({ type: 'resourceChanged', resource: 'gold', amount: after.embers - before.embers, valueAfter: after.embers });
+  const maxBefore = before.maxEmbers + (before.maxGoldBonus ?? 0);
+  const maxAfter = after.maxEmbers + (after.maxGoldBonus ?? 0);
+  if (maxAfter !== maxBefore) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: maxAfter - maxBefore, valueAfter: maxAfter });
 }
 
 

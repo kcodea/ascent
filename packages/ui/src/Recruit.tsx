@@ -5114,7 +5114,7 @@ export function Recruit() {
       {drag?.active && !castingSpell && (
         <div
           ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
           style={{
             width: drag.w,
             height: drag.h,
@@ -5141,7 +5141,11 @@ export function Recruit() {
           {/* Inner tilt layer: the rAF writes rotateX/rotateY here (dive about the card's own centre). During
               snap/magnet-slide React flattens it so the frozen last-frame rotation clears. */}
           <div className="dragtilt" ref={dragTiltRef} style={{ transform: reactDrivesDrag ? 'none' : undefined }}>
-            <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+            {/* Grab-shrink layer — eases the hover→held size change (hand drags only). Its own layer so the
+                one-shot scale can't fight the rAF's position/tilt writes above. See `.dragshrink` in styles.css. */}
+            <div className="dragshrink">
+              <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+            </div>
           </div>
         </div>
       )}

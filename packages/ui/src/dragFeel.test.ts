@@ -36,7 +36,7 @@ describe('drag feel — tuned values are shareable through main', () => {
     //   1. bump DRAG_DEFAULTS_VERSION in dragFeel.ts   (this is what clears everyone's stale local override)
     //   2. paste the new hash below
     // Skip step 1 and your teammates will pull your commit and still feel their own old drag.
-    const EXPECTED = { version: 7, fingerprint: '33d191a7b11c' };
+    const EXPECTED = { version: 8, fingerprint: '862037283caa' };
     expect(
       { version: DRAG_DEFAULTS_VERSION, fingerprint: defaultsFingerprint() },
       'DEFAULTS changed — bump DRAG_DEFAULTS_VERSION and update the fingerprint below (see the comment)',

@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-14 — grabbing a hand card eases its shrink instead of snapping
+
+Owner ask: a hovered hand card is bigger (the hover pop, `--z-hand-hover-s` 1.51) than it is once lifted (the
+floating `.dragcard` at `zoom` = drag-feel `scale` 1.21), and grabbing it swapped the two instantly. Now it eases.
+
+The size and position live on separate properties (size = `zoom`, position/tilt = `transform`, both written by the
+drag rAF), and `zoom` doesn't transition — so the shrink rides its OWN layer: a new `.dragshrink` wrapper between
+`.dragtilt` and the `<Card>`, whose one-shot `@keyframes dragshrink` scales from `--drag-shrink-from` down to 1 on
+mount. Being its own layer, the scale can't fight the per-frame position/tilt writes above it. Hand drags only
+(`.dragcard.fromhand`), `animation-fill-mode: both` so frame one is already the start size (no flash).
+
+Tunable, per house style: two new drag-feel dials — `shrinkMs` (duration, default 160ms) and `shrinkFrom` (start
+size × the held size, default 1.25 ≈ 1.51/1.21) — reflected to `--drag-shrink-ms`/`--drag-shrink-from` and exposed
+in the 🖐️ Drag tuner's Weight group, so the owner dials the exact start size for a seamless t=0 and bakes. Bumped
+`DRAG_DEFAULTS_VERSION` 7→8 (+ fingerprint) so stale local overrides self-clear on sync. Full gate green
+(typecheck + lint + test 5340/5340 + build); the animation feel is the owner's to confirm/tune.
+
 ## 2026-08-14 — Mountainbond rework, Baal retext, Spellstone Ruby synergy, and the hand-hover HUD fix
 
 **Mountainbond** (owner rework). The meter moved from cards PLAYED to **Gold spent** — every 8 Gold, get 2

@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-14 - Beat Lab: finish pass — accuracy over more emission
+
+"Finish remaining work on the beat tool." The honest finish here is ACCURACY, not more machinery: the tool's
+copy still described shipped work as future, and the last remaining emission targets are correctly out of
+scope.
+
+Copy the arc had left stale:
+- **Capture empty-state** said "Migrated triggers so far: Shouts and the full End-of-Turn pass" — implying
+  migration was partial. Every class emits now; rewritten to say so and point at Library/Combat.
+- **Combat-tab banner** said keyed rows "become tunable first when combat starts consuming compiled timing —
+  the next milestone." That milestone SHIPPED (combat consumes compiled timing behind `ascent.combatbeats`,
+  PRs 21/23). The banner is now flag-aware: with the flag ON it reads "LIVE — keyed rows pace real fights,
+  tune them in the Library"; with it off, "one switch away." The "keyed" tooltip and module doc were
+  corrected the same way (the minion combat class is keyed too, not just quest/rune flags).
+
+The three REACTIVE hero payouts (Robin's sell-Gold, Gorr's fourth-buy, Goldcrafter's turn-payout) are left
+un-emitted on purpose, and it is the north-star-aligned call: they fire DURING shop actions (or a turn
+advance), and shop actions are instant by design (owner ruling 2026-08-14). A beat for them would be instant
+regardless, so wiring emission would add DEV-path cost to the snappy buy/sell loop for zero tunability. The
+tool is accurate about them — they show the `instant` badge, like every shop-action effect.
+
+State of the tool: every STAGEABLE event (End of Turn, combat incl. the minion class + flags + activated
+heroes) is addressable and tunable; shop actions are instant by design and labelled so; the tool's own copy
+now matches what shipped. That is the finish line for the objectives the owner set.
+
+Pure copy/accuracy pass. typecheck + lint + npm test + build:web green.
+
 ## 2026-08-14 — grabbing a hand card eases its shrink instead of snapping
 
 Owner ask: a hovered hand card is bigger (the hover pop, `--z-hand-hover-s` 1.51) than it is once lifted (the
@@ -130,6 +157,29 @@ coverage in `contentBatchAug14.test.ts` (the three cards incl. the Engrave-vs-bu
 `drunkenOafText` case in `cardText.test.ts`; the Toll test now pins the mint **channel and count** rather than
 `toContain('ruby')`, which could not tell one grant from two. Note `art:wire` re-encodes unrelated `.webp`s and
 drops untracked `.png` intermediates — reverted all of that, so only the 3 new art files are in the diff.
+## 2026-08-14 - Beat Lab: shop-action rows are 'instant by design', not 'preview'
+
+Owner ruling on the recruit-action-playback fork: "shop actions MUST remain immediate. remember our north
+stars are snappy play, high performance, and fast paced mechanical play."
+
+Investigating the path confirmed WHY: End of Turn stages cleanly because you are LEAVING the shop, so a brief
+interaction-lock while beats play is natural. A shop action (Shout, cast, hero power) leaves you IN the shop
+expecting to act again immediately - routing those through the beat player would lock the shop ~400-540ms per
+action. That is inherent to the hold-before-proceeding model, not a bug to engineer away, and it trades
+directly against the snappy north star. So shop actions are NOT staged, by design.
+
+That makes the Library's shop-action rows a permanent DESIGN state, not a TODO. Re-toned so the tool says so:
+- The third badge state renamed `preview` -> **`instant`** (green-grey, reads as intentional rather than
+  "coming soon"), with a matching hover.
+- Its inspector banner rewritten from "PREVIEW ONLY - does not reach the game yet ... the remaining playback
+  milestone" to "INSTANT BY DESIGN - a shop action ... snappy play is a north star, so the shop is never held
+  to stage a beat ... beat pacing is for the sequenced phases (End of Turn, combat), where holding to read a
+  beat is the point."
+- The inspectable timing + the emitted consequence remain (for the record and the synthetic preview); only
+  the false promise that it would someday pace the shop is gone.
+
+Pure presentation re-tone: `liveToday`'s live/flag/combat logic is unchanged (the state value 'preview' was
+renamed to 'immediate'); no behavioural delta. typecheck + lint + npm test (5309) + build:web green.
 
 ## 2026-08-14 — bake owner's Layout Lab defaults (shop/warband/hand/inspect/sell-zone)
 

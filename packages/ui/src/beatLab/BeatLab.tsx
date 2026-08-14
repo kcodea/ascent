@@ -376,8 +376,11 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         batch
           ? <BatchPlayer batch={batch} overrides={draft} policyOverrides={policyDraft} resetKey={revision} />
           : <div className="bl-body"><div className="bl-empty">
-              Play a Shout or end a turn to capture a batch. (Migrated triggers so far: Shouts and the full
-              End-of-Turn pass — board effects, recurring rewards, Coffers/Shopkeep, rubies, grants, auras.)
+              Play a card, cast a spell, use a hero power, or end a turn to capture that action's beats. Every
+              class of automatic effect emits source-attributed events now — End of Turn, Shouts, casts,
+              quest/rune rewards, Start of Combat, hero powers, and the whole minion combat class. Use the
+              <b> Library</b> tab to browse and tune any of them without playing, or <b>Combat</b> to inspect
+              the last fight.
             </div></div>
       )}
       {mode === 'library' && <BeatLibrary draft={draft} setDraft={setDraft} policyDraft={policyDraft} setPolicyDraft={setPolicyDraft} />}

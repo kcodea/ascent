@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-14 — UI editor: Esc + ✕ to close (it could trap you)
+
+Owner report: opening the dev UI editor (🎛️ UI Edit Mode) with no way out — its overlay can cover the DevMenu's
+🛠️ button, which was the ONLY toggle, so interaction was blocked. Added two exits to `EditorOverlay.tsx`: an
+**Esc** key handler and a visible **✕** button in the toolbar header, both calling `setUiEditMode(false)`. The Esc
+listener is capture-phase and `stopPropagation`s, so Esc closes the editor INSTEAD of also opening the Settings
+menu (Game.tsx's bubble-phase Esc), and it's only attached while edit mode is on. DEV-only change; the pre-existing
+`.uied-*` panel styling (a plain dark dev tool, off the game design system) is untouched. Full gate green
+(typecheck + lint + test 5340/5340 + build).
+
+(Unblocking an already-stuck session doesn't need this build — it's local `localStorage` state: run
+`localStorage.setItem('ascent.uiEdit','0'); location.reload()` in the browser console.)
+
 ## 2026-08-14 - Beat Lab: finish pass — accuracy over more emission
 
 "Finish remaining work on the beat tool." The honest finish here is ACCURACY, not more machinery: the tool's

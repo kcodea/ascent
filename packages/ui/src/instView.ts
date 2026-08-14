@@ -1,6 +1,6 @@
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, dominantBoardTribe, hasTier7Access, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { CONFIG, dominantBoardTribe, hasTier7Access, rubyStatBonus, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
@@ -310,7 +310,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: run.rubyBonus, tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
     },

@@ -12,7 +12,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -565,6 +565,16 @@ export function reduce(state: RunState, action: Action): RunState {
     // swallow it (the weld-FX bug).
     const spDeltaA = spellAttackBonus(next) - spellAttackBonus(state);
     const spDeltaH = spellHealthBonus(next) - spellHealthBonus(state);
+    // RUNE OF THE SPELLSTONE (2026-08-14): Rubies inherit spell power, and a minted Ruby BAKES its stats into the
+    // hand card — so a spell-power gain has to walk the hand and grow held Rubies, or they'd sit at the value
+    // they were minted at while every freshly-minted one came in bigger. Exactly the bookkeeping `rubyStatGain`
+    // already does for a `rubyBonus` gain; this is the same rule for the other half of the Spellstone total.
+    // Only without the rune is a spell buff none of a Ruby's business (owner ruling 2026-07-23).
+    if (next.runeSpellstone && (spDeltaA > 0 || spDeltaH > 0)) {
+      for (const card of next.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += Math.max(0, spDeltaA); card.health += Math.max(0, spDeltaH); }
+      }
+    }
     if (spDeltaA > 0 || spDeltaH > 0) {
       next.spellPowerFxSeq = (next.spellPowerFxSeq ?? 0) + 1;
       next.spellPowerFxAtk = Math.max(0, spDeltaA);
@@ -2290,7 +2300,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
-        rubyBonus: s.rubyBonus ?? { attack: 0, health: 0 },
+        // `rubyStatBonus`, not the raw accumulator: Rune of the Spellstone folds the run's SPELL power into
+        // every Ruby (2026-08-14). Folding it once HERE is what makes combat-played Rubies inherit it without
+        // the combat side needing to know the rune exists — `rubyBonusFor` reads this value verbatim.
+        rubyBonus: rubyStatBonus(s),
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
@@ -3960,9 +3973,21 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeDuplication':
       s.runeDuplication = true;
       break;
-    case 'runeSpellstone':
+    case 'runeSpellstone': {
       s.runeSpellstone = true;
+      // Fold the run's CURRENT spell power into Rubies already in hand (2026-08-14). A minted Ruby bakes its
+      // stats, and the spell-power hand-walk in `reduce` only fires on a DELTA — buying the rune moves no
+      // delta, so without this a Ruby you were holding would sit at its old value forever while every Ruby
+      // minted after the purchase came in bigger. Same bookkeeping `rubyStatGain` does for a `rubyBonus` gain.
+      const spA = spellAttackBonus(s);
+      const spH = spellHealthBonus(s);
+      if (spA > 0 || spH > 0) {
+        for (const card of s.hand) {
+          if (CARD_INDEX[card.cardId]?.ruby) { card.attack += spA; card.health += spH; }
+        }
+      }
       break;
+    }
     case 'runeWhiteWolf':
       // A COUNT, so a duplicated copy is a second Mentor's worth of teaching (owner ruling 2026-08-06).
       // `=== true` covers a legacy save that stored the old boolean.

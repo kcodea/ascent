@@ -524,6 +524,7 @@ export type EffectFactoryId =
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
+  | 'goldSpentGetRubiesPlayOnTribe' // Set 2 — Mountainbond: every N Gold, mint Rubies to hand + play one on each tribe minion
   | 'cardsBoughtGetRubies'
   | 'grantRandomAle' // Set 2 Dwarves
   | 'battlecryBuffTribeOthersAttack' // Set 2 Dwarves

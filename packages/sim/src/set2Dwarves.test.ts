@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SETS, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { ALE_IDS, applyCardsPlayed, applyGoldSpent, noteSpellCast } from './recruit';
+import { ALE_IDS, applyGoldSpent, noteSpellCast } from './recruit';
 
 /**
  * SET 2 — DWARVES (tranche A). These assert the MECHANICS fire, not merely that the cards exist: a roster test
@@ -335,16 +335,23 @@ describe('tranche C — the five that needed machinery', () => {
     expect(goldFrom(true), 'Edward did not double the Ale').toBe(plain * 2);
   });
 
-  it('Mountainbond plays a Ruby on every minion, on a CUMULATIVE play meter', () => {
-    // `playedThisTurn` clears each turn and could never reach 8 — the tally has to be cumulative (`playTick`).
-    let s = set2();
-    const mate = body('dw_brunni', 'mate');
-    s = { ...s, board: [body('dw_mountainbond', 'mb'), mate] };
-    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    applyCardsPlayed(s, 4);
-    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'fired below the threshold').toBe(before);
-    applyCardsPlayed(s, 1); // 5th card → a Ruby on each of the 2 minions (owner: 8 -> 5)
-    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'no Ruby landed').toBeGreaterThan(before);
+  it('Mountainbond pays on a GOLD meter: 2 Rubies to hand + a Ruby on each Kobold (owner rework 2026-08-14)', () => {
+    // Was a cumulative cards-PLAYED meter that showered every minion. Now: every 8 Gold spent, 2 Rubies to
+    // hand and one played on your KOBOLDS only — so a non-Kobold on the same board is proof of the filter.
+    const s = set2();
+    const kobold = body('k_gemheart', 'kb');       // Kobold — takes a Ruby
+    const dwarf = body('dw_brunni', 'dw');          // not a Kobold — must be untouched
+    s.board = [body('dw_mountainbond', 'mb'), kobold, dwarf];
+    s.hand = [];
+    const statsOf = (uid: string) => { const c = s.board.find((b) => b.uid === uid)!; return c.attack + c.health; };
+    const kBefore = statsOf('kb'), dBefore = statsOf('dw');
+    applyGoldSpent(s, 7);
+    expect(s.hand.length, 'fired below the 8-Gold threshold').toBe(0);
+    expect(statsOf('kb'), 'fired below the threshold').toBe(kBefore);
+    applyGoldSpent(s, 1); // the 8th Gold
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'two Rubies should have been minted').toBe(2);
+    expect(statsOf('kb'), 'no Ruby landed on the Kobold').toBeGreaterThan(kBefore);
+    expect(statsOf('dw'), 'a non-Kobold must not be gemmed').toBe(dBefore);
   });
 
   it('High King Mykel triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
@@ -588,18 +595,22 @@ describe('Dwarf quests (owner roster 2026-07-29)', () => {
 });
 
 describe('bug fixes 2026-07-29 (owner report)', () => {
-  it("Mountainbond's meter counts SPELLS, not just minions", () => {
+  it('the cards-PLAYED meter counts SPELLS, not just minions', () => {
     // "Cards" means everything you play — minions, spells, Rubies. The meter was on the minion branch only.
+    // Re-pointed 2026-08-14 from Mountainbond (which moved to a Gold meter, leaving no CARD on this event) to
+    // Rune of Mountain Trade, now the only live consumer of `cardsPlayed`. The guard is on `applyCardsPlayed`,
+    // not on any one card, so it must follow whatever still drives that meter.
     let s = set2();
-    s = { ...s, board: [body('dw_mountainbond', 'mb'), body('dw_brunni', 'mate')], hand: [] };
+    s = { ...s, board: [body('dw_brunni', 'mate'), body('dw_orin', 'other')], hand: [],
+          runeThresholds: [{ meter: 'cardsPlayed', per: 6, tick: 0, rubyAll: true }] } as RunState;
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       s = { ...s, hand: [{ uid: `sp${i}`, cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
       s = reduce(s, { type: 'play', uid: `sp${i}` });
     }
-    // 5 Growths each buff the board +1/+1 (+10 across two minions); Mountainbond's Ruby adds on top of that.
+    // 6 Growths each buff the board +1/+1 (+12 across two minions); the rune's Ruby adds on top of that.
     const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    expect(after, 'five spells did not reach the 5-card threshold').toBeGreaterThan(before + 20);
+    expect(after, 'six spells did not reach the 6-card threshold').toBeGreaterThan(before + 24);
   });
 
   it("Fatecarver's Growth branch uses the SHARED factory, so it scales with spell power", () => {

@@ -1,5 +1,64 @@
 # ASCENT — development log
 
+## 2026-08-14 — Mountainbond rework, Baal retext, Spellstone Ruby synergy, and the hand-hover HUD fix
+
+**Mountainbond** (owner rework). The meter moved from cards PLAYED to **Gold spent** — every 8 Gold, get 2
+Rubies AND play a Ruby on each of your **Kobolds** (owner ruling: every Kobold, not one). New factory
+`goldSpentGetRubiesPlayOnTribe`; the `every` gate is `applyGoldSpent`'s job as usual. The two halves use
+deliberately different channels: the hand half is `mintRubies` (so the Rubies arrive at live strength and fire
+the "when you GET a Ruby" watchers), the board half is `addBuff('Ruby') + fireOnRubyPlayed` (so Ruby Broker /
+Resonance Idol still see them). Golden doubles both. Mountainbond was the only card on the `cardsPlayed` EVENT,
+so its policy key went with it — the meter itself lives on for Rune of Mountain Trade.
+
+**Baal — text fix.** "Whenever you cast **2 spells**" was under-specified: the meter is the SHOP-SPELL counter
+(`spellCast`), the same one Vaultkeeper and Runic Apprenticeship already print as "Shop spells". Text only; the
+effect and threshold are untouched.
+
+**Rune of the Spellstone — Rubies now inherit spell buffs** (owner ask). The rune promised "Rubies you cast
+count as Shop spells", but that only made a Ruby *tick the spell-cast watchers*: it counted as a spell for every
+purpose except the one thing a spell is actually worth. Rubies now also pick up the run's **spell power**, and
+everything downstream inherits it — combat-played Rubies, Veinstorm's shop stamp *and its bank*, Motherlode,
+Mountainbond, Gemspam/Lapidary/Excavation, and the printed card text.
+
+Implemented as ONE shared read, `rubyStatBonus(state)` = `rubyBonus` + (Spellstone ? spell power : 0), replacing
+the ~10 scattered `state.rubyBonus ?? {0,0}` value reads. The two sites that WRITE the accumulator
+(`grantRubyPower`, `rubyStatGain`) and the FX before/after snapshot still read it raw. Combat needs no knowledge
+of the rune at all: `resolveCombat` folds the value into the snapshot's `rubyBonus`, and `rubyBonusFor` reads it
+verbatim. Gemcutting's fixed 3/3 override still wins outright. Spell power is folded **per stat** (it is an
+asymmetric pair) and the rune text now says so.
+
+Two bookkeeping cases a minted Ruby forces, because it BAKES its stats into the hand card:
+- a later spell-power **gain** walks the hand and grows held Rubies (the delta block in `reduce`), so held and
+  freshly-minted Rubies never drift;
+- **buying** the rune retro-folds current spell power into Rubies already in hand — the delta walk can't cover
+  this, since a purchase moves no delta. Found by a test, not by hand.
+
+**Bug fix — the HUD vanished on hand hover** (owner report: hovering a card in hand after a buy made the hero
+portrait, Resolve box and hero-power diamond disappear). This was a regression from the 2026-08-13 hand-lift fix
+(#1034), which raised `.app` to `z-index: 70`. **`.app` is the wrong knob**: `.boardbg` is a CHILD of it — fixed,
+inset:0, full-viewport board art — so lifting `.app` carried the BOARD above `.statusbar` (z40) and it painted
+right over the hero panel. The identical trap is already documented 900 lines further down on
+`body.modalup .app`; the `.questbadges` precedent the fix cited does not transfer, because that element has no
+`.boardbg` inside it. It read as buy-triggered only because buying is what puts a card in hand for the selector
+to match.
+
+Fixed with two rules, both needed — there are TWO nested caps, not one: (1) dissolve `.app`'s stacking context
+(`z-index: auto`, the `body.modalup` move) so `.boardbg` stays at 0 instead of riding up; (2) raise the HAND
+ZONE, the inner cap at z25, which was still trapping the card's z50 below the HUD. The zone holds no board art,
+so it is the one thing safe to lift.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5340/5340 tests
+pass**. New `spellstoneRubySynergy.test.ts` (13 cases) covers the shared read, minting, both hand-tracking
+cases, the played-Ruby value, the Veinstorm stamp + bank, the combat fold, and the rune/Baal text. The two
+Mountainbond tests were rewritten for the Gold meter — and the "cards-played counts SPELLS, not just minions"
+regression guard from 2026-07-29 was **re-pointed at Rune of Mountain Trade** rather than deleted, since it
+guards `applyCardsPlayed` and must follow whatever still drives that meter.
+
+The CSS fix was verified live in the browser, not by reading: with a hand card hovered, `.app` computes to
+`auto`, the hand zone to 70, `.boardbg` stays 0, `elementsFromPoint` over the hero panel returns
+`heropowerbtn` topmost — and where the popped card *does* overlap the panel, the card is topmost instead. Both
+properties hold at once, which is the whole point.
+
 ## 2026-08-14 — owner balance batch: 5 Demon changes, 3 new minions, and the Candlelight Toll Ruby fix
 
 **Balance (owner sheet).** Five Set-2 Demons retuned, two of them swapping jobs:

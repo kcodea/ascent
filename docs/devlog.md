@@ -26,6 +26,19 @@ A large owner-directed presentation pass, all live-tuned in a worktree then bake
 
 Verified: typecheck + lint + full test (5340) + build:web, all green on the merged tree.
 
+## 2026-08-14 — restore the owner's shop/warband layout (over #1035's re-bake)
+
+Two sessions baked Layout Lab defaults close together: #995 (owner paste this session) and #1035 (a concurrent
+session), the later winning. A diff of the owner's paste vs the shipped `layoutConfig.ts` defaults found 9
+disagreements. Four (`handY`, `handHoverS`, `inspectS`, `sellZoneY`) were knobs the paste left at the OLD
+defaults while #1035 deliberately tuned them — kept as #1035's. The other five were the shop area, where #1035
+had overwritten the owner's values: `shopY 27→-4`, `shopUiY -45→-89`, `wbY -163→-174`, `wbX 9→8`,
+`wbGap 22→23` (the shop cards ~31px, controls tray ~44px off). Restored those five to the owner's paste in both
+sources of truth — `def:` fields + the `styles.css` `var(…, fallback)` values (production reads the fallbacks;
+`applyLayout` is dev-gated). `--z-wb-y` has two fallback sites (both moved) and `--z-wb-gap` lives on
+`.row.warband`. Verified: paste now matches on all shop/warband knobs (only the 4 intentional hand/inspect/sell
+keeps remain), no stale old fallbacks, `typecheck:web` + `build:web` green.
+
 ## 2026-08-14 — bake owner drag-feel tune (grab-shrink + a softer recentre)
 
 Baked the owner's tuned `dragFeel.ts` DEFAULTS: `shrinkMs` 160→360 and `shrinkFrom` 1.25→1.37 (the grab-shrink

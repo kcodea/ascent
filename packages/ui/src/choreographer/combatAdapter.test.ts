@@ -52,17 +52,29 @@ describe('the adapter mirrors the moment stream', () => {
   });
 });
 
-describe('it does NOT invent identity gameplay never stamped', () => {
-  it('no adapted node carries a policyKey', () => {
+describe('it stamps ONLY the identity gameplay actually carried', () => {
+  it('an ordinary attack/damage moment carries no policyKey — it has no factory identity to name', () => {
     const { moments, events } = realCombat();
+    // A plain stray-vs-stray fight has no quest/rune flags, so nothing should be keyed.
     const withKey = adaptCombatMoments(moments, events).nodes.filter((n) => n.policyKey);
-    expect(withKey, 'combat moments must stay identity-less until the simulator stamps keys').toHaveLength(0);
+    expect(withKey, 'a fight with no rune/quest flags should key nothing').toHaveLength(0);
   });
 
-  it('says so out loud, as a diagnostic rather than silently', () => {
+  it('reports how many moments remain un-keyed, as a diagnostic rather than silently', () => {
     const { moments, events } = realCombat();
     const input = adaptCombatMoments(moments, events);
     expect(input.diagnostics.some((d) => d.message.includes('no policyKey'))).toBe(true);
+  });
+
+  it('a quest/rune combat trigger IS keyed, from the flag it carries', () => {
+    // Synthesize a questTrigger for Rune of Attacking Gems, exactly as the simulator's fireTrigger emits it.
+    const events = [{ type: 'questTrigger', flag: 'runeAttackingGems', side: 'player' }] as unknown as CombatEvent[];
+    const moments = compileMoments(events);
+    const node = adaptCombatMoments(moments, events).nodes.find((n) => n.trigger === 'questTrigger');
+    expect(node, 'the trigger became a node').toBeTruthy();
+    expect(node!.policyKey, 'resolved from its flag').toBe('rune:rune_attacking_gems:combat');
+    expect(node!.source.kind).toBe('rune');
+    expect(node!.source.id).toBe('rune_attacking_gems');
   });
 });
 

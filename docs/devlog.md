@@ -25,6 +25,28 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-14 - Combat-holds regression fix: authored holds scoped to plain read-kinds
+
+A paired measurement caught a real hang in PR 23 as first pushed: with `ascent.combatbeats` on, an Oona+Pack
+fight never settled (12s cap) against a 1.7s flag-off baseline. Cause: once minion effects were stamped,
+SUMMON moments carried keys too - and a summon's pacing is engine-coupled (withholding, cue release, death
+leads). Overriding its hold stalls that machinery. The earlier gems verification passed only because its
+keyed moment was a questTrigger, a plain read.
+
+Fix: the clock consults the authored hold ONLY for read-kinds whose hold really is a timeout
+(`KEYED_HOLD_KINDS`: questTrigger/questComplete, buffWave, improve, keyword(+lost), tribeAura, hpGrant,
+toHand, maxGold, spellProgress). Summons, attacks, damage, deaths, rises, reborn, rally, shield pops keep
+their native scheduling whatever the config says.
+
+Process note, recorded so it isn't repeated: the fix was first applied UNCOMMITTED in the primary checkout,
+and a branch switch there (the owner's own balance work - the checkout is theirs) discarded it, leaving the
+pushed branch carrying the known hang. Re-landed from a dedicated WORKTREE per docs/concurrency.md (with its
+own npm install), plus a regression test (`keyedHold.test.ts`) with a stubbed flag so the scoping cannot be
+lost silently again: a keyed buffWave takes the compiled hold, a keyed summon is byte-identical to flag-off,
+and the safe list provably never contains engine-coupled kinds.
+
+typecheck + lint + npm test (5309, +3) + build:web green - all from the worktree.
+
 ## 2026-08-13 - Library badges: three states, so the previews explain themselves
 
 Owner: "i still see a lot of previews in the library, is that intentional." Partly - and the stale part was

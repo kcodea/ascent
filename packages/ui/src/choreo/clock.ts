@@ -2,6 +2,12 @@ import type { Moment } from './compile';
 import { RESULT_TYPES } from '../combatBeats';
 import { getLungeConfig } from '../lungeConfig';
 import { combatKeyedHoldMs } from '../choreographer/combatHolds';
+
+/** Moment kinds whose hold is a plain timeout — the only ones an authored hold may replace. */
+export const KEYED_HOLD_KINDS = new Set([
+  'questTrigger', 'questComplete', 'buffWave', 'improve', 'keyword', 'keywordLost',
+  'tribeAura', 'hpGrant', 'toHand', 'maxGold', 'spellProgress',
+]);
 import { getChoreoConfig, beatDelay } from './choreoConfig';
 
 /**
@@ -35,7 +41,13 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
   // check sat on the one transition that never runs. The owner's own words are the spec here: "how long
   // individual triggers have to show they have triggered." Checked BEFORE the overlap rules so an authored
   // read outranks ride-the-previous. Null everywhere else — byte-identical pacing to today.
-  const keyedShown = shown ? combatKeyedHoldMs(shown.primary as { type: string; flag?: string }) : null;
+  // SAFE KINDS ONLY — found by paired measurement, not review: with the flag on, an Oona+Pack fight never
+  // settled (12s cap vs 1.7s baseline). A summon's pacing is engine-coupled (withholding, cue release, death
+  // leads), and overriding its hold stalls that machinery. The authored hold applies only to plain read-kinds
+  // whose hold really is just a timeout; everything else keeps its native scheduling whatever the config says.
+  const keyedShown = shown && KEYED_HOLD_KINDS.has(shown.kind)
+    ? combatKeyedHoldMs(shown.primary as { type: string; flag?: string })
+    : null;
   if (keyedShown != null) return keyedShown / spd;
   if (shown && OVERLAP_INTO.has(next.primary.type)) return cfg.overlapMs / spd; // ride on the preceding FX
   // A REPEATED NARRATION rides the one before it, for the same reason those consequence beats do.

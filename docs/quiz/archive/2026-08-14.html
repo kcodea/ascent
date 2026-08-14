@@ -1,506 +1,354 @@
-<title>Ascent Quiz #1</title>
+<title>Ascent Quiz #2 — 2026-08-14</title>
 <style>
   :root {
-    --ink: #1b2027;
-    --ink-soft: #4a5364;
-    --paper: #eef0f2;
-    --paper-raised: #ffffff;
-    --line-rule: #d5d9e0;
-    --accent: #a9701f;
-    --accent-soft: #f2e4cd;
-    --indigo: #3d5185;
-    --good: #2f7a52;
-    --good-bg: #e2f3ea;
-    --bad: #b8402f;
-    --bad-bg: #fbe6e2;
-    --radius: 14px;
+    --bg: #12141c;
+    --panel: #1b1e2b;
+    --panel-border: #2b2f42;
+    --text: #e7e9f2;
+    --muted: #9aa0b8;
+    --accent: #7c9eff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232739;
+    --choice-hover: #2a2f45;
   }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ink: #e9ebf0;
-      --ink-soft: #a7aebb;
-      --paper: #14171d;
-      --paper-raised: #1c2029;
-      --line-rule: #2c313c;
-      --accent: #d99a3f;
-      --accent-soft: #3a2f1c;
-      --indigo: #8fa3d9;
-      --good: #5cc98c;
-      --good-bg: #163527;
-      --bad: #e07a68;
-      --bad-bg: #3a1e1a;
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fb;
+      --panel: #ffffff;
+      --panel-border: #dfe2f0;
+      --text: #1b1e2b;
+      --muted: #5c6180;
+      --accent: #3f5fd8;
+      --good: #15803d;
+      --bad: #b91c1c;
+      --good-bg: rgba(21, 128, 61, 0.1);
+      --bad-bg: rgba(185, 28, 28, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e6e8f5;
     }
   }
-
-  :root[data-theme="dark"] {
-    --ink: #e9ebf0;
-    --ink-soft: #a7aebb;
-    --paper: #14171d;
-    --paper-raised: #1c2029;
-    --line-rule: #2c313c;
-    --accent: #d99a3f;
-    --accent-soft: #3a2f1c;
-    --indigo: #8fa3d9;
-    --good: #5cc98c;
-    --good-bg: #163527;
-    --bad: #e07a68;
-    --bad-bg: #3a1e1a;
+  :root[data-theme="light"] {
+    --bg: #f4f5fb;
+    --panel: #ffffff;
+    --panel-border: #dfe2f0;
+    --text: #1b1e2b;
+    --muted: #5c6180;
+    --accent: #3f5fd8;
+    --good: #15803d;
+    --bad: #b91c1c;
+    --good-bg: rgba(21, 128, 61, 0.1);
+    --bad-bg: rgba(185, 28, 28, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e6e8f5;
   }
-
   * { box-sizing: border-box; }
-
   body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 32px 16px 64px;
     display: flex;
     justify-content: center;
-    padding: 40px 18px 64px;
     min-height: 100vh;
   }
-
-  main {
-    width: 100%;
-    max-width: 640px;
-  }
-
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 22px;
-    flex-wrap: wrap;
-  }
-
-  .wordmark {
-    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-    font-size: 15px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-  }
-
-  .wordmark strong {
-    color: var(--accent);
-    font-weight: 700;
-  }
-
-  .quiz-meta {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    text-align: right;
-  }
-
-  h1 {
-    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-    font-size: 26px;
-    line-height: 1.25;
-    font-weight: 700;
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
     margin: 0 0 6px;
     text-wrap: balance;
   }
-
-  .sub {
-    color: var(--ink-soft);
-    font-size: 14.5px;
-    margin: 0 0 28px;
-    line-height: 1.5;
-  }
-
-  .progress-row {
+  header p { color: var(--muted); margin: 0; font-size: 0.9rem; }
+  .progress {
     display: flex;
     gap: 6px;
-    margin-bottom: 28px;
+    margin: 20px 0 28px;
   }
-
-  .pip {
+  .progress .dot {
     flex: 1;
-    height: 5px;
+    height: 6px;
     border-radius: 3px;
-    background: var(--line-rule);
-    transition: background 0.25s ease;
+    background: var(--panel-border);
+    transition: background 0.2s;
   }
-
-  .pip.done { background: var(--indigo); }
-  .pip.correct { background: var(--good); }
-  .pip.incorrect { background: var(--bad); }
-
+  .progress .dot.done { background: var(--accent); }
+  .progress .dot.current { background: var(--muted); }
   .card {
-    background: var(--paper-raised);
-    border: 1px solid var(--line-rule);
-    border-radius: var(--radius);
-    padding: 26px 26px 24px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
   }
-
-  .eyebrow {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin: 0 0 10px;
-  }
-
-  .question-text {
-    font-size: 18px;
-    line-height: 1.5;
-    margin: 0 0 22px;
-    font-weight: 600;
-    text-wrap: balance;
-  }
-
-  .choices {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
+  .qnum { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .question { font-size: 1.08rem; line-height: 1.5; margin: 0 0 20px; }
   .choice {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    display: block;
     width: 100%;
     text-align: left;
-    background: var(--paper);
-    border: 1px solid var(--line-rule);
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
     border-radius: 10px;
-    padding: 13px 15px;
-    font-size: 15px;
-    line-height: 1.45;
-    color: var(--ink);
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    font-size: 0.97rem;
     cursor: pointer;
-    font-family: inherit;
-    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
   }
-
-  .choice:hover:not(:disabled) {
-    border-color: var(--indigo);
-  }
-
-  .choice:focus-visible {
-    outline: 2px solid var(--indigo);
-    outline-offset: 2px;
-  }
-
-  .choice:active:not(:disabled) { transform: scale(0.997); }
-
+  .choice:hover:not(:disabled) { background: var(--choice-hover); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
   .choice:disabled { cursor: default; }
-
-  .choice .letter {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-weight: 700;
-    color: var(--ink-soft);
-    flex-shrink: 0;
-    width: 1.1em;
-  }
-
-  .choice.correct-pick {
-    background: var(--good-bg);
-    border-color: var(--good);
-  }
-  .choice.correct-pick .letter { color: var(--good); }
-
-  .choice.wrong-pick {
-    background: var(--bad-bg);
-    border-color: var(--bad);
-  }
-  .choice.wrong-pick .letter { color: var(--bad); }
-
-  .choice.reveal-correct-unpicked {
-    border-color: var(--good);
-    border-style: dashed;
-  }
-
-  .result-line {
-    margin-top: 16px;
-    font-size: 14px;
-    font-weight: 700;
-  }
-  .result-line.good-text { color: var(--good); }
-  .result-line.bad-text { color: var(--bad); }
-
+  .choice .label { font-weight: 700; margin-right: 8px; color: var(--muted); }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.incorrect { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.reveal-correct { background: var(--good-bg); border-color: var(--good); }
+  .result-tag { display: inline-block; font-weight: 700; font-size: 0.85rem; margin-top: 2px; }
+  .result-tag.good { color: var(--good); }
+  .result-tag.bad { color: var(--bad); }
   .explanation {
-    margin-top: 10px;
+    margin-top: 16px;
     padding: 14px 16px;
-    background: var(--accent-soft);
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
     border-radius: 10px;
-    font-size: 14.5px;
+    font-size: 0.92rem;
     line-height: 1.55;
-    color: var(--ink);
+    color: var(--text);
+    display: none;
   }
-
+  .explanation.show { display: block; }
   .explanation code {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.92em;
-    background: rgba(0,0,0,0.08);
+    background: var(--panel-border);
     padding: 1px 5px;
     border-radius: 4px;
+    font-size: 0.85em;
   }
-
-  :root:not([data-theme="light"]) .explanation code,
-  :root[data-theme="dark"] .explanation code {
-    background: rgba(255,255,255,0.1);
-  }
-
   .next-btn {
-    margin-top: 20px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--indigo);
+    margin-top: 16px;
+    background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 9px;
-    padding: 11px 18px;
-    font-size: 14.5px;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
     font-weight: 600;
     cursor: pointer;
-    font-family: inherit;
+    display: none;
   }
-  .next-btn:hover { filter: brightness(1.08); }
-  .next-btn:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
-
-  .hidden { display: none !important; }
-
-  .final-score {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 44px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-    margin: 4px 0 6px;
-  }
-
-  .final-note {
-    font-size: 15px;
-    line-height: 1.55;
-    color: var(--ink-soft);
-    margin: 0 0 6px;
-  }
-
-  .final-hint {
-    margin-top: 18px;
-    padding-top: 16px;
-    border-top: 1px solid var(--line-rule);
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    line-height: 1.6;
-  }
-
-  footer {
-    text-align: center;
-    margin-top: 22px;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { transition: none !important; }
-  }
+  .next-btn.show { display: inline-block; }
+  .hidden { display: none; }
+  .summary { text-align: center; }
+  .summary .score { font-size: 2.4rem; font-weight: 800; margin: 12px 0 4px; color: var(--accent); }
+  .summary .line { color: var(--muted); font-size: 0.95rem; margin-bottom: 18px; }
+  .summary .encourage { font-size: 1.05rem; margin: 20px 0; }
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 20px; }
 </style>
 
-<main>
+<div class="wrap">
   <header>
-    <div class="wordmark"><strong>Ascent</strong> · Daily Code Quiz</div>
-    <div class="quiz-meta">Quiz #1<br>2026-08-14</div>
+    <h1>🎓 Ascent Quiz #2</h1>
+    <p>August 14, 2026 · How the game is coded, not how it plays</p>
   </header>
-
-  <h1>Five questions on how your game is actually built.</h1>
-  <p class="sub">Grounded in the real Ascent codebase — click an answer to lock it in, then read the explanation. No going back once you've answered.</p>
-
-  <div class="progress-row" id="progressRow"></div>
-
-  <div class="card" id="quizCard"></div>
-
-  <footer>Reply with your score when you're done — tomorrow's quiz adapts to it.</footer>
-</main>
+  <div class="progress" id="progress"></div>
+  <div id="quiz-root"></div>
+</div>
 
 <script>
-  var QUESTIONS = [
+  const QUESTIONS = [
     {
-      topicId: "what-is-a-function",
-      question: "Ascent's combat engine has a function `simulate(playerSide, enemySide, rng, cards)`. In plain English, what is a function?",
+      topic: "sim-ui-decoupling",
+      question: "In Ascent, which part of the code actually decides who wins a combat — the React UI components, or the simulate() function in packages/core?",
       choices: [
-        "A block of code that takes some inputs, does work with them, and gives back an output — like simulate taking two boards and returning the fight's results.",
-        "A file that stores game data, like a list of cards.",
-        "A saved copy of the game's state that can be restored later.",
-        "A button in the UI that the player clicks."
+        "The React UI components — they run the attack logic as the animations play",
+        "The simulate() function in packages/core — it computes the whole outcome before any animation plays",
+        "Both — the UI and the engine each calculate half of the result",
+        "Neither — combat results are decided by a server"
       ],
-      answer: 0,
-      explanation: "A function is input → work → output. <code>simulate()</code> in packages/core takes a player board, an enemy board, an RNG, and the card definitions, and returns <code>{ events, result, playerDamage, initial }</code>. Data files (like the ones under packages/content/src/cards/) store facts, not behavior — that's the tempting mix-up in choice B."
+      answer: 1,
+      explanation: "CLAUDE.md's Architecture section is explicit: \"Combat is a pure function → event log → replay... The UI animates the event log on its own clock; it never computes outcomes.\" <code>simulate()</code> in <code>packages/core</code> runs first and produces a complete event log — the UI's only job afterward is to play that log back as animation. It's tempting to think the animations \"cause\" the result since that's what you watch happen, but the outcome already exists in the log before a single card moves on screen. (C and D invent a split/server setup that doesn't exist in this codebase.)"
     },
     {
-      topicId: "shop-vs-combat",
-      question: "Each round in Ascent alternates between two phases. What actually happens in each one?",
+      topic: "monorepo-packages",
+      question: "Ascent's code is split into packages/core, packages/content, packages/sim, and packages/ui. Per CLAUDE.md's Monorepo section, which one has ZERO dependencies on the others — nothing else in the repo it imports from?",
       choices: [
-        "In the shop phase you buy/sell minions and arrange your board; in combat the fight auto-resolves — you don't click anything mid-fight.",
-        "In the shop phase you fight the enemy board directly; combat is where you spend gold on new minions.",
-        "Both phases let you control your minions turn-by-turn, like a chess match.",
-        "The shop phase only happens once, at the very start of the run."
+        "packages/core — the pure engine (rng, types, event bus, effects, simulate())",
+        "packages/ui — the React + Zustand presentation layer",
+        "packages/sim — the run loop (economy, shop, tiers, triples, scoring)",
+        "packages/content — the card/threat/quest data"
       ],
       answer: 0,
-      explanation: "Per CLAUDE.md and docs/GAME-RULES.md: “Each round: shop the tavern (buy/sell/reroll/tier-up), arrange your board and hand, then Face the Omen to fight the served opponent.” Combat is a pure simulation that plays out on its own — there's no turn-by-turn control once it starts, which rules out C."
+      explanation: "The Monorepo diagram in CLAUDE.md shows the dependency arrows: <code>core</code> has no arrow pointing at another local package — it's the foundation everything else is built on. <code>content</code> depends on <code>core</code>; <code>sim</code> depends on <code>core</code>+<code>content</code>; <code>ui</code> depends on all of them (\"→ all\"). Picking <code>ui</code> is the natural mixup: it's actually the MOST dependent package, the opposite of dependency-free."
     },
     {
-      topicId: "auto-battler-loop",
-      question: "Ascent calls itself an 'auto-battler' running a 17-round course. What does the 'auto' actually refer to?",
+      topic: "pure-functions",
+      question: "simulate(playerSide, enemySide, rng, cards) is described as a \"pure function.\" Given the exact same playerSide, enemySide, rng, and cards every time, what does \"pure\" guarantee about what it returns?",
       choices: [
-        "Once you commit your board and start the fight, combat plays out entirely on its own — you don't direct individual attacks.",
-        "The game automatically saves your progress every few seconds.",
-        "New cards are automatically added to your hand at random every round.",
-        "The course automatically ends after round 10, no matter what."
+        "It will always return the exact same result — no hidden state, no side effects, nothing outside its inputs affects it",
+        "It will run faster each time because it caches results in memory",
+        "It will occasionally vary slightly because the RNG makes real games unpredictable",
+        "It will read the current on-screen board to double-check its answer"
       ],
       answer: 0,
-      explanation: "That's the genre-defining trait: you build a board in the shop phase, then the fight resolves by itself — no clicking to attack. The course is a fixed 17 rounds (docs/GAME-RULES.md: 2 calibration + 15 scored), not 10, which is what makes D wrong."
+      explanation: "A pure function's output depends ONLY on its inputs, with nothing read from or written to the outside world — that's exactly why the same seeded <code>rng</code> + <code>cards</code> + boards always replays identically, which is how replays and shareable seeds work at all. Choice C is the trap: the RNG isn't truly random — it's a seeded generator threaded in as an ordinary input (see <code>packages/core/src/rng.ts</code>), so it's part of what makes the result reproducible, not what breaks it. B and D describe caching/DOM-reading side effects a pure function specifically must NOT have."
     },
     {
-      topicId: "deterministic-sim",
-      question: "CLAUDE.md describes combat as a “deterministic simulation.” What does 'deterministic' mean here?",
+      topic: "data-vs-code",
+      question: "Look at Training Dummy in packages/content/src/cards/set1/neutral.ts — it's a plain object literal: { id: 'trainingdummy', attack: 1, health: 1, keywords: ['T', 'DS'], effects: [] }. Per CLAUDE.md, why are almost all of Ascent's cards written this way instead of as one JS class per card?",
       choices: [
-        "Given the exact same inputs — the two boards, the RNG seed, the card data — simulate() will produce the exact same event log and outcome every single time.",
-        "The outcome is decided by whichever player clicks 'fight' first.",
-        "The simulation picks a random winner unless a player interferes.",
-        "It means the game's difficulty never changes."
+        "Because classes are illegal in TypeScript",
+        "Cards are data + effect subscriptions on purpose — new cards should mean writing data, not new code, unless a genuinely new effect primitive is needed",
+        "Object literals run faster than classes at runtime, which matters for the performance budget",
+        "It's a historical leftover from an early prototype nobody has cleaned up"
       ],
-      answer: 0,
-      explanation: "Determinism is what makes replays, shareable seeds, and daily runs possible: same inputs in → same outputs out, always. This only works because the RNG is seeded (next question) rather than truly random — a genuinely random source would break the reproducibility choice A describes."
+      answer: 1,
+      explanation: "CLAUDE.md states this directly: \"Cards are data + effect subscriptions, never bespoke classes. New cards = data only unless they need a genuinely new effect primitive.\" This keeps adding a card a content task — fill in a schema-validated object — instead of a programming task; keywords like Taunt/Ward on Training Dummy are declared data, not hand-coded per card. A is false (classes work fine in TS); C and D aren't the actual reason given — this is a deliberate architecture choice, not a perf trick or forgotten cleanup."
     },
     {
-      topicId: "seeded-rng",
-      question: "In packages/core/src/rng.ts, why does Ascent use a seeded RNG (mulberry32) instead of JavaScript's Math.random() inside the engine?",
+      topic: "event-log-replay",
+      question: "simulate() builds up an events: CombatEvent[] array as combat resolves (packages/core/src/combat/simulate.ts), and the UI's buildBeats() (packages/ui/src/combatBeats.ts) turns that array into \"beats\" it paces on screen. Why does the engine emit a whole ARRAY of events instead of just returning who won?",
       choices: [
-        "A seeded RNG replays the exact same sequence of 'random' numbers whenever it's given the same seed, which is what makes combats, shop offers, and replays reproducible — Math.random() can't be reproduced, so it's ESLint-banned in core/content/sim.",
-        "Math.random() runs too slowly to be used inside a combat loop.",
-        "Seeded RNGs are only used for cosmetic effects like animations, never for real gameplay decisions.",
-        "mulberry32 lets multiple players share the same random number over the network at the same time."
+        "So the UI has a step-by-step record of everything that happened, which it can play back/animate at its own pace, independent of how the engine computed it",
+        "Because arrays are required by TypeScript for any function that returns more than one value",
+        "So the file size of the combat result stays small",
+        "Purely for debugging — the array is stripped out before it ever reaches the UI in production"
       ],
       answer: 0,
-      explanation: "rng.ts's own comment says it plainly: it's the “single source of randomness for the entire engine — shop offers, combat targeting, summons all flow through this,” and “never use Math.random in the engine.” It's about reproducibility, not speed (B) — and Ascent is single-player, so there's no network sync to worry about (D)."
+      explanation: "The event log is the bridge between \"what happened\" (computed instantly and deterministically by <code>simulate()</code>) and \"what the player sees\" (animated over several seconds). <code>buildBeats()</code> groups raw events — attacks, buffs, deaths — into presentable beats the UI paces on its own clock, exactly matching CLAUDE.md: \"the UI animates the event log on its own clock; it never computes outcomes.\" B invents a fake TS rule; C and D contradict how the array is actually used — it isn't stripped, it IS the thing the UI renders."
     }
   ];
 
-  var score = 0;
-  var current = 0;
-  var results = [];
+  const root = document.getElementById('quiz-root');
+  const progressEl = document.getElementById('progress');
+  let current = 0;
+  let score = 0;
+  const results = [];
 
-  var progressRow = document.getElementById("progressRow");
-  var card = document.getElementById("quizCard");
+  function renderProgress() {
+    progressEl.innerHTML = '';
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      progressEl.appendChild(d);
+    }
+  }
 
-  QUESTIONS.forEach(function () {
-    var pip = document.createElement("div");
-    pip.className = "pip";
-    progressRow.appendChild(pip);
-  });
+  function renderQuestion(idx) {
+    const q = QUESTIONS[idx];
+    const card = document.createElement('div');
+    card.className = 'card';
 
-  function letterFor(i) { return String.fromCharCode(65 + i); }
+    const qnum = document.createElement('div');
+    qnum.className = 'qnum';
+    qnum.textContent = `Question ${idx + 1} of ${QUESTIONS.length}`;
+    card.appendChild(qnum);
 
-  function renderQuestion(index) {
-    var q = QUESTIONS[index];
-    card.innerHTML = "";
+    const qtext = document.createElement('p');
+    qtext.className = 'question';
+    qtext.textContent = q.question;
+    card.appendChild(qtext);
 
-    var eyebrow = document.createElement("p");
-    eyebrow.className = "eyebrow";
-    eyebrow.textContent = "Question " + (index + 1) + " of " + QUESTIONS.length;
-    card.appendChild(eyebrow);
+    const letters = ['A', 'B', 'C', 'D'];
+    const buttons = [];
+    let answered = false;
 
-    var qText = document.createElement("p");
-    qText.className = "question-text";
-    qText.textContent = q.question;
-    card.appendChild(qText);
-
-    var choicesWrap = document.createElement("div");
-    choicesWrap.className = "choices";
-    card.appendChild(choicesWrap);
-
-    var resultLine = document.createElement("p");
-    resultLine.className = "result-line hidden";
-    card.appendChild(resultLine);
-
-    var explanation = document.createElement("div");
-    explanation.className = "explanation hidden";
-    explanation.innerHTML = q.explanation;
-    card.appendChild(explanation);
-
-    var nextBtn = document.createElement("button");
-    nextBtn.className = "next-btn hidden";
-    nextBtn.textContent = index === QUESTIONS.length - 1 ? "See my score →" : "Next question →";
-    card.appendChild(nextBtn);
-
-    var buttons = [];
-
-    q.choices.forEach(function (choiceText, i) {
-      var btn = document.createElement("button");
-      btn.className = "choice";
-      btn.innerHTML = '<span class="letter">' + letterFor(i) + "</span><span>" + choiceText + "</span>";
-      btn.addEventListener("click", function () {
-        buttons.forEach(function (b) { b.disabled = true; });
-
-        var correct = i === q.answer;
-        btn.classList.add(correct ? "correct-pick" : "wrong-pick");
-        if (!correct) {
-          buttons[q.answer].classList.add("reveal-correct-unpicked");
-        }
-
-        resultLine.textContent = correct ? "Correct!" : "Not quite — here's why:";
-        resultLine.classList.remove("hidden", "good-text", "bad-text");
-        resultLine.classList.add(correct ? "good-text" : "bad-text");
-
-        explanation.classList.remove("hidden");
-        nextBtn.classList.remove("hidden");
-
-        var pips = progressRow.children;
-        pips[index].classList.add(correct ? "correct" : "incorrect");
-
+    q.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.innerHTML = `<span class="label">${letters[i]}</span>${choice}`;
+      btn.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        const correct = i === q.answer;
         if (correct) score++;
-        results.push({ topicId: q.topicId, correct: correct });
+        results.push(correct);
+        buttons.forEach((b, bi) => {
+          b.disabled = true;
+          if (bi === q.answer) b.classList.add('reveal-correct');
+          if (bi === i && !correct) b.classList.add('incorrect');
+        });
+        const tag = document.createElement('div');
+        tag.className = 'result-tag ' + (correct ? 'good' : 'bad');
+        tag.textContent = correct ? '✓ Correct!' : '✗ Not quite';
+        card.appendChild(tag);
+
+        const exp = document.createElement('div');
+        exp.className = 'explanation show';
+        exp.innerHTML = q.explanation;
+        card.appendChild(exp);
+
+        nextBtn.classList.add('show');
       });
       buttons.push(btn);
-      choicesWrap.appendChild(btn);
+      card.appendChild(btn);
     });
 
-    nextBtn.addEventListener("click", function () {
-      if (index + 1 < QUESTIONS.length) {
-        renderQuestion(index + 1);
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'next-btn';
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+    nextBtn.addEventListener('click', () => {
+      current++;
+      renderProgress();
+      if (current >= QUESTIONS.length) {
+        renderSummary();
       } else {
-        renderFinal();
+        root.innerHTML = '';
+        renderQuestion(current);
       }
     });
+    card.appendChild(nextBtn);
+
+    root.appendChild(card);
   }
 
-  function renderFinal() {
-    card.innerHTML = "";
+  function renderSummary() {
+    root.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card summary';
 
-    var eyebrow = document.createElement("p");
-    eyebrow.className = "eyebrow";
-    eyebrow.textContent = "Quiz complete";
-    card.appendChild(eyebrow);
+    const label = document.createElement('div');
+    label.className = 'qnum';
+    label.textContent = 'Quiz complete';
+    card.appendChild(label);
 
-    var scoreEl = document.createElement("p");
-    scoreEl.className = "final-score";
-    scoreEl.textContent = score + " / " + QUESTIONS.length;
+    const scoreEl = document.createElement('div');
+    scoreEl.className = 'score';
+    scoreEl.textContent = `${score} / ${QUESTIONS.length}`;
     card.appendChild(scoreEl);
 
-    var lines = [
-      "Rough day at the tavern — that's exactly what re-asking these topics tomorrow is for.",
-      "Getting there. A couple of these ideas just need to click.",
-      "Solid! You're starting to read the engine like a native.",
-      "Excellent — nothing here is giving you trouble.",
-      "Flawless run. Every one of these landed."
-    ];
-    var note = document.createElement("p");
-    note.className = "final-note";
-    note.textContent = lines[score];
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = `You scored ${score} out of ${QUESTIONS.length} on today's architecture quiz.`;
+    card.appendChild(line);
+
+    const messages = {
+      5: "Perfect score! You're reading Ascent's engine like a pro. 🎉",
+      4: "Great work — you've clearly got a solid handle on this.",
+      3: "Solid effort — more than half down, and every miss is a lesson for tomorrow.",
+      2: "Good start — this stuff gets clearer every day you sit with it.",
+      1: "You're just getting going — reply with your score and we'll circle back to what tripped you up.",
+      0: "No worries at all — everyone starts at zero. Tell me your score and we'll rebuild from here."
+    };
+    const encourage = document.createElement('div');
+    encourage.className = 'encourage';
+    encourage.textContent = messages[score] ?? messages[0];
+    card.appendChild(encourage);
+
+    const note = document.createElement('div');
+    note.className = 'footer-note';
+    note.textContent = 'Reply in chat with your score (e.g. "4/5, missed the pure-functions one") so tomorrow adapts.';
     card.appendChild(note);
 
-    var hint = document.createElement("p");
-    hint.className = "final-hint";
-    hint.textContent = "Reply in chat with your score (e.g. “" + score + "/" + QUESTIONS.length + ", missed the RNG one”) so tomorrow's quiz can adapt — easier where it's still fuzzy, further ahead where it's solid.";
-    card.appendChild(hint);
+    root.appendChild(card);
   }
 
-  renderQuestion(0);
+  renderProgress();
+  renderQuestion(current);
 </script>

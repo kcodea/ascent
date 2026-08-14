@@ -5,12 +5,17 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 1,
+  "totalQuizzes": 2,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 1, "lastAsked": "2026-08-14" },
     "deterministic-sim": { "asked": 1, "lastAsked": "2026-08-14" },
-    "seeded-rng": { "asked": 1, "lastAsked": "2026-08-14" }
+    "seeded-rng": { "asked": 1, "lastAsked": "2026-08-14" },
+    "sim-ui-decoupling": { "asked": 1, "lastAsked": "2026-08-14" },
+    "monorepo-packages": { "asked": 1, "lastAsked": "2026-08-14" },
+    "pure-functions": { "asked": 1, "lastAsked": "2026-08-14" },
+    "data-vs-code": { "asked": 1, "lastAsked": "2026-08-14" },
+    "event-log-replay": { "asked": 1, "lastAsked": "2026-08-14" }
   },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
@@ -42,6 +47,13 @@
       "topics": ["what-is-a-function", "shop-vs-combat", "auto-battler-loop", "deterministic-sim", "seeded-rng"],
       "scored": null,
       "note": "Pre-refocus quiz. shop-vs-combat + auto-battler-loop were game-rules topics, since removed from the curriculum."
+    },
+    {
+      "date": "2026-08-14",
+      "quizNumber": 2,
+      "difficulty": 1,
+      "topics": ["sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay"],
+      "scored": null
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

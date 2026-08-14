@@ -1043,10 +1043,24 @@ body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) ro
    hand zone is a z-index:25 FIXED child of `.app`, and `.app` is a z-index:1 stacking context — so the card's
    z-index:50 only ranks it WITHIN `.app`, which as a whole stays pinned below the fixed HUD siblings that live
    outside it (`.statusbar` z40 holds the hero power, the z41 gold/refresh/end-turn/tavern buttons, `.topright`
-   z60). Lift the whole board context above them, but ONLY while a hand card is hovered — the same
-   container-on-hover trick `.questbadges:has(.questbadge:hover)` uses. Not during a drag: the hand tucks (the
-   rule above kills the hover-lift), so there is nothing to raise and the dragged card owns its own top layer. */
-body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: 70; }
+   z60). Not during a drag: the hand tucks (the rule above kills the hover-lift), so there is nothing to raise
+   and the dragged card owns its own top layer.
+
+   RAISING `.app` IS THE WRONG KNOB (owner report 2026-08-14: hovering a hand card made the hero portrait,
+   Resolve box and hero-power diamond vanish). `.boardbg` is a CHILD of `.app` — fixed, inset:0, z-index:0,
+   full-viewport board art — so lifting `.app` to 70 carried the BOARD above `.statusbar` too and it painted
+   right over the hero panel. This is the identical trap already documented on `body.modalup .app` below; the
+   `.questbadges` precedent cited here does not transfer, because that element has no `.boardbg` inside it.
+
+   Two rules instead, and both are needed — there are TWO nested caps, not one:
+     1. Dissolve `.app`'s stacking context (`z-index: auto`, still `position: relative`, so nothing moves), the
+        same move `body.modalup` makes. Its descendants now sort at ROOT by their own numbers, which keeps
+        `.boardbg` at 0 — safely under `.statusbar` 40 — instead of riding up with the container.
+     2. Raise the HAND ZONE, which is the inner cap: it is z-index:25, so the card's z-index:50 was trapped
+        below the HUD by the zone even once `.app` stopped capping it. The zone holds no board art, so it is
+        the one thing here that is safe to lift. */
+body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: auto; }
+body:not(.dragging) .app:has(.row.hand .card:hover) .zone[data-zone='hand'] { z-index: 70; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.

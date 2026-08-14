@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rubies inherit spell buffs with Rune of the Spellstone** — the rune said Rubies "count as Shop spells" but only made them tick the spell-cast watchers; they now pick up your spell power too, and everything downstream follows (combat Rubies, Veinstorm, Motherlode, Mountainbond). **Mountainbond** reworked to a Gold meter: every 8 Gold, 2 Rubies plus one played on each Kobold. Fixed: hovering a card in hand made the hero portrait and hero power vanish behind the board art.
+
 - **Balance batch + 3 new minions** — five Set-2 Demons retuned, with **Bob Blart** (now T4 6/5) and **Hellrider** trading jobs: Blart *Consumes* the right-most Shop minion, Hellrider *copies* its stats and leaves it buyable. Right Hand Hank (+3/+2), Market Tormentor (+7/+6) and Chipper (T5 8/7) rebalanced. New: **Grobbus** (Avenge 3: get a random Demon), **Transcendence** (Engraves adjacent Dragons, then buffs the flight), **Drunken Oaf** (a Dwarf buff repeated per Ale cast). Fixed: Rubies granted by **Candlelight Toll** arrived as flat 1/1s instead of the run's real Ruby strength.
 
 - **In-run UI editor (dev-only)** — a direct-manipulation editor for the in-run DOM UI (cards, HUD, shop, panels, text) with live override stylesheet, move/resize, restyle knobs, image swap, and a copyable summary for chat-driven fixes.

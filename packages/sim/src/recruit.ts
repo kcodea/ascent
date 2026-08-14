@@ -100,7 +100,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       return made;
     },
     playRubiesOn: (t, per) => {
-      const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+      const rb = rubyStatBonus(state);
       const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
       if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h); }
     },
@@ -926,7 +926,7 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
   // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
   if (t.rubyAll) {
-    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const rb = rubyStatBonus(state);
     for (const c of [...state.board]) {
       addBuff(c, 'Ruby', 1 + rb.attack, 1 + rb.health);
       fireOnRubyPlayed(state, c, 1 + rb.attack, 1 + rb.health);
@@ -1299,6 +1299,25 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
 export const RUBY_ID = 'ruby';
 
 /**
+ * A Ruby's stat bonus over its printed 1/1 — the ONE read every Ruby source must use (owner ask 2026-08-14).
+ *
+ * Normally this is just the run's `rubyBonus`. With **Rune of the Spellstone** it also includes the run's SPELL
+ * power, because that rune's whole promise is "Rubies you cast count as Shop spells" — and a Shop spell picks up
+ * your spell buffs. Before this, the rune only made a Ruby *tick the spell-cast watchers*: it counted as a spell
+ * for everything except the one thing a spell is actually worth. Folding the power in here means every
+ * downstream consumer inherits it for free, exactly as the owner asked — combat-played Rubies (the combat side
+ * reads this value off the snapshot), Veinstorm's shop stamp and its bank, Motherlode, Mountainbond, and the
+ * printed card text.
+ *
+ * Attack and Health are read separately because spell power is asymmetric (`spellBonus.attack` vs `.health`).
+ */
+export function rubyStatBonus(state: RunState): { attack: number; health: number } {
+  const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+  if (!state.runeSpellstone) return rb;
+  return { attack: rb.attack + spellAttackBonus(state), health: rb.health + spellHealthBonus(state) };
+}
+
+/**
  * Mint `count` Rubies into the player's hand (set 2 Kobolds). Each Ruby is minted at the token's base 1/1 plus
  * the run's current `rubyBonus`. A later "Your Rubies gain +X" grows every Ruby still in HAND too (see
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
@@ -1308,7 +1327,9 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   const def = CARD_INDEX[rubyId];
   if (!def) return;
   // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
-  const bonus = statOverride ? { attack: statOverride.attack - def.attack, health: statOverride.health - def.health } : (state.rubyBonus ?? { attack: 0, health: 0 });
+  // `rubyStatBonus`, not raw `rubyBonus`: Rune of the Spellstone folds spell power in (2026-08-14). Gemcutting's
+  // fixed 3/3 override still wins outright — it mints "Rubies that give +3/+3", full stop.
+  const bonus = statOverride ? { attack: statOverride.attack - def.attack, health: statOverride.health - def.health } : rubyStatBonus(state);
   let minted = 0;
   for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
     state.hand.push({
@@ -1334,7 +1355,7 @@ function fireOnRubyGained(state: RunState): void {
   if (ml) {
     // A Ruby is base 1/1 plus the run's live `rubyBonus` — the same value every other Ruby source mints at, so
     // a late-run Motherlode pays full strength rather than 1/1.
-    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const bonus = rubyStatBonus(state);
     for (let c = 0; c < ml.count; c++) {
       const pool = ml.tribe ? state.board.filter((m) => isTribe(m, ml.tribe!)) : [...state.board];
       if (pool.length === 0) break;
@@ -1601,7 +1622,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `tribe` minion. Golden: any friendly minion (not just the tribe), TWICE. Deterministic (run rngCursor). */
   rubyGainedCast: (ctx, self, params) => {
     const state = ctx.state;
-    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const bonus = rubyStatBonus(state);
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
@@ -1627,7 +1648,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor. */
   endOfTurnPlayRuby: (ctx, self, params) => {
     const state = ctx.state;
-    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const bonus = rubyStatBonus(state);
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
@@ -1808,6 +1829,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && (!tribe || c.tribe === tribe || c.tribe2 === tribe));
     if (pool.length === 0) return;
     conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
+  /**
+   * Mountainbond (owner rework 2026-08-14) — every `every` Gold spent (the threshold is applied by
+   * `applyGoldSpent`, so this only does the payout): mint `count` Rubies to hand AND play one Ruby on each
+   * friendly `tribe` minion.
+   *
+   * The two halves use deliberately different channels. The hand half is `mintRubies`, so the Rubies arrive at
+   * the run's live strength and fire the "when you GET a Ruby" watchers (Motherlode, Candle Conduit). The board
+   * half mirrors `cardsPlayedPlayRubies` — `addBuff('Ruby', …)` plus `fireOnRubyPlayed`, NOT `castSpell`, since
+   * a Ruby is not applied like a Shop spell — so the target's own "when a Ruby is played on this" effects
+   * (Ruby Broker's Gold, Resonance Idol's bounce) still see it. Golden doubles both halves.
+   */
+  goldSpentGetRubiesPlayOnTribe: (ctx, self, params) => {
+    const state = ctx.state;
+    const mult = gold(self);
+    mintRubies(state, num(params.count, 2) * mult);
+    // Read the bonus AFTER minting: a Motherlode proc off those Rubies can raise what lands on the board.
+    const rb = rubyStatBonus(state);
+    const per = num(params.play, 1) * mult;
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    if (a <= 0 && h <= 0) return;
+    const tribe = str(params.tribe) || 'kobold';
+    for (const c of [...state.board]) {
+      if (!isTribe(c, tribe as never)) continue;
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(state, c, a, h);
+    }
   },
 
   cardsBoughtGetRubies: (ctx, self, params) => {
@@ -4147,7 +4197,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  rubyBonus, like any recruit-phase Ruby). Fires each target's on-Ruby watchers per Ruby. */
   spellPlayRubiesAll: (ctx, _self, params) => {
     const per = num(params.rubies, 2);
-    const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const b = rubyStatBonus(ctx.state);
     for (const target of [...ctx.state.board]) {
       for (let r = 0; r < per; r++) {
         addBuff(target, 'Ruby', 1 + b.attack, 1 + b.health);
@@ -4270,7 +4320,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * Ruby-count delta — correctly: real Rubies are arriving, and that is what makes the spell legible.
    */
   spellBuffShopByRuby: (ctx) => {
-    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const rb = rubyStatBonus(ctx.state); // Spellstone folds spell power into every Ruby, this one included
     const a = 1 + rb.attack;
     const h = 1 + rb.health;
     const stamped: string[] = [];
@@ -4530,7 +4580,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // watcher path a played Ruby uses, so Resonance Idol / Candle Conduit / Ruby Broker all see them. A shop
     // target takes them as offer Rubies (offers have no watchers, matching every other shop-row Ruby).
     {
-      const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+      const rb = rubyStatBonus(state);
       for (let n = 0; n < 2; n++) {
         const ra = 1 + rb.attack;
         const rh = 1 + rb.health;
@@ -6786,7 +6836,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // turn — the cursor re-rolls per Ruby so they spread independently. One `step` per Ruby, so the projection
     // replays them as a sequential cascade (the owner's 2026-08-12 "End-of-Turn ruby animation" ask). Routed
     // through the real Ruby-play path, so Resonance Idol / Candle Conduit / Ruby Broker all hear it.
-    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const rb = rubyStatBonus(state);
     const a = 1 + rb.attack;
     const h = 1 + rb.health;
     const n = (state.playedThisTurn ?? []).length;

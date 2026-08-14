@@ -81,7 +81,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:buffShopPermanent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:buffShopPermanent:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:cardsBoughtGrantRandomSpell:cardsBought': { policy: 'ownBeat', family: 'economy' },
-  'factory:cardsPlayedPlayRubies:cardsPlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:castSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:combatGrantAle:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:combatGrantAle:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -155,6 +154,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:getRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
+  'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
   'factory:goldSpentBuffRightmostSlot:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentBuffTribeAttack:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGrantTribeMinion:goldSpent': { policy: 'ownBeat', family: 'economy' },

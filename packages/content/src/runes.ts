@@ -1555,7 +1555,11 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Spellstone',
     cost: 6,
     epic: true,
-    text: '**Rubies** you cast count as **Shop spells**.',
+    // Owner ask 2026-08-14: "counts as a Shop spell" now means it too — a Ruby picks up your Shop-spell buffs
+    // on top of your Ruby buffs, and everything downstream of a Ruby's stats inherits that (combat-played
+    // Rubies, Veinstorm's shop stamp, Motherlode, Mountainbond). Before this the rune made a Ruby count as a
+    // spell for every purpose except the one thing a spell is actually worth. See `rubyStatBonus`.
+    text: '**Rubies** you cast count as **Shop spells**, and gain your **Shop spell** bonuses.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSpellstone' },
     sets: ['set2'], // Rubies

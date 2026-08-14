@@ -28,11 +28,19 @@ import { applyAll, applyEntry, clearAll, clearRule } from './overrideSheet';
 
 const SCRATCH_KEY = 'ascent.uiEdit.scratchpad';
 const RESTYLE_PROPS = ['font-size', 'color', 'background', 'border-radius', 'padding', 'opacity'] as const;
+const UNDO_LIMIT = 50;
 
-// Static picker list — every committed in-run image, resolved to a dev-server URL by Vite. `eager` + `?url`
-// mirrors `art.ts`'s own glob so this stays in sync without a second manifest to maintain. Keys are raw
-// module specifiers (not servable); values are the Vite-resolved URLs — always store the VALUE.
-const PICKER_IMAGES = import.meta.glob('../art/**/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/** The image the selected element currently shows: a pending editor override wins, then an `<img>`'s src,
+ *  then its computed `background-image`. Null when the element renders no image. */
+function currentImage(el: Element, assetPath?: string): string | null {
+  if (assetPath) return assetPath;
+  if (el.tagName === 'IMG') { const img = el as HTMLImageElement; return img.currentSrc || img.src || null; }
+  try {
+    const bg = getComputedStyle(el).backgroundImage;
+    const m = bg && bg !== 'none' ? bg.match(/url\((['"]?)(.*?)\1\)/) : null;
+    return m ? m[2] : null;
+  } catch { return null; }
+}
 
 function persist(sp: Scratchpad): void {
   try { localStorage.setItem(SCRATCH_KEY, serialize(sp)); } catch { /* private mode / no storage */ }
@@ -73,32 +81,68 @@ function resolveUploadedAssetUrl(slug: string): string {
   return new URL(`../assets/ui-editor/${slug}.png`, import.meta.url).href;
 }
 
+/** Parse a committed `transform` string back into its translate/scale parts, so re-selecting or undoing an
+ *  already-edited element resumes from its real offset instead of snapping back to zero. */
+function parseTransform(t?: string): { x: number; y: number; scale: number } {
+  let x = 0, y = 0, scale = 1;
+  if (t) {
+    const m = t.match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
+    if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); }
+    const s = t.match(/scale\(\s*(-?[\d.]+)\s*\)/);
+    if (s) scale = parseFloat(s[1]);
+  }
+  return { x, y, scale };
+}
+
 type DragState =
-  | { kind: 'move'; startX: number; startY: number; baseX: number; baseY: number; baseScale: number }
-  | { kind: 'resize'; handle: string; startX: number; startY: number; baseW: number; baseH: number; baseX: number; baseY: number; baseScale: number };
+  | { kind: 'move'; startX: number; startY: number; baseX: number; baseY: number; baseScale: number; elScale: number }
+  | {
+      kind: 'resize'; handle: string; startX: number; startY: number;
+      baseWLocal: number; baseHLocal: number; baseWScreen: number; baseHScreen: number;
+      baseX: number; baseY: number; baseScale: number; elScale: number;
+    };
 
-type DragResult = { transform?: string; width?: string; height?: string; offset?: { x: number; y: number }; scale?: number };
+type DragCss = { transform?: string; width?: string; height?: string };
+type DragResult = { el: DragCss; box: DragCss; offset?: { x: number; y: number }; scale?: number };
 
-/** Pure: turn a drag's accumulated pointer delta into the CSS it should produce. Shared by the cheap
- *  per-pointermove live preview and the one-time pointerup commit, so they can never disagree. */
+/**
+ * Pure: turn a drag's accumulated pointer delta into the CSS it should produce — SEPARATELY for the live
+ * target element and for the screen-space selection box.
+ *
+ * The element's `transform`/`width`/`height` live in its OWN coordinate space, which in-run is scaled (the
+ * board and cards sit under a CSS `scale()`). The box is `position: fixed`, i.e. raw screen pixels. So the
+ * element's values are divided by `elScale` (screen px per local px, measured once at drag start) while the
+ * box uses the raw screen delta — that way the element and the box move/resize by the exact SAME on-screen
+ * amount instead of the element drifting ahead. Shared by the per-pointermove preview and the pointerup
+ * commit so the two can never disagree.
+ */
 function computeDrag(d: DragState, dx: number, dy: number, scaleAsUnit: boolean, keepAspect: boolean): DragResult {
   if (d.kind === 'move') {
-    const offset = { x: d.baseX + dx, y: d.baseY + dy };
-    return { transform: composeTransform(offset, d.baseScale), offset, scale: d.baseScale };
+    const offset = { x: d.baseX + dx / d.elScale, y: d.baseY + dy / d.elScale };
+    return {
+      el: { transform: composeTransform(offset, d.baseScale) },
+      box: { transform: `translate(${dx}px, ${dy}px)` },
+      offset, scale: d.baseScale,
+    };
   }
   const sx = d.handle.includes('w') ? -1 : d.handle.includes('e') ? 1 : 0;
   const sy = d.handle.includes('n') ? -1 : d.handle.includes('s') ? 1 : 0;
-  const dW = dx * sx;
-  const dH = dy * sy;
+  const dWs = dx * sx; // screen-space width/height delta
+  const dHs = dy * sy;
   if (scaleAsUnit) {
-    const ratioW = d.baseW > 0 ? (d.baseW + dW) / d.baseW : 1;
-    const ratioH = d.baseH > 0 ? (d.baseH + dH) / d.baseH : 1;
+    const ratioW = d.baseWScreen > 0 ? (d.baseWScreen + dWs) / d.baseWScreen : 1;
+    const ratioH = d.baseHScreen > 0 ? (d.baseHScreen + dHs) / d.baseHScreen : 1;
     const scale = Math.max(0.05, sx !== 0 ? ratioW : sy !== 0 ? ratioH : Math.max(ratioW, ratioH));
     const offset = { x: d.baseX, y: d.baseY };
-    return { transform: composeTransform(offset, scale), offset, scale };
+    return {
+      el: { transform: composeTransform(offset, scale) },
+      box: { transform: `scale(${scale})` },
+      offset, scale,
+    };
   }
-  const { width, height } = resizeToPx({ w: d.baseW, h: d.baseH }, dW, dH, keepAspect);
-  return { width, height };
+  const el = resizeToPx({ w: d.baseWLocal, h: d.baseHLocal }, dWs / d.elScale, dHs / d.elScale, keepAspect);
+  const box = resizeToPx({ w: d.baseWScreen, h: d.baseHScreen }, dWs, dHs, keepAspect);
+  return { el, box };
 }
 
 const HANDLES: { id: string; style: React.CSSProperties }[] = [
@@ -122,6 +166,7 @@ export function EditorOverlay(): JSX.Element | null {
   const [scaleAsUnit, setScaleAsUnit] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [assetError, setAssetError] = useState<string | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -140,6 +185,35 @@ export function EditorOverlay(): JSX.Element | null {
   useEffect(() => { scopeRef.current = scope; }, [scope]);
   const spRef = useRef<Scratchpad>({});
   useEffect(() => { spRef.current = sp; }, [sp]);
+
+  // ---- Undo stack + deselect. Every discrete commit snapshots the PRIOR scratchpad here first; undo pops
+  // it, rebuilds the whole sheet from it (`applyAll`), and re-syncs the drag accumulators for the current
+  // selection so a follow-up drag continues cleanly. ----
+  const undoRef = useRef<Scratchpad[]>([]);
+  const pushUndo = useCallback((prev: Scratchpad) => {
+    undoRef.current.push(prev);
+    if (undoRef.current.length > UNDO_LIMIT) undoRef.current.shift();
+    setCanUndo(true);
+  }, []);
+  const undo = useCallback(() => {
+    const prev = undoRef.current.pop();
+    setCanUndo(undoRef.current.length > 0);
+    if (prev === undefined) return;
+    applyAll(prev);
+    persist(prev);
+    setSp(prev);
+    const sel = selectorRef.current;
+    if (sel) {
+      const t = parseTransform(prev[sel]?.props.transform);
+      offsetRef.current = { x: t.x, y: t.y };
+      scaleRef.current = t.scale;
+    }
+  }, []);
+  const deselect = useCallback(() => {
+    setSelected(null);
+    setSelRect(null);
+    setSelector('');
+  }, []);
 
   // ---- 1. Mode subscription. OFF => render null, no listeners installed anywhere below. ----
   useEffect(() => subscribeUiEditMode(setOn), []);
@@ -174,19 +248,23 @@ export function EditorOverlay(): JSX.Element | null {
   const setProp = useCallback((prop: string, value: string) => {
     if (!selector) return;
     const next = upsertProp(sp, selector, scope, prop, value);
+    pushUndo(sp);
     applyEntry(next[selector]);
     persist(next);
     setSp(next);
-  }, [selector, scope, sp]);
+  }, [selector, scope, sp, pushUndo]);
 
   const selectElement = useCallback((el: Element) => {
     setSelected(el);
     setSelRect(el.getBoundingClientRect());
     const nextScope = defaultScope(el);
     setScope(nextScope);
-    setSelector(buildSelector(el, nextScope));
-    offsetRef.current = { x: 0, y: 0 };
-    scaleRef.current = 1;
+    const sel = buildSelector(el, nextScope);
+    setSelector(sel);
+    // Resume from any transform this element already carries so a follow-up drag doesn't snap to zero.
+    const existing = parseTransform(spRef.current[sel]?.props.transform);
+    offsetRef.current = { x: existing.x, y: existing.y };
+    scaleRef.current = existing.scale;
     if (boxRef.current) boxRef.current.style.transform = '';
   }, []);
 
@@ -205,6 +283,19 @@ export function EditorOverlay(): JSX.Element | null {
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, [on, selectElement]);
 
+  // ---- Keyboard: Esc deselects; Ctrl/Cmd+Z undoes (never while typing in the toolbar's own fields). ----
+  useEffect(() => {
+    if (!on) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as Element | null;
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+      if (e.key === 'Escape') { if (selectedRef.current) deselect(); else setUiEditMode(false); }
+      else if (!typing && (e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); undo(); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [on, deselect, undo]);
+
   // ---- 5/6. Move + resize drag. ----
   // Per pointermove: CHEAP live preview only — direct inline-style writes on the box + the live target
   // element. No React state, no upsertProp/applyEntry (stylesheet rebuild), no serialize, no localStorage.
@@ -214,15 +305,17 @@ export function EditorOverlay(): JSX.Element | null {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     const result = computeDrag(d, dx, dy, scaleAsUnit, e.shiftKey);
+    const box = boxRef.current;
+    if (box) {
+      if (result.box.transform !== undefined) box.style.transform = result.box.transform;
+      if (result.box.width !== undefined) box.style.width = result.box.width;
+      if (result.box.height !== undefined) box.style.height = result.box.height;
+    }
     const target = selectedRef.current as HTMLElement | null;
-
-    if (result.transform !== undefined) {
-      const boxTransform = d.kind === 'move' ? `translate(${dx}px, ${dy}px)` : `scale(${result.scale})`;
-      if (boxRef.current) boxRef.current.style.transform = boxTransform;
-      if (target) target.style.transform = result.transform;
-    } else if (result.width !== undefined && result.height !== undefined) {
-      if (boxRef.current) { boxRef.current.style.width = result.width; boxRef.current.style.height = result.height; }
-      if (target) { target.style.width = result.width; target.style.height = result.height; }
+    if (target) {
+      if (result.el.transform !== undefined) target.style.transform = result.el.transform;
+      if (result.el.width !== undefined) target.style.width = result.el.width;
+      if (result.el.height !== undefined) target.style.height = result.el.height;
     }
   }, [scaleAsUnit]);
 
@@ -242,30 +335,37 @@ export function EditorOverlay(): JSX.Element | null {
 
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
+    if (dx === 0 && dy === 0) return; // a click without a drag isn't an edit — don't create an entry
+
     const result = computeDrag(d, dx, dy, scaleAsUnit, e.shiftKey);
     if (result.offset) offsetRef.current = result.offset;
     if (result.scale !== undefined) scaleRef.current = result.scale;
 
     const sc = scopeRef.current;
-    let next = spRef.current;
-    if (result.transform !== undefined) next = upsertProp(next, sel, sc, 'transform', result.transform);
-    if (result.width !== undefined && result.height !== undefined) {
-      next = upsertProp(next, sel, sc, 'width', result.width);
-      next = upsertProp(next, sel, sc, 'height', result.height);
+    const prev = spRef.current;
+    let next = prev;
+    if (result.el.transform !== undefined) next = upsertProp(next, sel, sc, 'transform', result.el.transform);
+    if (result.el.width !== undefined && result.el.height !== undefined) {
+      next = upsertProp(next, sel, sc, 'width', result.el.width);
+      next = upsertProp(next, sel, sc, 'height', result.el.height);
     }
+    pushUndo(prev);
     applyEntry(next[sel]);
     persist(next);
     setSp(next);
-  }, [onWindowPointerMove, scaleAsUnit]);
+  }, [onWindowPointerMove, scaleAsUnit, pushUndo]);
 
   useEffect(() => () => window.removeEventListener('pointermove', onWindowPointerMove), [onWindowPointerMove]);
 
   const startMove = (e: React.PointerEvent) => {
     if (!selected) return;
     e.stopPropagation();
+    const el = selected as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const elScale = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
     dragRef.current = {
       kind: 'move', startX: e.clientX, startY: e.clientY,
-      baseX: offsetRef.current.x, baseY: offsetRef.current.y, baseScale: scaleRef.current,
+      baseX: offsetRef.current.x, baseY: offsetRef.current.y, baseScale: scaleRef.current, elScale,
     };
     window.addEventListener('pointermove', onWindowPointerMove);
     window.addEventListener('pointerup', endDrag, { once: true });
@@ -274,10 +374,13 @@ export function EditorOverlay(): JSX.Element | null {
   const startResize = (handle: string) => (e: React.PointerEvent) => {
     if (!selected || !selRect) return;
     e.stopPropagation();
+    const el = selected as HTMLElement;
+    const elScale = el.offsetWidth > 0 ? selRect.width / el.offsetWidth : 1;
     dragRef.current = {
       kind: 'resize', handle, startX: e.clientX, startY: e.clientY,
-      baseW: selRect.width, baseH: selRect.height,
-      baseX: offsetRef.current.x, baseY: offsetRef.current.y, baseScale: scaleRef.current,
+      baseWLocal: el.offsetWidth, baseHLocal: el.offsetHeight,
+      baseWScreen: selRect.width, baseHScreen: selRect.height,
+      baseX: offsetRef.current.x, baseY: offsetRef.current.y, baseScale: scaleRef.current, elScale,
     };
     window.addEventListener('pointermove', onWindowPointerMove);
     window.addEventListener('pointerup', endDrag, { once: true });
@@ -296,6 +399,7 @@ export function EditorOverlay(): JSX.Element | null {
     if (!selector) return;
     setAssetError(null);
     const next = setAsset(sp, selector, scope, url);
+    pushUndo(sp);
     applyEntry(next[selector]);
     persist(next);
     setSp(next);
@@ -314,7 +418,7 @@ export function EditorOverlay(): JSX.Element | null {
     const slug = (selected?.getAttribute('data-uid')
       ?? selected?.getAttribute('data-ui')
       ?? file.name.replace(/\.png$/i, '')
-      ?? 'asset').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 64) || 'asset';
+      ?? 'asset').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+/, '').slice(0, 64) || 'asset';
     try {
       const res = await fetch('/__ui/asset', {
         method: 'POST',
@@ -345,21 +449,28 @@ export function EditorOverlay(): JSX.Element | null {
   const resetElement = () => {
     if (!selector) return;
     const next = removeEntry(sp, selector);
+    pushUndo(sp);
     clearRule(selector);
     persist(next);
     setSp(next);
+    offsetRef.current = { x: 0, y: 0 };
+    scaleRef.current = 1;
   };
 
   const resetAll = () => {
+    pushUndo(sp);
     clearAll();
     persist({});
     setSp({});
+    offsetRef.current = { x: 0, y: 0 };
+    scaleRef.current = 1;
   };
 
   if (!on) return null;
 
   const count = selector ? matchCount(selector) : 0;
   const animated = selected ? isAnimated(selected) : false;
+  const curImage = selected ? currentImage(selected, sp[selector]?.assetPath) : null;
 
   return (
     <div data-ui-editor="root">
@@ -393,17 +504,14 @@ export function EditorOverlay(): JSX.Element | null {
       <div className="uied-toolbar" data-ui-editor="toolbar">
         <div className="uied-row uied-head">
           <span>🎛️ UI Edit Mode</span>
-          {toast && <span className="uied-toast">{toast}</span>}
-          <button
-            className="uied-btn uied-close"
-            data-ui-editor="close"
-            onClick={() => setUiEditMode(false)}
-            title="Close UI Edit Mode (Esc)"
-            aria-label="Close UI Edit Mode"
-          >✕</button>
+          <span className="uied-headright">
+            {toast && <span className="uied-toast">{toast}</span>}
+            <button className="uied-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↶ undo</button>
+            <button className="uied-btn danger" onClick={() => { deselect(); setUiEditMode(false); }} title="Exit UI Edit Mode (Esc)">✕ exit</button>
+          </span>
         </div>
 
-        {!selected && <div className="uied-hint">Click an element to select it.</div>}
+        {!selected && <div className="uied-hint">Click an element to select it.<br />Esc = deselect · Ctrl+Z = undo</div>}
 
         {selected && (
           <>
@@ -454,15 +562,11 @@ export function EditorOverlay(): JSX.Element | null {
 
             <div className="uied-row uied-imgs">
               <span>image</span>
-              <div className="uied-imglist">
-                {Object.entries(PICKER_IMAGES).slice(0, 24).map(([path, url]) => (
-                  <button key={path} className="uied-imgbtn" title={path} onClick={() => pickImage(url)}>
-                    <img src={url} alt="" />
-                  </button>
-                ))}
-              </div>
+              {curImage
+                ? <div className="uied-curimg"><img src={curImage} alt="current" /></div>
+                : <div className="uied-hint">This element shows no image.</div>}
               <label className="uied-btn uied-upload">
-                upload PNG
+                {curImage ? 'replace with PNG' : 'set a PNG'}
                 <input
                   type="file"
                   accept="image/png"
@@ -476,6 +580,7 @@ export function EditorOverlay(): JSX.Element | null {
             <div className="uied-row uied-actions">
               <button className="uied-btn" onClick={() => void copySummary()}>Copy Summary</button>
               <button className="uied-btn" onClick={resetElement}>Reset element</button>
+              <button className="uied-btn" onClick={deselect}>Deselect</button>
               <button className="uied-btn danger" onClick={resetAll}>Reset all</button>
             </div>
           </>
@@ -506,6 +611,7 @@ const CSS = `
 }
 .uied-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .uied-head { justify-content: space-between; font-weight: 600; }
+.uied-headright { display: flex; align-items: center; gap: 8px; }
 .uied-hint { opacity: 0.7; padding: 8px 0; }
 .uied-toast { color: #7fd88f; font-weight: 600; }
 .uied-input { flex: 1; background: #12141a; border: 1px solid #3a3f4b; color: #e8e8ec; border-radius: 4px; padding: 3px 6px; font: inherit; }
@@ -520,7 +626,10 @@ const CSS = `
 .uied-imglist { display: flex; flex-wrap: wrap; gap: 4px; max-height: 96px; overflow: auto; }
 .uied-imgbtn { width: 28px; height: 28px; padding: 0; border: 1px solid #3a3f4b; border-radius: 3px; overflow: hidden; cursor: pointer; background: #12141a; }
 .uied-imgbtn img { width: 100%; height: 100%; object-fit: cover; }
+.uied-curimg { width: 100%; height: 72px; border: 1px solid #3a3f4b; border-radius: 4px; overflow: hidden; background: #12141a; }
+.uied-curimg img { width: 100%; height: 100%; object-fit: contain; }
 .uied-btn { background: #2a2f3a; border: 1px solid #3a3f4b; color: #e8e8ec; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+.uied-btn:disabled { opacity: 0.4; cursor: default; }
 .uied-btn.danger { color: #ff8a9a; }
 .uied-upload { display: inline-block; text-align: center; }
 .uied-error { color: #ff8a9a; font-size: 11px; }

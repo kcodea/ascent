@@ -14,12 +14,19 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
   x:     ['Horizontal offset', 'px', 'Offset from the stage-pinned base point on the board’s right edge. Scales with the board.'],
   y:     ['Vertical offset', 'px', 'Offset from that base point. Positive moves the button down. Scales with the board.'],
   scale: ['Button size', '×', 'Overall size of the button.'],
+  gemX:  ['Gem nudge X', 'px', 'Slide the gem overlay horizontally onto the baked gem.'],
+  gemY:  ['Gem nudge Y', 'px', 'Slide the gem overlay vertically onto the baked gem.'],
+  gemS:  ['Gem fit', '×', 'Size the gem overlay to sit exactly on the baked gem.'],
+  pillX: ['Pill X', 'px', 'Move the "Freeze" label pill horizontally from the button centre.'],
+  pillY: ['Pill Y', 'px', 'Move the "Freeze" label pill vertically from the button centre.'],
+  pillS: ['Pill size', '×', 'Size the "Freeze" label pill.'],
 };
 
 const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = FRZ_RANGES[key];
-  return { key, label, unit, hint, group: 'Placement — art pending', min, max, step };
+  const group = key.startsWith('gem') ? 'Gem overlay' : key.startsWith('pill') ? 'Freeze label' : 'Placement';
+  return { key, label, unit, hint, group, min, max, step };
 });
 
 export const SPEC: TunerSpec<FreezeConfig> = {

@@ -25,10 +25,13 @@ const UI_SRC = join(__dirname, '..');
 const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'damage-burst', why: 'fires at the HP box in the status bar, not at a unit' },
   { file: 'Recruit.tsx', id: 'click-puff', why: 'fires at the cursor' },
-  { file: 'Recruit.tsx', id: 'coins', why: 'fires at the gold counter' },
+  { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'TavernUpButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+  { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
+  { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
+  { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },
 ];
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

@@ -10,17 +10,12 @@ import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
 import { sfx } from './sfx';
+import { playDef } from './fx/playDef';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
-
-// Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
-// root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
-// rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
-// these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
-const F = `${import.meta.env.BASE_URL}frames/`;
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
  *  fit): after layout, if the text overflows the pill's max-width, scale the font down by the overflow
@@ -287,26 +282,29 @@ export function StatusBar() {
                 if (isPassive || !canHero || heroArmed) return;
                 sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)
                 sfx.heroPower(hero.id); // + this hero's own power SFX (heroes/<id>.power.mp3), layered; silent if absent
+                // The authored 'hero-power-spark' FX (FX workbench) from the button's centre on press (owner
+                // ask 2026-08-14). Fires when the power is actually used/armed, not on an inert press.
+                {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+                  playDef('hero-power-spark', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
+                }
                 if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
             >
-              {/* DIAMOND housing (owner direction 2026-07-16 — same strategy as the End Turn diamond,
-                  mirrored to the board's middle-left). Layers, bottom-up: the FULL bronze frame with its
-                  dark face intact (the backing the art fades against — the board never peeks through), the
-                  power art ON TOP clipped to the face window, and the FACE-cut glow above (drop-shadows
-                  follow the inner diamond's alpha; a CSS mask cuts the source pixels back out so only the
-                  halo paints — hover shows it, READY/ARMED pin it). All dialed live by the 💠 tuner via
-                  --hpb-* vars. */}
-              <img className="hpb-glow" src={`${F}heropowerbutton_face.webp`} alt="" draggable={false} aria-hidden="true" />
-              <img className="hpb-frame" src={`${F}heropowerbutton.webp`} alt="" draggable={false} aria-hidden="true" />
-              {/* Art sits in a CLIPPING wrapper (the face window stays fixed) so the 💠 tuner's art
-                  offset/scale dials move the art INSIDE the window without moving the clip. */}
+              {/* CIRCLE treatment (owner ask 2026-08-14): the bronze frame png underneath is gone — the button
+                  is JUST the hero-power art, clipped to a perfect circle. The ready/armed cue + refresh bloom
+                  are now pure-CSS circular glows behind/over the art (no frame pngs), so nothing but the power
+                  image shows. The 💠 tuner still moves/scales the art inside the circle via --hpb-art-*. */}
+              <span className="hpb-glow" aria-hidden="true" />
+              {/* Art sits in a CIRCULAR clipping wrapper so the 💠 tuner's art offset/scale dials move the art
+                  INSIDE the circle without moving the clip. */}
               {heroPowerArt(hero.id)
                 ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
-              {/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (never a loop). */}
-              {refreshFlash && <img className="hpb-flash" src={`${F}heropowerbutton_face.webp`} alt="" draggable={false} aria-hidden="true" />}
+              {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
+              {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
             {(digCost ?? tamerCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? power.cost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel). */}

@@ -30,7 +30,7 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -215,13 +215,12 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-function ShopTimer({ label, practice }: { label: string; practice?: boolean }) {
+function ShopTimer({ practice }: { practice?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
   return (
-    <div className={`statcell time${s <= 5 ? ' low' : ''}`}>
-      <span className="sc-l">{label}</span>
+    <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
       <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
@@ -819,16 +818,6 @@ export function Recruit() {
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
-  // Fire the green buff-burst on a specific card for ~0.7s. Used to guarantee the Hero Power (Fortify)
-  // always animates its target, independent of the passive stat-diff flash.
-  const flashBuffed = useCallback((uid: string): void => {
-    setBuffedUids((s) => new Set([...s, uid]));
-    window.setTimeout(() => setBuffedUids((s) => {
-      const n = new Set(s);
-      n.delete(uid);
-      return n;
-    }), 700);
-  }, []);
   // A one-shot spark burst at a screen point, fired when a spell is cast.
   const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
   const sparkKeyRef = useRef(0);
@@ -2846,7 +2835,10 @@ export function Recruit() {
       const target = minionAt(e.clientX, e.clientY);
       if (target && !timeUp) {
         dispatch({ type: 'heroPower', uid: target.uid });
-        flashBuffed(target.uid); // guarantee the Fortify buff-burst plays on the chosen minion
+        // The authored 'hero-power-target' FX at the targeted unit (owner ask 2026-08-14). Feed the click
+        // point to source/target AND cursor — the def anchors on `cursor`, which is ORIGIN if unsupplied.
+        const p = { x: e.clientX, y: e.clientY };
+        playDef('hero-power-target', { source: p, target: p, cursor: p });
       } else armHero(); // released without a valid target — snaps back / cancels
     };
     window.addEventListener('pointermove', move);
@@ -2856,7 +2848,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, heroTargetsTavern, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, flashBuffed]);
+  }, [heroArmed, heroTargetsTavern, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -3923,8 +3915,11 @@ export function Recruit() {
     if (heroArmed || drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
-    // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def.
-    playDef('click-puff', { source: { x: e.clientX, y: e.clientY }, target: { x: e.clientX, y: e.clientY } });
+    // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def. Feed the
+    // click point to source/target AND cursor so the def emits at the click whichever anchor it declares
+    // (it uses `cursor`, which resolves to ORIGIN if not supplied — the "puff fires in the corner" bug).
+    const p = { x: e.clientX, y: e.clientY };
+    playDef('click-puff', { source: p, target: p, cursor: p });
   };
 
   /**
@@ -4565,13 +4560,14 @@ export function Recruit() {
         setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueWithBonus(card, run) }]); // bartering- AND Quick-Sale-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
-      // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
-      const goldEl = document.querySelector('.statcell.gold');
+      // Sprinkle gold coins out of the GOLD PILL (bottom-right of the board — the gold moved off the top
+      // strip, so the old `.statcell.gold` no longer exists and the burst fired nowhere). The authored
+      // `coin` def; feed the pill's centre to source/target/cursor so it emits there whatever anchor it uses.
+      const goldEl = document.querySelector('.goldpill');
       if (goldEl) {
         const gr = goldEl.getBoundingClientRect();
-        const gx = gr.left + gr.width / 2;
-        const gy = gr.top + gr.height * 0.4;
-        playDef('coins', { source: { x: gx, y: gy }, target: { x: gx, y: gy } });
+        const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
+        playDef('coin', { source: g, target: g, cursor: g });
       }
       dispatch({ type: 'sell', uid: d.uid });
       return true;
@@ -4704,7 +4700,7 @@ export function Recruit() {
         {/* Gold moved to a standalone glass pill bottom-right of the board; Tier moved onto the Tavern Up stone
             (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
         <div className="statstrip">
-          <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} practice={run.mode === 'practice'} />
+          <ShopTimer practice={run.mode === 'practice'} />
         </div>
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,

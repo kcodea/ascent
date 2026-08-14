@@ -63,23 +63,23 @@ export interface HeroPowerBtnConfig {
 // fallbacks.
 const DEFAULTS: HeroPowerBtnConfig = {
   x: -38,
-  y: 295,
-  scale: 0.98,
+  y: 296,
+  scale: 0.9,
   artX: 0,
   artY: 0,
-  artScale: 0.71,
-  artDim: 0.39,
+  artScale: 1.03,
+  artDim: 0.1,
   refreshFlash: 450,
-  glowBlur: 2,
-  glowAlpha: 1,
-  glowStrength: 5,
-  glowPulse: 0.5,
-  glowPulseDepth: 0.1,
+  glowBlur: 14,
+  glowAlpha: 1, // owner sent 11 (above the 0–1 range → clamps to fully-on); baked as 1, identical look.
+  glowStrength: 8,
+  glowPulse: 3,
+  glowPulseDepth: 1,
   glowX: 0,
   glowY: 0,
-  glowW: 1.02,
-  glowH: 1.01,
-  glowColor: '#ffc085',
+  glowW: 1.03,
+  glowH: 1.03,
+  glowColor: '#ffc852',
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -182,8 +182,12 @@ export function applyHeroPowerBtnVars(): void {
   root.setProperty('--hpb-glow-y', String(cfg.glowY));
   root.setProperty('--hpb-glow-w', String(cfg.glowW));
   root.setProperty('--hpb-glow-h', String(cfg.glowH));
-  // The glow filter — a drop-shadow stacked `glowStrength` times (composed here because CSS can't repeat a
-  // filter a variable number of times). STATIC: only the glow layer's opacity animates.
+  // The CIRCLE's glow is a box-shadow ring (no diamond filter): colour + blur (glowBlur) + spread
+  // (glowStrength), all read by the `.hpb-glow` rule. Kept scale-aware — the CSS multiplies blur/spread by --u.
+  root.setProperty('--hpb-glow-color', cfg.glowColor);
+  root.setProperty('--hpb-glow-blur', String(cfg.glowBlur));
+  root.setProperty('--hpb-glow-spread', String(cfg.glowStrength));
+  // Legacy filter var (unused by the circle) kept in sync so nothing that still reads it goes stale.
   const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
   root.setProperty('--hpb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
 }

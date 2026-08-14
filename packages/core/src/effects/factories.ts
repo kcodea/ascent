@@ -1009,6 +1009,30 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** TRANSCENDENCE (owner add 2026-08-14) — Start of Combat: Engrave the adjacent `tribe` minions (Dragons), then
+   *  give ALL of your `tribe` +atk/+hp. Deliberately ONE factory rather than Taurus + a tribe-buff stacked: the
+   *  order matters — the neighbours must be Engraved BEFORE the buff lands so this fight's +3/+3 is part of what
+   *  they keep (`ctx.buff` accrues into `permaGain` only for EG carriers). Off-tribe neighbours are skipped, so
+   *  a Dragon flanked by Beasts just buffs. Golden doubles the grant, not the Engrave. */
+  scEngraveTribeNeighboursBuffTribe: (ctx, self, params) => {
+    if (self.dead) return;
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const isTribe = (m: Minion | undefined): m is Minion =>
+      !!m && !m.dead && m.health > 0 && (m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe);
+    const board = ctx.boards[self.side];
+    const i = board.indexOf(self);
+    if (i >= 0) {
+      for (const m of [board[i - 1], board[i + 1]]) {
+        if (isTribe(m) && !m.keywords.includes('EG')) m.keywords.push('EG'); // per-combat clone, never a shared CardDef
+      }
+    }
+    const a = num(params.attack, 3) * mul(self);
+    const h = num(params.health, 3) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} engraves the flight (+${a}/+${h})` });
+    for (const m of ctx.living(self.side)) if (isTribe(m)) ctx.buff(m, a, h, self.uid);
+  },
+
   /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its
    *  combat stat-gains (carried back via `playerPermaBuffs`). "Triggers first": it runs in a priority SoC pass
    *  before the others, so later Start-of-Combat buffs are engraved too. */
@@ -1501,6 +1525,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const card = ctx.getCard(str(params.cardId));
     if (!card) return;
     ctx.summon(self.side, card, self.uid, undefined, self.golden, false);
+  },
+
+  /** GROBBUS (owner add 2026-08-14) — Avenge (X): every X friendly deaths, get a random `tribe` minion (golden
+   *  gets two). Routes through `ctx.grantRandomMinion`, which picks from the run's BUYABLE pool (≤ tavern tier,
+   *  active tribes) at settle and animates a real `toHand` — the same channel Sea Urchin's re-fired Discover
+   *  uses, so it respects the hand cap and the pinned set. Player-only by that helper's own guard. */
+  avengeGrantRandomTribeMinion: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3)); // the Avenge threshold
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
+    ctx.grantRandomMinion(num(params.grant, 1) * mul(self), str(params.tribe) || 'demon', self.side, undefined, self.uid);
   },
 
   /** Endless Overseer (owner rework 2026-08-12) — Avenge (X): every X friendly deaths, summon `summon` Imp(s)
@@ -2593,6 +2630,30 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
     }
+  },
+
+  /** DRUNKEN OAF (owner add 2026-08-14) — Start of Combat: give A `tribe` minion +atk/+hp, and repeat that grant
+   *  once more for every Ale cast this turn. So the reps are `1 + ales`, not `ales` — the base grant lands on a
+   *  dry turn too, which is what "Give a Dwarf +2/+2. Repeat for…" prints.
+   *
+   *  Each rep re-rolls its target (owner ruling 2026-08-14), so a long brew sprays the line rather than spiking
+   *  one body — the pick is a fresh `ctx.rng` draw per rep off the seeded combat RNG, and self is eligible.
+   *  `alesLastTurnFor` is the shop phase that JUST ENDED, i.e. "this turn" from the player's chair (the same
+   *  read Bucky uses; its name is historical). Golden doubles the per-rep grant, not the rep count. */
+  scBuffRandomTribePerAle: (ctx, self, params) => {
+    if (self.dead) return;
+    const tribe = (str(params.tribe) || 'dwarf') as Tribe;
+    const targets = ctx.living(self.side).filter(
+      (m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe,
+    );
+    if (targets.length === 0) return;
+    const ales = ctx.alesLastTurnFor?.(self.side) ?? 0;
+    const reps = 1 + ales;
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} buys ${reps} round${reps === 1 ? '' : 's'} (+${a}/+${h})` });
+    for (let n = 0; n < reps; n++) ctx.buff(ctx.rng.pick(targets), a, h, self.uid);
   },
 
   scTribeBuffImproving: (ctx, self, params) => {

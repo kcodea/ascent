@@ -230,7 +230,11 @@ export type EffectFactoryId =
   | 'battlecryTargetConsumesShop' // Set 2 — Appetite Agent: the TARGET consumes N Shop minions
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
-  | 'endOfTurnGainRightmostShopStats' // Set 2 — Bob Blart: gain the right-most shop minion's stats (no consume)
+  | 'endOfTurnGainRightmostShopStats' // Set 2 — (legacy Bob Blart) gain the right-most shop minion's stats (no consume)
+  | 'onShopRefreshGainRightmostShopStats' // Set 2 — Hellrider: every N refreshes, gain the right-most Shop minion's stats (no consume)
+  | 'avengeGrantRandomTribeMinion' // Set 2 — Grobbus: Avenge (X) — get a random minion of a tribe
+  | 'scEngraveTribeNeighboursBuffTribe' // Set 2 — Transcendence: SoC Engrave adjacent tribe-mates, then buff the tribe
+  | 'scBuffRandomTribePerAle' // Set 2 — Drunken Oaf: SoC buff a random tribe minion, once + once per Ale cast this turn
   | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
   | 'onConsumeGoldFlat' // Set 2 — (legacy) the first consume each turn pays a flat Gold amount

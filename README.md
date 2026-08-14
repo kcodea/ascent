@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance batch + 3 new minions** — five Set-2 Demons retuned, with **Bob Blart** (now T4 6/5) and **Hellrider** trading jobs: Blart *Consumes* the right-most Shop minion, Hellrider *copies* its stats and leaves it buyable. Right Hand Hank (+3/+2), Market Tormentor (+7/+6) and Chipper (T5 8/7) rebalanced. New: **Grobbus** (Avenge 3: get a random Demon), **Transcendence** (Engraves adjacent Dragons, then buffs the flight), **Drunken Oaf** (a Dwarf buff repeated per Ale cast). Fixed: Rubies granted by **Candlelight Toll** arrived as flat 1/1s instead of the run's real Ruby strength.
+
 - **In-run UI editor (dev-only)** — a direct-manipulation editor for the in-run DOM UI (cards, HUD, shop, panels, text) with live override stylesheet, move/resize, restyle knobs, image swap, and a copyable summary for chat-driven fixes.
 - **New Demon art + an illustrated Runeforge** — every Set-2 Demon (plus the Imp token and Imp Overseer) wears new illustrated art, and the Runeforge menus now open on a painted forge backdrop instead of a flat slate scrim. A new 🪨 Runeforge Backdrop dev tuner places that art (fit, zoom, position, scrim) against the real panel.
 

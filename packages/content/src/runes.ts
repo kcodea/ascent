@@ -1870,7 +1870,8 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Blart',
     cost: 6,
     epic: true,
-    text: 'Get a **Bob Blart**. Your **Bob Blarts** gain the stats of both the **left and right-most** Shop minions.',
+    // Retext 2026-08-14 with Blart's rework: he EATS now, so the rune's second offer is eaten too, not copied.
+    text: 'Get a **Bob Blart**. Your **Bob Blarts** Consume both the **left and right-most** Shop minions.',
     previewCards: ['dm_gourmand'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
     sets: ['set2'],

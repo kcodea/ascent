@@ -1,5 +1,60 @@
 # ASCENT — development log
 
+## 2026-08-14 — owner balance batch: 5 Demon changes, 3 new minions, and the Candlelight Toll Ruby fix
+
+**Balance (owner sheet).** Five Set-2 Demons retuned, two of them swapping jobs:
+- **Right Hand Hank** — Echo buff `+6/+3 → +3/+2` (gild `+12/+6 → +6/+4`). A 4/1 built to die was stacking the
+  right-most-slot accumulator far too fast for how cheaply it replays.
+- **Market Tormentor** — Shout buff `+7/+7 → +7/+6` (gild `+14/+14 → +14/+12`).
+- **Bob Blart** — `T5 7/7 → T4 6/5`, and he **Consumes** the right-most offer instead of copying its stats
+  (`endOfTurnGainRightmostShopStats` → `consumeShopRightmost`). The offer now leaves the row and the consume
+  payoffs fire (Avarice, Pactstone, Bottomless Banquet), which the copy shape deliberately skipped.
+- **Chipper** — `T4 4/4 → T5 8/7`.
+- **Hellrider** — stops eating and takes over Blart's old copy-don't-eat shape: every 4 refreshes it gains the
+  right-most Shop minion's stats and leaves it buyable (new `onShopRefreshGainRightmostShopStats`, the same
+  per-instance `eotTick` refresh meter). The two Demons traded jobs on purpose — the cheap one eats the row, the
+  Tier-6 one farms it without shrinking your options.
+
+**Follow-on the batch forced: Rune of Blart.** Its "also take the LEFT-most" clause lived *inside* the factory
+Bob Blart just moved off, so the rework would have silently reduced a 6-cost epic to "get a Bob Blart" and
+nothing else. The clause moved with the card into `consumeShopRightmost` — as a second **eat**, not a second
+stat-copy — and the rune's text was updated to say Consume. The left-most is re-found *after* the right-most is
+eaten so a one-offer shop can't be double-eaten.
+
+**New minions (3).** Art wired from `Set 2 Minions/` (all three matched by name; no aliases needed):
+- **Grobbus** — T4 Demon 5/5. *Avenge (3): get a random Demon.* New `avengeGrantRandomTribeMinion`, routed
+  through `ctx.grantRandomMinion` so the pick comes from the run's buyable pool at settle (≤ tavern tier,
+  pinned set) and respects the hand cap. Golden grants 2.
+- **Transcendence** — T4 Dragon 4/5, Ward. *Start of Combat: Engrave adjacent Dragons. Give your Dragons +3/+3.*
+  New `scEngraveTribeNeighboursBuffTribe`. The order inside it is load-bearing: the Engrave lands **first**, so
+  this fight's +3/+3 is part of what the neighbours keep. Off-tribe neighbours are skipped; golden doubles the
+  buff, not the Engrave.
+- **Drunken Oaf** — T4 Dwarf 4/4. *Start of Combat: give a Dwarf +2/+2. Repeat for every ale cast this turn.*
+  New `scBuffRandomTribePerAle`; reps are `1 + ales` (a dry turn still pays once). Owner ruling: each rep
+  **re-rolls its target**, so a long brew sprays the line rather than spiking one body. Per the card-text rule
+  the rep count is live: `drunkenOafText` folds it into both chains (`liveCardText` + `Unit.tsx`), which meant
+  threading `alesThisTurn` through `LiveTextParams`, `ShopViewOpts`, `liveOptsFromRun`, the `live` memo and the
+  combat path. Player-only — an enemy snapshot carries no Ale tally, so a served Oaf reads its printed text.
+
+**Bug fix — Candlelight Toll granted 1/1 Rubies** (owner report, with a screenshot of a +1/+1 Ruby beside the
+run's +3/+3 ones). The quest's dying-Kobold grant used `ctx.grantToHand('ruby', …)`, which carries back a **raw
+pool copy** of the Ruby card — a flat 1/1 — so a Kobold deck that had built its Ruby strength up got junk out of
+its own quest while every other source paid full value. Rubies are **minted, never conjured**: switched to
+`ctx.grantRubies`, which rides `playerRubyGrants` and runs the run's real `mintRubies` at settle with the live
+`rubyBonus` baked in (and fires the "when you GET a Ruby" watchers — Motherlode, Candle Conduit — that the
+hand-grant channel also skipped). Same replay `toHand` event either way.
+
+Registry upkeep: 4 new `EffectFactoryId`s + schema whitelist entries; 5 presentation-policy keys added and the
+2 now-dead ones (`endOfTurnGainRightmostShopStats:endOfTurn`, `onShopRefreshConsume:shopRefreshed`) removed, so
+`presentationPolicies.test.ts` stays ghost-free.
+
+**Verified.** `typecheck` + `lint` + `build:web` green; **5297/5297 tests pass** (5279 before, +18 new). New
+coverage in `contentBatchAug14.test.ts` (the three cards incl. the Engrave-vs-buff distinction via
+`playerPermaBuffs`, the Rune of Blart double-eat + its one-offer edge, Hellrider eating nothing) and a
+`drunkenOafText` case in `cardText.test.ts`; the Toll test now pins the mint **channel and count** rather than
+`toContain('ruby')`, which could not tell one grant from two. Note `art:wire` re-encodes unrelated `.webp`s and
+drops untracked `.png` intermediates — reverted all of that, so only the 3 new art files are in the diff.
+
 ## 2026-08-14 — bake owner's Layout Lab defaults (shop/warband/hand/inspect/sell-zone)
 
 Baked the owner's tuned Layout Lab values into `layoutConfig.ts` `LAYOUT_VARS[].def`, with the matching

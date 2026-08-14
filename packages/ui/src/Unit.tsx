@@ -80,6 +80,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
         playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
+        // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
+        // printed text — the same fallback every other run-scoped scaler takes on the foe side.
+        alesThisTurn: foe ? undefined : run.alesCastThisTurn,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
         // Runesnout Archivist's journal + Ashen Heir's banked Imp stats, LIVE during the fight: both cards are

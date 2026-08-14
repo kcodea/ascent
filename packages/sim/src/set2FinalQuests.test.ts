@@ -61,15 +61,24 @@ describe('Candlelight Toll — your Kobolds have "Echo: get a Ruby"', () => {
     const kobold = CARD_INDEX['k_gemheart']!;
     const dying = (cardId: string): BoardMinion[] => [{ cardId, attack: 0, health: 1 }];
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 9 }];
+    // BUG FIX 2026-08-14 (owner report: "rubies granted from Candlelight Toll don't grant the correct value"):
+    // the grant moved off `playerHandGrants` (a raw 1/1 pool copy) onto `playerRubyGrants`, the MINT channel
+    // that bakes in the run's live `rubyBonus` at settle. Asserting the channel is the regression guard —
+    // a hand grant can never be worth the run's Ruby strength.
+    // TWO, not one: the Carver's own Echo summons a Gemheart Golem, which is also a Kobold and also dies to the
+    // 9/9 — so the Toll fires for both bodies. The old assertion was `toContain('ruby')`, which could not tell
+    // one grant from two; pinning the count is the point of moving to a numeric channel.
     const withToll = sim(dying(kobold.id), enemy, { candlelightToll: true });
-    expect(withToll.playerHandGrants ?? [], 'a dying Kobold granted no Ruby').toContain('ruby');
+    expect(withToll.playerRubyGrants ?? 0, 'a dying Kobold minted no Ruby').toBe(2);
+    expect(withToll.playerHandGrants ?? [], 'Rubies are minted, never conjured as a flat 1/1').not.toContain('ruby');
     const beast = sim(dying('pack'), enemy, { candlelightToll: true });
-    expect((beast.playerHandGrants ?? []).filter((g) => g === 'ruby').length, 'a non-Kobold granted a Ruby').toBe(0);
+    expect(beast.playerRubyGrants ?? 0, 'a non-Kobold minted a Ruby').toBe(0);
   });
 
   it('grants nothing without the quest', () => {
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 9 }];
     const r = sim([{ cardId: 'k_gemheart', attack: 0, health: 1 }], enemy, {});
+    expect(r.playerRubyGrants ?? 0).toBe(0);
     expect((r.playerHandGrants ?? []).filter((g) => g === 'ruby').length).toBe(0);
   });
 });

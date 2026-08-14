@@ -1,0 +1,32 @@
+{
+  "learner": "Mike",
+  "startedOn": "2026-08-14",
+  "level": "beginner",
+  "difficulty": 1,
+  "difficultyScale": "1 = gentlest (what is a function). 5 = deep (trace an event through the sim). Ramp only per the rules in daily-prompt.md.",
+  "totalQuizzes": 0,
+  "recentScores": [],
+  "topics": {},
+  "curriculum": [
+    { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core as the concrete example: inputs -> output.", "difficulty": 1 },
+    { "id": "shop-vs-combat", "title": "The two phases: shop (recruit) vs combat", "hint": "docs/GAME-RULES.md + CLAUDE.md: build a board, then it auto-resolves.", "difficulty": 1 },
+    { "id": "auto-battler-loop", "title": "What an auto-battler is / the core loop", "hint": "17-round course, boards fight on their own.", "difficulty": 1 },
+    { "id": "deterministic-sim", "title": "What 'deterministic' means", "hint": "Same inputs -> same outputs, every time. Why replays work.", "difficulty": 2 },
+    { "id": "seeded-rng", "title": "The seeded RNG (mulberry32) and fork()", "hint": "packages/core/src/rng.ts. Why Math.random is banned.", "difficulty": 2 },
+    { "id": "pure-functions", "title": "Pure functions (no side effects)", "hint": "simulate() computes an event log; the UI never computes outcomes.", "difficulty": 2 },
+    { "id": "data-vs-code", "title": "Data-driven cards: data vs code", "hint": "Cards are data + effect subscriptions, not bespoke classes.", "difficulty": 2 },
+    { "id": "monorepo-packages", "title": "The monorepo: core / content / sim / ui", "hint": "CLAUDE.md Monorepo section. What each package is responsible for.", "difficulty": 2 },
+    { "id": "event-log-replay", "title": "The event log and replay", "hint": "simulate returns { events, result, ... }; UI animates the log on its own clock.", "difficulty": 3 },
+    { "id": "types-basics", "title": "TypeScript basics: types and unions", "hint": "packages/core/src/types.ts, the CombatEvent union.", "difficulty": 3 },
+    { "id": "immutability", "title": "Immutability: never mutate shared CardDefs", "hint": "Clone into combat Minion instances.", "difficulty": 3 },
+    { "id": "reducer-run-state", "title": "The reducer and run state", "hint": "packages/sim/src/reducer.ts + state.ts drive a run.", "difficulty": 3 },
+    { "id": "zustand-store", "title": "UI state with Zustand", "hint": "packages/ui/src/store.ts holds presentation state.", "difficulty": 3 },
+    { "id": "cards-in-sets", "title": "Cards live in SETS", "hint": "packages/content/src/sets.ts; a run pins its set.", "difficulty": 3 },
+    { "id": "effects-as-subscriptions", "title": "Effects as data subscriptions", "hint": "Battlecry/Deathrattle etc. as effect factories, not classes.", "difficulty": 4 },
+    { "id": "testing-vitest", "title": "Testing: vitest, determinism + golden tests", "hint": "npm test; golden/determinism tests lock behavior.", "difficulty": 4 },
+    { "id": "eslint-rules", "title": "Lint rules that protect the design", "hint": "The Math.random ban is ESLint-enforced in core/content/sim.", "difficulty": 4 },
+    { "id": "performance-memo", "title": "Performance: React.memo and stable props", "hint": "docs/performance.md; animate transform/opacity only.", "difficulty": 4 }
+  ],
+  "history": [],
+  "notes": "Seeded 2026-08-14. Empty topics/history until the first run. The daily routine reads and rewrites this file."
+}

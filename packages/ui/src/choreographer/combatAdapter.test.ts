@@ -115,3 +115,26 @@ describe('the family map is total over MomentKind', () => {
     for (const k of kinds) expect(FAMILY_BY_MOMENT[k], `${k} unmapped`).toBeTruthy();
   });
 });
+
+describe('PR 23 — stamped minion effects are keyed on the combat timeline', () => {
+  it("a buff carrying Oona's stamped identity adapts to a keyed node under HER card", () => {
+    const events = [
+      { type: 'summon', minion: { uid: 'p1', cardId: 'pup', attack: 1, health: 1, keywords: [] }, side: 'player' },
+      { type: 'buff', target: 'p1', attack: 2, health: 2, source: 'OO', key: 'factory:onSummonTribeBuffThenDouble:onSummon', srcCard: 'b2_oona' },
+    ] as unknown as CombatEvent[];
+    const moments = compileMoments(events);
+    const input = adaptCombatMoments(moments, events);
+    const keyed = input.nodes.find((n) => n.policyKey === 'factory:onSummonTribeBuffThenDouble:onSummon');
+    expect(keyed, 'Oona became addressable on the fight timeline').toBeTruthy();
+    expect(keyed!.source.kind).toBe('minion');
+    expect(keyed!.source.id).toBe('b2_oona');
+  });
+
+  it('a stamped key the registry does not carry is NOT keyed — reported, never guessed', () => {
+    const events = [
+      { type: 'buff', target: 'p1', attack: 1, health: 1, source: 'x', key: 'factory:ghostFactory:onSummon', srcCard: 'ghost' },
+    ] as unknown as CombatEvent[];
+    const input = adaptCombatMoments(compileMoments(events), events);
+    expect(input.nodes.every((n) => !n.policyKey)).toBe(true);
+  });
+});

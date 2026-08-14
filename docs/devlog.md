@@ -25,6 +25,38 @@ trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped
 tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
 and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
 `build:web` green (CSS parses); visual confirmation is the owner's.
+## 2026-08-13 - Beat CHOREOGRAPHER PR 23: minion combat effects carry their identity - the CLASS, not Oona
+
+The owner's ruling, verbatim: "dont make oona herself work, let's just keep working through our workload
+until this is all done and inclusive." So: the ~109 identity-less minion combat triggers (onSummon, onAttack,
+onDeath, avenge, onKill, startOfCombat...) become addressable AS A CLASS, with King Oona as the acceptance
+case rather than a special case.
+
+**The mechanism** mirrors `inAvenge`, the file's own precedent: an ACTIVE EFFECT context in `simulate`. While
+any minion's combat effect runs, every event it emits is stamped with `key` (`factory:<do>:<on>` - the
+registry's own grammar) and `srcCard`. All 18 dispatch sites wrapped (the bus, `emitOnSummonOrdered`,
+deathrattles, Rally/on-kill chains, Start-of-Combat casts, Twilight replays). Identity travels ON the events
+gameplay already emits: no new event types, no count/order changes, so replay grouping is untouched and NO
+golden regenerated - the full suite passed unchanged. `CombatEvent` gains the fields on its existing
+intersection, beside `step`/`avenge`, as pure presentation metadata.
+
+**Consumers:**
+- The combat adapter keys any moment whose primary carries a registry-known stamp - source = the CARD, so the
+  Combat tab shows "King Oona - buffWave [keyed]" under her own name.
+- `combatKeyedHoldMs` accepts the minion shape beside the quest/rune flags: same gate
+  (`ascent.combatbeats`), same LIVE-draft layering, and the LIBRARY's own edit key
+  (`source:minion:<cardId>:<on>`) matches the chain - so flipping Oona folded->own in the Lab now re-bases
+  her read in a real fight, exactly the owner's original report, delivered as one member of a class.
+- A stamped key the registry does not carry is never keyed and never guessed (PR 1's rule, held in combat).
+
+Verified live: an Oona + Pack (Deathrattle Pups) fight publishes
+"Mama Pup - summon - factory:deathrattleSummon:onDeath" and
+"King Oona - buffWave - factory:onSummonTribeBuffThenDouble:onSummon" - two effects, two identities, real
+names. Unit-level: outcomes byte-identical with the stamp stripped; deterministic; attacks/damage unstamped.
+
+typecheck + lint + npm test (5306, +13) + build:web + npm run perf all green (combat hot path touched -
+perf measured per CLAUDE.md).
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 22: every ACTIVATED hero power emits (audit step 5)
 
 The owner's direction: no one-off fixes (King Oona stays un-special-cased) - work through the classes until

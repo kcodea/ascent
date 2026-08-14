@@ -44,10 +44,13 @@ export function combatBeatsEnabled(): boolean {
   try { return localStorage.getItem('ascent.combatbeats') === '1'; } catch { return false; }
 }
 
-/** The minimum of a combat event this needs: a quest/rune trigger carrying its flag. */
+/** The minimum of a combat event this needs: a quest/rune trigger's flag, or a stamped minion effect. */
 export interface KeyedPrimaryLike {
   type: string;
   flag?: string;
+  /** PR 23: the registry key + card the simulator stamped while a MINION effect emitted this. */
+  key?: string;
+  srcCard?: string;
 }
 
 export interface CombatHoldOptions {
@@ -64,23 +67,36 @@ export interface CombatHoldOptions {
 export function combatKeyedHoldMs(primary: KeyedPrimaryLike, options: CombatHoldOptions = {}): number | null {
   const enabled = options.enabled ?? combatBeatsEnabled();
   if (!enabled) return null;
-  if (primary.type !== 'questTrigger' && primary.type !== 'questComplete') return null;
-  if (!primary.flag) return null;
-  const owner = combatFlagOwner(primary.flag);
-  if (!owner) return null;
 
-  const entry = PRESENTATION_POLICIES[owner.key];
-  // The node's trigger is the SURFACE's phase segment (`rune:X:combat` → 'combat'), NOT the event type.
-  // The Library writes edit keys from the surface (`source:rune:X:combat`), so resolving on 'questTrigger'
-  // here would mean an edit made through the actual UI never matches — found by walking the owner's real
-  // path end to end rather than only the hand-crafted draft key.
-  const surfaceTrigger = owner.key.split(':')[2] ?? primary.type;
+  // Two keyed shapes, one resolution. Quest/rune triggers carry a `flag`; minion effects (PR 23) carry the
+  // stamped `key` + `srcCard`. Identity is present on the event or the moment keeps its pacing — never guessed.
+  let registryKey: string;
+  let sourceKind: 'rune' | 'quest' | 'minion';
+  let sourceId: string;
+  if ((primary.type === 'questTrigger' || primary.type === 'questComplete') && primary.flag) {
+    const owner = combatFlagOwner(primary.flag);
+    if (!owner) return null;
+    registryKey = owner.key;
+    sourceKind = owner.kind;
+    sourceId = owner.id;
+  } else if (primary.key && primary.srcCard && PRESENTATION_POLICIES[primary.key]) {
+    registryKey = primary.key;
+    sourceKind = 'minion';
+    sourceId = primary.srcCard; // the CARD, so the Library's `source:minion:<cardId>:<on>` edit key matches
+  } else {
+    return null;
+  }
+
+  const entry = PRESENTATION_POLICIES[registryKey];
+  // The node's trigger is the key's own trailing segment ('combat' for rune/quest surface keys, 'onSummon'
+  // etc. for factory keys) — the same segment the Library writes into edit keys, so a UI edit always matches.
+  const surfaceTrigger = registryKey.split(':')[2] ?? primary.type;
   const node: TimelineSourceNode = {
-    id: `hold:${primary.flag}`,
+    id: `hold:${registryKey}`,
     phase: 'combat',
-    source: { kind: owner.kind, id: owner.id },
+    source: { kind: sourceKind, id: sourceId },
     trigger: surfaceTrigger,
-    policyKey: owner.key,
+    policyKey: registryKey,
     family: entry?.family,
     emittedPolicy: modeForPolicy(entry?.policy ?? 'foldedCue'),
     step: 0,

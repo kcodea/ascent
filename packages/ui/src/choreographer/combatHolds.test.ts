@@ -76,3 +76,37 @@ describe('keyed triggers take compiled timing', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('PR 23 — the MINION class is tunable through the same gate (Oona et al.)', () => {
+  const oona = { type: 'buff', key: 'factory:onSummonTribeBuffThenDouble:onSummon', srcCard: 'b2_oona' };
+
+  it('a stamped minion effect resolves through its registry row', () => {
+    const hold = combatKeyedHoldMs(oona, { enabled: true, config: EMPTY, draft: null });
+    expect(hold).toBe(MODE_DEFAULTS.reactInsideParent.completionOffsetMs); // summonReact is foldedCue today
+  });
+
+  it("the LIBRARY's own edit key (source:minion:<cardId>:<on>) re-paces it", () => {
+    const hold = combatKeyedHoldMs(oona, {
+      enabled: true, config: EMPTY,
+      draft: { timings: { 'source:minion:b2_oona:onSummon': { windupMs: 0, holdMs: 1800, recoveryMs: 0 } }, policies: {} },
+    });
+    expect(hold).toBe(1800);
+  });
+
+  it("the owner's ORIGINAL ask, now as a class member: flip Oona to ownBeat and the read re-bases", () => {
+    const own = combatKeyedHoldMs(oona, {
+      enabled: true, config: EMPTY,
+      draft: { timings: {}, policies: { 'source:minion:b2_oona:onSummon': 'ownBeat' } },
+    })!;
+    expect(own).toBe(MODE_DEFAULTS.ownBeat.completionOffsetMs);
+  });
+
+  it('an unstamped moment, or a stamped key the registry does not carry, keeps its pacing', () => {
+    expect(combatKeyedHoldMs({ type: 'buff' }, { enabled: true, config: EMPTY })).toBeNull();
+    expect(combatKeyedHoldMs({ type: 'buff', key: 'factory:notReal:onSummon', srcCard: 'x' }, { enabled: true, config: EMPTY })).toBeNull();
+  });
+
+  it('flag off → null for the minion path too', () => {
+    expect(combatKeyedHoldMs(oona, { enabled: false })).toBeNull();
+  });
+});

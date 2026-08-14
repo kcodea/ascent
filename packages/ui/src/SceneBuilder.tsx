@@ -304,10 +304,20 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             <div className="sb-label">Search</div>
             <input
               className="sb-search"
-              placeholder="name, id, tribe, or keyword (e.g. avenge, deathrattle)…"
+              placeholder="name, id, tribe, keyword… — ↵ adds the top match to the shop"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match."
+              onKeyDown={(e) => {
+                // Rapid-fire keyboard add (owner ask 2026-08-14): Enter drops the top card match into the shop
+                // without reaching for the mouse. The text is re-selected, not cleared, so a second Enter adds
+                // ANOTHER copy of the same card and typing over it switches to the next — never leaving the box.
+                if (e.key === 'Enter' && results.length > 0) {
+                  e.preventDefault();
+                  addToShop(results[0]!.id);
+                  e.currentTarget.select();
+                }
+              }}
+              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. Press ↵ to add the top match to the shop (again for another copy)."
             />
           </div>
 

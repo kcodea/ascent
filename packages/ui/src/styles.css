@@ -1039,6 +1039,14 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }
+/* A hovered hand card must sit ABOVE the HUD (hero power, gold, the shop buttons). It can't on its own: the
+   hand zone is a z-index:25 FIXED child of `.app`, and `.app` is a z-index:1 stacking context — so the card's
+   z-index:50 only ranks it WITHIN `.app`, which as a whole stays pinned below the fixed HUD siblings that live
+   outside it (`.statusbar` z40 holds the hero power, the z41 gold/refresh/end-turn/tavern buttons, `.topright`
+   z60). Lift the whole board context above them, but ONLY while a hand card is hovered — the same
+   container-on-hover trick `.questbadges:has(.questbadge:hover)` uses. Not during a drag: the hand tucks (the
+   rule above kills the hover-lift), so there is nothing to raise and the dragged card owns its own top layer. */
+body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: 70; }
 /* The PRE-EMPTIVE reorder slide. During a drag, the board/shop cards open the drop slot via an inline
    `transform: translateX(±half-slot)` (Card's `slideDir`, set from the live gap index). This ease-out
    transition glides that transform as the gap moves — fast then settling — the "make room" animation.

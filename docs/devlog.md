@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-14 — a hovered hand card now lifts above the HUD (hero power, gold, shop buttons)
+
+Owner report: hovering a card in hand pops it up but it renders BEHIND the HUD (the hero power button and the
+gold/refresh/end-turn buttons). Root cause is a stacking-context trap, not a too-low z-index: the hand zone is a
+`z-index:25` **fixed child of `.app`**, and `.app` is itself a `z-index:1` stacking context — so the hovered
+card's `z-index:50` only ranks it *within* `.app`, and `.app` as a whole stays pinned below the fixed HUD
+siblings that live outside it (`.statusbar` z40 → hero power; the z41 gold/refresh/end-turn/tavern buttons;
+`.topright` z60). Raising the card or the hand zone can't escape that cap.
+
+Fix (one CSS rule, `styles.css`): lift the whole board context above the HUD **only while a hand card is
+hovered** — `body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: 70; }`. Same container-on-hover
+trick the codebase already uses at `.questbadges:has(.questbadge:hover)`. Scoped to not-dragging because a drag
+tucks the hand (the hover-lift is already killed there) and the dragged card owns its own top layer. Transient
+and board-region transparent, so it doesn't occlude the HUD except where the hovered card intends to. Verified:
+`build:web` green (CSS parses); visual confirmation is the owner's.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 17: combat quest/rune triggers are ADDRESSABLE
 
 PR 16 made combat inspectable but identity-less. This gives the quest/rune combat triggers - the ~92 combat

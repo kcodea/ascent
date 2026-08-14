@@ -343,6 +343,28 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
+ * DRUNKEN OAF (`scBuffRandomTribePerAle`) — Start of Combat gives a Dwarf +A/+H, repeated once more for every
+ * Dwarven Ale cast this turn, so the reps are `1 + ales`. Spell out what it will ACTUALLY do right now: the rep
+ * count and the total stats it's about to hand out, alongside the unchanged per-rep rate. Returns null on a dry
+ * turn (0 Ales → one rep → the printed text is already exact), matching every sibling helper's contract.
+ */
+export function drunkenOafText(cardId: string, golden: boolean, alesThisTurn: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scBuffRandomTribePerAle');
+  if (!def || !eff) return null;
+  const ales = alesThisTurn ?? 0;
+  if (ales <= 0) return null; // no Ales yet → the printed "give a Dwarf +2/+2. Repeat for…" stands
+  const mult = golden ? 2 : 1;
+  const a = Number((eff.params as { attack?: number })?.attack ?? 2) * mult;
+  const h = Number((eff.params as { health?: number })?.health ?? 2) * mult;
+  const reps = 1 + ales;
+  const tribe = String((eff.params as { tribe?: string })?.tribe ?? 'dwarf');
+  const label = tribe.charAt(0).toUpperCase() + tribe.slice(1);
+  // Each rep re-rolls its target, so the honest headline is "N times", not one fat number on one body.
+  return `**Start of Combat:** give a **${label}** **+${a}/+${h}**, {{${reps} times}} (**${ales}** Ale${ales === 1 ? '' : 's'} cast this turn).`;
+}
+
+/**
  * Pack Leader (`scTribeBuffImproving`, step 0) — Start of Combat spends its permanent per-instance tally
  * (`summonBonus`, accrued +step per Beast played WHILE on board) as a +X/+X Beast buff, where X = tally ×
  * golden. Surface the CURRENT total grant (green) alongside the per-Beast rate. Returns null before any Beast
@@ -976,7 +998,7 @@ export function stepProgress(
   // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
   const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
-  // Hellrider: the REFRESH meter. Its tally rides `eotTick` (see `onShopRefreshConsume`), so this branch
+  // Hellrider: the REFRESH meter. Its tally rides `eotTick` (see `onShopRefreshGainRightmostShopStats`), so this branch
   // must come before the End-of-Turn cadence one would otherwise claim that field — the two are different
   // triggers sharing one counter.
   const refreshed = def.effects.find((e) => e.on === 'shopRefreshed' && (e.params as { every?: number } | undefined)?.every !== undefined);

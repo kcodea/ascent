@@ -2677,12 +2677,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     consumeShopMinion(ctx.state, self, pick, num(params.times, 1) * (self.golden ? 2 : 1));
   },
 
-  /** Set 2 — Demon Horse / Hellrider: consume the RIGHT-most Shop minion. Golden doubles the stats gained
-   *  ("and gain double its stats"), not the number eaten. */
+  /** Set 2 — Bob Blart (2026-08-14): consume the RIGHT-most Shop minion. Golden doubles the stats gained
+   *  ("and gain double its stats"), not the number eaten.
+   *
+   *  Rune of Blart rides HERE now. It used to live in `endOfTurnGainRightmostShopStats`, which is where Blart's
+   *  effect was before the 2026-08-14 rework — leaving it there would have turned a 6-cost epic into "get a Bob
+   *  Blart" and nothing else, since no card points at that factory any more. It follows the card: the rune's
+   *  clause is a second EAT (the left-most offer) rather than a second stat-copy, and the rune's text says so. */
   consumeShopRightmost: (ctx, self, params) => {
+    const times = num(params.times, 1) * (self.golden ? 2 : 1);
     const i = rightmostShopMinion(ctx.state);
     if (i < 0) return;
-    consumeShopMinion(ctx.state, self, i, num(params.times, 1) * (self.golden ? 2 : 1));
+    consumeShopMinion(ctx.state, self, i, times);
+    if (!ctx.state.runeBlart) return;
+    // Re-find the left-most AFTER the right-most is eaten: the row just shifted, and on a one-minion shop the
+    // two indices were the same offer — which would double-eat a corpse.
+    const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (l >= 0) consumeShopMinion(ctx.state, self, l, times);
   },
 
   /** Set 2 — Appetite Agent (targeted Shout): the TARGET minion consumes `count` Shop minions — not this one.
@@ -2782,6 +2793,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         addBuff(self, nameOf(self), ls.attack * times, ls.health * times);
       }
     }
+  },
+
+  /** Set 2 — Hellrider (owner rework 2026-08-14): every `every` refreshes, gain the RIGHT-most Shop minion's
+   *  stats WITHOUT eating it. Same per-instance `eotTick` meter `onShopRefreshConsume` uses ("four refreshes
+   *  since this arrived", not since the run began) wrapped around Bob Blart's copy-don't-eat body, so the two
+   *  cards stay one primitive apart. Golden doubles the stats gained, not the frequency. */
+  onShopRefreshGainRightmostShopStats: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 4));
+    const tick = (self.eotTick ?? 0) + 1;
+    self.eotTick = tick;
+    if (tick % every !== 0) return;
+    const i = rightmostShopMinion(ctx.state);
+    if (i < 0) return;
+    const { attack, health } = offerBuyStats(ctx.state, ctx.state.shop[i]!);
+    const times = num(params.times, 1) * gold(self);
+    addBuff(self, nameOf(self), attack * times, health * times);
   },
 
   /** Set 2 — Void Curator (End of Turn): give your SPELLS and IMPS +atk/+hp. Two run-wide channels: the spell

@@ -28,6 +28,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeShieldAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeSummon:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeSummonAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
+  'factory:avengeGrantRandomTribeMinion:avenge': { policy: 'ownBeat', family: 'avenge' }, // Grobbus
   'factory:avengeSummonImps:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:battlecryAllDemonsConsume:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryArmGrimoire:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -137,7 +138,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCopyNeighbour:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnEndDemonsConsumeSides:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnFeastConsume:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnGainRightmostShopStats:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'factory:consumeShopRightmost:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Bob Blart (2026-08-14)
   'factory:endOfTurnGetRandomSpells:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGetRubies:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGrantRandomTierCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -198,7 +199,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
-  'factory:onShopRefreshConsume:shopRefreshed': { policy: 'ownBeat', family: 'economy' },
+  'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
   'factory:onSpellCastBuffOnePerTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastBuffRandomTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastFirstBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
@@ -263,6 +264,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveNeighbor:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scEngraveTribeNeighboursBuffTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Transcendence
   'factory:scGainFodderStats:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainKeyword:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGrantEnemyTaunt:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -270,6 +272,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scGrantSpellCastExtra:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scSummonCopy:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scTribeBuffImproving:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scBuffRandomTribePerAle:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Drunken Oaf
   'factory:scTribeBuffPerAle:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scTribeBuffPerSpellImproving:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:setArmor:cast': { policy: 'ownBeat', family: 'spellCast' },

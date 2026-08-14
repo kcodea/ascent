@@ -412,4 +412,21 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     text: 'When you cast **8 Shop spells**, trigger an **adjacent Shout**.',
     goldenText: 'When you cast **8 Shop spells**, trigger **both adjacent Shouts**.',
   },
+  {
+    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
+    // each rep re-rolling its target (owner ruling) so a long brew sprays the line instead of spiking one body.
+    // Unlike Bucky this is buyable, not forge-only, and it reads the shop phase that just ended — see the note on
+    // `scBuffRandomTribePerAle` for why the underlying read is still called "last turn". Live text folds in the
+    // actual rep count (`cardText.ts`), so it never prints the base rate alone.
+    id: 'dw_oaf',
+    name: 'Drunken Oaf',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 2, health: 2 } }],
+    text: '**Start of Combat:** give a **Dwarf +2/+2**. Repeat for every **Dwarven Ale** cast this turn.',
+    goldenText: '**Start of Combat:** give a **Dwarf +4/+4**. Repeat for every **Dwarven Ale** cast this turn.',
+  },
 ];

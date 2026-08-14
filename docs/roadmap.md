@@ -787,6 +787,13 @@ trigger"; avoid true undo until the rules are sturdier).
 
 ## Later
 
+### Tooling
+- **`npm run art:wire` churns files it shouldn't** (found 2026-08-14 while wiring three new minions). Wiring ONE
+  new card re-encoded 23 unrelated `.webp`s (the encoder isn't byte-stable, so every touched master rewrites)
+  and left 622 untracked `.png` intermediates in `packages/ui/src/art/**` — only `.webp` is tracked. Both had to
+  be reverted by hand to keep the diff honest. Fix: skip re-encoding when the master's mtime/hash is unchanged,
+  and either write the `.png` to a temp dir or gitignore it.
+
 ### Combat feel & FX
 - **Combat Choreographer — Phase 4 (Authoring).** The channel set (sfx / float / lunge / impact / aura) and
   the 🎬 Choreography panel are shipped. Remaining: per-target staggers / AOE death ripple; `splitPerTarget` /

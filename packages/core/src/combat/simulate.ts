@@ -1811,8 +1811,15 @@ export function simulate(
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
+    //
+    // BUG FIX 2026-08-14 (owner report): this used `grantToHand('ruby', …)`, which carries back a RAW POOL COPY
+    // of the Ruby card — a flat 1/1 — so a Kobold deck that had built its Rubies up to +3/+3 got 1/1 Rubies out
+    // of the quest while every other source paid full strength. Rubies are MINTED, never conjured: `grantRubies`
+    // rides `playerRubyGrants`, which runs the run's real `mintRubies` at settle with the live `rubyBonus` baked
+    // in (and fires the Motherlode / Candle Conduit "when you GET a Ruby" watchers, which the hand-grant channel
+    // also skipped). Same replay `toHand` event either way.
     if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
-      ctx.grantToHand('ruby', minion.side, minion.uid);
+      ctx.grantRubies(1, minion.side, minion.uid);
     }
     // Rune of the Gem Golem: a dying Kobold leaves a token with stats equal to the RUBIES it was carrying.
     // `rubyTallyOf` is the same read the Gemheart line uses (the carried 'Ruby' snapshot + this fight's gains),

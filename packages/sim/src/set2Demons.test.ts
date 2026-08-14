@@ -181,15 +181,19 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
     expect(s.runFodderConsumed?.count ?? 0).toBe(0);
   });
 
-  it('Hellrider eats exactly ONE minion on its 4th refresh', () => {
-    // The report said it ate "all of them". It eats the right-most, once — the appearance of more was the
-    // accumulated swirl above.
+  it('Hellrider eats NOTHING — it copies (owner rework 2026-08-14)', () => {
+    // Was "eats exactly ONE minion on its 4th refresh", guarding a 2026-07-25 report that it ate "all of them".
+    // The card no longer eats at all, so the guard becomes the stronger claim: across four refreshes the
+    // consume channel stays completely empty while the stats still land.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
       board: [minion('m', 'dm_maw', 8, 8)], hand: [], shop: shop('sandbag', 'alley', 'stray'),
     };
     for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' });
-    expect(s.shopEaten?.length ?? 0).toBe(1); // one consume animating, not a pile
+    expect(s.shopEaten?.length ?? 0, 'Hellrider must not consume anything now').toBe(0);
+    expect(s.shop.length, 'the row keeps every offer').toBe(3);
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect(m.attack + m.health, 'it still copied the right-most on the 4th refresh').toBeGreaterThan(16);
   });
 });
 
@@ -307,16 +311,17 @@ describe('set 2 — the Imp line (combat)', () => {
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 19 roster cards are in the set', () => {
+  it('all 20 roster cards are in the set', () => {
     // 20: Pit Drillmaster went 2026-07-26, the Captain 2026-07-27, Riot Caller 2026-07-29 (all owner cuts).
     // 20 → 19 on 2026-08-04: Rouge Rogue (dm_chancellor) moved to the MINION ARCHIVE (cards/archive.ts) —
     // still in CARD_INDEX for saved runs, in no set.
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(19);
+    // 19 → 20 on 2026-08-14: Grobbus (`dm_grobbus`) joined the roster.
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(20);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });
 
-  it('Hellrider eats on every 4th REFRESH, counting from its own arrival', () => {
+  it('Hellrider copies on every 4th REFRESH, counting from its own arrival', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
       board: [minion('m', 'dm_maw', 8, 8)], hand: [],
@@ -327,7 +332,7 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect([m3.attack, m3.health]).toEqual([8, 8]); // nothing yet — three refreshes
     s = reduce(s, { type: 'roll' });                // the fourth
     const m4 = s.board.find((c) => c.uid === 'm')!;
-    expect(m4.attack + m4.health).toBeGreaterThan(16); // ate something
+    expect(m4.attack + m4.health).toBeGreaterThan(16); // copied something
   });
 
   it('Endless Overseer (owner rework 2026-08-12): Avenge (4) summons an Imp with Taunt and Ward', () => {
@@ -516,7 +521,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   it('the Shout buffs the CURRENT shop immediately', () => {
     let s = base();
     s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s)).toBe(14); // +7/+7 (owner balance 2026-08-12: was +4/+2)
+    expect(rightmostBuff(s)).toBe(13); // +7/+6 (owner balance 2026-08-14: was +7/+7)
   });
 
   it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
@@ -525,19 +530,19 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
     for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(14); // +7/+7
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(13); // +7/+6
     }
   });
 
-  it("STACKS to the owner's worked example shape: two normals + a gilded = +28/+28", () => {
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +28/+24", () => {
     let s: RunState = { ...base(), hand: [
       minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
       { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
     ] };
     for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
-    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(56); // +28/+28: 7+7+14 each side
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(52); // +28/+24: 7+7+14 atk, 6+6+12 hp
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(56);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(52);
   });
 
   it('the buff rides the offer into the minion you BUY', () => {
@@ -549,24 +554,30 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
     expect(bought.attack - def.attack!).toBe(7);
-    expect(bought.health - def.health!).toBe(7);
+    expect(bought.health - def.health!).toBe(6);
   });
 
-  it('a Hellrider consuming the right-most eats the BUFFED body (buff-before-consume ordering)', () => {
-    // The ordering rule predates this shape (owner ruling 2026-07-25) and must survive it: the slot buff now
-    // applies at the top of `applyShopRefreshed`, before any consuming watcher runs. `shopEaten` records the
-    // eaten body's stats AS EATEN, so the +4/+4 is visible there or nowhere.
+  it('a Hellrider copying the right-most reads the BUFFED body (buff-before-payout ordering)', () => {
+    // The ordering rule predates this shape (owner ruling 2026-07-25) and must survive Hellrider's 2026-08-14
+    // rework from eat to COPY: the slot buff applies at the top of `applyShopRefreshed`, before any watcher
+    // runs. The evidence moved with the card — nothing is eaten now, so it is Hellrider's OWN stat gain that
+    // has to include the +7/+6, and the offer has to still be sitting in the row afterwards.
     let s: RunState = {
       ...base(), hand: [minion('T', 'dm_tormentor', 4, 4)],
       board: [{ ...minion('H', 'dm_maw', 4, 6), eotTick: 3 }], // one refresh from firing
     };
+    const shopUids = s.shop.map((offer) => offer.uid);
     s = reduce(s, { type: 'play', uid: 'T' });
-    s = reduce(s, { type: 'roll' }); // Hellrider fires — it must eat a body already carrying the slot buff
-    const eaten = s.shopEaten?.at(-1);
-    expect(eaten, 'Hellrider did not fire on this refresh').toBeTruthy();
-    const def = CARD_INDEX[eaten!.cardId]!;
-    expect(eaten!.attack - def.attack!, 'the eaten body was not buffed before the consume').toBe(7);
-    expect(eaten!.health - def.health!, 'the eaten body was not buffed before the consume').toBe(7);
+    s = reduce(s, { type: 'roll' }); // Hellrider fires — it must read a body already carrying the slot buff
+    const rider = s.board.find((c) => c.uid === 'H')!;
+    const i = s.shop.length - 1 - [...s.shop].reverse().findIndex((offer) => !CARD_INDEX[offer.cardId]?.spell);
+    const copied = offerBuyStats(s, s.shop[i]!);
+    expect(rider.attack - 4, "Hellrider did not gain the right-most offer's Attack").toBe(copied.attack);
+    expect(rider.health - 6, "Hellrider did not gain the right-most offer's Health").toBe(copied.health);
+    const def = CARD_INDEX[s.shop[i]!.cardId]!;
+    expect(copied.attack - def.attack!, 'the copied body was not buffed before the payout').toBe(7);
+    expect(copied.health - def.health!, 'the copied body was not buffed before the payout').toBe(6);
+    expect(s.shop.length, 'nothing may be eaten — Hellrider only copies now').toBe(shopUids.length);
   });
 });
 
@@ -589,20 +600,22 @@ describe('Cupcakes (set 2 spell)', () => {
 });
 
 describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
-  it("Bob Blart COPIES the right-most offer's stats — nothing is eaten (owner fix 2026-08-01)", () => {
-    // It used to Consume the highest-health Shop minion; the card's own comment ("takes the stats WITHOUT
-    // eating") was the spec and the code wasn't. Now: the right-most offer's stats land on Blart, the Shop is
-    // untouched, and no consume payoff fires.
+  it("Bob Blart CONSUMES the right-most offer — it leaves the row (owner rework 2026-08-14)", () => {
+    // Third shape. It ate the fattest offer, then copied the right-most without eating (2026-08-01), and now
+    // EATS the right-most: the offer is gone, the stats land, and the consume payoffs fire (which the copy
+    // shape deliberately skipped) — so `shopMinionsEaten` moving is part of the contract, not incidental.
     const s: RunState = {
       ...createRun(3), phase: 'recruit',
       board: [minion('g', 'dm_gourmand', 5, 5)], hand: [],
       shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'alley' }],
     };
     const { attack: ra, health: rh } = offerBuyStats(s, s.shop[1]!); // right-most = alley
+    const eatenBefore = s.shopMinionsEaten ?? 0;
     applyEndOfTurn(s);
     const blart = s.board.find((c) => c.uid === 'g')!;
-    expect(s.shop.map((o) => o.uid), 'the Shop must be untouched').toEqual(['s0', 's1']);
-    expect([blart.attack, blart.health], "it gains the right-most offer's stats").toEqual([5 + ra, 5 + rh]);
+    expect(s.shop.map((o) => o.uid), 'the right-most offer must be eaten').toEqual(['s0']);
+    expect([blart.attack, blart.health], "it gains the eaten offer's stats").toEqual([5 + ra, 5 + rh]);
+    expect((s.shopMinionsEaten ?? 0) - eatenBefore, 'a real Consume fires the consume payoffs').toBe(1);
   });
 
   it('Feastmaster Vhal (owner rework 2026-08-12): every 10 Gold spent buffs the right-most Shop minion +8/+8', () => {

@@ -20,9 +20,10 @@ describe('Right Hand Hank — Echo banks a right-most Shop-slot buff', () => {
       [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 2 }), combatSide({ tier: 1 }));
 
-  it('the CombatResult carries +6/+3 (gilded +12/+6)', () => {
-    expect(dieInCombat(false).playerRightmostSlotBuff).toEqual({ attack: 6, health: 3 });
-    expect(dieInCombat(true).playerRightmostSlotBuff).toEqual({ attack: 12, health: 6 });
+  it('the CombatResult carries +3/+2 (gilded +6/+4)', () => {
+    // Owner balance 2026-08-14: +6/+3 → +3/+2.
+    expect(dieInCombat(false).playerRightmostSlotBuff).toEqual({ attack: 3, health: 2 });
+    expect(dieInCombat(true).playerRightmostSlotBuff).toEqual({ attack: 6, health: 4 });
   });
 
   it('settle grows the run accumulator, so the NEXT shop right-most carries it', () => {
@@ -32,9 +33,9 @@ describe('Right Hand Hank — Echo banks a right-most Shop-slot buff', () => {
       board: [], hand: [], shop: [], lastCombat: r,
     } as unknown as RunState;
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.rightmostSlotBuff, 'the accumulator rose').toEqual({ attack: 6, health: 3 });
+    expect(s.rightmostSlotBuff, 'the accumulator rose').toEqual({ attack: 3, health: 2 });
     const offer = rightmostOffer(s);
-    expect([offer.atk ?? 0, offer.hp ?? 0], 'the fresh shop right-most shows it').toEqual([6, 3]);
+    expect([offer.atk ?? 0, offer.hp ?? 0], 'the fresh shop right-most shows it').toEqual([3, 2]);
   });
 });
 

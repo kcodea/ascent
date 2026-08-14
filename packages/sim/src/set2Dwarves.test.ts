@@ -357,13 +357,14 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
-  it('the whole Dwarf roster is in set 2 — 21 minions + 2 tokens + 5 rune minions', () => {
+  it('the whole Dwarf roster is in set 2 — 22 minions + 2 tokens + 5 rune minions', () => {
     // 24 → 25 on 2026-08-03: Baal (`dw_baal`) joined the FORGE-ONLY rune minions (Rune of Baal). Like Brill
     // and Mykel it is `token: true`, so it rides in the set's pool for resolution but can never be drawn.
     // 24 → 26 on 2026-08-04: Chicken Brawl (`dw_chickenbrawl`) + its Charging Soldier token (`dw_soldier`).
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
     // 26 → 27 on 2026-08-07: Bucky (`dw_bucky`) joined the forge-only rune minions (Rune of Bucky).
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(27);
+    // 27 → 28 on 2026-08-14: Drunken Oaf (`dw_oaf`) joined the buyable roster.
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(28);
     expect(dwarfIds).toContain('dw_chickenbrawl');
     expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');

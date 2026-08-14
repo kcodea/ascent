@@ -174,9 +174,11 @@ export function fixtureBatchForTrigger(entry: SourceEntry, row: TriggerRow): Pre
     actionId: `fixture:${entry.id}:${row.id}`,
     phase,
     events: [
-      { type: 'sourceTrigger', id: 'fx:t1', sequence: 0, step: 1, phase, source: src, trigger: row.trigger, policy, repeatIndex: 0, repeatCount: 2 },
+      // `family` rides on the fixture (PR 18) so committed family templates pace the preview exactly as
+      // they pace the live game — without it the preview silently fell through to policy defaults.
+      { type: 'sourceTrigger', id: 'fx:t1', sequence: 0, step: 1, phase, source: src, trigger: row.trigger, policy, ...(row.family ? { family: row.family } : {}), repeatIndex: 0, repeatCount: 2 },
       { type: 'statsChanged', id: 'fx:c1', sequence: 1, step: 1, parentId: 'fx:t1', target: { zone: 'board', uid: 'fixture-a' }, attack: 2, health: 2, permanent: true },
-      { type: 'sourceTrigger', id: 'fx:t2', sequence: 2, step: 2, phase, source: src, trigger: row.trigger, policy, repeatIndex: 1, repeatCount: 2 },
+      { type: 'sourceTrigger', id: 'fx:t2', sequence: 2, step: 2, phase, source: src, trigger: row.trigger, policy, ...(row.family ? { family: row.family } : {}), repeatIndex: 1, repeatCount: 2 },
       { type: 'statsChanged', id: 'fx:c2', sequence: 3, step: 2, parentId: 'fx:t2', target: { zone: 'board', uid: 'fixture-b' }, attack: 2, health: 2, permanent: true },
     ],
   };

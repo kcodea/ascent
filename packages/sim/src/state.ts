@@ -715,7 +715,7 @@ export interface RunState {
    *  `fodderEaten` (owner 2026-07-25): eating a tavern minion and eating Fodder are different mechanics and
    *  will get different animations, and sharing one payload meant one couldn't be restyled without the other.
    *  Same shape, so the UI can share choreography until they diverge. Transient, cleared each action. */
-  shopEaten?: { eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
+  shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
   shopEatenSeq: number;
   /** Transient buff-other FX captured during the CURRENT action (cleared at the top of `reduce`). */

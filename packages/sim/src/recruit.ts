@@ -6360,7 +6360,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   // Its OWN channel, not `fodderEaten` (owner 2026-07-25): eating a tavern MINION and eating Fodder are
   // different mechanics that will get different animations. Appended, so several consumes in one action all
   // animate; cleared per action by the reducer alongside the other transient FX.
-  state.shopEaten = [...(state.shopEaten ?? []), { eaterUid: eater.uid, cardId: def.id, attack: fa, health: fh, gainA, gainH }];
+  state.shopEaten = [...(state.shopEaten ?? []), { uid: offer.uid, eaterUid: eater.uid, cardId: def.id, attack: fa, health: fh, gainA, gainH }];
   state.shopEatenSeq += 1;
   // The eaten minion is DESTROYED, not owned — so its copy goes back to the shared pool, exactly as an unbought
   // offer does on a reroll (`rollShop` returns everything it clears). Without this every consume permanently
@@ -7398,6 +7398,7 @@ function withRecruitTrigger(
   const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
   const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
   const eatenBefore = (state.fodderEaten ?? []).length;
+  const shopEatenBefore = (state.shopEaten ?? []).length;
   const rb = state.rubyBonus ?? { attack: 0, health: 0 };
   collector.withTrigger(
     // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
@@ -7444,6 +7445,12 @@ function withRecruitTrigger(
       if (spA !== 0 || spH !== 0) collector.emit({ type: 'auraChanged', aura: 'spellPower', amount: spA + spH, attack: spA, health: spH });
       const impA = (state.impBuff?.attack ?? 0) - impBefore.a, impH = (state.impBuff?.health ?? 0) - impBefore.h;
       if (impA !== 0 || impH !== 0) collector.emit({ type: 'auraChanged', aura: 'impAura', amount: impA + impH, attack: impA, health: impH });
+      // BEAT SYSTEM: ruby-STRENGTH rises (Deepvein Tender's "Your Rubies gain +1 Health", Facetwright, quest
+      // rewards) — the run-wide `rubyBonus`, its own `auraChanged` aura. Without this a proc that only raises
+      // ruby strength (no Ruby held to bump) emitted NOTHING, so re-triggered by Moira it showed no beat at all
+      // (owner report 2026-08-14). Parallels the spellPower/impAura aura emits directly above.
+      const rubyA = (state.rubyBonus?.attack ?? 0) - rb.attack, rubyH = (state.rubyBonus?.health ?? 0) - rb.health;
+      if (rubyA !== 0 || rubyH !== 0) collector.emit({ type: 'auraChanged', aura: 'ruby', amount: rubyA + rubyH, attack: rubyA, health: rubyH });
       // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
       for (const c of state.board) {
         const wb = attachBefore.get(c.uid);
@@ -7458,6 +7465,20 @@ function withRecruitTrigger(
         collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
         collector.emit({
           type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.fodderId,
+          attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
+          deliveryKey: 'consume.depart',
+        });
+      }
+      // BEAT SYSTEM: Shop minions this trigger CONSUMED (Bob Blart's End of Turn, Feastmaster Vhal) — the
+      // shop-side sibling of the Fodder diff above. TWO consequences, matching Fodder: `shopChanged: consumed`
+      // is the offer leaving the row (so it disappears ON the beat, not at commit — owner report 2026-08-14
+      // "the minions dont disappear when blart procs in real time"), and `fodderEaten` carries the meal so the
+      // eat choreography flies the stats into the eater. The eaten offer is gone from `state.shop`, so it is
+      // never caught by the surviving-offer `buffed` diff — `state.shopEaten` is the only record of it.
+      for (const e of (state.shopEaten ?? []).slice(shopEatenBefore)) {
+        collector.emit({ type: 'shopChanged', change: 'consumed', target: { zone: 'shop', uid: e.uid, cardId: e.cardId, side: 'player' } });
+        collector.emit({
+          type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.cardId,
           attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
           deliveryKey: 'consume.depart',
         });

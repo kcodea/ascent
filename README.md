@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **End of Turn now shows ruby buffs and shop consumes on their beat** — a "your Rubies gain +X" proc (Deepvein Tender, re-fired by Moira) used to animate nothing; it now plays a ruby flourish on its beat. And **Bob Blart**'s Consume now makes the eaten Shop minion visibly leave the row as he procs — with the consume crumble — instead of snapping out only when the turn commits.
+
 - **Board buttons re-art + hero-power circle + FX** — Freeze / End Turn now layer a base + a separate gem (with a cracked gem on press); the Hero Power is a clean circle (frame removed) with a reconnected glow; a new "Freeze" label pill; authored FX bound to Freeze/hero-power press, hero-power target, and selling (at the gold pill); the "click on board" puff fixed; the turn timer is now just clock + digits. Plus in-run UI editor fixes (scale-correct drag, undo, deselect, exit, single-element selector, current-image panel).
 - **Restored the owner's shop/warband layout** — a later bake (#1035) had overwritten the shop-area positions with different values; the owner's intended shop row, shop-controls tray, and warband positions/scale are restored, while keeping #1035's hand/inspect/sell tuning.
 

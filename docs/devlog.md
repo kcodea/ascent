@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-14 - fix: Appetite Agent's un-aimed re-fire picks a RANDOM eligible Demon
+
+Owner report: Appetite Agent "always selects the left-most demon." The `battlecryTargetConsumesShop` auto-pick
+fallback — reached on a re-fire with no explicit target (Myra / Moira / Echoing Roar via `replayBattlecry`) —
+used `board.find((c) => c.uid !== self.uid)`, i.e. the LEFT-most minion, ignoring the card's `targetTribe`
+entirely. Now it builds the eligible pool (friendly, not self, respecting `effectiveTargetTribe` — Demons only
+unless Rune of Open Appetite drops that) and picks with the shared `rngCursor` (deterministic/replayable),
+falling back to self only when no eligible friend exists.
+
+Audited the two sibling `.find(uid !== self)` sites: the Celestial heir buff (`split`/left-most) is
+**deliberately** arrangeable (documented), and the taught-spell target already uses a seeded-random friendly —
+so Appetite Agent was the only bug. Tests in `set2Demons.test.ts`: never feeds the off-tribe left-most minion,
+feeds both demons across rng cursors, deterministic per cursor. 46/46 in that file; lint clean.
+
 ## 2026-08-14 — board buttons re-art, hero-power circle, FX bindings + in-run UI editor fixes
 
 A large owner-directed presentation pass, all live-tuned in a worktree then baked:

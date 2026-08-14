@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, applyGoldSpent, fireOnRubyCast, offerBuyStats } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, fireOnRubyCast, offerBuyStats, replayBattlecry } from './recruit';
 
 /**
  * Set 2's DEMON tribe. Its identity is Consume-from-the-Shop (eight cards) braided with an Imp swarm line.
@@ -83,6 +83,45 @@ describe('set 2 — Consume from the Shop (the shared primitive)', () => {
     s = reduce(s, { type: 'play', uid: 'cc' });
     const clerk = s.board.find((c) => c.uid === 'cc')!;
     expect([clerk.attack, clerk.health]).toEqual([1, 1]); // played, gained nothing
+  });
+});
+
+describe('set 2 — Appetite Agent auto-pick is a RANDOM eligible Demon (owner report 2026-08-14)', () => {
+  // The auto-pick fallback (a Myra / Moira / Echoing Roar RE-FIRE with no explicit target, via `replayBattlecry`)
+  // used `board.find(uid !== self)` — the LEFT-most minion, regardless of tribe. It must now pick a random
+  // ELIGIBLE friendly (Demon-only, unless Rune of Open Appetite), seeded off the rng cursor.
+  const base = (): RunState => ({
+    ...createRun(1), phase: 'recruit',
+    board: [
+      minion('nd', 'stray', 1, 1),      // a NON-Demon at the far left — the old bug's victim
+      minion('dA', 'dm_clerk', 1, 1),   // eligible Demon
+      minion('dB', 'dm_clerk', 1, 1),   // eligible Demon
+      minion('ag', 'dm_agent', 3, 2),   // the Agent itself (never eats via itself while a friend exists)
+    ],
+    shop: shop('sandbag'), // Target Dummy 0/4 — the eater gains +0/+4
+  }) as RunState;
+  const refire = (cursor: number): RunState => {
+    const s: RunState = { ...base(), rngCursor: cursor };
+    replayBattlecry(s, s.board.find((c) => c.uid === 'ag')!); // a re-fire: no explicit target → auto-pick
+    return s;
+  };
+
+  it('never feeds the off-tribe left-most minion, and varies the Demon it feeds with the rng', () => {
+    const picks = new Set<string>();
+    for (let cursor = 0; cursor < 24; cursor++) {
+      const s = refire(cursor);
+      const nd = s.board.find((c) => c.uid === 'nd')!;
+      expect([nd.attack, nd.health], 'the off-tribe left-most minion is never the eater').toEqual([1, 1]);
+      const eater = [s.board.find((c) => c.uid === 'dA')!, s.board.find((c) => c.uid === 'dB')!].find((c) => c.health > 1);
+      if (eater) picks.add(eater.uid);
+    }
+    expect(picks, 'across rng cursors it feeds BOTH demons — not a fixed left-most pick').toEqual(new Set(['dA', 'dB']));
+  });
+
+  it('is deterministic for a given rng cursor', () => {
+    const eaterOf = (s: RunState): string =>
+      [s.board.find((c) => c.uid === 'dA')!, s.board.find((c) => c.uid === 'dB')!].find((c) => c.health > 1)!.uid;
+    expect(eaterOf(refire(5))).toBe(eaterOf(refire(5)));
   });
 });
 

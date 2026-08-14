@@ -2750,7 +2750,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The eater being someone else is the whole card, so an un-aimed play (auto-pick fallback) still routes the
    *  gain to that pick rather than silently feeding the Agent. */
   battlecryTargetConsumesShop: (ctx, self, params, payload) => {
-    const target = payload.target ?? ctx.state.board.find((c) => c.uid !== self.uid) ?? self;
+    // Un-aimed play / re-fire: pick a RANDOM eligible target, not the left-most (owner report 2026-08-14 — it
+    // always fed the left-most minion). Eligible = a friendly OTHER than self, respecting the card's targetTribe
+    // after runes (Demons only, unless Rune of Open Appetite drops that). Seeded off the shared rng cursor so it
+    // stays deterministic/replayable. Falls back to self only when no eligible friend exists.
+    let target = payload.target;
+    if (!target) {
+      const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
+      const pool = ctx.state.board.filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe)));
+      if (pool.length > 0) {
+        const rng = makeRng(ctx.state.rngCursor);
+        target = pool[rng.int(pool.length)]!;
+        ctx.state.rngCursor = rng.state();
+      }
+    }
+    target = target ?? self;
     for (let n = 0; n < num(params.count, 1) * gold(self); n++) {
       const i = rightmostShopMinion(ctx.state);
       if (i < 0) return;

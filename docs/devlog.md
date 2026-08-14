@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-13 - Beat CHOREOGRAPHER PR 16: combat is inspectable on the shared timeline (read-only)
+
+The first combat milestone from blueprint §17, and the answer to the owner's Attacking Gems question: combat
+moments now appear in the SAME timeline vocabulary as End of Turn, so a fight can be inspected alongside a
+recruit turn. Read-only by design - combat keeps its own runtime.
+
+- `combatMomentAdapter.ts` - `Moment[]` -> normalized timeline nodes. Each moment kind maps to a timing
+  family; `scNarrate` / shield / poison / venom read as REACTIONS nested under the moment before them rather
+  than fresh sequential beats. It reads `stepGroups` and moment order as authoritative rather than re-deriving
+  them - the combat engine's ordering is gameplay truth.
+- CRUCIALLY it stamps NO policyKey. A moment carries a card id and a kind, not the factory identity a registry
+  key needs, so inventing one would be the exact trap PR 1 closed - a plausible-but-wrong key resolving to the
+  wrong timing with no error. The adapter says so as an explicit diagnostic instead.
+- `combatTimeline.ts` - `combatTimelineFrom(combat)` composes `replayBeats` (the SAME
+  `compileMoments(replayOrder(events))` the live replay folds) -> adapt -> compile. One definition of "the
+  moments of this fight", so the inspected timeline can't drift from what the player sees.
+- The store publishes `latestCombatTimeline` at combat resolution (DEV only), so the Beat Lab can read it.
+
+Verified live with the owner's example: staged a board with Rune of Attacking Gems, fought, and the published
+timeline contained its `questTrigger` moment - "Rune of Attacking Gems appears on the combat timeline" is now
+true. The compile also honestly surfaced two limits as diagnostics: the moments carry no policyKey (so they
+resolve on family/mode timing only, not per-source), and `attack.contact` is not yet supplied (combat contact
+is a runtime marker the adapter can name but not resolve).
+
+WHAT THIS IS NOT: it does not make combat beats TUNABLE. That needs the simulator to stamp keys and the combat
+runtime to consume compiled timing - blueprint's later combat milestones. This is the read-only foundation
+they build on, exactly as §17 sequences it ("adapter first, safe tuning second").
+
+Tests (+10): mirrors the moment stream 1:1; every kind maps to a family; names the card when given a uid map;
+NO node carries a policyKey and it diagnoses that out loud; the adapted input compiles with no structural
+errors; reactions nest under a parent; deterministic; the family map is total over MomentKind.
+
+typecheck + lint + npm test (5274) + build:web green.
+
 ## 2026-08-13 - Beat CHOREOGRAPHER PR 15: spell casts + quest/rune rewards emit
 
 Two of the three largest silent blocks in the audit, instrumented at their chokepoints rather than per-effect.

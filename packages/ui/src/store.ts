@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
+import { combatTimelineFrom } from './choreographer/combatTimeline';
+import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
  *  `userId` is what the run history is fetched by, and `author` is display-only. */
@@ -280,6 +282,10 @@ interface GameStore {
    *  (PR 4); `beatRevision` bumps on each publish so subscribers can react even when a batch repeats. */
   latestBatch: PresentationBatch | null;
   beatRevision: number;
+  /** CHOREOGRAPHER PR 16 — the last resolved COMBAT, adapted into the shared timeline vocabulary for the Beat
+   *  Lab to inspect (DEV only; null in prod). Read-only: combat still plays on its own runtime, this only
+   *  re-describes the fight. */
+  latestCombatTimeline: CompiledTimeline | null;
   /** Export the current run as a tiny deterministic replay `{ seed, heroId, actions }` (DEV: grab it
    *  via `useGame.getState().exportReplay()`; feed it to `replayRun` / the replay harness). */
   exportReplay: () => Replay;
@@ -828,6 +834,9 @@ function commitResolvedAction(
       // BEAT SYSTEM (PR 3): publish this action's presentation batch (DEV only — null in prod). `beatRevision`
       // bumps every publish so a viewer re-reads even when two actions produce structurally equal batches.
       ...(captureBeats ? { latestBatch: batch, beatRevision: s.beatRevision + 1 } : {}),
+      // CHOREOGRAPHER PR 16: when a combat just resolved, publish its adapted timeline too (DEV only). Uses
+      // the SAME moment composition the live replay folds, so the Lab inspects exactly what the game plays.
+      ...(captureBeats && action.type === 'faceOmen' && next.lastCombat ? { latestCombatTimeline: combatTimelineFrom(next.lastCombat) } : {}),
       // Record only state-changing actions — together with the seed they reconstruct the run's board /
       // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
       // docs/replay-v2-handoff.md).
@@ -955,6 +964,7 @@ export const useGame = create<GameStore>((set, get) => ({
   replayActions: BOOT_SAVE?.actions ?? [],
   latestBatch: null,
   beatRevision: 0,
+  latestCombatTimeline: null,
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],

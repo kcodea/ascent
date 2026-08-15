@@ -4187,6 +4187,19 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     const r0 = simMods(p, e, 1, {});
     expect(r0.playerSlaughterCopy).toBeUndefined();
   });
+
+  it('Rune of the Trophy: flies the copy to hand on the kill beat (a live toHand, once), not only at settle', () => {
+    // Owner directive 2026-08-14: combat card grants should arrive in real time. The slaughter copy now emits a
+    // VISUAL toHand on the kill (the real plain copy is still conjured at settle from playerSlaughterCopy).
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 9, health: 30 }, { cardId: 'alley', attack: 9, health: 30 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'pack', attack: 0, health: 1 }];
+    const r = simMods(p, e, 1, { runeTrophy: true });
+    const trophyToHand = r.events.filter((ev) => ev.type === 'toHand' && ev.cardId === 'sandbag' && ev.side === 'player');
+    expect(trophyToHand.length, 'the copy flies to hand once, on the kill beat').toBe(1);
+    // Without the rune, no such live grant.
+    const r0 = simMods(p, e, 1, {});
+    expect(r0.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'sandbag')).toBe(false);
+  });
 });
 
 describe('Rune of Mastery (batch 7b) — combat Improve steps apply twice', () => {

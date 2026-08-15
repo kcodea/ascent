@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { renameTerms } from './terms';
 import { mdBold } from './Card';
-import { dragonTamerCostOf, getHero, spellAmplifyBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, getHero, spellAmplifyBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -72,6 +72,37 @@ export function StatusBar() {
   const digCost = power.kind === 'dynamiteDig' ? (run.heroPowerUses ?? 0) : undefined;
   // Tiff's Dragon Tamer has a SHRINKING cost (5 − a discount per Dragon/spell bought since the last use).
   const tamerCost = power.kind === 'dragonTamer' ? dragonTamerCostOf(run) : undefined;
+  // Hunch's Rounded Spellbook also shrinks — 3, −1 per turn since the last use (shared helper, so the coin
+  // shows exactly what the reducer charges).
+  const bookCost = power.kind === 'roundedSpellbook' ? roundedSpellbookCostOf(run) : undefined;
+  // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
+  const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
+  // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
+  // Presentation only — the value comes from gameplay (`heroDiceLockUntil - wave`, the seeded roll the reducer
+  // already made). The tumble cycles 1→6 deterministically rather than randomly: it reads identically and
+  // keeps the UI free of its own RNG.
+  const [diceFace, setDiceFace] = useState<number | null>(null);
+  const prevDiceLock = useRef(run.heroDiceLockUntil);
+  useEffect(() => {
+    const prev = prevDiceLock.current;
+    prevDiceLock.current = run.heroDiceLockUntil;
+    if (power.kind !== 'dice' || !run.heroDiceLockUntil || run.heroDiceLockUntil === prev) return;
+    const rolled = run.heroDiceLockUntil - run.wave;
+    if (rolled <= 0) return;
+    let tick = 0;
+    let settle = 0;
+    const id = window.setInterval(() => {
+      tick += 1;
+      if (tick >= 11) {
+        window.clearInterval(id);
+        setDiceFace(rolled);                                      // land on the real roll
+        settle = window.setTimeout(() => setDiceFace(null), 1100); // …hold, then hand the slot back to the tally
+      } else {
+        setDiceFace((tick % 6) + 1);
+      }
+    }, 55);
+    return () => { window.clearInterval(id); window.clearTimeout(settle); };
+  }, [run.heroDiceLockUntil, run.wave, power.kind]);
   // Indy's Gild recharges after 40 Gold spent since the last use — how much of that 40 is banked so far.
   const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
     ? Math.max(0, Math.min(40, (run.goldSpent ?? 0) - (run.indyGildRearmAt - 40)))
@@ -84,7 +115,9 @@ export function StatusBar() {
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
     (!power.cost || run.embers >= power.cost) &&
     (digCost === undefined || run.embers >= digCost) &&
-    (tamerCost === undefined || run.embers >= tamerCost);
+    (tamerCost === undefined || run.embers >= tamerCost) &&
+    (bookCost === undefined || run.embers >= bookCost) &&
+    diceLock === 0; // Gambler: the roll is unusable while its lock runs
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
@@ -105,6 +138,9 @@ export function StatusBar() {
       case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
       case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete — fires when this turn ends / countdown
       case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr — minion buys this turn
+      case 'dice': return diceLock > 0 ? `${diceLock}t` : null; // Gambler — turns until the roll unlocks
+      case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
+      case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
       default: return null;
     }
   })();
@@ -306,9 +342,12 @@ export function StatusBar() {
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {(digCost ?? tamerCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? power.cost}</span></span> : null}
-            {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel). */}
-            {powerTally && <span key={powerTally} className="hpb-tally">{powerTally}</span>}
+            {(digCost ?? tamerCost ?? bookCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? power.cost}</span></span> : null}
+            {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
+                While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
+            {diceFace != null
+              ? <span key={`die${diceFace}`} className="hpb-tally hpb-dice">{diceFace}</span>
+              : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}

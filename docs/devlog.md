@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-14 - Heroes batch: owner revisions + Hunch
+
+Owner pass over the new heroes (2026-08-14), plus a ninth:
+
+- **Xerox** now SUMMONS the copy beside the target instead of granting it to hand — so it needs a free board
+  slot and is unusable at 7 minions (no charge spent when the board is full).
+- **Pete (Contrabanana)** no longer ADDS an eighth offer: every 3rd refresh the RIGHT-MOST Shop minion is
+  replaced by one from the tier above (`upgradeRightmostOffer`), so the row width never changes. T7 only with
+  real Tier-7 access. Tally shows x/3.
+- **Quillen (Archive)** targets a friendly BOARD minion or a Shop offer (the UI aim now accepts tavern picks,
+  which is why it read as "not working"). Tally shows x/3; the 3rd archive fires the Discover.
+- **Frantic Frank / Foreman Flint** — the 2-Gold price now SHOWS on the Shop cost pill. Both prices route
+  through one exported helper (`heroOfferPrice`) used by the reducer charge AND the UI coin, so the shown
+  price is provably the charged price (the `sellValueOf` rule).
+- **Gambler (Dice)** — the die visibly TUMBLES on the power button (1→6 cycling, ~600ms, compositor-only
+  transform/opacity) and settles on the rolled value; the tally then counts down `Nt` until it unlocks, and
+  the power is disabled while locked.
+- **NEW — Hunch (Rounded Spellbook):** get a copy of the last spell you cast (run-lifetime `lastSpellCastId`,
+  so it carries across turns). Costs 3 Gold, −1 per turn since the last use (floor 0) via
+  `roundedSpellbookCostOf`, shared with the cost coin; using it re-bases the countdown.
+
+Verified: typecheck + lint clean; 14 hero tests + the suite; live browser checks — the die tumbled
+2→4→5→6→1→2→3→4→5 and settled on 5 (+5 Gold, countdown `5t`), Frank's row showed 2-Gold pills on every
+minion, and Quillen archived a Shop minion (4→3 offers, tally 1/3). `finalTranche`'s hero-disable list updated
+(Tiff is no longer withheld).
+
+Follow-up: the new heroes use placeholder power art.
+
 ## 2026-08-14 - Heroes batch: Tiff re-added + 8 new heroes
 
 Owner batch. **Tiff** re-added to the pool (the `wip` withhold lifted). Eight new heroes (data-driven — a new

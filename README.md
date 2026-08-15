@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Hunch joins the roster + hero polish** — **Hunch** (Rounded Spellbook: a copy of your last-cast spell, 3 Gold falling 1 per turn) is new. **Xerox** now summons the copy onto the board, **Pete** upgrades the right-most Shop minion instead of adding an eighth, **Quillen** can archive a friendly *or* Shop minion, **Frank/Flint**'s 2-Gold prices now show on the cost pill, and **Gambler**'s die visibly tumbles before settling, with a turn countdown until it unlocks.
+
 - **Heroes batch — Tiff returns + 8 new heroes** — Tiff is back in the pool, joined by **Merrin** (get a random spell), **Gambler** (roll for Gold, then lock the power), **Xerox** (copy a minion, once/game), **Frantic Frank** (refresh; minions cost 2 this turn), **Pete** (every 3rd refresh smuggles in a tier-above minion), **Foreman Flint** (Dwarves cost 2), **Emissary Vale** (Start of Combat: +Tier/+Tier to one of each tribe; a Fatecarver at T6), and **Quillen** (archive Shop minions, then Discover from their types).
 
 - **Funeral on Loan borrowed Echoes actually fire** — several Deathrattle minions (Menagerie Mammoth, Bullseye, Kobebes, Right Hand Hank, Wolvie) had no shop-side Echo body, so discovering them via Funeral on Loan (or Ossuary Rite / Gravetwin / Reliquary / Deathsayer) silently did nothing. Their Echoes now resolve in the shop — summon, Ruby, shop-slot buff, and next-summon buff all included.

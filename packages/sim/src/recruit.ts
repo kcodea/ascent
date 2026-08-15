@@ -434,6 +434,24 @@ export function dragonTamerCostOf(state: RunState): number {
   return Math.max(0, 5 - (state.tiffDiscount ?? 0));
 }
 
+/**
+ * The HERO-set price of a Shop offer, or undefined when the hero doesn't price it.
+ *
+ * Frantic Frank's Clearance (every minion, the turn he fires it) and Foreman Flint's Company Rate (Dwarves,
+ * always) both set a flat 2 Gold. Shared by the reducer's buy charge AND the UI's cost coin, so the price a
+ * player SEES is provably the price they PAY — the `sellValueOf` rule (owner report 2026-08-14: Frank's
+ * discount was charged correctly but the pill still showed full price).
+ */
+export function heroOfferPrice(state: RunState, offer: { cardId: string }): number | undefined {
+  const kind = getHero(state.heroId).power.kind;
+  if (kind === 'clearance' && state.frankClearanceTurn === state.wave) return 2;
+  if (kind === 'companyRate') {
+    const def = CARD_INDEX[offer.cardId];
+    if (def && (def.tribe === 'dwarf' || def.tribe2 === 'dwarf')) return 2;
+  }
+  return undefined;
+}
+
 /** Hunch (Rounded Spellbook): 3 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it
  *  re-bases the countdown to the current wave — so the turn after a use it is already back down to 2 (owner
  *  ruling 2026-08-14: "the cost reduction still counts"). Shared by the reducer's charge and the UI's cost

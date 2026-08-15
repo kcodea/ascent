@@ -977,6 +977,17 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1.5px rgba(0, 0, 0, 1);
   animation: stepbump 220ms ease-out;
 }
+/* Gambler's Dice: the tumbling face, bigger + gold, spinning as it lands. Compositor-only (transform +
+   opacity) so a roll never costs a frame — the one-shot rule from docs/performance.md. */
+.hpwrap .hpb-dice {
+  font-size: calc(27 * var(--u)); color: #ffe293;
+  animation: dicetumble 160ms ease-out;
+}
+@keyframes dicetumble {
+  0% { transform: translateX(-50%) scale(0.7) rotate(-22deg); opacity: 0.65; }
+  60% { transform: translateX(-50%) scale(1.16) rotate(8deg); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1) rotate(0deg); opacity: 1; }
+}
 /* An ACTIVE power that's used / unaffordable fades its ART ONLY, to the 💠 tuner's `art · used opacity`
    (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
    never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not

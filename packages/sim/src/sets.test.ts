@@ -92,6 +92,9 @@ describe('card sets — set 2 carries set 1 spells', () => {
       'onthehouse', 'rubyexcavation', 'deepdelvewrit', 'ironcladreq', 'cupcakes',
       // Owner add 2026-08-06: consolidates a row's Rubies onto one body (board OR shop row).
       'rubytransfer',
+      // Owner spell batch 2026-08-15 (tranche 1): a big targeted grant, a target+neighbours grant, and the
+      // die-roll tier pull.
+      'sp_blessing', 'sp_beefy', 'sp_gamble',
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });

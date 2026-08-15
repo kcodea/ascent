@@ -381,6 +381,8 @@ export type EffectFactoryId =
   | 'onConsumeGrantSelfKeyword'
   | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
+  | 'spellBuffTargetAndNeighbours' // Beefy: buff the chosen minion AND its two neighbours
+  | 'spellGambleTierPull' // Gamble: roll 1-6, get a random minion or spell of that tier
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power

@@ -10,7 +10,9 @@ describe('gatherRunBuffs', () => {
 
   it('surfaces each active run-wide buff with its live value', () => {
     const run: RunState = {
-      ...createRun(1, 'warden'), tier: 4, spellsCast: 8,
+      // setId set-1 ON PURPOSE: the Fodder row asserted below only applies to a set that HAS Fodder, and the
+      // default (active) set is set 2, which has none (owner report 2026-08-15).
+      ...createRun(1, 'warden'), setId: 'set1', tier: 4, spellsCast: 8,
       spellBonus: { attack: 0, health: 2 },
       undeadBuyAtk: 3,
       impBuff: { attack: 2, health: 3 },

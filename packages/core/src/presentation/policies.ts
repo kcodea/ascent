@@ -290,6 +290,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffShop:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffShopByRuby:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // Owner spell batch 2026-08-15 — both are ordinary shop casts: they resolve immediately and their result is
+  // the display (stats landing on bodies / a card arriving in hand), so they share the spellCast family.
+  'factory:spellBuffTargetAndNeighbours:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellGambleTierPull:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTargetEscalating:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTargetPerGold:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTavern:cast': { policy: 'ownBeat', family: 'spellCast' },

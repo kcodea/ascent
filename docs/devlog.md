@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-08-15 - Xerox copies EXACTLY; Gamble rolls its die where you drop it
+
+- **Xerox (Copy Machine) was handing back a PLAIN copy.** Owner ruling: it is an EXACT copy. It now clones the
+  whole board instance — current (buffed) stats, the buff breakdown, granted keywords, golden, and accrued
+  per-instance counters (summonBonus / attachments / copiedEcho) — rather than rebuilding from the CardDef,
+  which silently dropped everything the minion had earned. Arrays are copied, not shared, so buffing the copy
+  never moves the original (pinned by a test). The Soren `resummon` mark is deliberately NOT carried: that is
+  a per-body choice, not part of the stat line.
+- **Gamble now rolls a real die.** Same tumble + landed hold as the Gambler's hero power (11 x 55ms, then the
+  face holds), rendered AT THE POINT YOU RELEASED the spell, and the card it won is WITHHELD from the hand
+  until the number lands. The pull itself still resolves in the reducer (deterministic/replayable) — the
+  factory just records `gambleRoll` (die face + seq) and `gambleWonUid` so presentation knows what to show and
+  what to hold. Verified live: die at the release point, tumbled then settled on 5 matching the rolled tier,
+  hand 0 cards during the tumble -> 1 after it landed.
+
+Tests: Xerox exact-copy + independence cases in `heroesBatchAug14.test.ts`. Full suite 5398 green.
+
+## 2026-08-15 - Spell batch (tranche 1) + Buffs-panel fixes
+
+**Buffs panel** (both owner-reported):
+- **Shop-slot enchants had no row at all.** The run-long right-most accumulator (Market Tormentor / Feastmaster
+  Vhal / Right Hand Hank) and its left-most twin (Rune of the Display Case) are standing buffs re-landed on
+  every roll — exactly what this panel is for — but were never listed. Added both rows.
+- **The Fodder row showed in set 2**, which has no Fodder in it. Now gated on the RUN'S SET actually containing
+  a Fodder card (derived from the pinned pool via the `FD` keyword, cached per set) rather than on the number
+  being non-zero — so a stale enchant from a set-1 save stops lying, and a future set that ships Fodder lights
+  the row up on its own with no code change.
+
+**Spells — tranche 1 of the owner batch (the shop-side three):**
+- **Blessing** (T4, 2g, targeted) — +5/+6. Pure data; reuses `spellBuffTarget`.
+- **Beefy** (T6, 4g, targeted friendly) — +8/+8 to the target AND both neighbours. New
+  `spellBuffTargetAndNeighbours`; an edge pick only reaches two bodies, which is the positional cost.
+- **Gamble** (T5, 2g, untargeted) — roll 1-6, conjure a random minion or spell of that Tier. New
+  `spellGambleTierPull`, rolled off the shared run cursor so it is seeded and replayable.
+
+Art wired for all three (`sp_blessing` / `sp_beefy` / `sp_gamble`). Both new factories classified in the
+presentation registry (the coverage tripwire caught them, as designed).
+
+Tests: `spellBatchAug15.test.ts` (7) + `runBuffsPanel.test.ts` (5). Two authoring notes worth keeping: a CAST
+effect receives the chosen minion as `self`, not `payload.target`; and three copies of one card on a test board
+completes a TRIPLE and eats them — use distinct ids.
+
+STILL TO BUILD (tranche 2 — each needs a NEW combat mechanic, not just data): Parting Cry, Solid Ground,
+Closed Casket, Stolen Initiative, Containment Rune. Their art is already in the source folder and reports as
+unmatched until the cards exist.
+
 ## 2026-08-15 - Hero panel rework + Buffs Panel + gem glows + Tavern Up art
 
 A presentation batch on the hero corner, the run-buffs panel, the shop buttons and the Tavern Up stone.

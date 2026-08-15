@@ -4167,6 +4167,45 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Spirit Fire / Bulwark / Shatter — cast: buff the chosen target +atk/+hp, and either grant a
    *  keyword (`keyword`) or *toggle* one (`toggleKeyword`: add if absent, remove if present). `self`
    *  is the target. */
+  /** Beefy (owner add 2026-08-15) — buff the CHOSEN minion and both its board neighbours by the same amount.
+   *  Routes each grant through the same spell-power fold `spellBuffTarget` uses, so the printed value and the
+   *  granted value agree on every recipient. No-op without a target (an unaimed cast fizzles, like every
+   *  targeted spell). */
+  spellBuffTargetAndNeighbours: (ctx, self, params) => {
+    // For a CAST effect the chosen minion arrives as `self` (see `applyCastEffects`) — a spell has no body of
+    // its own. An untargeted cast never reaches here with a board minion, so a missing row is a clean no-op.
+    const target = self;
+    if (!target) return;
+    const flat = !!params.flat;
+    const a = num(params.attack) + (flat ? 0 : spellAttackBonus(ctx.state));
+    const h = num(params.health) + (flat ? 0 : spellHealthBonus(ctx.state));
+    if (a <= 0 && h <= 0) return;
+    const i = ctx.state.board.findIndex((c) => c.uid === target.uid);
+    const hit = i >= 0
+      ? [ctx.state.board[i - 1], ctx.state.board[i], ctx.state.board[i + 1]].filter((c): c is BoardCard => !!c)
+      : [target];
+    for (const c of hit) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Gamble (owner add 2026-08-15) — roll a die (1-6) and conjure a random MINION or SPELL of that tier.
+   *  The roll rides the run's shared cursor, so it is seeded/replayable like every other random pull. The tier
+   *  is the die face itself — a 6 can hand you a Tier-6 card off a 2-Gold spell, which is the gamble. */
+  spellGambleTierPull: (ctx, _self, _params) => {
+    const rng = makeRng(ctx.state.rngCursor);
+    const tier = 1 + rng.int(6);
+    ctx.state.rngCursor = rng.state();
+    const pool = poolOf(ctx.state);
+    const picks = [...pool.buyable, ...pool.spells].filter((c) => !c.token && c.tier === tier);
+    if (picks.length === 0) return;
+    const before = new Set(ctx.state.hand.map((c) => c.uid));
+    conjureToHand(ctx.state, picks, 1);
+    // Tell presentation what to roll — and WHICH card to hold back until the die lands (the UI withholds it
+    // from the hand for the tumble's duration, then reveals). Gameplay already resolved; this is display data.
+    const won = ctx.state.hand.find((c) => !before.has(c.uid));
+    ctx.state.gambleRoll = { tier, seq: (ctx.state.gambleRoll?.seq ?? 0) + 1 };
+    if (won) ctx.state.gambleWonUid = won.uid;
+  },
+
   spellBuffTarget: (ctx, self, params) => {
     let attack = num(params.attack);
     let health = num(params.health);
@@ -5631,6 +5670,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
     if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
     return def.text;
+  }
+  // Beefy: its "+A/+B" lands on the target AND both neighbours, and every grant picks up spell power — so the
+  // printed number must too (the live-text rule; the spell-power audit test pins it).
+  const nbrBuff = def.effects.find((e) => e.do === 'spellBuffTargetAndNeighbours');
+  if (nbrBuff) {
+    const a = Number((nbrBuff.params as { attack?: number } | undefined)?.attack ?? 0);
+    const h = Number((nbrBuff.params as { health?: number } | undefined)?.health ?? 0);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');

@@ -44,19 +44,42 @@ describe('Gambler — Dice', () => {
 });
 
 describe('Xerox — Copy Machine', () => {
-  it('SUMMONS a plain copy beside the target, once per game', () => {
+  it('summons an EXACT copy beside the target — stats, buffs, keywords, golden and all', () => {
     let s: RunState = {
       ...createRun(3, 'xerox'), heroReady: true, hand: [],
-      board: [{ uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false }],
+      board: [{
+        uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 9, health: 11,
+        keywords: ['T', 'DS'], golden: true, summonBonus: 3, attachments: 2,
+        buffs: [{ source: 'Spirit Fire', attack: 2, health: 3, count: 1 }],
+      } as never],
     };
     s = reduce(s, { type: 'heroPower', uid: 'b1' });
     expect(s.board.length, 'the copy was summoned to the board').toBe(2);
     expect(s.hand.length, 'nothing went to hand').toBe(0);
+    const orig = s.board.find((c) => c.uid === 'b1')!;
     const copy = s.board.find((c) => c.uid !== 'b1')!;
-    expect(copy.cardId).toBe('stray');
-    const def = CARD_INDEX['stray']!;
-    expect([copy.attack, copy.health], 'a PLAIN copy — base stats, not the buffed 9/9').toEqual([def.attack, def.health]);
+    // EXACT: everything but the uid matches the original.
+    expect({ ...copy, uid: 'b1', resummon: undefined }).toEqual({ ...orig, resummon: undefined });
+    expect([copy.attack, copy.health], 'the BUFFED stats, not the base 2/2').toEqual([9, 11]);
+    expect(copy.golden, 'gilded carries').toBe(true);
+    expect(copy.keywords, 'granted keywords carry').toEqual(['T', 'DS']);
+    expect(copy.buffs, 'the buff breakdown carries').toEqual([{ source: 'Spirit Fire', attack: 2, health: 3, count: 1 }]);
+    expect(copy.summonBonus, 'accrued counters carry').toBe(3);
     expect(s.heroPowerSpent, 'once per game — spent').toBe(true);
+  });
+
+  it('the copy is INDEPENDENT — buffing one does not move the other', () => {
+    let s: RunState = {
+      ...createRun(3, 'xerox'), heroReady: true, hand: [],
+      board: [{ uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 4, health: 4, keywords: ['T'], golden: false, buffs: [{ source: 'x', attack: 2, health: 2, count: 1 }] } as never],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'b1' });
+    const copy = s.board.find((c) => c.uid !== 'b1')!;
+    copy.keywords.push('R' as never);
+    copy.buffs!.push({ source: 'later', attack: 1, health: 1, count: 1 });
+    const orig = s.board.find((c) => c.uid === 'b1')!;
+    expect(orig.keywords, 'the original kept its own keyword array').toEqual(['T']);
+    expect(orig.buffs!.length, 'the original kept its own buff list').toBe(1);
   });
 
   it('is unusable with a full board (needs a slot)', () => {

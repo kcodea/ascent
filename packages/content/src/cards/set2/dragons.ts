@@ -326,7 +326,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A
     // Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime Shop-Spell count: +1/+1
-    // per Dragon at base, climbing +1 every 4 Shop Spells cast this run. Live text folds in the current grant.
+    // per Dragon at base, climbing +1 every 4 SPELLS cast this run (Shop Spells + Rubies — owner 2026-08-15). Live text folds in the current grant.
     id: 'd2_herzog',
     name: 'Vaultkeeper',
     tribe: 'dragon',
@@ -335,8 +335,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 1, per: 4 } }],
-    text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 Shop Spells** cast this game.',
-    goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 Shop Spells** cast this game.',
+    text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 spells** cast this game.',
+    goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
   },
   {
     // Owner add 2026-08-14. The Dragon line's PERMANENCE card: a warded T4 whose Start of Combat Engraves its

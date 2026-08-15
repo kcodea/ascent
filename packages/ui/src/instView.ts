@@ -20,6 +20,8 @@ export interface LiveTextParams {
   runeFlags?: RuneTextFlags;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
+  /** Rubies cast this run — the other half of the spell umbrella Herzog/Vaultkeeper read. */
+  rubyCasts?: number;
   /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
    *  per-spell scaling folds it so the printed per-play grant matches what the sim actually adds. */
   improveReps?: number;
@@ -150,7 +152,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??
-            herzogText(c.id, p.golden, p.spellsCast) ?? // Herzog: live per-Dragon grant, scales with lifetime Shop Spells
+            herzogText(c.id, p.golden, p.spellsCast + (p.rubyCasts ?? 0)) ?? // Herzog/Vaultkeeper: scales with the SPELL umbrella (Shop Spells + Rubies)
             spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
@@ -200,7 +202,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -210,7 +212,7 @@ export function instView(
   const eotTickShown = live?.eotTickOverride ?? inst.eotTick;
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
   const { text, goldenText } = liveCardText(inst.cardId, {
-    tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast,
+    tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast, rubyCasts: live?.rubyCasts,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs, impAura: live?.impAura,
     goldSpent: live?.goldSpent ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,

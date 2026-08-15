@@ -2782,13 +2782,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `params.self` existed for exactly this and was never honored — with it set the eater is the card itself;
    *  without it the old any-friendly behaviour survives for a future card that wants it (random off the run
    *  cursor). Guarded against Chipper's own arrival so playing it doesn't immediately feed itself. */
-  /** Set 2 — Herzog: whenever you play a `tribe` minion, gain +N/+N where N = base + floor(spellsCast / per),
-   *  read live off the run's lifetime Shop-Spell count (retroactive). Golden doubles the grant. */
+  /** Set 2 — Herzog / Vaultkeeper: whenever you play a `tribe` minion, gain +N/+N where N = base +
+   *  floor(spells / per), read live off the run's lifetime count (retroactive). Golden doubles the grant.
+   *
+   *  "Spells" is the UMBRELLA of Shop Spells + Rubies (`spellsCast + rubyCasts`) — the documented contract on
+   *  `RunState.rubyCasts`, and the same total `fireOnRubyCast` uses. Owner ruling 2026-08-15: the card reads
+   *  "spells", so a Ruby counts. (Under Rune of the Spellstone a Ruby also raises `spellsCast`, so it counts
+   *  through both channels — pre-existing behaviour of this umbrella, not introduced here.) */
   onTribePlayedBuffSelfPerSpell: (ctx, self, params, payload) => {
     const played = payload.minion;
     const tribe = str(params.tribe) || 'dragon';
     if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
-    const step = Math.floor((ctx.state.spellsCast ?? 0) / Math.max(1, num(params.per, 4)));
+    const casts = (ctx.state.spellsCast ?? 0) + (ctx.state.rubyCasts ?? 0);
+    const step = Math.floor(casts / Math.max(1, num(params.per, 4)));
     const grant = (num(params.base, 1) + step) * gold(self);
     addBuff(self, nameOf(self), grant, grant);
     // Rune of the Vaultkeeper: ALSO give the same grant to an adjacent minion (a seeded pick when both exist).

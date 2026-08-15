@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Balance: Drunken Oaf, Kringle, Vaultkeeper** — Drunken Oaf now gives **+3/+3** per Ale (was +2/+2) and Kringle **+1/+2** per card played (was +1/+1). **Vaultkeeper** counts *spells* rather than *Shop Spells*, so your **Rubies advance it too**.
+
 - **Every new hero now has art** — portraits and power art wired for Merrin, Gambler, Xerox, Frantic Frank, Pete, Emissary Vale, Quillen and Hunch (plus Tiff's return). Hunch previews the spell you'd get on hover, the Gambler's die rolls big and centred on the power, and Pete's smuggled tier-above minion flashes as the Shop lands.
 
 - **Hunch joins the roster + hero polish** — **Hunch** (Rounded Spellbook: a copy of your last-cast spell, 3 Gold falling 1 per turn) is new. **Xerox** now summons the copy onto the board, **Pete** upgrades the right-most Shop minion instead of adding an eighth, **Quillen** can archive a friendly *or* Shop minion, **Frank/Flint**'s 2-Gold prices now show on the cost pill, and **Gambler**'s die visibly tumbles before settling, with a turn countdown until it unlocks.

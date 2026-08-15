@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-15 - Balance: Drunken Oaf, Kringle, Vaultkeeper
+
+Owner balance pass.
+
+- **Drunken Oaf** +2/+2 -> **+3/+3** per Ale (golden +4/+4 -> +6/+6). Params + both text lines moved together.
+- **Kringle** +1/+1 -> **+1/+2** per card played (golden +2/+2 -> +2/+4).
+- **Vaultkeeper** now reads "spells" instead of "Shop Spells" — and the MECHANIC follows the text, which is
+  the point of the change: the step now counts the SPELL UMBRELLA (`spellsCast + rubyCasts`), the contract
+  already documented on `RunState.rubyCasts` and used by `fireOnRubyCast`. So 4 Rubies advance a step exactly
+  like 4 Shop Spells. The live card text (`herzogText`) and its countdown were switched to the same umbrella
+  and the same wording, so the printed number still equals what the card will actually grant.
+  - Plumbing: `rubyCasts` threaded through `LiveTextParams` / `ShopViewOpts` / the `instView` live bag (all
+    additive object fields — no positional-signature churn).
+  - NOTE for balance: under **Rune of the Spellstone** a Ruby raises `spellsCast` too, so it counts through
+    BOTH halves of the umbrella (a double step). That is pre-existing behaviour of this contract — every
+    umbrella reader has always done it — not something introduced here. Flagged in case the owner wants it
+    de-duplicated as its own change.
+
+Tests: `balanceAug15.test.ts` (params + printed text + a real 4-Rubies-advances-a-step play, and a Kringle
+End-of-Turn grant of exactly +1/+2 per card). `cardText.test.ts`'s Oaf case updated — it pinned the old rate,
+which is exactly what it is for. Typecheck + lint clean.
+
 ## 2026-08-15 - Hero power polish pass 3 (dice settle, once-per-game, side preview, Flint art)
 
 Owner pass 3 on the hero batch — all four verified live.

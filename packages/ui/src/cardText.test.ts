@@ -42,8 +42,8 @@ describe('cardText helpers', () => {
     expect(drunkenOafText('dw_oaf', false, undefined), 'no Ale data → printed text stands').toBeNull();
     expect(drunkenOafText('dw_oaf', false, 1)).toContain('{{2 times}}');   // 1 Ale → base + 1
     expect(drunkenOafText('dw_oaf', false, 3)).toContain('{{4 times}}');
-    expect(drunkenOafText('dw_oaf', false, 3)).toContain('+2/+2');        // the per-rep rate is unchanged
-    expect(drunkenOafText('dw_oaf', true, 3)).toContain('+4/+4');         // golden doubles the rate...
+    expect(drunkenOafText('dw_oaf', false, 3)).toContain('+3/+3');        // the per-rep rate (owner balance 2026-08-15)
+    expect(drunkenOafText('dw_oaf', true, 3)).toContain('+6/+6');         // golden doubles the rate...
     expect(drunkenOafText('dw_oaf', true, 3)).toContain('{{4 times}}');   // ...not the rep count
     expect(drunkenOafText('dw_oaf', false, 1)).toContain('**1** Ale cast');   // singular
     expect(drunkenOafText('dw_oaf', false, 2)).toContain('**2** Ales cast');  // plural

@@ -4167,6 +4167,39 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Spirit Fire / Bulwark / Shatter — cast: buff the chosen target +atk/+hp, and either grant a
    *  keyword (`keyword`) or *toggle* one (`toggleKeyword`: add if absent, remove if present). `self`
    *  is the target. */
+  /** Beefy (owner add 2026-08-15) — buff the CHOSEN minion and both its board neighbours by the same amount.
+   *  Routes each grant through the same spell-power fold `spellBuffTarget` uses, so the printed value and the
+   *  granted value agree on every recipient. No-op without a target (an unaimed cast fizzles, like every
+   *  targeted spell). */
+  spellBuffTargetAndNeighbours: (ctx, self, params) => {
+    // For a CAST effect the chosen minion arrives as `self` (see `applyCastEffects`) — a spell has no body of
+    // its own. An untargeted cast never reaches here with a board minion, so a missing row is a clean no-op.
+    const target = self;
+    if (!target) return;
+    const flat = !!params.flat;
+    const a = num(params.attack) + (flat ? 0 : spellAttackBonus(ctx.state));
+    const h = num(params.health) + (flat ? 0 : spellHealthBonus(ctx.state));
+    if (a <= 0 && h <= 0) return;
+    const i = ctx.state.board.findIndex((c) => c.uid === target.uid);
+    const hit = i >= 0
+      ? [ctx.state.board[i - 1], ctx.state.board[i], ctx.state.board[i + 1]].filter((c): c is BoardCard => !!c)
+      : [target];
+    for (const c of hit) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Gamble (owner add 2026-08-15) — roll a die (1-6) and conjure a random MINION or SPELL of that tier.
+   *  The roll rides the run's shared cursor, so it is seeded/replayable like every other random pull. The tier
+   *  is the die face itself — a 6 can hand you a Tier-6 card off a 2-Gold spell, which is the gamble. */
+  spellGambleTierPull: (ctx, _self, _params) => {
+    const rng = makeRng(ctx.state.rngCursor);
+    const tier = 1 + rng.int(6);
+    ctx.state.rngCursor = rng.state();
+    const pool = poolOf(ctx.state);
+    const picks = [...pool.buyable, ...pool.spells].filter((c) => !c.token && c.tier === tier);
+    if (picks.length === 0) return;
+    conjureToHand(ctx.state, picks, 1);
+  },
+
   spellBuffTarget: (ctx, self, params) => {
     let attack = num(params.attack);
     let health = num(params.health);

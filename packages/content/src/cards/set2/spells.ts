@@ -236,4 +236,51 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Target a **Demon**. It **Consumes 4** minions in the Shop.',
   },
 
+  {
+    // Owner add 2026-08-15. A plain, big targeted stat spell — the Spirit Fire line at a higher tier.
+    id: 'sp_blessing',
+    name: 'Blessing',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 5, health: 6 } }],
+    text: 'Give a minion **+5/+6**.',
+  },
+  {
+    // Owner add 2026-08-15. Rewards a tight board: the chosen minion AND both neighbours, so a centre pick
+    // pays three times and an edge pick only twice.
+    id: 'sp_beefy',
+    name: 'Beefy',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellBuffTargetAndNeighbours', params: { attack: 8, health: 8 } }],
+    text: 'Give a minion and its neighbours **+8/+8**.',
+  },
+  {
+    // Owner add 2026-08-15. The die face IS the tier — a 2-Gold spell that can hand over a Tier-6 card, or a
+    // Tier-1 one. Untargeted; the pull is seeded off the run cursor like every other random grant.
+    id: 'sp_gamble',
+    name: 'Gamble',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellGambleTierPull', params: {} }],
+    text: 'Roll a die. Get a random minion or spell of that Tier.',
+  },
+
 ];

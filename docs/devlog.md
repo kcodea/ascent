@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-15 — bake owner Runeforge backdrop (bigger art, darker scrim)
+
+Baked the owner's tuned Runeforge backdrop from the 🪨 tuner: the `.forge-ov` background in `styles.css` goes to
+`auto 90%` (was 78% — the frame art fills more of the overlay) with a `0.91` scrim (was 0.53 — a much darker board
+behind the forge). The tuner's `DEFAULTS` mirror in `RuneforgeBgTuner.tsx` (`zoom` 78→90, `scrim` 0.53→0.91) was
+updated in lockstep so Reset still returns players' look. Position (50%/55%) and the image unchanged. Verified with
+the full gate (typecheck + lint + test 5398/5398 + build).
+
 ## 2026-08-15 - Xerox copies EXACTLY; Gamble rolls its die where you drop it
 
 - **Xerox (Copy Machine) was handing back a PLAIN copy.** Owner ruling: it is an EXACT copy. It now clones the

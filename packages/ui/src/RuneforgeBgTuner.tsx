@@ -33,12 +33,12 @@ interface ForgeBgVals {
 }
 
 /** MIRRORS the shipped `.forge-ov` rule in styles.css — so Reset returns you to what players see. These are the
- *  owner's tuned values, dialled in this panel and baked 2026-08-13; keep the two in lockstep. */
+ *  owner's tuned values, dialled in this panel and baked 2026-08-15; keep the two in lockstep. */
 const DEFAULTS: ForgeBgVals = {
-  zoom: 78,
+  zoom: 90,
   posX: 50,
   posY: 55,
-  scrim: 0.53,
+  scrim: 0.91,
 };
 
 const num = (v: ForgeBgVals, k: string): number => Number(v[k]);

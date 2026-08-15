@@ -1,4 +1,4 @@
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, poolFor } from '@game/content';
 import { spellAttackBonus, spellHealthBonus, type RunState, cardBuff } from '@game/sim';
 import type { CombatEvent } from '@game/core';
 
@@ -79,6 +79,20 @@ function effectParam(cardId: string, doId: string, param: string, fallback: numb
  * pushed only when its value is non-zero / the source is on board), so the window stays empty until
  * something actually applies. Each value is the LIVE current magnitude.
  */
+/** Does this run's SET contain Fodder at all? Set 2 has none, so its "Fodder Aura" row was always noise
+ *  (owner report 2026-08-15). Derived from the run's pinned pool rather than a hardcoded set list, so a new
+ *  set that DOES ship Fodder lights the row up on its own. Cached per set — the panel re-renders per frame. */
+const FODDER_BY_SET = new Map<string, boolean>();
+function setHasFodder(run: RunState): boolean {
+  const id = run.setId ?? 'set1';
+  let has = FODDER_BY_SET.get(id);
+  if (has === undefined) {
+    has = poolFor(id as never).all.some((c) => c.keywords.includes('FD'));
+    FODDER_BY_SET.set(id, has);
+  }
+  return has;
+}
+
 export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): BuffRow[] {
   const rows: BuffRow[] = [];
 
@@ -112,10 +126,13 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // `fodderAura` is a LIVE aura that applies while it's on the board. `cardBuff()` folds the two together,
   // which is exactly what a Fodder is created with — reading the raw map missed every Heckbinder (owner
   // report 2026-07-21; the same class of bug the tavern display had, in a second place).
+  // Gated on the RUN'S SET actually containing Fodder (owner report 2026-08-15: the row showed in set 2,
+  // which has no Fodder at all). A stale enchant from a set-1 save can still carry a value, so the set — not
+  // the number — decides whether the row means anything.
   const fod = cardBuff(run, 'fred');
   const fodA = fod.attack + (combat?.auras.fodder?.attack ?? 0);
   const fodH = fod.health + (combat?.auras.fodder?.health ?? 0);
-  if (fodA > 0 || fodH > 0) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fodA}/+${fodH}` });
+  if ((fodA > 0 || fodH > 0) && setHasFodder(run)) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fodA}/+${fodH}` });
 
   // Permanent Imp buff (Fodder Feeder / Imp King / Brood / Bane) — applied to combat Imps.
   const impA = (run.impBuff?.attack ?? 0) + (combat?.auras.imp?.attack ?? 0);
@@ -143,6 +160,15 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;
   if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
+
+  // Permanent SHOP-SLOT enchants (Market Tormentor / Feastmaster Vhal / Right Hand Hank -> right-most; Rune of
+  // the Display Case -> left-most). These are run-long accumulators re-landed on every fresh roll, so they are
+  // exactly the kind of standing buff this panel exists to show — they had no row at all (owner report
+  // 2026-08-15: "right-most shop buffs aren't shown and they should").
+  const rms = run.rightmostSlotBuff;
+  if (rms && (rms.attack > 0 || rms.health > 0)) rows.push({ key: 'shopright', label: 'Right-most Shop slot', value: `+${rms.attack}/+${rms.health}` });
+  const lms = run.leftmostSlotBuff;
+  if (lms && (lms.attack > 0 || lms.health > 0)) rows.push({ key: 'shopleft', label: 'Left-most Shop slot', value: `+${lms.attack}/+${lms.health}` });
 
   // (Veinstorm has no row here: it plays real Rubies onto the tavern minions in front of you rather than
   // running a run-wide channel, so its value is visible ON those offers — see `spellBuffShopByRuby`.)

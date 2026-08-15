@@ -82,7 +82,7 @@ describe('Kringle — +1/+1 per card played (owner balance 2026-08-04)', () => {
     applyEndOfTurn(s);
     const lead = s.board.find((c) => c.uid === 'k')!; // left-most Dwarf is Kringle itself
     expect(lead.attack - 3, '+1 Attack × 3 cards').toBe(3);
-    expect(lead.health - 3, '+1 Health × 3 cards').toBe(3);
+    expect(lead.health - 3, '+2 Health × 3 cards (owner balance 2026-08-15)').toBe(6);
   });
 });
 

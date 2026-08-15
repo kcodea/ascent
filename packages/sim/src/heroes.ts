@@ -38,7 +38,16 @@ export type HeroPowerKind =
   | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
   | 'possession' // RETIRED with Atrius (2026-07-20). Kept so saves/replays of old runs still resolve;
   //                the Start-of-Combat machinery in simulate.ts remains as an unused primitive.
-  | 'fourPeat'; // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
+  | 'fourPeat' // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
+  | 'pocketMagic' // Merrin: get a random Shop spell to hand (active, untargeted, 1 Gold)
+  | 'dice' // Gambler: roll a die, gain that much Gold, then the power is locked for that many turns (active, 1 Gold)
+  | 'copyMachine' // Xerox: copy a friendly board minion into your hand (active, targeted, once per game)
+  | 'clearance' // Frantic Frank: refresh the Shop; its minions cost 2 Gold this turn (active, untargeted, once per turn)
+  | 'contraband' // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
+  | 'companyRate' // Foreman Flint (passive): Dwarf Shop minions cost 2 Gold
+  | 'unitedFront' // Emissary Vale (passive): SoC — one of each tribe +tier/+tier; a Fatecarver at Tier 6
+  | 'archive' // Quillen: once/turn, archive a chosen friendly/Shop minion; every 3rd → Discover from those tribes
+  | 'roundedSpellbook'; // Hunch: a copy of the last spell you cast — 3 Gold, dropping 1 per turn since the last use
 
 export interface HeroPower {
   name: string;
@@ -401,7 +410,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
     armor: 19,
-    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
+    // Re-added to the pool 2026-08-14 (owner) — the wip withhold is lifted.
     power: {
       name: 'Dragon Tamer',
       kind: 'dragonTamer',
@@ -450,6 +459,130 @@ export const HEROES: HeroDef[] = [
       kind: 'fourPeat',
       passive: true, // resolved in the buy case: the 3rd minion bought each turn conjures a random plain copy
       text: 'When you buy 3 minions in a turn, get a plain copy of one of them at random.',
+    },
+  },
+  {
+    id: 'merrin',
+    name: 'Merrin',
+    blurb: 'There is always a spell in the other pocket.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Pocket Magic',
+      kind: 'pocketMagic',
+      cost: 1,
+      untargeted: true, // fires immediately: a random Shop spell to hand
+      text: 'Get a random Shop spell.',
+    },
+  },
+  {
+    id: 'gambler',
+    name: 'Gambler',
+    blurb: 'The house always wins — unless the house is you.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Dice',
+      kind: 'dice',
+      cost: 1,
+      untargeted: true, // roll a die, gain that Gold, then the power locks for that many turns (handled in the reducer)
+      text: 'Roll a die: gain that much Gold. This power then locks for that many turns.',
+    },
+  },
+  {
+    id: 'xerox',
+    name: 'Xerox',
+    blurb: 'Why build one when you can print two?',
+    resolve: 30,
+    armor: 12,
+    power: {
+      name: 'Copy Machine',
+      kind: 'copyMachine',
+      oncePerGame: true,
+      // Targeted (no `untargeted`): pick a friendly board minion; a plain copy is summoned beside it.
+      text: 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.',
+    },
+  },
+  {
+    id: 'frank',
+    name: 'Frantic Frank',
+    blurb: 'Everything must go — today only.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Clearance',
+      kind: 'clearance',
+      cost: 1,
+      untargeted: true, // refreshes the Shop + marks its minions 2 Gold this turn; once per turn (heroReady)
+      text: 'Refresh the Shop. Its minions cost 2 Gold this turn.',
+    },
+  },
+  {
+    id: 'pete',
+    name: 'Pete',
+    blurb: 'He knows a guy who knows a guy.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Contrabanana',
+      kind: 'contraband',
+      passive: true, // resolved in the roll case: every 3rd refresh upgrades the right-most offer a tier
+      text: 'Every third refresh, the right-most Shop minion is from the tier above your Shop tier.',
+    },
+  },
+  {
+    id: 'flint',
+    name: 'Foreman Flint',
+    blurb: 'Union rates. Dwarves come cheap by the dozen.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Company Rate',
+      kind: 'companyRate',
+      passive: true, // resolved in the buy case: Dwarf offers cost 2 Gold
+      text: 'Dwarves cost 2 Gold.',
+    },
+  },
+  {
+    id: 'vale',
+    name: 'Emissary Vale',
+    blurb: 'Every banner rallies to the same horn.',
+    resolve: 30,
+    armor: 7,
+    power: {
+      name: 'United Front',
+      kind: 'unitedFront',
+      passive: true, // SoC one-of-each-tribe buff (in simulate) + a Fatecarver on reaching Tier 6 (in the upgrade case)
+      text: 'Start of Combat: give one minion of each tribe +Tier/+Tier. Get a Fatecarver at Tier 6.',
+    },
+  },
+  {
+    id: 'quillen',
+    name: 'Quillen',
+    blurb: 'Nothing is ever truly gone — only filed.',
+    resolve: 30,
+    armor: 11,
+    power: {
+      name: 'Archive',
+      kind: 'archive',
+      // Targeted at a friendly BOARD minion or a SHOP offer. Once per turn (heroReady).
+      text: 'Archive a friendly or Shop minion (records its type). Every 3rd, Discover one minion of each archived type.',
+    },
+  },
+  {
+    id: 'hunch',
+    name: 'Hunch',
+    blurb: 'He never forgets a page — he just waits for the price to drop.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Rounded Spellbook',
+      kind: 'roundedSpellbook',
+      // NO static `cost` — the shrinking price (3, −1 per turn since the last use, floor 0) is charged in the
+      // reducer and the coin shows the LIVE value (the dragonTamer/dynamiteDig pattern; a def-level cost would
+      // double-charge via the shared block).
+      untargeted: true,
+      text: 'Get a copy of the last spell you cast. Costs **3 Gold**, reduced by 1 each turn.',
     },
   },
 ];

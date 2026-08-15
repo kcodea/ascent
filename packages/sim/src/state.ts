@@ -64,6 +64,9 @@ export interface ShopCard {
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
+  /** Pete (Contrabanana): this offer was upgraded to the tier ABOVE the Shop tier on his 3rd refresh — the UI
+   *  flashes it once as the row lands so the smuggled unit reads as special. Presentation only. */
+  contraband?: boolean;
   /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
    *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
   cost?: number;
@@ -673,6 +676,22 @@ export interface RunState {
   /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
    *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
   heroPowerUses?: number;
+  /** Gambler (Dice): the wave at which the Dice power becomes usable again — set to `wave + roll` on use, so a
+   *  big roll pays more Gold but locks the power longer. Absent = usable. */
+  heroDiceLockUntil?: number;
+  /** Frantic Frank (Clearance): the wave on which his refresh made Shop minions cost 2 Gold. Equal to the
+   *  current wave while the discount is live; a wave comparison auto-expires it next turn (no explicit clear). */
+  frankClearanceTurn?: number;
+  /** Pete (Contrabanana): running count of Shop refreshes — every 3rd appends a tier-above offer. */
+  refreshCount?: number;
+  /** Emissary Vale (United Front): set once a Fatecarver has been granted on reaching Tier 6, so it happens once. */
+  valeFatecarverDone?: boolean;
+  /** Quillen (Archive): the tribes of the Shop minions archived so far. Every 3rd archived minion triggers a
+   *  Discover of one random minion per recorded tribe (up to tier), then this resets. */
+  archivedTribes?: Tribe[];
+  /** Hunch (Rounded Spellbook): the wave the power was last used — its 3-Gold cost drops 1 per turn since
+   *  (floor 0). Absent = never used, so the countdown runs from wave 1. */
+  hunchResetWave?: number;
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

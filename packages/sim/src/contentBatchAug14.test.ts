@@ -106,7 +106,8 @@ describe('Transcendence — Start of Combat Engraves adjacent Dragons, then buff
   });
 });
 
-// ── DRUNKEN OAF (T4 Dwarf 4/4) — SoC: give a Dwarf +2/+2, repeated once per Ale cast this turn ──────────────
+// ── DRUNKEN OAF (T4 Dwarf 4/4) — SoC: give a Dwarf +3/+3, repeated once per Ale cast this turn ──────────────
+// (owner balance 2026-08-15: the per-grant rate rose +2/+2 → +3/+3; the REPEAT rule is unchanged.)
 describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
   const fight = (ales: number, golden = false) => simulate(
     [
@@ -116,8 +117,8 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
     [{ cardId: 'sandbag', attack: 0, health: 40000 }],
     makeRng(11), CARD_INDEX, combatSide({ tier: 4, tribes: ['dwarf'], alesLastTurn: ales }), combatSide({ tier: 1 }),
   );
-  // Only the Oaf's own +2/+2 grants — other Dwarves on the board have their own effects.
-  const oafBuffs = (r: ReturnType<typeof simulate>, per = 2) =>
+  // Only the Oaf's own +3/+3 grants — other Dwarves on the board have their own effects.
+  const oafBuffs = (r: ReturnType<typeof simulate>, per = 3) =>
     (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0' && b.attack === per && b.health === per);
 
@@ -139,8 +140,8 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
 
   it('golden doubles the per-grant size, NOT the number of repeats', () => {
     const g = fight(3, true);
-    expect(oafBuffs(g, 4).length, 'four grants of +4/+4').toBe(4);
-    expect(oafBuffs(g, 2).length, 'no +2/+2 grants survive on a golden').toBe(0);
+    expect(oafBuffs(g, 6).length, 'four grants of +6/+6').toBe(4);
+    expect(oafBuffs(g, 3).length, 'no +3/+3 grants survive on a golden').toBe(0);
   });
 
   it('the repeats can land on different Dwarves — each rep re-rolls its target (owner ruling)', () => {

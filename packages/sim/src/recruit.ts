@@ -434,6 +434,33 @@ export function dragonTamerCostOf(state: RunState): number {
   return Math.max(0, 5 - (state.tiffDiscount ?? 0));
 }
 
+/**
+ * The HERO-set price of a Shop offer, or undefined when the hero doesn't price it.
+ *
+ * Frantic Frank's Clearance (every minion, the turn he fires it) and Foreman Flint's Company Rate (Dwarves,
+ * always) both set a flat 2 Gold. Shared by the reducer's buy charge AND the UI's cost coin, so the price a
+ * player SEES is provably the price they PAY — the `sellValueOf` rule (owner report 2026-08-14: Frank's
+ * discount was charged correctly but the pill still showed full price).
+ */
+export function heroOfferPrice(state: RunState, offer: { cardId: string }): number | undefined {
+  const kind = getHero(state.heroId).power.kind;
+  if (kind === 'clearance' && state.frankClearanceTurn === state.wave) return 2;
+  if (kind === 'companyRate') {
+    const def = CARD_INDEX[offer.cardId];
+    if (def && (def.tribe === 'dwarf' || def.tribe2 === 'dwarf')) return 2;
+  }
+  return undefined;
+}
+
+/** Hunch (Rounded Spellbook): 3 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it
+ *  re-bases the countdown to the current wave — so the turn after a use it is already back down to 2 (owner
+ *  ruling 2026-08-14: "the cost reduction still counts"). Shared by the reducer's charge and the UI's cost
+ *  coin, so the price shown is the price paid. */
+export function roundedSpellbookCostOf(state: RunState): number {
+  const base = state.hunchResetWave ?? 1; // runs open on wave 1
+  return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'>): number {
@@ -2755,13 +2782,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `params.self` existed for exactly this and was never honored — with it set the eater is the card itself;
    *  without it the old any-friendly behaviour survives for a future card that wants it (random off the run
    *  cursor). Guarded against Chipper's own arrival so playing it doesn't immediately feed itself. */
-  /** Set 2 — Herzog: whenever you play a `tribe` minion, gain +N/+N where N = base + floor(spellsCast / per),
-   *  read live off the run's lifetime Shop-Spell count (retroactive). Golden doubles the grant. */
+  /** Set 2 — Herzog / Vaultkeeper: whenever you play a `tribe` minion, gain +N/+N where N = base +
+   *  floor(spells / per), read live off the run's lifetime count (retroactive). Golden doubles the grant.
+   *
+   *  "Spells" is the UMBRELLA of Shop Spells + Rubies (`spellsCast + rubyCasts`) — the documented contract on
+   *  `RunState.rubyCasts`, and the same total `fireOnRubyCast` uses. Owner ruling 2026-08-15: the card reads
+   *  "spells", so a Ruby counts. (Under Rune of the Spellstone a Ruby also raises `spellsCast`, so it counts
+   *  through both channels — pre-existing behaviour of this umbrella, not introduced here.) */
   onTribePlayedBuffSelfPerSpell: (ctx, self, params, payload) => {
     const played = payload.minion;
     const tribe = str(params.tribe) || 'dragon';
     if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
-    const step = Math.floor((ctx.state.spellsCast ?? 0) / Math.max(1, num(params.per, 4)));
+    const casts = (ctx.state.spellsCast ?? 0) + (ctx.state.rubyCasts ?? 0);
+    const step = Math.floor(casts / Math.max(1, num(params.per, 4)));
     const grant = (num(params.base, 1) + step) * gold(self);
     addBuff(self, nameOf(self), grant, grant);
     // Rune of the Vaultkeeper: ALSO give the same grant to an adjacent minion (a seeded pick when both exist).

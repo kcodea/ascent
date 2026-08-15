@@ -1397,6 +1397,9 @@ export interface QuestCombatMods {
   runeCarrionCoin?: number;
   /** Rune of the Five Banners: Start of Combat, one friendly of each type gains +6/+6. */
   runeFiveBanners?: boolean;
+  /** Emissary Vale (United Front): Start of Combat, one friendly of each type gains +N/+N (N = the hero's
+   *  Tavern Tier when the fight began). Same "one banner per body" rule as Five Banners, just tier-scaled. */
+  unitedFront?: number;
   /** Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike. */
   runeCenterline?: boolean;
   /** Rune of the Second Litter: the first Beast summoned each combat summons another copy. */

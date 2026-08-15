@@ -2773,6 +2773,27 @@ export function simulate(
         for (const m of recipients) ctx.buff(m, 6, 6, 'Rune of the Five Banners');
       }
     }
+    if (rmods.unitedFront && rmods.unitedFront > 0) {
+      // Emissary Vale (United Front): the Five Banners rule, tier-scaled — one friendly of each type gains
+      // +N/+N (N = the hero's tier when the fight began). Same one-banner-per-body selection.
+      const n = rmods.unitedFront;
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
+      const taken = new Set<string>();
+      for (const m of living) {
+        if (cards[m.cardId]?.universalTribe) continue;
+        for (const t of [m.tribe, m.tribe2]) {
+          if (!t || t === 'neutral' || taken.has(t)) continue;
+          taken.add(t);
+          if (!recipients.includes(m)) recipients.push(m);
+          break;
+        }
+      }
+      if (recipients.length > 0) {
+        nextStep(); fireTrigger('unitedFront', rside);
+        for (const m of recipients) ctx.buff(m, n, n, 'United Front');
+      }
+    }
     if (rmods.runeCenterline) {
       // Rune of the Centerline: a positional payoff — if the two END minions are of DIFFERENT types, the
       // middle one gains Ward + Critical Strike. Needs at least three bodies for "ends" and "middle" to mean

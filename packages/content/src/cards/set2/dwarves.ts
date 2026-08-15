@@ -132,9 +132,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 7,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 1 } }], // owner balance 2026-08-04: +1 Attack → +1/+1
-    text: '**End of Turn:** give your **left-most Dwarf +1/+1** per card played this turn.',
-    goldenText: '**End of Turn:** give your **left-most Dwarf +2/+2** per card played this turn.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
+    text: '**End of Turn:** give your **left-most Dwarf +1/+2** per card played this turn.',
+    goldenText: '**End of Turn:** give your **left-most Dwarf +2/+4** per card played this turn.',
   },
   {
     // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
@@ -429,8 +429,9 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 2, health: 2 } }],
-    text: '**Start of Combat:** give a **Dwarf +2/+2**. Repeat for every **Dwarven Ale** cast this turn.',
-    goldenText: '**Start of Combat:** give a **Dwarf +4/+4**. Repeat for every **Dwarven Ale** cast this turn.',
+    // Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.
+    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 3, health: 3 } }],
+    text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
+    goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
   },
 ];

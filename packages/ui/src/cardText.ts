@@ -506,6 +506,7 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
  * in here (see the note at the top of this file).
  */
 export function herzogText(cardId: string, golden: boolean, spellsCast: number): string | null {
+  // `spellsCast` here is the UMBRELLA (Shop Spells + Rubies) the effect actually reads — see the factory.
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onTribePlayedBuffSelfPerSpell');
   if (!def || !eff) return null;
@@ -514,7 +515,7 @@ export function herzogText(cardId: string, golden: boolean, spellsCast: number):
   const cur = (base + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
   const toNext = per - (spellsCast % per);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} Shop Spells to next step}}`;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} spells to next step}}`;
 }
 
 /**

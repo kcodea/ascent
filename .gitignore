@@ -31,3 +31,8 @@ packages/tools/.cache/
 # `npm run report:export` output — regenerated on demand, never committed (it is a
 # simulation snapshot, not source).
 balance-export/
+
+# Art pipeline: `npm run art:wire` writes a .png intermediate beside every optimized .webp.
+# Only the .webp is shipped/tracked (804 of them) — the intermediates are regenerable, and committing
+# them would multiply the art payload ~10x.
+packages/ui/src/art/**/*.png

@@ -186,9 +186,12 @@ describe('Tier 7 access (owner ruling 2026-07-28)', () => {
 });
 
 describe('hero disables (owner 2026-07-28)', () => {
-  const DISABLED = ['cassen', 'jenkins', 'chronoshero', 'tiff', 'djinn'];
+  // Tiff was RE-ADDED to the pool by the owner 2026-08-14 — the other four stay withheld. She keeps her row in
+  // RESOLVABLE below: re-enabling is a picker concern, exactly like disabling was.
+  const DISABLED = ['cassen', 'jenkins', 'chronoshero', 'djinn'];
+  const RESOLVABLE = [...DISABLED, 'tiff'];
 
-  it('all five are withheld from every picker', () => {
+  it('the withheld heroes are kept from every picker', () => {
     for (const id of DISABLED) {
       const h = HEROES.find((x) => x.id === id);
       expect(h, `${id} exists`).toBeTruthy();
@@ -198,7 +201,11 @@ describe('hero disables (owner 2026-07-28)', () => {
 
   it('…and they stay RESOLVABLE, so an in-flight save or a replay still loads', () => {
     // Disabling is a picker concern, not a registry deletion.
-    for (const id of DISABLED) expect(createRun(1, id).heroId).toBe(id);
+    for (const id of RESOLVABLE) expect(createRun(1, id).heroId).toBe(id);
+  });
+
+  it('Tiff is back in the pool (owner 2026-08-14)', () => {
+    expect(HEROES.find((h) => h.id === 'tiff')!.wip, 'Tiff is offered again').toBeFalsy();
   });
 });
 

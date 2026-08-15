@@ -1,5 +1,119 @@
 # ASCENT — development log
 
+## 2026-08-15 - Balance: Drunken Oaf, Kringle, Vaultkeeper
+
+Owner balance pass.
+
+- **Drunken Oaf** +2/+2 -> **+3/+3** per Ale (golden +4/+4 -> +6/+6). Params + both text lines moved together.
+- **Kringle** +1/+1 -> **+1/+2** per card played (golden +2/+2 -> +2/+4).
+- **Vaultkeeper** now reads "spells" instead of "Shop Spells" — and the MECHANIC follows the text, which is
+  the point of the change: the step now counts the SPELL UMBRELLA (`spellsCast + rubyCasts`), the contract
+  already documented on `RunState.rubyCasts` and used by `fireOnRubyCast`. So 4 Rubies advance a step exactly
+  like 4 Shop Spells. The live card text (`herzogText`) and its countdown were switched to the same umbrella
+  and the same wording, so the printed number still equals what the card will actually grant.
+  - Plumbing: `rubyCasts` threaded through `LiveTextParams` / `ShopViewOpts` / the `instView` live bag (all
+    additive object fields — no positional-signature churn).
+  - NOTE for balance: under **Rune of the Spellstone** a Ruby raises `spellsCast` too, so it counts through
+    BOTH halves of the umbrella (a double step). That is pre-existing behaviour of this contract — every
+    umbrella reader has always done it — not something introduced here. Flagged in case the owner wants it
+    de-duplicated as its own change.
+
+Tests: `balanceAug15.test.ts` (params + printed text + a real 4-Rubies-advances-a-step play, and a Kringle
+End-of-Turn grant of exactly +1/+2 per card). `cardText.test.ts`'s Oaf case updated — it pinned the old rate,
+which is exactly what it is for. Typecheck + lint clean.
+
+## 2026-08-15 - Hero power polish pass 3 (dice settle, once-per-game, side preview, Flint art)
+
+Owner pass 3 on the hero batch — all four verified live.
+
+- **Gambler's die no longer "drops" as it lands.** Each tumble frame replayed the same keyframe, whose tail
+  shrinks 1.22 -> 1.0; on the FINAL value that read as the number falling. The settled face now has its own
+  `dicesettle` (0.98 -> 1.22, grows into place and holds), so it never shrinks back. Measured: all 6 settled
+  frames share one centre-Y.
+- **Xerox no longer reads "once per turn".** The power line's generic fallback ignored `oncePerGame` — it now
+  reads "once per game" / "spent". Also gave Hunch its live cost line and the Gambler a "locked Nt" line,
+  both of which were falling through to the same generic branch.
+- **Hunch's preview is now a floating SIDE popup**, the same `.cardref` structure a minion hover uses:
+  portalled to <body>, placed beside the power, and flipped to the left when it would run off-screen.
+- **Foreman Flint's power art** wired (the owner added `ForemanFlintHP.png`) — every hero in the batch now has
+  both portrait and power art.
+
+Verified live: Flint's `flint.webp` loads (needed a dev-server restart — new art files don't hot-reload past
+the eager `import.meta.glob`); Xerox's panel says "once per game" and never "once per turn"; Hunch's preview
+portals to body, sits 10px to the button's right and prints "Spirit Fire - Give a minion +2/+3"; the die
+settles on 5 and holds one position. Typecheck + lint clean.
+
+## 2026-08-14 - Hero art wired + power polish (preview, dice, contraband flash)
+
+Owner pass 2 on the hero batch.
+
+- **ART.** Every new hero now has real portrait + power art. `wire-art` grew a **hero powers** job (the
+  folder had never been a job — power art was hand-dropped, which is why a new hero shipped with the
+  placeholder diamond). Indexed by `<HeroName>HP` under the same strict name-match rule, so the three
+  unattributed legacy files (a UUID, retired Atrius, `Pathfinder.png` named for the power not the hero) are
+  REPORTED, never guessed. Wired 9 portraits + 8 powers; **Foreman Flint has no HP art in the source folder**,
+  so his power still shows the placeholder.
+- Added a `.gitignore` rule for `packages/ui/src/art/**/*.png`: the pipeline writes a ~600KB PNG intermediate
+  beside every ~60KB webp, and only the webp is tracked (804 of them). Without the rule a wire run leaves 679
+  stray files staged — a ~10x art payload if committed.
+- **Hunch** — hovering the power previews the spell it would grant, built through the shared `instView` so the
+  card prints its LIVE value (the card-text rule), not a base number.
+- **Gambler** — the rolled die is now BIG and centred ON the diamond (was small, in the tally slot above it).
+- **Pete** — the smuggled tier-above offer is flagged (`ShopCard.contraband`) and flashes once as the row
+  lands, so the special unit reads. One-shot opacity on a `::before` overlay — never a looping paint animation.
+
+Verified live: Pete's 3rd refresh flagged exactly one offer and one card carried the flash class; Hunch's
+hover showed "Spirit Fire — Give a minion +2/+3"; the die measured 53.7px at dx/dy 0 from the button centre;
+`pete.webp` / `hunch.webp` / `gambler.webp` all loaded. Typecheck + lint clean.
+
+## 2026-08-14 - Heroes batch: owner revisions + Hunch
+
+Owner pass over the new heroes (2026-08-14), plus a ninth:
+
+- **Xerox** now SUMMONS the copy beside the target instead of granting it to hand — so it needs a free board
+  slot and is unusable at 7 minions (no charge spent when the board is full).
+- **Pete (Contrabanana)** no longer ADDS an eighth offer: every 3rd refresh the RIGHT-MOST Shop minion is
+  replaced by one from the tier above (`upgradeRightmostOffer`), so the row width never changes. T7 only with
+  real Tier-7 access. Tally shows x/3.
+- **Quillen (Archive)** targets a friendly BOARD minion or a Shop offer (the UI aim now accepts tavern picks,
+  which is why it read as "not working"). Tally shows x/3; the 3rd archive fires the Discover.
+- **Frantic Frank / Foreman Flint** — the 2-Gold price now SHOWS on the Shop cost pill. Both prices route
+  through one exported helper (`heroOfferPrice`) used by the reducer charge AND the UI coin, so the shown
+  price is provably the charged price (the `sellValueOf` rule).
+- **Gambler (Dice)** — the die visibly TUMBLES on the power button (1→6 cycling, ~600ms, compositor-only
+  transform/opacity) and settles on the rolled value; the tally then counts down `Nt` until it unlocks, and
+  the power is disabled while locked.
+- **NEW — Hunch (Rounded Spellbook):** get a copy of the last spell you cast (run-lifetime `lastSpellCastId`,
+  so it carries across turns). Costs 3 Gold, −1 per turn since the last use (floor 0) via
+  `roundedSpellbookCostOf`, shared with the cost coin; using it re-bases the countdown.
+
+Verified: typecheck + lint clean; 14 hero tests + the suite; live browser checks — the die tumbled
+2→4→5→6→1→2→3→4→5 and settled on 5 (+5 Gold, countdown `5t`), Frank's row showed 2-Gold pills on every
+minion, and Quillen archived a Shop minion (4→3 offers, tally 1/3). `finalTranche`'s hero-disable list updated
+(Tiff is no longer withheld).
+
+Follow-up: the new heroes use placeholder power art.
+
+## 2026-08-14 - Heroes batch: Tiff re-added + 8 new heroes
+
+Owner batch. **Tiff** re-added to the pool (the `wip` withhold lifted). Eight new heroes (data-driven — a new
+`HeroPowerKind` + a reducer branch/hook each; all gameplay tested in `heroesBatchAug14.test.ts`):
+
+- **Merrin** — Pocket Magic (1g): a random Shop spell to hand.
+- **Gambler** — Dice (1g): roll 1–6, gain that Gold, then the power locks for that many turns (`heroDiceLockUntil`).
+- **Xerox** — Copy Machine (0g, once/game): copy a friendly board minion into hand (a plain copy).
+- **Frantic Frank** — Clearance (1g, once/turn): refresh the Shop; its minions cost 2 Gold this turn (`frankClearanceTurn`, read in the buy case).
+- **Pete** — Contrabanana (passive): every 3rd refresh appends a minion from the tier above (T7 only with access) — `refreshCount` + `appendHigherTierOffer`.
+- **Foreman Flint** — Company Rate (passive): Dwarf offers cost 2 Gold (buy-case tribe check).
+- **Emissary Vale** — United Front (passive): SoC gives one minion of each tribe +Tier/+Tier (the Five Banners rule, tier-scaled, new `QuestCombatMods.unitedFront`), and a Fatecarver joins hand on reaching Tier 6.
+- **Quillen** — Archive (0g, once/turn): remove a chosen Shop minion into the archive (records its type); every 3rd → Discover one random minion per archived type (`archivedTribes`).
+
+Verified: typecheck + lint clean; 10 gameplay tests green; full suite + build.
+
+Follow-ups (UI, flagged): **Quillen** needs shop-minion targeting for its power (hero powers currently target
+the board only), and **Frank/Flint**'s 2-Gold discount is charged correctly but the Shop's displayed price
+doesn't yet reflect it — both are small UI wires, best done live.
+
 ## 2026-08-14 - Paragon now fires per Rally trigger, including doublers
 
 Owner report: Paragon (`onRallyBuffOnePerTribe` — "any friendly Rally buffs one minion of every type") did not

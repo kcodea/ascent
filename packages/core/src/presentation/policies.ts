@@ -719,6 +719,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // `passive` was factually wrong. Still flagged for the owner pass.
   'hero:tiff:dragonTamer': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:warden:grantWard': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  // Heroes batch 2026-08-14 (heuristic classification, flagged for owner review).
+  'hero:merrin:pocketMagic': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:gambler:dice': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:xerox:copyMachine': { policy: 'ownBeat', family: 'heroReplay', flagged: true },
+  'hero:frank:clearance': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:pete:contraband': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:flint:companyRate': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:vale:unitedFront': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:quillen:archive': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };
 

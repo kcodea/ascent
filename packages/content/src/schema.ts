@@ -258,6 +258,11 @@ export const EffectFactoryIdSchema = z.enum([
   'onConsumeShieldNextCombat',
   'spellBuffTarget',
   'spellBuffTargetAndNeighbours', // Beefy: the target AND its neighbours
+  'spellMarkPartingCry',
+  'spellMarkClosedCasket',
+  'spellSolidGround',
+  'spellContainFirstEnemySummon',
+  'spellStolenInitiative',
   'spellGambleTierPull',          // Gamble: roll a die, get a minion/spell of that tier
   'spellBuffTargetPerGold',
   'spellBuffAll',

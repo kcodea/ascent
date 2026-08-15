@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-15 - Spell batch tranche 2: the five NEXT-COMBAT spells
+
+The half of the owner batch that needed real combat mechanics rather than data. Each spell ARMS a mark in the
+shop; the fight spends it. All five marks are one-combat and are cleared at settle whether or not they fired.
+
+- **Parting Cry** (T4, 3g, targeted) — marks a friendly Shout minion; its Shout fires as it dies. Hooked on the
+  REAL death path (the `onDeath` broadcast), not `fireOwnDeathrattles` — that one only serves FORCED echoes
+  (Rise / Bone Throne / Echoing Coop), which is why the first attempt looked wired but never fired.
+- **Closed Casket** (T5, 2g, targeted) — its Echo fires at Start of Combat instead. The first death then
+  broadcasts with `ownAlreadyFired`, so every on-death WATCHER still sees the death while the body's own Echo
+  is skipped — suppressing the broadcast outright would have silently eaten other cards' triggers.
+- **Solid Ground** (T3, 4g) — banks 3 charges; each minion YOU summon spends one for +4/+4. Side-general: the
+  summoning side's own bank pays.
+- **Containment Rune** (T5, 3g) — the first body the OPPOSING side summons is pinned to 1/1. The flag lives on
+  the CASTER's mods and fires on the opponent's summon; one-shot, so a throwaway token can eat it (the gamble).
+- **Stolen Initiative** (T5, 3g) — after the enemy's first attack, your right-most minion strikes. Queued
+  through the EXISTING `attackNow` lane (the same one attack-on-summon / Solaris Fang use) so it drains at the
+  normal flush point. Turn order itself is never rewritten — the hard line on that file, and the reason this
+  landed without the sequencing risk it looked like it carried.
+
+Plumbing: per-card marks ride `BoardCard -> BoardMinion -> Minion` (the `resummon` precedent, threaded in
+`minion.ts`); the three side-wide banks ride `QuestCombatMods`. All five factories are classified in the
+presentation registry and declared in the set-2 roster (both tripwires caught them, as designed). Art wired
+for all five.
+
+Tests: `combatSpellsAug15.test.ts` (9) — each spell proved to fire AND proved silent without its mark, plus
+Closed Casket pinned to pay exactly once (SoC, not again on death). Full suite 5407 green.
+
 ## 2026-08-15 — bake owner Runeforge backdrop (bigger art, darker scrim)
 
 Baked the owner's tuned Runeforge backdrop from the 🪨 tuner: the `.forge-ov` background in `styles.css` goes to

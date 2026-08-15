@@ -78,6 +78,8 @@ export function instantiate(
     universalTribe: board.universalTribe || card.universalTribe || undefined, // counts as every tribe (Anomaly Reactor "All" OR a universal-tribe CardDef like Chaos Attachment)
     bloodlustRally: board.bloodlustRally, // Bloodlust's welded Rally: give a friendly minion this minion's Attack (one combat)
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+    partingCry: board.partingCry,   // Parting Cry: its Shout fires as it dies this fight
+    closedCasket: board.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,
     // Gravetwin carries its copied Echo into combat as a real Deathrattle, so it PROCS when Gravetwin dies in

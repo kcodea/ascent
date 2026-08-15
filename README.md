@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Heroes batch — Tiff returns + 8 new heroes** — Tiff is back in the pool, joined by **Merrin** (get a random spell), **Gambler** (roll for Gold, then lock the power), **Xerox** (copy a minion, once/game), **Frantic Frank** (refresh; minions cost 2 this turn), **Pete** (every 3rd refresh smuggles in a tier-above minion), **Foreman Flint** (Dwarves cost 2), **Emissary Vale** (Start of Combat: +Tier/+Tier to one of each tribe; a Fatecarver at T6), and **Quillen** (archive Shop minions, then Discover from their types).
+
 - **Funeral on Loan borrowed Echoes actually fire** — several Deathrattle minions (Menagerie Mammoth, Bullseye, Kobebes, Right Hand Hank, Wolvie) had no shop-side Echo body, so discovering them via Funeral on Loan (or Ossuary Rite / Gravetwin / Reliquary / Deathsayer) silently did nothing. Their Echoes now resolve in the shop — summon, Ruby, shop-slot buff, and next-summon buff all included.
 
 - **Rune of the Trophy's copy flies to hand during the fight** — the plain copy of the first enemy you slaughter now animates into your hand on the kill beat, instead of appearing only when the combat resolves. (An audit found this was the last combat card grant that snapped in at settle rather than in real time.)

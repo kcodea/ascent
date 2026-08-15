@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-14 - Heroes batch: Tiff re-added + 8 new heroes
+
+Owner batch. **Tiff** re-added to the pool (the `wip` withhold lifted). Eight new heroes (data-driven — a new
+`HeroPowerKind` + a reducer branch/hook each; all gameplay tested in `heroesBatchAug14.test.ts`):
+
+- **Merrin** — Pocket Magic (1g): a random Shop spell to hand.
+- **Gambler** — Dice (1g): roll 1–6, gain that Gold, then the power locks for that many turns (`heroDiceLockUntil`).
+- **Xerox** — Copy Machine (0g, once/game): copy a friendly board minion into hand (a plain copy).
+- **Frantic Frank** — Clearance (1g, once/turn): refresh the Shop; its minions cost 2 Gold this turn (`frankClearanceTurn`, read in the buy case).
+- **Pete** — Contrabanana (passive): every 3rd refresh appends a minion from the tier above (T7 only with access) — `refreshCount` + `appendHigherTierOffer`.
+- **Foreman Flint** — Company Rate (passive): Dwarf offers cost 2 Gold (buy-case tribe check).
+- **Emissary Vale** — United Front (passive): SoC gives one minion of each tribe +Tier/+Tier (the Five Banners rule, tier-scaled, new `QuestCombatMods.unitedFront`), and a Fatecarver joins hand on reaching Tier 6.
+- **Quillen** — Archive (0g, once/turn): remove a chosen Shop minion into the archive (records its type); every 3rd → Discover one random minion per archived type (`archivedTribes`).
+
+Verified: typecheck + lint clean; 10 gameplay tests green; full suite + build.
+
+Follow-ups (UI, flagged): **Quillen** needs shop-minion targeting for its power (hero powers currently target
+the board only), and **Frank/Flint**'s 2-Gold discount is charged correctly but the Shop's displayed price
+doesn't yet reflect it — both are small UI wires, best done live.
+
 ## 2026-08-14 - Paragon now fires per Rally trigger, including doublers
 
 Owner report: Paragon (`onRallyBuffOnePerTribe` — "any friendly Rally buffs one minion of every type") did not

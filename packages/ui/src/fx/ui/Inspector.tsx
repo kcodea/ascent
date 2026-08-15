@@ -523,15 +523,22 @@ function EmitPointsField({
     }
   };
 
-  // Re-bake when fill/density change AND a source SVG is stashed. Skips the first run so simply opening a def
-  // (or selecting the layer) never re-bakes over its stored points — only an author-driven fill/density change
-  // does. Absent a stash there is nothing to re-bake from; the hint below tells the author to re-upload.
-  const firstRun = useRef(true);
+  // Re-bake ONLY on a deliberate fill/density change of the CURRENTLY-selected layer — never on selection.
+  // `EmitPointsField` is NOT remounted when the author switches between two layers of the same primitive (the
+  // Inspector has no React `key`), so `storageKey` can change on a plain re-render. If the effect baked on a
+  // `storageKey` change it would commit `emitPoints` (arming autosave + an undo entry) on mere selection, and —
+  // because the key is index-based — a post-reorder reselect could write a STALE stash's cloud into a surviving
+  // layer's def. So we track the previous fill/density/storageKey in a ref and bake only when fill or density
+  // actually moved WHILE storageKey stayed the same; a layer switch just adopts the new layer's values
+  // silently. Deps exclude `bake`/`onChange` (recreated every parent render) on purpose.
+  const prev = useRef({ fill, density, storageKey });
   useEffect(() => {
-    if (firstRun.current) {
-      firstRun.current = false;
-      return;
-    }
+    const p = prev.current;
+    const layerChanged = p.storageKey !== storageKey;
+    const settingsChanged = p.fill !== fill || p.density !== density;
+    prev.current = { fill, density, storageKey };
+    // A selection (or the first mount) is inert; only a same-layer fill/density edit re-bakes.
+    if (layerChanged || !settingsChanged) return;
     let text: string | null = null;
     try {
       text = window.localStorage.getItem(storageKey);
@@ -539,8 +546,10 @@ function EmitPointsField({
       text = null;
     }
     if (text !== null) void bake(text);
-    // Intentionally keyed only on fill/density (+ the layer's storageKey): `bake`/`onChange` are recreated
-    // every parent render, so depending on them would re-bake on every keystroke elsewhere in the workbench.
+    // NOTE (out-of-scope, documented): the stash key is still index-based, so a mid-session reorder/delete that
+    // shifts indices could make a later deliberate fill/density change read the WRONG layer's stashed SVG. That
+    // is a re-bake *convenience* limitation only — it can no longer fire on selection, so it never silently
+    // commits. A durable per-layer id would close it; deliberately left for a separate change.
   }, [fill, density, storageKey]);
 
   return (
@@ -798,7 +807,7 @@ export function CurveEditor({
       {/* The editor had no visible instructions at all, so the add/remove gestures were undiscoverable
           (and before this change, non-existent). Styled inline to match `.fxwb-shape-hint` rather than
           adding a rule to the shared stylesheet. */}
-      <div className="fxwb-curve-hint" style={{ fontSize: 10, lineHeight: 1.3, color: '#8a7fa8' }}>
+      <div className="fxwb-curve-hint" style={{ fontSize: 10, lineHeight: 1.3, color: '#9a8c74' }}>
         Drag points · double-click to add · alt-click or right-click a point to remove (ends are pinned).
       </div>
     </div>

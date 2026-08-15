@@ -24,8 +24,8 @@ export function turbulenceY(x: number, y: number, tSec: number, scale: number): 
   return Math.cos(x * scale + tSec * 1.3) + 0.5 * Math.cos(x * scale * 2.1 - tSec * 0.7);
 }
 
-export type EmitShape = 'point' | 'ring' | 'disc' | 'box';
-export const EMIT_SHAPES = ['point', 'ring', 'disc', 'box'] as const;
+export type EmitShape = 'point' | 'ring' | 'disc' | 'box' | 'svg';
+export const EMIT_SHAPES = ['point', 'ring', 'disc', 'box', 'svg'] as const;
 
 /**
  * The spawn fields {@link emissionOffset} reads. Taken as an OBJECT rather than positional arguments because
@@ -38,6 +38,8 @@ export const EMIT_SHAPES = ['point', 'ring', 'disc', 'box'] as const;
 export interface EmissionParams {
   emitShape: EmitShape;
   emitRadius: number;
+  /** Baked, normalized ([-1,1]) spawn points for `emitShape: 'svg'`. A random index picks one per spawn. */
+  emitPoints?: readonly (readonly [number, number])[];
   /** Horizontal scale of the spawn area. 1 = untouched. */
   squashX?: number;
   /** Vertical scale of the spawn area. 1 = untouched. */
@@ -102,6 +104,17 @@ export function emissionOffset(
     case 'box': {
       out.ox = (randA * 2 - 1) * radius * sx + dx;
       out.oy = (randB * 2 - 1) * radius * sy + dy;
+      return;
+    }
+    case 'svg': {
+      const pts = p.emitPoints;
+      if (pts && pts.length > 0) {
+        const pt = pts[Math.min(pts.length - 1, Math.floor(randA * pts.length))]!;
+        out.ox = pt[0] * radius * sx + dx;
+        out.oy = pt[1] * radius * sy + dy;
+        return;
+      }
+      out.ox = dx; out.oy = dy; // no baked points → the anchor, like `point`
       return;
     }
     case 'point':

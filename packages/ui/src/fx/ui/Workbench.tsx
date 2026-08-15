@@ -2380,6 +2380,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             values={selLayer.params}
             onChange={change}
             primitiveId={selLayer.primitive}
+            // Per-layer identity for the emitpoints control's localStorage SVG stash. `selected` + primitive
+            // keeps two SVG-emit layers from clobbering each other's source during an authoring session.
+            layerKey={`${selLayer.primitive}:${selected}`}
           />
         )}
         <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>

@@ -251,6 +251,44 @@ describe('coerceParams', () => {
   });
 });
 
+describe('coerceParams — emitpoints kind (via the burst primitive spec)', () => {
+  // The spec object is not exported directly — it is exposed as the primitive's `.params` record.
+  const BURST_PARAMS = burstPrimitive.params as FxParamSpecs;
+
+  it('round-trips emitPoints, clamped to [-1,1] and malformed entries dropped', () => {
+    const raw = { emitShape: 'svg', emitPoints: [[0.5, -0.5], [2, -3], 'bad', [0.1]] };
+    const out = coerceParams(BURST_PARAMS, raw) as Record<string, unknown>;
+    expect(out.emitShape).toBe('svg');
+    // valid pairs kept + clamped; malformed entries (wrong type, wrong arity) dropped
+    expect(out.emitPoints).toEqual([[0.5, -0.5], [1, -1]]);
+  });
+
+  it('emitFill and emitDensity default correctly', () => {
+    const out = coerceParams(BURST_PARAMS, { emitShape: 'svg' }) as Record<string, unknown>;
+    expect(out.emitFill).toBe(false);
+    expect(out.emitDensity).toBe(400);
+    expect(out.emitPoints).toEqual([]);
+  });
+
+  it('drops non-finite coordinates, and returns fresh nested arrays (never aliases the input)', () => {
+    const input = [[0.2, 0.3], [Number.NaN, 0.5], [0.1, Infinity]];
+    const out = coerceParams(BURST_PARAMS, { emitPoints: input }) as Record<string, unknown>;
+    expect(out.emitPoints).toEqual([[0.2, 0.3]]);
+    const pts = out.emitPoints as number[][];
+    expect(pts[0]).not.toBe(input[0]);
+  });
+
+  it('caps the point count at EMIT_POINTS_MAX (4000)', () => {
+    const many = Array.from({ length: 4100 }, () => [0, 0]);
+    const out = coerceParams(BURST_PARAMS, { emitPoints: many }) as Record<string, unknown>;
+    expect((out.emitPoints as number[][]).length).toBe(4000);
+  });
+
+  it('drops a non-array emitPoints value to the empty default', () => {
+    expect((coerceParams(BURST_PARAMS, { emitPoints: 'nope' }) as Record<string, unknown>).emitPoints).toEqual([]);
+  });
+});
+
 describe('ParamsOf type derivation', () => {
   it('derives the correct type for enum params (union of options, not just default)', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

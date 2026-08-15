@@ -129,6 +129,22 @@ const SPECS = {
     enabledWhen: { param: 'emitShape', not: 'point' },
     help: 'How far out from the anchor that spawn area reaches, in px — bigger reads as a wider, softer smoke source instead of a pinpoint. Does nothing while Emit shape is point.',
   },
+  emitFill: {
+    kind: 'toggle', label: 'SVG fill', group: 'Physics', default: false,
+    enabledWhen: { param: 'emitShape', is: 'svg' },
+    help: 'Fill the SVG silhouette solid instead of sampling only its outline. Off traces the stroke; on scatters spawns across the whole interior. Does nothing unless Emit shape is svg.',
+  },
+  emitDensity: {
+    // 64 / 400 / 4000 mirror EMIT_POINTS_MIN / _DEFAULT / _MAX in svgEmit.ts — how many points the baker lays down.
+    kind: 'slider', label: 'SVG density', group: 'Physics', min: 64, max: 4000, step: 1, default: 400,
+    enabledWhen: { param: 'emitShape', is: 'svg' },
+    help: 'How many points the baker samples off the SVG — more points read as a denser, more faithful silhouette at some cost. Does nothing unless Emit shape is svg.',
+  },
+  emitPoints: {
+    kind: 'emitpoints', label: 'SVG shape', group: 'Physics', default: [],
+    enabledWhen: { param: 'emitShape', is: 'svg' },
+    help: 'The baked point cloud itself — set by importing an SVG, not tuned by hand. A spawn picks one point at random. Empty until you bake a shape. Does nothing unless Emit shape is svg.',
+  },
   squashX: {
     kind: 'slider', label: 'Squash X', group: 'Physics', min: 0.2, max: 3, step: 0.01, default: 1, essential: true,
     // NOT gated on `emitShape`. The pair was, while squash only moved the spawn area — meaningless without

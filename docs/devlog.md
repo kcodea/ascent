@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-15 — custom SVG emit shapes: the Inspector control (upload / fill / density / re-bake)
+
+Closes the four-part SVG-emit-shape feature: an emitter can now spawn its particles along (or across) an
+arbitrary SVG silhouette instead of the four hard-coded emit shapes. The earlier tasks laid the pipe —
+`motion.ts` samples an `emitPoints` cloud for `emitShape: 'svg'`, `svgEmit.ts` bakes an SVG into a normalized
+`[-1,1]` point cloud, and the `emitpoints` param kind + `emitFill`/`emitDensity`/`emitPoints` params landed on
+burst/smoke/emitter. This task is the workshop control that drives them.
+
+**Inspector (`packages/ui/src/fx/ui/Inspector.tsx`).** New `EmitPointsField` renders for the `emitpoints` kind:
+an **Upload SVG** file input (`.svg,image/svg+xml`) beside a live point-count readout (`"400 pts"` / `"no SVG"`).
+On upload it reads `file.text()`, stashes the raw SVG in `localStorage` under a per-layer key
+(`fx.emitsvg.<primitive>:<selectedLayer>`, threaded in as the Inspector's new `layerKey` prop), bakes, and
+commits the cloud through the existing `change('emitPoints', …)` handler. The sibling `emitFill` (toggle) and
+`emitDensity` (slider) still render through their own kinds; a `useEffect` keyed on `[fill, density, storageKey]`
+(skipping the first run so opening/selecting a layer never re-bakes over its stored points) re-bakes from the
+stashed SVG when either changes. With no stash, the hint reads *"Re-upload to change fill/density"* rather than
+silently no-op'ing. Bake failures surface as an inline error line — never a throw into render (mirrors the
+`shape` import control it's modelled on).
+
+**Why baked, not textured.** The point cloud is sampled once and persists in the def as plain `[x,y]` data that
+round-trips through `coerceParams`; the render path just picks a random point per spawn. Nothing about the
+original SVG (or a live rasterization) reaches players — so a committed def is fully prod-portable and needs no
+runtime SVG decode. The raw SVG lives ONLY in `localStorage`, an authoring-time convenience for re-baking; it is
+never written to the committed def (a def shared from another machine renders its baked points and simply prompts
+a re-upload before fill/density can change).
+
+**Fill actually works now (`svgEmit.ts`).** Task 2's fill path was synchronous and returned `[]` because an
+`<img>` is not decoded on the first synchronous call (`img.complete` is false). Added
+`svgToEmitPointsAsync(svgText, {fill, count})`: for fill it `await img.decode()` (guarded → `[]`) before
+rasterizing the alpha mask; outline delegates to the untouched sync `svgToEmitPoints`. Shared the rasterize +
+rejection-sample body between the sync and async fill paths so both produce identical clouds. The sync export and
+its Task-2 unit tests are unchanged. The Inspector's bake awaits the async variant.
+
+Styling: `.fxwb-emitsvg` block in `styles.css`, matching the sibling `.fxwb-shape` control (reuses the dashed
+upload-button + hint/error language).
+
+Verified: typecheck (pkgs + web) clean; lint 0 errors; `npm test` 338 files / 5425 passed, 2 skipped;
+`build:web` ✓ in ~7s. The fill rasterization + live spawn along the shape is a canvas/DOM path, so its final
+correctness is a workshop live-check (owner-run): upload an SVG, confirm outline spawns, flip fill to scatter the
+interior, drag density to change the count, save + reload to confirm the baked points persist. The pure pieces
+(sampler `emissionOffset 'svg'`, `normalize`, `coerceParams` for `emitpoints`) are unit-tested.
 ## 2026-08-15 — Rune node sheen (glossy overlay) + owner quest-node layout
 
 A DEV-authored decorative overlay for the owned-rune nodes, plus baking the owner's tuned quest-node layout.

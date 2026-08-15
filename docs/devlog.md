@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-15 — Rune node sheen (glossy overlay) + owner quest-node layout
+
+A DEV-authored decorative overlay for the owned-rune nodes, plus baking the owner's tuned quest-node layout.
+
+**Rune sheen.** The owner supplied one PNG of three glossy discs; it's auto-sliced (by alpha bounding box) into
+`frames/rune-sheen-1|2|3.webp`, each an INDEPENDENT overlay on a rune node (`QuestBadges.tsx`). A new dev tuner
+(💠 **Rune Sheen**, `runeSheenConfig.ts` / `RuneSheenTuner.tsx`, registered in `DevMenu` + `tunerAll`) gives each
+disc its own x / y / size / opacity and a **blend-mode select** (normal · overlay · color-dodge · screen ·
+hard-light → CSS `mix-blend-mode`). Shipped at hard-light.
+
+The load-bearing detail (three iterations to get right): the sheen must live INSIDE `.questbadges` to
+`mix-blend-mode` against the badges — blending needs a shared stacking context, and any isolating wrapper
+(a `transform`) kills it. But that container carries the Quest-nodes layout transform, which was resizing the
+sheen with the scale slider (owner report). Fix: each disc counter-scales `--qb-s` **in its own transform**
+(a transform on the *blended* element doesn't isolate it from its backdrop, unlike an ancestor) and sizes in
+`--u-base`, so the sheen size is immune to BOTH the Quest-nodes Scale and the global UI-scale sliders; its
+translate rides the row + per-node offsets so it stays glued to the badges as the layout is tuned
+(center-pivot, so the counter-scale holds position). Verified live: at the default it's dead-centred on each
+node and `hard-light` composites; cranking either scale slider leaves the disc size unchanged (48px → 48px).
+
+**Quest-node layout** baked to the owner's tuned values (Scale 1.12, Separation 11, per-node Node-1 −4/60,
+Node-2 17/10, Node-3 43/26) in `layoutConfig.ts` + the styles.css fallbacks. Also removed the hard border ring
+on the rune badges (owner ask) — background/glow kept.
+
+Verified: `typecheck` (pkgs + web) clean; `lint` 0 errors (10 pre-existing warnings); `test` 5409/5409 green;
+`build:web` succeeds. (The bespoke shop tier-up effect from the same session shipped separately as #1059.)
+
 ## 2026-08-15 — end-of-turn self-buffs also play self-buff-gold (the follow-up)
 
 Completes the earlier shop-self-buff work: the END-OF-TURN beat path showed the green pulse where the per-action

@@ -2253,7 +2253,7 @@ body.modalup .app { z-index: auto; }
    34u) is later in the file and still wins there, so enemy-rune chips stay small. */
 /* Same NODE SIZE as a quest badge (owner 2026-08-03 — runes were 98u vs quests' 53u, so the rows read as
    two different systems and the taller nodes fattened the row). Only the stone colouring differs now. */
-.questbadge.runebadge { border-color: #9fb4c8; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+.questbadge.runebadge { border: none; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--gl-accent, #a8d8ef); }
 /* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
@@ -2718,14 +2718,33 @@ body.modalup .app { z-index: auto; }
    statusbar is only as wide as the hero box — so the row folded into a vertical stack the moment it left
    flow (owner report 2026-08-03). Sizing to content restores the horizontal row; `max-width` still wraps
    a genuinely long badge run. */
-.questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); width: max-content; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -7px) * var(--scale)), calc(var(--qb-y, -434px) * var(--scale))) scale(var(--qb-s, 1.4)); transform-origin: left center; }
+.questbadges { position: absolute; left: 0; bottom: calc(100% - 7px); width: max-content; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 11) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -7px) * var(--scale)), calc(var(--qb-y, -434px) * var(--scale))) scale(var(--qb-s, 1.12)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* PER-NODE placement (owner ask 2026-08-11): the first three badges (quest/rune 1·2·3 in display order) each
    take an individual X/Y nudge off their row slot, so all three can be positioned freely instead of only as a
    row. Defaults 0 = the plain row. The row transform on `.questbadges` still applies to the group. */
-.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -7px) * var(--scale)), calc(var(--qb1-y, 49px) * var(--scale))); }
-.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 5px) * var(--scale)), calc(var(--qb2-y, 10px) * var(--scale))); }
-.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 21px) * var(--scale)), calc(var(--qb3-y, 21px) * var(--scale))); }
+.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -4px) * var(--scale)), calc(var(--qb1-y, 60px) * var(--scale))); }
+.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 17px) * var(--scale)), calc(var(--qb2-y, 10px) * var(--scale))); }
+.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 43px) * var(--scale)), calc(var(--qb3-y, 26px) * var(--scale))); }
+/* Rune sheen — three glossy discs, each an independent overlay over a rune node. Absolutely placed inside the
+   (already group-transformed) badge row and driven by the 💠 Rune Sheen tuner's `--rshN-*` vars; width in --u
+   with height auto keeps each disc's native aspect; pointer-events off so they never eat a badge hover. */
+/* Each disc counter-scales by 1/--qb-s IN ITS OWN transform, so the Quest-nodes Scale slider no longer resizes
+   the sheen (parent scale × 1/scale = 1 for size). The counter-scale is about the disc's CENTRE (default
+   transform-origin), so its placed centre is preserved. Crucially this lives on the blended element itself — NOT
+   an isolating wrapper — so `mix-blend-mode` still composites against the badges behind (owner 2026-08-15).
+   The baked X/Y/W are centre-adjusted for the counter-scale (see runeSheenConfig). */
+/* FULLY LAYOUT-IMMUNE (owner 2026-08-15): the sheen must stay inside `.questbadges` to `mix-blend-mode` against
+   the badges (blending needs a shared stacking context), but that container carries the Quest-nodes transform.
+   So each disc CANCELS every layout control on itself: sized in `--u-base` (immune to the UI-scale slider), the
+   `scale(1/--qb-s)` cancels the Quest-nodes Scale, and the translate subtracts the row's `--qb-x/--qb-y` and
+   divides by `--qb-s` so the disc lands at a FIXED stage spot the Quest-nodes sliders can't move. `--scale` (the
+   viewport unit, not a tuner) is intentionally kept so the sheen still tracks screen size. transform-origin at
+   the top-left keeps the cancel math clean. Positioned ONLY by the 💠 Rune Sheen tuner (`--rshN-*`). */
+.questbadges .rune-sheen { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; }
+.questbadges .rune-sheen-1 { width: calc(var(--rsh1-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh1-x, -1) * var(--u) + var(--qb1-x, -4px) * var(--scale)), calc(var(--rsh1-y, -1) * var(--u) + var(--qb1-y, 60px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.12))); opacity: var(--rsh1-o, 1); mix-blend-mode: var(--rsh1-blend, hard-light); }
+.questbadges .rune-sheen-2 { width: calc(var(--rsh2-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh2-x, 63) * var(--u) + var(--qb2-x, 17px) * var(--scale)), calc(var(--rsh2-y, -1) * var(--u) + var(--qb2-y, 10px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.12))); opacity: var(--rsh2-o, 1); mix-blend-mode: var(--rsh2-blend, hard-light); }
+.questbadges .rune-sheen-3 { width: calc(var(--rsh3-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh3-x, 127) * var(--u) + var(--qb3-x, 43px) * var(--scale)), calc(var(--rsh3-y, -1) * var(--u) + var(--qb3-y, 26px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.12))); opacity: var(--rsh3-o, 1); mix-blend-mode: var(--rsh3-blend, hard-light); }
 /* ---- PENDING quest node — taken but not yet activated (QuestBadges).
    The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the
    moment it's taken and sits DIM until it activates, then lights up as a trophy in the same slot. The dim

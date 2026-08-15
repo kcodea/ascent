@@ -41,7 +41,9 @@ export type HeroPowerKind =
   | 'fourPeat' // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
   | 'pocketMagic' // Merrin: get a random Shop spell to hand (active, untargeted, 1 Gold)
   | 'dice' // Gambler: roll a die, gain that much Gold, then the power is locked for that many turns (active, 1 Gold)
-  | 'copyMachine'; // Xerox: copy a friendly board minion into your hand (active, targeted, once per game)
+  | 'copyMachine' // Xerox: copy a friendly board minion into your hand (active, targeted, once per game)
+  | 'clearance' // Frantic Frank: refresh the Shop; its minions cost 2 Gold this turn (active, untargeted, once per turn)
+  | 'contraband'; // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
 
 export interface HeroPower {
   name: string;
@@ -495,6 +497,33 @@ export const HEROES: HeroDef[] = [
       oncePerGame: true,
       // Targeted (no `untargeted`): pick a friendly board minion; a copy lands in your hand.
       text: 'Copy a friendly minion into your hand. Once per game.',
+    },
+  },
+  {
+    id: 'frank',
+    name: 'Frantic Frank',
+    blurb: 'Everything must go — today only.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Clearance',
+      kind: 'clearance',
+      cost: 1,
+      untargeted: true, // refreshes the Shop + marks its minions 2 Gold this turn; once per turn (heroReady)
+      text: 'Refresh the Shop. Its minions cost 2 Gold this turn.',
+    },
+  },
+  {
+    id: 'pete',
+    name: 'Pete',
+    blurb: 'He knows a guy who knows a guy.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Contrabanana',
+      kind: 'contraband',
+      passive: true, // resolved in the refresh case: every 3rd refresh appends a tier-above offer
+      text: 'Every third refresh adds a minion from the tier above your Shop tier.',
     },
   },
 ];

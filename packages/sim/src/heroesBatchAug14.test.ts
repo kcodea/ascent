@@ -54,3 +54,26 @@ describe('Xerox — Copy Machine', () => {
     expect(s.heroPowerSpent, 'once per game — spent').toBe(true);
   });
 });
+
+describe('Frantic Frank — Clearance', () => {
+  it('refreshes the Shop and makes its minions cost 2 Gold this turn', () => {
+    let s: RunState = { ...createRun(3, 'frank'), embers: 10, maxEmbers: 20, heroReady: true, tier: 3 };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.frankClearanceTurn, 'clearance armed for this turn').toBe(s.wave);
+    const offer = s.shop.find((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby && !(o.cost != null); });
+    expect(offer, 'a normal Shop minion to buy').toBeTruthy();
+    const before = s.embers;
+    const after = reduce(s, { type: 'buy', uid: offer!.uid });
+    expect(before - after.embers, 'that minion cost 2 Gold under Clearance').toBe(2);
+  });
+});
+
+describe('Pete — Contrabanana', () => {
+  it('every 3rd refresh appends a minion from the tier above', () => {
+    let s: RunState = { ...createRun(4, 'pete'), embers: 50, maxEmbers: 50, heroReady: true, tier: 3, freeRolls: 99 };
+    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'roll' });
+    const higher = s.shop.filter((o) => CARD_INDEX[o.cardId]?.tier === 4);
+    expect(higher.length, 'the 3rd refresh smuggled in a Tier-4 offer').toBeGreaterThan(0);
+    expect(s.refreshCount).toBe(3);
+  });
+});

@@ -676,6 +676,11 @@ export interface RunState {
   /** Gambler (Dice): the wave at which the Dice power becomes usable again — set to `wave + roll` on use, so a
    *  big roll pays more Gold but locks the power longer. Absent = usable. */
   heroDiceLockUntil?: number;
+  /** Frantic Frank (Clearance): the wave on which his refresh made Shop minions cost 2 Gold. Equal to the
+   *  current wave while the discount is live; a wave comparison auto-expires it next turn (no explicit clear). */
+  frankClearanceTurn?: number;
+  /** Pete (Contrabanana): running count of Shop refreshes — every 3rd appends a tier-above offer. */
+  refreshCount?: number;
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

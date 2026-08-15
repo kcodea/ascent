@@ -3,7 +3,7 @@ import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG, maxTierFor } from './config';
+import { CONFIG, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -185,6 +185,20 @@ function appendDominantTypeOffer(s: RunState): void {
   const tribe = dominantBoardTribe(s);
   if (!tribe) return;
   const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+}
+
+/** Pete (Contrabanana): append ONE minion from the tier ABOVE the Shop tier — capped at 7 only when the run
+ *  has Tier-7 access (rune/hero/quest/rift), else 6. No-op at the cap or if the pool is empty. */
+function appendHigherTierOffer(s: RunState): void {
+  const cap = hasTier7Access(s) ? 7 : 6;
+  const tgt = Math.min(s.tier + 1, cap);
+  if (tgt <= s.tier) return; // already at the ceiling — nothing above to smuggle in
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
@@ -953,7 +967,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
       const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && tiDef && (tiDef.tribe === s.tradeInTribe || tiDef.tribe2 === s.tradeInTribe) ? 1 : 0;
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Merchant's Mark override > Hank/default
+      // Frantic Frank's Clearance: this turn, Shop minions cost 2 Gold (below Merchant's Mark / default, above a set price).
+      const frankClearance = getHero(s.heroId).power.kind === 'clearance' && s.frankClearanceTurn === s.wave;
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? (frankClearance ? 2 : undefined) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank's Clearance > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
@@ -1731,6 +1747,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       applyShopRefreshed(s);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
       if (s.runeOpenEnrollment) appendDominantTypeOffer(s);
+      // Pete (Contrabanana): every 3rd refresh appends a minion from the tier above the Shop tier.
+      if (getHero(s.heroId).power.kind === 'contraband') {
+        s.refreshCount = (s.refreshCount ?? 0) + 1;
+        if (s.refreshCount % 3 === 0) appendHigherTierOffer(s);
+      }
       return s;
     }
 
@@ -2026,8 +2047,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         const def = CARD_INDEX[card.cardId];
         if (!def) return state;
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+      } else if (power.kind === 'clearance') {
+        // Frantic Frank: refresh the Shop (free — the 1-Gold power cost is the shared block's) and mark this
+        // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
+        refreshTavern(s);
+        applyShopRefreshed(s);
+        s.frankClearanceTurn = s.wave;
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
+        || power.kind === 'contraband'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'

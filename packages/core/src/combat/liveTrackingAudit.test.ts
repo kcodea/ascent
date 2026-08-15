@@ -48,6 +48,7 @@ const LIVE: Record<string, string> = {
   playerMagneticBuffGain: "the 'tribeAura' event (Magnetic channel)",
   playerRubyBonusGain: "the '+A/+H Ruby Power' sc narration (same channel as playerRubyGain)",
   playerRubyGrants: "the mint beats — each granted Ruby flies to hand on its trigger",
+  playerSlaughterCopy: "the 'toHand' event on the kill beat — the copy flies to hand as you slaughter (Rune of the Trophy); the plain copy is still conjured for real at settle",
   playerBeastBuyAtkGain: "the 'tribeAura' event (The Old Hunt's live aura pump)",
   playerBeastBuyHpGain: "the 'tribeAura' event (Pack Mentality's Health twin)",
 };
@@ -72,7 +73,6 @@ const EXEMPT: Record<string, string> = {
   playerDeferredBattlecries: 'tavern work queued for the shop — no combat surface by design (Effect Arena rule)',
   playerGuaranteedAttachments: 'a next-shop pity guarantee — no combat surface',
   playerNextTurnSpellCopies: 'next-turn hand grants — no combat surface',
-  playerSlaughterCopy: "the kill itself is the display; the copy arrives at settle by design (Rune of the Trophy)",
 };
 
 describe('every CombatResult carry-back is classified: live-tracked or exempt', () => {

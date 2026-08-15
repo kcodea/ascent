@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-14 - Combat: Rune of the Trophy's slaughter copy flies to hand on the kill (last combat carry-back gap)
+
+A read-only audit of combat presentation (against `liveTrackingAudit.test.ts`, the carry-back tripwire) found
+combat is already almost entirely real-time — essentially every combat-time card grant / resource gain rides
+the event log and animates live. The one exception: **Rune of the Trophy's slaughter copy** (`playerSlaughterCopy`)
+was classified EXEMPT ("the copy arrives at settle by design") — it set `slaughterCopyId` but emitted no
+`toHand` event, so the plain copy snapped into hand only when the shop re-rendered, unlike every other combat
+card grant.
+
+Fix (owner directive 2026-08-14 — combat cards should arrive in real time): on the kill that arms the Trophy,
+emit a bare visual-only `toHand` for the victim's card (`simulate.ts`), so the copy flies to hand on the kill
+beat exactly like `playerHandGrants` / `playerRubyGrants`. It is presentation only — NOT a `playerHandGrants`
+record (the quest-reward `toHand` precedent) — so the real plain copy is still conjured once at settle from
+`slaughterCopyId`; no double-grant. Reclassified `playerSlaughterCopy` from EXEMPT to LIVE in the audit.
+
+Verified: typecheck + lint clean; the Trophy `toHand` fires exactly once on the kill beat (none without the
+rune) — new case in `simulate.test.ts`; the live-tracking audit passes with the new LIVE classification; full
+suite + build green. Combat real-time is now complete at the carry-back level; on-board proc *timing* (the
+Beat-Lab combat-restructure) remains the separate Phase-A work.
+
 ## 2026-08-14 - End of Turn: summons + keyword grants present on their beat (last EoT gaps)
 
 The final two End-of-Turn "everything real-time" gaps (owner directive 2026-08-14). The emission diff produced

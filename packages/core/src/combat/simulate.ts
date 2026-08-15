@@ -2369,7 +2369,14 @@ export function simulate(
               // a plain copy of the VICTIM (was: of the killer) is conjured to hand at settle ("get a plain copy
               // of the first minion you kill each combat"). Player-only (a served enemy has no run to receive it).
               // Conjured fresh from the card def at settle, so the copy is plain — none of the victim's buffs.
-              if (kmods.runeTrophy && slaughterCopyId === undefined) slaughterCopyId = m.cardId;
+              if (kmods.runeTrophy && slaughterCopyId === undefined) {
+                slaughterCopyId = m.cardId;
+                // Fly the copy to hand as a live VISUAL only, on the kill beat — the real plain copy is still
+                // conjured at settle from `slaughterCopyId` (a bare `toHand` is presentation, NOT a
+                // `playerHandGrants` record, exactly like the quest-reward toHand above). Owner directive
+                // 2026-08-14: combat card grants should arrive in real time, not snap in at settle.
+                emit({ type: 'toHand', cardId: m.cardId, side: 'player', source: killer.uid });
+              }
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
               if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);

@@ -3257,6 +3257,7 @@ function advanceCombat(s: RunState): void {
   // clears: the die-on-play deal only applies the turn you Discovered it. From here on it plays as a perfectly
   // normal minion.
   for (const c of s.hand) if (c.borrowed) c.borrowed = undefined;
+  s.pendingSummonBuff = undefined; // Wolvie's one-shot next-summon buff never carries past its shop turn
   if (s.scoutedNextOpponent) s.scoutedNextOpponent = undefined; // Farseer's Report: the scout is for one opponent — clear it as a new one is drawn
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave

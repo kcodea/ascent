@@ -2569,6 +2569,89 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleCastTribeAttack(shopArena(ctx.state, self), params);
   },
 
+  // ── BORROWED-ECHO CLASS FIX (owner report 2026-08-14) — these Echo factories had NO shop-side body, so
+  // Funeral on Loan (and Ossuary Rite / Gravetwin / Reliquary / Deathsayer) fired them into a `?.()` no-op.
+  // Native recruit bodies mirroring the combat FACTORIES, so the Echo actually happens in the shop. ──
+
+  /** Menagerie Mammoth: Echo — summon `count` random `tribe` minions from the run pool. */
+  deathrattleSummonRandomTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => !c.token && !c.spell && (!params.excludeSelf || c.id !== self.cardId)
+        && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+    );
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < num(params.count, 2) * gold(self); i++) ctx.summon(pool[rng.int(pool.length)]!, self.uid);
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Bullseye: Echo — summon `count` random `tribe` minions and SET each to `stat`/`stat` (golden doubles the
+   *  statline, not the count — mirrors the combat body). */
+  deathrattleSummonRandomTribeSetStats: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const pool = poolOf(ctx.state).buyable.filter((c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe));
+    if (pool.length === 0) return;
+    const s = num(params.stat, 7) * gold(self);
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < num(params.count, 1); i++) {
+      const made = ctx.summon(pool[rng.int(pool.length)]!, self.uid);
+      if (made) { made.attack = s; made.health = s; }
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Kobebes: Echo — play `count` Rubies on EACH of your `tribe` minions (at the run's live Ruby strength). */
+  deathrattlePlayRubiesTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const per = num(params.count, 3) * gold(self);
+    if (per <= 0) return;
+    const rb = rubyStatBonus(ctx.state);
+    const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
+    if (a <= 0 && h <= 0) return;
+    for (const c of ctx.state.board) {
+      if (tribe && !isTribe(c, tribe as Tribe)) continue;
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h);
+    }
+  },
+
+  /** Right Hand Hank: Echo — buff the RIGHT-most Shop slot for the rest of the run (Market Tormentor's
+   *  `rightmostSlotBuff` accumulator: grow the total, land the increment on the current offer). */
+  deathrattleBuffRightmostSlot: (ctx, self, params) => {
+    const st = ctx.state;
+    const a = num(params.attack, 6) * gold(self);
+    const h = num(params.health, 3) * gold(self);
+    st.rightmostSlotBuff = { attack: (st.rightmostSlotBuff?.attack ?? 0) + a, health: (st.rightmostSlotBuff?.health ?? 0) + h };
+    const i = rightmostShopMinion(st);
+    if (i >= 0) addOfferBuff(st.shop[i]!, nameOf(self), a, h);
+  },
+
+  /** Sporebat: Echo — cast your last-cast spell again in the shop. A targeted spell aims at a friendly Beast
+   *  (mirrors the combat body's beast pool); with none, it fizzles. */
+  deathrattleCastLastSpell: (ctx, self) => {
+    const id = ctx.state.lastSpellCastId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (!def?.spell) return;
+    let target: BoardCard | undefined;
+    if (def.target) {
+      target = ctx.state.board.find((c) => isTribe(c, 'beast') && c.uid !== self.uid);
+      if (!target) return;
+    }
+    castSpell(ctx.state, def, target);
+  },
+
+  /** Wolvie: Echo — buff your NEXT summoned `tribe` minion +atk/+hp (owner ruling 2026-08-14: works in shop).
+   *  Sets a one-shot pending buff consumed by the shop summon path; cleared at End of Turn if unused. */
+  deathrattleBuffNextSummon: (ctx, self, params) => {
+    ctx.state.pendingSummonBuff = {
+      tribe: (str(params.tribe) || 'beast') as Tribe,
+      attack: num(params.attack, 2) * gold(self),
+      health: num(params.health, 4) * gold(self),
+      source: nameOf(self),
+    };
+  },
+
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
    *  bonus-Gold channel so it survives the per-turn embers reset. */
   endOfTurnBonusGold: (ctx, self, params) => {
@@ -5791,6 +5874,13 @@ function makeContext(state: RunState): RecruitContext {
       };
       const near = state.board.findIndex((x) => x.uid === nearUid);
       state.board.splice(near >= 0 ? near + 1 : state.board.length, 0, minion);
+      // Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): the next matching-tribe minion summoned in the
+      // shop takes the pending buff, then it clears. Applied before `onSummon` so watchers see the buffed body.
+      const psb = state.pendingSummonBuff;
+      if (psb && (!psb.tribe || isTribe(minion, psb.tribe))) {
+        addBuff(minion, psb.source, psb.attack, psb.health);
+        state.pendingSummonBuff = undefined;
+      }
       fire(ctx, 'onSummon', { minion });
       return minion;
     },

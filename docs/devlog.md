@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-14 - Funeral on Loan: borrowed Echoes that had no shop body now actually fire
+
+Owner report: some Echo cards "do not properly trigger" when discovered by Funeral on Loan. A class audit
+(fire every discoverable Deathrattle Echo in isolation) found the mechanism sound EXCEPT for a set of
+`deathrattle*` factories with **no `RECRUIT_FACTORIES` entry at all** — so the shop-side Echo hit `?.()` and
+silently no-op'd (not just for Funeral on Loan but every shop Echo trigger: Ossuary Rite, Gravetwin, Reliquary,
+Deathsayer).
+
+Added native recruit bodies (owner rulings 2026-08-14) for:
+- **Menagerie Mammoth** `deathrattleSummonRandomTribe` — summon random Beasts from the run pool.
+- **Bullseye** `deathrattleSummonRandomTribeSetStats` — summon a Beast, set to 7/7 (golden 14/14).
+- **Kobebes** `deathrattlePlayRubiesTribe` — play Rubies on each of your Kobolds (live Ruby strength).
+- **Right Hand Hank** `deathrattleBuffRightmostSlot` — permanently buff the right-most Shop slot.
+- **Wolvie** `deathrattleBuffNextSummon` — a new one-shot `pendingSummonBuff` consumed by the shop summon path,
+  cleared at End of Turn; the next Beast summoned takes +2/+4.
+- **Sporebat** `deathrattleCastLastSpell` — implemented for completeness though the card is ARCHIVED (not
+  discoverable); the factory is now covered if reused.
+
+Owner rulings: **Scavvers** (`deathrattleTriggerAdjacentRally`) is archived — skipped; **Jensen & Fi**
+(`deathrattleDestroyKiller`) has no shop meaning (no killer) — left as a no-op by design.
+
+Verified: typecheck + lint clean; `borrowedEcho.test.ts` +5 (each Echo now fires via the borrowed-play path);
+full suite + build green. The summon-path hook for Wolvie is guarded — no `pendingSummonBuff` means the hot
+path is untouched.
+
 ## 2026-08-14 - Combat: Rune of the Trophy's slaughter copy flies to hand on the kill (last combat carry-back gap)
 
 A read-only audit of combat presentation (against `liveTrackingAudit.test.ts`, the carry-back tripwire) found

@@ -718,6 +718,9 @@ export interface RunState {
   shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
   shopEatenSeq: number;
+  /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
+   *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
+  pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };
   /** Transient buff-other FX captured during the CURRENT action (cleared at the top of `reduce`). */
   recruitBuffFx: BuffFxEvent[];
   /** Monotonic bump when `recruitBuffFx` is non-empty after an action — the UI fires once per change. */

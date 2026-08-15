@@ -34,6 +34,56 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
     expect(a2.impBuff, 'one overflow → +2/+2').toEqual({ attack: 2, health: 2 });
   });
 
+  it("Menagerie Mammoth's Echo summons Beasts (was a silent no-op — no shop body)", () => {
+    const s: RunState = {
+      ...createRun(11), embers: 30, shop: [],
+      board: [body('f1', 'sandbag')], hand: [borrowed('m', 'b2_mammoth')],
+    };
+    const after = reduce(s, { type: 'play', uid: 'm', toIndex: 1 });
+    expect(after.board.some((c) => c.uid === 'm'), 'the loan expires').toBe(false);
+    expect(after.board.length, 'the Echo summoned Beasts onto the board').toBeGreaterThan(1);
+  });
+
+  it('Bullseye summons a Beast and sets it to 7/7', () => {
+    const s: RunState = {
+      ...createRun(11), embers: 30, shop: [],
+      board: [body('f1', 'sandbag')], hand: [borrowed('b', 'b2_bullseye')],
+    };
+    const after = reduce(s, { type: 'play', uid: 'b', toIndex: 1 });
+    const summoned = after.board.filter((c) => c.uid !== 'f1' && c.uid !== 'b');
+    expect(summoned.length, 'one Beast summoned').toBe(1);
+    expect([summoned[0]!.attack, summoned[0]!.health], 'stats set to 7/7').toEqual([7, 7]);
+  });
+
+  it('Kobebes plays Rubies on each of your Kobolds', () => {
+    const kob = body('k1', 'k_deepvein'); // a Kobold
+    const s: RunState = {
+      ...createRun(11), embers: 30, shop: [],
+      board: [kob], hand: [borrowed('kb', 'k_kobabyboldies')],
+    };
+    const before = kob.attack + kob.health;
+    const after = reduce(s, { type: 'play', uid: 'kb', toIndex: 1 });
+    const k = after.board.find((c) => c.uid === 'k1')!;
+    expect(k.attack + k.health, 'the Kobold gained Ruby stats').toBeGreaterThan(before);
+  });
+
+  it('Right Hand Hank buffs the right-most Shop slot', () => {
+    const s: RunState = {
+      ...createRun(11), embers: 30, shop: [{ uid: 's0', cardId: 'sandbag' }],
+      board: [], hand: [borrowed('h', 'dm_hank')],
+    };
+    const after = reduce(s, { type: 'play', uid: 'h', toIndex: 0 });
+    expect(after.rightmostSlotBuff?.attack ?? 0, 'the right-most slot accrued a permanent buff').toBeGreaterThan(0);
+  });
+
+  it('Wolvie sets a one-shot buff for the next Beast summoned', () => {
+    const s: RunState = {
+      ...createRun(11), embers: 30, shop: [], board: [], hand: [borrowed('w', 'b2_wolvie')],
+    };
+    const after = reduce(s, { type: 'play', uid: 'w', toIndex: 0 });
+    expect(after.pendingSummonBuff, 'the Echo armed the next-summon buff').toMatchObject({ tribe: 'beast', attack: 2, health: 4 });
+  });
+
   it("a borrowed Dawnclaw dropped beside a Shout re-fires that neighbour's Shout", () => {
     // Warhorn Captain's Shout: your other Dwarves +3 Attack. Dawnclaw dropped adjacent must trigger it.
     const s: RunState = {

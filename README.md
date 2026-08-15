@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Funeral on Loan borrowed Echoes actually fire** — several Deathrattle minions (Menagerie Mammoth, Bullseye, Kobebes, Right Hand Hank, Wolvie) had no shop-side Echo body, so discovering them via Funeral on Loan (or Ossuary Rite / Gravetwin / Reliquary / Deathsayer) silently did nothing. Their Echoes now resolve in the shop — summon, Ruby, shop-slot buff, and next-summon buff all included.
+
 - **Rune of the Trophy's copy flies to hand during the fight** — the plain copy of the first enemy you slaughter now animates into your hand on the kill beat, instead of appearing only when the combat resolves. (An audit found this was the last combat card grant that snapped in at settle rather than in real time.)
 
 - **End-of-Turn summons & keyword grants show on their beat** — a minion summoned by an End-of-Turn trigger (Moira re-firing a summoner) now appears on the board *during* the End-of-Turn playback, and a keyword granted mid-turn shows its pip on the beat, instead of both snapping in when the turn commits.

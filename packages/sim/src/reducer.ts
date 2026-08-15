@@ -967,9 +967,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
       const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && tiDef && (tiDef.tribe === s.tradeInTribe || tiDef.tribe2 === s.tradeInTribe) ? 1 : 0;
-      // Frantic Frank's Clearance: this turn, Shop minions cost 2 Gold (below Merchant's Mark / default, above a set price).
-      const frankClearance = getHero(s.heroId).power.kind === 'clearance' && s.frankClearanceTurn === s.wave;
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? (frankClearance ? 2 : undefined) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank's Clearance > Merchant's Mark override > Hank/default
+      // Frantic Frank's Clearance: this turn, Shop minions cost 2 Gold. Foreman Flint: Dwarf offers cost 2.
+      const hp = getHero(s.heroId).power.kind;
+      const frankClearance = hp === 'clearance' && s.frankClearanceTurn === s.wave;
+      const offerDef = CARD_INDEX[offer.cardId];
+      const flintDwarf = hp === 'companyRate' && (offerDef?.tribe === 'dwarf' || offerDef?.tribe2 === 'dwarf');
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? ((frankClearance || flintDwarf) ? 2 : undefined) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
@@ -2055,7 +2058,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.frankClearanceTurn = s.wave;
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
-        || power.kind === 'contraband'
+        || power.kind === 'contraband' || power.kind === 'companyRate'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'

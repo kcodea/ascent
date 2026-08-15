@@ -68,6 +68,19 @@ describe('Frantic Frank — Clearance', () => {
   });
 });
 
+describe('Foreman Flint — Company Rate', () => {
+  it('Dwarf minions cost 2 Gold; others cost the normal price', () => {
+    const s: RunState = {
+      ...createRun(5, 'flint'), embers: 20, maxEmbers: 20, tier: 3, hand: [],
+      shop: [{ uid: 'd0', cardId: 'dw_brunni' }, { uid: 'n0', cardId: 'stray' }],
+    };
+    const dwarf = reduce(s, { type: 'buy', uid: 'd0' });
+    expect(s.embers - dwarf.embers, 'a Dwarf costs 2').toBe(2);
+    const other = reduce(s, { type: 'buy', uid: 'n0' });
+    expect(s.embers - other.embers, 'a non-Dwarf is not discounted').toBeGreaterThan(2);
+  });
+});
+
 describe('Pete — Contrabanana', () => {
   it('every 3rd refresh appends a minion from the tier above', () => {
     let s: RunState = { ...createRun(4, 'pete'), embers: 50, maxEmbers: 50, heroReady: true, tier: 3, freeRolls: 99 };

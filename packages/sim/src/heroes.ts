@@ -43,7 +43,8 @@ export type HeroPowerKind =
   | 'dice' // Gambler: roll a die, gain that much Gold, then the power is locked for that many turns (active, 1 Gold)
   | 'copyMachine' // Xerox: copy a friendly board minion into your hand (active, targeted, once per game)
   | 'clearance' // Frantic Frank: refresh the Shop; its minions cost 2 Gold this turn (active, untargeted, once per turn)
-  | 'contraband'; // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
+  | 'contraband' // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
+  | 'companyRate'; // Foreman Flint (passive): Dwarf Shop minions cost 2 Gold
 
 export interface HeroPower {
   name: string;
@@ -524,6 +525,19 @@ export const HEROES: HeroDef[] = [
       kind: 'contraband',
       passive: true, // resolved in the refresh case: every 3rd refresh appends a tier-above offer
       text: 'Every third refresh adds a minion from the tier above your Shop tier.',
+    },
+  },
+  {
+    id: 'flint',
+    name: 'Foreman Flint',
+    blurb: 'Union rates. Dwarves come cheap by the dozen.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Company Rate',
+      kind: 'companyRate',
+      passive: true, // resolved in the buy case: Dwarf offers cost 2 Gold
+      text: 'Dwarves cost 2 Gold.',
     },
   },
 ];

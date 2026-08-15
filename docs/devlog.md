@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-15 - Xerox copies EXACTLY; Gamble rolls its die where you drop it
+
+- **Xerox (Copy Machine) was handing back a PLAIN copy.** Owner ruling: it is an EXACT copy. It now clones the
+  whole board instance — current (buffed) stats, the buff breakdown, granted keywords, golden, and accrued
+  per-instance counters (summonBonus / attachments / copiedEcho) — rather than rebuilding from the CardDef,
+  which silently dropped everything the minion had earned. Arrays are copied, not shared, so buffing the copy
+  never moves the original (pinned by a test). The Soren `resummon` mark is deliberately NOT carried: that is
+  a per-body choice, not part of the stat line.
+- **Gamble now rolls a real die.** Same tumble + landed hold as the Gambler's hero power (11 x 55ms, then the
+  face holds), rendered AT THE POINT YOU RELEASED the spell, and the card it won is WITHHELD from the hand
+  until the number lands. The pull itself still resolves in the reducer (deterministic/replayable) — the
+  factory just records `gambleRoll` (die face + seq) and `gambleWonUid` so presentation knows what to show and
+  what to hold. Verified live: die at the release point, tumbled then settled on 5 matching the rolled tier,
+  hand 0 cards during the tumble -> 1 after it landed.
+
+Tests: Xerox exact-copy + independence cases in `heroesBatchAug14.test.ts`. Full suite 5398 green.
+
 ## 2026-08-15 - Spell batch (tranche 1) + Buffs-panel fixes
 
 **Buffs panel** (both owner-reported):

@@ -1325,6 +1325,44 @@ export function Recruit() {
      as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
      them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
   const [eotGrants, setEotGrants] = useState<string[]>([]);
+  // GAMBLE'S DIE (owner ask 2026-08-15): the spell plays the SAME tumble the Gambler's hero power does, at the
+  // point you released it, and the card it won is WITHHELD from the hand until the final number lands. The pull
+  // itself already resolved in the reducer (deterministic/replayable) — this is purely when you get to see it.
+  const [gambleDie, setGambleDie] = useState<{ n: number; settled: boolean; x: number; y: number } | null>(null);
+  const [gambleHold, setGambleHold] = useState<string | null>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const onMove = (e: PointerEvent): void => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerdown', onMove, { passive: true });
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onMove); };
+  }, []);
+  const prevGambleSeq = useRef(run.gambleRoll?.seq);
+  useEffect(() => {
+    const seq = run.gambleRoll?.seq;
+    const prev = prevGambleSeq.current;
+    prevGambleSeq.current = seq;
+    if (!seq || seq === prev) return;
+    const tier = run.gambleRoll!.tier;
+    const { x, y } = pointerRef.current;               // where the spell was released
+    if (run.gambleWonUid) setGambleHold(run.gambleWonUid); // hold the prize back until the die lands
+    let tick = 0;
+    let settle = 0;
+    // The Gambler's exact cadence: 11 ticks x 55ms, then the landed face holds ~1.1s.
+    const id = window.setInterval(() => {
+      tick += 1;
+      if (tick >= 11) {
+        window.clearInterval(id);
+        setGambleDie({ n: tier, settled: true, x, y });
+        setGambleHold(null);                            // the number has landed — award the card NOW
+        settle = window.setTimeout(() => setGambleDie(null), 1100);
+      } else {
+        setGambleDie({ n: (tick % 6) + 1, settled: false, x, y });
+      }
+    }, 55);
+    return () => { window.clearInterval(id); window.clearTimeout(settle); setGambleHold(null); };
+  }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
+  const gambleHand = gambleHold ? run.hand.filter((c) => c.uid !== gambleHold) : run.hand;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string }[]>([]);
@@ -5018,11 +5056,11 @@ export function Recruit() {
         data-zone="hand"
       >
         <div className="row hand">
-          {run.hand.map((m, i) => {
+          {gambleHand.map((m, i) => {
             // Fan splay: each card tilts ~1.8° more than its neighbour out from the centre (capped at ±7° so a
             // big hand never over-fans; a lone card sits straight). The rotation is applied in CSS via the
             // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
-            const n = run.hand.length;
+            const n = gambleHand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
             // Locked cards are greyed + padlocked (and can't be played). TWO meters feed this:
             // Disco Dan's Setlist locks until a SHOP TIER, Brackus's Summit until a run GOLD SPEND — the
@@ -5126,6 +5164,14 @@ export function Recruit() {
           Each `.floatanchor` reproduces the unit's card box (centre + footprint SNAPSHOT at spawn — see
           `spawnFloats`), so every per-kind CSS rule and both keyframes still resolve against a card-sized box
           exactly as they did inside the unit. */}
+      {gambleDie && createPortal(
+        <div
+          className={`gambledie${gambleDie.settled ? ' settled' : ''}`}
+          style={{ left: gambleDie.x, top: gambleDie.y }}
+          aria-hidden="true"
+        >{gambleDie.n}</div>,
+        document.body,
+      )}
       {fighting &&
         createPortal(
           <>

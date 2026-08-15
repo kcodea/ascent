@@ -7747,3 +7747,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 .uned.uned input[type="number"] { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+
+/* GAMBLE (the spell) — the die rolls at the point you released the card, using the SAME tumble + landed hold
+   as the Gambler's hero power (owner ask 2026-08-15). Portalled to <body> so no row clips it; pointer-events
+   off so it can never eat a click. Compositor-only transform/opacity, one-shot — never a looping paint. */
+.gambledie {
+  position: fixed; z-index: 120; pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(62 * var(--u)); line-height: 1;
+  color: #ffe6a2;
+  text-shadow: 0 0 calc(10 * var(--u)) rgba(255, 200, 90, 0.85), 0 4px 8px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1);
+  animation: dicetumble 160ms ease-out;
+}
+.gambledie.settled {
+  transform: translate(-50%, -50%) scale(1.22);
+  animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
+}

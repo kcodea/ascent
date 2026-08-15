@@ -2062,9 +2062,19 @@ function reduceCore(state: RunState, action: Action): RunState {
         // a board summon, not a hand grant, so it needs a free board slot). No-op (no charge) on a missing
         // target or a full board. Once per game (the shared block sets heroPowerSpent).
         if (!card || s.board.length >= CONFIG.boardMax) return state;
-        const def = CARD_INDEX[card.cardId];
-        if (!def) return state;
-        if (!makeContext(s).summon(def, card.uid)) return state; // summon failed (full board) → no charge
+        // An EXACT copy (owner ruling 2026-08-15): every per-instance field rides along — current stats, the
+        // buff breakdown, granted keywords, golden, accrued counters (summonBonus / attachments / copiedEcho).
+        // A full instance spread is the only faithful way to say "exact"; rebuilding from the CardDef would
+        // hand back a base-stat body and silently drop everything the minion had earned.
+        const copy: BoardCard = {
+          ...card,
+          uid: `b${s.uidSeq++}`,
+          buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
+          keywords: [...card.keywords],
+          copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
+          resummon: false, // a Soren mark is a per-body choice, not part of the stat line
+        };
+        s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, copy);
       } else if (power.kind === 'roundedSpellbook') {
         // Hunch: a copy of the LAST spell you cast — run-lifetime (`lastSpellCastId`), so it carries across
         // turns. Cost shrinks 1 per turn since the last use (charged here, not the shared block; using it

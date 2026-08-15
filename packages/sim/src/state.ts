@@ -689,6 +689,12 @@ export interface RunState {
   /** Quillen (Archive): the tribes of the Shop minions archived so far. Every 3rd archived minion triggers a
    *  Discover of one random minion per recorded tribe (up to tier), then this resets. */
   archivedTribes?: Tribe[];
+  /** Gamble (the spell): the die face just rolled + a bump seq, so the UI can play the SAME tumble the
+   *  Gambler's hero power uses and hold the card back until it lands. Presentation only — the pull itself
+   *  already resolved (deterministic); this just says what to show. Cleared per action like the other FX. */
+  gambleRoll?: { tier: number; seq: number };
+  /** The hand card Gamble just won — withheld from the hand render until the die lands, then revealed. */
+  gambleWonUid?: string;
   /** Hunch (Rounded Spellbook): the wave the power was last used — its 3-Gold cost drops 1 per turn since
    *  (floor 0). Absent = never used, so the countdown runs from wave 1. */
   hunchResetWave?: number;

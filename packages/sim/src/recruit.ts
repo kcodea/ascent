@@ -4197,7 +4197,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state);
     const picks = [...pool.buyable, ...pool.spells].filter((c) => !c.token && c.tier === tier);
     if (picks.length === 0) return;
+    const before = new Set(ctx.state.hand.map((c) => c.uid));
     conjureToHand(ctx.state, picks, 1);
+    // Tell presentation what to roll — and WHICH card to hold back until the die lands (the UI withholds it
+    // from the hand for the tumble's duration, then reveals). Gameplay already resolved; this is display data.
+    const won = ctx.state.hand.find((c) => !before.has(c.uid));
+    ctx.state.gambleRoll = { tier, seq: (ctx.state.gambleRoll?.seq ?? 0) + 1 };
+    if (won) ctx.state.gambleWonUid = won.uid;
   },
 
   spellBuffTarget: (ctx, self, params) => {

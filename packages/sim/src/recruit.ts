@@ -5665,6 +5665,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
     return def.text;
   }
+  // Beefy: its "+A/+B" lands on the target AND both neighbours, and every grant picks up spell power — so the
+  // printed number must too (the live-text rule; the spell-power audit test pins it).
+  const nbrBuff = def.effects.find((e) => e.do === 'spellBuffTargetAndNeighbours');
+  if (nbrBuff) {
+    const a = Number((nbrBuff.params as { attack?: number } | undefined)?.attack ?? 0);
+    const h = Number((nbrBuff.params as { health?: number } | undefined)?.health ?? 0);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {

@@ -24,6 +24,10 @@ import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
 const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
+// On-attack WATCHERS (on a minion other than the attacker) that are gated on the attacker's Rally and so must
+// scale with Rally doublers. Paragon (`onRallyBuffOnePerTribe`) is the one such today. Generic ally-attack
+// watchers (Crypt Drake) are intentionally NOT here — they count every swing, not every Rally.
+const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe']);
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
 const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another); one queue item per token — a deferred summon strikes inline in the same drain step
@@ -1562,6 +1566,22 @@ export function simulate(
     return extra;
   }
 
+  // A Rally WATCHER on ANOTHER minion (Paragon's `onRallyBuffOnePerTribe`) scales with the number of Rally
+  // triggers — it fires once on the base swing (via the `onAttack` bus) but the doubler loops re-run only the
+  // attacker's OWN effects, so the watcher was silently stuck at ×1 (owner report 2026-08-14). Re-fire it per
+  // extra. Deliberately NARROW: generic ally-attack watchers (Crypt Drake) count every swing and must NOT
+  // double — only rally-gated watchers named here re-fire.
+  const refireRallyWatchers = (attacker: Minion): void => {
+    for (const m of boards[attacker.side]) {
+      if (m === attacker || m.dead || m.health <= 0) continue;
+      for (const effect of m.effects) {
+        if (effect.on === 'onAttack' && RALLY_WATCHER_EFFECTS.has(effect.do)) {
+          withEffect(m, effect, () => FACTORIES[effect.do]?.(ctx, m, effect.params ?? {}, { minion: attacker, side: attacker.side }));
+        }
+      }
+    }
+  };
+
   /** Fire a body's OWN Echo. `killer` is the minion that landed the lethal blow, when there was one —
    *  Jensen & Fi's "destroy the minion that killed this" needs it, and a RISE death used to drop it on the
    *  floor (owner report 2026-08-08): the Rise branch calls this directly and then emits `onDeath` with
@@ -2172,6 +2192,7 @@ export function simulate(
           if (effect.on !== 'onAttack') continue;
           withEffect(attacker, effect, () => FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target }));
         }
+        refireRallyWatchers(attacker); // Paragon scales with the Uron/Drakko rally multiplier too
       }
       // …and each of those extra fires COUNTS as a Rally trigger, exactly like the additive doublers below
       // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) already do. Missing this was
@@ -2228,6 +2249,7 @@ export function simulate(
             if (effect.on !== 'onAttack') continue;
             withEffect(attacker, effect, () => FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side }));
           }
+          refireRallyWatchers(attacker); // Paragon scales with the additive rally doublers too
         }
         if (attacker.side === 'player') bumpRally(extras);
       }

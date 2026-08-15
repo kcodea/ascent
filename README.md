@@ -52,6 +52,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **End-of-Turn Discover grants arrive in real time** — a card discovered by an End-of-Turn trigger (Black Belt Brian re-fired by Moira) now materialises into your hand *during* the End-of-Turn playback, like a shop conjure, instead of snapping in at the combat hand-off.
 
+- **Paragon fires per Rally, doublers included** — Paragon (buff one minion of every tribe on any friendly Rally) now triggers the extra times when your Rallies are doubled (Law of Teeth, Rallying Offensive, Uron, …), instead of only once.
+
 - **Beat Lab (dev): the LIVE toggle now drives combat too** — flipping a combat trigger (e.g. Oona's on-summon reaction) to `ownBeat` and turning on **LIVE** re-paces real fights immediately, no console flag. One switch for End of Turn *and* combat; off is byte-identical to today; shop actions stay instant by design.
 
 - **End of Turn now shows ruby buffs and shop consumes on their beat** — a "your Rubies gain +X" proc (Deepvein Tender, re-fired by Moira) used to animate nothing; it now plays a ruby flourish on its beat. And **Bob Blart**'s Consume now makes the eaten Shop minion visibly leave the row as he procs — with the consume crumble — instead of snapping out only when the turn commits.

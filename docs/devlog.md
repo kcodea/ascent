@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-14 - Paragon now fires per Rally trigger, including doublers
+
+Owner report: Paragon (`onRallyBuffOnePerTribe` — "any friendly Rally buffs one minion of every type") did not
+trigger with double-Rally effects. Paragon is a WATCHER on another minion, so it fires once on the base swing
+via the `onAttack` bus — but both Rally-doubler paths (Uron/Drakko multipliers and the additive doublers: Law
+of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) deliberately re-run only the ATTACKER's own
+on-attack effects (direct calls, not the bus, so generic ally-attack watchers like Crypt Drake don't inflate).
+That skipped Paragon.
+
+Fix: a narrow `refireRallyWatchers` re-fires the rally-gated watcher (`RALLY_WATCHER_EFFECTS`, just Paragon
+today) once per doubler extra, in both doubler loops. Generic ally-attack watchers are intentionally excluded —
+only rally-scaling watchers re-fire. Test: a rallying Beast with the doubler fires Paragon twice
+(`simulate.test.ts`); full combat suite (308) green.
+
 ## 2026-08-14 - Funeral on Loan: borrowed Echoes that had no shop body now actually fire
 
 Owner report: some Echo cards "do not properly trigger" when discovered by Funeral on Loan. A class audit

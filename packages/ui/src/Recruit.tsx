@@ -4094,6 +4094,21 @@ export function Recruit() {
         setBuffedUids((s) => new Set([...s, uid]));
         window.setTimeout(() => setBuffedUids((s) => { const n = new Set(s); n.delete(uid); return n; }), 600);
       },
+      selfBuff: (uid) => {
+        // A self-buff on this beat plays the authored self-buff def, mirroring the per-action `minionSelfBuffed`
+        // path: routed through the same recruit cue runner, keyed by the minion's own card so a card override
+        // applies. Falls back to the green burst when defs can't play, so a self-buff is never invisible.
+        const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
+        if (cardId && canPlayDefs()) {
+          runRecruitMomentCues(selfBuffMoment(uid, cardId), {
+            cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+            measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+          });
+        } else {
+          setBuffedUids((s) => new Set([...s, uid]));
+          window.setTimeout(() => setBuffedUids((s) => { const n = new Set(s); n.delete(uid); return n; }), 600);
+        }
+      },
       rubyLanded: (uid, count) => {
         runRecruitMomentCues(
           { kind: 'rubyLanded', recipients: [{ uid, count }] },

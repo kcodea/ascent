@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-15 — shop self-buffs play self-buff-gold (the green pulse, promoted to a bindable def)
+
+Owner report: `self-buff-gold` plays in combat but not the shop — a self-buffing minion (Ashscribe) only got the
+bare green stat-glow. Cause: `captureBuffFx` (recruit.ts:308) skips self-buffs ("no source→target pair for a
+tendril"), so they never reach the binding system; `Recruit.tsx` renders them as a green pulse instead.
+
+Promoted that pulse channel to a bindable def. New recruit-moment kind `minionSelfBuffed` + a `selfBuffMoment(uid,
+cardId)` constructor (same ad-hoc pattern as `shoutMoment`/`spellCastMoment`), bound kind-level in `bindings.json`
+to `self-buff-gold`. At the green-burst site in `Recruit.tsx`, each self-buffed minion now runs through the SAME
+recruit cue runner (`recruitCues.ts`) as rubyLanded/minionBuffed — one moment per self-buffer, keyed by its own
+card, so a card can override it via `cards.<id>.minionSelfBuffed` ("not explicitly redone"). The green burst
+remains only as a fallback when defs can't play (headless / overlay not yet ready), so a self-buff is never
+invisible. No new `playDef` call site — it rides the existing resolver.
+
+Covers on-action self-buffs (Ashscribe's `spellCast` reaction, on-play Shouts, buys). **Follow-up:** end-of-turn
+*beat*-sequenced self-buffs go through the separate `statGain` presenter path and still show the green pulse —
+routing those to the def is a later pass. Verified: typecheck + lint + test 5408/5408 + build.
+
 ## 2026-08-15 - Spell batch tranche 2: the five NEXT-COMBAT spells
 
 The half of the owner batch that needed real combat mechanics rather than data. Each spell ARMS a mark in the

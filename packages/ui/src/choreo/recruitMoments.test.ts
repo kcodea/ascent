@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunState } from '@game/sim';
 import {
   captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs, shoutMoment,
-  spellCastMoment } from './recruitMoments';
+  selfBuffMoment, spellCastMoment } from './recruitMoments';
 
 /** Only the FX fields are read; the rest of a RunState is irrelevant to this scan. `rubyLanded` is per-card
  *  (board or a lone shop offer); the shop SPAN comes from the sim's `veinstormFx`, not from any zone here. */
@@ -161,6 +161,7 @@ describe('recruitMomentsSince', () => {
         recruitFxSeq: 1, recruitBuffFx: [buff('b')],
       }), NONE).map((m) => m.kind),
       shoutMoment('a', 'dw_pimm').kind,
+      selfBuffMoment('a', 'ashscribe').kind,
       spellCastMoment('wo_mine', { x: 0, y: 0 }).kind,
     ]);
     expect([...produced].sort()).toEqual([...RECRUIT_MOMENT_KINDS].sort());
@@ -169,6 +170,11 @@ describe('recruitMomentsSince', () => {
   it('a shout names its own card as the source, so each minion resolves its own binding', () => {
     const m = shoutMoment('u1', 'dw_pimm');
     expect(m).toEqual({ kind: 'shout', sourceCardId: 'dw_pimm', recipients: [{ uid: 'u1', count: 1 }] });
+  });
+
+  it('a self-buff names its own card as the source (recipient IS the source)', () => {
+    const m = selfBuffMoment('u1', 'ashscribe');
+    expect(m).toEqual({ kind: 'minionSelfBuffed', sourceCardId: 'ashscribe', recipients: [{ uid: 'u1', count: 1 }] });
   });
 
   it('a spellCast names its card as the source and carries the release point', () => {

@@ -79,9 +79,9 @@ import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
-import { playDef } from './fx/playDef';
+import { playDef, canPlayDefs } from './fx/playDef';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
@@ -3097,7 +3097,30 @@ export function Recruit() {
     weldStatSeqRef.current = run.weldFxSeq;
     const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
     const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
-    if (burstable.length > 0) setBuffedUids((s) => new Set([...s, ...burstable]));
+    // The pulse channel = shop SELF-buffs (a minion buffing itself — Ashscribe): `captureBuffFx` skips them (no
+    // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Promote it from the bare
+    // green stat-glow to the bound self-buff def — default `self-buff-gold`, card-overridable via
+    // `cards.<id>.minionSelfBuffed` — played through the SAME recruit cue runner rubyLanded/minionBuffed use, so
+    // combat and shop show the same self-buff effect. One moment per self-buffer, keyed by its own card. Falls
+    // back to the green burst only when defs can't play (headless / the FX overlay not yet ready), so a self-buff
+    // is never invisible. Fire-and-forget like the other recruit cues (no teardown collected).
+    if (burstable.length > 0) {
+      if (canPlayDefs()) {
+        for (const uid of burstable) {
+          const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
+          if (!cardId) continue;
+          runRecruitMomentCues(selfBuffMoment(uid, cardId), {
+            cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+            measure: (u) => {
+              const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
+              return el ? restingCenterOf(el) : null;
+            },
+          });
+        }
+      } else {
+        setBuffedUids((s) => new Set([...s, ...burstable]));
+      }
+    }
     // CUT (owner, 2026-08-04): the recruit-phase "+X/+X" float is gone, for the same reason the COMBAT one
     // went in `choreo/channels/float.ts` — the stat badge now carries its own change, withholding the new
     // number and rolling to it (`fx/statHold.ts`, and `Card`'s intrinsic roll for buffs nobody authored).

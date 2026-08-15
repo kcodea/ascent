@@ -44,17 +44,52 @@ describe('Gambler — Dice', () => {
 });
 
 describe('Xerox — Copy Machine', () => {
-  it('copies a friendly board minion into hand (plain), once per game', () => {
+  it('SUMMONS a plain copy beside the target, once per game', () => {
     let s: RunState = {
       ...createRun(3, 'xerox'), heroReady: true, hand: [],
       board: [{ uid: 'b1', cardId: 'stray', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'heroPower', uid: 'b1' });
-    expect(s.hand.length, 'a copy landed in hand').toBe(1);
-    expect(s.hand[0]!.cardId).toBe('stray');
+    expect(s.board.length, 'the copy was summoned to the board').toBe(2);
+    expect(s.hand.length, 'nothing went to hand').toBe(0);
+    const copy = s.board.find((c) => c.uid !== 'b1')!;
+    expect(copy.cardId).toBe('stray');
     const def = CARD_INDEX['stray']!;
-    expect([s.hand[0]!.attack, s.hand[0]!.health], 'a PLAIN copy — base stats, not the buffed 9/9').toEqual([def.attack, def.health]);
+    expect([copy.attack, copy.health], 'a PLAIN copy — base stats, not the buffed 9/9').toEqual([def.attack, def.health]);
     expect(s.heroPowerSpent, 'once per game — spent').toBe(true);
+  });
+
+  it('is unusable with a full board (needs a slot)', () => {
+    const full = Array.from({ length: 7 }, (_, i) => ({ uid: `f${i}`, cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }));
+    const s: RunState = { ...createRun(3, 'xerox'), heroReady: true, hand: [], board: full } as RunState;
+    const after = reduce(s, { type: 'heroPower', uid: 'f0' });
+    expect(after.board.length, 'no eighth body').toBe(7);
+    expect(after.heroPowerSpent, 'the once-per-game charge is NOT spent').toBeFalsy();
+  });
+});
+
+describe('Hunch — Rounded Spellbook', () => {
+  it('copies the last spell cast, at a cost that drops 1 per turn', () => {
+    const spell = CARD_INDEX['spiritfire']!;
+    // Wave 1, never used → full 3 Gold.
+    let s: RunState = { ...createRun(3, 'hunch'), embers: 10, maxEmbers: 20, heroReady: true, hand: [], wave: 1, lastSpellCastId: spell.id };
+    const before = s.embers;
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.hand.some((c) => c.cardId === spell.id), 'a copy of the last spell').toBe(true);
+    expect(before - s.embers, 'cost 3 on the first turn').toBe(3);
+    expect(s.hunchResetWave, 'the countdown re-bases to this wave').toBe(1);
+
+    // Two turns later the cost has fallen to 1 (3 − 2 turns elapsed since the use).
+    const later: RunState = { ...s, wave: 3, heroReady: true, embers: 10, hand: [] };
+    const after = reduce(later, { type: 'heroPower' });
+    expect(10 - after.embers, 'cost 1 two turns after the last use').toBe(1);
+  });
+
+  it('no-ops with no spell cast yet', () => {
+    const s: RunState = { ...createRun(3, 'hunch'), embers: 10, heroReady: true, hand: [], lastSpellCastId: undefined };
+    const after = reduce(s, { type: 'heroPower' });
+    expect(after.hand.length).toBe(0);
+    expect(after.embers, 'no Gold spent').toBe(10);
   });
 });
 
@@ -122,14 +157,29 @@ describe('Quillen — Archive', () => {
     expect(s.discover!.filter((id) => isTribe(id, 'beast')).length, 'two Beasts (from the two archived Beasts)').toBe(2);
     expect(s.discover!.filter((id) => isTribe(id, 'demon')).length, 'one Demon').toBe(1);
   });
+
+  it('can also archive a FRIENDLY board minion', () => {
+    const s: RunState = {
+      ...createRun(5, 'quillen'), tier: 5, heroReady: true, shop: [],
+      board: [{ uid: 'm1', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+    };
+    const after = reduce(s, { type: 'heroPower', uid: 'm1' });
+    expect(after.board.length, 'the archived friendly left the board').toBe(0);
+    expect(after.archivedTribes, 'its type was recorded').toEqual(['beast']);
+  });
 });
 
 describe('Pete — Contrabanana', () => {
-  it('every 3rd refresh appends a minion from the tier above', () => {
+  it('every 3rd refresh makes the RIGHT-MOST offer a tier above (no extra offer added)', () => {
     let s: RunState = { ...createRun(4, 'pete'), embers: 50, maxEmbers: 50, heroReady: true, tier: 3, freeRolls: 99 };
-    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'roll' });
-    const higher = s.shop.filter((o) => CARD_INDEX[o.cardId]?.tier === 4);
-    expect(higher.length, 'the 3rd refresh smuggled in a Tier-4 offer').toBeGreaterThan(0);
+    s = reduce(s, { type: 'roll' });
+    const widthAfter1 = s.shop.length;
+    s = reduce(s, { type: 'roll' });
+    s = reduce(s, { type: 'roll' });
     expect(s.refreshCount).toBe(3);
+    expect(s.shop.length, 'the row is the same width — an offer is UPGRADED, not appended').toBe(widthAfter1);
+    // The right-most MINION offer is from the tier above.
+    const minions = s.shop.filter((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby; });
+    expect(CARD_INDEX[minions[minions.length - 1]!.cardId]?.tier, 'right-most is Tier 4').toBe(4);
   });
 });

@@ -12,7 +12,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -192,18 +192,28 @@ function appendDominantTypeOffer(s: RunState): void {
   s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
 }
 
-/** Pete (Contrabanana): append ONE minion from the tier ABOVE the Shop tier — capped at 7 only when the run
- *  has Tier-7 access (rune/hero/quest/rift), else 6. No-op at the cap or if the pool is empty. */
-function appendHigherTierOffer(s: RunState): void {
+/** Pete (Contrabanana): the RIGHT-MOST Shop minion is REPLACED by one from the tier ABOVE the Shop tier —
+ *  owner ruling 2026-08-14: it upgrades the existing offer rather than adding an eighth. Capped at 7 only when
+ *  the run has Tier-7 access (rune/hero/quest/rift), else 6; at the ceiling the right-most is guaranteed to be
+ *  AT that ceiling tier instead. No-op if the pool is empty or the row has no minion offer. */
+function upgradeRightmostOffer(s: RunState): void {
   const cap = hasTier7Access(s) ? 7 : 6;
   const tgt = Math.min(s.tier + 1, cap);
-  if (tgt <= s.tier) return; // already at the ceiling — nothing above to smuggle in
   const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
   if (pool.length === 0) return;
+  // The right-most MINION offer (spells/Rubies in the row are not minions).
+  let idx = -1;
+  for (let i = s.shop.length - 1; i >= 0; i--) {
+    const d = CARD_INDEX[s.shop[i]!.cardId];
+    if (d && !d.spell && !d.ruby) { idx = i; break; }
+  }
+  if (idx < 0) return;
   const rng = makeRng(s.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
   s.rngCursor = rng.state();
-  s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+  returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back to the shared pool, like a reroll
+  takeFromPool(s, pick.id);
+  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id };
 }
 
 /** Rune of the Bargain Bin: replace every minion offer with a random minion priced at 1 Gold that sells for 0
@@ -1750,10 +1760,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       applyShopRefreshed(s);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
       if (s.runeOpenEnrollment) appendDominantTypeOffer(s);
-      // Pete (Contrabanana): every 3rd refresh appends a minion from the tier above the Shop tier.
+      // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
       if (getHero(s.heroId).power.kind === 'contraband') {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
-        if (s.refreshCount % 3 === 0) appendHigherTierOffer(s);
+        if (s.refreshCount % 3 === 0) upgradeRightmostOffer(s);
       }
       return s;
     }
@@ -2051,13 +2061,25 @@ function reduceCore(state: RunState, action: Action): RunState {
         gainGold(s, roll);
         s.heroDiceLockUntil = s.wave + roll;
       } else if (power.kind === 'copyMachine') {
-        // Xerox: copy a friendly board minion into your hand. A PLAIN copy (base card, not golden) — the
-        // established "plain copy" convention (Re-Pete / Gorr). No-op (no charge) on a missing target or a full
-        // hand. Once per game (the shared block sets heroPowerSpent).
-        if (!card || s.hand.length >= handCap(s)) return state;
+        // Xerox: SUMMON a plain copy of a friendly board minion directly beside it (owner ruling 2026-08-14 —
+        // a board summon, not a hand grant, so it needs a free board slot). No-op (no charge) on a missing
+        // target or a full board. Once per game (the shared block sets heroPowerSpent).
+        if (!card || s.board.length >= CONFIG.boardMax) return state;
         const def = CARD_INDEX[card.cardId];
         if (!def) return state;
-        s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+        if (!makeContext(s).summon(def, card.uid)) return state; // summon failed (full board) → no charge
+      } else if (power.kind === 'roundedSpellbook') {
+        // Hunch: a copy of the LAST spell you cast — run-lifetime (`lastSpellCastId`), so it carries across
+        // turns. Cost shrinks 1 per turn since the last use (charged here, not the shared block; using it
+        // re-bases the countdown). No-op (no charge) with no spell cast yet or a full hand.
+        const spellId = s.lastSpellCastId;
+        const def = spellId ? CARD_INDEX[spellId] : undefined;
+        if (!def?.spell || s.hand.length >= handCap(s)) return state;
+        const bookCost = roundedSpellbookCostOf(s);
+        if (s.embers < bookCost) return state; // can't afford → no charge spent
+        spendGold(s, bookCost);
+        s.hunchResetWave = s.wave;
+        conjureToHand(s, [def], 1);
       } else if (power.kind === 'clearance') {
         // Frantic Frank: refresh the Shop (free — the 1-Gold power cost is the shared block's) and mark this
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
@@ -2065,14 +2087,17 @@ function reduceCore(state: RunState, action: Action): RunState {
         applyShopRefreshed(s);
         s.frankClearanceTurn = s.wave;
       } else if (power.kind === 'archive') {
-        // Quillen: remove a chosen SHOP minion into the archive (record its type). Once per turn (heroReady).
-        // On the 3rd archived minion, Discover one random minion per recorded type (up to tier), then reset.
-        const idx = s.shop.findIndex((o) => o.uid === action.uid);
-        if (idx < 0) return state; // must target a Shop offer
-        const def = CARD_INDEX[s.shop[idx]!.cardId];
+        // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
+        // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
+        // Discover one random minion per recorded type (so 2 Dragons + a Demon → 2 Dragons + a Demon), then reset.
+        const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
+        const src = card ?? (shopIdx >= 0 ? s.shop[shopIdx]! : undefined);
+        if (!src) return state; // must target a friendly board minion or a Shop offer
+        const def = CARD_INDEX[src.cardId];
         if (!def || def.spell || def.ruby) return state; // minions only
         returnToPool(s, def.id); // the archived body goes back to the shared pool, like an un-bought reroll
-        s.shop.splice(idx, 1);
+        if (card) s.board = s.board.filter((c) => c.uid !== card.uid);
+        else s.shop.splice(shopIdx, 1);
         const t = (def.tribe && def.tribe !== 'neutral') ? def.tribe : (def.tribe2 ?? def.tribe);
         (s.archivedTribes ??= []).push(t as Tribe);
         if (s.archivedTribes.length >= 3) {

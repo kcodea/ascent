@@ -46,7 +46,8 @@ export type HeroPowerKind =
   | 'contraband' // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
   | 'companyRate' // Foreman Flint (passive): Dwarf Shop minions cost 2 Gold
   | 'unitedFront' // Emissary Vale (passive): SoC — one of each tribe +tier/+tier; a Fatecarver at Tier 6
-  | 'archive'; // Quillen: once/turn, remove a chosen Shop minion into the archive; every 3rd → Discover from those tribes
+  | 'archive' // Quillen: once/turn, archive a chosen friendly/Shop minion; every 3rd → Discover from those tribes
+  | 'roundedSpellbook'; // Hunch: a copy of the last spell you cast — 3 Gold, dropping 1 per turn since the last use
 
 export interface HeroPower {
   name: string;
@@ -498,8 +499,8 @@ export const HEROES: HeroDef[] = [
       name: 'Copy Machine',
       kind: 'copyMachine',
       oncePerGame: true,
-      // Targeted (no `untargeted`): pick a friendly board minion; a copy lands in your hand.
-      text: 'Copy a friendly minion into your hand. Once per game.',
+      // Targeted (no `untargeted`): pick a friendly board minion; a plain copy is summoned beside it.
+      text: 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.',
     },
   },
   {
@@ -525,8 +526,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Contrabanana',
       kind: 'contraband',
-      passive: true, // resolved in the refresh case: every 3rd refresh appends a tier-above offer
-      text: 'Every third refresh adds a minion from the tier above your Shop tier.',
+      passive: true, // resolved in the roll case: every 3rd refresh upgrades the right-most offer a tier
+      text: 'Every third refresh, the right-most Shop minion is from the tier above your Shop tier.',
     },
   },
   {
@@ -564,8 +565,24 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Archive',
       kind: 'archive',
-      // Targeted at a SHOP minion (novel — UI shop-targeting is the follow-up). Once per turn (heroReady).
-      text: 'Archive a Shop minion (records its type). Every 3rd, Discover a minion from the archived types.',
+      // Targeted at a friendly BOARD minion or a SHOP offer. Once per turn (heroReady).
+      text: 'Archive a friendly or Shop minion (records its type). Every 3rd, Discover one minion of each archived type.',
+    },
+  },
+  {
+    id: 'hunch',
+    name: 'Hunch',
+    blurb: 'He never forgets a page — he just waits for the price to drop.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Rounded Spellbook',
+      kind: 'roundedSpellbook',
+      // NO static `cost` — the shrinking price (3, −1 per turn since the last use, floor 0) is charged in the
+      // reducer and the coin shows the LIVE value (the dragonTamer/dynamiteDig pattern; a def-level cost would
+      // double-charge via the shared block).
+      untargeted: true,
+      text: 'Get a copy of the last spell you cast. Costs **3 Gold**, reduced by 1 each turn.',
     },
   },
 ];

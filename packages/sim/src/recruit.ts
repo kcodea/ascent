@@ -434,6 +434,15 @@ export function dragonTamerCostOf(state: RunState): number {
   return Math.max(0, 5 - (state.tiffDiscount ?? 0));
 }
 
+/** Hunch (Rounded Spellbook): 3 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it
+ *  re-bases the countdown to the current wave — so the turn after a use it is already back down to 2 (owner
+ *  ruling 2026-08-14: "the cost reduction still counts"). Shared by the reducer's charge and the UI's cost
+ *  coin, so the price shown is the price paid. */
+export function roundedSpellbookCostOf(state: RunState): number {
+  const base = state.hunchResetWave ?? 1; // runs open on wave 1
+  return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'>): number {

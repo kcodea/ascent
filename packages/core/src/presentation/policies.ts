@@ -728,6 +728,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:flint:companyRate': { policy: 'passive', family: 'passive', flagged: true },
   'hero:vale:unitedFront': { policy: 'passive', family: 'passive', flagged: true },
   'hero:quillen:archive': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:hunch:roundedSpellbook': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };
 

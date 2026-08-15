@@ -686,6 +686,9 @@ export interface RunState {
   /** Quillen (Archive): the tribes of the Shop minions archived so far. Every 3rd archived minion triggers a
    *  Discover of one random minion per recorded tribe (up to tier), then this resets. */
   archivedTribes?: Tribe[];
+  /** Hunch (Rounded Spellbook): the wave the power was last used — its 3-Gold cost drops 1 per turn since
+   *  (floor 0). Absent = never used, so the countdown runs from wave 1. */
+  hunchResetWave?: number;
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

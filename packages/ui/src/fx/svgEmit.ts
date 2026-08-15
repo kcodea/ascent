@@ -15,7 +15,7 @@ function parseSvg(svgText: string): SVGSVGElement | null {
 }
 
 /** Fit raw points (in SVG user units) to [-1,1], aspect-preserved, centered on the bbox. */
-function normalize(pts: Pt[]): Pt[] {
+export function normalize(pts: Pt[]): Pt[] {
   if (pts.length === 0) return [];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [x, y] of pts) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { svgToEmitPoints, EMIT_POINTS_MAX } from './svgEmit';
+import { svgToEmitPoints, normalize, EMIT_POINTS_MAX } from './svgEmit';
 
 // A straight horizontal path in a 2:1 viewBox. Chosen so the DOM-dependent assertions below hold regardless of
 // the outline sampler's resolution.
@@ -31,5 +31,46 @@ describe('svgToEmitPoints — outline', () => {
   });
   it('returns [] for malformed SVG (and never throws, even in a DOM-less host)', () => {
     expect(svgToEmitPoints('not an svg', { fill: false, count: 100 })).toEqual([]);
+  });
+});
+
+// Pure math, no DOM — these run always-on in the node env and are the real coverage of the load-bearing
+// normalization contract (fit to [-1,1], aspect-preserved, centered, no y-flip). The outline/fill samplers that
+// feed `normalize` need a DOM (covered by the gated tests above / live in Task 4), but `normalize` itself does not.
+describe('normalize — fit to [-1,1], aspect-preserved, centered', () => {
+  it('a 2:1 wide span → x spans ~[-1,1], y collapses to ~0', () => {
+    const out = normalize([[0, 25], [100, 25]]);
+    const xs = out.map((p) => p[0]);
+    const ys = out.map((p) => p[1]);
+    expect(Math.min(...xs)).toBeCloseTo(-1, 6);
+    expect(Math.max(...xs)).toBeCloseTo(1, 6);
+    for (const y of ys) expect(y).toBeCloseTo(0, 6); // aspect-preserved: short axis stays centered, not stretched
+  });
+  it('a taller-than-wide span → y spans ~[-1,1], x collapses to ~0', () => {
+    const out = normalize([[25, 0], [25, 100]]);
+    const xs = out.map((p) => p[0]);
+    const ys = out.map((p) => p[1]);
+    expect(Math.min(...ys)).toBeCloseTo(-1, 6);
+    expect(Math.max(...ys)).toBeCloseTo(1, 6);
+    for (const x of xs) expect(x).toBeCloseTo(0, 6);
+  });
+  it('centers the bbox: its midpoint maps to ~[0,0] with symmetric corners', () => {
+    const out = normalize([[10, 10], [30, 30], [20, 20]]);
+    // midpoint (20,20) is the third point → maps to origin
+    expect(out[2]![0]).toBeCloseTo(0, 6);
+    expect(out[2]![1]).toBeCloseTo(0, 6);
+    // corners are symmetric about the origin (square bbox → full [-1,1] on both axes)
+    expect(out[0]).toEqual([-1, -1]);
+    expect(out[1]).toEqual([1, 1]);
+  });
+  it('preserves y as drawn (SVG y-down, no flip): larger input y → larger output y', () => {
+    const out = normalize([[0, 0], [0, 100]]);
+    expect(out[0]![1]).toBeLessThan(out[1]![1]);
+  });
+  it('returns [] for a zero-area (degenerate) input', () => {
+    expect(normalize([[5, 5], [5, 5]])).toEqual([]);
+  });
+  it('returns [] for empty input', () => {
+    expect(normalize([])).toEqual([]);
   });
 });

@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-15 — bespoke shop tier-up effect (`shop-tier-up`)
+
+The shop tavern-up button gets its own authored detonation. New def `packages/ui/src/fx/defs/shop-tier-up.json`
+(owner-tuned in the workbench — two shard bursts + two shockwaves, blue), replacing the old borrowed `impact-dust`
++ `pixiFx.impactPulse` press effect. `TavernUpButton.tsx` now fires `playDef('shop-tier-up', …)` at the button's
+live centre (all layers anchor to `source`) and drops the `getTavernUpConfig`/`pixiFx` dust+ring code. Direct-call
+bookkeeping updated in lockstep: `directCalls.ts` moves `TavernUpButton` off `impact-dust` and adds `shop-tier-up`,
+with `directCalls.test.ts` + `playDefUids.test.ts` goldens following. Verified: typecheck + lint + test 5408/5408
+(incl. the def-param validation + the direct-call/uid guards) + build.
+
 ## 2026-08-15 — shop self-buffs play self-buff-gold (the green pulse, promoted to a bindable def)
 
 Owner report: `self-buff-gold` plays in combat but not the shop — a self-buffing minion (Ashscribe) only got the

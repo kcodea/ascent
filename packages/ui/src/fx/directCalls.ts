@@ -35,12 +35,13 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'freeze-blast': ['FreezeButton.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
-  'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'TavernUpButton.tsx', 'choreo/channels/impact.ts'],
+  'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
   // Recruit.tsx dropped off this list on 2026-08-08: the SHOP half is now played through a
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
   'ruby-gem-apply': ['choreo/score.ts'],
+  'shop-tier-up': ['TavernUpButton.tsx'],
   'strike-impact': ['choreo/channels/impact.ts'],
   'watcher-pulse': ['useCombatReplay.ts'],
 };

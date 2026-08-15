@@ -133,7 +133,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   it('finds every effect the game plays from code', () => {
     expect(directCallDefIds()).toEqual([
       'click-puff', 'coin', 'coins', 'damage-burst', 'death-dissolve', 'freeze-blast', 'hero-power-spark',
-      'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply', 'strike-impact', 'watcher-pulse',
+      'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply', 'shop-tier-up', 'strike-impact',
+      'watcher-pulse',
     ]);
   });
 

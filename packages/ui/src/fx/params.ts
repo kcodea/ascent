@@ -4,6 +4,8 @@
  * that does not exist — the failure mode that left two Trail tuner sliders blank for months.
  */
 
+import { EMIT_POINTS_MAX } from './svgEmit';
+
 /**
  * A dependency that decides whether a param is LIVE right now.
  *
@@ -144,6 +146,23 @@ export type FxParamSpec = FxParamMeta &
       help?: string;
       /** A shape id — a built-in `SHAPE_NAMES` entry (imports can't be a default: they don't exist yet). */
       default: string;
+    }
+  | {
+      /**
+       * A baked point cloud sampled off an imported SVG silhouette — the persisted payload behind
+       * `emitShape: 'svg'`. Each entry is a normalized `[x, y]` in `[-1, 1]`, and a spawn picks one at
+       * random (see `motion.ts`'s `'svg'` case). Authored not by dragging a slider but by the SVG baker
+       * (`svgEmit.ts`), then it just lives in the def like any other value and round-trips through
+       * `coerceParams`. Kept out of `curve`/`palette` because it is neither a 4-stop ramp nor a
+       * sorted-by-t function: it is an unordered, unbounded-length set of coordinates.
+       */
+      kind: 'emitpoints';
+      label: string;
+      group?: string;
+      help?: string;
+      /** Baked, normalized ([-1,1]) spawn points. Defaults to `[]` — an empty cloud is an inert no-op,
+       *  so a spec that declares this param but has nothing baked yet behaves exactly as before. */
+      default: readonly (readonly [number, number])[];
     });
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
@@ -163,9 +182,11 @@ export type ParamsOf<S extends FxParamSpecs> = {
       ? [number, number, number, number]
       : S[K] extends { kind: 'curve' }
         ? [number, number][]
-        : S[K] extends { kind: 'shape' }
-          ? string
-          : S[K]['default'];
+        : S[K] extends { kind: 'emitpoints' }
+          ? [number, number][]
+          : S[K] extends { kind: 'shape' }
+            ? string
+            : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
@@ -178,6 +199,9 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
     // plain strings — immutable, so the fall-through copy is correct as-is.
     if (spec.kind === 'palette') out[key] = [...spec.default];
     else if (spec.kind === 'curve') out[key] = spec.default.map((pt) => [pt[0], pt[1]]);
+    // emitpoints defaults are nested arrays too — deep-copy each [x, y] so no two instances alias the
+    // same point (mirrors the curve case). Usually `[]`, but deep-copy anyway for a non-empty default.
+    else if (spec.kind === 'emitpoints') out[key] = spec.default.map((p) => [p[0], p[1]]);
     else out[key] = spec.default;
   }
   return out as ParamsOf<S>;
@@ -251,6 +275,29 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
             .sort((a, b) => a[0] - b[0]);
         }
         break;
+      case 'emitpoints': {
+        // A baked SVG cloud: keep only well-formed finite `[x, y]` pairs, clamp each to [-1,1], and cap
+        // the count at EMIT_POINTS_MAX (a def from another machine could name any length; the render path
+        // and memory budget assume the cap). Fresh nested arrays — never alias the caller's. Order is not
+        // meaningful (a spawn picks a random index), so no sort. A bad value degrades to the empty default.
+        const arr = Array.isArray(v) ? v : [];
+        const pts: [number, number][] = [];
+        for (const e of arr) {
+          if (
+            Array.isArray(e) &&
+            e.length === 2 &&
+            typeof e[0] === 'number' &&
+            typeof e[1] === 'number' &&
+            Number.isFinite(e[0]) &&
+            Number.isFinite(e[1])
+          ) {
+            pts.push([Math.max(-1, Math.min(1, e[0])), Math.max(-1, Math.min(1, e[1]))]);
+          }
+          if (pts.length >= EMIT_POINTS_MAX) break;
+        }
+        out[key] = pts;
+        break;
+      }
     }
   }
   return out as ParamsOf<S>;

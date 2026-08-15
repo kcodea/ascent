@@ -2183,8 +2183,8 @@ body.modalup .app { z-index: auto; }
    this costs one paint when the overlay opens. Every value is dialled by the 🪨 Runeforge Backdrop tuner. */
 .forge-ov {
   background:
-    url('/runeforgebg2.webp') 50% 55% / auto 78% no-repeat,
-    linear-gradient(rgba(14, 16, 22, 0.53), rgba(14, 16, 22, 0.53));
+    url('/runeforgebg2.webp') 50% 55% / auto 90% no-repeat,
+    linear-gradient(rgba(14, 16, 22, 0.91), rgba(14, 16, 22, 0.91));
 }
 .forge-banner {
   background: linear-gradient(180deg, #6a6f7a 0%, #4a4e57 55%, #363a42 100%);

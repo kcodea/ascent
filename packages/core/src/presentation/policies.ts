@@ -293,6 +293,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Owner spell batch 2026-08-15 — both are ordinary shop casts: they resolve immediately and their result is
   // the display (stats landing on bodies / a card arriving in hand), so they share the spellCast family.
   'factory:spellBuffTargetAndNeighbours:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // Owner combat-spell batch 2026-08-15 — each ARMS a next-combat effect; the cast itself is the beat.
+  'factory:spellMarkPartingCry:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellMarkClosedCasket:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellSolidGround:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellContainFirstEnemySummon:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellStolenInitiative:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGambleTierPull:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTargetEscalating:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTargetPerGold:cast': { policy: 'ownBeat', family: 'spellCast' },

@@ -283,4 +283,48 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Roll a die. Get a random minion or spell of that Tier.',
   },
 
+  {
+    // Owner add 2026-08-15. Marks a friendly Shout minion: its Shout fires again as it dies next combat.
+    id: 'sp_partingcry',
+    name: 'Parting Cry',
+    tribe: 'neutral', tier: 4, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellMarkPartingCry', params: {} }],
+    text: 'Choose a friendly **Shout** minion. When it dies next combat, trigger its **Shout**.',
+  },
+  {
+    // Owner add 2026-08-15. Front-loads a summon build: the first three bodies arrive already big.
+    id: 'sp_solidground',
+    name: 'Solid Ground',
+    tribe: 'neutral', tier: 3, attack: 0, health: 1, keywords: [], spell: true, cost: 4,
+    effects: [{ on: 'cast', do: 'spellSolidGround', params: { count: 3, attack: 4, health: 4 } }],
+    text: 'The first **3** minions you summon next combat gain **+4/+4**.',
+  },
+  {
+    // Owner add 2026-08-15. Trades WHEN an Echo pays for certainty that it pays at all.
+    id: 'sp_closedcasket',
+    name: 'Closed Casket',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellMarkClosedCasket', params: {} }],
+    text: 'Choose an **Echo** minion. Trigger its **Echo** at Start of Combat, but not when it first dies next combat.',
+  },
+  {
+    // Owner add 2026-08-15. Buys a swing out of turn order — queued through the same lane an attack-on-summon
+    // uses, so the running order itself is never rewritten.
+    id: 'sp_stoleninitiative',
+    name: 'Stolen Initiative',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    effects: [{ on: 'cast', do: 'spellStolenInitiative', params: {} }],
+    text: "Your **right-most** minion attacks immediately after the enemy's first attack.",
+  },
+  {
+    // Owner add 2026-08-15. Answers a summon build — but it is spent on whatever lands FIRST, token included.
+    id: 'sp_containmentrune',
+    name: 'Containment Rune',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    effects: [{ on: 'cast', do: 'spellContainFirstEnemySummon', params: {} }],
+    text: 'Set the first enemy minion summoned next combat to **1/1**.',
+  },
+
 ];

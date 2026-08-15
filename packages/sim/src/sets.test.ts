@@ -95,6 +95,8 @@ describe('card sets — set 2 carries set 1 spells', () => {
       // Owner spell batch 2026-08-15 (tranche 1): a big targeted grant, a target+neighbours grant, and the
       // die-roll tier pull.
       'sp_blessing', 'sp_beefy', 'sp_gamble',
+      // Tranche 2 (2026-08-15): the five next-combat spells.
+      'sp_partingcry', 'sp_solidground', 'sp_closedcasket', 'sp_stoleninitiative', 'sp_containmentrune',
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });

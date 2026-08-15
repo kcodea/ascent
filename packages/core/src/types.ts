@@ -382,6 +382,11 @@ export type EffectFactoryId =
   | 'onConsumeShieldNextCombat' // Maw of the Pit: on consume, gain a Divine Shield for the next combat only
   // Spells (recruit-resolved): a spell's own effect, and minions that cast spells
   | 'spellBuffTargetAndNeighbours' // Beefy: buff the chosen minion AND its two neighbours
+  | 'spellMarkPartingCry'
+  | 'spellMarkClosedCasket'
+  | 'spellSolidGround'
+  | 'spellContainFirstEnemySummon'
+  | 'spellStolenInitiative'
   | 'spellGambleTierPull' // Gamble: roll 1-6, get a random minion or spell of that tier
   | 'spellBuffTarget' // cast: buff the chosen target +atk/+hp (+ optional keyword: Spirit Fire, Bulwark)
   | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
@@ -1399,6 +1404,14 @@ export interface QuestCombatMods {
   runeCarrionCoin?: number;
   /** Rune of the Five Banners: Start of Combat, one friendly of each type gains +6/+6. */
   runeFiveBanners?: boolean;
+  /** Solid Ground (spell): the first N minions you summon next combat gain +4/+4. Counts DOWN as they land. */
+  solidGroundLeft?: number;
+  /** Solid Ground: the per-summon grant (so the number lives with the spell, not the engine). */
+  solidGroundStat?: number;
+  /** Containment Rune (spell): set the FIRST enemy minion summoned next combat to 1/1. */
+  containFirstEnemySummon?: boolean;
+  /** Stolen Initiative (spell): after the enemy's FIRST attack, your right-most minion attacks immediately. */
+  stolenInitiative?: boolean;
   /** Emissary Vale (United Front): Start of Combat, one friendly of each type gains +N/+N (N = the hero's
    *  Tavern Tier when the fight began). Same "one banner per body" rule as Five Banners, just tier-scaled. */
   unitedFront?: number;
@@ -1626,6 +1639,10 @@ export interface BoardMinion {
   /** The Reclaimer's mark: at the start of combat this minion is destroyed (Deathrattle fires) and
    *  an exact copy is resummoned if there's room. */
   resummon?: boolean;
+  /** Parting Cry (spell): this body's SHOUT fires when it dies next combat. */
+  partingCry?: boolean;
+  /** Closed Casket (spell): its Echo fires at Start of Combat, and is suppressed on its first death. */
+  closedCasket?: boolean;
   /** Per-source recruit-phase buff breakdown carried from the run board, so the combat inspect panel can
    *  itemize where this minion's stats came from (Spirit Fire, triples, Battlecries…) — same as the shop. */
   buffs?: MinionBuff[];
@@ -1752,6 +1769,10 @@ export interface Minion {
   bredCount?: number;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
+  /** Parting Cry (spell): when this body dies next combat, its SHOUT fires. One-shot, spent on the death. */
+  partingCry?: boolean;
+  /** Closed Casket (spell): its Echo fires at Start of Combat instead — and is SUPPRESSED on its first death. */
+  closedCasket?: boolean;
   /** Recruit-phase buff breakdown carried from the run board (see BoardMinion.buffs) — passed into the
    *  combat snapshot so the inspect panel itemizes recruit buffs in combat. Combat-only minions (summoned
    *  tokens, Reborn bodies) have none. */

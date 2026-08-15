@@ -1179,6 +1179,26 @@ export function simulate(
     }
     arr.splice(index, 0, minion);
     if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
+    // SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a
+    // wave of tokens spends it in arrival order and the 4th arrives plain.
+    // Side-general: it is the SUMMONING side's own banked charges that pay.
+    const sg = modsFor(side);
+    if ((sg.solidGroundLeft ?? 0) > 0) {
+      const amt = sg.solidGroundStat ?? 4;
+      sg.solidGroundLeft = (sg.solidGroundLeft ?? 0) - 1;
+      ctx.buff(minion, amt, amt, 'Solid Ground');
+    }
+    // CONTAINMENT RUNE (spell): the FIRST body the OPPOSING side summons is pinned to 1/1 — the flag lives on
+    // the CASTER's mods and fires on their opponent's summon. One-shot: spent on that summon whatever it was,
+    // which is the gamble (a throwaway token can eat it).
+    const foeMods = modsFor(OTHER[side]);
+    if (foeMods.containFirstEnemySummon) {
+      foeMods.containFirstEnemySummon = false;
+      minion.attack = 1;
+      minion.health = 1;
+      minion.maxHealth = 1;
+      emit({ type: 'sc', source: minion.uid, text: 'Contained (1/1)' });
+    }
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -1864,7 +1884,27 @@ export function simulate(
     const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
     if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
-    bus.emit('onDeath', { minion, side: minion.side, killer });
+    // PARTING CRY (spell): this body's SHOUT fires as it dies, before its Echo. One-shot — spent here, so a
+    // Rise/resummon of the same body never pays twice.
+    if (minion.partingCry) {
+      minion.partingCry = false;
+      const shouts = minion.effects.filter((e) => e.on === 'onPlay');
+      if (shouts.length > 0) {
+        emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry` });
+        for (const effect of shouts) {
+          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        }
+      }
+    }
+    // CLOSED CASKET (spell): the Echo already paid at Start of Combat, so this FIRST death must not pay it
+    // again — the body's OWN Echo is skipped while every on-death WATCHER still sees the death (that is why
+    // this rides `ownAlreadyFired` rather than skipping the broadcast). The mark is spent here.
+    if (minion.closedCasket) {
+      minion.closedCasket = false;
+      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
+    } else {
+      bus.emit('onDeath', { minion, side: minion.side, killer });
+    }
     // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
     // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
     // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
@@ -2062,6 +2102,20 @@ export function simulate(
 
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
     if (attacker.dead || attacker.health <= 0) return;
+    // STOLEN INITIATIVE (spell): after the OPPONENT'S FIRST attack, the caster's right-most body strikes out of
+    // turn order. Queued through the existing `attackNow` lane (the same one Solaris Fang / attack-on-summon
+    // use), so it drains at the normal flush point rather than re-entering the attack loop here — turn order
+    // itself is untouched, which is the hard line on this file.
+    const victimMods = modsFor(defenderSide);
+    if (victimMods.stolenInitiative) {
+      victimMods.stolenInitiative = false; // one-shot, spent on the opponent's opening swing
+      const mine = boards[defenderSide].filter((m) => !m.dead && m.health > 0);
+      const rightmost = mine[mine.length - 1];
+      if (rightmost) {
+        emit({ type: 'sc', source: rightmost.uid, text: `${rightmost.name} steals the initiative` });
+        ctx.attackNow?.(rightmost);
+      }
+    }
     nextStep(); // a new exchange begins (re-attacks and Whelp strikes each get their own step too)
     // Stealth is lost the moment a minion attacks (A.4) — it becomes targetable.
     if (attacker.keywords.includes('ST')) {
@@ -2752,6 +2806,19 @@ export function simulate(
       nextStep();
       fireTrigger('runeSpellhide', rside);
       resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined);
+    }
+    // CLOSED CASKET (spell): a marked body fires its Echo NOW instead of on death. `asEcho` so the fight's Echo
+    // watchers (Aftershocks / Undertow / the quest tally) see a real Echo trigger, exactly like a death would.
+    for (const m of boards[rside].filter((x) => x.closedCasket && !x.dead && x.health > 0)) {
+      const echoes = m.effects.filter((e) => e.on === 'onDeath');
+      if (echoes.length === 0) continue;
+      nextStep();
+      emit({ type: 'sc', source: m.uid, text: `${m.name}'s casket opens` });
+      asEcho(rside, () => {
+        for (const effect of echoes) {
+          withEffect(m, effect, () => FACTORIES[effect.do]?.(ctx, m, effect.params ?? {}, { minion: m, side: rside }));
+        }
+      });
     }
     if (rmods.runeFiveBanners) {
       // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a

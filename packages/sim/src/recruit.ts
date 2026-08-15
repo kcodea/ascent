@@ -4171,6 +4171,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Routes each grant through the same spell-power fold `spellBuffTarget` uses, so the printed value and the
    *  granted value agree on every recipient. No-op without a target (an unaimed cast fizzles, like every
    *  targeted spell). */
+  /** Parting Cry — mark the chosen friendly SHOUT minion: when it dies next combat, its Shout fires. */
+  spellMarkPartingCry: (ctx, self) => {
+    if (!self) return;
+    self.partingCry = true;
+  },
+
+  /** Closed Casket — mark the chosen ECHO minion: its Echo fires at Start of Combat instead of on its first death. */
+  spellMarkClosedCasket: (ctx, self) => {
+    if (!self) return;
+    self.closedCasket = true;
+  },
+
+  /** Solid Ground — the first `count` minions you summon next combat land with +`attack`/+`health`. */
+  spellSolidGround: (ctx, _self, params) => {
+    ctx.state.solidGroundLeft = num(params.count, 3);
+    ctx.state.solidGroundStat = num(params.attack, 4);
+  },
+
+  /** Containment Rune — the first ENEMY minion summoned next combat is set to 1/1. */
+  spellContainFirstEnemySummon: (ctx) => {
+    ctx.state.containFirstEnemySummon = true;
+  },
+
+  /** Stolen Initiative — after the enemy's first attack next combat, your right-most minion attacks. */
+  spellStolenInitiative: (ctx) => {
+    ctx.state.stolenInitiative = true;
+  },
+
   spellBuffTargetAndNeighbours: (ctx, self, params) => {
     // For a CAST effect the chosen minion arrives as `self` (see `applyCastEffects`) — a spell has no body of
     // its own. An untargeted cast never reaches here with a board minion, so a missing row is a clean no-op.

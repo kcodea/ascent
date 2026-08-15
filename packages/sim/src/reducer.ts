@@ -2278,6 +2278,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+        partingCry: b.partingCry,   // Parting Cry: its Shout fires when it dies this fight
+        closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
         ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
         ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
         ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
@@ -3274,7 +3276,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
     // welded Rally).
     if (c.bloodlust) c.bloodlust = false;
     if (c.bloodlustRally) c.bloodlustRally = false;
+    // Parting Cry / Closed Casket are ONE-COMBAT marks too — spent by the fight they were bought for, whether
+    // or not the body actually died in it.
+    if (c.partingCry) c.partingCry = false;
+    if (c.closedCasket) c.closedCasket = false;
   }
+  // The side-wide one-combat spell banks are spent the same way (Solid Ground's remaining charges included —
+  // an unspent charge does not roll into the next fight).
+  s.solidGroundLeft = undefined;
+  s.solidGroundStat = undefined;
+  s.containFirstEnemySummon = undefined;
+  s.stolenInitiative = undefined;
   // Pre-emptive Assault + Rallying Offensive are spent — each override covers exactly one fight.
   s.attackFirstNext = false;
   s.rallyDoubleNext = false;
@@ -4725,6 +4737,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
     unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.tier : undefined, // Emissary Vale: SoC — one of each type +tier/+tier
+    solidGroundLeft: s.solidGroundLeft,           // Solid Ground: first N summons next combat land bigger
+    solidGroundStat: s.solidGroundStat,
+    containFirstEnemySummon: s.containFirstEnemySummon, // Containment Rune: pin the foe's first summon to 1/1
+    stolenInitiative: s.stolenInitiative,         // Stolen Initiative: strike back after their opening swing
 
     runeCenterline: f?.runeCenterline,       // Rune of the Centerline: SoC — middle minion Ward + Crit
     runeEmberline: f?.runeEmberline,         // Rune of Emberline: the first dead Imp feeds the next one

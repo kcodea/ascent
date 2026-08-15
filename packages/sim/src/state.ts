@@ -174,6 +174,11 @@ export interface BoardCard {
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;
+  /** Parting Cry (spell): when this minion dies next combat, its Shout fires. Cleared at settle (one combat). */
+  partingCry?: boolean;
+  /** Closed Casket (spell): its Echo fires at Start of Combat next combat, and is suppressed on its first
+   *  death that fight. Cleared at settle (one combat). */
+  closedCasket?: boolean;
   /** Disco Dan: a hand card that cannot be PLAYED until you reach this shop tier (the T6/T4/T2 minions his
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
    *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
@@ -689,6 +694,13 @@ export interface RunState {
   /** Quillen (Archive): the tribes of the Shop minions archived so far. Every 3rd archived minion triggers a
    *  Discover of one random minion per recorded tribe (up to tier), then this resets. */
   archivedTribes?: Tribe[];
+  /** Solid Ground (spell): the first N minions summoned NEXT combat gain `solidGroundStat`. Spent by the fight. */
+  solidGroundLeft?: number;
+  solidGroundStat?: number;
+  /** Containment Rune (spell): the first ENEMY minion summoned next combat is set to 1/1. Spent by the fight. */
+  containFirstEnemySummon?: boolean;
+  /** Stolen Initiative (spell): after the enemy's first attack next combat, your right-most minion strikes. */
+  stolenInitiative?: boolean;
   /** Gamble (the spell): the die face just rolled + a bump seq, so the UI can play the SAME tumble the
    *  Gambler's hero power uses and hold the card back until it lands. Presentation only — the pull itself
    *  already resolved (deterministic); this just says what to show. Cleared per action like the other FX. */

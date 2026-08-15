@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON } from '../curve';
+import { svgToEmitPointsAsync, EMIT_POINTS_DEFAULT } from '../svgEmit';
 import {
   defaultOpenGroups,
   groupParamKeys,
@@ -75,12 +76,16 @@ export function Inspector({
   values,
   onChange,
   primitiveId,
+  layerKey,
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
   onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
   /** Which primitive these specs belong to — the key the open/closed group state is persisted under. */
   primitiveId: string;
+  /** Stable per-layer identity — the `emitpoints` control stores the uploaded SVG in localStorage under it,
+   *  so two SVG-emit layers don't clobber each other's source during authoring. */
+  layerKey: string;
 }): React.ReactElement {
   const [tier, setTier] = useState<InspectorTier>('essentials');
   const [query, setQuery] = useState('');
@@ -120,6 +125,8 @@ export function Inspector({
       // also went uncontrolled and snapped to its minimum, so the control lied about the value it was editing.
       // The palette, enum and curve rows already defaulted inline; doing it once here covers every kind.
       value={values[key] ?? specs[key].default}
+      values={values}
+      layerKey={layerKey}
       enabled={isParamEnabled(specs[key], values)}
       reason={paramDisabledReason(specs, key, values)}
       onChange={onChange}
@@ -211,6 +218,8 @@ function ParamRow({
   paramKey: key,
   spec,
   value,
+  values,
+  layerKey,
   enabled,
   reason,
   onChange,
@@ -218,6 +227,10 @@ function ParamRow({
   paramKey: string;
   spec: FxParamSpec;
   value: unknown;
+  /** The whole layer's params — the `emitpoints` control reads its sibling `emitFill`/`emitDensity` to bake. */
+  values: Record<string, unknown>;
+  /** Stable per-layer identity for the `emitpoints` control's localStorage SVG stash. */
+  layerKey: string;
   enabled: boolean;
   reason: string | null;
   onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
@@ -312,6 +325,16 @@ function ParamRow({
           id={`fxwb-${key}`}
           value={(value as string | undefined) ?? spec.default}
           fallback={spec.default}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
+      {spec.kind === 'emitpoints' && (
+        <EmitPointsField
+          value={(value as number[][] | undefined) ?? []}
+          fill={!!values.emitFill}
+          density={Number(values.emitDensity) || EMIT_POINTS_DEFAULT}
+          storageKey={`fx.emitsvg.${layerKey}`}
           disabled={off}
           onChange={(next) => onChange(key, next)}
         />
@@ -433,6 +456,127 @@ function ShapeField({
         />
       </label>
       <div className="fxwb-shape-hint">Transparency is the silhouette — opaque art is auto-traced from brightness.</div>
+      {error !== null && <div className="fxwb-shape-err">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * The `emitpoints` param's control: an "Upload SVG" button + a live point-count readout, plus the re-bake
+ * wiring that keeps the sibling `emitFill`/`emitDensity` in sync with a stored source.
+ *
+ * The uploaded SVG text itself is NOT a def value — only the baked `emitPoints` cloud persists (it round-trips
+ * through `coerceParams` like any param). The source lives in `localStorage` under a per-layer key purely so
+ * that flipping fill or dragging density can re-bake without asking the author to re-upload. A def opened on
+ * another machine (no stored SVG) still renders its baked points; it just can't re-bake fill/density until the
+ * author re-uploads — which the hint says out loud.
+ *
+ * Its own component (not an inline IIFE) for the same reason `ShapeField` is: it holds hooks (busy/error state
+ * and the re-bake effect), and hooks inside Inspector's mapped render would violate the rules of hooks.
+ */
+function EmitPointsField({
+  value,
+  fill,
+  density,
+  storageKey,
+  disabled = false,
+  onChange,
+}: {
+  /** The baked cloud currently in the def — drives the point-count readout. */
+  value: number[][];
+  /** Sibling `emitFill` — outline vs filled silhouette. */
+  fill: boolean;
+  /** Sibling `emitDensity` — how many points to sample. */
+  density: number;
+  /** localStorage key the uploaded SVG text is stashed under (per-layer). */
+  storageKey: string;
+  /** The param is inert right now (emitShape ≠ svg): show it, don't let it be edited. */
+  disabled?: boolean;
+  onChange: (next: number[][]) => void;
+}): React.ReactElement {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Whether a source SVG is stashed for this layer — decides between "re-bake on fill/density" and the
+  // "re-upload to change fill/density" hint. Recomputed per render (cheap; the value only moves on upload).
+  const hasStored = ((): boolean => {
+    try {
+      return window.localStorage.getItem(storageKey) !== null;
+    } catch {
+      return false;
+    }
+  })();
+
+  const bake = async (text: string): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      // Async so the FILL path actually decodes the image before rasterizing (the sync bake returns [] on a
+      // cold image). Outline delegates to the sync sampler internally.
+      const pts = await svgToEmitPointsAsync(text, { fill, count: density });
+      if (pts.length === 0) setError('No points baked — is this a path-based SVG?');
+      onChange(pts);
+    } catch {
+      // Never throw into render — surface it as a line under the control (mirrors ShapeField).
+      setError('Bake failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Re-bake when fill/density change AND a source SVG is stashed. Skips the first run so simply opening a def
+  // (or selecting the layer) never re-bakes over its stored points — only an author-driven fill/density change
+  // does. Absent a stash there is nothing to re-bake from; the hint below tells the author to re-upload.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    let text: string | null = null;
+    try {
+      text = window.localStorage.getItem(storageKey);
+    } catch {
+      text = null;
+    }
+    if (text !== null) void bake(text);
+    // Intentionally keyed only on fill/density (+ the layer's storageKey): `bake`/`onChange` are recreated
+    // every parent render, so depending on them would re-bake on every keystroke elsewhere in the workbench.
+  }, [fill, density, storageKey]);
+
+  return (
+    <div className="fxwb-emitsvg">
+      <div className="fxwb-emitsvg-row">
+        <label className="fxwb-shape-import">
+          {busy ? 'Baking…' : 'Upload SVG…'}
+          <input
+            type="file"
+            accept=".svg,image/svg+xml"
+            disabled={busy || disabled}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ''; // clear so re-picking the same file fires change again
+              if (!file) return;
+              void (async (): Promise<void> => {
+                const text = await file.text();
+                try {
+                  window.localStorage.setItem(storageKey, text);
+                } catch {
+                  /* ignore quota / disabled storage — the bake below still runs off the in-memory text */
+                }
+                await bake(text);
+              })();
+            }}
+          />
+        </label>
+        <span className="fxwb-emitsvg-count">
+          {value.length > 0 ? `${value.length} pts` : 'no SVG'}
+        </span>
+      </div>
+      <div className="fxwb-shape-hint">
+        {hasStored
+          ? 'Off traces the outline; SVG fill scatters across the interior. Fill/density re-bake live.'
+          : 'Re-upload to change fill/density — the source SVG lives only in this browser, not the saved def.'}
+      </div>
       {error !== null && <div className="fxwb-shape-err">{error}</div>}
     </div>
   );

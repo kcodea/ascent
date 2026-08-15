@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **FX workshop: custom SVG emit shapes** — an emitter can now spawn its particles along (or, with SVG fill, across) an uploaded SVG silhouette instead of the four built-in emit shapes. Upload an SVG in the Inspector, toggle outline vs fill, dial density; the shape is baked once into a normalized point cloud that persists in the def (no runtime SVG decode, fully prod-portable). The source SVG lives only in the browser for re-baking during authoring.
+
 - **Hero panel + Buffs Panel rework, gem glows, new Tavern Up art** — the hero portrait is now a circle; the player name rides the bottom pill and the hero name is gone from the face; hovering the portrait darkens it with *"Click hero portrait to open / close the Buffs Panel."* The run-buffs pop-out grows up out of the portrait, with white text, an underlined title, and a subtle brown-gold leader line per row; its dev tuner was trimmed to the knobs that still do something (and its Row-text slider actually resizes now). Freeze / End Turn gems gain a hover glow + brightness. The Tavern Up stone wears new base + orb art with native-aspect tier pips (per-tier alignment dials), a gem-silhouette glow behind the gem, dim-at-max, and no more stray old-orb press flash. Right-click inspect no longer mislays the step counter.
 
 - **Balance: Drunken Oaf, Kringle, Vaultkeeper** — Drunken Oaf now gives **+3/+3** per Ale (was +2/+2) and Kringle **+1/+2** per card played (was +1/+1). **Vaultkeeper** counts *spells* rather than *Shop Spells*, so your **Rubies advance it too**.

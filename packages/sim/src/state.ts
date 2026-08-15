@@ -64,6 +64,9 @@ export interface ShopCard {
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
+  /** Pete (Contrabanana): this offer was upgraded to the tier ABOVE the Shop tier on his 3rd refresh — the UI
+   *  flashes it once as the row lands so the smuggled unit reads as special. Presentation only. */
+  contraband?: boolean;
   /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
    *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
   cost?: number;

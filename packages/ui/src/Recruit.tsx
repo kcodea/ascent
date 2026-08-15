@@ -4938,6 +4938,7 @@ export function Recruit() {
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
+                contraband={o.contraband}
                 suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />

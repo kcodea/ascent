@@ -132,6 +132,22 @@ interface Job { label: string; src: string; dirs: string[]; dest: string; index:
 const heroesByName = new Map<string, string>();
 for (const h of HEROES) { heroesByName.set(norm(h.name), h.id); heroesByName.set(norm(h.id), h.id); }
 
+/**
+ * HERO-POWER art (added 2026-08-14): `Hero Powers/<HeroName>HP.png` → `art/powers/<heroId>`. This folder had
+ * never been a job — the existing power art was hand-dropped — so a new hero shipped with a placeholder
+ * diamond until someone remembered to copy a file by hand.
+ *
+ * Indexed by name+HP and id+HP ONLY, the same strict rule as every other job: a file whose stem doesn't
+ * resolve to a live hero is REPORTED, never guessed. That deliberately leaves a handful of legacy files
+ * unmatched (a retired hero, a couple of pre-rename names, one named for the POWER rather than the hero) —
+ * they are already wired in the repo, so nothing is lost by not re-deriving them here.
+ */
+const heroPowersByName = new Map<string, string>();
+for (const h of HEROES) {
+  heroPowersByName.set(norm(`${h.name}HP`), h.id);
+  heroPowersByName.set(norm(`${h.id}HP`), h.id);
+}
+
 /** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
  *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no
  *  longer exist in the roster — retired set-1 designs — so they stay unwired ON PURPOSE.) */
@@ -171,6 +187,11 @@ const JOBS: Job[] = [
     // and the old style must never overwrite the current portraits.
     label: 'heroes', src: 'C:/Game Assets/Ascent Art/Heroes',
     dirs: ['.'], dest: 'packages/ui/src/art/heroes', index: heroesByName, aliases: {},
+  },
+  {
+    // HERO POWERS — the button art, its own destination (the portraits job above deliberately doesn't recurse).
+    label: 'hero powers', src: 'C:/Game Assets/Ascent Art/Heroes/Hero Powers',
+    dirs: ['.'], dest: 'packages/ui/src/art/powers', index: heroPowersByName, aliases: {},
   },
   {
     // QUEST art (owner ask 2026-08-02) — the folder was only mined for its "Quest Reward Related Things"

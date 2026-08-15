@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { renameTerms } from './terms';
-import { mdBold } from './Card';
-import { dragonTamerCostOf, roundedSpellbookCostOf, getHero, spellAmplifyBonus } from '@game/sim';
+import { Card, mdBold } from './Card';
+import { instView } from './instView';
+import { dragonTamerCostOf, roundedSpellbookCostOf, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -103,6 +104,18 @@ export function StatusBar() {
     }, 55);
     return () => { window.clearInterval(id); window.clearTimeout(settle); };
   }, [run.heroDiceLockUntil, run.wave, power.kind]);
+  // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
+  // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
+  // card-text rule: never show a base number where the real one is knowable.
+  const [hunchHover, setHunchHover] = useState(false);
+  const hunchPreview = hunchHover && power.kind === 'roundedSpellbook' && run.lastSpellCastId
+    ? instView(
+      { uid: 'hunch-preview', cardId: run.lastSpellCastId, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false },
+      run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn, run.deathrattlesTriggered,
+      run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, undefined, undefined,
+      { rubyBonus: run.rubyBonus, impAura: run.impBuff, topTribe: null },
+    )
+    : null;
   // Indy's Gild recharges after 40 Gold spent since the last use — how much of that 40 is banked so far.
   const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
     ? Math.max(0, Math.min(40, (run.goldSpent ?? 0) - (run.indyGildRearmAt - 40)))
@@ -310,6 +323,10 @@ export function StatusBar() {
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
               aria-label={`${power.name} — ${renameTerms(power.text).replace(/\*\*/g, '')}`}
+              // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
+              // is only built while hovering (and only for that hero).
+              onPointerEnter={power.kind === 'roundedSpellbook' ? () => setHunchHover(true) : undefined}
+              onPointerLeave={power.kind === 'roundedSpellbook' ? () => setHunchHover(false) : undefined}
               onPointerDown={(e) => {
                 // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
                 // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the
@@ -348,6 +365,14 @@ export function StatusBar() {
             {diceFace != null
               ? <span key={`die${diceFace}`} className="hpb-tally hpb-dice">{diceFace}</span>
               : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+            {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
+                judge the price without knowing what you're buying. Rendered from the same live view the shop
+                uses, so its printed value is the real one. */}
+            {hunchPreview && (
+              <span className="hpb-spellpreview" aria-hidden="true">
+                <Card card={hunchPreview} forceFull suppressPop plated />
+              </span>
+            )}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}

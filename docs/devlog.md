@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-14 - Hero art wired + power polish (preview, dice, contraband flash)
+
+Owner pass 2 on the hero batch.
+
+- **ART.** Every new hero now has real portrait + power art. `wire-art` grew a **hero powers** job (the
+  folder had never been a job — power art was hand-dropped, which is why a new hero shipped with the
+  placeholder diamond). Indexed by `<HeroName>HP` under the same strict name-match rule, so the three
+  unattributed legacy files (a UUID, retired Atrius, `Pathfinder.png` named for the power not the hero) are
+  REPORTED, never guessed. Wired 9 portraits + 8 powers; **Foreman Flint has no HP art in the source folder**,
+  so his power still shows the placeholder.
+- Added a `.gitignore` rule for `packages/ui/src/art/**/*.png`: the pipeline writes a ~600KB PNG intermediate
+  beside every ~60KB webp, and only the webp is tracked (804 of them). Without the rule a wire run leaves 679
+  stray files staged — a ~10x art payload if committed.
+- **Hunch** — hovering the power previews the spell it would grant, built through the shared `instView` so the
+  card prints its LIVE value (the card-text rule), not a base number.
+- **Gambler** — the rolled die is now BIG and centred ON the diamond (was small, in the tally slot above it).
+- **Pete** — the smuggled tier-above offer is flagged (`ShopCard.contraband`) and flashes once as the row
+  lands, so the special unit reads. One-shot opacity on a `::before` overlay — never a looping paint animation.
+
+Verified live: Pete's 3rd refresh flagged exactly one offer and one card carried the flash class; Hunch's
+hover showed "Spirit Fire — Give a minion +2/+3"; the die measured 53.7px at dx/dy 0 from the button centre;
+`pete.webp` / `hunch.webp` / `gambler.webp` all loaded. Typecheck + lint clean.
+
 ## 2026-08-14 - Heroes batch: owner revisions + Hunch
 
 Owner pass over the new heroes (2026-08-14), plus a ninth:

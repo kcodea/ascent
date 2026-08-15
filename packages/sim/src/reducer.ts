@@ -213,7 +213,7 @@ function upgradeRightmostOffer(s: RunState): void {
   s.rngCursor = rng.state();
   returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back to the shared pool, like a reroll
   takeFromPool(s, pick.id);
-  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id };
+  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true }; // flagged so the UI flashes it
 }
 
 /** Rune of the Bargain Bin: replace every minion offer with a random minion priced at 1 Gold that sells for 0

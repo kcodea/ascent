@@ -38,7 +38,10 @@ export type HeroPowerKind =
   | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
   | 'possession' // RETIRED with Atrius (2026-07-20). Kept so saves/replays of old runs still resolve;
   //                the Start-of-Combat machinery in simulate.ts remains as an unused primitive.
-  | 'fourPeat'; // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
+  | 'fourPeat' // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
+  | 'pocketMagic' // Merrin: get a random Shop spell to hand (active, untargeted, 1 Gold)
+  | 'dice' // Gambler: roll a die, gain that much Gold, then the power is locked for that many turns (active, 1 Gold)
+  | 'copyMachine'; // Xerox: copy a friendly board minion into your hand (active, targeted, once per game)
 
 export interface HeroPower {
   name: string;
@@ -401,7 +404,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
     armor: 19,
-    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
+    // Re-added to the pool 2026-08-14 (owner) — the wip withhold is lifted.
     power: {
       name: 'Dragon Tamer',
       kind: 'dragonTamer',
@@ -450,6 +453,48 @@ export const HEROES: HeroDef[] = [
       kind: 'fourPeat',
       passive: true, // resolved in the buy case: the 3rd minion bought each turn conjures a random plain copy
       text: 'When you buy 3 minions in a turn, get a plain copy of one of them at random.',
+    },
+  },
+  {
+    id: 'merrin',
+    name: 'Merrin',
+    blurb: 'There is always a spell in the other pocket.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Pocket Magic',
+      kind: 'pocketMagic',
+      cost: 1,
+      untargeted: true, // fires immediately: a random Shop spell to hand
+      text: 'Get a random Shop spell.',
+    },
+  },
+  {
+    id: 'gambler',
+    name: 'Gambler',
+    blurb: 'The house always wins — unless the house is you.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Dice',
+      kind: 'dice',
+      cost: 1,
+      untargeted: true, // roll a die, gain that Gold, then the power locks for that many turns (handled in the reducer)
+      text: 'Roll a die: gain that much Gold. This power then locks for that many turns.',
+    },
+  },
+  {
+    id: 'xerox',
+    name: 'Xerox',
+    blurb: 'Why build one when you can print two?',
+    resolve: 30,
+    armor: 12,
+    power: {
+      name: 'Copy Machine',
+      kind: 'copyMachine',
+      oncePerGame: true,
+      // Targeted (no `untargeted`): pick a friendly board minion; a copy lands in your hand.
+      text: 'Copy a friendly minion into your hand. Once per game.',
     },
   },
 ];

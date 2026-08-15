@@ -2003,6 +2003,29 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card || card.keywords.includes('R')) return state;
         card.keywords.push('R');
         card.tempReborn = true;
+      } else if (power.kind === 'pocketMagic') {
+        // Merrin: a random Shop spell (up to the current tier) to hand. No-op (no charge) if none exist or the
+        // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.
+        const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
+        if (pool.length === 0 || s.hand.length >= handCap(s)) return state;
+        conjureToHand(s, pool, 1);
+      } else if (power.kind === 'dice') {
+        // Gambler: locked until `heroDiceLockUntil`. Roll 1–6 (seeded), gain that Gold, then lock the power for
+        // that many turns — a big roll pays more but costs more downtime. No charge while locked.
+        if (s.wave < (s.heroDiceLockUntil ?? 0)) return state;
+        const rng = makeRng(s.rngCursor);
+        const roll = 1 + rng.int(6);
+        s.rngCursor = rng.state();
+        gainGold(s, roll);
+        s.heroDiceLockUntil = s.wave + roll;
+      } else if (power.kind === 'copyMachine') {
+        // Xerox: copy a friendly board minion into your hand. A PLAIN copy (base card, not golden) — the
+        // established "plain copy" convention (Re-Pete / Gorr). No-op (no charge) on a missing target or a full
+        // hand. Once per game (the shared block sets heroPowerSpent).
+        if (!card || s.hand.length >= handCap(s)) return state;
+        const def = CARD_INDEX[card.cardId];
+        if (!def) return state;
+        s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'

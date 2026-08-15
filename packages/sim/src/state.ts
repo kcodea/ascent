@@ -673,6 +673,9 @@ export interface RunState {
   /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
    *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
   heroPowerUses?: number;
+  /** Gambler (Dice): the wave at which the Dice power becomes usable again — set to `wave + roll` on use, so a
+   *  big roll pays more Gold but locks the power longer. Absent = usable. */
+  heroDiceLockUntil?: number;
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

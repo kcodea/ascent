@@ -259,7 +259,6 @@ export function StatusBar() {
     }, ms + 280);
   }, [flashSignal]);
   // Pill text auto-fits its box (no ellipsis / no tooltip needed — owner note 2026-07-16).
-  const heroNameRef = useFitText(hero.name);
   const playerNameRef = useFitText(playerName);
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
@@ -293,6 +292,11 @@ export function StatusBar() {
   }, 0);
   const prevBuffMag = useRef(buffMag);
   const [buffFlash, setBuffFlash] = useState(0);
+  // Run-buff rows for the pop-out (folds in live combat gains via `combatBuffs`), plus its open state. The
+  // pop-out is toggled by clicking the hero portrait and expands UPWARD out of its top edge.
+  const combatBuffs = useGame((s) => s.combatBuffs);
+  const buffRows = gatherRunBuffs(run, combatBuffs);
+  const [buffsOpen, setBuffsOpen] = useState(false);
   useEffect(() => {
     if (buffMag > prevBuffMag.current) setBuffFlash((n) => n + 1);
     prevBuffMag.current = buffMag;
@@ -306,14 +310,19 @@ export function StatusBar() {
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
         >
-          {/* Player name — a pill eclipsing the top of the hero box (mirrors the opponent name on its frame). */}
-          {playerName && <div className="playername" ref={playerNameRef}>{playerName}</div>}
-          {/* Run buffs — a collapsible drawer extending RIGHT from the portrait, its tab eclipsing this
-              box's right edge (owner rework 2026-07-21; it used to be a separate top-left window). */}
-          <BuffsFrame />
-          {/* The portrait holds ONLY the hero art; the hero name rides a pill eclipsing its bottom edge (mirrors
-              the player-name pill at the top). Health/Armor sits to its right (see `.hpbox` CSS). */}
-          <div className="f">
+          {/* Run buffs pop-out — expands UPWARD out of the portrait's top edge into the empty top-left board
+              space when the portrait is clicked, anchored at the bottom so it grows up (owner rework 2026-08-14;
+              it used to be a side drawer with a tab). */}
+          <BuffsFrame open={buffsOpen} rows={buffRows} />
+          {/* The portrait holds the hero art; the PLAYER name rides the bottom pill, and CLICKING it toggles the
+              run-buffs pop-out (the up-arrow at its top + the dark hover overlay are the cues). */}
+          <div
+            className={`f${buffRows.length ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
+            onClick={() => { if (buffRows.length) setBuffsOpen((o) => !o); }}
+            role={buffRows.length ? 'button' : undefined}
+            aria-expanded={buffRows.length ? buffsOpen : undefined}
+            aria-label={buffRows.length ? (buffsOpen ? 'Hide run buffs' : 'Show run buffs') : undefined}
+          >
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
@@ -322,7 +331,16 @@ export function StatusBar() {
             ) : (
               <Icon name="anvil" />
             )}
-            <div className="heroname" ref={heroNameRef}>{hero.name}</div>
+            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
+            {/* Buffs affordance — the little arrow at the top of the portrait (only when there are buffs). */}
+            {buffRows.length > 0 && <span className="herobuffs-arrow" aria-hidden="true">{buffsOpen ? '▾' : '▴'}</span>}
+            {/* Hover affordance — the portrait darkens and spells out the click action (only when there are
+                buffs to open; without any, the click is a no-op and there's nothing to explain). */}
+            {buffRows.length > 0 && (
+              <span className="herohover" aria-hidden="true">
+                Click hero portrait to open / close the Buffs Panel
+              </span>
+            )}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}

@@ -589,6 +589,9 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
    already carries the spent read, so the dim is light). The housing stays lit either way. */
 .etbwrap:disabled:not(.pressed) .etb-gem { filter: grayscale(0.4) brightness(0.8); }
 .etbwrap.pressed .etb-gem, body.etb-pressed-preview .etbwrap .etb-gem { filter: brightness(0.85); }
+/* Hover brightens the gem (the halo itself is the separate `.etb-glow` layer above). Normal state only. */
+.etbwrap .etb-gem { transition: filter 0.16s ease; }
+.etbwrap:not(:disabled):not(.pressed):hover .etb-gem { filter: brightness(var(--etb-gem-hover, 1.18)); }
 /* The DIAMOND GLOW — the GEM-ONLY cut of the art (end_button_gem.webp) whose stacked drop-shadow follows
    the alpha silhouette, so the halo hugs the blue diamond itself, NOT the bronze housing (owner note
    2026-07-16). Seated ABOVE the art (the gem's light spills over the housing). HOVER-ONLY: hidden at rest
@@ -710,10 +713,10 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    overlaps its rim) → base (z1) → tier pips (z2) → gem-halo glow (z3) → press flash (z4) → cost coin (z5). */
 .tvbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 42px) * var(--scale));
+  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 51px) * var(--scale));
   top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, -373px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.55));
-  width: calc(128 * var(--u)); height: calc(125.5 * var(--u)); /* the trimmed base art's 512×502 aspect */
+  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.24));
+  width: calc(128 * var(--u)); height: calc(139.6 * var(--u)); /* the new base art's 795×867 aspect (0.917) */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
@@ -740,32 +743,33 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    flush — owner note 2026-07-16). The gem going dark reads as "can't use right now". Static filter; brightness
    from the tuner's artDim. MAXED is excluded (the broken "complete" gem tells that story at full strength),
    and so is COMBAT — there the stone is a passive tier indicator, not a locked action. */
-.tvbwrap:disabled:not(.maxed):not(.combat) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 0.44)); }
+.tvbwrap:disabled:not(.maxed):not(.combat) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 0.65)); }
 .tvbwrap .tvb-base { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 1; }
-/* The GEM — seated UNDER the base (z0) through its transparent hole (measured: centre 52.56%/48.93% of the
-   base, gem 28.1% of its width ≈ the hole + a small lip under the ring — the forgiving seat). The broken gem
-   is the max-tier state; both stay mounted, CSS flips them on `.maxed` (no src-swap flash). */
+/* The GEM (the shop orb) — seated ON TOP of the base (z2) over the baked orb, so it's the effect layer (the
+   new art's orb is opaque, not a transparent hole). Centre/size are the new orb's seat; the 🍺 gem knobs
+   fine-tune. The broken gem is the max-tier state; both stay mounted, CSS flips them on `.maxed`. */
 .tvbwrap .tvb-gembox {
-  position: absolute; z-index: 0; pointer-events: none;
-  left: calc(52.56% + var(--tvb-gem-x, 0) * var(--u));
-  top: calc(48.93% + var(--tvb-gem-y, 0) * var(--u));
-  width: calc(28.1% * var(--tvb-gem-s, 1.2)); aspect-ratio: 1;
+  position: absolute; z-index: 2; pointer-events: none;
+  left: calc(50% + var(--tvb-gem-x, 0) * var(--u));
+  top: calc(45% + var(--tvb-gem-y, 3.5) * var(--u));
+  width: calc(47% * var(--tvb-gem-s, 1.385)); aspect-ratio: 1;
   transform: translate(-50%, -50%);
 }
 .tvbwrap .tvb-gem { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; }
-.tvbwrap .tvb-gem.broken { display: none; }
-.tvbwrap.maxed .tvb-gem.lit { display: none; }
-.tvbwrap.maxed .tvb-gem.broken { display: block; }
+/* MAX tier — the orb DIMS (owner ask 2026-08-14; the old broken-orb swap was removed). */
+.tvbwrap.maxed .tvb-gem { filter: grayscale(0.35) brightness(0.5); }
 /* TIER PIPS — the current tavern tier lit into the stone's slot arc. The six variants share ONE
    centroid-aligned canvas (823×374 source, 71.63% of the base's width — see the conversion notes), so this
    single seat places every tier; CSS shows the active one. Default centre puts pip 1 on the base's first
    slot (measured); the pip dials nudge the whole arc. */
 .tvbwrap .tvb-pips {
-  position: absolute; z-index: 2; display: none; pointer-events: none; -webkit-user-drag: none;
-  left: calc(50.4% + var(--tvb-pip-x, 6.5) * var(--u));
-  top: calc(24.2% + var(--tvb-pip-y, -6.5) * var(--u));
-  width: calc(71.63% * var(--tvb-pip-s, 1)); height: auto;
-  transform: translate(-50%, -50%);
+  position: absolute; z-index: 3; display: none; pointer-events: none; -webkit-user-drag: none;
+  left: calc(50% + var(--tvb-pip-x, 0) * var(--u));
+  top: calc(14% + var(--tvb-pip-y, 0) * var(--u));
+  /* WIDTH is per-tier (inline, PIP_W% × --tvb-pip-s); height auto keeps each arc's aspect EXACT. Top-anchored
+     + centred so the arc's apex lines up across tiers (they're symmetric). */
+  height: auto;
+  transform: translateX(-50%);
 }
 .tvbwrap .tvb-pips.on { display: block; }
 /* The GEM GLOW — a circular halo hugging the gem. NOT the diamond's drop-shadow-of-the-art construction:
@@ -775,13 +779,15 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    OUTSIDE the element, follow the rounded shape, and can never clip. The shadow list is STATIC (composed
    `glowStrength` times into --tvb-glow-shadow by tavernUpConfig); HOVER-ONLY, breath animates OPACITY only. */
 .tvbwrap .tvb-glow {
-  position: absolute; z-index: 3; pointer-events: none;
-  left: calc(52.56% + (var(--tvb-gem-x, 0) + var(--tvb-glow-x, 0.5)) * var(--u));
-  top: calc(48.93% + (var(--tvb-gem-y, 0) + var(--tvb-glow-y, 0.5)) * var(--u));
-  width: calc(27.7% * var(--tvb-gem-s, 1.2)); aspect-ratio: 1; /* the gem's visible circle (the hole size) */
+  position: absolute; z-index: 1; pointer-events: none; -webkit-user-drag: none; /* BEHIND the gem (z2) */
+  /* The glow is a copy of the gem IMAGE seated on the real gem (same seat as the gembox). Its stacked
+     drop-shadow follows the image alpha, so the halo TRACES the orb's exact outline (incl. the bottom
+     triangle). The real gem (z2) covers this copy, so only the traced halo shows. */
+  left: calc(50% + (var(--tvb-gem-x, 0) + var(--tvb-glow-x, -1.5)) * var(--u));
+  top: calc(45% + (var(--tvb-gem-y, 3.5) + var(--tvb-glow-y, -4)) * var(--u));
+  width: calc(47% * var(--tvb-gem-s, 1.385)); aspect-ratio: 1;
   transform: translate(-50%, -50%) scale(var(--tvb-glow-w, 0.85), var(--tvb-glow-h, 0.85));
-  border-radius: 50%;
-  box-shadow: var(--tvb-glow-shadow, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff);
+  filter: var(--tvb-glow-filter, drop-shadow(0 0 10px #00bfff) drop-shadow(0 0 10px #00bfff) drop-shadow(0 0 10px #00bfff) drop-shadow(0 0 10px #00bfff));
   opacity: 0; transition: opacity 0.22s ease;
 }
 .tvbwrap:not(:disabled):hover .tvb-glow {
@@ -803,8 +809,8 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
 .tvbwrap .tvb-flash {
   position: absolute; z-index: 4; pointer-events: none; -webkit-user-drag: none;
   left: calc(52.56% + var(--tvb-gem-x, 0) * var(--u));
-  top: calc(48.93% + var(--tvb-gem-y, 0) * var(--u));
-  width: calc(84.33% * var(--tvb-gem-s, 1.2)); aspect-ratio: 1; /* padded source — room for the flash halo */
+  top: calc(48.93% + var(--tvb-gem-y, 3.5) * var(--u));
+  width: calc(84.33% * var(--tvb-gem-s, 1.385)); aspect-ratio: 1; /* padded source — room for the flash halo */
   transform: translate(-50%, -50%);
   filter: brightness(2.2) saturate(0.6) drop-shadow(0 0 18px rgba(255, 214, 130, 0.9));
   animation: tvbflash var(--tvb-flash-ms, 740ms) ease-out forwards;
@@ -2697,7 +2703,7 @@ body.modalup .app { z-index: auto; }
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
    opponent's is raspberry). */
-.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: var(--hpn-pname-t, translate(-50%, -55%) scale(0.59)); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
+.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: var(--hpn-pname-t, translate(-50%, -55%) translate(calc(-200 * var(--u)), calc(-200 * var(--u))) scale(0.4)); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 /* Completed-quest trophy badges — a horizontal row above the hero panel. A quest moves here from the
    QuestPanel on completion; hovering floats its live reward state. Overflow visible so the tooltip + chip
@@ -2839,21 +2845,46 @@ body.dragging .statusbar .hero { pointer-events: none; }
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
-  transform: var(--hpn-panel-t, translate(calc(-23px * var(--scale)), calc(-569px * var(--scale))) scale(2.27)); transform-origin: bottom left;
+  transform: var(--hpn-panel-t, translate(calc(-33px * var(--scale)), calc(-81px * var(--scale))) scale(3.3)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
-  width: var(--hpn-panel-w, calc(92 * var(--u))); height: var(--hpn-panel-h, calc(92 * var(--u)));
+  width: var(--hpn-panel-w, calc(89 * var(--u))); height: var(--hpn-panel-h, calc(90 * var(--u)));
   box-sizing: border-box;
 }
 /* Portrait fills the square (inset by the frame padding) — resizing the square resizes the art WITH it;
    the 🧍 portrait dials then fine-seat it. `overflow: visible` lets the hero-name pill eclipse its bottom
    (the pill lives inside, so it rides the portrait transform too). */
-.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: calc(14 * var(--u)); transform: var(--hpn-portrait-t, scale(1.16)); }
+.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, scale(1.18)); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
+/* Hover affordance — the portrait darkens to a near-black scrim and spells out the click action (owner ask
+   2026-08-14, replacing the old "Hero: <name>" tooltip). Clipped to the circle (its own overflow, since `.f`
+   is overflow:visible for the arrow/pop-out); opacity-only fade keeps it compositor-cheap. Only the interactive
+   (has-buffs) portrait shows it. */
+.statusbar .hero .f .herohover {
+  /* z-index 3: above the hero art, BELOW the name pill (z4) so the pill stays legible over the scrim; the
+     health box is a later sibling and already paints on top. */
+  position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; padding: calc(12 * var(--u));
+  background: rgba(6, 5, 3, 0.86);
+  color: #fff; font-family: var(--font-ui); font-weight: 800;
+  font-size: calc(3.3 * var(--u)); line-height: 1.32; text-align: center; letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  opacity: 0; pointer-events: none; transition: opacity 0.16s ease;
+}
+.statusbar .hero .f.hasbuffs:hover .herohover { opacity: 1; }
+/* Buffs expand affordance — a small arrow riding the TOP of the portrait (the player-name pill moved to the
+   bottom, freeing the top). Only present when there are buffs; the whole portrait is the click target. */
+.statusbar .hero .f.hasbuffs { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.statusbar .hero .f .herobuffs-arrow {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -75%); z-index: 5; pointer-events: none;
+  font-size: calc(16 * var(--u)); line-height: 1; color: #f4ecdb; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  opacity: 0.82; transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.statusbar .hero .f.hasbuffs:hover .herobuffs-arrow { opacity: 1; transform: translate(-50%, -92%); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
 .statusbar .hero .heroname {
-  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) scale(0.67)); z-index: 4;
+  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) translate(calc(0 * var(--u)), calc(-11 * var(--u))) scale(0.66)); z-index: 4;
   max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
@@ -2863,7 +2894,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
    2026-07-16): anchored to the square's midpoint with a translate(-50%,-50%) base, so the pill grows/
    shrinks symmetrically when the armor chip appears or vanishes — the heart never drifts left. The 🧍
    resolve dials stack onto that base (see heroPanelConfig). */
-.statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(-2 * var(--u)), calc(65 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+.statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(-2 * var(--u)), calc(51 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
@@ -6190,6 +6221,11 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
 /* Frozen: a cold blue bloom on the gem (opacity-breathed via a static shadow would loop — this is a static
    one, no animation, so it's compositor-safe). */
 .frzwrap.on .frz-gem { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(43, 143, 208, 0.85)) brightness(1.12); }
+/* Gem HOVER glow — a gem-only halo (the drop-shadow follows the gem's alpha, so it hugs the gem and spills
+   over the base below it) plus a brighter gem. Composed from the ❄️ tuner's glow knobs; hover-only, a static
+   filter (no loop). Wins over the `.on` frozen bloom on hover. */
+.frzwrap .frz-gem { transition: filter 0.16s ease; }
+.frzwrap:not(:disabled):hover .frz-gem { filter: var(--frz-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--frz-gem-hover, 1.2)); }
 /* "Freeze" LABEL PILL — the same cream/gold plaque as the Tavern Up tier pill (`.tvb-tierpill`), seated near
    the gem. Position (design px × --u from the button centre) + size from the ❄️ tuner's `--frz-pill-*`. */
 .frzwrap .frz-pill {
@@ -6226,7 +6262,10 @@ button.frzwrap.frzwrap:focus-visible {
    (owner report 2026-07-22, only at wide/exe resolutions where the boxes overlap). `none` here + `auto` on the
    interactive children (tab always, body when open) lets the hover pass through to the card while the tab stays
    clickable — the same pattern as `.handpad`. */
-.herobuffs { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 12; display: flex; align-items: center; pointer-events: none; }
+/* Owner rework 2026-08-14: the RUN BUFFS are now an UPWARD pop-out, not a side drawer. `.herobuffs` sits just
+   ABOVE the portrait and is bottom-anchored, so the panel grows UP as more buffs accrue. Toggled by clicking
+   the portrait. `--bfd-body-*` still nudge/scale the panel; the old tab knobs (`--bfd-tab-*`) are now inert. */
+.herobuffs { position: absolute; left: 0; bottom: calc(100% + calc(6 * var(--u))); z-index: 60; display: flex; pointer-events: none; }
 /* The VERTICAL tab — a narrow dark-glass sliver straddling the portrait's edge. */
 .herobuffs-tab {
   position: relative; z-index: 2; pointer-events: auto; /* the only always-interactive part (container is none) */
@@ -6255,12 +6294,12 @@ button.frzwrap.frzwrap:focus-visible {
 .herobuffs-chev { opacity: 0.75; font-size: calc(8 * var(--u)); }
 /* The drawer body — slides out to the right of the tab. */
 .herobuffs-body {
-  position: relative; z-index: 1;   /* under the tab (z2), so the slide emerges from behind it */
-  margin-left: calc(var(--bfd-body-x, 2) * var(--u));
-  /* Tuner offset rides the INDEPENDENT translate/scale properties, NOT `transform` — the slide
-     animation owns `transform`, and the two compose instead of one clobbering the other. */
-  translate: 0 calc(var(--bfd-body-y, 0) * var(--u));
-  scale: var(--bfd-body-s, 0.48);
+  position: relative; pointer-events: none;
+  /* Tuner offset/scale ride the INDEPENDENT translate/scale; `transform` is free for the open/close slide.
+     Origin bottom-left so scaling keeps the panel seated above the portrait as it grows up. */
+  translate: calc(var(--bfd-body-x, 0) * var(--u)) calc(var(--bfd-body-y, 0) * var(--u));
+  scale: var(--bfd-body-s, 0.9);
+  transform-origin: bottom left;
   padding: calc(8 * var(--u)) calc(12 * var(--u));
   display: flex; flex-direction: column; gap: calc(3 * var(--u));
   min-width: calc(var(--bfd-min-w, 122) * var(--u));
@@ -6268,32 +6307,30 @@ button.frzwrap.frzwrap:focus-visible {
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
   box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) -6px rgba(0, 0, 0, 0.7);
-  transform-origin: left center;
-  /* CLOSED: tucked back under the tab and faded out. `transform` is free for the slide because the tuner's
-     offset/scale ride the INDEPENDENT `translate`/`scale` properties above. `visibility` carries a delay so
-     the panel stays visible for the whole close slide, then goes truly non-interactive. */
-  transform: translateX(-100%);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.16s ease, visibility 0s linear 0.22s;
+  /* CLOSED: nudged DOWN toward the portrait + faded + non-interactive; the visibility delay holds it through
+     the close slide. */
+  transform: translateY(calc(10 * var(--u)));
+  opacity: 0; visibility: hidden;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.16s ease, visibility 0s linear 0.2s;
 }
 .herobuffs.open .herobuffs-body {
-  transform: translateX(0);
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.16s ease, visibility 0s;
+  transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.16s ease, visibility 0s;
 }
 @media (prefers-reduced-motion: reduce) {
   .herobuffs-body, .herobuffs.open .herobuffs-body { transition: opacity 0.12s ease, visibility 0s; transform: none; }
 }
 
 
-.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; }
-.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
-.herobuffs-body .buff-label { color: #d8ccb6; font-weight: 600; }
-.herobuffs-body .buff-val { color: #f4ecdb; font-weight: 900; }
+.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
+.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
+/* Size the label + value directly: `.buff-row .buff-label/.buff-val` (lines ~339) set a fixed font-size, and a
+   direct rule beats the row's inherited size — so the tuner's `--bfd-text-s` must land on these, not the row. */
+/* Leader line bridging name → amount: flex-grows to fill the gap, vertically centred, a thin muted hairline
+   (darker than the white text so it stays quiet). */
+.herobuffs-body .buff-lead { flex: 1 1 auto; align-self: center; min-width: calc(12 * var(--u)); height: 0; border-top: 1px solid color-mix(in srgb, var(--gold) 45%, #000); }
+.herobuffs-body .buff-label { color: #fff; font-weight: 600; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
+.herobuffs-body .buff-val { color: #fff; font-weight: 900; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
 /* Mid-drag nothing in the strip may eat a drop aimed at the corner (mirrors the hero/Embers rule above). The
    container is already `none`; disable the interactive children too so a dragged card drops straight through. */
 body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: none; }
@@ -7311,17 +7348,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      applying `transform: scale()` keeps the shadow and hairline crisp AND keeps the layout box honest — a
      transformed panel still reserves its untransformed width and can overlap the board. */
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
-  --lu: calc(var(--u) * var(--lby-scale, 1.25));
-  --lrow: calc(var(--lu) * var(--lby-row, 1));
-  --lfont: calc(var(--lu) * var(--lby-font, 1));
-  --lfoe: calc(var(--lu) * var(--lby-foe, 1));
+  --lu: calc(var(--u) * var(--lby-scale, 1.58));
+  --lrow: calc(var(--lu) * var(--lby-row, 1.63));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.93));
+  --lfoe: calc(var(--lu) * var(--lby-foe, 1.37));
   position: absolute; z-index: 60;
-  right: calc(var(--lby-right, 12) * var(--lu)); top: var(--lby-top, 18.5%);
+  right: calc(var(--lby-right, -64) * var(--lu)); top: var(--lby-top, 9.5%);
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
      the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
      shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */
-  height: auto; max-height: var(--lby-h, 66%); overflow-y: auto; overflow-x: hidden;
-  width: calc(var(--lby-w, 129) * var(--lu));
+  height: auto; max-height: var(--lby-h, 83.5%); overflow-y: auto; overflow-x: hidden;
+  width: calc(var(--lby-w, 172) * var(--lu));
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
      panel has to be its own surface, not a tint on the art behind it. */

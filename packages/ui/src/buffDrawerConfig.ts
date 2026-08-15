@@ -1,48 +1,33 @@
 /**
- * Tunable look for the run-buffs drawer (`BuffsFrame.tsx`) — the collapsible panel extending right out of
- * the hero portrait, opened by a tab eclipsing the portrait's edge.
+ * Tunable look for the run-buffs pop-out (`BuffsFrame.tsx`) — the panel that expands UPWARD out of the hero
+ * portrait's top edge when the portrait is clicked, bottom-anchored so it grows up as more buffs accrue.
  *
- * The tab is VERTICAL (owner 2026-07-21) so it covers as little of the portrait as possible — a horizontal
- * pill ate a visible bite of the art. Position/scale/type-size are all dials here rather than hand-picked
- * numbers, because how much eclipse reads as "attached" vs "covering" is a judgement call.
+ * Owner rework 2026-08-14: this used to be a side drawer behind a vertical TAB eclipsing the portrait, and the
+ * config carried a whole `tab*` group. The tab is gone — those knobs drove nothing — so the config is now just
+ * the panel's own placement/scale + the two type sizes.
  *
  * Config is localStorage-persisted in DEV only; production always renders DEFAULTS (Layout Lab convention).
  * Values reflect to `--bfd-*` CSS vars — the styles.css fallbacks MUST mirror DEFAULTS.
  */
 export interface BuffDrawerConfig {
-  /** Tab — horizontal nudge (design px × --u). Negative pulls it further ONTO the portrait. */
-  tabX: number;
-  /** Tab — vertical nudge (design px × --u) from the portrait's mid-line. */
-  tabY: number;
-  /** Tab — overall scale (×). */
-  tabS: number;
-  /** Tab — height (design px × --u). The vertical tab's long axis. */
-  tabH: number;
-  /** Tab — width (design px × --u). Keep it narrow: this is what eclipses the portrait. */
-  tabW: number;
-  /** Drawer — horizontal offset (design px × --u) from the tab. */
+  /** Panel — horizontal offset (design px × --u) from the portrait's left edge. */
   bodyX: number;
-  /** Drawer — vertical nudge (design px × --u). */
+  /** Panel — vertical nudge (design px × --u). Negative lifts it further off the portrait. */
   bodyY: number;
-  /** Drawer — overall scale (×). */
+  /** Panel — overall scale (×). Grows from the bottom-left so it stays seated above the portrait. */
   bodyS: number;
-  /** Drawer — row text size (design px × --u). */
+  /** Panel — row text size (design px × --u). */
   textS: number;
-  /** Drawer — title text size (design px × --u). */
+  /** Panel — title text size (design px × --u). */
   titleS: number;
-  /** Drawer — minimum width (design px × --u). */
+  /** Panel — minimum width (design px × --u), so short values don't collapse it narrow. */
   minW: number;
 }
 
 const DEFAULTS: BuffDrawerConfig = {
-  tabX: -6,
-  tabY: 0,
-  tabS: 0.71,
-  tabH: 35,
-  tabW: 18,
   bodyX: 2,
   bodyY: 0,
-  bodyS: 0.48,
+  bodyS: 0.9,
   textS: 11,
   titleS: 11,
   minW: 122,
@@ -50,13 +35,8 @@ const DEFAULTS: BuffDrawerConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const BFD_RANGES: Record<keyof BuffDrawerConfig, [number, number, number]> = {
-  tabX: [-40, 40, 0.5],
-  tabY: [-80, 80, 1],
-  tabS: [0.4, 2.5, 0.01],
-  tabH: [16, 140, 1],
-  tabW: [8, 60, 1],
-  bodyX: [-40, 80, 1],
-  bodyY: [-80, 80, 1],
+  bodyX: [-80, 120, 1],
+  bodyY: [-120, 80, 1],
   bodyS: [0.4, 2.5, 0.01],
   textS: [7, 24, 0.5],
   titleS: [7, 24, 0.5],
@@ -65,17 +45,12 @@ export const BFD_RANGES: Record<keyof BuffDrawerConfig, [number, number, number]
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
 export const BFD_DESC: Record<keyof BuffDrawerConfig, string> = {
-  tabX: 'Tab — horizontal nudge. More negative pulls it further ONTO the portrait (more eclipse).',
-  tabY: 'Tab — vertical nudge from the portrait’s mid-line.',
-  tabS: 'Tab — overall size (×).',
-  tabH: 'Tab — height. The vertical tab’s long axis.',
-  tabW: 'Tab — width. Keep it narrow: this is the part that covers the portrait.',
-  bodyX: 'Drawer — how far right of the tab the panel sits.',
-  bodyY: 'Drawer — vertical nudge.',
-  bodyS: 'Drawer — overall size (×).',
-  textS: 'Drawer — buff row text size.',
-  titleS: 'Drawer — "BUFFS" title text size.',
-  minW: 'Drawer — minimum width, so short values don’t make it collapse narrow.',
+  bodyX: 'Panel — how far right of the portrait’s left edge it sits.',
+  bodyY: 'Panel — vertical nudge. Negative lifts it further off the portrait.',
+  bodyS: 'Panel — overall size (×).',
+  textS: 'Panel — buff row text size.',
+  titleS: 'Panel — "BUFFS" title text size.',
+  minW: 'Panel — minimum width, so short values don’t make it collapse narrow.',
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -101,11 +76,6 @@ export function getBuffDrawerConfig(): BuffDrawerConfig {
 export function applyBuffDrawerVars(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
-  root.setProperty('--bfd-tab-x', String(cfg.tabX));
-  root.setProperty('--bfd-tab-y', String(cfg.tabY));
-  root.setProperty('--bfd-tab-s', String(cfg.tabS));
-  root.setProperty('--bfd-tab-h', String(cfg.tabH));
-  root.setProperty('--bfd-tab-w', String(cfg.tabW));
   root.setProperty('--bfd-body-x', String(cfg.bodyX));
   root.setProperty('--bfd-body-y', String(cfg.bodyY));
   root.setProperty('--bfd-body-s', String(cfg.bodyS));

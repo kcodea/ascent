@@ -33,6 +33,25 @@ const NUM: Record<NumKey, [string, TunerUnit | undefined, string, string]> = {
   pipX:           ['Tier pips · horizontal', 'px', 'Nudges the tier pips sideways.', 'Face parts'],
   pipY:           ['Tier pips · vertical', 'px', 'Nudges the tier pips vertically.', 'Face parts'],
   pipS:           ['Tier pips · size', '×', 'Size of the tier pips.', 'Face parts'],
+
+  pip1X: ['Tier 1 · x', 'px', 'Nudge the tier-1 pip horizontally.', 'Per-tier pips'],
+  pip1Y: ['Tier 1 · y', 'px', 'Nudge the tier-1 pip vertically.', 'Per-tier pips'],
+  pip1S: ['Tier 1 · size', '×', 'Size the tier-1 pip.', 'Per-tier pips'],
+  pip2X: ['Tier 2 · x', 'px', 'Nudge the tier-2 pip horizontally.', 'Per-tier pips'],
+  pip2Y: ['Tier 2 · y', 'px', 'Nudge the tier-2 pip vertically.', 'Per-tier pips'],
+  pip2S: ['Tier 2 · size', '×', 'Size the tier-2 pip.', 'Per-tier pips'],
+  pip3X: ['Tier 3 · x', 'px', 'Nudge the tier-3 pip horizontally.', 'Per-tier pips'],
+  pip3Y: ['Tier 3 · y', 'px', 'Nudge the tier-3 pip vertically.', 'Per-tier pips'],
+  pip3S: ['Tier 3 · size', '×', 'Size the tier-3 pip.', 'Per-tier pips'],
+  pip4X: ['Tier 4 · x', 'px', 'Nudge the tier-4 pip horizontally.', 'Per-tier pips'],
+  pip4Y: ['Tier 4 · y', 'px', 'Nudge the tier-4 pip vertically.', 'Per-tier pips'],
+  pip4S: ['Tier 4 · size', '×', 'Size the tier-4 pip.', 'Per-tier pips'],
+  pip5X: ['Tier 5 · x', 'px', 'Nudge the tier-5 pip horizontally.', 'Per-tier pips'],
+  pip5Y: ['Tier 5 · y', 'px', 'Nudge the tier-5 pip vertically.', 'Per-tier pips'],
+  pip5S: ['Tier 5 · size', '×', 'Size the tier-5 pip.', 'Per-tier pips'],
+  pip6X: ['Tier 6 · x', 'px', 'Nudge the tier-6 pip horizontally (tier 7 reuses it).', 'Per-tier pips'],
+  pip6Y: ['Tier 6 · y', 'px', 'Nudge the tier-6 pip vertically (tier 7 reuses it).', 'Per-tier pips'],
+  pip6S: ['Tier 6 · size', '×', 'Size the tier-6 pip (tier 7 reuses it).', 'Per-tier pips'],
   costX:          ['Cost coin · horizontal', 'px', 'Nudges the cost coin sideways.', 'Face parts'],
   costY:          ['Cost coin · vertical', 'px', 'Nudges the cost coin vertically.', 'Face parts'],
   costS:          ['Cost coin · size', '×', 'Size of the cost coin.', 'Face parts'],
@@ -68,7 +87,10 @@ const NUM: Record<NumKey, [string, TunerUnit | undefined, string, string]> = {
  */
 const BEFORE_COLOUR: NumKey[] = [
   'x', 'y', 'scale',
-  'gemX', 'gemY', 'gemS', 'pipX', 'pipY', 'pipS', 'costX', 'costY', 'costS',
+  'gemX', 'gemY', 'gemS', 'pipX', 'pipY', 'pipS',
+  'pip1X', 'pip1Y', 'pip1S', 'pip2X', 'pip2Y', 'pip2S', 'pip3X', 'pip3Y', 'pip3S',
+  'pip4X', 'pip4Y', 'pip4S', 'pip5X', 'pip5Y', 'pip5S', 'pip6X', 'pip6Y', 'pip6S',
+  'costX', 'costY', 'costS',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
 ];
 const AFTER_COLOUR: NumKey[] = [

@@ -20,12 +20,18 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
   pillX: ['Pill X', 'px', 'Move the "Freeze" label pill horizontally from the button centre.'],
   pillY: ['Pill Y', 'px', 'Move the "Freeze" label pill vertically from the button centre.'],
   pillS: ['Pill size', '×', 'Size the "Freeze" label pill.'],
+  gemGlowSize: ['Glow size', 'px', 'Hover-glow halo blur around the gem.'],
+  gemGlowStrength: ['Glow intensity', undefined, 'How strong the hover halo reads (stacked passes). 0 = off.'],
+  gemHoverBright: ['Hover brightness', '×', 'How much the gem brightens while hovered.'],
 };
 
 const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = FRZ_RANGES[key];
-  const group = key.startsWith('gem') ? 'Gem overlay' : key.startsWith('pill') ? 'Freeze label' : 'Placement';
+  const group = key.startsWith('gemGlow') || key === 'gemHoverBright' ? 'Gem glow'
+    : key.startsWith('gem') ? 'Gem overlay'
+    : key.startsWith('pill') ? 'Freeze label'
+    : 'Placement';
   return { key, label, unit, hint, group, min, max, step };
 });
 

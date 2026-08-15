@@ -35,6 +35,14 @@ export interface TavernUpConfig {
   pipY: number;
   /** Pips size (× the art-true fit to the base's slots). */
   pipS: number;
+  /** Per-tier pip overrides — nudge x/y (design px) + size (×) for EACH tier's arc on top of the global pip
+   *  seat above, so a single tier can be aligned independently. Tier 7 reuses tier 6. */
+  pip1X: number; pip1Y: number; pip1S: number;
+  pip2X: number; pip2Y: number; pip2S: number;
+  pip3X: number; pip3Y: number; pip3S: number;
+  pip4X: number; pip4Y: number; pip4S: number;
+  pip5X: number; pip5Y: number; pip5S: number;
+  pip6X: number; pip6Y: number; pip6S: number;
   /** Cost badge — nudge x (design px × --u) from the button centre. */
   costX: number;
   /** Cost badge — nudge y (design px × --u). */
@@ -89,25 +97,27 @@ export interface TavernUpConfig {
 // 220ms flash with a thick double-ring shockwave, and artDim 1 (the gem only desaturates when locked, no
 // darkening). Mirror position/scale/glow changes into the styles.css `var(--tvb-*, …)` fallbacks.
 const DEFAULTS: TavernUpConfig = {
-  x: 42,
+  x: 51,
   y: -373,
-  scale: 1.55,
+  scale: 1.24,
   gemX: 0,
-  gemY: 0,
-  gemS: 1.2,
-  pipX: 6.5,
+  gemY: 3.5,
+  gemS: 1.385,
+  pipX: 0.5,
   pipY: -6.5,
   pipS: 1,
+  pip1X: -44, pip1Y: 21, pip1S: 1, pip2X: -37.5, pip2Y: 7, pip2S: 1, pip3X: -27, pip3Y: 0, pip3S: 1,
+  pip4X: -15.5, pip4Y: 0, pip4S: 1, pip5X: -5.5, pip5Y: 0, pip5S: 1, pip6X: 0, pip6Y: 0, pip6S: 1,
   costX: 37,
   costY: 36,
   costS: 0.84,
-  glowBlur: 10,
-  glowAlpha: 1,
-  glowStrength: 8,
+  glowBlur: 12,
+  glowAlpha: 0.86,
+  glowStrength: 3,
   glowPulse: 2.6,
   glowPulseDepth: 0.65,
-  glowX: 0.5,
-  glowY: 0.5,
+  glowX: -1.5,
+  glowY: -4,
   glowW: 0.85,
   glowH: 0.85,
   glowColor: '#00bfff',
@@ -120,7 +130,7 @@ const DEFAULTS: TavernUpConfig = {
   rings: 1,
   ringRadius: 3.65,
   ringLife: 2.35,
-  artDim: 0.44,
+  artDim: 0.65,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -128,12 +138,18 @@ export const TVB_RANGES: Record<Exclude<keyof TavernUpConfig, 'glowColor'>, [num
   x: [-800, 800, 1],
   y: [-500, 500, 1],
   scale: [0.4, 2.5, 0.01],
-  gemX: [-24, 24, 0.5],
-  gemY: [-24, 24, 0.5],
-  gemS: [0.8, 1.2, 0.005],
+  gemX: [-60, 60, 0.5],
+  gemY: [-60, 60, 0.5],
+  gemS: [0.5, 1.8, 0.005],
   pipX: [-40, 40, 0.5],
   pipY: [-40, 40, 0.5],
   pipS: [0.7, 1.3, 0.005],
+  pip1X: [-80, 80, 0.5], pip1Y: [-80, 80, 0.5], pip1S: [0.5, 1.8, 0.005],
+  pip2X: [-80, 80, 0.5], pip2Y: [-80, 80, 0.5], pip2S: [0.5, 1.8, 0.005],
+  pip3X: [-80, 80, 0.5], pip3Y: [-80, 80, 0.5], pip3S: [0.5, 1.8, 0.005],
+  pip4X: [-80, 80, 0.5], pip4Y: [-80, 80, 0.5], pip4S: [0.5, 1.8, 0.005],
+  pip5X: [-80, 80, 0.5], pip5Y: [-80, 80, 0.5], pip5S: [0.5, 1.8, 0.005],
+  pip6X: [-80, 80, 0.5], pip6Y: [-80, 80, 0.5], pip6S: [0.5, 1.8, 0.005],
   costX: [-90, 90, 1],
   costY: [-90, 90, 1],
   costS: [0.5, 2, 0.02],
@@ -169,6 +185,12 @@ export const TVB_DESC: Record<keyof TavernUpConfig, string> = {
   pipX: 'Tier pips — nudge the whole pip arc horizontally (design px) onto the stone’s slots.',
   pipY: 'Tier pips — nudge the pip arc vertically (design px).',
   pipS: 'Tier pips — size of the pip arc (× the art-true fit).',
+  pip1X: 'Tier 1 pip — nudge x.', pip1Y: 'Tier 1 pip — nudge y.', pip1S: 'Tier 1 pip — size (×).',
+  pip2X: 'Tier 2 pip — nudge x.', pip2Y: 'Tier 2 pip — nudge y.', pip2S: 'Tier 2 pip — size (×).',
+  pip3X: 'Tier 3 pip — nudge x.', pip3Y: 'Tier 3 pip — nudge y.', pip3S: 'Tier 3 pip — size (×).',
+  pip4X: 'Tier 4 pip — nudge x.', pip4Y: 'Tier 4 pip — nudge y.', pip4S: 'Tier 4 pip — size (×).',
+  pip5X: 'Tier 5 pip — nudge x.', pip5Y: 'Tier 5 pip — nudge y.', pip5S: 'Tier 5 pip — size (×).',
+  pip6X: 'Tier 6 pip — nudge x.', pip6Y: 'Tier 6 pip — nudge y.', pip6S: 'Tier 6 pip — size (×).',
   costX: 'Cost coin — nudge horizontally (design px) from the button centre.',
   costY: 'Cost coin — nudge vertically (design px).',
   costS: 'Cost coin size (×).',
@@ -237,6 +259,12 @@ export function applyTavernUpVars(): void {
   root.setProperty('--tvb-pip-x', String(cfg.pipX));
   root.setProperty('--tvb-pip-y', String(cfg.pipY));
   root.setProperty('--tvb-pip-s', String(cfg.pipS));
+  root.setProperty('--tvb-pip1-x', String(cfg.pip1X)); root.setProperty('--tvb-pip1-y', String(cfg.pip1Y)); root.setProperty('--tvb-pip1-s', String(cfg.pip1S));
+  root.setProperty('--tvb-pip2-x', String(cfg.pip2X)); root.setProperty('--tvb-pip2-y', String(cfg.pip2Y)); root.setProperty('--tvb-pip2-s', String(cfg.pip2S));
+  root.setProperty('--tvb-pip3-x', String(cfg.pip3X)); root.setProperty('--tvb-pip3-y', String(cfg.pip3Y)); root.setProperty('--tvb-pip3-s', String(cfg.pip3S));
+  root.setProperty('--tvb-pip4-x', String(cfg.pip4X)); root.setProperty('--tvb-pip4-y', String(cfg.pip4Y)); root.setProperty('--tvb-pip4-s', String(cfg.pip4S));
+  root.setProperty('--tvb-pip5-x', String(cfg.pip5X)); root.setProperty('--tvb-pip5-y', String(cfg.pip5Y)); root.setProperty('--tvb-pip5-s', String(cfg.pip5S));
+  root.setProperty('--tvb-pip6-x', String(cfg.pip6X)); root.setProperty('--tvb-pip6-y', String(cfg.pip6Y)); root.setProperty('--tvb-pip6-s', String(cfg.pip6S));
   root.setProperty('--tvb-cost-x', String(cfg.costX));
   root.setProperty('--tvb-cost-y', String(cfg.costY));
   root.setProperty('--tvb-cost-s', String(cfg.costS));
@@ -248,12 +276,12 @@ export function applyTavernUpVars(): void {
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--tvb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));
   root.setProperty('--tvb-glow-pulse', `${cfg.glowPulse > 0 ? cfg.glowPulse : 9999}s`);
-  // The glow — a BOX-SHADOW stacked `glowStrength` times (composed here because CSS can't repeat a shadow a
-  // variable number of times). Box-shadow (not drop-shadow-of-the-art): the gem is a circle, and an outset
-  // box-shadow on the circular span paints OUTSIDE the element and never clips square at the box the way a
-  // filter drop-shadow does. STATIC: only the glow layer's opacity animates.
-  const one = `0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)}`;
-  root.setProperty('--tvb-glow-shadow', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(', '));
+  // The glow — a stacked DROP-SHADOW filter (composed here because CSS can't repeat a filter a variable
+  // number of times). Drop-shadow of the gem IMAGE follows its alpha, so the halo traces the exact gem
+  // silhouette (incl. the orb's bottom triangle) rather than a plain circle. The glow img sits BEHIND the
+  // real gem, which covers the copy, so only the traced halo shows. STATIC: only the layer's opacity animates.
+  const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
+  root.setProperty('--tvb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
   root.setProperty('--tvb-sheen-cycle', `${Math.max(0.5, cfg.sheenCycle)}s`);
   root.setProperty('--tvb-sheen-alpha', String(cfg.sheenAlpha));
   root.setProperty('--tvb-flash-ms', `${Math.max(1, cfg.flashMs)}ms`);

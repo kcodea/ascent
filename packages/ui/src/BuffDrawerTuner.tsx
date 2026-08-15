@@ -6,25 +6,18 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the run-buffs drawer — the panel that extends right out of the hero portrait behind a tab
- * eclipsing its edge. Applies live via `--bfd-*` vars; shipping a look means pasting the JSON into DEFAULTS
+ * DEV-only tuner for the run-buffs pop-out — the panel that expands UPWARD out of the hero portrait when it is
+ * clicked (owner rework 2026-08-14; it used to be a side drawer behind a tab, and this tuner used to carry the
+ * now-deleted tab knobs). Applies live via `--bfd-*` vars; shipping a look means pasting the JSON into DEFAULTS
  * *and* mirroring it into the styles.css fallbacks.
  *
- * The tab is VERTICAL so it covers as little of the portrait as possible, and its horizontal nudge is the
- * judgement call this tuner exists for — that is why its hint spells out which direction increases the eclipse.
- * Type sizes live here too, because the drawer sits over board art and legibility depends on what is behind it.
+ * Type sizes live here too, because the panel sits over board art and legibility depends on what is behind it.
  */
 const SPECS: Record<keyof BuffDrawerConfig, [string, TunerUnit | undefined, string, string]> = {
-  tabX:    ['Horizontal nudge', 'px', 'MORE NEGATIVE pulls the tab further onto the portrait, eclipsing more of it. This is the dial the panel exists for.', 'Tab'],
-  tabY:    ['Vertical nudge', 'px', 'Offset from the portrait’s mid-line.', 'Tab'],
-  tabS:    ['Size', '×', 'Overall tab size.', 'Tab'],
-  tabH:    ['Height', 'px', 'The vertical tab’s long axis.', 'Tab'],
-  tabW:    ['Width', 'px', 'Keep this narrow — width is the part that covers the portrait.', 'Tab'],
-
-  bodyX:   ['Horizontal offset', 'px', 'How far right of the tab the drawer panel sits.', 'Drawer'],
-  bodyY:   ['Vertical offset', 'px', 'Vertical nudge of the drawer panel.', 'Drawer'],
-  bodyS:   ['Size', '×', 'Overall drawer size.', 'Drawer'],
-  minW:    ['Minimum width', 'px', 'Floor on the drawer width, so short values cannot collapse it narrow.', 'Drawer'],
+  bodyX:   ['Horizontal offset', 'px', 'How far right of the portrait’s left edge the panel sits.', 'Panel'],
+  bodyY:   ['Vertical offset', 'px', 'Vertical nudge. Negative lifts it further off the portrait.', 'Panel'],
+  bodyS:   ['Size', '×', 'Overall panel size.', 'Panel'],
+  minW:    ['Minimum width', 'px', 'Floor on the panel width, so short values cannot collapse it narrow.', 'Panel'],
 
   textS:   ['Row text', 'px', 'Size of the buff row text.', 'Type'],
   titleS:  ['Title text', 'px', 'Size of the "BUFFS" title.', 'Type'],
@@ -32,7 +25,6 @@ const SPECS: Record<keyof BuffDrawerConfig, [string, TunerUnit | undefined, stri
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof BuffDrawerConfig)[] = [
-  'tabX', 'tabY', 'tabS', 'tabH', 'tabW',
   'bodyX', 'bodyY', 'bodyS', 'minW',
   'textS', 'titleS',
 ];
@@ -45,7 +37,7 @@ const controls: TunerControl<Extract<keyof BuffDrawerConfig, string>>[] = ORDER.
 
 export const SPEC: TunerSpec<BuffDrawerConfig> = {
   id: 'buffdrawer',                 // FROZEN — indexes this panel's dragged position in localStorage
-  title: 'Buffs Drawer',
+  title: 'Buffs Panel',
   note: 'dev · live · drag',
   read: getBuffDrawerConfig,
   write: setBuffDrawerValue,

@@ -30,6 +30,8 @@ export interface EndTurnConfig {
   gemY: number;
   /** Gem overlay — fit (× the default seat ≈ 58% of the base width). */
   gemS: number;
+  /** Gem — brightness multiplier while the button is hovered (×). */
+  gemHoverBright: number;
   /** Glow — blur radius (px) of each drop-shadow pass. */
   glowBlur: number;
   /** Glow — peak opacity of the glow layer (0–1). 0 disables the glow entirely. */
@@ -101,6 +103,7 @@ const DEFAULTS: EndTurnConfig = {
   gemX: -1,
   gemY: -3,
   gemS: 1.03,
+  gemHoverBright: 1.18,
   glowBlur: 0,
   glowAlpha: 0.32,
   glowStrength: 6,
@@ -139,6 +142,7 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   gemX: [-140, 140, 0.5],
   gemY: [-140, 140, 0.5],
   gemS: [0.3, 2, 0.01],
+  gemHoverBright: [1, 2.2, 0.01],
   glowBlur: [0, 48, 1],
   glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
@@ -175,6 +179,7 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   gemX: 'Nudge the gem overlay horizontally onto the baked gem (design px).',
   gemY: 'Nudge the gem overlay vertically onto the baked gem (design px).',
   gemS: 'Gem overlay fit (× the default seat).',
+  gemHoverBright: 'Gem brightness while hovered (×).',
   glowBlur: 'Diamond glow softness — blur radius (px) of each drop-shadow pass.',
   glowAlpha: 'Diamond glow peak opacity. 0 turns the glow off.',
   glowStrength: 'Glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
@@ -245,6 +250,7 @@ export function applyEndTurnVars(): void {
   root.setProperty('--etb-gem-x', String(cfg.gemX));
   root.setProperty('--etb-gem-y', String(cfg.gemY));
   root.setProperty('--etb-gem-s', String(cfg.gemS));
+  root.setProperty('--etb-gem-hover', String(cfg.gemHoverBright));
   // Glow alignment — unitless design-px (the CSS multiplies by --u) + fit scale factors.
   root.setProperty('--etb-glow-x', String(cfg.glowX));
   root.setProperty('--etb-glow-y', String(cfg.glowY));

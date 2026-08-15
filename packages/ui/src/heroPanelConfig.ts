@@ -47,11 +47,11 @@ export interface HeroPanelConfig {
 // Owner-tuned by eye in the 🧍 tuner and baked as the shipped look (2026-07-16). Mirror changes into the
 // styles.css `var(--hpn-*, …)` fallbacks.
 const DEFAULTS: HeroPanelConfig = {
-  panelX: 16, panelY: -157, panelScale: 2.5, panelW: 0, panelH: 0,
-  portraitX: 0, portraitY: 0, portraitScale: 1.16,
-  playerNameX: 0, playerNameY: 0, playerNameScale: 0.59,
-  heroNameX: 0, heroNameY: 0, heroNameScale: 0.67,
-  resolveX: -2, resolveY: 65, resolveScale: 0.51, // resolveX −2: owner bake 2026-07-16 — the pill sits centred under the hero-name pill
+  panelX: -33, panelY: -81, panelScale: 3.3, panelW: 89, panelH: 90,
+  portraitX: 0, portraitY: 0, portraitScale: 1.18,
+  playerNameX: -200, playerNameY: -200, playerNameScale: 0.4,
+  heroNameX: 0, heroNameY: -11, heroNameScale: 0.66,
+  resolveX: -2, resolveY: 51, resolveScale: 0.51, // resolveX −2: owner bake 2026-07-16 — the pill sits centred under the hero-name pill
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

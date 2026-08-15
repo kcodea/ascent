@@ -33,6 +33,7 @@ const SPECS: Record<keyof EndTurnConfig, [string, TunerUnit | undefined, string,
   gemX:             ['Gem nudge X', 'px', 'Slide the gem overlay horizontally onto the baked gem.', 'Gem overlay'],
   gemY:             ['Gem nudge Y', 'px', 'Slide the gem overlay vertically onto the baked gem.', 'Gem overlay'],
   gemS:             ['Gem fit', '×', 'Size the gem overlay to sit exactly on the baked gem.', 'Gem overlay'],
+  gemHoverBright:   ['Hover brightness', '×', 'How much the gem brightens while hovered.', 'Gem overlay'],
 
   glowBlur:         ['Softness', 'px', 'Blur radius of each glow pass.', 'Glow'],
   glowAlpha:        ['Opacity', 'opacity', 'Peak glow opacity. 0 turns the glow off.', 'Glow'],
@@ -75,7 +76,7 @@ const SPECS: Record<keyof EndTurnConfig, [string, TunerUnit | undefined, string,
  */
 const ORDER: (keyof EndTurnConfig)[] = [
   'x', 'y', 'scale',
-  'gemX', 'gemY', 'gemS',
+  'gemX', 'gemY', 'gemS', 'gemHoverBright',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth', 'glowColor',
   'glowX', 'glowY', 'glowW', 'glowH',
   'sheenCycle', 'sheenAlpha',

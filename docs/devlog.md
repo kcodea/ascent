@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-15 - Hero panel rework + Buffs Panel + gem glows + Tavern Up art
+
+A presentation batch on the hero corner, the run-buffs panel, the shop buttons and the Tavern Up stone.
+
+**Hero panel.** The portrait is now a true circle (portrait frame `border-radius: 50%`); the 🧍 Hero Panel
+tuner's existing portrait X/Y/scale dials move/size the art inside it. The top **player-name** pill and the
+**hero-name** pill swapped roles — the player name now rides the bottom pill; the hero name is gone from the
+face. The old "Hero: <name>" hover tooltip is **replaced** by a dark hover scrim over the portrait reading
+*"Click hero portrait to open / close the Buffs Panel"* (small type, opacity-only fade, clipped to the circle,
+z-indexed BELOW the name pill and the health box so both stay legible; only shown on the interactive
+has-buffs portrait). Owner-tuned defaults baked (config DEFAULTS + the `--hpn-*` CSS fallbacks): panel
+−33/−81 ×3.3 at 89×90, portrait ×1.18, hero-name 0/−11 ×0.66, resolve box −2/51 ×0.51. (The `--hpn-panel-t`
+CSS fallback was independently stale — corrected in passing.)
+
+**Buffs Panel.** The run-buffs live under the reworked upward pop-out (click the portrait; it grows up out of
+the top edge, bottom-anchored). The pre-existing 🧪 tuner still carried the deleted side-drawer's tab knobs
+(`tab*`) driving dead vars — trimmed to the 6 knobs that actually drive today's pop-out (body X/Y/scale, min
+width, row text, title text) and renamed **Buffs Panel**. Fixed: the **Row text** slider did nothing because
+`--bfd-text-s` sat on `.buff-row` while the label/value carry their own fixed `font-size` (a direct rule beats
+inheritance) — moved the var onto the label + value. Buff text is now pure white, the "BUFFS" title is
+underlined, and each row has a thin muted brown-gold leader line (matching the panel border) bridging name → amount.
+
+**Shop gems.** Freeze and End Turn get a hover glow + brightness on the gem itself (not the whole base),
+editable in their respective tuners (`--frz-gemglow` / `--frz-gem-hover`, `--etb-gem-hover`).
+
+**Tavern Up.** New base + orb art; the tier pips are re-imported at native aspect (each tier sized by its own
+width %, height auto, so the arc grows without stretching) with per-tier position/size dials for fine
+alignment. The hover glow now traces the gem's silhouette (drop-shadow of the gem art) and sits BEHIND the gem
+layer; at max tier the gem DIMS (the old broken-orb swap is gone). Removed the press flash — it painted a
+bright copy of the *old* round orb (`tavernup_gem_pad.webp`) at the old seat (owner report); the press keeps
+its dust + shockwave rings. Owner-tuned Tavern Up + Lobby Rail defaults baked into DEFAULTS + CSS fallbacks.
+
+**Inspect.** Right-click inspect stripped `stepProgress` from the card — the step counter is anchored to the
+board-token layout, so in the centred overlay it landed mid-card. Board/shop/combat placement untouched.
+
+Verified: `typecheck` (pkgs + web) clean; `lint` 0 errors (10 pre-existing warnings in untouched files);
+`test` 5351/5351 green; `build:web` succeeds. Live-tuned with the owner on the dev server throughout.
+
 ## 2026-08-15 - Balance: Drunken Oaf, Kringle, Vaultkeeper
 
 Owner balance pass.

@@ -681,6 +681,8 @@ export interface RunState {
   frankClearanceTurn?: number;
   /** Pete (Contrabanana): running count of Shop refreshes — every 3rd appends a tier-above offer. */
   refreshCount?: number;
+  /** Emissary Vale (United Front): set once a Fatecarver has been granted on reaching Tier 6, so it happens once. */
+  valeFatecarverDone?: boolean;
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

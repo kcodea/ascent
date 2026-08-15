@@ -1774,6 +1774,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.runeVault = undefined;
         gainGold(s, 10);
       }
+      // Emissary Vale (United Front): a Fatecarver joins your hand the first time you reach Tier 6.
+      if (getHero(s.heroId).power.kind === 'unitedFront' && s.tier >= 6 && !s.valeFatecarverDone && s.hand.length < handCap(s)) {
+        const fc = CARD_INDEX['n2_fatecarver'];
+        if (fc) {
+          s.hand.push({ uid: `b${s.uidSeq++}`, cardId: fc.id, tribe: fc.tribe, attack: fc.attack, health: fc.health, keywords: [...fc.keywords], golden: false });
+          s.valeFatecarverDone = true;
+        }
+      }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
     }
@@ -2058,7 +2066,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.frankClearanceTurn = s.wave;
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
-        || power.kind === 'contraband' || power.kind === 'companyRate'
+        || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'unitedFront'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
@@ -4662,6 +4670,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
+    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.tier : undefined, // Emissary Vale: SoC — one of each type +tier/+tier
+
     runeCenterline: f?.runeCenterline,       // Rune of the Centerline: SoC — middle minion Ward + Crit
     runeEmberline: f?.runeEmberline,         // Rune of Emberline: the first dead Imp feeds the next one
     runeAshenPayroll: f?.runeAshenPayroll,   // Rune of Ashen Payroll: read at SETTLE off the Imp tally

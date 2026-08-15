@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, ALL_TRIBES } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { HEROES } from './heroes';
 import { createRun, reduce, type RunState } from './index';
 
@@ -78,6 +79,27 @@ describe('Foreman Flint — Company Rate', () => {
     expect(s.embers - dwarf.embers, 'a Dwarf costs 2').toBe(2);
     const other = reduce(s, { type: 'buy', uid: 'n0' });
     expect(s.embers - other.embers, 'a non-Dwarf is not discounted').toBeGreaterThan(2);
+  });
+});
+
+describe('Emissary Vale — United Front', () => {
+  it('Start of Combat gives one minion of each tribe +tier/+tier', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'stray', attack: 2, health: 20 },    // beast
+      { cardId: 'dm_clerk', attack: 2, health: 20 }, // demon
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
+    const r = simulate(p, e, makeRng(1), CARD_INDEX,
+      combatSide({ tier: 4, tribes: ALL_TRIBES, questMods: { unitedFront: 4 } }), combatSide({ tier: 1 }));
+    const banners = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 4 && ev.health === 4);
+    expect(banners.length, 'one banner per tribe (beast + demon) at +4/+4').toBe(2);
+  });
+
+  it('grants a Fatecarver when the Shop reaches Tier 6', () => {
+    let s: RunState = { ...createRun(5, 'vale'), embers: 50, maxEmbers: 50, tier: 5, hand: [] };
+    s = reduce(s, { type: 'upgrade' });
+    expect(s.tier, 'upgraded to Tier 6').toBe(6);
+    expect(s.hand.some((c) => c.cardId === 'n2_fatecarver'), 'a Fatecarver arrived').toBe(true);
   });
 });
 

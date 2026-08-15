@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "id": "shop-tier-up",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "detonation",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "count": 270,
+        "interval": 6000,
+        "spread": 1,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 710,
+        "speedVar": 0.59,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.915,
+        "gravity": 0,
+        "life": 1970,
+        "orientToVelocity": true,
+        "turbulence": 1610,
+        "turbScale": 0.1,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0,
+        "shape": "shard",
+        "size": 7,
+        "sizeVar": 0.55,
+        "stretchX": 1.3,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.6,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 2,
+        "bands": 3,
+        "plateau": 0.34,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          670719,
+          2082815,
+          11075582,
+          16777215
+        ],
+        "blendMode": "normal",
+        "glow": 0.5,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0,
+        "gain": 1.4
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "ring-shards",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "count": 236,
+        "interval": 6000,
+        "spread": 1,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 20,
+        "speedVar": 0,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.95,
+        "gravity": 0,
+        "life": 1990,
+        "orientToVelocity": true,
+        "turbulence": 200,
+        "turbScale": 0.049,
+        "emitShape": "ring",
+        "emitRadius": 62,
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0,
+        "shape": "shard",
+        "size": 7,
+        "sizeVar": 0.55,
+        "stretchX": 1.3,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.6,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 2,
+        "bands": 3,
+        "plateau": 0.34,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          799399,
+          2194368,
+          3247300,
+          16777215
+        ],
+        "blendMode": "normal",
+        "glow": 0.5,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0,
+        "gain": 1.4
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "source",
+      "at": 130,
+      "params": {
+        "rings": 1,
+        "speed": 1.05,
+        "thickness": 0.01,
+        "fade": 4.65,
+        "radius": 335,
+        "squash": 1,
+        "ringDelay": 0,
+        "ease": 0.3,
+        "radiusCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverse": false,
+        "bands": 3,
+        "palette": [
+          1589695,
+          3439855,
+          10406143,
+          16777215
+        ],
+        "alpha": 1,
+        "blendMode": "normal",
+        "glow": 0.4,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.5,
+        "gain": 1.5
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "rings": 1,
+        "speed": 12,
+        "thickness": 0.22,
+        "fade": 2.95,
+        "radius": 135,
+        "squash": 1,
+        "ringDelay": 0,
+        "ease": 0.3,
+        "radiusCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverse": false,
+        "bands": 3,
+        "palette": [
+          16777215,
+          3439855,
+          10406143,
+          16777215
+        ],
+        "alpha": 1,
+        "blendMode": "normal",
+        "glow": 0.4,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.5,
+        "gain": 1.5
+      }
+    }
+  ]
+}

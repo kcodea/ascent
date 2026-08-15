@@ -1,6 +1,4 @@
 import { useRef } from 'react';
-import { getTavernUpConfig } from './tavernUpConfig';
-import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
 
@@ -53,16 +51,13 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
   const maxed = tier >= maxTier;
 
   const click = (): void => {
-    const cfg = getTavernUpConfig();
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      // The authored `impact-dust` def — count → `intensity`, size → `scale`, lifetime → `time`.
-      if (cfg.dustCount > 0) {
-        playDef('impact-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } },
-          { intensity: cfg.dustCount, scale: cfg.dustSize, time: cfg.dustLife });
-      }
-      if (cfg.rings > 0) pixiFx.impactPulse(cx, cy, 1, { radius: cfg.ringRadius, life: cfg.ringLife, rings: cfg.rings });
+      // The authored `shop-tier-up` def (owner, 2026-08-15) — a bespoke tier-up detonation, replacing the old
+      // borrowed `impact-dust` + shockwave press effect. Fires at the button's live centre (all its layers
+      // anchor to `source`).
+      playDef('shop-tier-up', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
     }
     onUpgrade();
   };

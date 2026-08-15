@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-14 - End of Turn: auto-resolved Discover grants come in on their beat (Black Belt Brian)
+
+Owner report: Black Belt Brian's discovered card "doesn't come in in real-time" — it snapped into the hand at
+the combat hand-off. An End-of-Turn Discover auto-resolves in `autoResolveEotDiscovers` (reducer), which ran
+OUTSIDE any beat scope, so it emitted no `cardGranted` — the projection + coalesce path (the machinery normal
+EoT grants like Crypt Scribe already use) never saw it.
+
+Fix — emission-only, gameplay byte-identical:
+- New `system:eotDiscover:grant` beat (`ownBeat`) in the policy registry + `presentationSurface` (producer:
+  `blackbelt`), so it's classified and passes the coverage tripwire.
+- `withEotDiscoverGrantBeat` (recruit) wraps just the `takeDiscoverPick` hand-grant in a `withRecruitTrigger`
+  scope, so the discovered card is diffed into a `cardGranted` consequence on its own beat. The rng pick stays
+  OUTSIDE the wrap — same stream position, same card chosen — so `reduceWithPresentation === reduce` holds.
+- The UI's existing per-beat grant preview + `playPlateCoalesce` then materialises it during End-of-Turn
+  playback, identical to a shop conjure, instead of at commit.
+
+Note: the beat resolves after the board/rune EoT beats (where the auto-resolve runs), so the card coalesces
+near the end of the EoT sequence rather than on Brian's exact beat — but it's in real time now, not at the
+hand-off. Tests: `eotDiscoverEmission.test.ts` (cardGranted per auto-resolved Discover, on an `eotDiscover`
+own-beat; byte-identical gameplay); `endTurnSoftlock.test.ts` still green (no interactive window regressed).
+The on-beat coalesce feel is a UI concern to confirm live.
+
 ## 2026-08-14 - Beat Lab: the LIVE toggle is the single switch for combat too
 
 Owner ask: "when i manually flip this to ownBeat, [make] it automatically produce that in game — i don't want

@@ -132,6 +132,9 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   { key: 'system:startOfCombat:fleetingVigor', users: ['fleeting-vigor'] },
   { key: 'system:startOfCombat:pendingKeywords', users: ['field-maneuvers', 'last-stand', 'executioners-edge'] },
   { key: 'system:startOfCombat:pendingImps', users: ['open-the-gates'] },
+  // An End-of-Turn Discover that auto-resolves (Moira re-firing Black Belt Brian) grants its pick on this beat,
+  // so it coalesces into the hand during End-of-Turn playback instead of at the combat hand-off.
+  { key: 'system:eotDiscover:grant', users: ['blackbelt'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

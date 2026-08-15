@@ -2064,6 +2064,28 @@ function reduceCore(state: RunState, action: Action): RunState {
         refreshTavern(s);
         applyShopRefreshed(s);
         s.frankClearanceTurn = s.wave;
+      } else if (power.kind === 'archive') {
+        // Quillen: remove a chosen SHOP minion into the archive (record its type). Once per turn (heroReady).
+        // On the 3rd archived minion, Discover one random minion per recorded type (up to tier), then reset.
+        const idx = s.shop.findIndex((o) => o.uid === action.uid);
+        if (idx < 0) return state; // must target a Shop offer
+        const def = CARD_INDEX[s.shop[idx]!.cardId];
+        if (!def || def.spell || def.ruby) return state; // minions only
+        returnToPool(s, def.id); // the archived body goes back to the shared pool, like an un-bought reroll
+        s.shop.splice(idx, 1);
+        const t = (def.tribe && def.tribe !== 'neutral') ? def.tribe : (def.tribe2 ?? def.tribe);
+        (s.archivedTribes ??= []).push(t as Tribe);
+        if (s.archivedTribes.length >= 3) {
+          const rng = makeRng(s.rngCursor);
+          const picks: string[] = [];
+          for (const tribe of s.archivedTribes) {
+            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
+            if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
+          }
+          s.rngCursor = rng.state();
+          s.archivedTribes = [];
+          if (picks.length > 0) s.discover = picks;
+        }
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'unitedFront'

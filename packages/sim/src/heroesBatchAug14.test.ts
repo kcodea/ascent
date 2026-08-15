@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, ALL_TRIBES } from '@game/content';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion, type Tribe } from '@game/core';
 import { HEROES } from './heroes';
 import { createRun, reduce, type RunState } from './index';
+
+const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 
 /** Owner batch 2026-08-14: Tiff re-added; new heroes Merrin / Gambler / Xerox (the active-power tranche). */
 
@@ -100,6 +102,25 @@ describe('Emissary Vale — United Front', () => {
     s = reduce(s, { type: 'upgrade' });
     expect(s.tier, 'upgraded to Tier 6').toBe(6);
     expect(s.hand.some((c) => c.cardId === 'n2_fatecarver'), 'a Fatecarver arrived').toBe(true);
+  });
+});
+
+describe('Quillen — Archive', () => {
+  it('archives 3 Shop minions (once/turn) then Discovers from their types', () => {
+    let s: RunState = {
+      ...createRun(5, 'quillen'), tier: 5, heroReady: true,
+      shop: [{ uid: 'a', cardId: 'stray' }, { uid: 'b', cardId: 'alley' }, { uid: 'c', cardId: 'dm_clerk' }], // beast, beast, demon
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(s.archivedTribes, 'first type recorded').toEqual(['beast']);
+    expect(s.shop.find((o) => o.uid === 'a'), 'the archived offer left the Shop').toBeUndefined();
+    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'b' });
+    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'c' });
+    expect(s.archivedTribes, 'archive reset after the 3rd').toEqual([]);
+    expect(s.discover?.length, 'a Discover of one minion per archived type').toBe(3);
+    const isTribe = (id: string, t: string): boolean => CARD_INDEX[id]?.tribe === t || CARD_INDEX[id]?.tribe2 === t;
+    expect(s.discover!.filter((id) => isTribe(id, 'beast')).length, 'two Beasts (from the two archived Beasts)').toBe(2);
+    expect(s.discover!.filter((id) => isTribe(id, 'demon')).length, 'one Demon').toBe(1);
   });
 });
 

@@ -45,7 +45,8 @@ export type HeroPowerKind =
   | 'clearance' // Frantic Frank: refresh the Shop; its minions cost 2 Gold this turn (active, untargeted, once per turn)
   | 'contraband' // Pete (passive): every 3rd refresh appends a minion from the tier above your Shop tier
   | 'companyRate' // Foreman Flint (passive): Dwarf Shop minions cost 2 Gold
-  | 'unitedFront'; // Emissary Vale (passive): SoC — one of each tribe +tier/+tier; a Fatecarver at Tier 6
+  | 'unitedFront' // Emissary Vale (passive): SoC — one of each tribe +tier/+tier; a Fatecarver at Tier 6
+  | 'archive'; // Quillen: once/turn, remove a chosen Shop minion into the archive; every 3rd → Discover from those tribes
 
 export interface HeroPower {
   name: string;
@@ -552,6 +553,19 @@ export const HEROES: HeroDef[] = [
       kind: 'unitedFront',
       passive: true, // SoC one-of-each-tribe buff (in simulate) + a Fatecarver on reaching Tier 6 (in the upgrade case)
       text: 'Start of Combat: give one minion of each tribe +Tier/+Tier. Get a Fatecarver at Tier 6.',
+    },
+  },
+  {
+    id: 'quillen',
+    name: 'Quillen',
+    blurb: 'Nothing is ever truly gone — only filed.',
+    resolve: 30,
+    armor: 11,
+    power: {
+      name: 'Archive',
+      kind: 'archive',
+      // Targeted at a SHOP minion (novel — UI shop-targeting is the follow-up). Once per turn (heroReady).
+      text: 'Archive a Shop minion (records its type). Every 3rd, Discover a minion from the archived types.',
     },
   },
 ];

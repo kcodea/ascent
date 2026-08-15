@@ -683,6 +683,9 @@ export interface RunState {
   refreshCount?: number;
   /** Emissary Vale (United Front): set once a Fatecarver has been granted on reaching Tier 6, so it happens once. */
   valeFatecarverDone?: boolean;
+  /** Quillen (Archive): the tribes of the Shop minions archived so far. Every 3rd archived minion triggers a
+   *  Discover of one random minion per recorded tribe (up to tier), then this resets. */
+  archivedTribes?: Tribe[];
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;

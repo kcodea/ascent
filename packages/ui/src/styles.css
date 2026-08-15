@@ -991,18 +991,15 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   60% { transform: translate(-50%, -50%) scale(1.22) rotate(9deg); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
 }
-/* Hunch's hover preview — the spell the power would grant, floating ABOVE the diamond and out of the way of
-   the cursor. Pointer-events off so it can never eat the click that fires the power. */
-.hpwrap .hpb-spellpreview {
-  position: absolute; left: 50%; bottom: calc(100% + 26 * var(--u));
-  transform: translateX(-50%) scale(1.7); transform-origin: bottom center;
-  z-index: 40; pointer-events: none;
-  filter: drop-shadow(0 calc(8 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.6));
-  animation: hpbpreviewin 130ms ease-out;
+/* The LANDED face STAYS PUT (owner report 2026-08-14: it "dropped" as it landed) — replaying the tumble's
+   1.22→1 shrink on the final value read as the number falling. It just holds at full size instead. */
+.hpwrap .hpb-dice.settled {
+  transform: translate(-50%, -50%) scale(1.22);
+  animation: dicesettle 130ms ease-out; /* grows INTO place and holds — never shrinks back */
 }
-@keyframes hpbpreviewin {
-  from { opacity: 0; transform: translateX(-50%) scale(1.5); }
-  to { opacity: 1; transform: translateX(-50%) scale(1.7); }
+@keyframes dicesettle {
+  from { transform: translate(-50%, -50%) scale(0.98); }
+  to { transform: translate(-50%, -50%) scale(1.22); }
 }
 /* Pete's Contrabanana: the smuggled tier-above offer flashes once as the row lands, so the "special" unit is
    obvious. One-shot (never a loop), and it rides opacity on a ::before overlay rather than animating the

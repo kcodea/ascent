@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
@@ -82,7 +83,7 @@ export function StatusBar() {
   // Presentation only — the value comes from gameplay (`heroDiceLockUntil - wave`, the seeded roll the reducer
   // already made). The tumble cycles 1→6 deterministically rather than randomly: it reads identically and
   // keeps the UI free of its own RNG.
-  const [diceFace, setDiceFace] = useState<number | null>(null);
+  const [diceFace, setDiceFace] = useState<{ n: number; settled: boolean } | null>(null);
   const prevDiceLock = useRef(run.heroDiceLockUntil);
   useEffect(() => {
     const prev = prevDiceLock.current;
@@ -96,10 +97,10 @@ export function StatusBar() {
       tick += 1;
       if (tick >= 11) {
         window.clearInterval(id);
-        setDiceFace(rolled);                                      // land on the real roll
+        setDiceFace({ n: rolled, settled: true });                 // land on the real roll — and STAY PUT
         settle = window.setTimeout(() => setDiceFace(null), 1100); // …hold, then hand the slot back to the tally
       } else {
-        setDiceFace((tick % 6) + 1);
+        setDiceFace({ n: (tick % 6) + 1, settled: false });
       }
     }, 55);
     return () => { window.clearInterval(id); window.clearTimeout(settle); };
@@ -107,7 +108,25 @@ export function StatusBar() {
   // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
   // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
   // card-text rule: never show a base number where the real one is knowable.
-  const [hunchHover, setHunchHover] = useState(false);
+  const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
+  const hunchHover = hunchTip !== null;
+  /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
+   *  hover uses (`.cardref`), portalled to <body> so nothing in the status bar clips it, and flipped to the
+   *  left when it would run off the right edge. */
+  const showHunchTip = (el: HTMLElement): void => {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(document.documentElement);
+    const zoom = (parseFloat(cs.getPropertyValue('--inspect-zoom')) || 1) * (parseFloat(cs.getPropertyValue('--z-inspect-s')) || 1);
+    const cardW = r.width * zoom * 1.5; // plate footprint, same estimate the card popup uses
+    const gap = 10;
+    const flip = r.right + gap + cardW > window.innerWidth - 6;
+    const estH = cardW * 1.5550; // plate aspect (800x1244)
+    setHunchTip({
+      left: flip ? Math.max(6, r.left - gap - cardW) : r.right + gap,
+      top: Math.max(6, Math.min(r.top - estH / 3, window.innerHeight - estH - 6)),
+      origin: flip ? 'right' : 'left',
+    });
+  };
   const hunchPreview = hunchHover && power.kind === 'roundedSpellbook' && run.lastSpellCastId
     ? instView(
       { uid: 'hunch-preview', cardId: run.lastSpellCastId, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false },
@@ -186,7 +205,14 @@ export function StatusBar() {
                     ? `${power.name} · ${!run.heroReady ? 'used' : digCost === 0 ? 'FREE' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
                     : power.kind === 'dragonTamer'
                       ? `${power.name} · ${!run.heroReady ? 'used' : tamerCost === 0 ? 'FREE' : run.embers >= tamerCost! ? `${tamerCost} Gold` : `need ${tamerCost} Gold`}`
-                      : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                      : power.kind === 'roundedSpellbook'
+                        ? `${power.name} · ${!run.heroReady ? 'used' : bookCost === 0 ? 'FREE' : run.embers >= bookCost! ? `${bookCost} Gold` : `need ${bookCost} Gold`}`
+                        : power.kind === 'dice' && diceLock > 0
+                          ? `${power.name} · locked ${diceLock}t`
+                          // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
+                          : power.oncePerGame
+                            ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+                            : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
@@ -325,8 +351,8 @@ export function StatusBar() {
               aria-label={`${power.name} — ${renameTerms(power.text).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
-              onPointerEnter={power.kind === 'roundedSpellbook' ? () => setHunchHover(true) : undefined}
-              onPointerLeave={power.kind === 'roundedSpellbook' ? () => setHunchHover(false) : undefined}
+              onPointerEnter={power.kind === 'roundedSpellbook' ? (e) => showHunchTip(e.currentTarget) : undefined}
+              onPointerLeave={power.kind === 'roundedSpellbook' ? () => setHunchTip(null) : undefined}
               onPointerDown={(e) => {
                 // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
                 // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the
@@ -363,15 +389,18 @@ export function StatusBar() {
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
             {diceFace != null
-              ? <span key={`die${diceFace}`} className="hpb-tally hpb-dice">{diceFace}</span>
+              ? <span key={diceFace.settled ? 'die-final' : `die${diceFace.n}`} className={`hpb-tally hpb-dice${diceFace.settled ? ' settled' : ''}`}>{diceFace.n}</span>
               : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
             {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
-            {hunchPreview && (
-              <span className="hpb-spellpreview" aria-hidden="true">
-                <Card card={hunchPreview} forceFull suppressPop plated />
-              </span>
+            {hunchPreview && hunchTip && createPortal(
+              <div className="cardref" style={{ left: hunchTip.left, top: hunchTip.top }}>
+                <div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
+                  <Card card={hunchPreview} forceFull plated />
+                </div>
+              </div>,
+              document.body,
             )}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's

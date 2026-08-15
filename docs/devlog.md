@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-15 - Hero power polish pass 3 (dice settle, once-per-game, side preview, Flint art)
+
+Owner pass 3 on the hero batch — all four verified live.
+
+- **Gambler's die no longer "drops" as it lands.** Each tumble frame replayed the same keyframe, whose tail
+  shrinks 1.22 -> 1.0; on the FINAL value that read as the number falling. The settled face now has its own
+  `dicesettle` (0.98 -> 1.22, grows into place and holds), so it never shrinks back. Measured: all 6 settled
+  frames share one centre-Y.
+- **Xerox no longer reads "once per turn".** The power line's generic fallback ignored `oncePerGame` — it now
+  reads "once per game" / "spent". Also gave Hunch its live cost line and the Gambler a "locked Nt" line,
+  both of which were falling through to the same generic branch.
+- **Hunch's preview is now a floating SIDE popup**, the same `.cardref` structure a minion hover uses:
+  portalled to <body>, placed beside the power, and flipped to the left when it would run off-screen.
+- **Foreman Flint's power art** wired (the owner added `ForemanFlintHP.png`) — every hero in the batch now has
+  both portrait and power art.
+
+Verified live: Flint's `flint.webp` loads (needed a dev-server restart — new art files don't hot-reload past
+the eager `import.meta.glob`); Xerox's panel says "once per game" and never "once per turn"; Hunch's preview
+portals to body, sits 10px to the button's right and prints "Spirit Fire - Give a minion +2/+3"; the die
+settles on 5 and holds one position. Typecheck + lint clean.
+
 ## 2026-08-14 - Hero art wired + power polish (preview, dice, contraband flash)
 
 Owner pass 2 on the hero batch.

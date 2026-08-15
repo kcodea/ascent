@@ -7,6 +7,10 @@ import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
+import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
+
+// Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s).
+const F = `${import.meta.env.BASE_URL}frames/`;
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
 const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil', celestial: 'clock' };
@@ -216,6 +220,16 @@ export function QuestBadges() {
           </div>
         );
       })}
+      {/* Rune sheen — three glossy discs, each an INDEPENDENT overlay on a rune node (owner ask 2026-08-15:
+          separated from the one source image). Placement/size/opacity/blend per disc come from the 💠 Rune
+          Sheen tuner (`--rshN-*`); pointer-events off so they never eat a badge hover. Each disc counter-scales
+          by 1/--qb-s IN ITS OWN transform (styles.css), so the Quest-nodes Scale slider no longer resizes it —
+          and because the counter-scale is on the blended element itself (not an isolating ancestor wrapper), the
+          discs still `mix-blend-mode` against the badges behind them. LAST children: absolutely positioned (DOM
+          order sets paint order — they ride on top) and keep the badges' `:nth-child` stagger counting from 1. */}
+      {runes.length > 0 && [1, 2, 3].map((n) => (
+        <img key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
+      ))}
     </div>
   );
 }

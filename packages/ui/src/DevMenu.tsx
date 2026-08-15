@@ -41,6 +41,7 @@ import { FreezeTuner } from './FreezeTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
+import { RuneSheenTuner } from './RuneSheenTuner';
 import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
@@ -112,6 +113,7 @@ const GROUPS: Group[] = [
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
+      { key: 'runesheen', icon: '💠', label: 'Rune Sheen', C: RuneSheenTuner, hint: 'The glossy overlay on the owned-rune nodes' },
     ],
   },
   {

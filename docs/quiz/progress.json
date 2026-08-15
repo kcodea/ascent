@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 2,
+  "totalQuizzes": 3,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 1, "lastAsked": "2026-08-14" },
@@ -15,7 +15,17 @@
     "monorepo-packages": { "asked": 1, "lastAsked": "2026-08-14" },
     "pure-functions": { "asked": 1, "lastAsked": "2026-08-14" },
     "data-vs-code": { "asked": 1, "lastAsked": "2026-08-14" },
-    "event-log-replay": { "asked": 1, "lastAsked": "2026-08-14" }
+    "event-log-replay": { "asked": 1, "lastAsked": "2026-08-14" },
+    "types-basics": { "asked": 1, "lastAsked": "2026-08-15" },
+    "immutability": { "asked": 1, "lastAsked": "2026-08-15" },
+    "reducer-run-state": { "asked": 1, "lastAsked": "2026-08-15" },
+    "zustand-store": { "asked": 1, "lastAsked": "2026-08-15" },
+    "event-bus": { "asked": 1, "lastAsked": "2026-08-15" },
+    "cards-in-sets": { "asked": 1, "lastAsked": "2026-08-15" },
+    "package-boundaries": { "asked": 1, "lastAsked": "2026-08-15" },
+    "effects-as-subscriptions": { "asked": 1, "lastAsked": "2026-08-15" },
+    "effect-timing-pipeline": { "asked": 1, "lastAsked": "2026-08-15" },
+    "testing-vitest": { "asked": 1, "lastAsked": "2026-08-15" }
   },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
@@ -53,6 +63,13 @@
       "quizNumber": 2,
       "difficulty": 1,
       "topics": ["sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay"],
+      "scored": null
+    },
+    {
+      "date": "2026-08-15",
+      "quizNumber": 3,
+      "difficulty": 1,
+      "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
       "scored": null
     }
   ],

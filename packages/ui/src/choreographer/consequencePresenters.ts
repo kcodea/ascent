@@ -23,6 +23,9 @@ import type { CompiledBeat } from './timelineTypes';
 export interface PresenterContext {
   /** Generic stat-gain burst on a card (skipped when a richer authored FX already covers that target). */
   statGain: (uid: string, zone: string, attack: number, health: number) => void;
+  /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
+   *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
+  selfBuff: (uid: string) => void;
   /** Rubies landing on a board minion — the bound gem cascade. */
   rubyLanded: (uid: string, count: number) => void;
   /** Spell power rose: flourish on the source + pop the held spells whose printed values just changed. */
@@ -95,6 +98,13 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     // a spell-power tick or an ordinary buff. Ruby/aura channels are delivered by their own consequences,
     // so only the ordinary channel draws the generic burst here.
     if (c.channel && c.channel !== 'ordinary') return;
+    // A SELF-buff — the minion that triggered this beat is the one gaining stats — gets the authored self-buff
+    // def (the beat twin of the per-action `minionSelfBuffed` path). Everything else (a buff FROM another minion,
+    // an aura, a rune/quest reward whose ribbon already drew above) keeps the generic green burst.
+    if (beat.source.kind === 'minion' && beat.source.uid && beat.source.uid === c.target.uid) {
+      ctx.selfBuff(c.target.uid);
+      return;
+    }
     ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health);
   },
   rubyPlayed: ({ consequence: c, beat, ctx, index = 0 }) => {

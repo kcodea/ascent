@@ -26,7 +26,7 @@ const ALL_CONSEQUENCE_TYPES = [
 ] as const;
 
 const spyContext = () => ({
-  statGain: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(), rubyAura: vi.fn(),
+  statGain: vi.fn(), selfBuff: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(), rubyAura: vi.fn(),
   cardGranted: vi.fn(), cardSummoned: vi.fn(), cardDestroyed: vi.fn(), shopBuffed: vi.fn(),
   resourceChanged: vi.fn(), counterChanged: vi.fn(), cardTransformed: vi.fn(), keywordChanged: vi.fn(),
   questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(),
@@ -83,9 +83,17 @@ describe('presenters read the EVENT, not the card definition', () => {
     expect(ctx.statGain).not.toHaveBeenCalled();
   });
 
-  it('an ordinary stat change DOES draw the burst', () => {
+  it('an ordinary buff FROM another minion draws the generic burst (source src, target u1)', () => {
     const ctx = run({ type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, attack: 2, health: 2, permanent: true, channel: 'ordinary' } as ConsequenceEvent);
     expect(ctx.statGain).toHaveBeenCalledWith('u1', 'board', 2, 2);
+    expect(ctx.selfBuff).not.toHaveBeenCalled();
+  });
+
+  it('a SELF-buff (the beat\'s own minion gains the stats) plays the self-buff def, not the burst', () => {
+    // beat.source is minion 'src'; a stats change ON 'src' is a self-buff → the authored def.
+    const ctx = run({ type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'src' }, attack: 2, health: 2, permanent: true, channel: 'ordinary' } as ConsequenceEvent);
+    expect(ctx.selfBuff).toHaveBeenCalledWith('src');
+    expect(ctx.statGain).not.toHaveBeenCalled();
   });
 
   it('a consumed shop offer departs rather than being drawn as a buff', () => {

@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-15 — end-of-turn self-buffs also play self-buff-gold (the follow-up)
+
+Completes the earlier shop-self-buff work: the END-OF-TURN beat path showed the green pulse where the per-action
+path now plays `self-buff-gold`. Those beats route through the choreographer's `statsChanged` consequence
+presenter (`consequencePresenters.ts`), which fired the generic `statGain` burst for every ordinary buff. Added a
+`selfBuff` presenter capability and split the branch: when the beat's own minion is the one gaining stats
+(`beat.source.kind === 'minion' && beat.source.uid === target.uid`) it's a self-buff → `ctx.selfBuff`; everything
+else (a buff FROM another minion, an aura, a rune/quest reward) keeps `ctx.statGain`'s green burst. `Recruit.tsx`
+implements `selfBuff` the same way the per-action path does — `selfBuffMoment` through the recruit cue runner,
+green-burst fallback when defs can't play. Verified: typecheck + lint + test 5409/5409 (incl. two new presenter
+tests pinning the self-vs-cross split) + build.
+
 ## 2026-08-15 — bespoke shop tier-up effect (`shop-tier-up`)
 
 The shop tavern-up button gets its own authored detonation. New def `packages/ui/src/fx/defs/shop-tier-up.json`

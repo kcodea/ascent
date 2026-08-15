@@ -7393,6 +7393,8 @@ function withRecruitTrigger(
   const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
   const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
   const handBefore = new Set(state.hand.map((c) => c.uid));
+  const boardBefore = new Set(state.board.map((c) => c.uid));
+  const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
   const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
   const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
   const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
@@ -7430,6 +7432,20 @@ function withRecruitTrigger(
       for (const c of state.hand) {
         if (handBefore.has(c.uid)) continue;
         collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+      }
+      // Minions this trigger summoned to the BOARD (Moira re-firing a summoner's Shout) — the board sibling of
+      // the hand-grant loop above. Without this, an End-of-Turn summon snapped onto the board only at commit.
+      for (const c of state.board) {
+        if (boardBefore.has(c.uid)) continue;
+        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+      }
+      // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
+      // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
+      for (const c of state.board) {
+        const was = kwBefore.get(c.uid);
+        if (!was) continue;
+        for (const kw of c.keywords) if (!was.has(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
+        for (const kw of was) if (!c.keywords.includes(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: false });
       }
       // Shop offers this trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's buy bonus) — one per uid.
       for (const o of state.shop) {

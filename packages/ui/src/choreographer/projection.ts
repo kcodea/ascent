@@ -24,6 +24,9 @@ export interface StatDelta { attack: number; health: number }
 export interface ProjectedCardGrant {
   uid: string;
   cardId: string;
+  /** Where it landed — 'hand' (a conjure/grant) or 'board' (a summon). Lets the UI show a board arrival on the
+   *  board and a hand arrival in the hand, instead of conflating both into the hand preview. */
+  zone: 'hand' | 'board';
   /** The consequence that produced it, so a presenter can anchor the arrival animation. */
   eventId: string;
 }
@@ -120,13 +123,13 @@ export function applyConsequenceToProjection(
     case 'cardGranted':
       return {
         ...base,
-        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, eventId: c.id }],
+        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'hand', eventId: c.id }],
       };
     case 'cardSummoned':
-      // A summon is a board arrival; the presenter reads `grantedCards` for both and keys off the zone.
+      // A summon is a BOARD arrival — tagged so the UI shows it on the board, not in the hand preview.
       return {
         ...base,
-        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, eventId: c.id }],
+        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'board', eventId: c.id }],
       };
     case 'cardDestroyed': {
       const gone = new Set(projection.destroyedUids);

@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-14 - End of Turn: summons + keyword grants present on their beat (last EoT gaps)
+
+The final two End-of-Turn "everything real-time" gaps (owner directive 2026-08-14). The emission diff produced
+`statsChanged` / `cardGranted` / `shopChanged` / … but never `cardSummoned` (a minion summoned mid-beat — Moira
+re-firing a summoner's Shout) or `keywordChanged` (a re-fired keyword Shout), so both snapped in at commit.
+
+- **Emission** (`withRecruitTrigger`): new board minions emit `cardSummoned` (the board sibling of the hand
+  `cardGranted` loop); keyword diffs on existing board minions emit `keywordChanged`. Byte-identical gameplay.
+- **Projection**: `ProjectedCardGrant` now carries `zone` — a summon is a `board` arrival, a conjure is `hand`
+  — so a summon no longer wrongly previews as a hand card.
+- **Render** (`Recruit.tsx`): `onProjection` splits hand-grants (hand preview) from board-summons and applies
+  keyword changes. `displayBoard` injects the summoned minion as a synthetic card + overlays gained keywords
+  during EoT playback, replaced by the real cards at commit (same uid). **Guarded**: with nothing projected,
+  `displayBoard === run.board` by identity, so normal play and the `boardViews` memo are byte-identical — the
+  injection only activates during an EoT that summons / grants a keyword.
+
+Verified: typecheck + lint clean; new `eotSummonKeywordEmission.test.ts` (Moira re-firing Pennycat → a Stray
+`cardSummoned` in the board zone; byte-identical gameplay); full suite + build green; live browser check —
+board renders normally through the new `displayBoard` path (both minions, no console errors). On-beat feel is a
+UI concern to confirm in a real Moira-summon turn. This closes the EoT real-time work; **combat** is next.
+
 ## 2026-08-14 - End of Turn: auto-resolved Discover grants come in on their beat (Black Belt Brian)
 
 Owner report: Black Belt Brian's discovered card "doesn't come in in real-time" — it snapped into the hand at

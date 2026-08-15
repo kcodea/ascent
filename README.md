@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **End-of-Turn summons & keyword grants show on their beat** — a minion summoned by an End-of-Turn trigger (Moira re-firing a summoner) now appears on the board *during* the End-of-Turn playback, and a keyword granted mid-turn shows its pip on the beat, instead of both snapping in when the turn commits.
+
 - **End-of-Turn Discover grants arrive in real time** — a card discovered by an End-of-Turn trigger (Black Belt Brian re-fired by Moira) now materialises into your hand *during* the End-of-Turn playback, like a shop conjure, instead of snapping in at the combat hand-off.
 
 - **Beat Lab (dev): the LIVE toggle now drives combat too** — flipping a combat trigger (e.g. Oona's on-summon reaction) to `ownBeat` and turning on **LIVE** re-paces real fights immediately, no console flag. One switch for End of Turn *and* combat; off is byte-identical to today; shop actions stay instant by design.

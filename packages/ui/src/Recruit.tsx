@@ -8,7 +8,7 @@ import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
-import type { ConsequenceEvent } from '@game/core';
+import type { ConsequenceEvent, Keyword } from '@game/core';
 
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
@@ -30,7 +30,7 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardSnapshot } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -98,6 +98,10 @@ import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 
 gsap.registerPlugin(Flip);
+
+// A stable empty keyword-overlay map, so the End-of-Turn keyword projection has a referentially-constant idle
+// value (no new Map() each render when nothing is projected).
+const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
@@ -1318,6 +1322,11 @@ export function Recruit() {
      as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
      them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
   const [eotGrants, setEotGrants] = useState<string[]>([]);
+  // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
+  // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
+  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string }[]>([]);
+  // Keywords gained on board minions during End-of-Turn playback — overlaid so the pip shows on the beat.
+  const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -2259,16 +2268,35 @@ export function Recruit() {
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
     [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
   );
+  // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
+  // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
+  // pip shows on the beat. GUARDED: with nothing projected this is `run.board` by identity, so normal play (and
+  // the memo below) is byte-identical — the injection only activates during an EoT that summons / grants a kw.
+  const displayBoard = useMemo<BoardCard[]>(() => {
+    if (!eotSummons.length && !eotKeywords.size) return run.board;
+    const withKw = run.board.map((m) => {
+      const add = eotKeywords.get(m.uid);
+      if (!add || add.size === 0 || [...add].every((k) => m.keywords.includes(k as Keyword))) return m;
+      return { ...m, keywords: [...new Set([...m.keywords, ...add])] as Keyword[] };
+    });
+    const synthetic: BoardCard[] = eotSummons
+      .filter((s) => !run.board.some((c) => c.uid === s.uid)) // once committed, the real card takes over
+      .map((s) => {
+        const def = CARD_INDEX[s.cardId];
+        return { uid: s.uid, cardId: s.cardId, tribe: def?.tribe ?? 'neutral', attack: def?.attack ?? 0, health: def?.health ?? 0, keywords: [...(def?.keywords ?? [])], golden: false } as BoardCard;
+      });
+    return [...withKw, ...synthetic];
+  }, [run.board, eotSummons, eotKeywords]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
   const boardViews = useMemo(
     () => perfMonitor.measure('view:board', () => {
-      const fresh = new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const));
+      const fresh = new Map(displayBoard.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const));
       boardViewCache.current = stabilizeViewMap(fresh, boardViewCache.current);
       return boardViewCache.current;
     }),
-    [run.board, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
+    [displayBoard, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
@@ -3574,7 +3602,6 @@ export function Recruit() {
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
   // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
-  const displayBoard = run.board;
   // CELESTIAL alignment, one read per render, shared by every board card below. Gated on a Celestial being
   // present so an ordinary board computes nothing. The arc itself is a CHILD of each card (see Card.tsx), so
   // this only decides the COLOUR — position is the card's own business, which is what fixed "they hate being
@@ -4118,7 +4145,11 @@ export function Recruit() {
           for (const [uid, d] of p.shopStats) shop[uid] = { attack: d.attack, health: d.health };
           setEotShopStats(shop);
         }
-        if (p.grantedCards.length) setEotGrants(p.grantedCards.map((g) => g.cardId));
+        // Hand grants (conjures) preview in the hand; board summons (Moira re-firing a summoner) inject onto
+        // the board — split by zone so a summon no longer wrongly shows as a hand card.
+        setEotGrants(p.grantedCards.filter((g) => g.zone === 'hand').map((g) => g.cardId));
+        setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId })));
+        setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
       },
       onComplete: () => {
         setEotProcUids(new Set());
@@ -4128,6 +4159,8 @@ export function Recruit() {
         setEndTurnAnimating(false);
         // Dropped in the SAME commit that puts the real cards in hand, or both lists render for a frame.
         setEotGrants([]);
+        setEotSummons([]);       // the real summoned cards are on run.board after commit
+        setEotKeywords(EMPTY_KW); // the real keywords are on run.board after commit
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
         commitPresentationAction();

@@ -4202,6 +4202,25 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
   });
 });
 
+describe('Paragon (onRallyBuffOnePerTribe) scales with Rally doublers (owner 2026-08-14)', () => {
+  // Paragon buffs one minion of every tribe (+4/+4) whenever a friendly Rally fires. It is a WATCHER on
+  // another minion, so the Rally doubler — which re-runs only the attacker's own effects — used to skip it.
+  const board = (): BoardMinion[] => [
+    { cardId: 'n2_paragon', attack: 1, health: 40 },
+    { cardId: 'stray', attack: 40, health: 40, keywords: ['RL'] }, // a rallying Beast that one-shots the dummy
+  ];
+  const enemy = (): BoardMinion[] => [{ cardId: 'sandbag', attack: 0, health: 40 }];
+  const paragonFires = (r: { events: CombatEvent[] }): number =>
+    r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length;
+
+  it('the doubler makes Paragon fire per rally trigger (twice), not once', () => {
+    const without = simulate(board(), enemy(), makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    const withDbl = simulate(board(), enemy(), makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }), { playerRallyDouble: true });
+    expect(paragonFires(without), 'base: Paragon fired on the rally').toBeGreaterThan(0);
+    expect(paragonFires(withDbl), 'doubled: Paragon fired twice as often').toBe(paragonFires(without) * 2);
+  });
+});
+
 describe('Rune of Mastery (batch 7b) — combat Improve steps apply twice', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());

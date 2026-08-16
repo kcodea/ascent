@@ -1,0 +1,421 @@
+<title>Ascent Quiz #4 — 2026-08-16</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1e2b;
+    --panel-border: #2b2f42;
+    --text: #e7e9f2;
+    --muted: #9aa0b8;
+    --accent: #7c9eff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232739;
+    --choice-hover: #2a2f45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fb;
+      --panel: #ffffff;
+      --panel-border: #dfe2f0;
+      --text: #1b1e2b;
+      --muted: #5c6180;
+      --accent: #3f5fd8;
+      --good: #15803d;
+      --bad: #b91c1c;
+      --good-bg: rgba(21, 128, 61, 0.1);
+      --bad-bg: rgba(185, 28, 28, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e6e8f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fb;
+    --panel: #ffffff;
+    --panel-border: #dfe2f0;
+    --text: #1b1e2b;
+    --muted: #5c6180;
+    --accent: #3f5fd8;
+    --good: #15803d;
+    --bad: #b91c1c;
+    --good-bg: rgba(21, 128, 61, 0.1);
+    --bad-bg: rgba(185, 28, 28, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e6e8f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 32px 16px 64px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.9rem; }
+  .progress {
+    display: flex;
+    gap: 5px;
+    margin: 20px 0 28px;
+    flex-wrap: wrap;
+  }
+  .progress .dot {
+    flex: 1;
+    min-width: 16px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-border);
+    transition: background 0.2s;
+  }
+  .progress .dot.done { background: var(--accent); }
+  .progress .dot.current { background: var(--muted); }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .qnum { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .question { font-size: 1.08rem; line-height: 1.5; margin: 0 0 20px; }
+  .choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    font-size: 0.97rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .choice:hover:not(:disabled) { background: var(--choice-hover); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:disabled { cursor: default; }
+  .choice .label { font-weight: 700; margin-right: 8px; color: var(--muted); }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.incorrect { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.reveal-correct { background: var(--good-bg); border-color: var(--good); }
+  .result-tag { display: inline-block; font-weight: 700; font-size: 0.85rem; margin-top: 2px; }
+  .result-tag.good { color: var(--good); }
+  .result-tag.bad { color: var(--bad); }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    background: var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+  .next-btn {
+    margin-top: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+  .next-btn.show { display: inline-block; }
+  .hidden { display: none; }
+  .summary { text-align: center; }
+  .summary .score { font-size: 2.4rem; font-weight: 800; margin: 12px 0 4px; color: var(--accent); }
+  .summary .line { color: var(--muted); font-size: 0.95rem; margin-bottom: 18px; }
+  .summary .encourage { font-size: 1.05rem; margin: 20px 0; }
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 20px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #4</h1>
+    <p>August 16, 2026 · How the game is coded, not how it plays</p>
+  </header>
+  <div class="progress" id="progress"></div>
+  <div id="quiz-root"></div>
+</div>
+
+<script>
+  const QUESTIONS = [
+    {
+      topic: "what-is-a-function",
+      question: "In packages/core/src/combat/simulate.ts, simulate(player, enemy, rng, cards) is a function. In plain English, what makes something a \"function\" in code?",
+      choices: [
+        "A block of code that takes some inputs and produces an output, and can be called by name whenever you need that result",
+        "A file that stores game data, like a list of cards",
+        "A named variable that holds a single number or string",
+        "A button in the UI that the player clicks"
+      ],
+      answer: 0,
+      explanation: "A function packages up a piece of logic: you give it inputs (here, <code>player</code>, <code>enemy</code>, <code>rng</code>, <code>cards</code>) and it hands back an output (an event log and result), and you can call it again and again without rewriting the logic. B, C, and D describe other things entirely, a data file, a variable, and a UI element. <code>simulate()</code> is a clean example because its whole job is \"take a board and RNG, return what happened.\""
+    },
+    {
+      topic: "sim-ui-decoupling",
+      question: "Per CLAUDE.md's architecture rule, why does the combat simulator return an event log instead of directly updating the screen?",
+      choices: [
+        "So the UI can animate the events on its own clock, while the simulator itself never touches rendering",
+        "Because event logs use less memory than updating the screen directly",
+        "So the game can be played without any UI at all, which is required at release",
+        "Because React requires all game logic to be written as event logs"
+      ],
+      answer: 0,
+      explanation: "The sim/UI split is Ascent's central architecture idea: <code>simulate()</code> computes the entire outcome up front as a list of events, and <code>packages/ui</code> replays that log on its own animation clock. The UI never computes outcomes, it only narrates what already happened. B and D are made up, and C isn't the actual reason for the split, even though it's a nice side effect that headless tools can run combat with no UI at all."
+    },
+    {
+      topic: "monorepo-packages",
+      question: "Which of these is true about the dependency direction between Ascent's packages, per CLAUDE.md's \"Monorepo\" section?",
+      choices: [
+        "packages/core depends on nothing else in the repo, while packages/ui depends on core, content, and sim",
+        "packages/ui depends on nothing else, while packages/core depends on ui for rendering hooks",
+        "All the packages depend equally on each other, with no clear direction",
+        "packages/content depends on packages/ui for card art and text"
+      ],
+      answer: 0,
+      explanation: "core sits at the bottom: pure engine code with no dependency on the rest of the repo. content depends on core, sim depends on core + content, and ui sits on top, depending on all of them through public entrypoints only. That one-way flow keeps the engine testable and UI-agnostic. B, C, and D all reverse or muddy that direction."
+    },
+    {
+      topic: "deterministic-sim",
+      question: "Ascent's combat engine is described as \"deterministic.\" What does that actually mean?",
+      choices: [
+        "Given the exact same inputs (same boards, same seed), simulate() always produces the exact same output, every single time",
+        "The outcome of combat is always predictable to the player before it starts",
+        "The game never uses randomness anywhere",
+        "Combat always ends in a win for whichever side has more minions"
+      ],
+      answer: 0,
+      explanation: "Determinism means no hidden variability: the same boards and RNG seed will always replay identically. That's what makes shareable seeds and reliable replays possible. Ascent still uses plenty of randomness (B and C are wrong), it just channels ALL of it through one seeded RNG (<code>packages/core/src/rng.ts</code>) instead of anything unreproducible, so the \"random\" outcome is still exactly repeatable."
+    },
+    {
+      topic: "seeded-rng",
+      question: "packages/core/src/rng.ts gives the Rng object a fork() method. What is fork() actually for?",
+      choices: [
+        "It creates a new, independent RNG stream derived from the parent's current state, so a subsystem (like one combat) can draw its own randomness without disturbing the parent's sequence",
+        "It duplicates the entire game state so the player can undo a move",
+        "It splits the game into two parallel save files",
+        "It converts the RNG's output from a float to an integer"
+      ],
+      answer: 0,
+      explanation: "fork() lets you hand an isolated RNG to, say, one specific combat or one enemy-board build, so that subsystem can be re-run or replayed in isolation and still reproduce identically, without it \"stealing\" random draws the rest of the game was counting on. B and C aren't what fork does at all, and D describes <code>int()</code>, a different method on the same object."
+    },
+    {
+      topic: "pure-functions",
+      question: "CLAUDE.md says \"Combat is a pure function.\" Which of these would actually break that purity?",
+      choices: [
+        "simulate() reaching outside itself to read or change some global variable, instead of only using the arguments it was given",
+        "simulate() returning an object like { events, result, playerDamage, initial }",
+        "simulate() taking player, enemy, rng, and cards as arguments",
+        "simulate() being called more than once in the same session"
+      ],
+      answer: 0,
+      explanation: "A pure function's output depends only on its inputs, and it never reaches outside itself to read or mutate other state, no touching the DOM, no global counters. Reading or writing something outside its own arguments and return value is exactly what would break that guarantee. B, C, and D are just normal function behavior; a pure function can absolutely take arguments, return a value, and be called many times."
+    },
+    {
+      topic: "data-vs-code",
+      question: "CLAUDE.md says new cards should be \"data only unless they need a genuinely new effect primitive.\" What does that mean in practice?",
+      choices: [
+        "A new card is usually just a data entry (stats, text, an effect reference) in packages/content/src/cards/, not a new hand-written class or function",
+        "Every new card requires writing a brand-new TypeScript class from scratch",
+        "Cards are stored as images with no underlying code at all",
+        "Card data lives inside the UI package so it can be styled directly"
+      ],
+      answer: 0,
+      explanation: "Cards are \"data + effect subscriptions\": most new cards just describe themselves (stats, keywords, which existing effect factories to hook into) as a data object, reusing effect code that already exists. Only a card needing a truly new kind of behavior requires new code, added to the effect factories. B overstates the work, C ignores that cards do have real logic behind them, and D misplaces where content lives (packages/content, not packages/ui)."
+    },
+    {
+      topic: "event-log-replay",
+      question: "After simulate() runs a full combat and returns its events array, what does the UI do with it?",
+      choices: [
+        "Steps through the events array over time, animating each one; it never recalculates who wins or what happens next",
+        "Re-runs simulate() again for every animation frame to get the next event",
+        "Ignores it and asks the player to manually confirm each attack",
+        "Sends the events array to a server to compute the result"
+      ],
+      answer: 0,
+      explanation: "The whole combat outcome already exists in the events array the moment <code>simulate()</code> returns; the UI's only job is to play that log back at its own pace, driving animations off events that are already decided. It's a replay, not a live computation, so B (re-running the simulator) and D (a server round-trip; there is no server) both misread the architecture, and C isn't how an auto-battler works."
+    },
+    {
+      topic: "eslint-rules",
+      question: "eslint.config.mjs bans Math.random with a custom rule in packages/core, content, sim, and tools, but NOT in packages/ui. Why is the UI package exempt?",
+      choices: [
+        "The UI only uses randomness for cosmetic, non-gameplay things (like which idle animation variant plays), so it doesn't need to go through the deterministic engine RNG",
+        "The UI package doesn't run in JavaScript, so the rule can't apply to it",
+        "ESLint config files only support banning things in one folder at a time",
+        "The rule was a mistake and will be added to the UI package later"
+      ],
+      answer: 0,
+      explanation: "Determinism only matters where it affects gameplay outcomes that need to replay identically: the engine layers (core/content/sim) and the pool-building tools. Cosmetic randomness in the UI doesn't affect any gameplay result, so there's no need to force it through the seeded Rng. B and C are false statements about how ESLint or JS work, and D isn't right either; the config comment calls it out as an intentional exemption (\"cosmetic only\"), not an oversight."
+    },
+    {
+      topic: "performance-memo",
+      question: "CLAUDE.md's performance rule says to \"memoize per-beat/per-frame list items (Unit is React.memo'd...) and keep their props referentially stable.\" In plain English, what problem does this solve?",
+      choices: [
+        "Without it, React would re-render every Unit component on screen even when that unit's own data hasn't changed, wasting time on frames where nothing about it changed",
+        "It makes the combat simulator run faster by skipping RNG calls",
+        "It reduces the size of the card art image files",
+        "It prevents typos in card text from causing runtime crashes"
+      ],
+      answer: 0,
+      explanation: "React.memo tells React \"skip re-rendering this component if its props are the same as last time,\" and \"referentially stable\" props means you're not accidentally creating a brand-new object or array every render that looks the same but fails a reference check. Together that stops every Unit from re-rendering on every combat frame, which matters because Ascent's frame budget is only a few milliseconds (docs/performance.md). B, C, and D describe things unrelated to component re-rendering; memoization is strictly a rendering-performance idea, not about RNG, images, or type-checking."
+    }
+  ];
+
+  const root = document.getElementById('quiz-root');
+  const progressEl = document.getElementById('progress');
+  let current = 0;
+  let score = 0;
+  const results = [];
+
+  function renderProgress() {
+    progressEl.innerHTML = '';
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      progressEl.appendChild(d);
+    }
+  }
+
+  function renderQuestion(idx) {
+    const q = QUESTIONS[idx];
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const qnum = document.createElement('div');
+    qnum.className = 'qnum';
+    qnum.textContent = `Question ${idx + 1} of ${QUESTIONS.length}`;
+    card.appendChild(qnum);
+
+    const qtext = document.createElement('p');
+    qtext.className = 'question';
+    qtext.textContent = q.question;
+    card.appendChild(qtext);
+
+    const letters = ['A', 'B', 'C', 'D'];
+    const buttons = [];
+    let answered = false;
+
+    q.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.innerHTML = `<span class="label">${letters[i]}</span>${choice}`;
+      btn.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        const correct = i === q.answer;
+        if (correct) score++;
+        results.push(correct);
+        buttons.forEach((b, bi) => {
+          b.disabled = true;
+          if (bi === q.answer) b.classList.add('reveal-correct');
+          if (bi === i && !correct) b.classList.add('incorrect');
+        });
+        const tag = document.createElement('div');
+        tag.className = 'result-tag ' + (correct ? 'good' : 'bad');
+        tag.textContent = correct ? '✓ Correct!' : '✗ Not quite';
+        card.appendChild(tag);
+
+        const exp = document.createElement('div');
+        exp.className = 'explanation show';
+        exp.innerHTML = q.explanation;
+        card.appendChild(exp);
+
+        nextBtn.classList.add('show');
+      });
+      buttons.push(btn);
+      card.appendChild(btn);
+    });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'next-btn';
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+    nextBtn.addEventListener('click', () => {
+      current++;
+      renderProgress();
+      if (current >= QUESTIONS.length) {
+        renderSummary();
+      } else {
+        root.innerHTML = '';
+        renderQuestion(current);
+      }
+    });
+    card.appendChild(nextBtn);
+
+    root.appendChild(card);
+  }
+
+  function renderSummary() {
+    root.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card summary';
+
+    const label = document.createElement('div');
+    label.className = 'qnum';
+    label.textContent = 'Quiz complete';
+    card.appendChild(label);
+
+    const scoreEl = document.createElement('div');
+    scoreEl.className = 'score';
+    scoreEl.textContent = `${score} / ${QUESTIONS.length}`;
+    card.appendChild(scoreEl);
+
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = `You scored ${score} out of ${QUESTIONS.length} on today's architecture quiz.`;
+    card.appendChild(line);
+
+    const messages = {
+      10: "Perfect score! You're reading Ascent's engine like a pro. 🎉",
+      9: "Excellent — nearly flawless, and a real handle on how this all fits together.",
+      8: "Great work — you've clearly got a solid grip on today's topics.",
+      7: "Strong showing — most of it landed, and the misses are good pointers for tomorrow.",
+      6: "Solid effort — more than half down, and every miss is a lesson for tomorrow.",
+      5: "Halfway there — you're building real intuition for how the code is put together.",
+      4: "Good start — this stuff gets clearer every day you sit with it.",
+      3: "Making progress — reply with your score and we'll circle back to what tripped you up.",
+      2: "You're just getting going — no worries, tomorrow we'll re-ask the tricky ones from a new angle.",
+      1: "Everyone starts somewhere — tell me your score and we'll rebuild from here.",
+      0: "No worries at all — everyone starts at zero. Tell me your score and we'll rebuild from here."
+    };
+    const encourage = document.createElement('div');
+    encourage.className = 'encourage';
+    encourage.textContent = messages[score] ?? messages[0];
+    card.appendChild(encourage);
+
+    const note = document.createElement('div');
+    note.className = 'footer-note';
+    note.textContent = 'Reply in chat with your score (e.g. "7/10, missed the RNG one") so tomorrow adapts.';
+    card.appendChild(note);
+
+    root.appendChild(card);
+  }
+
+  renderProgress();
+  renderQuestion(current);
+</script>

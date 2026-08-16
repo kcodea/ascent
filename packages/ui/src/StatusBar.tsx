@@ -92,19 +92,22 @@ export function StatusBar() {
     const rolled = run.heroDiceLockUntil - run.wave;
     if (rolled <= 0) return;
     let tick = 0;
-    let settle = 0;
     const id = window.setInterval(() => {
       tick += 1;
       if (tick >= 11) {
         window.clearInterval(id);
-        setDiceFace({ n: rolled, settled: true });                 // land on the real roll — and STAY PUT
-        settle = window.setTimeout(() => setDiceFace(null), 1100); // …hold, then hand the slot back to the tally
+        setDiceFace({ n: rolled, settled: true }); // land on the real roll — and STAY PUT
       } else {
         setDiceFace({ n: (tick % 6) + 1, settled: false });
       }
     }, 55);
-    return () => { window.clearInterval(id); window.clearTimeout(settle); };
-  }, [run.heroDiceLockUntil, run.wave, power.kind]);
+    return () => window.clearInterval(id); }, [run.heroDiceLockUntil, run.wave, power.kind]);
+  // The settled face STAYS UP for the rest of the turn (owner ruling 2026-08-16) — it used to hand the slot
+  // back to the lock countdown after 1.1s, which read as the number being taken away. `heroDiceRollWave` is the
+  // authority on "this turn", so a reload mid-turn still shows it and the next turn drops it with no explicit
+  // clear. Only the tumble itself is local state.
+  const diceHeld = power.kind === 'dice' && run.heroDiceRollWave === run.wave ? (run.heroDiceRoll ?? null) : null;
+  useEffect(() => { if (diceHeld == null) setDiceFace(null); }, [diceHeld]);
   // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
   // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
   // card-text rule: never show a base number where the real one is knowable.
@@ -408,7 +411,9 @@ export function StatusBar() {
                 While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
             {diceFace != null
               ? <span key={diceFace.settled ? 'die-final' : `die${diceFace.n}`} className={`hpb-tally hpb-dice${diceFace.settled ? ' settled' : ''}`}>{diceFace.n}</span>
-              : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+              : diceHeld != null
+                ? <span key="die-held" className="hpb-tally hpb-dice settled">{diceHeld}</span>
+                : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
             {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}

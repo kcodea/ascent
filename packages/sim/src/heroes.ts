@@ -47,7 +47,10 @@ export type HeroPowerKind =
   | 'companyRate' // Foreman Flint (passive): Dwarf Shop minions cost 2 Gold
   | 'unitedFront' // Emissary Vale (passive): SoC — one of each tribe +tier/+tier; a Fatecarver at Tier 6
   | 'archive' // Quillen: once/turn, archive a chosen friendly/Shop minion; every 3rd → Discover from those tribes
-  | 'roundedSpellbook'; // Hunch: a copy of the last spell you cast — 3 Gold, dropping 1 per turn since the last use
+  | 'roundedSpellbook' // Hunch: a copy of the last spell you cast — 3 Gold, dropping 1 per turn since the last use
+  | 'vanguard' // Emerald Warden (passive): every tavern-up also hands you a random minion of the tier you just reached
+  | 'soulkeeper' // Underdweller: 3 Gold — Discover among the minions that DIED last combat, either side
+  | 'empowerment'; // Albus: 1 Gold — a Shop minion becomes a Discover from the tier above it
 
 export interface HeroPower {
   name: string;
@@ -583,6 +586,46 @@ export const HEROES: HeroDef[] = [
       // double-charge via the shared block).
       untargeted: true,
       text: 'Get a copy of the last spell you cast. Costs **3 Gold**, reduced by 1 each turn.',
+    },
+  },
+  {
+    id: 'emeraldwarden',
+    name: 'Emerald Warden',
+    blurb: 'Every door she opens has something waiting on the other side.',
+    resolve: 30,
+    armor: 8, // owner spec 2026-08-16 — a free minion per tavern-up is a lot of tempo, so the armor is thin
+    power: {
+      name: 'Vanguard',
+      kind: 'vanguard',
+      passive: true,
+      text: 'When you tier up, get a random minion from the new tier.',
+    },
+  },
+  {
+    id: 'underdweller',
+    name: 'Underdweller',
+    blurb: 'Nothing that falls down here stays lost for long.',
+    resolve: 30,
+    armor: 9,
+    power: {
+      name: 'Soulkeeper',
+      kind: 'soulkeeper',
+      cost: 3,
+      untargeted: true,
+      text: 'Discover a minion that died last combat — from **either** side.',
+    },
+  },
+  {
+    id: 'albus',
+    name: 'Albus',
+    blurb: 'He does not buy what the shop offers. He improves it first.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Empowerment',
+      kind: 'empowerment',
+      cost: 1,
+      text: 'Choose a Shop minion. Discover a minion from the tier above it for it to become.',
     },
   },
 ];

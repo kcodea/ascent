@@ -751,7 +751,9 @@ export function Recruit() {
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   // Quillen's Archive files a friendly OR a Shop minion, so it accepts tavern picks like Fortify does.
-  const heroTargetsTavern = heroPowerKind === 'fortify' || heroPowerKind === 'archive';
+  // Albus's Empowerment targets a Shop offer ONLY (it upgrades what's for sale, never your board).
+  const heroTargetsTavern = heroPowerKind === 'fortify' || heroPowerKind === 'archive' || heroPowerKind === 'empowerment';
+  const heroTargetsTavernOnly = heroPowerKind === 'empowerment';
   // Darah's Displace can't target a golden minion (you can't trade away a triple) — excluded as a valid pick.
   const heroTargetsNoGolden = heroPowerKind === 'displace';
   // The active +X/+X bonus to stat-granting spells (Spellbinder, etc.) — so spell cards show their
@@ -2856,9 +2858,11 @@ export function Recruit() {
     let moved = false;
     // Fortify may buff a tavern offer; Gild / Encore are warband-only (you can't gild or replay an
     // unbought offer), so they only accept warband targets.
-    const sel = heroTargetsTavern
-      ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
-      : '[data-zone="warband"] .row .card[data-uid]';
+    const sel = heroTargetsTavernOnly
+      ? `[data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}` // Albus upgrades the SHOP, never your board
+      : heroTargetsTavern
+        ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
+        : '[data-zone="warband"] .row .card[data-uid]';
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = document.elementFromPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
@@ -2921,7 +2925,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, heroTargetsTavern, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+  }, [heroArmed, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors

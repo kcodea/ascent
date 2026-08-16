@@ -216,6 +216,32 @@ function upgradeRightmostOffer(s: RunState): void {
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true }; // flagged so the UI flashes it
 }
 
+/**
+ * Underdweller (Soulkeeper): every DISTINCT minion that died in the last combat, either side.
+ *
+ * Derived from `lastCombat` rather than carried back on `CombatResult` — a death is already fully described by
+ * the event log, so a new `player*` field would be a redundant carry-back (and would owe the live-tracking
+ * audit a classification for nothing). uid→cardId comes from the two initial boards PLUS every `summon` event,
+ * so a token that was summoned mid-fight and died is reachable too — the owner's ruling is "ANY minion that
+ * died last combat on both sides of the board", and mid-combat summons are exactly that.
+ *
+ * A `rise` death is skipped: that body came back, so it did not stay dead.
+ */
+function diedLastCombat(s: RunState): string[] {
+  const lc = s.lastCombat;
+  if (!lc) return [];
+  const byUid = new Map<string, string>();
+  for (const m of [...lc.initial.player, ...lc.initial.enemy]) byUid.set(m.uid, m.cardId);
+  for (const e of lc.events) if (e.type === 'summon') byUid.set(e.minion.uid, e.minion.cardId);
+  const out: string[] = [];
+  for (const e of lc.events) {
+    if (e.type !== 'death' || e.rise) continue;
+    const id = byUid.get(e.target);
+    if (id && CARD_INDEX[id] && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 /** Rune of the Bargain Bin: replace every minion offer with a random minion priced at 1 Gold that sells for 0
  *  (the `sellZero` marker rides onto the bought minion as `sellOverride`). Spell/Ruby offers are left as-is. */
 function fillBargainBin(s: RunState): void {
@@ -325,6 +351,20 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   const id = s.discover?.[index];
   const def = id ? CARD_INDEX[id] : undefined;
   if (!def) return false;
+  // Albus (Empowerment): this pick REPLACES a Shop offer instead of joining the hand — the offer "turns into"
+  // the chosen card. Handled before the hand path because none of the hand-only modifiers (locks, borrowed,
+  // gilded, set-stats) mean anything to a Shop offer: it is still unbought, and gets its treatment on purchase.
+  if (s.discoverIntoShopUid) {
+    const idx = s.shop.findIndex((o) => o.uid === s.discoverIntoShopUid);
+    if (idx >= 0) {
+      returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back, exactly like a reroll
+      takeFromPool(s, def.id);
+      s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: def.id, contraband: true }; // flagged so the UI flashes it
+      return true;
+    }
+    // The offer is gone (bought or rerolled behind a queued Discover) — fall through and grant to hand rather
+    // than silently dropping the pick.
+  }
   const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
   // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
   // than over-capping). Only claim a pool copy when the card is actually taken.
@@ -1789,6 +1829,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.valeFatecarverDone = true;
         }
       }
+      // Emerald Warden (Vanguard): every tavern-up also hands you a random minion of the tier you JUST reached
+      // — read after `s.tier += 1`, so it always pays out the new pool, never the one you left. `exactTier`
+      // semantics like Jensen's dig: the reward is the tier you bought, not "up to" it.
+      if (getHero(s.heroId).power.kind === 'vanguard') {
+        const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === s.tier);
+        if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+      }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
     }
@@ -2057,6 +2104,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.rngCursor = rng.state();
         gainGold(s, roll);
         s.heroDiceLockUntil = s.wave + roll;
+        // Display-only: the panel keeps showing the rolled face for the rest of THIS turn (owner ruling
+        // 2026-08-16) rather than snapping back the instant the tumble settles. Expired by wave comparison.
+        s.heroDiceRoll = roll;
+        s.heroDiceRollWave = s.wave;
       } else if (power.kind === 'copyMachine') {
         // Xerox: SUMMON a plain copy of a friendly board minion directly beside it (owner ruling 2026-08-14 —
         // a board summon, not a hand grant, so it needs a free board slot). No-op (no charge) on a missing
@@ -2118,12 +2169,44 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.archivedTribes = [];
           if (picks.length > 0) s.discover = picks;
         }
+      } else if (power.kind === 'soulkeeper') {
+        // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
+        // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
+        // nothing died or the hand is full, so a dead turn never eats the once-per-turn charge.
+        const dead = diedLastCombat(s);
+        if (dead.length === 0 || s.hand.length >= handCap(s)) return state;
+        const rng = makeRng(s.rngCursor);
+        const pool = [...dead];
+        const picks: string[] = [];
+        while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+        s.rngCursor = rng.state();
+        s.discover = picks;
+      } else if (power.kind === 'empowerment') {
+        // Albus: a SHOP minion becomes a Discover from the tier above it. The tier step follows the standard
+        // ceiling (`hasTier7Access`), so on a Tier-6 offer it re-rolls within Tier 6 unless Tier 7 is open —
+        // the same clamp Pete's Contrabanana uses. Targeted at a Shop offer only (not a board minion).
+        const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
+        if (shopIdx < 0) return state;
+        const def = CARD_INDEX[s.shop[shopIdx]!.cardId];
+        if (!def || def.spell || def.ruby) return state; // minions only
+        const tgt = Math.min(def.tier + 1, hasTier7Access(s) ? 7 : 6);
+        const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
+        if (pool.length === 0) return state;
+        const rng = makeRng(s.rngCursor);
+        const opts = [...pool];
+        const picks: string[] = [];
+        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        s.rngCursor = rng.state();
+        // The pick REPLACES the targeted offer rather than landing in hand — see `discoverIntoShopUid`.
+        s.discoverIntoShopUid = s.shop[shopIdx]!.uid;
+        s.discover = picks;
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'unitedFront'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
+        || power.kind === 'vanguard'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
@@ -2169,6 +2252,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.discoverBorrowed = undefined;
       s.discoverGolden = undefined;
       s.discoverSetStats = undefined;
+      s.discoverIntoShopUid = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue

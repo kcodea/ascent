@@ -684,6 +684,11 @@ export interface RunState {
   /** Gambler (Dice): the wave at which the Dice power becomes usable again — set to `wave + roll` on use, so a
    *  big roll pays more Gold but locks the power longer. Absent = usable. */
   heroDiceLockUntil?: number;
+  /** Gambler (Dice): the face most recently rolled, and the wave it was rolled on. Display-only — the panel
+   *  keeps showing the number for the REST OF THAT TURN (owner ruling 2026-08-16) instead of snapping back the
+   *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */
+  heroDiceRoll?: number;
+  heroDiceRollWave?: number;
   /** Frantic Frank (Clearance): the wave on which his refresh made Shop minions cost 2 Gold. Equal to the
    *  current wave while the discount is live; a wave comparison auto-expires it next turn (no explicit clear). */
   frankClearanceTurn?: number;
@@ -1272,6 +1277,12 @@ export interface RunState {
   discoverBorrowed?: boolean;
   /** Rune of the Second Path: the queued Discover's pick has its stats OVERWRITTEN to this line (20/20). */
   discoverSetStats?: { attack: number; health: number };
+  /** Albus (Empowerment): the OPEN Discover REPLACES this Shop offer instead of granting to hand — the chosen
+   *  card is what the targeted offer "turns into". Same one-shot lifecycle as `discoverLockTier`: set when the
+   *  power opens the Discover, consumed by `takeDiscoverPick`, cleared with its siblings in the `discover` case.
+   *  If the offer is gone by the time the pick lands (bought or rerolled behind a queued Discover), the pick
+   *  falls back to the hand rather than vanishing. */
+  discoverIntoShopUid?: string;
   /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */

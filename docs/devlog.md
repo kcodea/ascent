@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-16 - Three heroes (Emerald Warden, Underdweller, Albus) + the Gambler's die stays up
+
+Owner batch. Three new heroes, their art wired, and one presentation fix.
+
+- **Emerald Warden** (8 armor) — *Vanguard*, passive: every tavern-up also hands you a random minion of the
+  tier you just reached. Resolved in the `upgrade` case AFTER `s.tier += 1`, so it always pays out the NEW
+  pool, never the one you left; exact-tier (like Jensen's dig), minions only, and it no-ops on a full hand.
+  Thin armor on purpose — a free minion per tier-up is a lot of tempo.
+- **Underdweller** (9 armor) — *Soulkeeper*, 3 Gold, untargeted: Discover among the minions that died last
+  combat, **both sides** (owner ruling). Derived from `lastCombat` rather than a new `CombatResult` carry-back
+  — a death is already fully described by the event log, so a new `player*` field would be redundant and would
+  owe the live-tracking audit a classification for nothing. uid→cardId is built from both initial boards PLUS
+  every `summon` event, so a token summoned mid-fight and killed is reclaimable too. A `rise` death is skipped
+  (that body came back). Nothing died → a true no-op: no Gold, no charge.
+- **Albus** (14 armor) — *Empowerment*, 1 Gold, targeted at a SHOP minion: Discover from the tier above it for
+  the offer to turn into. Tier step uses the standard `hasTier7Access` ceiling, so a T6 target re-rolls within
+  T6 unless Tier 7 is open — the same clamp Pete's Contrabanana uses.
+
+Albus needed the one genuinely new primitive: a Discover whose pick **replaces a Shop offer** instead of
+landing in hand. Added as `discoverIntoShopUid`, a one-shot modifier with exactly the `discoverLockTier`
+lifecycle (set when the power opens the Discover, consumed in `takeDiscoverPick`, cleared with its siblings in
+the `discover` case). The displaced offer returns to the pool like a reroll and the replacement is flagged
+`contraband: true` so the UI flashes it. If the offer is gone by the time the pick lands (bought or rerolled
+behind a queued Discover), the pick falls back to the hand rather than vanishing. Targeting is Shop-ONLY —
+`heroTargetsTavernOnly` narrows the aim selector so Albus can never hit your board.
+
+**Gambler:** the rolled face now stays up for the rest of the turn instead of handing the slot back to the lock
+countdown after 1.1s, which read as the number being taken away. The tumble stays local state; the settled
+value is driven by `heroDiceRoll` + `heroDiceRollWave` on the run, so a mid-turn reload still shows it and the
+next turn drops it with no explicit clear.
+
+Art wired by strict name match: portraits and power art for all three.
+
+15 new tests; full suite 5424 green, typecheck + lint + build:web clean.
+
 ## 2026-08-15 - Closed Casket reworked: it simply DESTROYS the minion at Start of Combat
 
 Owner ruling: "Choose a minion. Start of Combat: Destroy this minion." Kills the body, which triggers its

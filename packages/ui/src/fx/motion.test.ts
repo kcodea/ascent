@@ -178,6 +178,26 @@ describe('emissionOffset', () => {
   });
 });
 
+describe('emissionOffset — svg', () => {
+  const base = { emitShape: 'svg' as const, emitRadius: 10, squashX: 1, squashY: 1, offsetX: 0, offsetY: 0 };
+  it('picks a baked point by randA and scales by emitRadius', () => {
+    const out = { ox: 0, oy: 0 };
+    // two points; randA=0.6 → floor(0.6*2)=1 → the second point (1, -0.5), scaled by radius 10
+    emissionOffset({ ...base, emitPoints: [[-1, 0], [1, -0.5]] }, 0.6, 0.3, out);
+    expect(out).toEqual({ ox: 10, oy: -5 });
+  });
+  it('applies squash and offset like the other shapes', () => {
+    const out = { ox: 0, oy: 0 };
+    emissionOffset({ ...base, emitPoints: [[1, 1]], squashX: 2, squashY: 0.5, offsetX: 3, offsetY: -4 }, 0, 0, out);
+    expect(out).toEqual({ ox: 1 * 10 * 2 + 3, oy: 1 * 10 * 0.5 - 4 });
+  });
+  it('falls back to the anchor (plus offset) when there are no baked points', () => {
+    const out = { ox: 9, oy: 9 };
+    emissionOffset({ ...base, emitPoints: [], offsetX: 2, offsetY: 5 }, 0.5, 0.5, out);
+    expect(out).toEqual({ ox: 2, oy: 5 });
+  });
+});
+
 /**
  * SPAWN VELOCITY — the other half of squash.
  *

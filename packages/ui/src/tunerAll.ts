@@ -52,6 +52,7 @@ import { SPEC as QuestTendrilSpec } from './QuestTendrilTuner';
 import { SPEC as RefreshSpec } from './RefreshTuner';
 import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
 import { SPEC as RuneforgeBgSpec } from './RuneforgeBgTuner';
+import { SPEC as RuneSheenSpec } from './RuneSheenTuner';
 import { SPEC as SmokeSpec } from './SmokeTuner';
 import { SPEC as SpellBuffFxSpec } from './SpellBuffFxTuner';
 import { SPEC as SpellPowerFxSpec } from './SpellPowerFxTuner';
@@ -104,6 +105,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   RefreshSpec,
   RubyPowerFxSpec,
   RuneforgeBgSpec,
+  RuneSheenSpec,
   SmokeSpec,
   SpellBuffFxSpec,
   SpellPowerFxSpec,

@@ -12,6 +12,9 @@
     "hpGrant": {
       "def": "hp-grant"
     },
+    "minionSelfBuffed": {
+      "def": "self-buff-gold"
+    },
     "keyword": {
       "def": "keyword-gain"
     },

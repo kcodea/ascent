@@ -28,7 +28,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
-  { file: 'TavernUpButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+  { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
   { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },

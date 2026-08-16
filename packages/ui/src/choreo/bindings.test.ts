@@ -158,6 +158,8 @@ const BINDINGS: Record<string, { def: string }> = {
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
   rubyLanded: { def: 'ruby-gem-apply' },
   shopRubied: { def: 'ruby-gem-veinstorm' },
+  // Shop self-buffs (the green-pulse channel) — the recruit twin of combat's buffWave/attackExchange default.
+  minionSelfBuffed: { def: 'self-buff-gold' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.

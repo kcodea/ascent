@@ -57,6 +57,114 @@ trade in a long fight, which the first draft of the test got wrong).
 
 Full suite 5409 green.
 
+## 2026-08-15 — custom SVG emit shapes: the Inspector control (upload / fill / density / re-bake)
+
+Closes the four-part SVG-emit-shape feature: an emitter can now spawn its particles along (or across) an
+arbitrary SVG silhouette instead of the four hard-coded emit shapes. The earlier tasks laid the pipe —
+`motion.ts` samples an `emitPoints` cloud for `emitShape: 'svg'`, `svgEmit.ts` bakes an SVG into a normalized
+`[-1,1]` point cloud, and the `emitpoints` param kind + `emitFill`/`emitDensity`/`emitPoints` params landed on
+burst/smoke/emitter. This task is the workshop control that drives them.
+
+**Inspector (`packages/ui/src/fx/ui/Inspector.tsx`).** New `EmitPointsField` renders for the `emitpoints` kind:
+an **Upload SVG** file input (`.svg,image/svg+xml`) beside a live point-count readout (`"400 pts"` / `"no SVG"`).
+On upload it reads `file.text()`, stashes the raw SVG in `localStorage` under a per-layer key
+(`fx.emitsvg.<primitive>:<selectedLayer>`, threaded in as the Inspector's new `layerKey` prop), bakes, and
+commits the cloud through the existing `change('emitPoints', …)` handler. The sibling `emitFill` (toggle) and
+`emitDensity` (slider) still render through their own kinds; a `useEffect` keyed on `[fill, density, storageKey]`
+(skipping the first run so opening/selecting a layer never re-bakes over its stored points) re-bakes from the
+stashed SVG when either changes. With no stash, the hint reads *"Re-upload to change fill/density"* rather than
+silently no-op'ing. Bake failures surface as an inline error line — never a throw into render (mirrors the
+`shape` import control it's modelled on).
+
+**Why baked, not textured.** The point cloud is sampled once and persists in the def as plain `[x,y]` data that
+round-trips through `coerceParams`; the render path just picks a random point per spawn. Nothing about the
+original SVG (or a live rasterization) reaches players — so a committed def is fully prod-portable and needs no
+runtime SVG decode. The raw SVG lives ONLY in `localStorage`, an authoring-time convenience for re-baking; it is
+never written to the committed def (a def shared from another machine renders its baked points and simply prompts
+a re-upload before fill/density can change).
+
+**Fill actually works now (`svgEmit.ts`).** Task 2's fill path was synchronous and returned `[]` because an
+`<img>` is not decoded on the first synchronous call (`img.complete` is false). Added
+`svgToEmitPointsAsync(svgText, {fill, count})`: for fill it `await img.decode()` (guarded → `[]`) before
+rasterizing the alpha mask; outline delegates to the untouched sync `svgToEmitPoints`. Shared the rasterize +
+rejection-sample body between the sync and async fill paths so both produce identical clouds. The sync export and
+its Task-2 unit tests are unchanged. The Inspector's bake awaits the async variant.
+
+Styling: `.fxwb-emitsvg` block in `styles.css`, matching the sibling `.fxwb-shape` control (reuses the dashed
+upload-button + hint/error language).
+
+Verified: typecheck (pkgs + web) clean; lint 0 errors; `npm test` 338 files / 5425 passed, 2 skipped;
+`build:web` ✓ in ~7s. The fill rasterization + live spawn along the shape is a canvas/DOM path, so its final
+correctness is a workshop live-check (owner-run): upload an SVG, confirm outline spawns, flip fill to scatter the
+interior, drag density to change the count, save + reload to confirm the baked points persist. The pure pieces
+(sampler `emissionOffset 'svg'`, `normalize`, `coerceParams` for `emitpoints`) are unit-tested.
+## 2026-08-15 — Rune node sheen (glossy overlay) + owner quest-node layout
+
+A DEV-authored decorative overlay for the owned-rune nodes, plus baking the owner's tuned quest-node layout.
+
+**Rune sheen.** The owner supplied one PNG of three glossy discs; it's auto-sliced (by alpha bounding box) into
+`frames/rune-sheen-1|2|3.webp`, each an INDEPENDENT overlay on a rune node (`QuestBadges.tsx`). A new dev tuner
+(💠 **Rune Sheen**, `runeSheenConfig.ts` / `RuneSheenTuner.tsx`, registered in `DevMenu` + `tunerAll`) gives each
+disc its own x / y / size / opacity and a **blend-mode select** (normal · overlay · color-dodge · screen ·
+hard-light → CSS `mix-blend-mode`). Shipped at hard-light.
+
+The load-bearing detail (three iterations to get right): the sheen must live INSIDE `.questbadges` to
+`mix-blend-mode` against the badges — blending needs a shared stacking context, and any isolating wrapper
+(a `transform`) kills it. But that container carries the Quest-nodes layout transform, which was resizing the
+sheen with the scale slider (owner report). Fix: each disc counter-scales `--qb-s` **in its own transform**
+(a transform on the *blended* element doesn't isolate it from its backdrop, unlike an ancestor) and sizes in
+`--u-base`, so the sheen size is immune to BOTH the Quest-nodes Scale and the global UI-scale sliders; its
+translate rides the row + per-node offsets so it stays glued to the badges as the layout is tuned
+(center-pivot, so the counter-scale holds position). Verified live: at the default it's dead-centred on each
+node and `hard-light` composites; cranking either scale slider leaves the disc size unchanged (48px → 48px).
+
+**Quest-node layout** baked to the owner's tuned values (Scale 1.12, Separation 11, per-node Node-1 −4/60,
+Node-2 17/10, Node-3 43/26) in `layoutConfig.ts` + the styles.css fallbacks. Also removed the hard border ring
+on the rune badges (owner ask) — background/glow kept.
+
+Verified: `typecheck` (pkgs + web) clean; `lint` 0 errors (10 pre-existing warnings); `test` 5409/5409 green;
+`build:web` succeeds. (The bespoke shop tier-up effect from the same session shipped separately as #1059.)
+
+## 2026-08-15 — end-of-turn self-buffs also play self-buff-gold (the follow-up)
+
+Completes the earlier shop-self-buff work: the END-OF-TURN beat path showed the green pulse where the per-action
+path now plays `self-buff-gold`. Those beats route through the choreographer's `statsChanged` consequence
+presenter (`consequencePresenters.ts`), which fired the generic `statGain` burst for every ordinary buff. Added a
+`selfBuff` presenter capability and split the branch: when the beat's own minion is the one gaining stats
+(`beat.source.kind === 'minion' && beat.source.uid === target.uid`) it's a self-buff → `ctx.selfBuff`; everything
+else (a buff FROM another minion, an aura, a rune/quest reward) keeps `ctx.statGain`'s green burst. `Recruit.tsx`
+implements `selfBuff` the same way the per-action path does — `selfBuffMoment` through the recruit cue runner,
+green-burst fallback when defs can't play. Verified: typecheck + lint + test 5409/5409 (incl. two new presenter
+tests pinning the self-vs-cross split) + build.
+
+## 2026-08-15 — bespoke shop tier-up effect (`shop-tier-up`)
+
+The shop tavern-up button gets its own authored detonation. New def `packages/ui/src/fx/defs/shop-tier-up.json`
+(owner-tuned in the workbench — two shard bursts + two shockwaves, blue), replacing the old borrowed `impact-dust`
++ `pixiFx.impactPulse` press effect. `TavernUpButton.tsx` now fires `playDef('shop-tier-up', …)` at the button's
+live centre (all layers anchor to `source`) and drops the `getTavernUpConfig`/`pixiFx` dust+ring code. Direct-call
+bookkeeping updated in lockstep: `directCalls.ts` moves `TavernUpButton` off `impact-dust` and adds `shop-tier-up`,
+with `directCalls.test.ts` + `playDefUids.test.ts` goldens following. Verified: typecheck + lint + test 5408/5408
+(incl. the def-param validation + the direct-call/uid guards) + build.
+
+## 2026-08-15 — shop self-buffs play self-buff-gold (the green pulse, promoted to a bindable def)
+
+Owner report: `self-buff-gold` plays in combat but not the shop — a self-buffing minion (Ashscribe) only got the
+bare green stat-glow. Cause: `captureBuffFx` (recruit.ts:308) skips self-buffs ("no source→target pair for a
+tendril"), so they never reach the binding system; `Recruit.tsx` renders them as a green pulse instead.
+
+Promoted that pulse channel to a bindable def. New recruit-moment kind `minionSelfBuffed` + a `selfBuffMoment(uid,
+cardId)` constructor (same ad-hoc pattern as `shoutMoment`/`spellCastMoment`), bound kind-level in `bindings.json`
+to `self-buff-gold`. At the green-burst site in `Recruit.tsx`, each self-buffed minion now runs through the SAME
+recruit cue runner (`recruitCues.ts`) as rubyLanded/minionBuffed — one moment per self-buffer, keyed by its own
+card, so a card can override it via `cards.<id>.minionSelfBuffed` ("not explicitly redone"). The green burst
+remains only as a fallback when defs can't play (headless / overlay not yet ready), so a self-buff is never
+invisible. No new `playDef` call site — it rides the existing resolver.
+
+Covers on-action self-buffs (Ashscribe's `spellCast` reaction, on-play Shouts, buys). **Follow-up:** end-of-turn
+*beat*-sequenced self-buffs go through the separate `statGain` presenter path and still show the green pulse —
+routing those to the def is a later pass. Verified: typecheck + lint + test 5408/5408 + build.
+
 ## 2026-08-15 - Spell batch tranche 2: the five NEXT-COMBAT spells
 
 The half of the owner batch that needed real combat mechanics rather than data. Each spell ARMS a mark in the

@@ -54,6 +54,13 @@ export type RecruitMomentKind =
   /** A board minion gained stats from a shop-phase source — a Shout, a spell, an End of Turn. */
   | 'minionBuffed'
   /**
+   * A minion buffed ITSELF in the shop (Ashscribe). This is the "pulse channel" — the self-buffs `captureBuffFx`
+   * skips (they have no source→target pair for a tendril) and `Recruit.tsx` shows as a green stat-glow — promoted
+   * to a bindable def. The recipient IS the source, so it is emitted one moment per self-buffing minion (like
+   * `shout`) and keyed by that card, letting each resolve its OWN binding over the kind default (`self-buff-gold`).
+   */
+  | 'minionSelfBuffed'
+  /**
    * A minion's Shout fired as it was played. Its source is the same signal that already drives the medallion
    * pulse in `Recruit.tsx`: a minion newly on the board whose def carries an `onPlay` effect (or a Choose One).
    *
@@ -66,7 +73,7 @@ export type RecruitMomentKind =
   /** A tavern spell was cast; anchored at the release `point`, keyed by the spell's card id. */
   | 'spellCast';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'shout', 'spellCast'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -81,6 +88,16 @@ export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded',
  */
 export function shoutMoment(uid: string, cardId: string): RecruitMoment {
   return { kind: 'shout', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/**
+ * A `minionSelfBuffed` moment — a minion that buffed itself in the shop. Same shape as `shoutMoment`: the
+ * recipient IS the source, keyed by its card so each self-buffer resolves its OWN binding over the kind default.
+ * Emitted from `Recruit.tsx`'s stat-diff (the green-pulse detector), not `recruitMomentsSince` — a self-buff is a
+ * board diff, not a counter, exactly like a Shout.
+ */
+export function selfBuffMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'minionSelfBuffed', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
 }
 
 /** A `spellCast` moment: a tavern spell cast, anchored at the release `point` and keyed by the spell's card

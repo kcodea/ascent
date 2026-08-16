@@ -81,17 +81,47 @@ describe('Parting Cry — the Shout fires on death', () => {
   });
 });
 
-describe('Closed Casket — the Echo moves to Start of Combat', () => {
-  it('fires the Echo at SoC and suppresses it on the first death', () => {
-    // Menagerie Mammoth's Echo summons Beasts. Marked, it should summon at SoC and NOT again when it dies.
-    const p: BoardMinion[] = [{ cardId: 'b2_mammoth', attack: 1, health: 1, closedCasket: true } as BoardMinion];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 30, health: 60 }];
+describe('Closed Casket — the marked minion is DESTROYED at Start of Combat', () => {
+  it('kills the marked body, and its Echo fires from that real death', () => {
+    // Menagerie Mammoth's Echo summons Beasts. Marked, it should DIE at SoC and pay its Echo from the death.
+    const p: BoardMinion[] = [
+      { cardId: 'b2_mammoth', attack: 1, health: 40, closedCasket: true } as BoardMinion,
+      { cardId: 'sandbag', attack: 1, health: 60 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 60 }];
     const r = sim(p, e, {});
-    expect(r.events.some((ev) => ev.type === 'sc' && /casket opens/.test(ev.text ?? '')), 'the casket opened at SoC').toBe(true);
-    // The body dies to the 30-Attack sandbag; its Echo must NOT summon a second wave.
-    const marked = sim(p, e, {});
-    const plain = sim([{ cardId: 'b2_mammoth', attack: 1, health: 1 }], e, {});
-    const summons = (rr: ReturnType<typeof sim>) => rr.events.filter((ev) => ev.type === 'summon').length;
-    expect(summons(marked), 'the Echo pays ONCE, not twice').toBe(summons(plain));
+    expect(r.events.some((ev) => ev.type === 'sc' && /casket closes/.test(ev.text ?? '')), 'the casket fired').toBe(true);
+    // It really died — even though nothing could have killed a 40-Health body in this fight.
+    expect(r.events.some((ev) => ev.type === 'death'), 'the marked body actually died').toBe(true);
+    // …and the death paid its Echo.
+    expect(r.events.some((ev) => ev.type === 'summon'), 'its Echo summoned from the death').toBe(true);
+  });
+
+  it('an UNMARKED body of the same card is untouched', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'b2_mammoth', attack: 1, health: 40 },
+      { cardId: 'sandbag', attack: 1, health: 60 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 60 }];
+    const r = sim(p, e, {});
+    expect(r.events.some((ev) => ev.type === 'sc' && /casket closes/.test(ev.text ?? ''))).toBe(false);
+    // The distinguishing fact is WHEN it dies: marked, the 40-Health body is destroyed up front; unmarked, it
+    // survives the opening exchanges. (Bodies do eventually trade in a long fight — so assert the early death,
+    // not the absence of any death.)
+    const marked = sim([{ ...p[0]!, closedCasket: true } as BoardMinion, p[1]!], e, {});
+    const firstDeath = (rr: ReturnType<typeof sim>) => rr.events.findIndex((ev) => ev.type === 'death');
+    expect(firstDeath(marked), 'the casket kills it before anything else happens').toBeLessThan(firstDeath(r));
+  });
+
+  it('is a REAL death, so the Deathrattle tally counts it (every death watcher fires)', () => {
+    // The point of the rework: not a bespoke "fire its Echo" hook — a real death, so everything downstream
+    // (Avenge counters, friend-death watchers, the tally) comes along for free.
+    const p: BoardMinion[] = [
+      { cardId: 'b2_mammoth', attack: 1, health: 40, closedCasket: true } as BoardMinion,
+      { cardId: 'sandbag', attack: 1, health: 60 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 60 }];
+    const r = sim(p, e, {});
+    expect(r.playerDeathrattles ?? 0, 'the death was counted like any other').toBeGreaterThan(0);
   });
 });

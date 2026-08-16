@@ -21,6 +21,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Classify the 2026-08-16 hero-power beats.** `hero:emeraldwarden:vanguard` / `hero:underdweller:soulkeeper` / `hero:albus:empowerment` are registered `flagged: true` on a heuristic — they need the owner's real ownBeat/foldedCue call.
+
 - **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling
   2026-08-13): adopted Codex's 12-item Definition of Done as the spec. That doc tracks every item as
   done-merged / built-unmerged / TODO. The authoring surface is built (much of it unmerged, `#1000–#1004`); the

@@ -1771,7 +1771,8 @@ export interface Minion {
   resummon?: boolean;
   /** Parting Cry (spell): when this body dies next combat, its SHOUT fires. One-shot, spent on the death. */
   partingCry?: boolean;
-  /** Closed Casket (spell): its Echo fires at Start of Combat instead — and is SUPPRESSED on its first death. */
+  /** Closed Casket (spell): this body is DESTROYED at Start of Combat — a real death, so its Echo (and every
+   *  other death watcher) fires naturally. */
   closedCasket?: boolean;
   /** Recruit-phase buff breakdown carried from the run board (see BoardMinion.buffs) — passed into the
    *  combat snapshot so the inspect panel itemizes recruit buffs in combat. Combat-only minions (summoned

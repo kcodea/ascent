@@ -4177,7 +4177,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.partingCry = true;
   },
 
-  /** Closed Casket — mark the chosen ECHO minion: its Echo fires at Start of Combat instead of on its first death. */
+  /** Closed Casket — mark the chosen minion to be DESTROYED at Start of Combat (its Echo then fires naturally). */
   spellMarkClosedCasket: (ctx, self) => {
     if (!self) return;
     self.closedCasket = true;

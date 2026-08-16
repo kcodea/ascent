@@ -1896,15 +1896,7 @@ export function simulate(
         }
       }
     }
-    // CLOSED CASKET (spell): the Echo already paid at Start of Combat, so this FIRST death must not pay it
-    // again — the body's OWN Echo is skipped while every on-death WATCHER still sees the death (that is why
-    // this rides `ownAlreadyFired` rather than skipping the broadcast). The mark is spent here.
-    if (minion.closedCasket) {
-      minion.closedCasket = false;
-      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
-    } else {
-      bus.emit('onDeath', { minion, side: minion.side, killer });
-    }
+    bus.emit('onDeath', { minion, side: minion.side, killer });
     // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
     // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
     // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
@@ -2597,6 +2589,20 @@ export function simulate(
   }
   flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 
+  // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).
+  //     Deliberately a REAL death through the normal kill path rather than a bespoke "fire its Echo" hook:
+  //     everything that keys off a death comes along for free — its Echo, Avenge counters, friend-death
+  //     watchers, the Deathrattle tally, Rune of the Burrow, and so on. Reborn is NOT suppressed here (unlike
+  //     The Reclaimer above, which forces a true death because it resummons the body itself): "destroy" should
+  //     behave like any other destruction, so a Rise body dies, pays its Echo, and returns. ---
+  for (const minion of [...boards.player, ...boards.enemy]) {
+    if (!minion.closedCasket || minion.dead || minion.health <= 0) continue;
+    minion.closedCasket = false; // one-shot, spent as it fires
+    nextStep();
+    emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s casket closes` });
+    killOrReborn(minion);
+  }
+
   // --- Start of Combat: player minions left→right first (A.3 step 1), then the enemy's (owner ruling
   //     2026-07-03: a captured board's Start-of-Combat effects are live, not inert — an enemy Taurus
   //     engraves its line too). Effects reading the player's RUN state (Abhorrent Horror's consumed-Fodder
@@ -2806,19 +2812,6 @@ export function simulate(
       nextStep();
       fireTrigger('runeSpellhide', rside);
       resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined);
-    }
-    // CLOSED CASKET (spell): a marked body fires its Echo NOW instead of on death. `asEcho` so the fight's Echo
-    // watchers (Aftershocks / Undertow / the quest tally) see a real Echo trigger, exactly like a death would.
-    for (const m of boards[rside].filter((x) => x.closedCasket && !x.dead && x.health > 0)) {
-      const echoes = m.effects.filter((e) => e.on === 'onDeath');
-      if (echoes.length === 0) continue;
-      nextStep();
-      emit({ type: 'sc', source: m.uid, text: `${m.name}'s casket opens` });
-      asEcho(rside, () => {
-        for (const effect of echoes) {
-          withEffect(m, effect, () => FACTORIES[effect.do]?.(ctx, m, effect.params ?? {}, { minion: m, side: rside }));
-        }
-      });
     }
     if (rmods.runeFiveBanners) {
       // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a

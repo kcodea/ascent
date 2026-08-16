@@ -301,13 +301,15 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'The first **3** minions you summon next combat gain **+4/+4**.',
   },
   {
-    // Owner add 2026-08-15. Trades WHEN an Echo pays for certainty that it pays at all.
+    // Owner add 2026-08-15 (reworked same day): it simply DESTROYS the chosen minion at Start of Combat. The
+    // Echo is the obvious payoff, but because it is a real death everything else that keys off one fires too
+    // (Avenge, friend-death watchers, the Deathrattle tally).
     id: 'sp_closedcasket',
     name: 'Closed Casket',
     tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 2,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellMarkClosedCasket', params: {} }],
-    text: 'Choose an **Echo** minion. Trigger its **Echo** at Start of Combat, but not when it first dies next combat.',
+    text: 'Choose a minion. **Start of Combat:** destroy it.',
   },
   {
     // Owner add 2026-08-15. Buys a swing out of turn order — queued through the same lane an attack-on-summon

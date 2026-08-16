@@ -176,8 +176,8 @@ export interface BoardCard {
   resummon?: boolean;
   /** Parting Cry (spell): when this minion dies next combat, its Shout fires. Cleared at settle (one combat). */
   partingCry?: boolean;
-  /** Closed Casket (spell): its Echo fires at Start of Combat next combat, and is suppressed on its first
-   *  death that fight. Cleared at settle (one combat). */
+  /** Closed Casket (spell): this minion is DESTROYED at Start of Combat next combat — a real death, so its
+   *  Echo and every other death watcher fire naturally. Cleared at settle (one combat). */
   closedCasket?: boolean;
   /** Disco Dan: a hand card that cannot be PLAYED until you reach this shop tier (the T6/T4/T2 minions his
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play

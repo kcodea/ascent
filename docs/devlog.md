@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-15 - Closed Casket reworked: it simply DESTROYS the minion at Start of Combat
+
+Owner ruling: "Choose a minion. Start of Combat: Destroy this minion." Kills the body, which triggers its
+Echoes etc.
+
+This is a SIMPLIFICATION, not just a retext. The first version was a bespoke pair of hooks — fire the body's
+Echo at SoC, then suppress that Echo on its first death (via an `ownAlreadyFired` broadcast so other watchers
+still saw the death). Both hooks are now DELETED. The mark instead runs the normal kill path
+(`killOrReborn`), so a real death happens and everything downstream comes along for free: its Echo, Avenge
+counters, friend-death watchers, the Deathrattle tally, Rune of the Burrow, and anything added later.
+
+Reborn is deliberately NOT suppressed here — unlike The Reclaimer above it, which forces a true death because
+it resummons the body itself. "Destroy" should behave like any other destruction, so a Rise body dies, pays its
+Echo, and returns.
+
+Tests rewritten: the marked body really dies (a 40-Health body nothing in the fight could kill), its Echo
+summons from that death, the Deathrattle tally counts it like any other death, and an unmarked copy of the same
+card dies strictly LATER (the control asserts the early death rather than "no death" — bodies do eventually
+trade in a long fight, which the first draft of the test got wrong).
+
+Full suite 5409 green.
+
 ## 2026-08-15 - Spell batch tranche 2: the five NEXT-COMBAT spells
 
 The half of the owner batch that needed real combat mechanics rather than data. Each spell ARMS a mark in the

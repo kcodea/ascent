@@ -1904,7 +1904,11 @@ export function simulate(
     if (minion.partingCry) {
       minion.partingCry = false;
       if (minion.effects.some((e) => e.on === 'onPlay')) {
-        emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry` });
+        // `cast: true` is what makes the UI PLAY something: an `sc` without it is classified as narration
+        // (log line + a small trigger pulse) and draws no animation at all — see the `sc` case in
+        // useCombatReplay. The cry is a real, visible proc, so it flashes on the dying body (owner report
+        // 2026-08-17: "why isn't parting cry showing the shout animations").
+        emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry`, cast: true });
         // Route through the SAME machinery every other Shout-trigger uses (Dawnclaw, Ryme, Thunderous
         // Sovereign): `replayCombatBattlecry` for the effect itself, then the `battlecryTriggered` bus emit.
         // Calling the `onPlay` FACTORIES directly — as this used to — fired the effect but skipped the emit,

@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-17 - Parting Cry now ANIMATES: an `sc` without `cast` draws nothing
+
+Follow-up to yesterday's Parting Cry fix. That change made the cry's Shout fire correctly (the watchers get
+paid), but nothing was drawn on screen. The reason is a presentation contract I missed:
+
+    case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine cast flashes
+
+An `sc` event WITHOUT `cast: true` is classified as narration — it writes a combat-log line and a small trigger
+pulse, and draws no animation at all. The cry emitted a bare `sc`, so it was silent by construction. It now
+carries `cast: true` and flashes on the dying body, with a test asserting the flag (it is behaviour here, not
+decoration — without it the feature is invisible).
+
+**Wider gap, deliberately NOT changed here:** no combat Shout RE-TRIGGER animates the minion whose Shout fires.
+Dawnclaw and Ryme log `sc` without `cast`, and they point `source` at the TRIGGERING minion rather than the one
+whose Shout actually goes off — so even with the flag they would flash the wrong body. Making triggered Shouts
+animate properly is a shared presentation change (and the natural home for the Beat Lab's FX-on-beat work),
+not a one-line edit, so it wants its own PR and an owner ruling on what it should look like.
+
+Full suite 5501 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Matchmaking serves Supabase, then bots — local boards are no longer a tier
 
 **Owner ruling:** opponents come from the Supabase snapshots, then bot boards. No self-avoidance yet (there

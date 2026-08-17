@@ -1969,6 +1969,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const redrawn = drawRuneOffer(s, rng, new Set(s.runeforgeOffer));
       s.runeforgeOffer = redrawn.offer;
       s.runeforgeDiscounts = redrawn.discounts;
+      applyHeroForgeDiscount(s, rng); // a re-roll keeps the hero's own forge discounted
       s.runeforgeRerolled = true;
       s.runeforgeRerollUsed = true;
       return s;
@@ -3685,9 +3686,11 @@ function advanceCombat(s: RunState): void {
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
-    const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    const forgeRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
+    const drawn = drawRuneOffer(s, forgeRng);
     s.runeforgeOffer = drawn.offer;
     s.runeforgeDiscounts = drawn.discounts;
+    applyHeroForgeDiscount(s, forgeRng);
   } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
@@ -4065,13 +4068,31 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
  *  offer/buy/skip/reroll machinery as the Runesmith's forge, flagged `runeforgeEpic` so the reroll draws from the
  *  Epic pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
  *  normal forge's stream. */
+/**
+ * Guardian + Runesmith: the forge their OWN power opens is discounted across every slot (owner ask
+ * 2026-08-17) — it is their hero power's shop, so it should feel like one.
+ *
+ * Fills the gaps rather than overwriting: a slot that already earned a PIVOT discount keeps it, since that one
+ * can be larger and the two would otherwise fight. Uses the same span as the pivot so a "discounted rune"
+ * means one consistent thing, and draws from the passed `rng` so replays hold.
+ */
+function applyHeroForgeDiscount(s: RunState, rng: ReturnType<typeof makeRng>): void {
+  const kind = getHero(s.heroId).power.kind;
+  if (kind !== 'runeforge' && kind !== 'epicRuneforge') return;
+  const span = s.runeforgeEpic ? [2, 3, 4] : [1, 2];
+  s.runeforgeDiscounts = (s.runeforgeOffer ?? []).map((_, i) =>
+    s.runeforgeDiscounts?.[i] ?? span[rng.int(span.length)]!);
+}
+
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeNoCharge = true; // reached by a quest/rune, not the hero power
   s.runeforgeRerolled = undefined;
-  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  const epicRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2));
+  const drawn = drawRuneOffer(s, epicRng);
   s.runeforgeOffer = drawn.offer;
   s.runeforgeDiscounts = drawn.discounts;
+  applyHeroForgeDiscount(s, epicRng);
 }
 
 /** Open the BASIC Runeforge from a quest/rune (The Runeforge quest), granting `gold` this turn. Uses the normal
@@ -4080,9 +4101,13 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   s.runeforgeEpic = undefined;
   s.runeforgeNoCharge = true;
   s.runeforgeRerolled = undefined;
-  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
+  const schedRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3));
+  const drawn = drawRuneOffer(s, schedRng);
   s.runeforgeOffer = drawn.offer;
   s.runeforgeDiscounts = drawn.discounts;
+  // The discount follows the HERO, not the route: Runesmith's forge can also arrive on this scheduled path,
+  // and it is still his shop either way.
+  applyHeroForgeDiscount(s, schedRng);
   if (gold > 0) gainGold(s, gold);
 }
 

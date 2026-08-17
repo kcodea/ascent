@@ -21,7 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Guardian + Runesmith: discount their extra rune offerings** on the hero-power forge.
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
 

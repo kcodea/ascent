@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-17 - Guardian + Runesmith's own forge is fully discounted
+
+Their hero power's forge now discounts EVERY slot (owner ask) — it is their shop, so it should feel like one.
+
+Keyed off the HERO's power kind rather than the route that opened the forge, and applied at all four draw
+sites (Runesmith's wave-5 draw, the epic forge, the scheduled basic forge, and a re-roll). That matters
+because Guardian's forge arrives through `openEpicRuneforge` — a function whose comment says "reached by a
+quest/rune, not the hero power", which is true of every hero EXCEPT him.
+
+It fills gaps rather than overwriting: a slot that already earned a PIVOT discount keeps it, since that one
+can be larger and the two would otherwise fight. Same value span as the pivot, so "a discounted rune" means
+one consistent thing, and drawn from the passed rng so replays hold.
+
+**One existing test had to move heroes.** The pivot-discount test asserted "discounts land ONLY on
+non-following runes" while using Runesmith to open the forge — an invariant that cannot hold for him now.
+Swapping to a non-forge hero opened nothing (they have no forge), so it now opens the UNIVERSAL forge via the
+runic rift at wave 6, which lets the pivot rule be observed on its own. Updated, not loosened: it still
+asserts the same rule, just through a hero that has only that rule.
+
+Full suite 5518 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 
 - **Flash's options are First Place / Last Place** (were First Blood / Last Word).

@@ -131,7 +131,7 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnGainRightmostShopStats',
   'onShopRefreshGainRightmostShopStats', // Hellrider (2026-08-14): every N refreshes, copy the right-most offer's stats
   'avengeGrantRandomTribeMinion',        // Grobbus (2026-08-14): Avenge (X) — get a random Demon
-  'scEngraveTribeNeighboursBuffTribe',   // Transcendence (2026-08-14): SoC Engrave adjacent Dragons, then buff Dragons
+  'scBuffTribe',                         // Transcendant (2026-08-17): SoC buff your Dragons (Engrave is a live aura)
   'scBuffRandomTribePerAle',             // Drunken Oaf (2026-08-14): SoC buff a random Dwarf, once per Ale + 1
   'spellCopyTargetExact',
   'endOfTurnBuffSpellsAndImps',

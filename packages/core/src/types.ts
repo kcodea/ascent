@@ -25,6 +25,7 @@ export type Keyword =
   | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
+// NB: Transcendant grants Engraved as a LIVE ADJACENCY AURA rather than the keyword — see `engravedByAura`.
 
 /**
  * ── Trigger multipliers ────────────────────────────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ export type EffectFactoryId =
   | 'endOfTurnGainRightmostShopStats' // Set 2 — (legacy Bob Blart) gain the right-most shop minion's stats (no consume)
   | 'onShopRefreshGainRightmostShopStats' // Set 2 — Hellrider: every N refreshes, gain the right-most Shop minion's stats (no consume)
   | 'avengeGrantRandomTribeMinion' // Set 2 — Grobbus: Avenge (X) — get a random minion of a tribe
-  | 'scEngraveTribeNeighboursBuffTribe' // Set 2 — Transcendence: SoC Engrave adjacent tribe-mates, then buff the tribe
+  | 'scBuffTribe' // Set 2 — Transcendant: Start of Combat, buff every friendly minion of a tribe
   | 'scBuffRandomTribePerAle' // Set 2 — Drunken Oaf: SoC buff a random tribe minion, once + once per Ale cast this turn
   | 'spellCopyTargetExact' // Copycat (rune gift): an EXACT copy of the target friendly minion, to hand
   | 'endOfTurnBuffSpellsAndImps' // Set 2 — Void Curator: buff your spells and Imps
@@ -1739,6 +1740,8 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Set when a gain was engraved by Transcendant's live adjacency aura rather than the EG keyword. */
+  auraEngraved?: boolean;
   /** The RUBY share of `permaGain`. Rubies applied in combat are permanent, and without knowing which part of
    *  the carry-back came from them the run board labelled the gain "Flowing Monk" — the only non-Engraved
    *  source that existed before Set 2. Subtracted out at collection so each share is labelled correctly. */

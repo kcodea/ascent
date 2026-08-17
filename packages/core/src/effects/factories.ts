@@ -1010,22 +1010,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** TRANSCENDENCE (owner add 2026-08-14) — Start of Combat: Engrave the adjacent `tribe` minions (Dragons), then
-   *  give ALL of your `tribe` +atk/+hp. Deliberately ONE factory rather than Taurus + a tribe-buff stacked: the
-   *  order matters — the neighbours must be Engraved BEFORE the buff lands so this fight's +3/+3 is part of what
-   *  they keep (`ctx.buff` accrues into `permaGain` only for EG carriers). Off-tribe neighbours are skipped, so
-   *  a Dragon flanked by Beasts just buffs. Golden doubles the grant, not the Engrave. */
-  scEngraveTribeNeighboursBuffTribe: (ctx, self, params) => {
+   *  give ALL of your `tribe` +atk/+hp. Transcendant's Engrave half is NOT here any more (owner respec
+   *  2026-08-17): it is a live adjacency aura evaluated inside `ctx.buff`, so this buff is engraved for its
+   *  neighbours purely by virtue of Transcendant being alive when it lands. Golden doubles the grant. */
+  scBuffTribe: (ctx, self, params) => {
     if (self.dead) return;
     const tribe = (str(params.tribe) || 'dragon') as Tribe;
     const isTribe = (m: Minion | undefined): m is Minion =>
       !!m && !m.dead && m.health > 0 && (m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe);
-    const board = ctx.boards[self.side];
-    const i = board.indexOf(self);
-    if (i >= 0) {
-      for (const m of [board[i - 1], board[i + 1]]) {
-        if (isTribe(m) && !m.keywords.includes('EG')) m.keywords.push('EG'); // per-combat clone, never a shared CardDef
-      }
-    }
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 3) * mul(self);
     if (a <= 0 && h <= 0) return;

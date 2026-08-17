@@ -266,7 +266,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveNeighbor:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
-  'factory:scEngraveTribeNeighboursBuffTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Transcendence
+  'factory:scBuffTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Transcendant
   'factory:scGainFodderStats:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainKeyword:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGrantEnemyTaunt:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },

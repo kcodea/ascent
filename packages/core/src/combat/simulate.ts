@@ -616,9 +616,26 @@ export function simulate(
         const g = Math.max(0, attack) + Math.max(0, health);
         if (g > 0) for (const t of tribesFor(target)) questTally.statGainByTribe[t] = (questTally.statGainByTribe[t] ?? 0) + g;
       }
+      // TRANSCENDANT: Engraved as a LIVE ADJACENCY AURA rather than a one-shot grant (owner respec
+      // 2026-08-17). Evaluated HERE, at the moment stats are gained, which is what makes "while alive and
+      // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
+      // dies do not. Granting the EG keyword instead would be wrong — the keyword persists, so a single
+      // adjacent buff would silently engrave the rest of the fight.
+      const auraEngraved = ((): boolean => {
+        const side = boards[target.side];
+        const i = side.indexOf(target);
+        if (i < 0) return false;
+        const isDragon = target.tribe === 'dragon' || target.tribe2 === 'dragon';
+        if (!isDragon) return false;
+        for (const nb of [side[i - 1], side[i + 1]]) {
+          if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return true;
+        }
+        return false;
+      })();
+      if (auraEngraved) target.auraEngraved = true; // so the carry-back entry attributes it correctly
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
-      if (target.keywords.includes('EG')) {
+      if (target.keywords.includes('EG') || auraEngraved) {
         target.permaGain = {
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,
@@ -3405,7 +3422,7 @@ export function simulate(
         out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
       }
       if (restA > 0 || restH > 0) {
-        out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') });
+        out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved });
       }
       return out;
     });

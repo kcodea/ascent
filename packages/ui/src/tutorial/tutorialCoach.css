@@ -86,6 +86,7 @@
   position: fixed;
   z-index: var(--tut-z-panel);
   pointer-events: auto; /* the panel itself is interactive (Why, Next) */
+  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; /* keep the game cursor over the panel body */
   box-sizing: border-box;
   width: max-content;
   max-width: min(320px, calc(100vw - 24px));
@@ -191,7 +192,7 @@
   background: none;
   border: none;
   padding: 0;
-  cursor: inherit;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 700;
   font-size: 12px;
@@ -225,7 +226,7 @@
   border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
   background: linear-gradient(180deg, var(--tut-gold-lt), var(--tut-gold));
   color: #1a1006;
-  cursor: inherit;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 .tut-coach-next:hover {
   filter: brightness(1.06);
@@ -253,6 +254,10 @@
   background: rgba(10, 8, 16, 0.72);
   backdrop-filter: blur(3px);
   animation: tut-fl-in 0.22s ease both;
+  /* An element with `backdrop-filter` breaks inherited `url()` cursors on itself + descendants (Chromium), so
+     re-declare the game's custom cursor here — the same reason `.inspect-ov` does. Without it the mouse cursor
+     disappears / falls back to the OS arrow over this whole panel. */
+  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
 }
 @keyframes tut-fl-in { from { opacity: 0; } to { opacity: 1; } }
 .tut-fl-card {
@@ -284,7 +289,7 @@
   gap: 2px;
   padding: 13px 18px;
   border-radius: 12px;
-  cursor: pointer;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   transition: transform 0.12s ease, filter 0.12s ease;
 }
 .tut-fl-primary:hover, .tut-fl-secondary:hover { transform: translateY(-2px); filter: brightness(1.08); }

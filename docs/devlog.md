@@ -708,6 +708,33 @@ source folder, so nothing was wired (reported, never guessed).
 30 new tests; three stale assertions updated for Rascal's rework. Full suite 5472 green, typecheck + lint +
 build:web clean.
 
+## 2026-08-16 — Keshi the Protector (new hero)
+
+A new hero whose passive, **Keshi's Crown**, banks the tavern tier of every card purchased and grants a
+**Triple Reward** each time the bank reaches 25, then resets.
+
+- **Engine.** New `crownTally` `HeroPowerKind` and `keshi` `HeroDef` (30 Resolve / 10 armor, passive, no
+  henchman) in `packages/sim/src/heroes.ts`. New `RunState.keshiTierPoints` counter. New `keshiCrownBuy`
+  helper in the reducer, called from all four `buy` branches (normal minion, held/displaced minion, the
+  right-hand spell slot, and a spell offer in the minion row) plus `buyHenchman` — spells count, because the
+  rule is "25 shop tiers worth of **cards**".
+- **The payout is not new machinery.** It calls the existing `grantGoldenDiscover`, i.e. literally the Triple
+  Reward a golden minion grants when played, with `grantedTier` frozen to the tavern tier it was earned on.
+  Rune of the Corrupted Tome's double-grant is inherited for free.
+- **Overflow is discarded** — the bank resets to 0, not to the remainder (owner spec). The one exception is a
+  full hand: `grantGoldenDiscover` would silently drop the card, so instead the bank is **held** at 25+ and
+  pays out on the next purchase with room. The panel shows the raw number, so `27/25` is a real state.
+- **Armor 10** places Keshi with the strong-passive band (Flint / Pete / Merrin) rather than the quest heroes
+  at 13 — projected ~5–6 Triple Rewards over a 17-round course, so the engine has to survive to cash in.
+- **UI.** `StatusBar.tsx` gains the `crownTally` tally (`14/25` numerals) and passive power line. Portrait and
+  power-button art added via `npm run optimize-art`.
+- **Verified.** New `packages/sim/src/keshiCrown.test.ts` (10 tests) covers accumulation, each purchase path,
+  the payout and its frozen tier, overflow discard, repeatability, the full-hand hold and its later payout,
+  and hero-gating. Full `typecheck` + `lint` + `test` + `build:web` green.
+- **Follow-ups.** No henchman yet (the `buyHenchman` hook is wired but unreachable until she has one). The
+  power-button art is not a transparent cutout, so the circle shows its forest backdrop. The 25 threshold is
+  a single-number retune if playtest says it lands wrong.
+
 ## 2026-08-16 - Three heroes (Emerald Warden, Underdweller, Albus) + the Gambler's die stays up
 
 Owner batch. Three new heroes, their art wired, and one presentation fix.

@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-17 - Shop-phase perf plan scoped (and one audit claim corrected)
+
+Turned Codex's three-item performance audit into a buildable plan at
+[`docs/perf-shop-phase-plan.md`](perf-shop-phase-plan.md), after checking each claim against the code.
+
+**The correction that matters: the audit's item 1 is largely already implemented.** It describes a purchase as
+running the full generic FLIP pipeline and proposes a dedicated transition that commits the drag-preview
+positions instead. That path exists, and `buyDrop` already takes it — the manual-FLIP branch excludes the
+bought card from the captured rects and glides only its neighbours ("on a sell/buy the survivors already sat
+re-centred, so they barely move"). There is also a drag-time optimisation the audit misses: only ONE row is
+captured during a drag, added after the 2026-08-06 capture where `layout:flip` was 90% of all work.
+
+What genuinely remains from that item is a forced reflow (`void document.body.offsetWidth`) plus per-element
+rect reads on each commit — real, but a footnote rather than a headline.
+
+So the order is **re-sequenced**: rendering isolation first (React rendering is ~3.5x the layout cost in the
+audit's own profile), then the card-view signature cache for late-game scaling, then the reflow. Both traces
+independently put `render:recruit` + `layout:flip` at ~94% of measured time with the sim and reducers at ~0,
+so the diagnosis is not in doubt — only the ordering was.
+
+Flagged in the plan: **take a prod trace before starting.** The audit's figures come from dev Scene Builder,
+where StrictMode's double-invoke alone would inflate its "~32 Recruit renders", and CLAUDE.md requires
+confirming slow reports against the prod build. That could move the A-vs-B ratio.
+
+No code changed.
+
 ## 2026-08-17 - Perf trace analysed; owner-tuned Cia values baked in
 
 **Trace analysis** (`ascent-perf-1786970315203.json`, 30s, 3440x1351 @ 240Hz, DPR 1). Median frame 4.2ms —

@@ -66,9 +66,18 @@ step now accepts the buff with a combat-ended fallback so it can never hard-stal
 - **Coaching no longer paints over the Title / hero picker / end screens** — the controller gates on the
   tutorial run being the ACTIVE screen (a backgrounded tutorial run used to overlay the Title).
 
+**Also added:**
+- **Cursor fix** — the first-launch overlay's `backdrop-filter` broke the game's inherited `url()` cursor
+  (a Chromium quirk `.inspect-ov` already works around); every tutorial overlay now re-declares the gauntlet
+  cursors explicitly.
+- **Save/resume mid-course** — a player who quits to the Title mid-tutorial and hits Continue resumes at the
+  saved step, not step 1 (`tutorialProfile` already persisted `lastStepId`; the controller now restores the
+  cursor to it, keyed on `run.seed` so a FRESH Learn launch still starts at 0 — `startTutorial` clears the
+  saved step via `beginCourseFresh` so a wave-1 run never desyncs to an old step). Verified live: advance →
+  quit → resume lands on the same step; a fresh relaunch resets to step 1.
+
 **Still deferred (follow-ups, not blockers):** the interactive order-demo silhouette drag (a read-and-continue
-panel stands in); the full 12-round course (4 real rounds authored); per-step soft gates beyond End Turn; and
-save/resume mid-course (a resumed tutorial currently restarts from step 1).
+panel stands in); the full 12-round course (4 real rounds authored); and per-step soft gates beyond End Turn.
 
 ## 2026-08-17 — FTUE Phase 0: blueprint adopted, and the presentation-contract spike
 

@@ -49,6 +49,7 @@ import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, 
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
+import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -1100,6 +1101,9 @@ export const useGame = create<GameStore>((set, get) => ({
   startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startTutorial: (course) => {
     dropBoardFx();
+    // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear
+    // any saved step from a prior play (Continue resumes the SAME run and does NOT come through here).
+    beginCourseFresh(course.id, course.version);
     set(() => {
       // Build the authored `tutorial` run directly — the course forces its own hero (Aster), so there is no
       // picker to route through (mirrors startSceneBuilder). The omen board table and the scripted shop are

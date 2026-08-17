@@ -234,6 +234,25 @@ export function startCourse(courseId: string, courseVersion: number): void {
   commit(next);
 }
 
+/** Begin a course FROM SCRATCH: `in_progress` with the saved step CLEARED, so the coaching cursor starts at
+ *  step 0. Used when the player launches a brand-new tutorial run (the Learn button / first-launch), whose run
+ *  starts fresh at wave 1 — resuming a stale `lastStepId` there would desync the coach from the run. Resuming
+ *  the SAME run (Continue) does NOT call this, so its `lastStepId` survives and the course picks up where it
+ *  was. Preserves `startedAt` so "when did they first try it" is unaffected. */
+export function beginCourseFresh(courseId: string, courseVersion: number): void {
+  const next = draft();
+  const prev = next.courses[courseId];
+  next.courses[courseId] = {
+    courseId,
+    courseVersion,
+    status: 'in_progress',
+    lastStepId: undefined,
+    startedAt: prev?.startedAt ?? nowIso(),
+    completedAt: prev?.completedAt,
+  };
+  commit(next);
+}
+
 /** Record the last step reached, so a resumed course continues from here. Creates the row if absent. */
 export function setCourseStep(courseId: string, stepId: string): void {
   const next = draft();

@@ -27,7 +27,7 @@ import { measureAnchors } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
 import {
-  completeCourse, markLessonDemonstrated, setCourseStep, startCourse,
+  completeCourse, getCourseProgress, markLessonDemonstrated, setCourseStep, startCourse,
 } from './tutorialProfile';
 import { TUTORIAL_LESSON_KEYS, type TutorialLessonKey } from '@game/sim';
 
@@ -153,14 +153,27 @@ export function TutorialController(): JSX.Element | null {
     setEvents((prev) => [...prev, e]);
   }, []);
 
-  // Mark the course started + reset the walk whenever a fresh tutorial run appears.
+  // Mark the course started, and RESUME at the saved step when the tutorial screen (re)appears — so a player
+  // who quit to the Title mid-course picks up where they left off instead of restarting. The run itself is
+  // restored by the normal autosave; this realigns the coaching cursor to it. A course-version mismatch (the
+  // steps changed since the save) or no saved step falls back to the start.
+  // `run.seed` is stable across a run's actions and across resuming the SAME run, but changes when a fresh
+  // tutorial run is launched — so it's the signal that re-runs this effect on a new run (whose `beginCourseFresh`
+  // cleared the saved step → cursor 0), while a resume re-runs it via `isTutorial` flipping true (saved step
+  // intact → resume). Without it, launching a fresh run for the same course wouldn't re-run this and the cursor
+  // would stay on the old run's step, desynced from a wave-1 board.
+  const runSeed = run.seed;
   useEffect(() => {
     if (!isTutorial || !course) return;
+    const progress = getCourseProgress(course.id);
     startCourse(course.id, course.version);
-    setCursor(0);
+    const savedIdx = progress && progress.courseVersion === course.version && progress.lastStepId
+      ? items.findIndex((it) => (it.kind === 'step' ? it.step.id : it.id) === progress.lastStepId)
+      : -1;
+    setCursor(savedIdx >= 0 ? savedIdx : 0);
     setEvents([]);
     sawEverRef.current = new Set();
-  }, [isTutorial, course]);
+  }, [isTutorial, course, items, runSeed]);
 
   // Subscribe to the dispatched-action stream while a tutorial is live; translate to semantic events.
   useEffect(() => {

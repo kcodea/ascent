@@ -5107,7 +5107,7 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
 }
 
 /**
- * Juggler (Baldgecoin): every 3 minions bought hands over a Gold Pouch.
+ * Juggler (Baldgecoin): every 3 minions bought hands over a Carnival Coin.
  *
  * The counter WRAPS at 3 rather than accumulating, so a full hand costs you that pouch instead of banking it
  * — the same call Cia's prize makes. Counted on every buy route, since a hook wired to only one of them is
@@ -5118,8 +5118,8 @@ function jugglerBuy(s: RunState): void {
   const n = (s.jugglerBuys ?? 0) + 1;
   if (n < 3) { s.jugglerBuys = n; return; }
   s.jugglerBuys = 0;
-  const pouch = CARD_INDEX['emberpouch'];
-  if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
+  const coin = CARD_INDEX['carnivalcoin'];
+  if (coin && s.hand.length < handCap(s)) conjureToHand(s, [coin], 1);
 }
 
 /**

@@ -61,7 +61,7 @@ export type HeroPowerKind =
   | 'commission' // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
   | 'devour' // Devourer: 1 Gold — eat a friendly minion, spitting its stats onto a random other friendly
   | 'memory' // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
-  | 'baldgecoin' // Juggler (passive): every 3 minions bought → a Gold Pouch; his Pouches also buff the board
+  | 'baldgecoin' // Juggler (passive): every 3 minions bought → a Carnival Coin (1 Gold + a board buff)
   | 'firstOrLast'; // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
 
 export interface HeroPower {
@@ -688,8 +688,7 @@ export const HEROES: HeroDef[] = [
       name: 'Baldgecoin',
       kind: 'baldgecoin',
       passive: true,
-      // The +1/+1 scales with spell power, so the printed value is filled in live by `heroPowerText`.
-      text: 'Every **3** minions you buy, get a **Gold Pouch**. Your Gold Pouches also give your minions **+1/+1**.',
+      text: 'Every **3** minions you buy, get a **Carnival Coin**.',
     },
   },
   {

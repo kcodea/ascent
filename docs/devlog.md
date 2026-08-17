@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-17 - Juggler pays a CARNIVAL COIN, not a modified Gold Pouch
+
+Owner redesign, and a better one: instead of Juggler changing what an existing card does, his power grants a
+NEW card.
+
+- **Carnival Coin** — a `token: true` spell: gain **1 Gold** and give your minions **+1/+1**. Never drawable
+  (out of the shop, spell Discovers and every random-spell grant), exactly like the quest-reward spells. Two
+  cast effects on one card: `gainEmbers` plus `spellBuffAll`, and because the buff uses the ordinary
+  stat-granting family it picks up spell power automatically and its printed value stays live for free.
+- **Gold Pouch is untouched again.** The previous pass made it buff the board while Juggler was the hero, which
+  meant a card whose behaviour depended on who you were playing — and a text rider to explain it. Both are
+  reverted. A separate card is simply the right shape: no conditional in the cast path, no conditional in the
+  card text, and nothing to keep in sync.
+- **The power now shows an `x/3` pill** counting minions bought toward the next Coin, in the same tally slot
+  every other counting hero uses.
+
+Verified in the browser after a clean reload: the pill reads `2/3` at two buys, on Juggler's own art. (An
+earlier reading showed stale Cassen state — worth knowing that after many `newRun` calls in one session the
+dev page needs a reload before the panel can be trusted.)
+
+Full suite 5527 green, typecheck + lint + build:web clean. Carnival Coin's art can drop into the spell folder
+whenever it is ready; the card resolves without it.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
 ## 2026-08-17 - Jensen re-enabled; Juggler joins
 
 - **Jensen ships again** (owner) — the `wip` flag is off and the hero-disable test's list shrinks to two. He

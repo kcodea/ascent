@@ -624,10 +624,6 @@ export function heroPowerText(state: RunState): string {
     const g = aegisGrantOf(state);
     return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
   }
-  if (power.kind === 'baldgecoin') {
-    const a = 1 + spellAttackBonus(state), h = 1 + spellHealthBonus(state);
-    return `Every **3** minions you buy, get a **Gold Pouch**. Your Gold Pouches also give your minions **+${a}/+${h}**.`;
-  }
   if (power.kind === 'commission') {
     // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
     // options actually on offer (never the one taken last).
@@ -5800,13 +5796,6 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
     return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
   }
-  // JUGGLER: his Gold Pouches also buff the board, so the CARD must say so — the live-text rule applies to a
-  // card whose behaviour a hero changed, not only to one that scales. Appended rather than replacing the Gold
-  // line, because the Pouch still pays its Gold too. `juggler` rides in on `extra` so this stays pure.
-  if (cardId === 'emberpouch' && extra?.juggler) {
-    const a = 1 + bonusA, h = 1 + bonusH;
-    return `${def.text} Give your minions **{{+${a}/+${h}}}**.`;
-  }
   // Rune of Living Growth: the Growth spell's printed value must track its accrual (the live-text rule) —
   // same shape as the Ruby line above. Spell power on top is already folded in by the generic path below
   // for spells routed through bonusA; Growth's whole magnitude lives here instead, base + accrual + power.
@@ -6938,12 +6927,6 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       // Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth `goldPouchValue` Gold instead of 1.
       const gain = spellDef.id === 'emberpouch' && state.goldPouchValue ? state.goldPouchValue : num(effect.params?.amount);
       gainGold(state, gain);
-      // JUGGLER (Baldgecoin): his Gold Pouches also buff the board. Rides the shared spell-power bonus like
-      // every other stat-granting spell, so Spellstone et al. raise it exactly as they raise a Growth.
-      if (spellDef.id === 'emberpouch' && getHero(state.heroId).power.kind === 'baldgecoin') {
-        const a = 1 + spellAttackBonus(state), h = 1 + spellHealthBonus(state);
-        for (const c of state.board) addBuff(c, 'Baldgecoin', a, h);
-      }
     }
   }
   // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.

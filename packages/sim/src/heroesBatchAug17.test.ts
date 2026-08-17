@@ -175,23 +175,28 @@ describe("Cassen's rare jobs", () => {
 });
 
 describe('Juggler — Baldgecoin', () => {
+  it('the Carnival Coin is a TOKEN — never drawable from a shop or Discover', () => {
+    const def = CARD_INDEX['carnivalcoin']!;
+    expect([def.spell, def.token], 'a non-drawable spell').toEqual([true, true]);
+  });
+
   it('is a 12-armor passive', () => {
     const h = getHero('juggler');
     expect([h.armor, h.power.kind, h.power.passive]).toEqual([12, 'baldgecoin', true]);
   });
 
-  it('hands over a Gold Pouch on every 3rd minion bought', () => {
+  it('hands over a Carnival Coin on every 3rd minion bought', () => {
     let s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 40, hand: [], board: [],
       shop: [{ uid: 'a', cardId: 'stray' }, { uid: 'b', cardId: 'alley' }, { uid: 'c', cardId: 'pack' }] } as RunState;
     for (const uid of ['a', 'b', 'c']) s = reduce(s, { type: 'buy', uid } as never);
-    expect(s.hand.filter((c) => c.cardId === 'emberpouch').length, 'the 3rd buy paid a Pouch').toBe(1);
+    expect(s.hand.filter((c) => c.cardId === 'carnivalcoin').length, 'the 3rd buy paid a Coin').toBe(1);
     expect(s.jugglerBuys, 'the counter wrapped').toBe(0);
   });
 
-  it('his Gold Pouch buffs the board as well as paying Gold', () => {
+  it('the Carnival Coin pays Gold AND buffs the board', () => {
     const s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 5,
       board: [{ uid: 'm', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
-      hand: [{ uid: 'p', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
+      hand: [{ uid: 'p', cardId: 'carnivalcoin', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
     const after = reduce(s, { type: 'play', uid: 'p' } as never);
     const m = after.board.find((c) => c.uid === 'm')!;
     expect([m.attack - 2, m.health - 2], 'at least the printed +1/+1').toEqual([1, 1]);
@@ -199,7 +204,7 @@ describe('Juggler — Baldgecoin', () => {
   });
 
   it('another hero\'s Gold Pouch does NOT buff the board', () => {
-    const s = { ...createRun(6), phase: 'recruit', heroId: 'indy', embers: 5,
+    const s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 5,
       board: [{ uid: 'm', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'p', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
     const after = reduce(s, { type: 'play', uid: 'p' } as never);

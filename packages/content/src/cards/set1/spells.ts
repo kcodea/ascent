@@ -35,6 +35,28 @@ export const SPELLS: CardDef[] = [
     text: 'Gain **1 Gold**.',
   },
   {
+    // JUGGLER'S CARNIVAL COIN — granted only by his Baldgecoin power, never drawable. `token: true` keeps it
+    // out of the shop, spell Discovers and every random-spell grant, exactly like the quest-reward spells.
+    // Gold Pouch is left alone: this is a separate card rather than a hero-conditional override of one.
+    id: 'carnivalcoin',
+    name: 'Carnival Coin',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    token: true,
+    // Two cast effects, one card. `spellBuffAll` is the ordinary stat-granting family, so the +1/+1 picks up
+    // spell power automatically and its printed value stays live for free.
+    effects: [
+      { on: 'cast', do: 'gainEmbers', params: { amount: 1 } },
+      { on: 'cast', do: 'spellBuffAll', params: { attack: 1, health: 1 } },
+    ],
+    text: 'Gain **1 Gold**. Give your minions **+1/+1**.',
+  },
+  {
     id: 'bulwark',
     name: 'Bulwark',
     tribe: 'neutral',

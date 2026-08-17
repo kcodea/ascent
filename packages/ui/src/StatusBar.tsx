@@ -214,6 +214,7 @@ export function StatusBar() {
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
       // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
       // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
+      case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler — minions bought toward the next Coin
       case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
       default: return null;
     }

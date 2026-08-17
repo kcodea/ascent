@@ -1870,6 +1870,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       const questId = offer[action.index];
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
+      // Fi (lesser errand) and Coran (capstone) grant an EXTRA quest shop; the quest taken from it is their
+      // power, so its art takes the power's slot. Their bonus shop is the only one they open, so any quest
+      // taken while they are the hero is the granted one.
+      {
+        const kind = getHero(s.heroId).power.kind;
+        if (kind === 'lesserQuest' || kind === 'pathfinder') s.heroGrantArt = { kind: 'quest', id: questId };
+      }
       s.questOffer = undefined;
       openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next
       return s;
@@ -1947,6 +1954,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
       if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
+      // The power button now wears this rune — but only when the forge was the HERO's, not a quest's.
+      {
+        const kind = getHero(s.heroId).power.kind;
+        const mine = (kind === 'runeforge' && !s.runeforgeNoCharge) || (kind === 'epicRuneforge' && s.runeforgeEpic);
+        if (mine) s.heroGrantArt = { kind: 'rune', id: rune.id };
+      }
       closeRuneforge(s);
       checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)

@@ -256,3 +256,40 @@ describe("Midas — Midas' Touch", () => {
     expect(ids, 'and NOT the Triple Reward').not.toContain('discoverspell');
   });
 });
+
+describe('granted quest/rune art takes the hero-power slot', () => {
+  it("Runesmith's own forge stamps the rune he bought", () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runesmith', embers: 30,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    const after = reduce(s, { type: 'buyRune', index: 0 } as never);
+    expect(after.heroGrantArt, 'his forge, his slot').toEqual({ kind: 'rune', id: 'rune_packcraft' });
+  });
+
+  it('a QUEST-opened forge does NOT steal the slot', () => {
+    // `runeforgeNoCharge` marks a forge reached by a quest/rune rather than the hero power.
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runesmith', embers: 30, runeforgeNoCharge: true,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt).toBeUndefined();
+  });
+
+  it("Guardian's EPIC forge stamps his rune", () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runeguard', embers: 30, runeforgeEpic: true,
+      runeforgeOffer: ['rune_dawnclaw'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt)
+      .toEqual({ kind: 'rune', id: 'rune_dawnclaw' });
+  });
+
+  it('a hero with no forge power is untouched by a rune buy', () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'indy', embers: 30,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt).toBeUndefined();
+  });
+});

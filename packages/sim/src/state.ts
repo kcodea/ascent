@@ -709,6 +709,10 @@ export interface RunState {
    *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
    *  art, so the player can see what they are working toward. */
   ciaSuit?: CiaSuit;
+  /** Fi / Coran / Runesmith / Guardian: the quest or rune THEIR power granted, once chosen. The power button
+   *  wears its art from then on (owner ask 2026-08-17) — the grant IS the power, so it takes the power's slot
+   *  rather than sitting in one of the three quest/rune slots. `kind` picks the art index to look it up in. */
+  heroGrantArt?: { kind: 'rune' | 'quest'; id: string };
   /** Juggler (Baldgecoin): minions bought toward the next Gold Pouch. Wraps at 3 rather than accumulating. */
   jugglerBuys?: number;
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when

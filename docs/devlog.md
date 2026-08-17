@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-17 - Granted quest/rune art takes the hero-power slot
+
+Fi, Coran, Runesmith and Guardian now wear the art of the quest or rune THEIR power granted, once it is
+chosen. Per the owner's clarification the grant IS the power, so it takes the power's slot rather than
+occupying one of the three quest/rune slots.
+
+One field carries it — `heroGrantArt: { kind: 'rune' | 'quest', id }` — stamped where the grant is taken and
+read by the same `powerArt` chain that already does Cia's suits and Cassen's commissions.
+
+**The interesting part is what must NOT stamp it.** Both forges and the quest shop are reachable without the
+hero power, so the stamp is gated on the grant genuinely being theirs:
+
+- Runesmith stamps only when the forge consumed his charge (`!runeforgeNoCharge`) — a forge opened by a quest
+  or rune is not his power and must not steal the slot.
+- Guardian stamps only on the EPIC forge, which is the one his power schedules.
+- Fi and Coran stamp on a quest taken while they are the hero, since their bonus shop is the only one they open.
+
+Four tests pin exactly that boundary, including the two negatives: a quest-opened forge leaves the slot alone,
+and a hero with no forge power is untouched by a rune buy.
+
+Verified in the browser: the button swaps from the hero's own art to `rune_packcraft.webp` the moment the
+grant is recorded.
+
+Full suite 5535 green, typecheck + lint + build:web clean. **The 2026-08-17 queue is now clear.**
+
 ## 2026-08-17 - Midas joins; Juggler's power is renamed Carnival Coin
 
 - **Juggler's power is "Carnival Coin"** (was Baldgecoin), matching the card it grants. The internal kind

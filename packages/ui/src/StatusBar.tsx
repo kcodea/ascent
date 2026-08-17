@@ -6,7 +6,7 @@ import { instView } from './instView';
 import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { heroArt, heroPowerArt } from './art';
+import { heroArt, heroPowerArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
@@ -97,11 +97,16 @@ export function StatusBar() {
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
   // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
   // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
-  const powerArt = power.kind === 'luckySeat' && run.ciaSuit
+  // Fi / Coran / Runesmith / Guardian: once their granted quest or rune is chosen, the button wears ITS art —
+  // the grant is the power. Falls back to the hero's own art if that piece is unwired.
+  const grantArt = run.heroGrantArt
+    ? (run.heroGrantArt.kind === 'rune' ? runeArt(run.heroGrantArt.id) : questArt(run.heroGrantArt.id))
+    : undefined;
+  const powerArt = grantArt ?? (power.kind === 'luckySeat' && run.ciaSuit
     ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
     : power.kind === 'commission' && run.commission
       ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
-      : heroPowerArt(hero.id);
+      : heroPowerArt(hero.id));
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.

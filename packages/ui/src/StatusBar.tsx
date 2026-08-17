@@ -11,7 +11,7 @@ import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
-import { questObjectiveText, questProgressText } from './questText';
+import { questObjectiveText, questProgressText, questRewardText } from './questText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
@@ -101,7 +101,12 @@ export function StatusBar() {
   const grantQuest = grant?.kind === 'quest' ? run.activeQuests?.find((q) => q.questId === grant.id) : undefined;
   const grantQuestDef = grant?.kind === 'quest' ? QUEST_INDEX[grant.id] : undefined;
   const grantRuneDef = grant?.kind === 'rune' ? RUNE_INDEX[grant.id] : undefined;
-  const powerRule = grantQuestDef ? questObjectiveText(grantQuestDef.objective)
+  // Once the quest is DONE the objective is history — what matters is what it now gives you, so the tooltip
+  // flips to the reward (owner report 2026-08-17: it still read "Cast 8 Rubies" after completing).
+  const powerRule = grantQuestDef
+    ? (grantQuest?.completed
+      ? questRewardText(grantQuestDef.reward, { completed: true })
+      : questObjectiveText(grantQuestDef.objective))
     : grantRuneDef ? grantRuneDef.text
     : heroPowerText(run);
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the

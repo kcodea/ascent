@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-17 - A completed granted quest shows its REWARD, not its objective
+
+The power slot kept printing "Cast 8 Rubies" after the quest was already done. Once a quest completes the
+objective is history — what matters is what it now gives you — so the tooltip flips to the reward text.
+
+Verified in the browser: unfinished reads "Errand — Buy 5 Beasts"; completed reads "Errand — Start of Combat:
+your leftmost minion gains 'Slaughter: get a random Beast' this combat".
+
+Full suite 5535 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - The granted quest MOVES to the power slot (it was showing in both)
 
 Follow-up: the granted quest was taking the power slot but ALSO still occupying a quest node — it appeared

@@ -7817,14 +7817,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: absolute; inset: 0; border-radius: inherit;
   /* One repeating conic gradient carries the link COUNT, LENGTH and EDGE — see applyHeroFxVars(). */
   background: var(--hfx-enc-links);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 5) * var(--u) + 1px));
-  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 5) * var(--u) + 1px));
-  filter: blur(calc(var(--hfx-enc-blur, 14) * var(--u) * 0.08)); /* STATIC — never animated */
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
+  filter: blur(calc(var(--hfx-enc-blur, 12) * var(--u) * 0.08)); /* STATIC — never animated */
   will-change: transform;
 }
-.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 3s) linear infinite; }
+.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 2.75s) linear infinite; }
 .enchantwisp .ew-b {
-  animation: ewspin calc(var(--hfx-enc-period, 3s) * var(--hfx-enc-skew, 1.35)) linear infinite reverse;
+  animation: ewspin calc(var(--hfx-enc-period, 2.75s) * var(--hfx-enc-skew, 2.95)) linear infinite reverse;
   opacity: var(--hfx-enc-dip, 1);
 }
 @keyframes ewspin { to { transform: rotate(360deg); } }
@@ -7835,9 +7835,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .soulbindmark {
   position: absolute; left: 50%;
   /* UNDER the minion (owner ask 2026-08-16) — `sbY` now measures DOWNWARD from the card's bottom edge. */
-  bottom: calc(-1 * var(--hfx-sb-y, 40) * var(--u));
-  width: calc(var(--hfx-sb-size, 27) * var(--u)); height: calc(var(--hfx-sb-size, 27) * var(--u));
-  margin-left: calc(-0.5 * var(--hfx-sb-size, 27) * var(--u));
+  bottom: calc(-1 * var(--hfx-sb-y, -23) * var(--u));
+  width: calc(var(--hfx-sb-size, 120) * var(--u)); height: calc(var(--hfx-sb-size, 120) * var(--u));
+  margin-left: calc(-0.5 * var(--hfx-sb-size, 120) * var(--u));
   border-radius: 50%; pointer-events: none; z-index: 7;
   border: calc(var(--hfx-sb-ring, 3.3) * var(--u)) solid hsl(var(--hfx-sb-hue, 297) 100% 79% / 0.95);
   /* SPIDERWEB fill (owner ask 2026-08-17): radial spokes crossed with concentric rings, over the soft core
@@ -7851,13 +7851,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   -webkit-mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
   mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
   /* STATIC shadow — only `opacity` is animated. */
-  box-shadow: 0 0 calc(var(--hfx-sb-blur, 5.5) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
+  box-shadow: 0 0 calc(var(--hfx-sb-blur, 0) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
   animation: sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
   will-change: opacity;
-  --sb-web-a: var(--hfx-sb-web, 0.55);
 }
-/* Dial the web down independently of the ring: a second, non-animated layer under the same clip. */
-.soulbindmark { background-blend-mode: normal; }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .enchantwisp .ew-ring, .soulbindmark { animation: none; }

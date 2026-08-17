@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-17 - Owner-tuned hero FX baked in; the web-opacity dial actually works now
+
+The owner's tuned values for Cia's rings and Sable's web are the shipped DEFAULTS, mirrored into the
+styles.css fallbacks per the Layout Lab rule. Notably `encShape: 1` (hard-edged links), `encSkew: 2.95` (the
+counter-ring turns much slower), and a Soulbind mark that is far larger and sits higher — `sbSize: 120`,
+`sbY: -23`, `sbBlur: 0`, with a dense 14-spoke / 5-ring web at full opacity.
+
+**Bug found while baking them: `sbWeb` did nothing.** It only wrote a `--sb-web-a` custom property that no
+rule ever read (alongside a no-op `background-blend-mode: normal`). The dial now folds straight into the
+thread ALPHA where the web gradients are built, and both dead declarations are gone. It happened to be
+invisible in review because the owner tuned it to 1 — the value where a broken opacity dial and a working one
+look identical.
+
+`sbSize: 120` sits exactly on its slider ceiling, so that range may want raising again if the mark should grow
+further.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Death-time procs keep an anchor; Quillen's archived types; Sable's web
 
 **The Shout FX gap, properly diagnosed.** The Effect Arena work DID unblock the mechanics — `rubyStatGain` is

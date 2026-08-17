@@ -54,27 +54,27 @@ export interface HeroFxConfig {
 }
 
 const DEFAULTS: HeroFxConfig = {
-  // Owner-tuned 2026-08-16 — these are the shipped values now.
+  // Owner-tuned 2026-08-17 — these are the shipped values now.
   encInset: -24,
-  encH: 5,
-  encBlur: 14,
-  encHue: 340,
+  encH: 4.5,
+  encBlur: 12,
+  encHue: 337,
   encDip: 1,
-  encPeriod: 3,
-  encSkew: 1.35,
+  encPeriod: 2.75,
+  encSkew: 2.95,
   encLinks: 4,
-  encArc: 16,
-  encShape: 0,
-  sbSize: 27,
-  sbY: 40,
+  encArc: 13,
+  encShape: 1,
+  sbSize: 120,
+  sbY: -23,
   sbRing: 3.3,
-  sbBlur: 5.5,
+  sbBlur: 0,
   sbHue: 297,
   sbDip: 0.7,
   sbPeriod: 2.4,
-  sbWeb: 0.55,
-  sbWebSpokes: 8,
-  sbWebRings: 3,
+  sbWeb: 1,
+  sbWebSpokes: 14,
+  sbWebRings: 5,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -160,7 +160,8 @@ export function applyHeroFxVars(): void {
   // ring nothing per frame.
   root.setProperty('--hfx-sb-web', String(cfg.sbWeb));
   const spoke = 360 / Math.max(3, Math.round(cfg.sbWebSpokes));
-  const webCol = `hsl(${cfg.sbHue} 100% 82% / 1)`;
+  // `sbWeb` rides the thread ALPHA. It used to write an unread `--sb-web-a`, so the dial did nothing.
+  const webCol = `hsl(${cfg.sbHue} 100% 82% / ${cfg.sbWeb})`;
   root.setProperty('--hfx-sb-web-spokes', `repeating-conic-gradient(from 0deg,
     ${webCol} 0deg, ${webCol} 0.6deg, transparent 0.6deg, transparent ${spoke}deg)`);
   const ringStep = 50 / Math.max(1, Math.round(cfg.sbWebRings)); // % of the radius per ring

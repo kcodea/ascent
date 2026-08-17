@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cia's foil: fitted to the real art window, feathered, and cleared on purchase
+
+Two owner-reported issues with the first foil pass, both real.
+
+**1. Wrong size/shape, hard edges.** I had derived the foil region from a fraction of the card box
+(89% × 60% from the top). Measuring the actual DOM says the card box is 127×127 while its `.art` window is
+**119×153** — taller than the box it sits in, because the shield frame overflows. So the guess was wrong on
+every axis. The foil now measures `.art` directly, which also makes it correct for compact mode, tribe frames
+and Gilded treatments for free (it falls back to a card-box fraction only if a future card has no `.art`).
+
+The hard-edged `Graphics` mask is replaced by a FEATHERED alpha texture — a rounded panel whose edges erase
+to nothing. That is what makes it read as a film ON the art rather than a pane of glass sitting over the card:
+the foil simply has nowhere to be at the edges, so there is no boundary to notice.
+
+**2. The foil survived buying the card.** The treatment was retired only by the uid sync, but the offer is
+spliced out of the shop and the sync can land a frame or more later — so a bought card left its foil hanging
+in the shop. The controller now self-heals: if its anchor element is missing for two consecutive frames it
+retires that offer itself, and stops entirely when that was the last one. Retirement happens outside the
+iteration so the map is never mutated mid-loop.
+
+Verified in the browser: before the buy the enchanted card is present; after it the shop no longer holds the
+offer, no `.card.enchanted` element remains, `pixi-enchanted-ready` is GONE (proving the controller tore down
+rather than merely hiding), and Cia's counter still advanced to 1 — the FX work did not touch the mechanics.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Cia's enchanted foil moves to the shared Pixi layer (handoff Phases 1-2)
 
 Implements `cia-enchanted-foil-fx-handoff.md` Phases 1-2: the persistent card treatment. The looping CSS rings

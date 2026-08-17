@@ -15,7 +15,7 @@
  * are one-shot EVENTS with their own authored FX ids and are deliberately not implemented here — see the
  * handoff's "Mike's FX Workflow" section, which requires those timings stay authored rather than hardcoded.
  */
-import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
 import { pixiFx } from './pixiFx';
 import { getHeroFxConfig } from './heroFxConfig';
 
@@ -29,6 +29,7 @@ let sweepTex: Texture | null = null;
 let haloTex: Texture | null = null;
 let glintTex: Texture | null = null;
 let sealTex: Texture | null = null;
+let maskTex: Texture | null = null;
 
 function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): Texture {
   const cv = document.createElement('canvas');
@@ -134,7 +135,30 @@ function makeSeal(): Texture {
   });
 }
 
+/**
+ * The foil's alpha MASK: a rounded panel whose edges fade out.
+ *
+ * A hard-edged `Graphics` rect read as a pane of glass sitting ON the card (owner report 2026-08-17). A
+ * feathered alpha ramp is what makes it read as a FILM over the art instead — the foil simply has nowhere to
+ * be at the edges, so there is no visible boundary at all.
+ */
+function makeMask(): Texture {
+  const W = 256, H = 256, r = 26, f = 26; // f = feather width, in mask px
+  return canvasTex(W, H, (c) => {
+    // Draw the panel, then erase a soft border by stroking progressively wider at falling alpha.
+    c.fillStyle = '#fff';
+    c.beginPath(); c.roundRect(f, f, W - f * 2, H - f * 2, r); c.fill();
+    c.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < f; i++) {
+      c.strokeStyle = `rgba(0,0,0,${(1 - i / f) * 0.16})`;
+      c.lineWidth = 2;
+      c.beginPath(); c.roundRect(f - i, f - i, W - (f - i) * 2, H - (f - i) * 2, r + i); c.stroke();
+    }
+  });
+}
+
 function ensureTextures(): void {
+  maskTex ??= makeMask();
   foilTex ??= makeFoil();
   sweepTex ??= makeSweep();
   haloTex ??= makeHalo();
@@ -153,13 +177,20 @@ interface Offer {
   foil: Sprite;
   sweep: Sprite;
   seal: Sprite;
-  mask: Graphics;
+  mask: Sprite;
   glints: Sprite[];
   /** Per-glint life in ms; <= 0 means parked. */
   glintLife: number[];
   t: number;        // ms since this offer's treatment began — drives every cycle
   w: number;        // last measured card size, in viewport px
   h: number;
+  ax: number;       // art-window centre + size, relative to the card centre, in viewport px
+  ay: number;
+  aw: number;
+  ah: number;
+  /** Frames the anchor element has been missing. A bought card unmounts, so this retires the treatment even
+   *  if the uid sync has not landed yet — otherwise the foil hangs in the shop after a purchase. */
+  missing: number;
   hover: number;    // 0..1 eased hover weight
 }
 
@@ -174,7 +205,8 @@ function buildOffer(uid: string): Offer {
 
   const clipped = new Container();
   clipped.eventMode = 'none';
-  const mask = new Graphics();
+  const mask = new Sprite(maskTex!);
+  mask.anchor.set(0.5);
   const foil = new Sprite(foilTex!);
   foil.anchor.set(0.5);
   foil.blendMode = 'add';
@@ -203,7 +235,7 @@ function buildOffer(uid: string): Offer {
   seal.blendMode = 'add';
 
   root.addChild(halo, clipped, glintBox, seal);
-  return { uid, root, halo, foil, sweep, seal, mask, glints, glintLife, t: 0, w: 0, h: 0, hover: 0 };
+  return { uid, root, halo, foil, sweep, seal, mask, glints, glintLife, t: 0, w: 0, h: 0, ax: 0, ay: 0, aw: 0, ah: 0, missing: 0, hover: 0 };
 }
 
 function destroyOffer(o: Offer): void {
@@ -271,16 +303,35 @@ class CiaEnchantedFx {
   private update(dtMs: number): void {
     const cfg = getHeroFxConfig();
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const dead: string[] = [];
     for (const o of this.offers.values()) {
       // ── anchor: the DOM card is authoritative ──
       const el = document.querySelector(`.card.enchanted[data-uid="${CSS.escape(o.uid)}"]`);
-      if (!el) { o.root.visible = false; continue; } // retire quietly; `sync` does the real removal
-      const r = el.getBoundingClientRect();
-      if (r.width === 0) { o.root.visible = false; continue; }
+      const r = el?.getBoundingClientRect();
+      if (!el || !r || r.width === 0) {
+        // The card is gone — bought, rerolled, or the shop unmounted. Retire the treatment OURSELVES rather
+        // than waiting for the uid sync: buying an enchanted card left its foil hanging in the shop, because
+        // the offer is spliced out and the sync can land a frame or more later (owner report 2026-08-17).
+        o.root.visible = false;
+        if (++o.missing >= 2) dead.push(o.uid);
+        continue;
+      }
+      o.missing = 0;
       o.root.visible = true;
       o.root.position.set(r.left + r.width / 2, r.top + r.height / 2);
-      const resized = r.width !== o.w || r.height !== o.h;
+      // The ART WINDOW is what the foil sits on, and it moves with frame/compact/tribe treatment — so measure
+      // it rather than deriving it from a fraction of the card. Falls back to the card box if the node is
+      // ever absent, which keeps the effect alive on any future card shape that has no `.art`.
+      const artEl = el.querySelector('.art');
+      const ar = artEl?.getBoundingClientRect();
+      const nax = ar ? ar.left + ar.width / 2 - (r.left + r.width / 2) : 0;
+      const nay = ar ? ar.top + ar.height / 2 - (r.top + r.height / 2) : 0;
+      const naw = ar?.width || r.width * 0.86;
+      const nah = ar?.height || r.height * 0.56;
+      const resized = r.width !== o.w || r.height !== o.h || naw !== o.aw || nah !== o.ah
+        || nax !== o.ax || nay !== o.ay;
       o.w = r.width; o.h = r.height;
+      o.ax = nax; o.ay = nay; o.aw = naw; o.ah = nah;
 
       // Hover eases in/out so nothing snaps; the DOM owns the hover state, we only read it.
       const hovered = el.matches(':hover');
@@ -293,6 +344,9 @@ class CiaEnchantedFx {
       o.t += dtMs;
       this.animate(o, cfg, dtMs);
     }
+    // Retire outside the iteration so we never mutate the map mid-loop.
+    for (const uid of dead) this.remove(uid);
+    if (dead.length && this.offers.size === 0) this.stop();
   }
 
   /** Re-measure-dependent work — only on a size change, never per frame. */
@@ -305,18 +359,20 @@ class CiaEnchantedFx {
 
     // MASK (first-prototype shape, per the handoff): the art window plus a narrow frame contour — never a
     // full opaque rectangle, which would tint the rules text and hurt readability.
-    o.mask.clear();
-    const artH = h * 0.60; // the art window occupies the card's top ~60% (see `.art` in styles.css)
-    o.mask.roundRect(-w / 2 + w * 0.055, -h / 2 + h * 0.03, w * 0.89, artH, Math.min(w, h) * 0.08).fill(0xffffff);
-    // The frame contour: a thin ring around the whole card so the foil catches its edges too.
-    o.mask.roundRect(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.10).stroke({ width: Math.max(2, w * 0.035), color: 0xffffff });
+    // The mask is fitted to the MEASURED art window (`o.ax/ay/aw/ah`), not to a fraction of the card. The
+    // card is a shield silhouette whose art region moves with frame, compact mode and tribe treatment, so a
+    // hardcoded fraction was wrong for every variant (owner report 2026-08-17).
+    o.mask.width = o.aw;
+    o.mask.height = o.ah;
+    o.mask.position.set(o.ax, o.ay);
 
-    // Foil is oversized so it can drift without exposing an edge.
-    o.foil.width = w * 1.9;
-    o.foil.height = h * 1.9;
+    // Foil is oversized so it can drift without ever exposing its own edge inside the mask.
+    o.foil.width = o.aw * 1.8;
+    o.foil.height = o.ah * 1.8;
+    o.foil.position.set(o.ax, o.ay);
 
-    o.sweep.width = w * cfg.ciaSweepWidth * 4;
-    o.sweep.height = Math.hypot(w, h) * 1.25;
+    o.sweep.width = o.aw * cfg.ciaSweepWidth * 4;
+    o.sweep.height = Math.hypot(o.aw, o.ah) * 1.4;
     o.sweep.rotation = (cfg.ciaSweepAngle * Math.PI) / 180;
 
     const ss = cfg.ciaSealSize * U;
@@ -329,7 +385,7 @@ class CiaEnchantedFx {
     o.halo.rotation = 0;
     o.halo.alpha = cfg.ciaHaloOpacity;
     o.foil.alpha = cfg.ciaFoilOpacity * 0.8;
-    o.foil.position.set(0, 0);
+    o.foil.position.set(o.ax, o.ay);
     o.sweep.visible = false;
     o.seal.alpha = 1;
     for (const g of o.glints) g.visible = false;
@@ -352,10 +408,10 @@ class CiaEnchantedFx {
     if (phase < sd) {
       const k = phase / sd;                    // 0 → 1 across the visible pass
       o.sweep.visible = true;
-      const span = Math.hypot(o.w, o.h) * 0.85;
+      const span = Math.hypot(o.aw, o.ah) * 0.85;
       const ang = (cfg.ciaSweepAngle * Math.PI) / 180;
       // Travels bottom-left → top-right along the sweep angle.
-      o.sweep.position.set(Math.cos(ang) * (-span + 2 * span * k), Math.sin(ang) * (span - 2 * span * k));
+      o.sweep.position.set(o.ax + Math.cos(ang) * (-span + 2 * span * k), o.ay + Math.sin(ang) * (span - 2 * span * k));
       o.sweep.alpha = Math.sin(k * Math.PI) * boost; // in and out within the pass
       // 4) GLINTS ride the active sweep.
       this.spawnGlints(o, cfg, k);
@@ -394,7 +450,7 @@ class CiaEnchantedFx {
       if (o.glintLife[i]! > 0) continue;
       const g = o.glints[i]!;
       const jitter = ((i * 37) % 100) / 100 - 0.5;
-      g.position.set((k - 0.5) * o.w * 0.9 + jitter * o.w * 0.18, jitter * o.h * 0.55);
+      g.position.set(o.ax + (k - 0.5) * o.aw * 0.9 + jitter * o.aw * 0.18, o.ay + jitter * o.ah * 0.55);
       const gs = cfg.ciaGlintSize * U * 2;
       g.width = gs; g.height = gs;
       g.visible = true;

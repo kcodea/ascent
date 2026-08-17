@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-17 - Perf trace analysed; owner-tuned Cia values baked in
+
+**Trace analysis** (`ascent-perf-1786970315203.json`, 30s, 3440x1351 @ 240Hz, DPR 1). Median frame 4.2ms —
+exactly the 4.17ms budget — but `fpsMin` 181, 94 long frames, 33 jank, worst 33.4ms.
+
+Two hotspots are **94% of all measured time**:
+
+| | calls | total | max |
+|---|---:|---:|---:|
+| `render:recruit` | 128 | **330.2ms** | **13.2ms** |
+| `layout:flip` | 69 | **313.0ms** | **12.8ms** |
+| everything else combined | — | ~40ms | 4.1ms |
+
+At 240Hz a single 13.2ms render burns **three whole frames**. That is the entire story.
+
+**What it is NOT.** `particles`, `sprite pool`, `weld rings` and `spell arrows` are 0 in every bucket, so the
+Pixi/FX layer is not involved at all. The reducer is negligible (`reduce:buy` 1.2ms across 7 calls). Drag is
+well optimised — 758 `drag:flushMove` calls for 9.6ms TOTAL. DOM nodes hold flat at ~2100, so nothing leaks.
+
+**The correlation is exact.** Every bad bucket is a burst of shop actions: t=19013 has 38 recruit renders →
+181fps; t=26021 has 44 → 187fps. Every bucket with ZERO renders (t=28021, 29021, 30021) sits at a clean 240fps
+with 0 long frames and 0 jank. Idle costs nothing; the cost is entirely per-ACTION React work.
+
+So the drops are a re-render + FLIP-measure cost on buy/play/sell/reorder, not an animation problem. The two
+leads worth pulling, NOT done here because they want their own measured PR:
+1. `shopViews` rebuilds every offer view when ANY of its ~30 deps changes — one action invalidates the lot.
+2. `layout:flip` averages 4.5ms and peaks at 12.8ms, reading layout across many elements per action.
+
+**Also baked the owner's tuned Cia values.** Notably halo, glints and seal are all dialled to 0 — the foil
+alone carries the read — so those layers are now skipped outright rather than drawn transparent (an invisible
+sprite still costs a draw call). Any glint still lit when the count drops to zero is parked first, so it
+cannot freeze on screen.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Cia's foil gets two real colour pickers
 
 The tuner schema already supports `kind: 'color'` (hex strings through `writeColor`), so the foil gets proper

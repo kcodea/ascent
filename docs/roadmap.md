@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **PERF: recruit re-render + FLIP dominate.** A 30s 240Hz trace (2026-08-17) puts `render:recruit` (330ms,
+  max 13.2ms) and `layout:flip` (313ms, max 12.8ms) at 94% of measured time; everything else is noise and idle
+  is a clean 240fps. At a 4.17ms budget one render burns three frames. Two leads: `shopViews` rebuilds every
+  offer when any of ~30 deps changes, and FLIP reads layout across many elements per action. Wants its own
+  measured PR.
+
 - **Cia enchanted foil — Phases 3-5** (`cia-enchanted-foil-fx-handoff.md`): purchase capture + streak to the
   hero power, the third-card payout burst, the `data-fx-anchor="hero-power"` anchor contract, and the tuner
   preview actions. One-shot event ids to expose: `cia-enchanted-purchase`, `cia-enchanted-payout`. Their

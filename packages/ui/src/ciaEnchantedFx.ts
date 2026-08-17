@@ -466,6 +466,21 @@ class CiaEnchantedFx {
       o.sweep.visible = false;
     }
 
+    // Zeroed layers are skipped rather than drawn transparent — an invisible sprite still costs a draw call,
+    // and the owner's tune switches three of them off entirely (2026-08-17).
+    o.halo.visible = cfg.ciaHaloOpacity > 0;
+    o.seal.visible = cfg.ciaSealSize > 0;
+    if (!o.halo.visible && !o.seal.visible && cfg.ciaGlintCount <= 0) {
+      // Foil + sweep only. Park any glint still lit from a previous setting first — skipping the ageing loop
+      // below would otherwise freeze it on screen when the count is turned back down to zero.
+      for (let i = 0; i < o.glints.length; i++) {
+        if (o.glintLife[i]! <= 0) continue;
+        o.glintLife[i] = 0;
+        o.glints[i]!.visible = false;
+      }
+      return;
+    }
+
     // 3) HALO — a slow rotation of the segmented contour.
     const hp = Math.max(0.5, cfg.ciaHaloPeriod) * 1000;
     o.halo.rotation = (o.t / hp) * Math.PI * 2;

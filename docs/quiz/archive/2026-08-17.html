@@ -1,0 +1,421 @@
+<title>Ascent Quiz #5 — 2026-08-17</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1e2b;
+    --panel-border: #2b2f42;
+    --text: #e7e9f2;
+    --muted: #9aa0b8;
+    --accent: #7c9eff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232739;
+    --choice-hover: #2a2f45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fb;
+      --panel: #ffffff;
+      --panel-border: #dfe2f0;
+      --text: #1b1e2b;
+      --muted: #5c6180;
+      --accent: #3f5fd8;
+      --good: #15803d;
+      --bad: #b91c1c;
+      --good-bg: rgba(21, 128, 61, 0.1);
+      --bad-bg: rgba(185, 28, 28, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e6e8f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fb;
+    --panel: #ffffff;
+    --panel-border: #dfe2f0;
+    --text: #1b1e2b;
+    --muted: #5c6180;
+    --accent: #3f5fd8;
+    --good: #15803d;
+    --bad: #b91c1c;
+    --good-bg: rgba(21, 128, 61, 0.1);
+    --bad-bg: rgba(185, 28, 28, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e6e8f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 32px 16px 64px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.9rem; }
+  .progress {
+    display: flex;
+    gap: 5px;
+    margin: 20px 0 28px;
+    flex-wrap: wrap;
+  }
+  .progress .dot {
+    flex: 1;
+    min-width: 16px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-border);
+    transition: background 0.2s;
+  }
+  .progress .dot.done { background: var(--accent); }
+  .progress .dot.current { background: var(--muted); }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .qnum { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .question { font-size: 1.08rem; line-height: 1.5; margin: 0 0 20px; }
+  .choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    font-size: 0.97rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .choice:hover:not(:disabled) { background: var(--choice-hover); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:disabled { cursor: default; }
+  .choice .label { font-weight: 700; margin-right: 8px; color: var(--muted); }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.incorrect { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.reveal-correct { background: var(--good-bg); border-color: var(--good); }
+  .result-tag { display: inline-block; font-weight: 700; font-size: 0.85rem; margin-top: 2px; }
+  .result-tag.good { color: var(--good); }
+  .result-tag.bad { color: var(--bad); }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    background: var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+  .next-btn {
+    margin-top: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+  .next-btn.show { display: inline-block; }
+  .hidden { display: none; }
+  .summary { text-align: center; }
+  .summary .score { font-size: 2.4rem; font-weight: 800; margin: 12px 0 4px; color: var(--accent); }
+  .summary .line { color: var(--muted); font-size: 0.95rem; margin-bottom: 18px; }
+  .summary .encourage { font-size: 1.05rem; margin: 20px 0; }
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 20px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #5</h1>
+    <p>August 17, 2026 · How the game is coded, not how it plays</p>
+  </header>
+  <div class="progress" id="progress"></div>
+  <div id="quiz-root"></div>
+</div>
+
+<script>
+  const QUESTIONS = [
+    {
+      topic: "types-basics",
+      question: "packages/core/src/types.ts defines CombatEvent as a \"union type\" — a value that's an 'attack' event OR a 'death' event OR a 'buff' event, and so on. In plain English, what is a union type used for?",
+      choices: [
+        "To say a value can be one of several specific, known shapes, and nothing else",
+        "To combine several unrelated files into a single import",
+        "To automatically convert one type into another type at runtime",
+        "To let a variable hold literally any value with no restrictions at all"
+      ],
+      answer: 0,
+      explanation: "A union type (<code>A | B | C</code>) tells TypeScript \"this value is exactly one of these listed shapes.\" CombatEvent lists every kind of event combat can emit, so code that handles events can check <code>event.type</code> and TypeScript knows exactly which fields are present for that case. D describes something closer to <code>any</code>, which throws away type safety entirely; a union still locks you to the listed options."
+    },
+    {
+      topic: "immutability",
+      question: "CLAUDE.md says \"Never mutate shared CardDefs — clone into combat Minion instances.\" Why does that rule matter?",
+      choices: [
+        "So that if one Minion's stats change during a fight, every other card sharing that same definition doesn't change too",
+        "Because CardDefs are stored in a read-only database and any write would fail outright",
+        "Because cloning an object always runs faster than editing it in place",
+        "Because JavaScript doesn't technically allow editing an object's properties"
+      ],
+      answer: 0,
+      explanation: "A CardDef is the ONE shared blueprint for a card. If combat code changed that shared object directly, buffing your one minion in a fight would corrupt the blueprint every other copy of that card reads from too. Cloning gives each Minion instance its own copy to safely mutate. D is simply false — JS objects ARE mutable; the danger is exactly that they CAN be mutated, which is why the rule exists in the first place."
+    },
+    {
+      topic: "reducer-run-state",
+      question: "packages/sim/src/reducer.ts (with state.ts) drives Ascent's run state. In general programming terms, what is a \"reducer\"?",
+      choices: [
+        "A function that takes the current state plus an action, and returns the new state",
+        "A tool that compresses save files so they take up less disk space",
+        "A function that only shrinks an array down to a single number",
+        "A function that deletes unused variables to free up memory"
+      ],
+      answer: 0,
+      explanation: "A reducer's shape is basically <code>(state, action) => newState</code> — Ascent's reducer takes the current RunState plus something that happened (like \"resolveCombat\") and computes what the run's state should be afterward, all in one predictable place instead of scattered across the codebase. C describes <code>Array.prototype.reduce</code> narrowly, a related idea, but Ascent's reducer works over the whole run, not just an array."
+    },
+    {
+      topic: "zustand-store",
+      question: "packages/ui/src/store.ts uses Zustand to hold UI state, kept separate from the sim's RunState. Why keep them separate?",
+      choices: [
+        "The UI needs its own state for presentation details (which screen is showing, is a card mid-drag) that the deterministic sim doesn't need to know about",
+        "Zustand is technically only able to store numbers and strings, not game objects",
+        "It's a hard requirement of React and can't be structured any other way",
+        "So that UI state automatically gets synced up to a cloud server"
+      ],
+      answer: 0,
+      explanation: "The sim's RunState is the source of truth for the actual game (gold, board, combat outcome); the Zustand store holds presentation-only concerns that would just be noise inside the deterministic engine. Keeping them apart preserves the sim/UI split from CLAUDE.md's Architecture section — the sim never needs to know whether a card is mid-drag on screen."
+    },
+    {
+      topic: "event-bus",
+      question: "packages/core/src/events.ts defines a CombatBus with on() and emit() methods. What's the basic idea of an event bus?",
+      choices: [
+        "Code registers a handler for a named event with on(), and later other code calls emit() to run every handler registered for that event",
+        "It's a queue that stores every event forever so it can be replayed years later",
+        "It runs a piece of code automatically once every second, like a clock",
+        "It automatically sends a network request whenever something happens in the game"
+      ],
+      answer: 0,
+      explanation: "<code>on(event, handler)</code> registers a function to run when that event fires; <code>emit(event, payload)</code> runs every handler that registered for it. Minions register their effect handlers (like \"when a friendly minion dies\") at combat start, and the simulator emits real events as the fight unfolds — that's what lets a Deathrattle \"hear\" that its owner died. It's an in-memory notification mechanism, not persistence (B) or networking (D)."
+    },
+    {
+      topic: "cards-in-sets",
+      question: "packages/content/src/sets.ts organizes cards into SETS, and CLAUDE.md says a run \"PINS its set at creation.\" What problem does pinning solve?",
+      choices: [
+        "It ensures a run keeps using the same card pool it started with, even if the live set flips while the run is in progress",
+        "It stops a player from buying more than one copy of the same card",
+        "It prevents two different players from picking the exact same set",
+        "It's purely a performance trick to load fewer card definitions into memory"
+      ],
+      answer: 0,
+      explanation: "Sets can be flipped live (like a feature flag) so new content ships without a deploy mid-run. If a run re-read the CURRENT set every time instead of the one it started with, flipping that switch could yank cards out from under an in-progress or replayed run. Pinning at creation — read back via <code>poolOf(state)</code> — means a run's card pool never changes underneath it. That has nothing to do with duplicate-copy limits (A distractor), which is a shop rule, not a code-organization concern."
+    },
+    {
+      topic: "package-boundaries",
+      question: "CLAUDE.md says ui may only depend on the other packages \"through public package entrypoints\" — importing an internal file directly is a \"leaked boundary.\" What does that mean in practice?",
+      choices: [
+        "packages/ui should import from a package's intentional index/entrypoint, not reach into a random internal file like packages/sim/src/reducer.ts directly",
+        "The ui package isn't allowed to import anything from any other package, ever",
+        "It's a rule about how folders and files must be named",
+        "It means every file in the repo must be under 100 lines long"
+      ],
+      answer: 0,
+      explanation: "A package's entrypoint (its index file) is the intentional, curated \"public API\" of that package; reaching past it into an internal file couples your code to implementation details that might change without warning. It's the same idea as an app calling a library's documented functions instead of poking at its private internals. B is too strong — ui is SUPPOSED to depend on core/content/sim, just only through what they choose to expose."
+    },
+    {
+      topic: "effects-as-subscriptions",
+      question: "CLAUDE.md says cards are \"data + effect subscriptions, never bespoke classes.\" What does that mean for how a new card's Battlecry gets added?",
+      choices: [
+        "The card is plain data (stats, id, text) that references an existing, reusable effect factory by name, rather than being its own unique hand-written code",
+        "A programmer writes a brand-new class with its own custom methods for every single new card",
+        "Cards are hard-coded directly inside the combat simulator's own source file",
+        "Effects are picked randomly at runtime with no fixed definition anywhere"
+      ],
+      answer: 0,
+      explanation: "Instead of a bespoke <code>FireImpCard</code> class, a card is a plain object whose Battlecry field points at a reusable effect factory (whitelisted in the <code>EffectFactoryId</code> union) — most new cards need zero new code, just new data. That's why CLAUDE.md says \"new cards = data only unless they need a genuinely new effect primitive.\" B describes the OPPOSITE, class-per-card approach the codebase deliberately avoids."
+    },
+    {
+      topic: "effect-timing-pipeline",
+      question: "CLAUDE.md distinguishes recruit-phase effects (like Battlecry) from combat-time effects (like Deathrattle). What's the key difference in WHEN each one runs?",
+      choices: [
+        "Recruit-phase effects bake into a minion's stats BEFORE combat starts; combat-time effects are handled live by the simulator as the fight actually plays out",
+        "They both run at the exact same moment, during combat itself",
+        "Recruit-phase effects exist only for cosmetic flavor and never touch a minion's stats",
+        "Combat-time effects are purely optional and can be skipped for performance reasons"
+      ],
+      answer: 0,
+      explanation: "A Battlecry (like \"gain +2 Attack\") is resolved once in the shop and folded straight into the minion's stats — combat never has to think about it again. A Deathrattle can't be pre-baked, because it depends on something that happens mid-fight (this minion dying), so the combat simulator has to watch for it live and emit an event when it fires. Knowing which bucket an effect falls into tells you exactly when its code actually runs."
+    },
+    {
+      topic: "testing-vitest",
+      question: "Ascent uses Vitest (npm test) with \"determinism + golden tests,\" per CLAUDE.md. What does a \"golden test\" typically check?",
+      choices: [
+        "It runs some code and compares the output against a saved, known-correct result — if the output ever changes unexpectedly, the test fails and flags a regression",
+        "It measures how fast a piece of code runs and fails if it's too slow",
+        "It only tests code that was written by the most senior developer on the team",
+        "It automatically finds and fixes bugs on its own, without a human"
+      ],
+      answer: 0,
+      explanation: "A golden test locks in a known-good output (like a specific combat log for a specific seed) and re-checks it every run; if a future code change accidentally alters that output, the test catches it immediately instead of the bug reaching players. Paired with determinism tests (same seed → same result, always), these protect the \"deterministic simulation\" guarantee CLAUDE.md calls non-negotiable. B describes a performance benchmark, a different kind of test entirely."
+    }
+  ];
+
+  const root = document.getElementById('quiz-root');
+  const progressEl = document.getElementById('progress');
+  let current = 0;
+  let score = 0;
+  const results = [];
+
+  function renderProgress() {
+    progressEl.innerHTML = '';
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      progressEl.appendChild(d);
+    }
+  }
+
+  function renderQuestion(idx) {
+    const q = QUESTIONS[idx];
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const qnum = document.createElement('div');
+    qnum.className = 'qnum';
+    qnum.textContent = `Question ${idx + 1} of ${QUESTIONS.length}`;
+    card.appendChild(qnum);
+
+    const qtext = document.createElement('p');
+    qtext.className = 'question';
+    qtext.textContent = q.question;
+    card.appendChild(qtext);
+
+    const letters = ['A', 'B', 'C', 'D'];
+    const buttons = [];
+    let answered = false;
+
+    q.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.innerHTML = `<span class="label">${letters[i]}</span>${choice}`;
+      btn.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        const correct = i === q.answer;
+        if (correct) score++;
+        results.push(correct);
+        buttons.forEach((b, bi) => {
+          b.disabled = true;
+          if (bi === q.answer) b.classList.add('reveal-correct');
+          if (bi === i && !correct) b.classList.add('incorrect');
+        });
+        const tag = document.createElement('div');
+        tag.className = 'result-tag ' + (correct ? 'good' : 'bad');
+        tag.textContent = correct ? '✓ Correct!' : '✗ Not quite';
+        card.appendChild(tag);
+
+        const exp = document.createElement('div');
+        exp.className = 'explanation show';
+        exp.innerHTML = q.explanation;
+        card.appendChild(exp);
+
+        nextBtn.classList.add('show');
+      });
+      buttons.push(btn);
+      card.appendChild(btn);
+    });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'next-btn';
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+    nextBtn.addEventListener('click', () => {
+      current++;
+      renderProgress();
+      if (current >= QUESTIONS.length) {
+        renderSummary();
+      } else {
+        root.innerHTML = '';
+        renderQuestion(current);
+      }
+    });
+    card.appendChild(nextBtn);
+
+    root.appendChild(card);
+  }
+
+  function renderSummary() {
+    root.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card summary';
+
+    const label = document.createElement('div');
+    label.className = 'qnum';
+    label.textContent = 'Quiz complete';
+    card.appendChild(label);
+
+    const scoreEl = document.createElement('div');
+    scoreEl.className = 'score';
+    scoreEl.textContent = `${score} / ${QUESTIONS.length}`;
+    card.appendChild(scoreEl);
+
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = `You scored ${score} out of ${QUESTIONS.length} on today's architecture quiz.`;
+    card.appendChild(line);
+
+    const messages = {
+      10: "Perfect score! You're reading Ascent's engine like a pro. 🎉",
+      9: "Excellent — nearly flawless, and a real handle on how this all fits together.",
+      8: "Great work — you've clearly got a solid grip on today's topics.",
+      7: "Strong showing — most of it landed, and the misses are good pointers for tomorrow.",
+      6: "Solid effort — more than half down, and every miss is a lesson for tomorrow.",
+      5: "Halfway there — you're building real intuition for how the code is put together.",
+      4: "Good start — this stuff gets clearer every day you sit with it.",
+      3: "Making progress — reply with your score and we'll circle back to what tripped you up.",
+      2: "You're just getting going — no worries, tomorrow we'll re-ask the tricky ones from a new angle.",
+      1: "Everyone starts somewhere — tell me your score and we'll rebuild from here.",
+      0: "No worries at all — everyone starts at zero. Tell me your score and we'll rebuild from here."
+    };
+    const encourage = document.createElement('div');
+    encourage.className = 'encourage';
+    encourage.textContent = messages[score] ?? messages[0];
+    card.appendChild(encourage);
+
+    const note = document.createElement('div');
+    note.className = 'footer-note';
+    note.textContent = 'Reply in chat with your score (e.g. "7/10, missed the RNG one") so tomorrow adapts.';
+    card.appendChild(note);
+
+    root.appendChild(card);
+  }
+
+  renderProgress();
+  renderQuestion(current);
+</script>

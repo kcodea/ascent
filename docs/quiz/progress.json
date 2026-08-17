@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 4,
+  "totalQuizzes": 5,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 2, "lastAsked": "2026-08-16" },
@@ -16,16 +16,16 @@
     "pure-functions": { "asked": 2, "lastAsked": "2026-08-16" },
     "data-vs-code": { "asked": 2, "lastAsked": "2026-08-16" },
     "event-log-replay": { "asked": 2, "lastAsked": "2026-08-16" },
-    "types-basics": { "asked": 1, "lastAsked": "2026-08-15" },
-    "immutability": { "asked": 1, "lastAsked": "2026-08-15" },
-    "reducer-run-state": { "asked": 1, "lastAsked": "2026-08-15" },
-    "zustand-store": { "asked": 1, "lastAsked": "2026-08-15" },
-    "event-bus": { "asked": 1, "lastAsked": "2026-08-15" },
-    "cards-in-sets": { "asked": 1, "lastAsked": "2026-08-15" },
-    "package-boundaries": { "asked": 1, "lastAsked": "2026-08-15" },
-    "effects-as-subscriptions": { "asked": 1, "lastAsked": "2026-08-15" },
-    "effect-timing-pipeline": { "asked": 1, "lastAsked": "2026-08-15" },
-    "testing-vitest": { "asked": 1, "lastAsked": "2026-08-15" },
+    "types-basics": { "asked": 2, "lastAsked": "2026-08-17" },
+    "immutability": { "asked": 2, "lastAsked": "2026-08-17" },
+    "reducer-run-state": { "asked": 2, "lastAsked": "2026-08-17" },
+    "zustand-store": { "asked": 2, "lastAsked": "2026-08-17" },
+    "event-bus": { "asked": 2, "lastAsked": "2026-08-17" },
+    "cards-in-sets": { "asked": 2, "lastAsked": "2026-08-17" },
+    "package-boundaries": { "asked": 2, "lastAsked": "2026-08-17" },
+    "effects-as-subscriptions": { "asked": 2, "lastAsked": "2026-08-17" },
+    "effect-timing-pipeline": { "asked": 2, "lastAsked": "2026-08-17" },
+    "testing-vitest": { "asked": 2, "lastAsked": "2026-08-17" },
     "eslint-rules": { "asked": 1, "lastAsked": "2026-08-16" },
     "performance-memo": { "asked": 1, "lastAsked": "2026-08-16" }
   },
@@ -81,6 +81,14 @@
       "topics": ["what-is-a-function", "sim-ui-decoupling", "monorepo-packages", "deterministic-sim", "seeded-rng", "pure-functions", "data-vs-code", "event-log-replay", "eslint-rules", "performance-memo"],
       "scored": null,
       "note": "Curriculum fully covered as of this quiz (all 20 topics asked at least once). Re-asked the 8 oldest topics from fresh angles plus the 2 remaining new ones (eslint-rules, performance-memo); future quizzes will be pure spaced re-teach until scores start updating mastery."
+    },
+    {
+      "date": "2026-08-17",
+      "quizNumber": 5,
+      "difficulty": 1,
+      "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
+      "scored": null,
+      "note": "No score has ever been reported for a prior quiz, so mastery/difficulty could not be adapted from results; picked the 10 topics with the oldest lastAsked (2026-08-15, asked=1) for spaced re-teach from fresh angles, at difficulty 1 per the never-ramped global difficulty. eslint-rules and performance-memo (lastAsked 2026-08-16) were left for tomorrow."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

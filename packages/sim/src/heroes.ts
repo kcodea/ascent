@@ -61,6 +61,8 @@ export type HeroPowerKind =
   | 'commission' // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
   | 'devour' // Devourer: 1 Gold — eat a friendly minion, spitting its stats onto a random other friendly
   | 'memory' // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
+  | 'baldgecoin' // Juggler (passive): every 3 minions bought → a Carnival Coin (1 Gold + a board buff)
+  | 'midasTouch' // Midas (passive): Gild at 2 copies, and a Gild pays a Gold Pouch instead of a Triple Reward
   | 'firstOrLast' // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
   | 'crownTally'; // Keshi (passive): bank each purchased card's tier; at 25 grant a Triple Reward, then reset
 
@@ -449,8 +451,7 @@ export const HEROES: HeroDef[] = [
     name: 'Jensen',
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
-    armor: 15,
-    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
+    armor: 15, // re-enabled by the owner 2026-08-17
     power: {
       name: 'Dynamite Dig',
       kind: 'dynamiteDig',
@@ -677,6 +678,32 @@ export const HEROES: HeroDef[] = [
       // the sense that it takes no board target; the choice itself is the input.
       untargeted: true,
       text: 'Claim a copy of the **first** or **last** minion you kill next combat.',
+    },
+  },
+  {
+    id: 'midas',
+    name: 'Midas',
+    blurb: 'Everything doubles into gold. The third of anything is simply waste.',
+    resolve: 30,
+    armor: 11,
+    power: {
+      name: "Midas' Touch",
+      kind: 'midasTouch',
+      passive: true,
+      text: 'You need only **2** copies to Gild. Gilding grants a **Gold Pouch** instead of a Triple Reward.',
+    },
+  },
+  {
+    id: 'juggler',
+    name: 'Juggler',
+    blurb: 'Coins go up, coins come down. Somebody always ends up richer.',
+    resolve: 30,
+    armor: 12,
+    power: {
+      name: 'Carnival Coin',
+      kind: 'baldgecoin',
+      passive: true,
+      text: 'Every **3** minions you buy, get a **Carnival Coin**.',
     },
   },
   {

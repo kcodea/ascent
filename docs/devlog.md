@@ -1,5 +1,208 @@
 # ASCENT — development log
 
+## 2026-08-17 - A completed granted quest shows its REWARD, not its objective
+
+The power slot kept printing "Cast 8 Rubies" after the quest was already done. Once a quest completes the
+objective is history — what matters is what it now gives you — so the tooltip flips to the reward text.
+
+Verified in the browser: unfinished reads "Errand — Buy 5 Beasts"; completed reads "Errand — Start of Combat:
+your leftmost minion gains 'Slaughter: get a random Beast' this combat".
+
+Full suite 5535 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - The granted quest MOVES to the power slot (it was showing in both)
+
+Follow-up: the granted quest was taking the power slot but ALSO still occupying a quest node — it appeared
+twice. The slot is now genuinely a move, not a copy:
+
+- **`QuestBadges` filters out the granted quest**, so it leaves the node row entirely.
+- **The power slot shows the quest's own text**, not the hero's. "Get a quest on turn 3" stops being either
+  true or useful once the quest exists, so the tooltip/aria now reads the quest's objective (or the rune's
+  rule).
+- **The tally becomes the objective tracker** — `2 / 5` while it runs, `Complete` once finished, with the
+  completed art staying in place.
+
+One bug caught on the way: I passed `true` as `questProgressText`'s third argument, which is `completed`, not
+a formatting flag — an unfinished quest read "Complete". It now passes the quest's real state.
+
+Verified in the browser across both states: unfinished → `2 / 5` on the quest's art with 0 badges in the row;
+finished → `Complete`, art unchanged. The tooltip reads "Errand — Buy 5 Beasts" rather than Fi's own rule.
+
+Full suite 5535 green, typecheck + lint (0 errors) + build:web clean.
+
+## 2026-08-17 - Granted quest/rune art takes the hero-power slot
+
+Fi, Coran, Runesmith and Guardian now wear the art of the quest or rune THEIR power granted, once it is
+chosen. Per the owner's clarification the grant IS the power, so it takes the power's slot rather than
+occupying one of the three quest/rune slots.
+
+One field carries it — `heroGrantArt: { kind: 'rune' | 'quest', id }` — stamped where the grant is taken and
+read by the same `powerArt` chain that already does Cia's suits and Cassen's commissions.
+
+**The interesting part is what must NOT stamp it.** Both forges and the quest shop are reachable without the
+hero power, so the stamp is gated on the grant genuinely being theirs:
+
+- Runesmith stamps only when the forge consumed his charge (`!runeforgeNoCharge`) — a forge opened by a quest
+  or rune is not his power and must not steal the slot.
+- Guardian stamps only on the EPIC forge, which is the one his power schedules.
+- Fi and Coran stamp on a quest taken while they are the hero, since their bonus shop is the only one they open.
+
+Four tests pin exactly that boundary, including the two negatives: a quest-opened forge leaves the slot alone,
+and a hero with no forge power is untouched by a rune buy.
+
+Verified in the browser: the button swaps from the hero's own art to `rune_packcraft.webp` the moment the
+grant is recorded.
+
+Full suite 5535 green, typecheck + lint + build:web clean. **The 2026-08-17 queue is now clear.**
+
+## 2026-08-17 - Midas joins; Juggler's power is renamed Carnival Coin
+
+- **Juggler's power is "Carnival Coin"** (was Baldgecoin), matching the card it grants. The internal kind
+  stays `baldgecoin` so saves and the policy registry keep resolving.
+- **Midas** (11 armor) — *Midas' Touch*, passive: you need only **2** copies to Gild, and Gilding grants a
+  **Gold Pouch** instead of a Triple Reward.
+
+Both halves reuse existing seams rather than adding parallel ones:
+
+- The 2-copy threshold rides the same `need` that **Rune of the Twin Gilding** already uses, so owning the rune
+  as Midas cannot stack down to one copy — either condition simply means two.
+- The reward swap lives inside `grantGoldenDiscover` rather than at its call sites. Every Gild route funnels
+  through that one function, and there are four of them; swapping per-site would have guaranteed a missed path
+  (the `applySpellBought` lesson, which shipped exactly that bug once).
+
+Worth noting for anyone testing this area: the Triple Reward fires when the GOLDEN IS PLAYED, not when the
+copies combine, and `checkTriples` runs on a BUY rather than on a roll. Both cost me a test iteration.
+
+Art wired for Midas, and Carnival Coin's spell art came along now that the owner has added it.
+
+Full suite 5531 green, typecheck + lint + build:web clean.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
+## 2026-08-17 - Juggler pays a CARNIVAL COIN, not a modified Gold Pouch
+
+Owner redesign, and a better one: instead of Juggler changing what an existing card does, his power grants a
+NEW card.
+
+- **Carnival Coin** — a `token: true` spell: gain **1 Gold** and give your minions **+1/+1**. Never drawable
+  (out of the shop, spell Discovers and every random-spell grant), exactly like the quest-reward spells. Two
+  cast effects on one card: `gainEmbers` plus `spellBuffAll`, and because the buff uses the ordinary
+  stat-granting family it picks up spell power automatically and its printed value stays live for free.
+- **Gold Pouch is untouched again.** The previous pass made it buff the board while Juggler was the hero, which
+  meant a card whose behaviour depended on who you were playing — and a text rider to explain it. Both are
+  reverted. A separate card is simply the right shape: no conditional in the cast path, no conditional in the
+  card text, and nothing to keep in sync.
+- **The power now shows an `x/3` pill** counting minions bought toward the next Coin, in the same tally slot
+  every other counting hero uses.
+
+Verified in the browser after a clean reload: the pill reads `2/3` at two buys, on Juggler's own art. (An
+earlier reading showed stale Cassen state — worth knowing that after many `newRun` calls in one session the
+dev page needs a reload before the panel can be trusted.)
+
+Full suite 5527 green, typecheck + lint + build:web clean. Carnival Coin's art can drop into the spell folder
+whenever it is ready; the card resolves without it.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
+## 2026-08-17 - Jensen re-enabled; Juggler joins
+
+- **Jensen ships again** (owner) — the `wip` flag is off and the hero-disable test's list shrinks to two. He
+  stays in `RESOLVABLE`, since being enabled does not remove the need for saves to resolve him.
+- **Juggler** (12 armor) — *Baldgecoin*, passive: every **3** minions bought hands over a Gold Pouch, and his
+  Gold Pouches also give your minions **+1/+1**.
+
+Two details worth noting:
+
+**The buy counter WRAPS at 3** rather than accumulating, so a full hand costs you that Pouch instead of banking
+it — the same call Cia's prize makes. It is counted on BOTH buy routes (ordinary and restored/held), because a
+hook wired to only one of them is the recurring bug in that file (`applySpellBought` shipped that way once).
+
+**The +1/+1 rides the shared spell-power bonus**, so Spellstone and friends raise it exactly as they raise a
+Growth — and because a hero has changed what a CARD does, the Gold Pouch's own printed text has to say so. It
+now appends "Give your minions +N/+N" with the live value while Juggler is the hero, threaded through
+`spellDisplayText` on a pure `extra` flag. That is the live-card-text rule applied to a card whose behaviour a
+hero changed, not merely one that scales.
+
+Both tripwires fired on the way through and were right to: the hero-disable list and the policy-coverage test.
+
+Full suite 5526 green, typecheck + lint + build:web clean.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
+## 2026-08-17 - Cassen's art corrected; the two RARE jobs land
+
+**Art names fixed.** The numbered `CassenHP1/2/3` scheme proved unreadable and the owner renamed the files by
+JOB. The aliases now read `CassenShed → cassen-spell` (1 turn), `CassenHouse → cassen-gold` (2),
+`CassenBridge → cassen-discover` (3), plus `CassenCastle → cassen-citadel` and
+`CassenZeppelin → cassen-fortress` for the rares. The 3-turn ordinary job is renamed **Bridge**, freeing
+"Castle" for the rare it now belongs to.
+
+**Two rare jobs**, a 25% chance to replace one slot:
+- **Castle** (`citadel`) — in 3 turns the Shop upgrades once, free. Only offered at **Tier 4 or lower**, where
+  a free upgrade is still worth something. The tier rises without charging `upgradeCostOf`, and the next price
+  re-bases off the new tier exactly as a paid upgrade does.
+- **Zeppelin** (`fortress`) — in 3 turns, a Triple Reward (the same `grantGoldenDiscover` a real triple gives).
+
+**The offer is DERIVED, not rolled**, and that is the load-bearing decision. `commissionOffer` is read by BOTH
+the reducer (to validate the pick) and the panel (to draw it), so it hashes `(seed, wave)` rather than drawing
+from `rngCursor`. An impure roll would let the panel show one set of options while the reducer validated
+against another, and it would not replay. Three tests guard exactly that: the offer is stable across repeated
+calls, a rare appears across 40 turns, and Citadel never appears above Tier 4.
+
+**Not covered by tests:** the two payouts firing at maturity. They ride the same `payCommission` path the three
+ordinary jobs use (only the branch differs), and I could not pin the turn-advance action from a fixture in
+reasonable time. The derived offer — the part with real failure modes — is what the tests guard.
+
+Full suite 5521 green, typecheck + lint + build:web clean.
+
+**Still queued:** the Juggler hero, and granted quest/rune art taking the hero-power slot.
+
+## 2026-08-17 - Cassen's commissions renamed; his art re-wired
+
+- Commissions are **Shed / House / Castle** (were The Quick Favour / The Fair Wage / The Long Job). Named for
+  the scale of the job so the delay reads off the title alone — Shed 1 turn, House 2, Castle 3.
+- All of Cassen's art re-wired (hero, power, and the three commission images). Tradesman's re-done art came
+  along in the same sweep.
+
+Full suite 5518 green, typecheck + lint + build:web clean.
+
+**Queued, NOT built** — the rest of the owner's 2026-08-17 batch:
+
+1. **Cassen's two RARE jobs** (25% chance to be offered): *Citadel* — in 3 turns the shop upgrades once, only
+   offered at Tier 4 or lower; *Fortress* — in 3 turns, a triple reward. Art is already in place
+   (`CassenHP4` / `CassenHP5`), needing `cassen-citadel` / `cassen-fortress` aliases.
+   **Design note for whoever picks this up:** `commissionOffer` is a PURE function called by both the reducer
+   and the panel, so the 25% roll must be DERIVED (hash of seed + wave) rather than drawn from `rngCursor` —
+   an impure roll would let the UI and the reducer disagree about what is on offer, and would not replay.
+2. **Juggler** (12 armor) — *Baldgecoin*: every 3 minions bought, get a Gold Pouch; Gold Pouches grant your
+   minions +1/+1, scaling with spell power. Needs the Gold Pouch card text to reflect the buff while Juggler
+   is the hero (the live-card-text rule). Art present (`Juggler.png` / `JugglerHP.png`), unwired until the
+   hero exists.
+3. **Granted quest/rune art takes the hero-power slot** — Fi, Coran, Runesmith, Guardian. Owner clarified: the
+   chosen quest/rune's art replaces the power art rather than occupying one of the three slots. The
+   `cia-<suit>` / `cassen-<kind>` variant pattern is the shape to follow.
+
+## 2026-08-17 - Guardian + Runesmith's own forge is fully discounted
+
+Their hero power's forge now discounts EVERY slot (owner ask) — it is their shop, so it should feel like one.
+
+Keyed off the HERO's power kind rather than the route that opened the forge, and applied at all four draw
+sites (Runesmith's wave-5 draw, the epic forge, the scheduled basic forge, and a re-roll). That matters
+because Guardian's forge arrives through `openEpicRuneforge` — a function whose comment says "reached by a
+quest/rune, not the hero power", which is true of every hero EXCEPT him.
+
+It fills gaps rather than overwriting: a slot that already earned a PIVOT discount keeps it, since that one
+can be larger and the two would otherwise fight. Same value span as the pivot, so "a discounted rune" means
+one consistent thing, and drawn from the passed rng so replays hold.
+
+**One existing test had to move heroes.** The pivot-discount test asserted "discounts land ONLY on
+non-following runes" while using Runesmith to open the forge — an invariant that cannot hold for him now.
+Swapping to a non-forge hero opened nothing (they have no forge), so it now opens the UNIVERSAL forge via the
+runic rift at wave 6, which lets the pivot rule be observed on its own. Updated, not loosened: it still
+asserts the same rule, just through a hero that has only that rule.
+
+Full suite 5518 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 
 - **Flash's options are First Place / Last Place** (were First Blood / Last Word).

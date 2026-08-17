@@ -18,7 +18,7 @@ export interface LiveTextParams {
   runeMammoth?: boolean;
   /** Runes that change a specific card's printed RULE — surfaced as a green note on that card. */
   runeFlags?: RuneTextFlags;
-  spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number;
+  spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Rubies cast this run — the other half of the spell umbrella Herzog/Vaultkeeper read. */
   rubyCasts?: number;

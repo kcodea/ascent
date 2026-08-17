@@ -163,9 +163,13 @@ const HERO_POWER_ALIASES: Record<string, string> = {
   ciaclubs: 'cia-clubs',
   flashfirst: 'flash-first',
   flashlast: 'flash-last',
-  cassenhp1: 'cassen-discover',
-  cassenhp2: 'cassen-gold',
-  cassenhp3: 'cassen-spell',
+  // Named for the JOB, not numbered — the owner renamed these after the numbering proved unreadable.
+  // Shed 1 turn, House 2, Bridge 3; Castle and Zeppelin are the two RARE jobs.
+  cassenshed: 'cassen-spell',
+  cassenhouse: 'cassen-gold',
+  cassenbridge: 'cassen-discover',
+  cassencastle: 'cassen-citadel',
+  cassenzeppelin: 'cassen-fortress',
 };
 
 /** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does

@@ -715,6 +715,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:devourer:devour': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:membrance:memory': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:flash:firstOrLast': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:juggler:baldgecoin': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:midas:midasTouch': { policy: 'passive', family: 'passive', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chronoshero:questChronos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },

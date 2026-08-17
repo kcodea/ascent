@@ -1050,6 +1050,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
+        jugglerBuy(s);
         checkTriples(s); // a restored copy can still complete a triple
         keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
         // so a buy that completes a triple (3→1) frees hand space before the guard checks it (owner report: a
@@ -1154,6 +1155,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
+      jugglerBuy(s);
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown — AFTER checkTriples, so a
       // buy that completes a triple (3→1) frees hand space before the full-hand guard checks it
@@ -1909,6 +1911,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       const questId = offer[action.index];
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
+      // Fi (lesser errand) and Coran (capstone) grant an EXTRA quest shop; the quest taken from it is their
+      // power, so its art takes the power's slot. Their bonus shop is the only one they open, so any quest
+      // taken while they are the hero is the granted one.
+      {
+        const kind = getHero(s.heroId).power.kind;
+        if (kind === 'lesserQuest' || kind === 'pathfinder') s.heroGrantArt = { kind: 'quest', id: questId };
+      }
       s.questOffer = undefined;
       openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next
       return s;
@@ -1987,6 +1996,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
       if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
+      // The power button now wears this rune — but only when the forge was the HERO's, not a quest's.
+      {
+        const kind = getHero(s.heroId).power.kind;
+        const mine = (kind === 'runeforge' && !s.runeforgeNoCharge) || (kind === 'epicRuneforge' && s.runeforgeEpic);
+        if (mine) s.heroGrantArt = { kind: 'rune', id: rune.id };
+      }
       closeRuneforge(s);
       checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)
@@ -2011,6 +2026,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const redrawn = drawRuneOffer(s, rng, new Set(s.runeforgeOffer));
       s.runeforgeOffer = redrawn.offer;
       s.runeforgeDiscounts = redrawn.discounts;
+      applyHeroForgeDiscount(s, rng); // a re-roll keeps the hero's own forge discounted
       s.runeforgeRerolled = true;
       s.runeforgeRerollUsed = true;
       return s;
@@ -2831,6 +2847,14 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
+  // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
+  // because every Gild route funnels through this one function — doing it per-site would guarantee a missed
+  // path (the `applySpellBought` lesson).
+  if (getHero(s.heroId).power.kind === 'midasTouch') {
+    const pouch = CARD_INDEX['emberpouch'];
+    if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
+    return;
+  }
   // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
   // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
   if (s.runeCorruptedTome) {
@@ -2867,7 +2891,8 @@ function checkTriples(s: RunState): void {
       const cd = CARD_INDEX[c.cardId];
       if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
-    const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
+    // Rune of Twin Gilding AND Midas' Touch both Gild at 2 — either one is enough, so they cannot stack into 1.
+    const need = (s.runeTwinGilding || getHero(s.heroId).power.kind === 'midasTouch') ? 2 : 3;
     let tripleId: string | undefined;
     for (const [id, n] of counts) {
       if (n >= need) {
@@ -3727,9 +3752,11 @@ function advanceCombat(s: RunState): void {
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
-    const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    const forgeRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
+    const drawn = drawRuneOffer(s, forgeRng);
     s.runeforgeOffer = drawn.offer;
     s.runeforgeDiscounts = drawn.discounts;
+    applyHeroForgeDiscount(s, forgeRng);
   } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
@@ -4107,13 +4134,31 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
  *  offer/buy/skip/reroll machinery as the Runesmith's forge, flagged `runeforgeEpic` so the reroll draws from the
  *  Epic pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
  *  normal forge's stream. */
+/**
+ * Guardian + Runesmith: the forge their OWN power opens is discounted across every slot (owner ask
+ * 2026-08-17) — it is their hero power's shop, so it should feel like one.
+ *
+ * Fills the gaps rather than overwriting: a slot that already earned a PIVOT discount keeps it, since that one
+ * can be larger and the two would otherwise fight. Uses the same span as the pivot so a "discounted rune"
+ * means one consistent thing, and draws from the passed `rng` so replays hold.
+ */
+function applyHeroForgeDiscount(s: RunState, rng: ReturnType<typeof makeRng>): void {
+  const kind = getHero(s.heroId).power.kind;
+  if (kind !== 'runeforge' && kind !== 'epicRuneforge') return;
+  const span = s.runeforgeEpic ? [2, 3, 4] : [1, 2];
+  s.runeforgeDiscounts = (s.runeforgeOffer ?? []).map((_, i) =>
+    s.runeforgeDiscounts?.[i] ?? span[rng.int(span.length)]!);
+}
+
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeNoCharge = true; // reached by a quest/rune, not the hero power
   s.runeforgeRerolled = undefined;
-  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  const epicRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2));
+  const drawn = drawRuneOffer(s, epicRng);
   s.runeforgeOffer = drawn.offer;
   s.runeforgeDiscounts = drawn.discounts;
+  applyHeroForgeDiscount(s, epicRng);
 }
 
 /** Open the BASIC Runeforge from a quest/rune (The Runeforge quest), granting `gold` this turn. Uses the normal
@@ -4122,9 +4167,13 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   s.runeforgeEpic = undefined;
   s.runeforgeNoCharge = true;
   s.runeforgeRerolled = undefined;
-  const drawn = drawRuneOffer(s, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
+  const schedRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3));
+  const drawn = drawRuneOffer(s, schedRng);
   s.runeforgeOffer = drawn.offer;
   s.runeforgeDiscounts = drawn.discounts;
+  // The discount follows the HERO, not the route: Runesmith's forge can also arrive on this scheduled path,
+  // and it is still his shop either way.
+  applyHeroForgeDiscount(s, schedRng);
   if (gold > 0) gainGold(s, gold);
 }
 
@@ -5083,6 +5132,17 @@ function refreshTavern(s: RunState, hold = false): void {
 function payCommission(s: RunState, c: Commission): void {
   s.commission = undefined;
   if (c.kind === 'gold') { gainGold(s, 2); return; }
+  if (c.kind === 'fortress') { grantGoldenDiscover(s); return; } // the Triple Reward, same grant a triple gives
+  if (c.kind === 'citadel') {
+    // A FREE upgrade — the tier rises without charging `upgradeCostOf`, then the next price is re-based off
+    // the new tier exactly as a paid upgrade does, so the ladder stays consistent.
+    const ceiling = maxTierFor(s.rift);
+    if (s.tier < ceiling) {
+      s.tier += 1;
+      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+    }
+    return;
+  }
   if (c.kind === 'spell') {
     const pool = poolOf(s).spells.filter((x) => x.tier <= s.tier);
     if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
@@ -5108,6 +5168,22 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
   const next = pool[rng.int(pool.length)]!;
   s.rngCursor = rng.state();
   return next;
+}
+
+/**
+ * Juggler (Baldgecoin): every 3 minions bought hands over a Carnival Coin.
+ *
+ * The counter WRAPS at 3 rather than accumulating, so a full hand costs you that pouch instead of banking it
+ * — the same call Cia's prize makes. Counted on every buy route, since a hook wired to only one of them is
+ * the recurring bug in this file (see `applySpellBought`).
+ */
+function jugglerBuy(s: RunState): void {
+  if (getHero(s.heroId).power.kind !== 'baldgecoin') return;
+  const n = (s.jugglerBuys ?? 0) + 1;
+  if (n < 3) { s.jugglerBuys = n; return; }
+  s.jugglerBuys = 0;
+  const coin = CARD_INDEX['carnivalcoin'];
+  if (coin && s.hand.length < handCap(s)) conjureToHand(s, [coin], 1);
 }
 
 /**

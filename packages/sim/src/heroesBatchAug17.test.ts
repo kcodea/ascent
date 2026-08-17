@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate } from '@game/core';
-import { createRun, reduce, getHero, type RunState, type BoardCard } from './index';
+import { commissionOffer, createRun, reduce, getHero, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-17 — Devourer and Membrance. */
 
@@ -138,5 +138,158 @@ describe('Flash — First or Last', () => {
     } as RunState;
     const after = reduce(s, { type: 'resolveCombat' } as never);
     expect([after.hand.length, after.flashPick]).toEqual([0, undefined]);
+  });
+});
+
+describe("Cassen's rare jobs", () => {
+  const at = (over: object): RunState => ({ ...createRun(3), phase: 'recruit', heroId: 'cassen', ...over }) as RunState;
+
+  it('the offer is DERIVED, so the panel and the reducer always agree', () => {
+    // Same inputs -> same offer, every call. An rngCursor draw would fail this.
+    const s = at({ wave: 4, tier: 3 });
+    const a = commissionOffer(s), b = commissionOffer(s), c = commissionOffer({ ...s } as RunState);
+    expect(a).toEqual(b);
+    expect(a).toEqual(c);
+  });
+
+  it('offers a rare job sometimes, and always keeps three options', () => {
+    let sawRare = false;
+    for (let wave = 1; wave <= 40; wave++) {
+      const o = commissionOffer(at({ wave, tier: 3 }));
+      expect(o.length, 'always three to choose from').toBe(3);
+      if (o.includes('citadel') || o.includes('fortress')) sawRare = true;
+    }
+    expect(sawRare, 'a 25% chance shows up across 40 turns').toBe(true);
+  });
+
+  it('never offers Citadel above Tier 4', () => {
+    for (let wave = 1; wave <= 60; wave++) {
+      expect(commissionOffer(at({ wave, tier: 5 })), `wave ${wave}`).not.toContain('citadel');
+    }
+  });
+
+  // NOT COVERED HERE: the two payouts firing at maturity. They ride the same `payCommission` path the three
+  // ordinary jobs already use (only the branch differs), and I could not pin the turn-advance action from a
+  // fixture in reasonable time — so the DERIVED OFFER above, which is the part with real failure modes, is
+  // what these tests guard. The payouts themselves are a free `s.tier += 1` and a `grantGoldenDiscover`.
+});
+
+describe('Juggler — Baldgecoin', () => {
+  it('the Carnival Coin is a TOKEN — never drawable from a shop or Discover', () => {
+    const def = CARD_INDEX['carnivalcoin']!;
+    expect([def.spell, def.token], 'a non-drawable spell').toEqual([true, true]);
+  });
+
+  it('is a 12-armor passive', () => {
+    const h = getHero('juggler');
+    expect([h.armor, h.power.kind, h.power.passive]).toEqual([12, 'baldgecoin', true]);
+  });
+
+  it('hands over a Carnival Coin on every 3rd minion bought', () => {
+    let s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 40, hand: [], board: [],
+      shop: [{ uid: 'a', cardId: 'stray' }, { uid: 'b', cardId: 'alley' }, { uid: 'c', cardId: 'pack' }] } as RunState;
+    for (const uid of ['a', 'b', 'c']) s = reduce(s, { type: 'buy', uid } as never);
+    expect(s.hand.filter((c) => c.cardId === 'carnivalcoin').length, 'the 3rd buy paid a Coin').toBe(1);
+    expect(s.jugglerBuys, 'the counter wrapped').toBe(0);
+  });
+
+  it('the Carnival Coin pays Gold AND buffs the board', () => {
+    const s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 5,
+      board: [{ uid: 'm', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'p', cardId: 'carnivalcoin', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
+    const after = reduce(s, { type: 'play', uid: 'p' } as never);
+    const m = after.board.find((c) => c.uid === 'm')!;
+    expect([m.attack - 2, m.health - 2], 'at least the printed +1/+1').toEqual([1, 1]);
+    expect(after.embers, 'and it still paid its Gold').toBeGreaterThan(5);
+  });
+
+  it('another hero\'s Gold Pouch does NOT buff the board', () => {
+    const s = { ...createRun(6), phase: 'recruit', heroId: 'juggler', embers: 5,
+      board: [{ uid: 'm', cardId: 'stray', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [{ uid: 'p', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
+    const after = reduce(s, { type: 'play', uid: 'p' } as never);
+    expect(after.board.find((c) => c.uid === 'm')!.attack, 'untouched').toBe(2);
+  });
+});
+
+describe('Jensen is re-enabled', () => {
+  it('is no longer withheld from the picker', () => {
+    expect(getHero('jenkins').wip ?? false, 'Jensen ships again (owner 2026-08-17)').toBe(false);
+  });
+});
+
+describe("Midas — Midas' Touch", () => {
+  // The triple check runs on a BUY (not a roll), so the second copy is bought rather than pre-placed.
+  const buySecond = (hero: string): RunState => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: hero, embers: 20, board: [],
+      hand: [{ uid: 'a', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'stray' }],
+    } as RunState;
+    return reduce(s, { type: 'buy', uid: 's1' } as never);
+  };
+
+  it('is an 11-armor passive', () => {
+    const h = getHero('midas');
+    expect([h.armor, h.power.kind, h.power.passive]).toEqual([11, 'midasTouch', true]);
+  });
+
+  it('Gilds at TWO copies', () => {
+    // The triple check runs on any accepted action; a roll is the cheapest one that changes nothing else.
+    const after = buySecond('midas');
+    const golden = [...after.hand, ...after.board].filter((c) => c.golden);
+    expect(golden.length, 'two copies combined').toBe(1);
+  });
+
+  it('another hero still needs three', () => {
+    const after = buySecond('indy');
+    expect([...after.hand, ...after.board].some((c) => c.golden), 'two is not enough').toBe(false);
+  });
+
+  it('his Gild pays a Gold Pouch, not a Triple Reward', () => {
+    // The reward fires when the GOLDEN is played, not when the copies combine.
+    const gilded = buySecond('midas');
+    const golden = gilded.hand.find((c) => c.golden)!;
+    const after = reduce(gilded, { type: 'play', uid: golden.uid } as never);
+    const ids = [...after.hand, ...after.board].map((c) => c.cardId);
+    expect(ids, 'the Pouch arrived').toContain('emberpouch');
+    expect(ids, 'and NOT the Triple Reward').not.toContain('discoverspell');
+  });
+});
+
+describe('granted quest/rune art takes the hero-power slot', () => {
+  it("Runesmith's own forge stamps the rune he bought", () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runesmith', embers: 30,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    const after = reduce(s, { type: 'buyRune', index: 0 } as never);
+    expect(after.heroGrantArt, 'his forge, his slot').toEqual({ kind: 'rune', id: 'rune_packcraft' });
+  });
+
+  it('a QUEST-opened forge does NOT steal the slot', () => {
+    // `runeforgeNoCharge` marks a forge reached by a quest/rune rather than the hero power.
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runesmith', embers: 30, runeforgeNoCharge: true,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt).toBeUndefined();
+  });
+
+  it("Guardian's EPIC forge stamps his rune", () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'runeguard', embers: 30, runeforgeEpic: true,
+      runeforgeOffer: ['rune_dawnclaw'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt)
+      .toEqual({ kind: 'rune', id: 'rune_dawnclaw' });
+  });
+
+  it('a hero with no forge power is untouched by a rune buy', () => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: 'indy', embers: 30,
+      runeforgeOffer: ['rune_packcraft'], runeforgeDiscounts: [0],
+    } as RunState;
+    expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt).toBeUndefined();
   });
 });

@@ -190,8 +190,9 @@ describe('hero disables (owner 2026-07-28)', () => {
   // RESOLVABLE below: re-enabling is a picker concern, exactly like disabling was.
   // Cassen was re-enabled 2026-08-16 with a brand-new power (Commission), so he is no longer withheld — but he
   // must still RESOLVE, which the second test below covers.
-  const DISABLED = ['jenkins', 'chronoshero', 'djinn'];
-  const RESOLVABLE = [...DISABLED, 'tiff', 'cassen'];
+  // Jensen (id `jenkins`) was re-enabled 2026-08-17 — still RESOLVABLE, just no longer withheld.
+  const DISABLED = ['chronoshero', 'djinn'];
+  const RESOLVABLE = [...DISABLED, 'tiff', 'cassen', 'jenkins'];
 
   it('the withheld heroes are kept from every picker', () => {
     for (const id of DISABLED) {

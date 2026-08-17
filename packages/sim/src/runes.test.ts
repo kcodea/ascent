@@ -57,10 +57,15 @@ describe('Runeforge — synergy offers + pivot discounts (owner ask 2026-07-31)'
     }
   });
 
+  // Uses a NON-forge hero on purpose. Guardian and Runesmith now have their whole forge discounted (owner ask
+  // 2026-08-17), which is a deliberate second rule on top of this one — testing the pivot rule through them
+  // would only prove the two overlap.
   it('pivot discounts land only on non-following runes, within range, and the buy charges the discounted price', () => {
     let found = false;
     for (let seed = 1; seed <= 60 && !found; seed++) {
-      const s: RunState = { ...createRun(seed, 'runesmith'), setId: 'set2', wave: 4, phase: 'combat', hand: [],
+      // The UNIVERSAL forge (runic rift, wave 6) opens for any hero, so the pivot rule can be observed on its
+      // own rather than through a hero who also discounts the whole shop.
+      const s: RunState = { ...createRun(seed, 'coran'), setId: 'set2', rift: 'runic', wave: 5, phase: 'combat', hand: [],
         board: demonBoard(), lastCombat: win };
       const opened = reduce(s, { type: 'resolveCombat' });
       const offer = opened.runeforgeOffer;

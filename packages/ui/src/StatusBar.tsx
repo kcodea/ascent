@@ -6,11 +6,13 @@ import { instView } from './instView';
 import { dragonTamerCostOf, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { heroArt, heroPowerArt } from './art';
+import { heroArt, heroPowerArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
+import { questObjectiveText, questProgressText, questRewardText } from './questText';
+import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
 import { useGame } from './store';
@@ -93,15 +95,33 @@ export function StatusBar() {
   // art is how the player sees which commission is running. Without this the shared "unusable active power"
   // rule dims the art to 10% and the button reads as empty (owner report 2026-08-17).
   const committed = power.kind === 'commission' && !!run.commission;
-  const powerRule = heroPowerText(run);
+  // Once a quest/rune has been granted, the slot IS that grant: its own rule replaces the hero's ("get a quest
+  // on turn 3" is no longer true or useful), and a quest also shows its objective progress.
+  const grant = run.heroGrantArt;
+  const grantQuest = grant?.kind === 'quest' ? run.activeQuests?.find((q) => q.questId === grant.id) : undefined;
+  const grantQuestDef = grant?.kind === 'quest' ? QUEST_INDEX[grant.id] : undefined;
+  const grantRuneDef = grant?.kind === 'rune' ? RUNE_INDEX[grant.id] : undefined;
+  // Once the quest is DONE the objective is history — what matters is what it now gives you, so the tooltip
+  // flips to the reward (owner report 2026-08-17: it still read "Cast 8 Rubies" after completing).
+  const powerRule = grantQuestDef
+    ? (grantQuest?.completed
+      ? questRewardText(grantQuestDef.reward, { completed: true })
+      : questObjectiveText(grantQuestDef.objective))
+    : grantRuneDef ? grantRuneDef.text
+    : heroPowerText(run);
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
   // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
   // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
-  const powerArt = power.kind === 'luckySeat' && run.ciaSuit
+  // Fi / Coran / Runesmith / Guardian: once their granted quest or rune is chosen, the button wears ITS art —
+  // the grant is the power. Falls back to the hero's own art if that piece is unwired.
+  const grantArt = run.heroGrantArt
+    ? (run.heroGrantArt.kind === 'rune' ? runeArt(run.heroGrantArt.id) : questArt(run.heroGrantArt.id))
+    : undefined;
+  const powerArt = grantArt ?? (power.kind === 'luckySeat' && run.ciaSuit
     ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
     : power.kind === 'commission' && run.commission
       ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
-      : heroPowerArt(hero.id);
+      : heroPowerArt(hero.id));
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
@@ -188,6 +208,9 @@ export function StatusBar() {
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
   const powerTally: string | null = (() => {
+    // A granted QUEST owns this slot while it runs: its objective tracker is the useful number, not the
+    // hero's own counter. Checked before the switch so it wins for every hero that can grant one.
+    if (grantQuest && grantQuestDef) return questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed);
     switch (power.kind) {
       case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
       case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin — ticks live as combat casts resolve (fxSpellsCastPreview)
@@ -214,6 +237,7 @@ export function StatusBar() {
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
       // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
       // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
+      case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler — minions bought toward the next Coin
       case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
       case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi — shop tiers banked toward the Triple Reward
       default: return null;

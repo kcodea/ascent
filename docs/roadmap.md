@@ -21,8 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Hero: Juggler** (12 armor, *Baldgecoin*) — every 3 minions bought, get a Gold Pouch; Gold Pouches grant
-  +1/+1, scaling with spell power. Gold Pouch's printed text must reflect the buff while Juggler is the hero.
 - **Granted quest/rune art takes the hero-power slot** (Fi, Coran, Runesmith, Guardian) — follow the
   `cia-<suit>` / `cassen-<kind>` variant-art pattern.
 

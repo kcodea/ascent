@@ -1014,6 +1014,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
+        jugglerBuy(s);
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
@@ -1115,6 +1116,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
+      jugglerBuy(s);
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -5102,6 +5104,22 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
   const next = pool[rng.int(pool.length)]!;
   s.rngCursor = rng.state();
   return next;
+}
+
+/**
+ * Juggler (Baldgecoin): every 3 minions bought hands over a Gold Pouch.
+ *
+ * The counter WRAPS at 3 rather than accumulating, so a full hand costs you that pouch instead of banking it
+ * — the same call Cia's prize makes. Counted on every buy route, since a hook wired to only one of them is
+ * the recurring bug in this file (see `applySpellBought`).
+ */
+function jugglerBuy(s: RunState): void {
+  if (getHero(s.heroId).power.kind !== 'baldgecoin') return;
+  const n = (s.jugglerBuys ?? 0) + 1;
+  if (n < 3) { s.jugglerBuys = n; return; }
+  s.jugglerBuys = 0;
+  const pouch = CARD_INDEX['emberpouch'];
+  if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
 }
 
 /**

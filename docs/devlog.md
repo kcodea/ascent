@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-17 - Jensen re-enabled; Juggler joins
+
+- **Jensen ships again** (owner) — the `wip` flag is off and the hero-disable test's list shrinks to two. He
+  stays in `RESOLVABLE`, since being enabled does not remove the need for saves to resolve him.
+- **Juggler** (12 armor) — *Baldgecoin*, passive: every **3** minions bought hands over a Gold Pouch, and his
+  Gold Pouches also give your minions **+1/+1**.
+
+Two details worth noting:
+
+**The buy counter WRAPS at 3** rather than accumulating, so a full hand costs you that Pouch instead of banking
+it — the same call Cia's prize makes. It is counted on BOTH buy routes (ordinary and restored/held), because a
+hook wired to only one of them is the recurring bug in that file (`applySpellBought` shipped that way once).
+
+**The +1/+1 rides the shared spell-power bonus**, so Spellstone and friends raise it exactly as they raise a
+Growth — and because a hero has changed what a CARD does, the Gold Pouch's own printed text has to say so. It
+now appends "Give your minions +N/+N" with the live value while Juggler is the hero, threaded through
+`spellDisplayText` on a pure `extra` flag. That is the live-card-text rule applied to a card whose behaviour a
+hero changed, not merely one that scales.
+
+Both tripwires fired on the way through and were right to: the hero-disable list and the policy-coverage test.
+
+Full suite 5526 green, typecheck + lint + build:web clean.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
 ## 2026-08-17 - Cassen's art corrected; the two RARE jobs land
 
 **Art names fixed.** The numbered `CassenHP1/2/3` scheme proved unreadable and the owner renamed the files by

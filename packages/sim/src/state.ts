@@ -709,6 +709,8 @@ export interface RunState {
    *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
    *  art, so the player can see what they are working toward. */
   ciaSuit?: CiaSuit;
+  /** Juggler (Baldgecoin): minions bought toward the next Gold Pouch. Wraps at 3 rather than accumulating. */
+  jugglerBuys?: number;
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when
    *  nothing is armed. Cleared on payout, so it never carries into a second fight. */
   flashPick?: 'first' | 'last';

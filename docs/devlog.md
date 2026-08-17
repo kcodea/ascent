@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-17 - An unaffordable hero power no longer reads as an EMPTY slot
+
+Owner report: Tiff's hero-power art "goes away when the cost is reduced". It was not the discount — the art
+dims whenever the power is unusable, and Dragon Tamer's shrinking price simply lands above your Gold often
+enough that the two looked causally linked. The dim was **0.1**, which at that opacity leaves nothing but the
+embossed backing showing: the slot reads as having no art at all rather than as an unusable power. Raised to
+**0.55**, in both the tuner default (`heroPowerBtnConfig`) and the CSS fallback. The affordability cue people
+actually read is the cost coin and the absent ready-glow; the portrait only has to stay legible.
+
+Also folded the four shrinking-cost overrides (Dynamite Dig / Dragon Tamer / Hunch / Buyout) into a single
+`liveCost`, used by BOTH the cost coin and the `canHero` affordability check. It was a latent double-gate: any
+power that ever gained a static `power.cost` alongside an override would have been gated on both, showing a
+payable price on the coin while reading as unaffordable. No hero hits that today.
+
+Verified live in the dev server on a throwaway Tiff run: at cost 4 with 3 Gold the art now computes to opacity
+0.55 and is plainly visible; at cost 4 with 4 Gold the button is `.ready` at opacity 1.
+
 ## 2026-08-17 - Golden Transcendant doubles its neighbours' combat gains
 
 Owner text: *"Ward. Adjacent Dragons are Engraved and gain 2x Stats in combat. Start of Combat: Give your

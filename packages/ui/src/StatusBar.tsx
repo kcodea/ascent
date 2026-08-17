@@ -191,17 +191,21 @@ export function StatusBar() {
   const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
     ? Math.max(0, Math.min(40, (run.goldSpent ?? 0) - (run.indyGildRearmAt - 40)))
     : 0;
+  // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
+  // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
+  const liveCost = digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost;
   const canHero =
     !isPassive &&
     unlocked &&
     !eotAnimating &&
     withinUses &&
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
-    (!power.cost || run.embers >= power.cost) &&
-    (digCost === undefined || run.embers >= digCost) &&
-    (tamerCost === undefined || run.embers >= tamerCost) &&
-    (bookCost === undefined || run.embers >= bookCost) &&
-    (buyCost === undefined || run.embers >= buyCost) &&
+    // ONE price, checked once. A shrinking power (Dragon Tamer / Dynamite Dig / Hunch / Buyout) used to be
+    // gated by its DISCOUNTED cost *and* its printed base cost, so between the two you could see the real,
+    // payable price on the coin while the button read as unaffordable — and the art dimmed to 10% (the
+    // `:not(.ready)` rule in styles.css), which looks exactly like the hero-power art vanishing (owner bug
+    // 2026-08-17). `liveCost` is the same fallback chain the coin renders, so shown price == checked price.
+    (!liveCost || run.embers >= liveCost) &&
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
     !(power.kind === 'commission' && run.commission); // Cassen: locked until the running commission pays out
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
@@ -483,7 +487,7 @@ export function StatusBar() {
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {(digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost}</span></span> : null}
+            {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
             {diceFace != null

@@ -1028,9 +1028,13 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    clickable) but never glows — so every hero shows its power art, only active ones pulse. */
 /* `.committed` (Cassen with a commission in flight) is EXEMPT: the button is deliberately unusable, but its
    art is the whole point — it is how the player sees which commission is running. Dimming it to 10% made the
-   button read as empty (owner report 2026-08-17). */
+   button read as empty (owner report 2026-08-17).
+   The dim itself is now 0.55, not 0.1 (owner bug 2026-08-17: Tiff's art "goes away" the moment Dragon Tamer's
+   shrinking price lands above her Gold). "Unusable" should read as unusable, not as an EMPTY slot — at 10% the
+   art disappeared into the dark face and only the embossed backing showed. The affordability cue people
+   actually read is the cost coin and the missing ready-glow; the portrait just has to stay legible. */
 .heropowerbtn:not(.ready):not(.armed):not(.passive):not(.committed) .hpb-art,
-.heropowerbtn:not(.ready):not(.armed):not(.passive):not(.committed) > svg { opacity: var(--hpb-art-dim, 0.1); filter: saturate(0.75); }
+.heropowerbtn:not(.ready):not(.armed):not(.passive):not(.committed) > svg { opacity: var(--hpb-art-dim, 0.55); filter: saturate(0.75); }
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */

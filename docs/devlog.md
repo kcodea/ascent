@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-17 - Flash lands; both Choose-One pickers get the quest treatment
+
+**Flash** (9 armor) — *First or Last*, 1 Gold: claim a copy of the FIRST or LAST minion you kill next combat.
+
+The engine only tracked `enemyDeaths` as a COUNT, so this needed kill IDENTITY. `simulate` now records the
+cardId of the first and last enemy body you put down — at BOTH enemy-death sites, so a Rise's real death counts
+exactly like an ordinary one — and carries them back as `playerFirstKill` / `playerLastKill`.
+
+The `liveTrackingAudit` tripwire caught them immediately and required a classification, which is the tripwire
+doing its job. Both are **EXEMPT**: the kill already animates as an ordinary death, and "this was the last one"
+is only knowable once the fight is over, so neither can have a live surface.
+
+The claim is a MARK, not a charge: re-arming before the fight replaces the choice, and it is spent at settle
+whether or not a body was available — a fight where you killed nothing does not silently bank it for later.
+The payout is a plain copy: the shell of what you killed, not the statted body that killed for them.
+
+**Both pickers now wear the quest-shop treatment** (owner ask). Flash's Choose One reuses Cassen's markup
+exactly, so one CSS pass dresses both rather than two lookalike panels drifting apart: a tall glass card with
+the art filling it, a gold rim plus an inner hairline for the "pane" read, the gem badge top-centre, and the
+payout in a translucent panel over a scrim at the bottom of the art.
+
+Art wired: `Flash.png`, `FlashHP.png`, and `FlashFirst`/`FlashLast` onto `flash-first` / `flash-last` slugs
+via the alias map (aliases resolve before the `<Name>HP` rule).
+
+Full suite 5514 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Devourer + Membrance (Flash deferred)
 
 - **Devourer** (10 armor) — *Devour*, 1 Gold, targeted: consume a friendly minion and hand its **current**

@@ -7889,38 +7889,54 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Reuses `.discover-ov` / `.disc-panel` so it reads as the same class of decision, but its options are text
    tiles: a commission is a promise, not a card, and rendering it as one would be a lie. */
 .commission-opts { display: flex; gap: calc(16 * var(--u)); padding: calc(14 * var(--u)) calc(18 * var(--u)) calc(20 * var(--u)); }
-/* Shaped after the QUEST SHOP tile (owner ask 2026-08-16): a tall card with the art filling it, a coloured
-   frame, and the payout sitting in its own panel over the bottom of the art. */
+/* QUEST-SHOP treatment (owner ask 2026-08-17), shared by Cassen's commissions and Flash's First/Last. A tall
+   glass card: the art fills it, a coloured rim and inner hairline give it the quest tile's "pane" read, and
+   the payout sits in its own translucent panel over the bottom of the art. */
 .commission-opt {
-  position: relative; display: block; width: calc(190 * var(--u));
+  position: relative; display: block; width: calc(196 * var(--u));
   padding: 0; overflow: hidden; text-align: left; color: inherit; cursor: inherit;
-  border-radius: calc(14 * var(--u));
-  border: calc(2.5 * var(--u)) solid rgba(255, 196, 96, 0.85);
-  background: #1a1410;
-  box-shadow: 0 calc(3 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, 0.5);
-  transition: transform 0.12s, border-color 0.12s;
+  border-radius: calc(16 * var(--u));
+  border: calc(2.5 * var(--u)) solid rgba(255, 206, 120, 0.9);
+  background: linear-gradient(180deg, rgba(52, 40, 26, 0.9), rgba(24, 18, 12, 0.95));
+  box-shadow:
+    0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.55),
+    inset 0 0 0 calc(1.5 * var(--u)) rgba(255, 236, 190, 0.28); /* the inner hairline — the glass edge */
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
-.commission-opt:hover { transform: translateY(calc(-4 * var(--u))); border-color: rgba(255, 232, 168, 1); }
-/* The art fills the tile; the panel below sits over its lower edge, like a quest card's objective block. */
+.commission-opt:hover {
+  transform: translateY(calc(-4 * var(--u)));
+  border-color: rgba(255, 238, 180, 1);
+  box-shadow:
+    0 calc(7 * var(--u)) calc(20 * var(--u)) rgba(0, 0, 0, 0.6),
+    inset 0 0 0 calc(1.5 * var(--u)) rgba(255, 245, 215, 0.5),
+    0 0 calc(16 * var(--u)) rgba(255, 206, 120, 0.35);
+}
 .commission-art { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; }
 .commission-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Delay badge — the quest tile's tier gem, in the same top-centre position. */
-.commission-delay {
-  position: absolute; left: 50%; top: calc(6 * var(--u)); transform: translateX(-50%);
-  min-width: calc(26 * var(--u)); padding: calc(2 * var(--u)) calc(7 * var(--u));
-  border-radius: 999px; text-align: center;
-  font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.35;
-  color: #2a1c08; background: rgba(255, 206, 110, 0.96);
-  border: calc(1.5 * var(--u)) solid rgba(120, 78, 20, 0.75);
+/* A soft scrim under the payout panel so the text never fights the art behind it. */
+.commission-art::after {
+  content: ''; position: absolute; inset: auto 0 0 0; height: 55%;
+  background: linear-gradient(180deg, rgba(12, 8, 5, 0) 0%, rgba(12, 8, 5, 0.85) 78%);
+  pointer-events: none;
 }
-/* The payout panel, overlaid on the bottom of the art exactly like a quest's REWARD block. */
+/* The quest tile's gem, top-centre. */
+.commission-delay {
+  position: absolute; left: 50%; top: calc(7 * var(--u)); transform: translateX(-50%);
+  min-width: calc(30 * var(--u)); padding: calc(2.5 * var(--u)) calc(9 * var(--u));
+  border-radius: 999px; text-align: center; z-index: 2;
+  font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.35;
+  color: #2a1c08; background: linear-gradient(180deg, rgba(255, 232, 168, 1), rgba(240, 190, 92, 1));
+  border: calc(1.5 * var(--u)) solid rgba(120, 78, 20, 0.8);
+  box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.5);
+}
+/* The REWARD block, overlaid on the art exactly like a quest's. */
 .commission-text {
-  position: absolute; left: calc(7 * var(--u)); right: calc(7 * var(--u)); bottom: calc(7 * var(--u));
-  display: block; padding: calc(7 * var(--u)) calc(8 * var(--u));
-  border-radius: calc(8 * var(--u));
-  background: rgba(18, 12, 8, 0.88);
-  border: calc(1.5 * var(--u)) solid rgba(255, 196, 96, 0.5);
-  font-size: calc(11.5 * var(--u)); line-height: 1.35; color: #f6e9d2;
+  position: absolute; left: calc(8 * var(--u)); right: calc(8 * var(--u)); bottom: calc(8 * var(--u));
+  display: block; padding: calc(8 * var(--u)) calc(9 * var(--u)); z-index: 2;
+  border-radius: calc(9 * var(--u));
+  background: rgba(16, 11, 7, 0.82);
+  border: calc(1.5 * var(--u)) solid rgba(255, 206, 120, 0.45);
+  font-size: calc(11.5 * var(--u)); line-height: 1.4; color: #f6e9d2;
 }
 
 /* Quillen's archived types under the power rule — each in its own tribe colour, unused slots muted. */

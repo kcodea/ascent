@@ -2048,6 +2048,11 @@ export interface CombatResult {
   /** Enemy-side minions that died this combat — Cassen's Collision banks these toward "kill 5 enemy
    *  minions → get a top-type minion" (the run loop accumulates them). */
   enemyDeaths: number;
+  /** Flash: the cardId of the FIRST and LAST enemy minion the player killed this combat. Identity, not a
+   *  count — `enemyDeaths` already carries the count, and Flash needs to know WHICH body it was. Absent when
+   *  nothing died. Player-perspective like every other `player*` carry-back. */
+  playerFirstKill?: string;
+  playerLastKill?: string;
   /** Combat-phase quest tallies for this fight — fed to the active quests in settleCombat (+N, tribe-narrowed).
    *  `attack` / `summonCombat` / `slaughter` are the player-side totals; the `*ByTribe` maps break each down by
    *  the acting/summoned minion's tribe (dual-types count for both) so "with Beasts" objectives resolve. The

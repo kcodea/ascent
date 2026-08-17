@@ -67,3 +67,57 @@ describe('Membrance — Memory', () => {
     expect([after.embers, after.heroReady]).toEqual([10, true]);
   });
 });
+
+describe('Flash — First or Last', () => {
+  const combat = (kills: string[]): object => ({
+    result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: kills.length, events: [],
+    initial: { player: [], enemy: [] },
+    playerFirstKill: kills[0], playerLastKill: kills[kills.length - 1],
+  });
+
+  it('is a 9-armor, 1-Gold power', () => {
+    const h = getHero('flash');
+    expect([h.armor, h.power.kind, h.power.cost]).toEqual([9, 'firstOrLast', 1]);
+  });
+
+  it('arms the chosen end, and refuses a click carrying no choice', () => {
+    const s = { ...createRun(3), phase: 'recruit', heroId: 'flash', embers: 10, heroReady: true } as RunState;
+    expect(reduce(s, { type: 'heroPower', flashPick: 'last' } as never).flashPick).toBe('last');
+    const bare = reduce(s, { type: 'heroPower' } as never);
+    expect([bare.flashPick, bare.embers, bare.heroReady]).toEqual([undefined, 10, true]);
+  });
+
+  it('re-arming REPLACES the choice rather than stacking', () => {
+    let s = { ...createRun(3), phase: 'recruit', heroId: 'flash', embers: 10, heroReady: true } as RunState;
+    s = reduce(s, { type: 'heroPower', flashPick: 'first' } as never);
+    s = reduce({ ...s, heroReady: true } as RunState, { type: 'heroPower', flashPick: 'last' } as never);
+    expect(s.flashPick).toBe('last');
+  });
+
+  it('pays the FIRST kill, and clears the claim', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'first',
+      lastCombat: combat(['stray', 'alley', 'pack']) as never,
+    } as RunState;
+    const after = reduce(s, { type: 'resolveCombat' } as never);
+    expect(after.hand.map((c) => c.cardId), 'a plain copy of the first kill').toContain('stray');
+    expect(after.flashPick, 'the claim is spent').toBeUndefined();
+  });
+
+  it('pays the LAST kill', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'last',
+      lastCombat: combat(['stray', 'alley', 'pack']) as never,
+    } as RunState;
+    expect(reduce(s, { type: 'resolveCombat' } as never).hand.map((c) => c.cardId)).toContain('pack');
+  });
+
+  it('a fight with NO kills spends the claim rather than banking it', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'first',
+      lastCombat: { result: 'loss', playerDamage: 2, playerDeathrattles: 0, enemyDeaths: 0, events: [], initial: { player: [], enemy: [] } } as never,
+    } as RunState;
+    const after = reduce(s, { type: 'resolveCombat' } as never);
+    expect([after.hand.length, after.flashPick]).toEqual([0, undefined]);
+  });
+});

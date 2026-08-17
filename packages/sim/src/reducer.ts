@@ -2259,6 +2259,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
         s.commission = { kind: pick, dueWave: s.wave + COMMISSION_DELAY[pick] };
         s.lastCommission = pick; // …so the next offer can exclude it
+      } else if (power.kind === 'firstOrLast') {
+        // Flash: arm which end of next combat's kills to claim. The 1-Gold cost is spent by the shared block.
+        // Re-arming before the fight simply replaces the choice — it is a mark, not a stacking charge.
+        const pick = action.flashPick;
+        if (pick !== 'first' && pick !== 'last') return state; // must carry a choice
+        s.flashPick = pick;
       } else if (power.kind === 'devour') {
         // Devourer: eat a friendly BOARD minion and hand its stats to a random OTHER friendly. Needs a real
         // second body to receive them, so a board of one is a no-op (no charge, nothing eaten) — otherwise the
@@ -3444,6 +3450,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
   //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
+  // Flash: pay the armed claim from THIS combat's kills. Spent whether or not a body is available, so a fight
+  // where you killed nothing does not silently bank the claim for a later one.
+  if (s.flashPick && getHero(s.heroId).power.kind === 'firstOrLast') {
+    const id = s.flashPick === 'first' ? result.playerFirstKill : result.playerLastKill;
+    s.flashPick = undefined;
+    const def = id ? CARD_INDEX[id] : undefined;
+    // A plain copy — the shell of what you killed, not the statted body that killed for them.
+    if (def && !def.spell && !def.ruby && s.hand.length < handCap(s)) conjureToHand(s, [def], 1);
+  }
   if (getHero(s.heroId).power.kind === 'collision') {
     s.cassenKills += result.enemyDeaths;
     while (s.cassenKills >= 5) {

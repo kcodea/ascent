@@ -139,6 +139,7 @@ export function StatusBar() {
   // Cassen: the commission picker is local to this component, which owns the button — no cross-component
   // plumbing for a panel only one hero ever opens.
   const [pickingCommission, setPickingCommission] = useState(false);
+  const [pickingFlash, setPickingFlash] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
   /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
@@ -434,6 +435,7 @@ export function StatusBar() {
                 // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
                 // it too, so this just stops the panel opening on a click that could not do anything.
                 if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
+                else if (power.kind === 'firstOrLast') setPickingFlash(true);
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
@@ -485,6 +487,36 @@ export function StatusBar() {
                       className="commission-text"
                       dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
                     />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>, document.body)}
+      {/* FLASH'S CHOOSE ONE — the SAME markup as Cassen's picker above, so the quest-style treatment in
+          styles.css dresses both from one place rather than drifting into two lookalike panels. */}
+      {pickingFlash && createPortal(
+        <div className="discover-ov commission-ov" role="dialog" aria-label="First or Last">
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">First or Last</span></div>
+            <div className="commission-opts">
+              {(['first', 'last'] as const).map((end) => (
+                <button
+                  key={end}
+                  type="button"
+                  className="commission-opt"
+                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end }); }}
+                >
+                  <span className="commission-art" aria-hidden="true">
+                    {heroPowerArt(`flash-${end}`)
+                      ? <img src={heroPowerArt(`flash-${end}`)} alt="" draggable={false} />
+                      : null}
+                    <span className="commission-delay">{end === 'first' ? '1st' : 'Last'}</span>
+                  </span>
+                  <span className="commission-text">
+                    {end === 'first'
+                      ? 'Get a copy of the FIRST minion you kill next combat.'
+                      : 'Get a copy of the LAST minion you kill next combat.'}
                   </span>
                 </button>
               ))}

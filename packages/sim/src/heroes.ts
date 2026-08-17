@@ -60,7 +60,8 @@ export type HeroPowerKind =
   | 'startingReflector' // Yirin (passive): the run opens with a Reflector token in hand
   | 'commission' // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
   | 'devour' // Devourer: 1 Gold — eat a friendly minion, spitting its stats onto a random other friendly
-  | 'memory'; // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
+  | 'memory' // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
+  | 'firstOrLast'; // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
 
 export interface HeroPower {
   name: string;
@@ -659,6 +660,22 @@ export const HEROES: HeroDef[] = [
       kind: 'devour',
       cost: 1,
       text: 'Consume a friendly minion and give its stats to a random other friendly minion.',
+    },
+  },
+  {
+    id: 'flash',
+    name: 'Flash',
+    blurb: 'He only ever watches the opening blow — or the closing one.',
+    resolve: 30,
+    armor: 9,
+    power: {
+      name: 'First or Last',
+      kind: 'firstOrLast',
+      cost: 1,
+      // A CHOICE, so the button opens a picker rather than firing (the `commission` pattern). Untargeted in
+      // the sense that it takes no board target; the choice itself is the input.
+      untargeted: true,
+      text: 'Claim a copy of the **first** or **last** minion you kill next combat.',
     },
   },
   {

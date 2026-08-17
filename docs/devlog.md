@@ -1,5 +1,56 @@
 # ASCENT — development log
 
+## 2026-08-17 — Mode cards 25% larger; new Play art
+
+**Play tile art replaced** with a second master from the owner (`Modes/PlayMode.png`, re-optimized 2480KB →
+75KB at 512px). Because the in-repo copy is keyed by MODE ID rather than by the master's filename, a re-wire
+is just: copy over `art/modes/lobby.png`, `npm run optimize-art`, done — no code touched, and no dev-server
+restart needed this time (the directory already exists in the eager glob; only a NEW directory needs the
+restart). Verified live: the tile renders the new four-panel piece at 512×512, `object-fit: cover`.
+
+Owner: the mode selectors read "very small" once the art landed — two tiles alone on a full-screen view left
+them looking lost, and the art deserves the room. Scaled the WHOLE card 25%, not just the frame: scaling the
+tile alone would have left the name pill and blurb at their old size and made the card read as
+proportionally wrong rather than bigger.
+
+`.mcframe` 245→306px (the frame's radius 22→28 and the art's 25→28−3 with it, keeping the corners flush),
+`.modecard` 300→375 with its padding/gap, `.mcemblem` 108→135, `.mcname` 23→29px, `.mctag` 15→19px,
+`.mcdesc` 17.5→22px with its reserved height 72→90 and max-width 270→338, and the row gap 29→36.
+
+Note for anyone editing this block: `.mcframe`'s declarations are byte-identical to `.herocard.big .hcframe`
+(the mode card was built from it), so a naive find-and-replace on the dimensions hits BOTH and silently
+resizes hero select. The edits are anchored on the `.mcframe` selector for that reason.
+
+Verified live: the frame computes to 306px, the card to 375px, and the page still doesn't scroll
+horizontally — the `.mpbox` zoom (0.90 at this viewport) already scales the whole picker to fit, so the larger
+card rides that rather than fighting it.
+
+## 2026-08-17 — Oath leaves the Career profile card
+
+Owner: Oath "is no longer used at all" — so it comes off the profile card. It was a number nothing produces
+any more. Oath belongs to the scored 17-round course, and the course modes left the mode picker with the Set 2
+launch (2026-07-31); a lobby has no Oath at all. The card was printing a stale value from the local run
+profile, next to a Rating that IS still live, which reads as though both are current.
+
+Removed from `Career.tsx`: the `· Oath N` suffix on the rank line, the `· Oath N` on the "Highest:" subline,
+the same suffix on the no-runs empty state, and the gold **avatar badge** that printed `currentLine` over the
+portrait. Its `.caravatar-badge` rule is deleted with it rather than left orphaned — it had exactly one user.
+A VIEWED player's card is unaffected in shape: their games count still comes from the leaderboard row, which is
+real data (Oath was never shown for them, since it is local-only).
+
+`profile.currentLine` / `highestLine` are untouched in state — this is a display removal, not a schema change,
+so nothing about saved profiles or the rating pipeline moves.
+
+**Oath still renders in three other places, all deliberately left:** hero select's run telegraph, the HUD's
+round plaque, and the end screen's verdict. Every one is gated behind a non-lobby mode — reachable today only
+via a live Rift, where the course rules and the Oath verdict genuinely do apply. Stripping those would change
+what a rift run tells you, which is a bigger call than the profile card and was not what was asked.
+
+Verified live: with no run history the empty state reads "Rating 0" with no Oath, no `.caravatar-badge` in the
+DOM, and no "Oath" anywhere in the page text. The POPULATED card needs run history this dev profile doesn't
+have, so its two lines were checked in source — both are plain template literals. Gates: typecheck, lint,
+tests, `build:web`.
+
 ## 2026-08-17 — Resolve is now "Health" (display-only)
 
 Owner ask: rename the hero's life total from **Resolve** to **Health** across the board. Done the same way as

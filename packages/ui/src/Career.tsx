@@ -158,7 +158,7 @@ export function Career() {
   };
 
   // ── WHOSE numbers ───────────────────────────────────────────────────────────────────────────────────
-  // Your own card reads the local `profile` (rating, Oath, highest). Another player's cannot: those live in
+  // Your own card reads the local `profile` (rating, highest). Another player's cannot: those live in
   // THEIR profile row, and all we were handed is the leaderboard line. So rating/games come from that row, and
   // "highest" is derived from their run history (`ratingAfter`) rather than invented — omitted when unknowable.
   const viewing = careerOf;
@@ -195,7 +195,7 @@ export function Career() {
         {(entries ?? []).length === 0 ? (
           <>
             <div className="lbempty">
-              <div className="carempty-rating">Rating {shownRating}{viewing ? '' : ` · Oath ${profile.currentLine}`}</div>
+              <div className="carempty-rating">Rating {shownRating}</div>
               {viewing ? `No runs to show for ${shownName}.` : 'No runs yet — play a run to start your career.'}
             </div>
           </>
@@ -214,18 +214,18 @@ export function Career() {
                       {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
                     </button>
                   )}
-                  {!viewing && <div className="caravatar-badge" title={`Oath ${profile.currentLine}`}>{profile.currentLine}</div>}
                 </div>
                 <div className="carpname">{shownName}</div>
-                {/* Oath is a LOCAL run-profile value — another player's is simply not in the leaderboard row, so
-                    it is omitted rather than shown as yours or faked as 0. Their games count comes from the row. */}
+                {/* Oath dropped from this card entirely (owner 2026-08-17) — the course modes it belonged to are
+                    no longer reachable, so it was a number nothing produced. Rating is the whole line now; a
+                    viewed player still shows their games count, which does come from the leaderboard row. */}
                 <div className="carrank">
-                  Rating {shownRating}{viewing ? ` · ${viewing.gamesPlayed} game${viewing.gamesPlayed === 1 ? '' : 's'}` : ` · Oath ${profile.currentLine}`}
+                  Rating {shownRating}{viewing ? ` · ${viewing.gamesPlayed} game${viewing.gamesPlayed === 1 ? '' : 's'}` : ''}
                 </div>
                 <div className="carranksub">
                   {viewing
                     ? (highestSeen ? `Highest seen: Rating ${highestSeen}` : 'Highest: unknown')
-                    : `Highest: Rating ${profile.highestRating} · Oath ${profile.highestLine}`}
+                    : `Highest: Rating ${profile.highestRating}`}
                 </div>
                 {/* LOBBY vs COURSE (owner 2026-08-08): a lobby has no 17-round course and no Oath, so
                     "Completed" / "Flawless" are structurally 0 there and the line-based streak means nothing.

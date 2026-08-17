@@ -68,7 +68,7 @@ const DEFAULTS: HeroPowerBtnConfig = {
   artX: 0,
   artY: 0,
   artScale: 1.03,
-  artDim: 0.1,
+  artDim: 0.55, // 0.1 -> 0.55 (owner bug 2026-08-17): at 0.1 an unaffordable power read as having NO art
   refreshFlash: 450,
   glowBlur: 14,
   glowAlpha: 1, // owner sent 11 (above the 0–1 range → clamps to fully-on); baked as 1, identical look.

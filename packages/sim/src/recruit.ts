@@ -504,6 +504,10 @@ export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
   const opts: string[][] = [];
   for (const c of cards) {
     const def = CARD_INDEX[c.cardId];
+    // An all-tribes body (Paragon, Lab Experiment) is a WILDCARD, not a fixed pair: it counts as every tribe,
+    // so it can always be the odd one out (owner 2026-08-17). There are far more than three tribes in any set,
+    // so a wildcard can always take some type the other two aren't using — it never blocks an exhibition.
+    if (def?.universalTribe) continue;
     const t: string[] = [];
     for (const tribe of [def?.tribe ?? c.tribe, def?.tribe2]) {
       if (tribe && tribe !== 'neutral' && !t.includes(tribe)) t.push(tribe);
@@ -511,6 +515,9 @@ export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
     if (t.length === 0) return false; // a neutral-only body can never be one of three different types
     opts.push(t);
   }
+  // Only the FIXED bodies need a distinct assignment; the wildcards fill whatever is left over.
+  if (opts.length <= 1) return true;
+  if (opts.length === 2) return opts[0]!.some((a) => opts[1]!.some((b) => b !== a));
   for (const a of opts[0]!) {
     for (const b of opts[1]!) {
       if (b === a) continue;
@@ -520,14 +527,14 @@ export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
   return false;
 }
 
-/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 2, improving by 2 for every 4 cards played
- *  this run. Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
+/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 1, improving by 1 for every 4 cards played
+ *  this run (owner balance 2026-08-17: was 2, improving by 2). Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
  *  one (the live-card-text rule applies to hero powers too). */
 export function exhibitionGrantOf(state: RunState): number {
   // Reads the EXISTING run-wide `cardsPlayedTotal` rather than a private counter — "cards played" already has
   // one source of truth (every play routes through `applyCardsPlayed`), and a second tally would only be a
   // second thing to keep in sync.
-  return 2 + 2 * Math.floor((state.cardsPlayedTotal ?? 0) / 4);
+  return 1 + Math.floor((state.cardsPlayedTotal ?? 0) / 4);
 }
 
 /** Cia (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and

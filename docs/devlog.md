@@ -1,5 +1,66 @@
 # ASCENT — development log
 
+## 2026-08-17 - An unaffordable hero power no longer reads as an EMPTY slot
+
+Owner report: Tiff's hero-power art "goes away when the cost is reduced". It was not the discount — the art
+dims whenever the power is unusable, and Dragon Tamer's shrinking price simply lands above your Gold often
+enough that the two looked causally linked. The dim was **0.1**, which at that opacity leaves nothing but the
+embossed backing showing: the slot reads as having no art at all rather than as an unusable power. Raised to
+**0.55**, in both the tuner default (`heroPowerBtnConfig`) and the CSS fallback. The affordability cue people
+actually read is the cost coin and the absent ready-glow; the portrait only has to stay legible.
+
+Also folded the four shrinking-cost overrides (Dynamite Dig / Dragon Tamer / Hunch / Buyout) into a single
+`liveCost`, used by BOTH the cost coin and the `canHero` affordability check. It was a latent double-gate: any
+power that ever gained a static `power.cost` alongside an override would have been gated on both, showing a
+payable price on the coin while reading as unaffordable. No hero hits that today.
+
+Verified live in the dev server on a throwaway Tiff run: at cost 4 with 3 Gold the art now computes to opacity
+0.55 and is plainly visible; at cost 4 with 4 Gold the button is `.ready` at opacity 1.
+
+## 2026-08-17 - Golden Transcendant doubles its neighbours' combat gains
+
+Owner text: *"Ward. Adjacent Dragons are Engraved and gain 2x Stats in combat. Start of Combat: Give your
+Dragons +6/+6."* That second clause is the same upgrade **golden Taurus** already gets, worded identically on
+the card — and it rides the same `gainMult` machinery, so this was wiring rather than a new primitive.
+
+The one real difference: Taurus *stamps* `gainMult = 2` on its neighbours at Start of Combat, whereas
+Transcendant's is live, resolved inside `ctx.buff` alongside the Engrave aura — so the doubling stops the
+moment it dies, exactly like the Engrave does. Where a minion is covered by both sources the LARGER wins
+rather than the product: two separate "2x stats" effects shouldn't compound into 4x.
+
+Reorganised `ctx.buff` slightly so the aura resolves ONCE at the top (it now returns the adjacent Transcendant
+rather than a boolean) and feeds both the multiplier and the Engrave — the multiplier has to be known before
+the stats are applied, and it was previously computed below them.
+
+Verified: typecheck + lint + `npm test` (5560) + `build:web` green. New case: a plain Transcendant's neighbour
+carries back +3/+3, a golden one's carries back +12/+12 (+6/+6 doubled), and the existing golden case now
+distinguishes the far Dragon (+6/+6, raw grant) from the adjacent one (+12/+12).
+
+## 2026-08-17 - Odelle's Exhibition retuned to +1/+1
+
+Halved: an exhibition grants **+1/+1**, improving by **+1/+1** every 4 cards played (was +2/+2 / +2/+2). Only
+the base and the step changed — it still buffs all three minions and still reads `cardsPlayedTotal`. The rule
+text and the live hero-power pill both come off `exhibitionGrantOf`, so both moved together; a new test pins
+the printed base to the helper's base so they can't drift.
+
+## 2026-08-17 - Paragon counts as every tribe for Odelle and for Transcendant
+
+Two bugs with one cause: an all-tribes body (Paragon, Lab Experiment) was being read as a fixed tribe pair
+instead of a wildcard.
+
+**Odelle's Exhibition** wanted "three different types" and rejected Paragon outright, because its tribe list
+came back empty (neutral) and the guard treats a typeless body as unable to be one of three. Paragon can be any
+type, so it can *never* be the reason an exhibition fails — it is now pulled out of the assignment problem
+entirely and only the fixed bodies need distinct types. Two Beasts flanking it still fail, correctly: the
+wildcard covers itself, not them.
+
+**Transcendant's Engrave aura** buffed Paragon but didn't engrave it. The Start-of-Combat buff went through the
+factory's tribe check, which already honoured `universalTribe`, while the aura I added yesterday compared
+`tribe`/`tribe2` directly — so the two halves of the same card disagreed about whether Paragon is a Dragon. The
+aura now uses the shared `isTribeOf` helper, which is what every other Dragon check in the engine uses.
+
+Verified: typecheck + lint + `npm test` (5558) + `build:web` green, with a new case on each side.
+
 ## 2026-08-17 - Rune of the Long Shift pays out the moment you take it
 
 Reworded to **"Discover 2 Shop Spells. Repeat every Start of Turn."** and made the first pair fire on

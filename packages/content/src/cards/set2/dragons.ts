@@ -355,6 +355,6 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: ['DS', 'SC'], // Ward + the Start-of-Combat pill
     effects: [{ on: 'startOfCombat', do: 'scBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
     text: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **Dragons +3/+3**.',
-    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **Dragons +6/+6**.',
+    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved** and gain **2× stats** in combat. **Start of Combat:** give your **Dragons +6/+6**.',
   },
 ];

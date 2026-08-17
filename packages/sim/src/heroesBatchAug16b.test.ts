@@ -167,6 +167,15 @@ describe('Odelle — Exhibition', () => {
     it('rejects two of the same type', () => {
       expect(threeDistinctTypes([c('alley'), c('pack'), c('impoverseer')])).toBe(false);
     });
+    it('an ALL-TYPES body always counts as the odd one out (owner ruling 2026-08-17)', () => {
+      // Paragon counts as every tribe, so it can never be the reason an exhibition fails — not even beside two
+      // minions that already share a type between them, and not even beside a second all-types body.
+      const paragon = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell)!;
+      expect(threeDistinctTypes([c('alley'), c(paragon.id), c('impoverseer')]), 'Beast + Paragon + Demon').toBe(true);
+      expect(threeDistinctTypes([c('alley'), c(paragon.id), c('pack')]), 'two Beasts flanking Paragon').toBe(false);
+      const other = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && d.id !== paragon.id);
+      if (other) expect(threeDistinctTypes([c(paragon.id), c(other.id), c('alley')]), 'two wildcards').toBe(true);
+    });
     it('reads a DUAL-type card as whichever type avoids the clash (owner ruling)', () => {
       // Bane is Dragon/Demon. Beside a plain Dragon it must be read as a DEMON, so the pair is 2 types...
       const bane = CARD_INDEX['bane'];
@@ -203,11 +212,18 @@ describe('Odelle — Exhibition', () => {
     expect(after.board.every((c) => !c.buffs?.some((b) => b.source === 'Exhibition'))).toBe(true);
   });
 
-  it('the grant improves by +2/+2 every 4 cards played', () => {
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 }))).toBe(2);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 3 }))).toBe(2);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 4 }))).toBe(4);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 8 }))).toBe(6);
+  it('the grant improves by +1/+1 every 4 cards played (owner balance 2026-08-17: was +2/+2)', () => {
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 }))).toBe(1);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 3 }))).toBe(1);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 4 }))).toBe(2);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 8 }))).toBe(3);
+  });
+
+  it('the printed text matches the live grant — the number the panel shows is the one you get', () => {
+    // The hero-power pill reads `exhibitionGrantOf` directly (StatusBar), so the rule text and the pill can
+    // only agree if the base and the step in the text are the base and the step in the helper.
+    expect(getHero('odelle').power.text).toContain('**+1/+1**');
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 })), 'the base in the text').toBe(1);
   });
 });
 

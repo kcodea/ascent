@@ -112,6 +112,15 @@ const RUNE_ART = indexArt(
 );
 export const runeArt = (runeId: string): string | undefined => RUNE_ART[runeId];
 
+/** MODE-picker tile art — drop a PNG into `packages/ui/src/art/modes/<modeId>.png`, keyed by the run mode
+ *  (`lobby.png`, `practice.png`). The tile is a square (object-fit: cover), so use a square master. Absent =
+ *  the per-mode gradient + emblem glyph the picker used before any art existed. NOT in `AVATAR_ART`: these are
+ *  scene art, not a portrait anyone would pick as an avatar. */
+const MODE_ART = indexArt(
+  import.meta.glob('./art/modes/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const modeArt = (modeId: string): string | undefined => MODE_ART[modeId];
+
 /** Avatar picker: every bundled art the player can choose as their profile avatar, namespaced by pool
  *  (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`) so ids never collide across pools. `key` is the raw
  *  glob key (cardId / heroId), used to resolve a display name from CARD_INDEX / HEROES in the picker. */

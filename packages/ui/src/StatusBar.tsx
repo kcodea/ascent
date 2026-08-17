@@ -424,7 +424,7 @@ export function StatusBar() {
               + −X float when a wave breaks through. */}
           <div
             className={`hpbox${hit ? ' hit' : ''}`}
-            title={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
+            title={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
             <Icon name="heart" />
             <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>

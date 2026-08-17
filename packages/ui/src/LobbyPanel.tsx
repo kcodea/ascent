@@ -90,9 +90,9 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
       <div className="lobbyhead">
         <span className="lobbyround">Round {lobby.round}</span>
         <span className="lobbyalive">{living.length} left</span>
-        {/* Max loss — the most Resolve a loss this round can cost (moved here from the removed top-left plaque,
+        {/* Max loss — the most Health a loss this round can cost (moved here from the removed top-left plaque,
             owner ask 2026-08-11). */}
-        <span className="lobbymax" title="Most Resolve you can lose if you lose this combat">
+        <span className="lobbymax" title="Most Health you can lose if you lose this combat">
           <Icon name="heart" />{Number.isFinite(lossDamageCap(lobby.round)) ? `−${lossDamageCap(lobby.round)}` : 'No cap'}
         </span>
       </div>

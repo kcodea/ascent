@@ -5580,7 +5580,6 @@ svg { width: 18px; height: 18px; }
 .caravatar-wrap { position: relative; margin: 10px auto 12px; width: 132px; }
 .caravatar { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; padding: 0; font-family: var(--font-ui); font-weight: 900; font-size: 57px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 3px solid #cfa557; box-shadow: 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 6px 20px rgba(0, 0, 0, 0.45); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
 /* Oath badge riding the avatar's bottom edge (mockup's level roundel). */
-.caravatar-badge { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); min-width: 34px; height: 34px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 900; font-size: 17px; color: #241705; background: linear-gradient(180deg, #f3d189, #cf9d4e); border: 2px solid #8a6428; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45); pointer-events: none; }
 .caravatar:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
 .caravatar svg { width: 42px; height: 42px; color: #1a1208; }
 .caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -5949,12 +5948,11 @@ svg { width: 18px; height: 18px; }
 /* Match hero select's zoom so the cards are the same physical size on the same screen. */
 .modepick { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
 .mpbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
-.mpeyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .mptitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
-.mprow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
+.mprow { display: flex; gap: 36px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 
 .modecard {
-  width: 300px; gap: 10px; padding: 26px 10px 10px;
+  width: 375px; gap: 12px; padding: 32px 12px 12px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   background: none; border: none; box-shadow: none; color: var(--ink);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -5964,8 +5962,8 @@ svg { width: 18px; height: 18px; }
 
 /* The framed tile — same box as `.herocard.big .hcframe`. */
 .mcframe {
-  position: relative; width: 245px; height: 245px; flex: none; margin-bottom: 10px;
-  border-radius: 22px; border: 3px solid var(--gold); background: var(--ink);
+  position: relative; width: 306px; height: 306px; flex: none; margin-bottom: 12px;
+  border-radius: 28px; border: 3px solid var(--gold); background: var(--ink);
   box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
   display: grid; place-items: center;
   /* NO `overflow: hidden` — the name/tag pills are positioned to ECLIPSE the frame's top and bottom edges
@@ -5976,7 +5974,14 @@ svg { width: 18px; height: 18px; }
 .mcframe[data-mode='rift'] { background: radial-gradient(120% 100% at 50% 0%, #3a1c63 0%, #1e1033 60%, #120a20 100%); border-color: var(--tier-7); }
 .mcframe[data-mode='practice'] { background: radial-gradient(120% 100% at 50% 0%, #3a3226 0%, #221d16 60%, #14110c 100%); }
 
-.mcemblem { display: grid; place-items: center; width: 108px; height: 108px; }
+/* Tile art (`art/modes/<mode>.png`) — fills the frame like `.herocard.big .hcframe-art`, replacing the emblem
+   glyph. 19px = the frame's 22px radius minus its 3px border, so the art's corners sit flush inside it. */
+.mcframe-art {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 25px; -webkit-user-drag: none;
+}
+
+.mcemblem { display: grid; place-items: center; width: 135px; height: 135px; }
 .mcemblem svg { width: 100%; height: 100%; color: #cfe0ff; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)); }
 .mcframe[data-mode='practice'] .mcemblem svg { color: #e6d6b4; }
 /* The rift emblem: the same transform-only conic swirl as the in-run Rift button. */
@@ -5992,16 +5997,16 @@ svg { width: 18px; height: 18px; }
 .mcname {
   position: absolute; left: 50%; top: 0; transform: translate(-50%, -55%); z-index: 3;
   max-width: 118%; white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 900; font-size: 23px; letter-spacing: 0.02em;
-  padding: 3px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  font-family: var(--font-ui); font-weight: 900; font-size: 29px; letter-spacing: 0.02em;
+  padding: 4px 25px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
   border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
 }
 /* Tag pill — eclipsing the frame's BOTTOM edge (the hero card's `.hchp`). */
 .mctag {
   position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 3;
   white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 3px 18px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 22px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
   border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
 }
 .mcframe[data-mode='rift'] .mcname, .mcframe[data-mode='rift'] .mctag { border-color: var(--tier-7); }
@@ -6009,8 +6014,8 @@ svg { width: 18px; height: 18px; }
 /* Description — light on the bare background, fading in on hover like the hero power text. Reserved
    height so the row never jumps. */
 .mcdesc {
-  min-height: 72px; max-width: 270px;
-  font-size: 17.5px; font-weight: 600; line-height: 1.35; color: #efe6d4;
+  min-height: 90px; max-width: 338px;
+  font-size: 22px; font-weight: 600; line-height: 1.35; color: #efe6d4;
   opacity: 0; transition: opacity 0.28s ease;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9);
 }

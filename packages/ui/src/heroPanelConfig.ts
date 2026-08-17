@@ -1,13 +1,13 @@
 /**
  * Tunable layout for the HERO PANEL — the bottom-left tray (`.statusbar .hero`) holding the hero portrait,
- * the player-name pill (top eclipse), the hero-name pill (bottom eclipse), and the Resolve box. Every part
+ * the player-name pill (top eclipse), the hero-name pill (bottom eclipse), and the Health box. Every part
  * gets its own x/y/scale so the owner can seat each piece by eye (🧍 Hero Panel in the Dev Tuning Menu).
  * (The power DIAMOND is separate — the 💠 tuner / heroPowerBtnConfig.ts; quest badges are Layout Lab's.)
  *
  * Same architecture as the diamond configs: dev-only localStorage persistence, values reflected as
  * COMPOSED transform strings on :root (`--hpn-*-t`) that the CSS reads (`transform: var(--hpn-…-t, <base>)`)
  * — composed in JS because several elements carry a BASE centering transform (the pills' translate(-50%,…))
- * that the offsets must stack onto, and the Resolve box's hit-shake keyframes prepend the same var so a
+ * that the offsets must stack onto, and the Health box's hit-shake keyframes prepend the same var so a
  * tuned offset survives the shake. Panel offsets are stage-px (× --scale); element offsets are design-px
  * (× --u). PRODUCTION runs `applyHeroPanelVars()` at load with DEFAULTS (identity — matches the CSS
  * fallbacks), so shipping tuned values means baking them here.
@@ -38,7 +38,7 @@ export interface HeroPanelConfig {
   heroNameX: number;
   heroNameY: number;
   heroNameScale: number;
-  /** Resolve box (heart + HP) — design-px offset (× --u). */
+  /** Health box (heart + HP) — design-px offset (× --u). */
   resolveX: number;
   resolveY: number;
   resolveScale: number;
@@ -80,9 +80,9 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
   heroNameX: 'Hero-name pill — horizontal nudge (design px).',
   heroNameY: 'Hero-name pill — vertical nudge (design px).',
   heroNameScale: 'Hero-name pill — size (×).',
-  resolveX: 'Resolve box — horizontal nudge (design px).',
-  resolveY: 'Resolve box — vertical nudge (design px).',
-  resolveScale: 'Resolve box — size (×).',
+  resolveX: 'Health box — horizontal nudge (design px).',
+  resolveY: 'Health box — vertical nudge (design px).',
+  resolveScale: 'Health box — size (×).',
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

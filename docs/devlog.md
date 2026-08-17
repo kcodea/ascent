@@ -1,5 +1,124 @@
 # ASCENT — development log
 
+## 2026-08-17 — Mode cards 25% larger; new Play art
+
+**Play tile art replaced** with a second master from the owner (`Modes/PlayMode.png`, re-optimized 2480KB →
+75KB at 512px). Because the in-repo copy is keyed by MODE ID rather than by the master's filename, a re-wire
+is just: copy over `art/modes/lobby.png`, `npm run optimize-art`, done — no code touched, and no dev-server
+restart needed this time (the directory already exists in the eager glob; only a NEW directory needs the
+restart). Verified live: the tile renders the new four-panel piece at 512×512, `object-fit: cover`.
+
+Owner: the mode selectors read "very small" once the art landed — two tiles alone on a full-screen view left
+them looking lost, and the art deserves the room. Scaled the WHOLE card 25%, not just the frame: scaling the
+tile alone would have left the name pill and blurb at their old size and made the card read as
+proportionally wrong rather than bigger.
+
+`.mcframe` 245→306px (the frame's radius 22→28 and the art's 25→28−3 with it, keeping the corners flush),
+`.modecard` 300→375 with its padding/gap, `.mcemblem` 108→135, `.mcname` 23→29px, `.mctag` 15→19px,
+`.mcdesc` 17.5→22px with its reserved height 72→90 and max-width 270→338, and the row gap 29→36.
+
+Note for anyone editing this block: `.mcframe`'s declarations are byte-identical to `.herocard.big .hcframe`
+(the mode card was built from it), so a naive find-and-replace on the dimensions hits BOTH and silently
+resizes hero select. The edits are anchored on the `.mcframe` selector for that reason.
+
+Verified live: the frame computes to 306px, the card to 375px, and the page still doesn't scroll
+horizontally — the `.mpbox` zoom (0.90 at this viewport) already scales the whole picker to fit, so the larger
+card rides that rather than fighting it.
+
+## 2026-08-17 — Oath leaves the Career profile card
+
+Owner: Oath "is no longer used at all" — so it comes off the profile card. It was a number nothing produces
+any more. Oath belongs to the scored 17-round course, and the course modes left the mode picker with the Set 2
+launch (2026-07-31); a lobby has no Oath at all. The card was printing a stale value from the local run
+profile, next to a Rating that IS still live, which reads as though both are current.
+
+Removed from `Career.tsx`: the `· Oath N` suffix on the rank line, the `· Oath N` on the "Highest:" subline,
+the same suffix on the no-runs empty state, and the gold **avatar badge** that printed `currentLine` over the
+portrait. Its `.caravatar-badge` rule is deleted with it rather than left orphaned — it had exactly one user.
+A VIEWED player's card is unaffected in shape: their games count still comes from the leaderboard row, which is
+real data (Oath was never shown for them, since it is local-only).
+
+`profile.currentLine` / `highestLine` are untouched in state — this is a display removal, not a schema change,
+so nothing about saved profiles or the rating pipeline moves.
+
+**Oath still renders in three other places, all deliberately left:** hero select's run telegraph, the HUD's
+round plaque, and the end screen's verdict. Every one is gated behind a non-lobby mode — reachable today only
+via a live Rift, where the course rules and the Oath verdict genuinely do apply. Stripping those would change
+what a rift run tells you, which is a bigger call than the profile card and was not what was asked.
+
+Verified live: with no run history the empty state reads "Rating 0" with no Oath, no `.caravatar-badge` in the
+DOM, and no "Oath" anywhere in the page text. The POPULATED card needs run history this dev profile doesn't
+have, so its two lines were checked in source — both are plain template literals. Gates: typecheck, lint,
+tests, `build:web`.
+
+## 2026-08-17 — Resolve is now "Health" (display-only)
+
+Owner ask: rename the hero's life total from **Resolve** to **Health** across the board. Done the same way as
+the 2026-07-17 vocabulary pass (Rating→Renown, Line→Oath): **display strings only — every identifier stays.**
+
+That split is not tidiness, it is a save-compatibility constraint. `resolve` / `maxResolve` are fields on
+`RunState`, which is PERSISTED: renaming them would invalidate every saved run, every stored replay, and the
+lobby-seat payloads (`startingResolve`, `seatResolve`). The rules doc now states the split explicitly, so the
+next reader isn't surprised that code and players use different words for the same number.
+
+Player-facing strings changed — every one is a tooltip except the mode blurb:
+
+- `StatusBar` — the hero HP box, `Resolve: 24 of 30` → `Health: 24 of 30`
+- `HeroSelect` — "Starting Resolve (HP)" → "Starting Health"; the Armor tooltip's "on top of Resolve" too
+- `MinionBook` — the hero browser's "Starting Resolve (HP) + Armor" → "Starting Health + Armor"
+- `HudBar` + `LobbyPanel` — the max-loss pills, "Most Resolve you can lose…" → "Most Health…"
+- `Recruit` — the combat-odds "Average Resolve lost…" → "Average Health lost…"
+- The dev Hero Panel tuner's "Resolve box" labels → "Health box" (its config KEYS stay `resolveX/Y/Scale`)
+
+Deliberately NOT renamed: `ProcHarness`'s "Resolve the open Choose One first" and friends — that is the verb,
+not the stat. A blind find-and-replace would have broken those three strings, which is the trap in this kind
+of rename.
+
+`docs/GAME-RULES.md` renamed throughout (its "Resolve & economy" heading included) with a note recording the
+display-only split. `docs/devlog.md` deliberately NOT rewritten: it is a historical record, and past entries
+described the stat as it was named then. Content carried no card, hero, quest or rune TEXT mentioning it, so
+no card data changed.
+
+## 2026-08-17 — Lobby is "Play": mode-picker copy + the first mode tile art
+
+Owner pass over the mode picker, all presentation — **no run mode, id, or rule changed.** The mode is still
+`lobby` everywhere internally (store, `RunState`, replays, matchmaking, the C3 rating path); only what the
+player reads is different. Same display-only discipline as the 2026-07-17 vocabulary rename.
+
+- **"Lobby" → "Play"** on the mode card. The one other player-facing string, hero select's format line, went
+  from `8 seats · last one standing` to **`8 players · last player standing`** (its `aria-label` too). Every
+  remaining `Lobby` in the UI is an internal identifier — component names, types, the dev-menu "Lobby Rail"
+  tuner — and stays.
+- **The tag pills are gone** from both cards (owner: unnecessary). "8 seats"/"Unscored" briefly became
+  "8 players"/"Unscored" before the pills were dropped entirely. `.mctag` and its CSS stay — the Rift card
+  still uses one to carry the live rift's name.
+- **Descriptions** are now **"8 players. Last player standing wins."** (replacing "Eight climbers, one
+  survivor. Every fight deals damage both ways — outlast the table.") and, for Practice, **"Choose any hero
+  with unlimited Health and longer shop timers."** The both-ways damage rule is no longer stated here; it is
+  taught by the lobby rail in-run.
+- **"Choose your climb"** eyebrow removed, and its now-dead `.mpeyebrow` rule deleted rather than left
+  orphaned.
+
+**Mode tile art is wired** — the first art this screen has ever had; the frames were a per-mode gradient plus
+a shared helm glyph standing in for it. New `art/modes/` directory keyed by MODE ID (`lobby.webp`,
+`practice.webp`), a `MODE_ART` glob + `modeArt()` in `art.ts` following the existing hero/quest/rune pattern,
+and `.mcframe-art` filling the tile the way `.herocard.big .hcframe-art` does (19px radius = the frame's 22px
+minus its 3px border, so the corners sit flush). The emblem glyph is now a FALLBACK — it still renders for any
+mode without art, which is how the Rift card keeps working. Deliberately excluded from `AVATAR_ART`: these are
+scene art, not portraits anyone would pick as an avatar.
+
+`modes` added to `scripts/optimize-art.mjs`, so the drop-PNG-then-`npm run optimize-art` workflow covers this
+directory like every other. The two masters went **4.0MB → 111KB** (2167KB→64KB, 1951KB→47KB) at 512px, which
+renders 218px on screen — retina-crisp with headroom.
+
+Verified live in the dev server: both tiles render their art (`complete && naturalWidth 512`), the emblem is
+gone from both, and the DOM reads `Play` / `8 players` / `8 players. Last player standing wins.` A **dev-server
+restart** was required, not a reload — a brand-new art directory doesn't exist in the eager `import.meta.glob`
+until Vite restarts, the trap already documented for `art/quests/`. Gates: typecheck (pkgs + web), lint (0
+errors; the 10 warnings are all pre-existing and none in a touched file), 5560 tests, `build:web`.
+
+Not visually verified: the hero-select format line. A saved run was in progress and entering a mode replaces
+it, so the string was checked in source rather than on screen — it is a bare literal with no logic around it.
 ## 2026-08-17 — a consumed shop minion flies out of its own slot, not the screen centre
 
 The eat/consume ghost used to spawn at the tavern row's CENTRE (`playFodderEat` anchored it to

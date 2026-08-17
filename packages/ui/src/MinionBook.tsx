@@ -569,7 +569,7 @@ export function MinionBook() {
                           {art ? <img src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}
                         </div>
                         <div className="bookhero-name">{h.name}</div>
-                        <div className="bookhero-hp" title="Starting Resolve (HP) + Armor">
+                        <div className="bookhero-hp" title="Starting Health + Armor">
                           <Icon name="heart" />{h.resolve}
                           {h.armor > 0 && <span className="bookhero-armor" title="Starting Armor">+{h.armor}</span>}
                         </div>

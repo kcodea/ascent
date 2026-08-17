@@ -21,11 +21,11 @@ play a **17-round course** and are graded against a personal target called **the
 ## The course — 17 rounds (2 calibration + 15 scored)
 
 - A run plays a fixed course of **17 rounds** (`courseRounds: 17`, `maxWave: 17`).
-- The first **2 rounds are calibration** (`calibrationRounds: 2`): they still cost Resolve and run
+- The first **2 rounds are calibration** (`calibrationRounds: 2`): they still cost Health and run
   the full economy, but do **not** count toward your record.
 - The remaining **15 rounds are scored** — your W–L record over these is the run's score
   (`runRecord` slices off the calibration rounds; draws count as neither win nor loss).
-- The run always completes the course **unless Resolve hits 0** (the only failure state).
+- The run always completes the course **unless Health hits 0** (the only failure state).
 
 Source: `packages/sim/src/config.ts`, `packages/sim/src/state.ts` (`runRecord`, `isCalibrationRound`).
 
@@ -58,10 +58,13 @@ Source: `packages/sim/src/playerRating.ts`, `packages/sim/src/state.ts` (`lineRe
 
 ---
 
-## Resolve & economy
+## Health & economy
 
-- **Resolve** is the hero's HP. All heroes start with **30 Resolve**, plus per-hero **Armor**
-  (8–19 today) that sits on top and takes loss damage first (no regen). Resolve 0 = run over.
+- **Health** is the hero's life total. All heroes start with **30 Health**, plus per-hero **Armor**
+  (8–19 today) that sits on top and takes loss damage first (no regen). Health 0 = run over.
+  *(Called "Resolve" until 2026-08-17. The rename is DISPLAY-ONLY — the state field, its types and the
+  saved-run format are still `resolve` / `maxResolve` / `startingResolve`, so code and saves read one name
+  and players read the other.)*
 - **Loss damage** is capped per round, ramping up as the course escalates: **5** (rounds 1–3),
   **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped** for the finale (rounds 16–17)
   (`lossDamageCap`).
@@ -181,7 +184,7 @@ Source: `packages/ui/src/terms.ts`.
 
 ## Unverified / confirm
 
-- **Starting Resolve divergence:** all heroes are 30 Resolve *today*, but the code comment notes it
+- **Starting Health divergence:** all heroes are 30 Health *today*, but the code comment notes it
   "will diverge per hero over time" — **(unverified — confirm)** whether any hero already differs.
 - **Practice mode** shares the same 17-round course but "can't be lost" (unlimited health, longer
   per-turn clock) per the config comment — the exact per-turn clock difference is

@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-17 - Midas joins; Juggler's power is renamed Carnival Coin
+
+- **Juggler's power is "Carnival Coin"** (was Baldgecoin), matching the card it grants. The internal kind
+  stays `baldgecoin` so saves and the policy registry keep resolving.
+- **Midas** (11 armor) — *Midas' Touch*, passive: you need only **2** copies to Gild, and Gilding grants a
+  **Gold Pouch** instead of a Triple Reward.
+
+Both halves reuse existing seams rather than adding parallel ones:
+
+- The 2-copy threshold rides the same `need` that **Rune of the Twin Gilding** already uses, so owning the rune
+  as Midas cannot stack down to one copy — either condition simply means two.
+- The reward swap lives inside `grantGoldenDiscover` rather than at its call sites. Every Gild route funnels
+  through that one function, and there are four of them; swapping per-site would have guaranteed a missed path
+  (the `applySpellBought` lesson, which shipped exactly that bug once).
+
+Worth noting for anyone testing this area: the Triple Reward fires when the GOLDEN IS PLAYED, not when the
+copies combine, and `checkTriples` runs on a BUY rather than on a roll. Both cost me a test iteration.
+
+Art wired for Midas, and Carnival Coin's spell art came along now that the owner has added it.
+
+Full suite 5531 green, typecheck + lint + build:web clean.
+
+**Still queued:** granted quest/rune art taking the hero-power slot (Fi, Coran, Runesmith, Guardian).
+
 ## 2026-08-17 - Juggler pays a CARNIVAL COIN, not a modified Gold Pouch
 
 Owner redesign, and a better one: instead of Juggler changing what an existing card does, his power grants a

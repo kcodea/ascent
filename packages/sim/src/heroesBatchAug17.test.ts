@@ -217,3 +217,42 @@ describe('Jensen is re-enabled', () => {
     expect(getHero('jenkins').wip ?? false, 'Jensen ships again (owner 2026-08-17)').toBe(false);
   });
 });
+
+describe("Midas — Midas' Touch", () => {
+  // The triple check runs on a BUY (not a roll), so the second copy is bought rather than pre-placed.
+  const buySecond = (hero: string): RunState => {
+    const s = {
+      ...createRun(5), phase: 'recruit', heroId: hero, embers: 20, board: [],
+      hand: [{ uid: 'a', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'stray' }],
+    } as RunState;
+    return reduce(s, { type: 'buy', uid: 's1' } as never);
+  };
+
+  it('is an 11-armor passive', () => {
+    const h = getHero('midas');
+    expect([h.armor, h.power.kind, h.power.passive]).toEqual([11, 'midasTouch', true]);
+  });
+
+  it('Gilds at TWO copies', () => {
+    // The triple check runs on any accepted action; a roll is the cheapest one that changes nothing else.
+    const after = buySecond('midas');
+    const golden = [...after.hand, ...after.board].filter((c) => c.golden);
+    expect(golden.length, 'two copies combined').toBe(1);
+  });
+
+  it('another hero still needs three', () => {
+    const after = buySecond('indy');
+    expect([...after.hand, ...after.board].some((c) => c.golden), 'two is not enough').toBe(false);
+  });
+
+  it('his Gild pays a Gold Pouch, not a Triple Reward', () => {
+    // The reward fires when the GOLDEN is played, not when the copies combine.
+    const gilded = buySecond('midas');
+    const golden = gilded.hand.find((c) => c.golden)!;
+    const after = reduce(gilded, { type: 'play', uid: golden.uid } as never);
+    const ids = [...after.hand, ...after.board].map((c) => c.cardId);
+    expect(ids, 'the Pouch arrived').toContain('emberpouch');
+    expect(ids, 'and NOT the Triple Reward').not.toContain('discoverspell');
+  });
+});

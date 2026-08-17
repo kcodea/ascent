@@ -2792,6 +2792,14 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
+  // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
+  // because every Gild route funnels through this one function — doing it per-site would guarantee a missed
+  // path (the `applySpellBought` lesson).
+  if (getHero(s.heroId).power.kind === 'midasTouch') {
+    const pouch = CARD_INDEX['emberpouch'];
+    if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
+    return;
+  }
   // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
   // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
   if (s.runeCorruptedTome) {
@@ -2828,7 +2836,8 @@ function checkTriples(s: RunState): void {
       const cd = CARD_INDEX[c.cardId];
       if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
-    const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
+    // Rune of Twin Gilding AND Midas' Touch both Gild at 2 — either one is enough, so they cannot stack into 1.
+    const need = (s.runeTwinGilding || getHero(s.heroId).power.kind === 'midasTouch') ? 2 : 3;
     let tripleId: string | undefined;
     for (const [id, n] of counts) {
       if (n >= need) {

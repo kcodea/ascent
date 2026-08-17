@@ -89,6 +89,10 @@ export function StatusBar() {
   // CROUPIER CIA: her power art is the SUIT that will pay next, not one fixed image — the button is how the
   // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
   // ever missing, so a half-wired art folder degrades instead of rendering nothing.
+  // Cassen while a commission is in flight: the button is LOCKED but its art must stay bright, because that
+  // art is how the player sees which commission is running. Without this the shared "unusable active power"
+  // rule dims the art to 10% and the button reads as empty (owner report 2026-08-17).
+  const committed = power.kind === 'commission' && !!run.commission;
   const powerRule = heroPowerText(run);
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
   // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
@@ -403,7 +407,7 @@ export function StatusBar() {
           <div className="hpwrap">
             <button
               type="button"
-              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
               aria-label={`${power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview

@@ -467,7 +467,14 @@ export function StatusBar() {
                   className="commission-opt"
                   onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
                 >
-                  <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
+                  {/* Art on top, text below — the same read as a Discover / quest-reward tile (owner ask
+                      2026-08-16). Each commission has its own image (CassenHP1/2/3 → cassen-<kind>). */}
+                  <span className="commission-art" aria-hidden="true">
+                    {heroPowerArt(`cassen-${kind}`)
+                      ? <img src={heroPowerArt(`cassen-${kind}`)} alt="" draggable={false} />
+                      : null}
+                    <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
+                  </span>
                   <span
                     className="commission-text"
                     dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}

@@ -7806,30 +7806,46 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
    It LOOPS, so per docs/performance.md the only animated property is `opacity` — the red bloom itself is a
    STATIC box-shadow. No paint property changes per frame. */
+/* Two counter-rotating rings of red/gold "links" tracing the card (owner ask 2026-08-16: back to the
+   circling look, but tunable). Only `transform` animates on the rings and only `opacity` on their fade —
+   both compositor-only, so a looping effect never repaints (docs/performance.md). */
 .enchantwisp {
-  position: absolute;
-  left: var(--hfx-enc-inset, 8%); right: var(--hfx-enc-inset, 8%);
-  bottom: calc(var(--hfx-enc-y, -2) * var(--u));
-  height: calc(var(--hfx-enc-h, 3) * var(--u));
-  border-radius: 999px; pointer-events: none; z-index: 4;
-  background: linear-gradient(90deg,
-    hsl(var(--hfx-enc-hue, 2) 78% 50% / 0) 0%,
-    hsl(var(--hfx-enc-hue, 2) 100% 66% / 0.95) 50%,
-    hsl(var(--hfx-enc-hue, 2) 78% 50% / 0) 100%);
-  /* STATIC shadow — only `opacity` is animated (docs/performance.md). */
-  box-shadow: 0 0 calc(var(--hfx-enc-blur, 14) * var(--u)) calc(var(--hfx-enc-spread, 4) * var(--u))
-    hsl(var(--hfx-enc-hue, 2) 76% 50% / 0.75);
-  animation: ewbreathe var(--hfx-enc-period, 3.4s) ease-in-out infinite;
-  will-change: opacity;
+  position: absolute; inset: calc(var(--hfx-enc-inset, -4) * var(--u));
+  border-radius: inherit; pointer-events: none; z-index: 4; overflow: visible;
 }
-@keyframes ewbreathe { 0%, 100% { opacity: var(--hfx-enc-dip, 0.6); } 50% { opacity: 1; } }
+.enchantwisp .ew-ring {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: conic-gradient(from 0deg,
+    hsl(var(--hfx-enc-hue, 2) 85% 45% / 0) 0deg,
+    hsl(var(--hfx-enc-hue, 2) 95% 58% / 1) 12deg,
+    hsl(calc(var(--hfx-enc-hue, 2) + 40) 100% 78% / 1) 20deg,
+    hsl(var(--hfx-enc-hue, 2) 95% 58% / 1) 28deg,
+    hsl(var(--hfx-enc-hue, 2) 85% 45% / 0) 44deg,
+    hsl(var(--hfx-enc-hue, 2) 85% 45% / 0) 176deg,
+    hsl(var(--hfx-enc-hue, 2) 95% 58% / 1) 188deg,
+    hsl(calc(var(--hfx-enc-hue, 2) + 40) 100% 78% / 1) 196deg,
+    hsl(var(--hfx-enc-hue, 2) 95% 58% / 1) 204deg,
+    hsl(var(--hfx-enc-hue, 2) 85% 45% / 0) 220deg);
+  /* Hollow it out into a RING of the requested thickness. */
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4) * var(--u) + 1px));
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4) * var(--u) + 1px));
+  filter: blur(calc(var(--hfx-enc-blur, 1) * var(--u))); /* STATIC — never animated */
+  will-change: transform;
+}
+.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 4s) linear infinite; }
+.enchantwisp .ew-b {
+  animation: ewspin calc(var(--hfx-enc-period, 4s) * var(--hfx-enc-skew, 1.6)) linear infinite reverse;
+  opacity: var(--hfx-enc-dip, 0.75);
+}
+@keyframes ewspin { to { transform: rotate(360deg); } }
 
 /* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
    A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
    shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */
 .soulbindmark {
   position: absolute; left: 50%;
-  top: calc(-1 * var(--hfx-sb-y, 7) * var(--u));
+  /* UNDER the minion (owner ask 2026-08-16) — `sbY` now measures DOWNWARD from the card's bottom edge. */
+  bottom: calc(-1 * var(--hfx-sb-y, 7) * var(--u));
   width: calc(var(--hfx-sb-size, 7) * var(--u)); height: calc(var(--hfx-sb-size, 7) * var(--u));
   margin-left: calc(-0.5 * var(--hfx-sb-size, 7) * var(--u));
   border-radius: 50%; pointer-events: none; z-index: 7;
@@ -7842,23 +7858,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .enchantwisp, .soulbindmark { animation: none; }
+  .enchantwisp .ew-ring, .soulbindmark { animation: none; }
 }
 
 /* ── Cassen's commission picker ────────────────────────────────────────────────────────────────────────
    Reuses `.discover-ov` / `.disc-panel` so it reads as the same class of decision, but its options are text
    tiles: a commission is a promise, not a card, and rendering it as one would be a lie. */
-.commission-opts { display: flex; gap: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)) calc(16 * var(--u)); }
+.commission-opts { display: flex; gap: calc(14 * var(--u)); padding: calc(12 * var(--u)) calc(16 * var(--u)) calc(18 * var(--u)); }
 .commission-opt {
-  display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u));
-  width: calc(120 * var(--u)); padding: calc(14 * var(--u)) calc(10 * var(--u));
-  border-radius: calc(10 * var(--u)); border: 2px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
+  width: calc(150 * var(--u)); padding: calc(12 * var(--u)) calc(10 * var(--u)) calc(14 * var(--u));
+  border-radius: calc(12 * var(--u)); border: 2px solid var(--line);
   background: var(--card); color: inherit; cursor: inherit; text-align: center;
   transition: transform 0.12s, border-color 0.12s;
 }
-.commission-opt:hover { transform: translateY(calc(-2 * var(--u))); border-color: rgba(255, 214, 130, 0.9); }
+.commission-opt:hover { transform: translateY(calc(-3 * var(--u))); border-color: rgba(255, 214, 130, 0.9); }
+/* The art panel reads like a Discover tile's portrait: a framed square with the delay badge on it. */
+.commission-art {
+  position: relative; width: 100%; aspect-ratio: 1; border-radius: calc(9 * var(--u));
+  overflow: hidden; display: grid; place-items: center;
+  border: 2px solid color-mix(in srgb, var(--line) 70%, var(--card));
+  background: color-mix(in srgb, var(--line) 12%, var(--card));
+}
+.commission-art img { width: 100%; height: 100%; object-fit: cover; }
 .commission-delay {
-  font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1;
-  color: rgba(255, 214, 130, 0.95);
+  position: absolute; right: calc(5 * var(--u)); bottom: calc(4 * var(--u));
+  font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1;
+  color: rgba(255, 224, 150, 0.98); text-shadow: 0 0 calc(4 * var(--u)) rgba(0, 0, 0, 0.9);
 }
 .commission-text { font-size: calc(11 * var(--u)); line-height: 1.35; }

@@ -21,8 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **`CassenHP2.png` mis-slugs to `cassen2`** (a generic numbered-variant rule wins over the explicit entry), so
-  Cassen's GOLD commission shows his plain art. Fix by ordering the Cassen block after that rule.
 - **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
 
 - **Missing hero POWER art:** Odelle and Sable (`OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.

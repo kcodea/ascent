@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-16 - Commission tiles get art; Soulbind moves under; Cia's rings return (tunable)
+
+- **Cassen's commission picker now reads like a Discover tile** — each option shows its own art
+  (`CassenHP1/2/3` → `cassen-<kind>`) with the text below and the delay badged on the image.
+- **The `CassenHP2` mis-slug is fixed.** It was landing on the `cassen2` variant slot because the
+  `<Name>2` convention strips a trailing "2" before the index is consulted. The Cia + Cassen variants moved
+  from the index into the job's **aliases** map, which resolves FIRST — so all seven variant images now wire
+  correctly. `cassen2.webp` deleted.
+- **Sable's Soulbind ring sits UNDER the bound minions** instead of above them; `sbY` now measures downward
+  from the card's bottom edge.
+- **Cia's Enchanted treatment is back to the circling look** — two counter-rotating rings of red/gold links
+  tracing the card — and it is fully tunable: inset, thickness, link softness, hue, second-ring opacity,
+  rotation period, and how much slower the counter-rotating ring turns.
+
+The tuner's dials stay restricted to things that are compositor-only. Only `transform` and `opacity` animate;
+the blur is static. There is deliberately no control that animates a shadow, blur or filter, because that is
+the one thing docs/performance.md forbids in a looping animation.
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Parting Cry drives the real Shout machinery; Cassen's picker; Hero Card FX tuner
 
 **Parting Cry bug (owner report).** The cry fired the marked body's `onPlay` effects by calling the raw

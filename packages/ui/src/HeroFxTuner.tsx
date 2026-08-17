@@ -3,23 +3,22 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the two hero card treatments — Cia's Enchanted glow and Sable's Soulbind ring.
+ * DEV-only tuner for the two hero card treatments — Cia's circling Enchanted rings and Sable's Soulbind ring.
  *
- * Both LOOP, so the dials are limited to shape / colour / period: the shadows stay STATIC and only `opacity`
- * animates, per docs/performance.md. There is deliberately no "animate the shadow" control — it would be a
+ * Both LOOP, so the dials are limited to shape / colour / period: only `transform` and `opacity` animate, per
+ * docs/performance.md. There is deliberately no control that animates a shadow, blur or filter — it would be a
  * slider whose whole job is to make the game drop frames.
  */
 const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefined, string]> = {
-  encInset:  ['Bar inset', undefined, 'How far the glow bar is inset from each side of the card (%). Lower = wider.'],
-  encY:      ['Bar offset Y', 'px', 'Vertical offset from the bottom edge of the card. Positive = further down.'],
-  encH:      ['Bar thickness', 'px', 'How thick the glow bar is.'],
-  encBlur:   ['Halo blur', 'px', 'Blur of the bloom around the bar. Bigger = softer.'],
-  encSpread: ['Halo spread', 'px', 'How far the bloom reaches before it fades out.'],
-  encHue:    ['Hue', undefined, 'Colour of the glow (deg). 0 is red.'],
-  encDip:    ['Breathe depth', undefined, 'How faint the glow gets at the bottom of its breathe. 1 = no dip.'],
-  encPeriod: ['Breathe period', 's', 'Seconds per breathe. Bigger = calmer.'],
-  sbSize:    ['Ring size', 'px', 'Diameter of the ring above a bound minion.'],
-  sbY:       ['Ring height', 'px', 'How far above the top edge of the card the ring floats.'],
+  encInset:  ['Ring inset', 'px', 'How far the ring sits from the card edges. Negative pushes it outwards.'],
+  encH:      ['Ring thickness', 'px', 'Stroke width of the circling ring.'],
+  encBlur:   ['Link softness', 'px', 'Blur on the links. 0 is crisp, higher smears them into a glow.'],
+  encHue:    ['Hue', undefined, 'Colour of the links (deg). Around 2 is red; the hot core runs +40 toward gold.'],
+  encDip:    ['Second ring opacity', undefined, 'How strongly the counter-rotating ring reads.'],
+  encPeriod: ['Rotation period', 's', 'Seconds per full turn of the first ring. Bigger = slower.'],
+  encSkew:   ['Second ring slowdown', '×', 'How much slower the counter-rotating ring turns.'],
+  sbSize:    ['Ring size', 'px', 'Diameter of the ring under a bound minion.'],
+  sbY:       ['Ring drop', 'px', 'How far below the bottom edge of the card the ring sits.'],
   sbRing:    ['Ring thickness', 'px', 'Stroke width of the ring.'],
   sbBlur:    ['Ring halo blur', 'px', 'Blur of the glow around the ring.'],
   sbHue:     ['Ring hue', undefined, 'Colour of the ring (deg). Around 275 is purple.'],

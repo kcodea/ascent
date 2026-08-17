@@ -147,23 +147,24 @@ for (const h of HEROES) {
   heroPowersByName.set(norm(`${h.name}HP`), h.id);
   heroPowersByName.set(norm(`${h.id}HP`), h.id);
 }
-// CROUPIER CIA'S FOUR SUITS: her power art changes with the reward that is queued up, so she has four button
-// images instead of one `CiaHP.png`. They are named for the suit rather than the hero, which the `<Name>HP`
-// convention above can't express — so they get explicit entries, each landing on its own `cia-<suit>` slug the
-// UI picks by `run.ciaSuit`. Still a strict name match, just a second naming rule for one hero.
-for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
-  heroPowersByName.set(norm(`Cia${suit}`), `cia-${suit}`);
-}
-// CASSEN'S COMMISSIONS: the button wears the art of whichever commission is running, and falls back to his
-// plain `CassenHP.png` when none is. Numbered rather than named in the source folder, so they get explicit
-// entries onto `cassen-<kind>` slugs the UI picks by `run.commission.kind`.
-// All three source files exist. NOTE: `CassenHP2` currently loses this mapping to a generic numbered-variant
-// rule elsewhere in the index and lands on `cassen2` instead of `cassen-gold`, so the GOLD commission falls
-// back to Cassen's plain art. Reported rather than papered over; fixing it means ordering this block after
-// that rule.
-heroPowersByName.set(norm('CassenHP1'), 'cassen-discover');
-heroPowersByName.set(norm('CassenHP2'), 'cassen-gold');
-heroPowersByName.set(norm('CassenHP3'), 'cassen-spell');
+/**
+ * Per-VARIANT hero-power art: a few heroes swap their button image with run state, so one `<Name>HP.png` is
+ * not enough. These are FULL-STEM aliases rather than index entries because aliases are resolved BEFORE the
+ * `<Name>2` variant convention strips a trailing "2" — without that, `CassenHP2` was silently landing on the
+ * `cassen2` variant slot instead of `cassen-gold`, so his Gold commission showed his plain art.
+ *
+ * Cia: one image per SUIT (the button shows the reward that is queued up).
+ * Cassen: one image per COMMISSION (the button shows the one currently running).
+ */
+const HERO_POWER_ALIASES: Record<string, string> = {
+  ciahearts: 'cia-hearts',
+  ciaspades: 'cia-spades',
+  ciadiamonds: 'cia-diamonds',
+  ciaclubs: 'cia-clubs',
+  cassenhp1: 'cassen-discover',
+  cassenhp2: 'cassen-gold',
+  cassenhp3: 'cassen-spell',
+};
 
 /** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
  *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no
@@ -208,7 +209,7 @@ const JOBS: Job[] = [
   {
     // HERO POWERS — the button art, its own destination (the portraits job above deliberately doesn't recurse).
     label: 'hero powers', src: 'C:/Game Assets/Ascent Art/Heroes/Hero Powers',
-    dirs: ['.'], dest: 'packages/ui/src/art/powers', index: heroPowersByName, aliases: {},
+    dirs: ['.'], dest: 'packages/ui/src/art/powers', index: heroPowersByName, aliases: HERO_POWER_ALIASES,
   },
   {
     // QUEST art (owner ask 2026-08-02) — the folder was only mined for its "Quest Reward Related Things"

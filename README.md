@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), the format reads **8 players · last player standing**, and the picker's eyebrow line is gone. Display only: the mode is still `lobby` everywhere under the hood.
+
 - **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
 
 - **Croupier Cia deals four suits** — her reward now cycles at random (never twice running) between **Hearts** (Discover at your tier), **Spades** (2 Shop spells), **Diamonds** (a minion from the tier above) and **Clubs** (3 Gold), with her power button showing the suit that's queued up. Enchanted cards are now red-and-gold. **Underdweller**'s Soulkeeper costs 2.

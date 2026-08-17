@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-08-17 — Lobby is "Play": mode-picker copy + the first mode tile art
+
+Owner pass over the mode picker, all presentation — **no run mode, id, or rule changed.** The mode is still
+`lobby` everywhere internally (store, `RunState`, replays, matchmaking, the C3 rating path); only what the
+player reads is different. Same display-only discipline as the 2026-07-17 vocabulary rename.
+
+- **"Lobby" → "Play"** on the mode card. The one other player-facing string, hero select's format line, went
+  from `8 seats · last one standing` to **`8 players · last player standing`** (its `aria-label` too). Every
+  remaining `Lobby` in the UI is an internal identifier — component names, types, the dev-menu "Lobby Rail"
+  tuner — and stays.
+- **"8 seats" → "8 players"** on the tag pill; the description is now **"8 players. Last player standing
+  wins."**, replacing "Eight climbers, one survivor. Every fight deals damage both ways — outlast the table."
+  The both-ways damage rule is no longer stated here; it is taught by the lobby rail in-run.
+- **"Choose your climb"** eyebrow removed, and its now-dead `.mpeyebrow` rule deleted rather than left
+  orphaned.
+
+**Mode tile art is wired** — the first art this screen has ever had; the frames were a per-mode gradient plus
+a shared helm glyph standing in for it. New `art/modes/` directory keyed by MODE ID (`lobby.webp`,
+`practice.webp`), a `MODE_ART` glob + `modeArt()` in `art.ts` following the existing hero/quest/rune pattern,
+and `.mcframe-art` filling the tile the way `.herocard.big .hcframe-art` does (19px radius = the frame's 22px
+minus its 3px border, so the corners sit flush). The emblem glyph is now a FALLBACK — it still renders for any
+mode without art, which is how the Rift card keeps working. Deliberately excluded from `AVATAR_ART`: these are
+scene art, not portraits anyone would pick as an avatar.
+
+`modes` added to `scripts/optimize-art.mjs`, so the drop-PNG-then-`npm run optimize-art` workflow covers this
+directory like every other. The two masters went **4.0MB → 111KB** (2167KB→64KB, 1951KB→47KB) at 512px, which
+renders 218px on screen — retina-crisp with headroom.
+
+Verified live in the dev server: both tiles render their art (`complete && naturalWidth 512`), the emblem is
+gone from both, and the DOM reads `Play` / `8 players` / `8 players. Last player standing wins.` A **dev-server
+restart** was required, not a reload — a brand-new art directory doesn't exist in the eager `import.meta.glob`
+until Vite restarts, the trap already documented for `art/quests/`. Gates: typecheck (pkgs + web), lint (0
+errors; the 10 warnings are all pre-existing and none in a touched file), 5560 tests, `build:web`.
+
+Not visually verified: the hero-select format line. A saved run was in progress and entering a mode replaces
+it, so the string was checked in source rather than on screen — it is a bare literal with no logic around it.
 ## 2026-08-17 — a consumed shop minion flies out of its own slot, not the screen centre
 
 The eat/consume ghost used to spawn at the tavern row's CENTRE (`playFodderEat` anchored it to

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { activeRift } from '@game/sim';
-import { avatarSrc } from './art';
+import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -203,7 +203,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <div className="modepick" role="dialog" aria-label="Choose a mode">
           <button className="hsback" onClick={() => { sfx.pulse(); setModePick(false); }}>← Back</button>
           <div className="mpbox">
-            <div className="mpeyebrow">Choose your climb</div>
             <h1 className="disp mptitle">MODE</h1>
             <div className="mprow">
               {/* The scored course ("Ascent") left the picker with the Set 2 launch (owner 2026-07-31) — the
@@ -219,22 +218,26 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </button>
               )}
 
+              {/* The mode id stays `lobby` everywhere internally (store, run state, replays); only the LABEL is
+                  "Play" (owner 2026-08-17). Art, when present, fills the tile and replaces the emblem glyph. */}
               <button className="modecard" onClick={() => { sfx.pulse(); startLobby(); }}>
                 <div className="mcframe" data-mode="lobby">
-                  <div className="mcname">Lobby</div>
-                  <span className="mcemblem"><IconHelm /></span>
-                  <div className="mctag">8 seats</div>
+                  <div className="mcname">Play</div>
+                  {modeArt('lobby')
+                    ? <img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} />
+                    : <span className="mcemblem"><IconHelm /></span>}
                 </div>
-                <div className="mcdesc">Eight climbers, one survivor. Every fight deals damage both ways — outlast the table.</div>
+                <div className="mcdesc">8 players. Last player standing wins.</div>
               </button>
 
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
                 <div className="mcframe" data-mode="practice">
                   <div className="mcname">Practice</div>
-                  <span className="mcemblem"><IconHelm /></span>
-                  <div className="mctag">Unscored</div>
+                  {modeArt('practice')
+                    ? <img className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} />
+                    : <span className="mcemblem"><IconHelm /></span>}
                 </div>
-                <div className="mcdesc">Any hero, unlimited Resolve and a longer shop. Nothing is recorded.</div>
+                <div className="mcdesc">Choose any hero with unlimited Health and longer shop timers.</div>
               </button>
             </div>
           </div>

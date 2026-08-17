@@ -45,8 +45,8 @@ export function HeroSelect() {
         {/* A LOBBY has no Oath and no rating — it is won by outlasting seven other seats — so it telegraphs the
             table instead. Practice stays unscored and shows neither. */}
         {mode === 'lobby' ? (
-          <div className="hsline" aria-label="Lobby format">
-            <span className="hsline-line">8 seats · last one standing</span>
+          <div className="hsline" aria-label="Play format">
+            <span className="hsline-line">8 players · last player standing</span>
           </div>
         ) : mode !== 'practice' && (
           <div className="hsline" aria-label="Your Oath for this run">

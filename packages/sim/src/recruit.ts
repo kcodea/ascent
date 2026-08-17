@@ -562,9 +562,10 @@ export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, g
 /** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. The older
  *  `COMMISSION_TEXT` stays for the hero-panel rule, which wants one sentence rather than a card. */
 export const COMMISSION_NAME: Record<CommissionKind, string> = {
-  discover: 'The Long Job',
-  gold: 'The Fair Wage',
-  spell: 'The Quick Favour',
+  // Named for the scale of the job, so the delay reads off the title alone: 1 turn, 2 turns, 3 turns.
+  spell: 'Shed',
+  gold: 'House',
+  discover: 'Castle',
 };
 export const COMMISSION_REWARD: Record<CommissionKind, string> = {
   discover: 'Discover a minion of your Tavern Tier',

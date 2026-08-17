@@ -163,6 +163,7 @@ const HERO_POWER_ALIASES: Record<string, string> = {
   ciaclubs: 'cia-clubs',
   flashfirst: 'flash-first',
   flashlast: 'flash-last',
+  // Numbered by JOB SIZE: HP1 = Castle (3 turns), HP2 = House (2), HP3 = Shed (1).
   cassenhp1: 'cassen-discover',
   cassenhp2: 'cassen-gold',
   cassenhp3: 'cassen-spell',

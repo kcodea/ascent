@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cassen's commissions renamed; his art re-wired
+
+- Commissions are **Shed / House / Castle** (were The Quick Favour / The Fair Wage / The Long Job). Named for
+  the scale of the job so the delay reads off the title alone — Shed 1 turn, House 2, Castle 3.
+- All of Cassen's art re-wired (hero, power, and the three commission images). Tradesman's re-done art came
+  along in the same sweep.
+
+Full suite 5518 green, typecheck + lint + build:web clean.
+
+**Queued, NOT built** — the rest of the owner's 2026-08-17 batch:
+
+1. **Cassen's two RARE jobs** (25% chance to be offered): *Citadel* — in 3 turns the shop upgrades once, only
+   offered at Tier 4 or lower; *Fortress* — in 3 turns, a triple reward. Art is already in place
+   (`CassenHP4` / `CassenHP5`), needing `cassen-citadel` / `cassen-fortress` aliases.
+   **Design note for whoever picks this up:** `commissionOffer` is a PURE function called by both the reducer
+   and the panel, so the 25% roll must be DERIVED (hash of seed + wave) rather than drawn from `rngCursor` —
+   an impure roll would let the UI and the reducer disagree about what is on offer, and would not replay.
+2. **Juggler** (12 armor) — *Baldgecoin*: every 3 minions bought, get a Gold Pouch; Gold Pouches grant your
+   minions +1/+1, scaling with spell power. Needs the Gold Pouch card text to reflect the buff while Juggler
+   is the hero (the live-card-text rule). Art present (`Juggler.png` / `JugglerHP.png`), unwired until the
+   hero exists.
+3. **Granted quest/rune art takes the hero-power slot** — Fi, Coran, Runesmith, Guardian. Owner clarified: the
+   chosen quest/rune's art replaces the power art rather than occupying one of the three slots. The
+   `cia-<suit>` / `cassen-<kind>` variant pattern is the shape to follow.
+
 ## 2026-08-17 - Guardian + Runesmith's own forge is fully discounted
 
 Their hero power's forge now discounts EVERY slot (owner ask) — it is their shop, so it should feel like one.

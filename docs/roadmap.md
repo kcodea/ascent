@@ -21,6 +21,15 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Cassen's two RARE jobs** (25%): Citadel (3 turns → shop upgrades once; only at Tier ≤4) and Fortress
+  (3 turns → a triple reward). Art ready as `CassenHP4`/`CassenHP5`. NOTE: `commissionOffer` is pure and read
+  by BOTH the reducer and the panel, so the 25% roll must be DERIVED from (seed, wave), not drawn from
+  `rngCursor` — an impure roll would desync the two and break replays.
+- **Hero: Juggler** (12 armor, *Baldgecoin*) — every 3 minions bought, get a Gold Pouch; Gold Pouches grant
+  +1/+1, scaling with spell power. Gold Pouch's printed text must reflect the buff while Juggler is the hero.
+- **Granted quest/rune art takes the hero-power slot** (Fi, Coran, Runesmith, Guardian) — follow the
+  `cia-<suit>` / `cassen-<kind>` variant-art pattern.
+
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
 

@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-16 - Frank's discount is per-SHOP; matchmaking self-match diagnosis
+
+**Frantic Frank, corrected.** I had the rule wrong: the 2-Gold price belongs to the single shop his power
+ROLLS, not to the turn. It rode a `frankClearanceTurn === wave` flag, so every later roll that turn was
+discounted too. The price is now stamped onto those offers' own `cost` (which already outranks the hero-wide
+rule in the buy path), which makes the scoping true by construction — any later roll builds new offers with no
+stamp, so there is no flag to expire and no way for the discount to leak. `heroOfferPrice` keeps only Flint.
+
+**Matchmaking — root cause found, NOT yet fixed (needs an owner policy call).**
+
+Both players report lobbies made almost entirely of their own boards. `pickOpponent` filters by wave, applies
+the no-repeat exclusion and the set filter, then tiers by source: `remote` → `origin self|friend` → the rest.
+**Nothing anywhere excludes boards the asking player AUTHORED.** `author` is used only for the `oppKey` dedupe
+key and for seat labels — never as a filter.
+
+So your own boards enter at BOTH tiers: once they sync to Supabase they are `remote`, which is tier 1, and
+locally they are `origin: 'self'`, which is tier 2. In a thin pool tier 1 is then dominated by your own past
+uploads, and you fight yourself over and over. The `(2)`, `(3)`, `(4)` suffixes in the lobby rail are
+`uniqueHandleFor` disambiguating several seats that resolve to the SAME author handle — the visible
+fingerprint of exactly this.
+
+The fix is a policy decision, so it is the owner's: presumably prefer boards you did not author, at every
+tier, falling back to your own only when nothing else can be served (a thin pool must still serve something).
+That touches `opponents.ts`, which carries a documented determinism contract, so it wants its own PR rather
+than being bolted onto this one.
+
+Full suite 5501 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Commission tiles restyled; Cia's links tunable; Frank's price memo dep
 
 - **Cassen's commission tiles now follow the QUEST SHOP shape** — a tall card with the art filling it, a gold

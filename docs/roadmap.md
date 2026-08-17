@@ -21,6 +21,11 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **MATCHMAKING: you fight your own boards.** `pickOpponent` never filters on `author`, so your boards enter at
+  tier 1 (once synced they are `remote`) AND tier 2 (`origin: 'self'`). In a thin pool the lobby fills with
+  your own handle. Decide the policy — presumably prefer non-self boards at every tier, falling back to your
+  own only when nothing else can be served — then implement in `opponents.ts` (mind its determinism contract).
+
 - **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
 
 - **Missing hero POWER art:** Odelle and Sable (`OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.

@@ -2165,7 +2165,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
         refreshTavern(s);
         applyShopRefreshed(s);
-        s.frankClearanceTurn = s.wave;
+        // The 2-Gold price belongs to THIS SHOP, not the turn (owner clarification 2026-08-16): refresh again
+        // normally, or roll into the next turn, and minions are back to full price. Stamping the price onto
+        // the offers themselves is what makes that true by construction — any later roll builds new offers
+        // with no stamp, so there is no flag to expire and no way for the discount to leak.
+        for (const o of s.shop) {
+          const d = CARD_INDEX[o.cardId];
+          if (d && !d.spell && !d.ruby) o.cost = 2;
+        }
       } else if (power.kind === 'archive') {
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately

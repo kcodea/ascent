@@ -1883,14 +1883,6 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.runeVault = undefined;
         gainGold(s, 10);
       }
-      // Emissary Vale (United Front): a Fatecarver joins your hand the first time you reach Tier 6.
-      if (getHero(s.heroId).power.kind === 'unitedFront' && s.tier >= 6 && !s.valeFatecarverDone && s.hand.length < handCap(s)) {
-        const fc = CARD_INDEX['n2_fatecarver'];
-        if (fc) {
-          s.hand.push({ uid: `b${s.uidSeq++}`, cardId: fc.id, tribe: fc.tribe, attack: fc.attack, health: fc.health, keywords: [...fc.keywords], golden: false });
-          s.valeFatecarverDone = true;
-        }
-      }
       // Emerald Warden (Vanguard): every tavern-up also hands you a random minion of the tier you JUST reached
       // — read after `s.tier += 1`, so it always pays out the new pool, never the one you left. `exactTier`
       // semantics like Jensen's dig: the reward is the tier you bought, not "up to" it.
@@ -5046,7 +5038,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
-    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.tier : undefined, // Emissary Vale: SoC — one of each type +tier/+tier
+    // Emissary: SoC — one friendly of each type gains +1/+1 for EVERY spell cast this game.
+    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.spellsCast : undefined,
     solidGroundLeft: s.solidGroundLeft,           // Solid Ground: first N summons next combat land bigger
     solidGroundStat: s.solidGroundStat,
     containFirstEnemySummon: s.containFirstEnemySummon, // Containment Rune: pin the foe's first summon to 1/1

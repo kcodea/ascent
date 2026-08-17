@@ -32,6 +32,25 @@ Transcendence cases pass unchanged — its own +3/+3 is still engraved for its n
 alive when its own Start of Combat resolves — and a new case proves the respec: with a *second* Transcendant on
 the board, the neighbour keeps **both** buffs (+6/+6, flagged engraved) while a Dragon buffed by both but
 adjacent to neither keeps nothing.
+## 2026-08-17 - Emissary Vale → Emissary, respec'd to scale on spells cast
+
+- **Renamed to Emissary** (id `vale` unchanged, so saves and art keep resolving).
+- **United Front now scales on SPELLS CAST THIS GAME**, not the tavern tier: Start of Combat, a friendly
+  minion of each type gains **+1/+1 per spell cast**. The recipient rule is untouched — one banner per type,
+  each body claiming the first type nobody has claimed yet — so only the magnitude moved, from `s.tier` to
+  `s.spellsCast`.
+- **The Fatecarver-at-Tier-6 clause is REMOVED.** The owner restated the power as the Start-of-Combat effect
+  alone, so the upgrade-case grant is deleted rather than left as an unmentioned extra.
+- The printed rule prints the LIVE number (`heroPowerText`), since the magnitude is now run state — a static
+  "+1/+1" would be wrong from the first spell onward.
+
+A nice property of the existing guard: the SoC block already required `unitedFront > 0`, so a run with no
+spells cast simply skips it, with no new special case.
+
+Tests updated rather than deleted: the tier-scaling assertion became a spell-count one, plus a zero-spell case
+and an explicit check that the Fatecarver no longer arrives.
+
+Full suite 5553 green, typecheck + lint + build:web clean.
 
 ## 2026-08-17 - A completed granted quest shows its REWARD, not its objective
 

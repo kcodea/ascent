@@ -624,6 +624,11 @@ export function heroPowerText(state: RunState): string {
     const g = aegisGrantOf(state);
     return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
   }
+  if (power.kind === 'unitedFront') {
+    // The magnitude IS the run's spell count, so the printed number has to track it (the card-text rule).
+    const n = state.spellsCast;
+    return `**Start of Combat:** give a friendly minion of each type **+${n}/+${n}** (1 per spell cast this game).`;
+  }
   if (power.kind === 'commission') {
     // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
     // options actually on offer (never the one taken last).

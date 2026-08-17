@@ -215,6 +215,7 @@ export function StatusBar() {
       // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
       // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
       case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
+      case 'crownTally': return `${run.keshiTierPoints}/25`; // Keshi — shop tiers banked toward the Triple Reward
       default: return null;
     }
   })();
@@ -230,7 +231,9 @@ export function StatusBar() {
             ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
             : power.kind === 'recurringGoldcrafter'
                 ? `${power.name} · ${run.wave % 4 === 0 ? 'this turn' : `in ${4 - (run.wave % 4)}t`}`
-                : `${power.name} · passive`
+                : power.kind === 'crownTally'
+                  ? `${power.name} · ${run.keshiTierPoints}/25`
+                  : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked

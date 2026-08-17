@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-17 - The granted quest MOVES to the power slot (it was showing in both)
+
+Follow-up: the granted quest was taking the power slot but ALSO still occupying a quest node — it appeared
+twice. The slot is now genuinely a move, not a copy:
+
+- **`QuestBadges` filters out the granted quest**, so it leaves the node row entirely.
+- **The power slot shows the quest's own text**, not the hero's. "Get a quest on turn 3" stops being either
+  true or useful once the quest exists, so the tooltip/aria now reads the quest's objective (or the rune's
+  rule).
+- **The tally becomes the objective tracker** — `2 / 5` while it runs, `Complete` once finished, with the
+  completed art staying in place.
+
+One bug caught on the way: I passed `true` as `questProgressText`'s third argument, which is `completed`, not
+a formatting flag — an unfinished quest read "Complete". It now passes the quest's real state.
+
+Verified in the browser across both states: unfinished → `2 / 5` on the quest's art with 0 badges in the row;
+finished → `Complete`, art unchanged. The tooltip reads "Errand — Buy 5 Beasts" rather than Fi's own rule.
+
+Full suite 5535 green, typecheck + lint (0 errors) + build:web clean.
+
 ## 2026-08-17 - Granted quest/rune art takes the hero-power slot
 
 Fi, Coran, Runesmith and Guardian now wear the art of the quest or rune THEIR power granted, once it is

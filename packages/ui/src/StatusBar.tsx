@@ -11,6 +11,8 @@ import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
+import { questObjectiveText, questProgressText } from './questText';
+import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
 import { useGame } from './store';
@@ -93,7 +95,15 @@ export function StatusBar() {
   // art is how the player sees which commission is running. Without this the shared "unusable active power"
   // rule dims the art to 10% and the button reads as empty (owner report 2026-08-17).
   const committed = power.kind === 'commission' && !!run.commission;
-  const powerRule = heroPowerText(run);
+  // Once a quest/rune has been granted, the slot IS that grant: its own rule replaces the hero's ("get a quest
+  // on turn 3" is no longer true or useful), and a quest also shows its objective progress.
+  const grant = run.heroGrantArt;
+  const grantQuest = grant?.kind === 'quest' ? run.activeQuests?.find((q) => q.questId === grant.id) : undefined;
+  const grantQuestDef = grant?.kind === 'quest' ? QUEST_INDEX[grant.id] : undefined;
+  const grantRuneDef = grant?.kind === 'rune' ? RUNE_INDEX[grant.id] : undefined;
+  const powerRule = grantQuestDef ? questObjectiveText(grantQuestDef.objective)
+    : grantRuneDef ? grantRuneDef.text
+    : heroPowerText(run);
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
   // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
   // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
@@ -193,6 +203,9 @@ export function StatusBar() {
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
   const powerTally: string | null = (() => {
+    // A granted QUEST owns this slot while it runs: its objective tracker is the useful number, not the
+    // hero's own counter. Checked before the switch so it wins for every hero that can grant one.
+    if (grantQuest && grantQuestDef) return questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed);
     switch (power.kind) {
       case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
       case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin — ticks live as combat casts resolve (fxSpellsCastPreview)

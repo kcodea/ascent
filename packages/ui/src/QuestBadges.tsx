@@ -52,7 +52,11 @@ export function QuestBadges() {
   // EVERY taken quest gets a node, in ACQUISITION order — a quest keeps its slot as it completes rather than
   // jumping between a text panel and a trophy row (owner rework 2026-07-21, replacing the QuestPanel window).
   // A node is PENDING (dim, showing objective progress) until it activates, then lights up as a trophy.
-  const nodes = (run.activeQuests ?? []).filter((aq) => QUEST_INDEX[aq.questId]);
+  // A quest granted by the HERO POWER lives in the power slot instead (owner ask 2026-08-17), so it is
+  // filtered out here rather than appearing twice.
+  const nodes = (run.activeQuests ?? [])
+    .filter((aq) => QUEST_INDEX[aq.questId])
+    .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
   if (nodes.length === 0 && runes.length === 0) return null;
   const isDone = (aq: (typeof nodes)[number]): boolean =>

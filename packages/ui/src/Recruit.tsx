@@ -65,6 +65,7 @@ import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
+import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
@@ -753,6 +754,10 @@ export function Recruit() {
   // Quillen's Archive files a friendly OR a Shop minion, so it accepts tavern picks like Fortify does.
   // Sable's Soulbind: the two bound ends wear a ring for the turn the bond is live. Expired by wave, exactly as
   // the reducer + combat read it, so the mark can never outlast the bond it is drawing.
+  // Cia's enchanted foil is rendered through the SHARED Pixi layer, not per-card CSS — the controller only
+  // needs to know which offers are enchanted, and owns all the per-frame work itself.
+  const enchantedUids = useMemo(() => run.shop.filter((o) => o.enchanted).map((o) => o.uid), [run.shop]);
+  useCiaEnchantedFx(enchantedUids);
   const soulboundUids = useMemo(
     () => (run.sableBond && run.sableBond.wave === run.wave ? new Set([run.sableBond.a, run.sableBond.b]) : new Set<string>()),
     [run.sableBond, run.wave],

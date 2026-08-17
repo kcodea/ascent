@@ -32,12 +32,27 @@ const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefine
   sbWebRings:  ['Web rings', undefined, 'How many concentric threads the web has.'],
   sbBuild:     ['Web build time', 'ms', 'How fast the web spins out from the centre when the bond is forged. One-shot.'],
   sbFlash:     ['Bind flash time', 'ms', 'How long the purple flash on each bound unit lasts. One-shot.'],
+  ciaFoilOpacity:   ['Foil opacity', undefined, 'How visible the holographic foil is inside its mask.'],
+  ciaHoverBoost:    ['Hover boost', '×', 'How much brighter the whole treatment reads while hovered.'],
+  ciaFoilPeriod:    ['Foil drift period', 's', 'Seconds per drift cycle. Slow reads as reflected light.'],
+  ciaSweepPeriod:   ['Sweep period', 's', 'Seconds between diagonal light passes.'],
+  ciaSweepDuration: ['Sweep duration', 's', 'How long one visible pass lasts. Keep under the period.'],
+  ciaSweepAngle:    ['Sweep angle', undefined, 'Direction in degrees. Negative runs bottom-left to top-right.'],
+  ciaSweepWidth:    ['Sweep width', undefined, 'Width of the reflective band, in card widths.'],
+  ciaHaloOpacity:   ['Halo opacity', undefined, 'How visible the segmented outer contour is.'],
+  ciaHaloPeriod:    ['Halo period', 's', 'Seconds per full rotation of the contour.'],
+  ciaHaloInset:     ['Halo inset', 'px', 'How far outside the card the contour sits. Negative pushes it out.'],
+  ciaGlintCount:    ['Glint count', undefined, 'How many sparks may be lit at once.'],
+  ciaGlintSize:     ['Glint size', 'px', 'Size of each spark.'],
+  ciaSealSize:      ['Seal size', 'px', 'Size of the enchanted seal near the top of the card.'],
 };
 
 const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = HFX_RANGES[key];
-  const group = key.startsWith('enc') ? 'Cia: Enchanted glow' : 'Sable: Soulbind ring';
+  const group = key.startsWith('cia') ? 'Cia: Enchanted foil'
+    : key.startsWith('enc') ? 'Cia: CSS fallback (no WebGL / reduced motion)'
+    : 'Sable: Soulbind ring';
   return { key, label, unit, hint, group, min, max, step };
 });
 

@@ -7799,6 +7799,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
 }
 
+/* ── Cia: the ENCHANTED shop card — CSS FALLBACK ONLY ─────────────────────────────────────────────────
+   The shipped treatment is the Pixi holographic foil (`ciaEnchantedFx.ts`). This ring effect is RETAINED as
+   the no-WebGL / Pixi-failed fallback, per the handoff's migration rule: it is hidden only once the
+   controller has actually mounted and stamped `.pixi-enchanted-ready` on <html>, so a session where Pixi
+   never comes up still shows an unmistakable enchanted card.
+
+   Reduced motion is handled inside the controller (a static contour + seal), so it is NOT gated here.
+   ────────────────────────────────────────────────────────────────────────────────────────────────────── */
+:root.pixi-enchanted-ready .enchantwisp { display: none; }
+
 /* ── Cia: the ENCHANTED shop card ──────────────────────────────────────────────────────────────────────
    A warm red glow pooled UNDER the offer. Deliberately calm (owner ask 2026-08-16 — the first pass's spinning
    double chain read as janky): one element, one slow breathe, no rotation. The job is only to say "this card

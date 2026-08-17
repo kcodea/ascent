@@ -31,6 +31,34 @@ export interface HeroFxConfig {
   encArc: number;
   /** Enchanted ring — link shape: 0 = soft (feathered ends), 1 = hard-edged blocks. */
   encShape: number;
+  // ── Cia: the Pixi ENCHANTED FOIL (handoff 2026-08-17). The `enc*` keys above now only drive the retained
+  //    CSS fallback, which shows when Pixi is unavailable or reduced-motion is on.
+  /** Foil — base visibility inside the mask. */
+  ciaFoilOpacity: number;
+  /** Foil — hover intensity multiplier applied to foil, sweep, halo and glints. */
+  ciaHoverBoost: number;
+  /** Foil — seconds per drift cycle of the texture (slow = reflected light, not a scrolling sheet). */
+  ciaFoilPeriod: number;
+  /** Sweep — seconds between diagonal passes. */
+  ciaSweepPeriod: number;
+  /** Sweep — seconds one visible pass lasts. Must stay under the period so it fades fully between passes. */
+  ciaSweepDuration: number;
+  /** Sweep — direction in degrees; negative runs bottom-left to top-right. */
+  ciaSweepAngle: number;
+  /** Sweep — width of the reflective band, in card widths. */
+  ciaSweepWidth: number;
+  /** Halo — segmented contour visibility. */
+  ciaHaloOpacity: number;
+  /** Halo — seconds per full rotation. */
+  ciaHaloPeriod: number;
+  /** Halo — distance outside the card, design px. Negative sits further out. */
+  ciaHaloInset: number;
+  /** Glints — how many sparks may be lit at once (the pool itself is fixed at 4). */
+  ciaGlintCount: number;
+  /** Glints — sparkle size, design px. */
+  ciaGlintSize: number;
+  /** Seal — size of the enchanted mark near the top of the card, design px. */
+  ciaSealSize: number;
   /** Soulbind ring — diameter, design px (× --u). */
   sbSize: number;
   /** Soulbind ring — how far BELOW the card's bottom edge it sits, design px (× --u). */
@@ -81,6 +109,20 @@ const DEFAULTS: HeroFxConfig = {
   sbWebRings: 5,
   sbBuild: 260,
   sbFlash: 420,
+  // Cia foil — the handoff's suggested defaults.
+  ciaFoilOpacity: 0.24,
+  ciaHoverBoost: 1.25,
+  ciaFoilPeriod: 6.0,
+  ciaSweepPeriod: 3.0,
+  ciaSweepDuration: 0.75,
+  ciaSweepAngle: -35,
+  ciaSweepWidth: 0.28,
+  ciaHaloOpacity: 0.55,
+  ciaHaloPeriod: 7.5,
+  ciaHaloInset: -8,
+  ciaGlintCount: 3,
+  ciaGlintSize: 5,
+  ciaSealSize: 22,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -108,11 +150,27 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   sbWebRings: [1, 8, 1],
   sbBuild: [60, 1200, 10],
   sbFlash: [80, 1600, 10],
+  ciaFoilOpacity: [0, 1, 0.01],
+  ciaHoverBoost: [1, 2.5, 0.01],
+  ciaFoilPeriod: [1, 20, 0.1],
+  ciaSweepPeriod: [0.5, 12, 0.05],
+  ciaSweepDuration: [0.1, 4, 0.05],
+  ciaSweepAngle: [-180, 180, 1],
+  ciaSweepWidth: [0.05, 1.5, 0.01],
+  ciaHaloOpacity: [0, 1, 0.01],
+  ciaHaloPeriod: [1, 30, 0.1],
+  ciaHaloInset: [-40, 20, 0.5],
+  ciaGlintCount: [0, 4, 1],
+  ciaGlintSize: [1, 30, 0.5],
+  ciaSealSize: [0, 60, 0.5],
 };
 
 export const HFX_NUM_KEYS = [
   'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
   'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings', 'sbBuild', 'sbFlash',
+  'ciaFoilOpacity', 'ciaHoverBoost', 'ciaFoilPeriod', 'ciaSweepPeriod', 'ciaSweepDuration', 'ciaSweepAngle',
+  'ciaSweepWidth', 'ciaHaloOpacity', 'ciaHaloPeriod', 'ciaHaloInset', 'ciaGlintCount', 'ciaGlintSize',
+  'ciaSealSize',
 ] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as HFX_DEFAULTS };

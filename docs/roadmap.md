@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Cia enchanted foil — Phases 3-5** (`cia-enchanted-foil-fx-handoff.md`): purchase capture + streak to the
+  hero power, the third-card payout burst, the `data-fx-anchor="hero-power"` anchor contract, and the tuner
+  preview actions. One-shot event ids to expose: `cia-enchanted-purchase`, `cia-enchanted-payout`. Their
+  timings must stay authored, not duplicated in React timeouts.
+- **Look at the Cia foil in-game and tune it.** Phases 1-2 are wired and mount cleanly, but the visual was
+  never eyeballed — 13 dials are in the Hero Card FX tuner under "Cia: Enchanted foil".
+
 - **MATCHMAKING self-avoidance** — deliberately NOT implemented (owner 2026-08-16: no playtesters yet, so
   excluding your own boards would empty the pool). The local-board tier is gone, so you now face Supabase
   snapshots then bots; revisit once there are real players to match against.

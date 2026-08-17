@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cia's enchanted foil moves to the shared Pixi layer (handoff Phases 1-2)
+
+Implements `cia-enchanted-foil-fx-handoff.md` Phases 1-2: the persistent card treatment. The looping CSS rings
+are replaced by a holographic foil rendered through the ONE shared Pixi application.
+
+- `ciaEnchantedFx.ts` — the controller. One root `Container` via `pixiFx.mountLayer(root, 'over')` plus one
+  `pixiFx.addUpdater`. Per offer uid: a segmented rotating halo, a masked foil + diagonal sweep, pooled
+  glints, and a pulsing seal. Textures are generated once from detached 2D canvases and shared, so no live
+  blur filter and no per-frame allocation. The updater and mount are BOTH disposed the moment the last
+  enchanted offer goes away, so an ordinary shop pays nothing.
+- The mask is the first-prototype shape the handoff sanctions — the art window plus a narrow frame contour,
+  never an opaque rectangle over the whole card, which would tint the rules text.
+- `useCiaEnchantedFx.ts` — a deliberately thin hook: React owns only WHICH uids are enchanted, keyed on the
+  joined uid list so the shop object being rebuilt every action does not re-sync. No React state per frame.
+- Tuner: a new **Cia: Enchanted foil** group with the handoff's 13 controls at its suggested defaults. The old
+  `enc*` dials are kept and relabelled **Cia: CSS fallback**, because that effect is still the no-WebGL path.
+- Fallback: `.enchantwisp` is hidden only under `:root.pixi-enchanted-ready`, a class the controller stamps
+  after `mountLayer`/`addUpdater` succeed — so a session where Pixi never comes up still shows an
+  unmistakable enchanted card. Reduced motion is handled inside the controller (static contour + seal).
+
+**Verified:** the class is stamped (so the controller genuinely mounted), the `.card.enchanted[data-uid]`
+anchor resolves, the CSS fallback computes to `display: none`, no additional canvas/WebGL context appears, and
+the full gate is green.
+
+**NOT verified:** how the foil actually LOOKS. I could not reach the Pixi stage from the console to inspect
+sprite alphas, and the effect is subtle enough at screenshot scale that I will not claim it reads correctly.
+It wants a real look before approval, and the 13 dials exist precisely so it can be tuned rather than guessed.
+
+**NOT implemented (Phases 3-5):** the purchase capture/streak, the third-card payout burst, the
+`data-fx-anchor="hero-power"` contract, and the tuner preview actions. Those are one-shot EVENTS whose timings
+the handoff requires stay authored rather than hardcoded in React, so they belong with the FX-authoring work.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Soulbind: a purple flash on the bound units + the web spins out from the centre
 
 Two one-shot cues when the bond is forged, both driven by MOUNT rather than JS timing — the mark and flash

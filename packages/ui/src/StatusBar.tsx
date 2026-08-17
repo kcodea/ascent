@@ -45,6 +45,12 @@ function useFitText(text: string) {
   return ref;
 }
 
+/** "twice per game" reads better than "2 per game" at the counts we actually use (2 and 3); anything larger
+ *  falls back to the numeral rather than inventing English for a case no hero has. */
+function usesPerGame(n: number): string {
+  return `${n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`} per game`;
+}
+
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
@@ -230,7 +236,12 @@ export function StatusBar() {
                           // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
                           : power.oncePerGame
                             ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-                            : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                            // …and neither must a capped-USES power (Rascal: twice a game, not once a turn —
+                            // owner report 2026-08-16). The cap is the headline; the once-per-turn gate is
+                            // still enforced, it just isn't what the player needs told.
+                            : power.maxUses
+                              ? `${power.name} · ${(run.heroPowerUses ?? 0) >= power.maxUses ? 'spent' : usesPerGame(power.maxUses)}`
+                              : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;

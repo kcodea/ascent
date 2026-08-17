@@ -495,16 +495,22 @@ export function roundedSpellbookCostOf(state: RunState): number {
  * and ask whether SOME choice makes all three distinct. With at most 2 options each that is 8 combinations —
  * cheap enough to brute-force, and far clearer than a hand-rolled matching.
  *
- * `neutral` is a type like any other, so three neutrals fail and Dragon/neutral/Demon passes.
+ * `neutral` is NOT a type (owner ruling 2026-08-16): a neutral minion has no tribe to be different FROM, so
+ * any trio containing one fails outright — it is dropped from the options rather than treated as a fourth
+ * colour. A dual-type card keeps only its non-neutral types for the same reason.
  */
 export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
   if (cards.length !== 3) return false;
-  const opts = cards.map((c) => {
+  const opts: string[][] = [];
+  for (const c of cards) {
     const def = CARD_INDEX[c.cardId];
-    const t = [def?.tribe ?? c.tribe];
-    if (def?.tribe2 && def.tribe2 !== def.tribe) t.push(def.tribe2);
-    return t;
-  });
+    const t: string[] = [];
+    for (const tribe of [def?.tribe ?? c.tribe, def?.tribe2]) {
+      if (tribe && tribe !== 'neutral' && !t.includes(tribe)) t.push(tribe);
+    }
+    if (t.length === 0) return false; // a neutral-only body can never be one of three different types
+    opts.push(t);
+  }
   for (const a of opts[0]!) {
     for (const b of opts[1]!) {
       if (b === a) continue;

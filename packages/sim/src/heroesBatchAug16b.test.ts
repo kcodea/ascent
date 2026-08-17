@@ -10,10 +10,10 @@ const at = (over: Partial<RunState>): RunState =>
 const m = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: 2, health: 2, keywords: [], golden: false }) as BoardCard;
 
-describe('Bram — Investment', () => {
+describe('Braum — Investment', () => {
   it('is a 16-armor, 1-Gold untargeted power', () => {
-    const h = getHero('bram');
-    expect([h.name, h.armor, h.power.kind, h.power.cost]).toEqual(['Bram', 16, 'investment', 1]);
+    const h = getHero('bram'); // id kept stable (saves / art); display name is Braum
+    expect([h.name, h.armor, h.power.kind, h.power.cost]).toEqual(['Braum', 16, 'investment', 1]);
   });
 
   it('banks a Gold per use and pays nothing before the 5th', () => {
@@ -42,10 +42,10 @@ describe('Bram — Investment', () => {
   });
 });
 
-describe('Croupier Cia — Lucky Seat', () => {
+describe('Cia — Lucky Seat', () => {
   it('is a 10-armor passive', () => {
     const h = getHero('cia');
-    expect([h.armor, h.power.kind, h.power.passive]).toEqual([10, 'luckySeat', true]);
+    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Cia', 10, 'luckySeat', true]);
   });
 
   it('sometimes seats an Enchanted card, and never more than one', () => {
@@ -145,8 +145,11 @@ describe('Odelle — Exhibition', () => {
   describe('the three-different-types rule', () => {
     const c = (cardId: string): BoardCard => m('x', cardId);
     it('accepts three plainly different types', () => {
-      // Pennycat (Beast) / Stray (Beast) would clash — use three distinct single-type bodies.
-      expect(threeDistinctTypes([c('alley'), c('growth'), c('impoverseer')].map((x, i) => ({ ...x, uid: `u${i}` })))).toBe(true);
+      // Beast / Dragon / Demon — three real tribes, no neutrals.
+      expect(threeDistinctTypes([c('alley'), c('karwind'), c('impoverseer')].map((x, i) => ({ ...x, uid: `u${i}` })))).toBe(true);
+    });
+    it('REJECTS a neutral — it has no tribe to be different from (owner ruling)', () => {
+      expect(threeDistinctTypes([c('alley'), c('sandbag'), c('impoverseer')]), 'sandbag is neutral').toBe(false);
     });
     it('rejects two of the same type', () => {
       expect(threeDistinctTypes([c('alley'), c('pack'), c('impoverseer')])).toBe(false);

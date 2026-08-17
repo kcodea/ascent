@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-16 - Capped-uses powers read honestly; Braum/Cia renames; Odelle ignores neutrals
+
+- **A capped-USES power no longer reads "once per turn."** Rascal's All In showed the generic footer even
+  though it is twice a game. The fix is general rather than per-hero: any power with `maxUses` now prints
+  "twice per game" / "3 times per game" (and "spent" when exhausted), so **Sable** and **Gildmaster** were
+  quietly wrong in the same way and are fixed too. The once-per-turn gate still applies — it just isn't the
+  headline the player needs.
+- **Croupier Cia → Cia**, and **Bram → Braum** (id `bram` kept stable for saves + art, the `hermithank` →
+  "Tradesman" convention). `BraumHP.png` wires through the existing `<Name>HP` rule with no tool change.
+- **Odelle: neutrals are NOT a type** (owner ruling). A neutral minion has no tribe to be different FROM, so
+  any trio containing one now fails outright — the neutral is dropped from the options rather than treated as
+  a fourth colour, and a dual-type card keeps only its non-neutral types for the same reason. This reverses my
+  earlier assumption, which had been flagged as a judgement call rather than confirmed.
+
+Full suite 5488 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Cia's four suits, red/gold Enchanted, Underdweller 2 Gold
 
 Owner follow-ups.

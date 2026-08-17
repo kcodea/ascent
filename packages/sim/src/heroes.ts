@@ -642,8 +642,8 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'bram',
-    name: 'Bram',
+    id: 'bram', // id kept stable (saves / art file); display name is Braum
+    name: 'Braum',
     blurb: 'Small deposits, patiently made. The vault pays out in gold leaf.',
     resolve: 30,
     armor: 16,
@@ -657,7 +657,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'cia',
-    name: 'Croupier Cia',
+    name: 'Cia',
     blurb: 'The house always seats you somewhere interesting.',
     resolve: 30,
     armor: 10,

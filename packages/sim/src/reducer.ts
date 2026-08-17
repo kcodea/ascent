@@ -4626,7 +4626,11 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeScales = true; // Rune of Scales: each spell cast gives your Dragons +1/+1
       break;
     case 'runeLongShift':
-      s.runeLongShift = true; // Rune of the Long Shift: Start of Turn, Discover 2 Shop spells
+      s.runeLongShift = true; // Rune of the Long Shift: Discover 2 Shop spells, repeated every Start of Turn
+      // Owner reword 2026-08-17 ("Discover 2 Shop Spells. Repeat every start of turn"): the first pair fires
+      // the moment you take the rune, rather than making you wait a turn for a 2-cost epic to do anything.
+      queueDiscover(s, { kind: 'spell' });
+      queueDiscover(s, { kind: 'spell' });
       break;
     case 'runeBartering':
       s.runeBartering = true; // Rune of Bartering: Shout minions sell for 2 Gold

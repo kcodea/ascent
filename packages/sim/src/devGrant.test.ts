@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { createRun, reduce, type RunState } from './index';
 
 /**
@@ -75,5 +75,25 @@ describe('devGrant works while a modal owns the screen', () => {
     const s = reduce({ ...base(), questOffer: ['q_blood_trail'] }, { type: 'devGrant', kind: 'rune', id: 'rune_warding' });
     expect(s.ownedRunes).toContain('rune_warding');
     expect(s.questOffer).toEqual(['q_blood_trail']); // the open modal is left alone
+  });
+});
+
+// ── RUNE OF THE LONG SHIFT ───────────────────────────────────────────────────────────────────────────────────
+// Owner reword 2026-08-17: "Discover 2 Shop Spells. Repeat every start of turn." The first pair now fires the
+// moment you take the rune — before, a 2-cost epic did nothing at all until the following turn.
+describe('Rune of the Long Shift — the first pair is immediate, then it repeats', () => {
+  const grant = () => reduce(base(), { type: 'devGrant', kind: 'rune', id: 'rune_long_shift' });
+
+  it('taking it queues two Shop-spell Discovers straight away', () => {
+    const s = grant();
+    expect(s.runeLongShift, 'the repeat flag must still be armed').toBe(true);
+    // The first Discover is already OPEN (a list of offered card ids) and the second waits in the queue.
+    expect(s.discover?.length, 'the first Discover should be open, not merely queued').toBeGreaterThan(0);
+    for (const id of s.discover ?? []) expect(CARD_INDEX[id]?.spell, `${id} should be a spell`).toBe(true);
+    expect(s.discoverQueue ?? [], 'the second Discover waits behind the first').toEqual([{ kind: 'spell' }]);
+  });
+
+  it('the text says what it does', () => {
+    expect(RUNE_INDEX['rune_long_shift']!.text).toBe('Discover **2 Shop Spells**. Repeat every **Start of Turn**.');
   });
 });

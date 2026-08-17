@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-17 - Rune of the Long Shift pays out the moment you take it
+
+Reworded to **"Discover 2 Shop Spells. Repeat every Start of Turn."** and made the first pair fire on
+acquisition instead of waiting for the next turn — a 2-cost epic that does literally nothing on the turn you
+buy it reads as broken. The start-of-turn repeat is unchanged; taking the rune now simply queues the same two
+Discovers immediately (one opens, one waits behind it). Covered by a new case in `devGrant.test.ts` that drives
+the real reward engine, plus a text assertion so the printed rule and the behaviour can't drift apart.
+
 ## 2026-08-17 - Transcendant: Engrave becomes a live adjacency aura
 
 Renamed **Transcendence → Transcendant** (id `d2_transcendence` unchanged, so saves, replays and art keep

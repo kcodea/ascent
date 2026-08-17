@@ -4044,17 +4044,27 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(none, { type: 'heroPower' })).toBe(none);
   });
 
-  it("Bagger Ben's Bag It gains 2 Gold on turn 1, climbing +1 each turn — once per game", () => {
+  // Hero id `baggerben`, display name "Rascal". Reworked 2026-08-16: `scalingGold` (1 + wave, once per game)
+  // became `allIn` — 1 Gold + 2 per turn since the LAST USE, twice a game, re-basing on each use.
+  it("Rascal's All In pays 1 Gold on turn 1, +2 a turn, twice a game", () => {
     let s: RunState = { ...createRun(1, 'baggerben'), wave: 1, embers: 0, heroReady: true };
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(2); // turn 1 → +2
-    expect(s.heroPowerSpent).toBe(true); // once per game — spent, not just this-turn used
-    // Spent → a second activation is a no-op (no more Gold).
-    expect(reduce(s, { type: 'heroPower' }).embers).toBe(2);
-    // Cashing later pays more: turn 3 → +4 (the later you wait, the bigger the single payout).
-    let s3: RunState = { ...createRun(1, 'baggerben'), wave: 3, embers: 0, heroReady: true };
-    s3 = reduce(s3, { type: 'heroPower' });
-    expect(s3.embers).toBe(4);
+    expect(s.embers).toBe(1); // turn 1, never used → 1
+    expect(s.heroPowerUses).toBe(1); // TWO uses a game, tracked by count — not `heroPowerSpent`
+    expect(s.rascalResetWave).toBe(1); // …and the accrual re-bases on use
+
+    // Waiting pays more: turn 4 from a fresh run → 1 + 2*3 = 7.
+    let s4: RunState = { ...createRun(1, 'baggerben'), wave: 4, embers: 0, heroReady: true };
+    s4 = reduce(s4, { type: 'heroPower' });
+    expect(s4.embers).toBe(7);
+
+    // The SECOND use starts its accrual over from the first: used on turn 4, cashed on turn 6 → 1 + 2*2 = 5.
+    const s6 = reduce({ ...s4, wave: 6, embers: 0, heroReady: true }, { type: 'heroPower' });
+    expect(s6.embers).toBe(5);
+    expect(s6.heroPowerUses).toBe(2);
+
+    // Both uses spent → a third activation pays nothing.
+    expect(reduce({ ...s6, wave: 9, embers: 0, heroReady: true }, { type: 'heroPower' }).embers).toBe(0);
   });
 
 

@@ -12,8 +12,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -562,6 +562,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // until the UI reads it and still never leaks between actions.
   state.weldFxBaseSeq = state.weldFxSeq ?? 0;
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
+  stampSableBond(state); // Sable: mirror this turn's Soulbind onto the same stateless hook
   // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
   // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed
   // foe survives a reload instead of being re-picked from a session-variable pool (Supabase drift / fetch
@@ -980,6 +981,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);
+        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
@@ -995,6 +997,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
+        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
         const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
         // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
@@ -1022,6 +1025,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
+      ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) s.tradeInTribe = undefined; // spent
@@ -1476,6 +1480,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           ? s.board.length
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
+      // Odelle (Exhibition): landing a minion BETWEEN two others, where the three can be read as three
+      // different types, buffs all three. Checked on the PLAY only (owner ruling 2026-08-16) — repositioning
+      // into the same sandwich later does nothing — and read from the drop index, so it needs a real neighbour
+      // on each side. `threeDistinctTypes` resolves a dual-type card to whichever of its types avoids a clash.
+      if (getHero(s.heroId).power.kind === 'exhibition' && to > 0 && to < s.board.length - 1) {
+        const trio = [s.board[to - 1]!, card, s.board[to + 1]!];
+        if (threeDistinctTypes(trio)) {
+          const amt = exhibitionGrantOf(s);
+          for (const m of trio) addBuff(m, 'Exhibition', amt, amt);
+        }
+      }
       playCard(s, card);
       // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
       // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
@@ -2169,6 +2184,58 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.archivedTribes = [];
           if (picks.length > 0) s.discover = picks;
         }
+      } else if (power.kind === 'investment') {
+        // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
+        // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
+        // block. A full hand blocks the payout, so the bank is only advanced when it can actually pay.
+        const invested = (s.bramInvested ?? 0) + 1;
+        if (invested >= 5) {
+          if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
+          const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
+          if (pool.length === 0) return state;
+          const rng = makeRng(s.rngCursor);
+          const pick = pool[rng.int(pool.length)]!;
+          s.rngCursor = rng.state();
+          conjureToHand(s, [pick], 1);
+          const granted = s.hand[s.hand.length - 1];
+          if (granted) gildMinion(granted); // the payout arrives already Gilded, like a golden Discover
+          s.bramInvested = 0;
+        } else {
+          s.bramInvested = invested;
+        }
+      } else if (power.kind === 'buyout') {
+        // Harlan: take the WHOLE Shop, then reroll it. The price falls 1 a turn and re-bases on use, so it is
+        // charged here rather than by the shared block (the dragonTamer/roundedSpellbook pattern).
+        const price = buyoutCostOf(s);
+        if (s.embers < price) return state; // can't afford → no charge spent
+        spendGold(s, price);
+        s.harlanResetWave = s.wave;
+        // Owner ruling 2026-08-16: take what fits and DROP the rest — the hand cap is not raised for this.
+        // Dropped offers go back to the shared pool, exactly as an un-bought reroll would return them.
+        for (const offer of s.shop) {
+          const def = CARD_INDEX[offer.cardId];
+          if (!def) continue;
+          if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+          s.hand.push({
+            uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
+            ...conjuredStats(s, def, cardBuff(s, def.id)),
+            keywords: [...def.keywords], golden: offer.golden ?? false,
+          });
+        }
+        s.shop = [];
+        refreshTavern(s);
+        applyShopRefreshed(s);
+      } else if (power.kind === 'allIn') {
+        // Rascal: 1 Gold + 2 per turn since the last use, then re-base. Twice a game (`maxUses`), still once
+        // per turn through `heroReady`. Untargeted and free, so the shared block only spends the charge.
+        gainGold(s, allInPayoutOf(s) * reps);
+        s.rascalResetWave = s.wave;
+      } else if (power.kind === 'soulbind') {
+        // Sable: bind the OUTERMOST minions for this turn — a stat gain on one is gained by the other, in
+        // full, one hop only. Needs two distinct bodies, so a board of 0 or 1 is a no-op (no charge spent).
+        if (s.board.length < 2) return state;
+        s.sableBond = { a: s.board[0]!.uid, b: s.board[s.board.length - 1]!.uid, wave: s.wave };
+        stampSableBond(s); // take effect immediately — a buff later in THIS dispatch should already mirror
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
@@ -2206,7 +2273,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
-        || power.kind === 'vanguard'
+        || power.kind === 'vanguard' || power.kind === 'luckySeat' || power.kind === 'exhibition'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
@@ -4743,6 +4810,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     beastAuraHp: s.beastBuyHp || undefined,
     beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
+    // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
+    soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
@@ -4893,6 +4962,37 @@ function refreshTavern(s: RunState, hold = false): void {
     s.nextShopBuff = undefined;
   }
   injectPendingTavern(s, hold);
+  // Croupier Cia (Lucky Seat): each freshly-filled Shop has a 50% chance to seat ONE Enchanted card. The mark
+  // is purely cosmetic on the card itself (owner ruling 2026-08-16: "it does nothing to the card") — buying it
+  // is the only thing it does, feeding `ciaEnchantedBought`. Rolled here, the single funnel every fill goes
+  // through, so a turn-setup roll and a paid refresh are treated identically.
+  if (getHero(s.heroId).power.kind === 'luckySeat' && s.shop.length > 0) {
+    const rng = makeRng(s.rngCursor);
+    const lucky = rng.int(2) === 0;
+    const slot = rng.int(s.shop.length);
+    s.rngCursor = rng.state();
+    if (lucky) s.shop[slot]!.enchanted = true;
+  }
+}
+
+/**
+ * Croupier Cia (Lucky Seat): count an Enchanted purchase, and pay the prize on the 3rd.
+ *
+ * Called from EVERY buy path (spell slot in the minion row, a restored/held offer, and the ordinary minion
+ * buy) rather than one of them — the same lesson as `applySpellBought`, which silently did nothing for spells
+ * bought from the row because it was only wired to the slot.
+ *
+ * The prize is a random Shop spell up to the current tier, matching Merrin's Pocket Magic — a concrete,
+ * already-supported "random prize" rather than a new grant primitive. A full hand forfeits it (like a
+ * Discover into a full hand) but still resets the counter, so the streak can't be banked indefinitely.
+ */
+function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
+  if (!offer.enchanted || getHero(s.heroId).power.kind !== 'luckySeat') return;
+  const n = (s.ciaEnchantedBought ?? 0) + 1;
+  if (n < 3) { s.ciaEnchantedBought = n; return; }
+  s.ciaEnchantedBought = 0;
+  const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
+  if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
 }
 
 /**

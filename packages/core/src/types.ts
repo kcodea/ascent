@@ -1221,6 +1221,10 @@ export interface QuestCombatMods {
    *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
    *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
   beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
+  /** Sable's Soulbind: two bound player uids. A stat gain on either is mirrored onto the other, in full and
+   *  ONCE (no echo back — owner ruling 2026-08-16). The bond lasts a single turn, so this is present only for
+   *  the fight it was forged for; the recruit phase mirrors the same rule through `addBuff`. */
+  soulbind?: { a: string; b: string };
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */

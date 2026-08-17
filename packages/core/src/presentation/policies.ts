@@ -701,7 +701,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── HEROES — hero:<id>:<power.kind> (DoD item 1b; heuristic classification, all flagged for owner review) ──
   // PR 22: Bag It is an ACTIVATED payout (click → Gold now, climbing each turn) — `passive` was
   // factually wrong; the reducer has an activation branch for it. Still flagged for the owner pass.
-  'hero:baggerben:scalingGold': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  // Rascal (id `baggerben`) moved from `scalingGold` to his own `allIn` on 2026-08-16. The old key is DELETED
+  // rather than kept: policies are looked up by the LIVE hero's kind, so with no hero on `scalingGold` the key
+  // is unreachable — which is exactly what the no-ghosts tripwire in heroPolicies.test.ts exists to catch.
+  'hero:baggerben:allIn': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
   'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
@@ -743,6 +746,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:emeraldwarden:vanguard': { policy: 'passive', family: 'passive', flagged: true },
   'hero:underdweller:soulkeeper': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:albus:empowerment': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  // Heroes batch 2026-08-16b (heuristic classification, flagged for owner review).
+  'hero:bram:investment': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:cia:luckySeat': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:odelle:exhibition': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:harlan:buyout': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:sable:soulbind': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };
 

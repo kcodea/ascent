@@ -50,7 +50,13 @@ export type HeroPowerKind =
   | 'roundedSpellbook' // Hunch: a copy of the last spell you cast — 3 Gold, dropping 1 per turn since the last use
   | 'vanguard' // Emerald Warden (passive): every tavern-up also hands you a random minion of the tier you just reached
   | 'soulkeeper' // Underdweller: 3 Gold — Discover among the minions that DIED last combat, either side
-  | 'empowerment'; // Albus: 1 Gold — a Shop minion becomes a Discover from the tier above it
+  | 'empowerment' // Albus: 1 Gold — a Shop minion becomes a Discover from the tier above it
+  | 'investment' // Bram: 1 Gold/turn banked; the 5th Gold invested pays out a random Gilded minion
+  | 'luckySeat' // Croupier Cia (passive): each Shop roll may arrive Enchanted; 3 Enchanted buys pay a prize
+  | 'exhibition' // Odelle (passive): play a minion BETWEEN two others of three distinct types → all three buffed
+  | 'buyout' // Harlan: take the whole Shop, then reroll it. 11 Gold, −1 per turn, re-based on use
+  | 'soulbind' // Sable: bond your outermost minions for a turn — a stat gain on one mirrors onto the other
+  | 'allIn'; // Rascal: bank 1 Gold + 2 more per turn since the last use; twice a game
 
 export interface HeroPower {
   name: string;
@@ -317,13 +323,17 @@ export const HEROES: HeroDef[] = [
     name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
     resolve: 30,
-    armor: 19,
+    armor: 6, // owner balance 2026-08-16: 19 → 6, alongside the faster +2/turn payout and a second use
     power: {
       name: 'All In',
-      kind: 'scalingGold',
+      // Reworked off `scalingGold` onto its own kind (owner 2026-08-16): the payout now steps by 2 (not 1)
+      // and RE-BASES on use, which the old kind could not express. `scalingGold` stays in the union + reducer
+      // as a retired kind (the `possession` precedent) but no hero uses it. The live value is
+      // `allInPayoutOf`, shared with the panel tally so the number shown is the number paid.
+      kind: 'allIn',
       untargeted: true,
-      oncePerGame: true,
-      text: 'Gain Gold. The amount increases by 1 each turn you wait.',
+      maxUses: 2, // two activations a game (still once per turn via heroReady) — NOT `oncePerGame`
+      text: 'Gain **1 Gold**, plus **2** for every turn since you last used this.',
     },
   },
   {
@@ -626,6 +636,76 @@ export const HEROES: HeroDef[] = [
       kind: 'empowerment',
       cost: 1,
       text: 'Choose a Shop minion. Discover a minion from the tier above it for it to become.',
+    },
+  },
+  {
+    id: 'bram',
+    name: 'Bram',
+    blurb: 'Small deposits, patiently made. The vault pays out in gold leaf.',
+    resolve: 30,
+    armor: 16,
+    power: {
+      name: 'Investment',
+      kind: 'investment',
+      cost: 1,
+      untargeted: true,
+      text: 'Invest **1 Gold**. After investing **5**, get a random **Gilded** minion, then reset.',
+    },
+  },
+  {
+    id: 'cia',
+    name: 'Croupier Cia',
+    blurb: 'The house always seats you somewhere interesting.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Lucky Seat',
+      kind: 'luckySeat',
+      passive: true,
+      text: 'Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim a prize.',
+    },
+  },
+  {
+    id: 'odelle',
+    name: 'Odelle',
+    blurb: 'She curates the row. Nothing beside anything it merely repeats.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Exhibition',
+      kind: 'exhibition',
+      passive: true,
+      text: 'Play a minion between two others of three different types: all three gain **+2/+2**. Improves **+2/+2** every 4 cards played.',
+    },
+  },
+  {
+    id: 'harlan',
+    name: 'Harlan',
+    blurb: 'He does not browse. He buys the shelf.',
+    resolve: 30,
+    armor: 9,
+    power: {
+      name: 'Buyout',
+      // NO static `cost`: the shrinking price (11, −1 per turn, re-based on use) is charged in the reducer and
+      // the coin shows the live value — the dragonTamer/roundedSpellbook pattern. A def-level cost would
+      // double-charge through the shared block.
+      kind: 'buyout',
+      untargeted: true,
+      text: 'Take every card in the Shop, then refresh it. Costs **11 Gold**, reduced by 1 each turn.',
+    },
+  },
+  {
+    id: 'sable',
+    name: 'Sable, the Linksmith',
+    blurb: 'Two ends of one chain. Pull on either and both come along.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Soulbind',
+      kind: 'soulbind',
+      untargeted: true,
+      maxUses: 3, // three activations a game (still once per turn via heroReady)
+      text: 'Bind your left-most and right-most minions this turn: stats gained by one are gained by the other.',
     },
   },
 ];

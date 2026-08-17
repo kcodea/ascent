@@ -243,9 +243,34 @@ export function stampImproveReps(state: RunState): void {
   IMPROVE_REPS = improveReps(state);
 }
 
+/**
+ * Sable (Soulbind): the bond in force for THIS dispatch, mirrored onto the stateless `addBuff` hook exactly
+ * like `IMPROVE_REPS` above. Holds the live board array so the partner body can be found by uid.
+ *
+ * `mirroring` is the re-entrancy guard and it is load-bearing: the mirrored grant is itself an `addBuff`, so
+ * without it A→B→A→B recurses forever. One hop, no echo (owner ruling 2026-08-16).
+ */
+let SABLE: { a: string; b: string; board: BoardCard[] } | null = null;
+let SABLE_MIRRORING = false;
+export function stampSableBond(state: RunState): void {
+  const bond = state.sableBond;
+  SABLE = bond && bond.wave === state.wave ? { a: bond.a, b: bond.b, board: state.board } : null;
+  SABLE_MIRRORING = false;
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // Sable's bond: a stat gain on one end is gained by the other, in full. Guarded against the obvious
+  // infinite regress — the mirrored call re-enters here — and skipped for a 0/0 buff (a pure counter bump).
+  if (SABLE && !SABLE_MIRRORING && (attack !== 0 || health !== 0)) {
+    const partnerUid = card.uid === SABLE.a ? SABLE.b : card.uid === SABLE.b ? SABLE.a : undefined;
+    const partner = partnerUid ? SABLE.board.find((c) => c.uid === partnerUid) : undefined;
+    if (partner) {
+      SABLE_MIRRORING = true;
+      try { addBuff(partner, 'Soulbind', attack, health, count); } finally { SABLE_MIRRORING = false; }
+    }
+  }
   // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
   // its Deathrattle HP grant — in the shop here, mirrored in combat by `onGainAttackImproveHpGrant`. One
   // improvement per buff event (not scaled by the Attack amount), so two Forsaken Weavers buffing it on a
@@ -459,6 +484,61 @@ export function heroOfferPrice(state: RunState, offer: { cardId: string }): numb
 export function roundedSpellbookCostOf(state: RunState): number {
   const base = state.hunchResetWave ?? 1; // runs open on wave 1
   return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
+/**
+ * Odelle (Exhibition): can these three minions be read as three DIFFERENT types?
+ *
+ * A dual-type card counts as EITHER of its types — whichever one avoids a clash (owner ruling 2026-08-16:
+ * "a Dragon next to a Dragon/Demon should be considered 2 different tribes; the Dragon/Demon is being
+ * considered a Demon"). So this is a tiny assignment problem, not a set-size check: pick one type per minion
+ * and ask whether SOME choice makes all three distinct. With at most 2 options each that is 8 combinations —
+ * cheap enough to brute-force, and far clearer than a hand-rolled matching.
+ *
+ * `neutral` is a type like any other, so three neutrals fail and Dragon/neutral/Demon passes.
+ */
+export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
+  if (cards.length !== 3) return false;
+  const opts = cards.map((c) => {
+    const def = CARD_INDEX[c.cardId];
+    const t = [def?.tribe ?? c.tribe];
+    if (def?.tribe2 && def.tribe2 !== def.tribe) t.push(def.tribe2);
+    return t;
+  });
+  for (const a of opts[0]!) {
+    for (const b of opts[1]!) {
+      if (b === a) continue;
+      for (const c of opts[2]!) if (c !== a && c !== b) return true;
+    }
+  }
+  return false;
+}
+
+/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 2, improving by 2 for every 4 cards played
+ *  this run. Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
+ *  one (the live-card-text rule applies to hero powers too). */
+export function exhibitionGrantOf(state: RunState): number {
+  // Reads the EXISTING run-wide `cardsPlayedTotal` rather than a private counter — "cards played" already has
+  // one source of truth (every play routes through `applyCardsPlayed`), and a second tally would only be a
+  // second thing to keep in sync.
+  return 2 + 2 * Math.floor((state.cardsPlayedTotal ?? 0) / 4);
+}
+
+/** Harlan (Buyout): 11 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it re-bases to
+ *  the current wave — "resets to 11 Gold after each use" (owner spec 2026-08-16), the discount then accruing
+ *  again from that turn. Same shape and sharing rule as `roundedSpellbookCostOf`: the reducer charges it and
+ *  the UI's cost coin reads it, so the price shown is the price paid. */
+export function buyoutCostOf(state: RunState): number {
+  const base = state.harlanResetWave ?? 1; // runs open on wave 1
+  return Math.max(0, 11 - Math.max(0, state.wave - base));
+}
+
+/** Rascal (All In): 1 Gold plus 2 for every TURN elapsed since the last use. The mirror image of the two cost
+ *  helpers above — a payout that CLIMBS rather than a price that falls — and re-based on use the same way, so
+ *  the second of his two activations starts its accrual over. Shared by the reducer and the panel tally. */
+export function allInPayoutOf(state: RunState): number {
+  const base = state.rascalResetWave ?? 1; // runs open on wave 1
+  return 1 + 2 * Math.max(0, state.wave - base);
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by

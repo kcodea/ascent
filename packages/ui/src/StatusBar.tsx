@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -77,6 +77,9 @@ export function StatusBar() {
   // Hunch's Rounded Spellbook also shrinks — 3, −1 per turn since the last use (shared helper, so the coin
   // shows exactly what the reducer charges).
   const bookCost = power.kind === 'roundedSpellbook' ? roundedSpellbookCostOf(run) : undefined;
+  // Harlan's Buyout shrinks 1 a turn and re-bases on use — the coin reads the SAME helper the reducer charges,
+  // so the price shown can never drift from the price paid (the dynamiteDig / dragonTamer / Hunch pattern).
+  const buyCost = power.kind === 'buyout' ? buyoutCostOf(run) : undefined;
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
@@ -152,6 +155,7 @@ export function StatusBar() {
     (digCost === undefined || run.embers >= digCost) &&
     (tamerCost === undefined || run.embers >= tamerCost) &&
     (bookCost === undefined || run.embers >= bookCost) &&
+    (buyCost === undefined || run.embers >= buyCost) &&
     diceLock === 0; // Gambler: the roll is unusable while its lock runs
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
@@ -176,6 +180,11 @@ export function StatusBar() {
       case 'dice': return diceLock > 0 ? `${diceLock}t` : null; // Gambler — turns until the roll unlocks
       case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
       case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
+      case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
+      case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted cards bought toward the prize
+      case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
+      case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
+      case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
       default: return null;
     }
   })();
@@ -406,7 +415,7 @@ export function StatusBar() {
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {(digCost ?? tamerCost ?? bookCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? power.cost}</span></span> : null}
+            {(digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
             {diceFace != null

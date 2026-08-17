@@ -525,6 +525,9 @@ export function simulate(
   const enemyBeastsPlayed = enemyState.beastsPlayed;
   const enemyDeathrattles = enemyState.deathrattles;
 
+  // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
+  // calling itself. See the mirror block inside `buff`.
+  let soulbindMirroring = false;
   const ctx: CombatContext = {
     rng,
     bus,
@@ -621,6 +624,18 @@ export function simulate(
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
       // handlers grant Health only (no further Attack gain) so it can't loop. Cheap when unsubscribed (a Map miss).
       if (attack > 0) bus.emit('onGainAttack', { minion: target, side: target.side });
+      // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
+      // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
+      // pair buff each other forever. Player-side only: the bond is forged in the player's shop.
+      const bond = modsFor('player').soulbind;
+      if (bond && !soulbindMirroring && target.side === 'player' && (attack !== 0 || health !== 0)) {
+        const otherUid = target.uid === bond.a ? bond.b : target.uid === bond.b ? bond.a : undefined;
+        const partner = otherUid ? boards.player.find((m) => m.uid === otherUid && !m.dead) : undefined;
+        if (partner) {
+          soulbindMirroring = true;
+          try { ctx.buff(partner, attack, health, source ?? 'Soulbind', ruby); } finally { soulbindMirroring = false; }
+        }
+      }
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });

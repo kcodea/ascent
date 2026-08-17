@@ -5021,6 +5021,7 @@ export function Recruit() {
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}
+                enchanted={o.enchanted}
                 suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />

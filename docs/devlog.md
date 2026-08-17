@@ -1,5 +1,57 @@
 # ASCENT — development log
 
+## 2026-08-16 - Five more heroes (Bram, Cia, Odelle, Harlan, Sable) + Rascal reworked
+
+Owner batch, scoped and answered before building.
+
+- **Bram** (16 armor) — *Investment*, 1g/turn: bank a Gold; the 5th pays a random **Gilded** minion up to your
+  Shop tier, then resets. A full hand blocks the payout entirely — no charge, bank untouched — so the reward
+  can never be silently dropped.
+- **Croupier Cia** (10 armor) — *Lucky Seat*, passive: each filled Shop has a 50% chance to seat one
+  **Enchanted** card. Per the owner ruling the mark does NOTHING to the card — it is a purple chained wisp and
+  a counter; buying 3 pays a random Shop spell (Merrin's grant, reused rather than a new primitive). Rolled in
+  `refreshTavern`, the single funnel every fill goes through, so a turn-setup roll and a paid refresh behave
+  identically. Counted from EVERY buy path — the `applySpellBought` lesson, which once silently did nothing
+  for spells bought from the minion row because it was wired to only one of them.
+- **Odelle** (8 armor) — *Exhibition*, passive: play a minion BETWEEN two others of three different types and
+  all three gain +2/+2, improving +2/+2 every 4 cards played. The type rule is the interesting part: a
+  dual-type card counts as EITHER of its types, whichever avoids a clash (owner ruling — "a Dragon next to a
+  Dragon/Demon is 2 different tribes; the Dragon/Demon is being considered a Demon"). That makes it a tiny
+  assignment problem rather than a set-size check, so `threeDistinctTypes` brute-forces the ≤8 combinations.
+  Reads the existing run-wide `cardsPlayedTotal` rather than adding a second tally.
+- **Harlan** (9 armor) — *Buyout*: take the whole Shop, then reroll it. 11 Gold, −1 a turn, re-based on use.
+  Owner ruling on the hand cap: take what fits and DROP the rest (dropped offers return to the pool like an
+  un-bought reroll) rather than raising the cap the way the Runeforge does.
+- **Sable, the Linksmith** (10 armor) — *Soulbind*, 3 uses: bind the outermost minions for the turn; a stat
+  gain on one is gained by the other, in full, ONE hop with no echo back.
+- **Rascal** — 19 → 6 armor; *All In* is now 1 Gold + 2 per turn since the last use, twice a game, re-basing
+  on each use.
+
+**Sable is the only structurally new thing here.** Stat gains funnel through exactly two places — `addBuff` in
+recruit and `ctx.buff` in combat — so the bond is mirrored in both, following the Sergeant precedent
+(`onGainAttackImproveHpGrant`) which already does "when this gains stats, do something" across the same seam.
+The load-bearing detail is the re-entrancy guard: the mirrored grant is ITSELF a stat gain that re-enters the
+same function, so without a guard the pair buff each other forever. The recruit side reaches the stateless
+`addBuff` through a `stampSableBond` hook, the same trick `IMPROVE_REPS` already uses; the combat side carries
+the bond over as `QuestCombatMods.soulbind` and expires it by wave, so it can only ever apply to the fight it
+was forged for.
+
+**Two things the tripwires caught, both correctly.** Rascal's hero id is `baggerben` — one hero whose display
+name is "Rascal" (the `hermithank` → "Tradesman" convention), not two heroes. I initially kept
+`hero:baggerben:scalingGold` in the policy registry "for saves"; the no-ghosts test was right to reject it,
+since policies resolve off the LIVE hero's kind and nothing can produce the old key any more. It is deleted;
+the `scalingGold` KIND stays in the union as a retired kind (the `possession` precedent).
+
+The Enchanted wisp LOOPS, so per `docs/performance.md` it animates transform/opacity only: two conic-gradient
+rings spinning at different rates, and a ::before glow with a STATIC shadow whose opacity breathes. No paint
+property is animated per frame, and it honours `prefers-reduced-motion`.
+
+**No art exists yet** for Bram, Cia, Odelle, Harlan or Sable — neither portraits nor power art are in the
+source folder, so nothing was wired (reported, never guessed).
+
+30 new tests; three stale assertions updated for Rascal's rework. Full suite 5472 green, typecheck + lint +
+build:web clean.
+
 ## 2026-08-16 - Three heroes (Emerald Warden, Underdweller, Albus) + the Gambler's die stays up
 
 Owner batch. Three new heroes, their art wired, and one presentation fix.

@@ -67,6 +67,10 @@ export interface ShopCard {
   /** Pete (Contrabanana): this offer was upgraded to the tier ABOVE the Shop tier on his 3rd refresh — the UI
    *  flashes it once as the row lands so the smuggled unit reads as special. Presentation only. */
   contraband?: boolean;
+  /** Croupier Cia (Lucky Seat): this offer wears the Enchanted treatment — a purple chained wisp swirling
+   *  around the card. Purely cosmetic on the card itself (it changes NOTHING about what you buy); its only
+   *  mechanical role is that buying it advances `ciaEnchantedBought` toward her prize. */
+  enchanted?: boolean;
   /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
    *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
   cost?: number;
@@ -689,6 +693,20 @@ export interface RunState {
    *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */
   heroDiceRoll?: number;
   heroDiceRollWave?: number;
+  /** Bram (Investment): Gold banked toward the Gilded payout. Resets to 0 the moment it reaches 5. */
+  bramInvested?: number;
+  /** Croupier Cia (Lucky Seat): Enchanted cards BOUGHT toward the prize (resets at 3). `enchanted` on a Shop
+   *  offer is the mark itself — purely cosmetic on the card, and the only thing that feeds this counter. */
+  ciaEnchantedBought?: number;
+  /** Harlan (Buyout): the wave his price was last re-based on — the cost falls 1 per turn since. Absent = the
+   *  run start, so the discount accrues from turn 1 exactly like Hunch's. */
+  harlanResetWave?: number;
+  /** Rascal (All In): the wave his payout was last re-based on. Same lifecycle as `harlanResetWave`. */
+  rascalResetWave?: number;
+  /** Sable (Soulbind): the uids bound THIS turn, and the wave the bond was forged. A stat gain on either
+   *  mirrors onto the other — once, never echoing back (owner ruling 2026-08-16). Expired by wave comparison
+   *  so nothing has to clear it; the combat sim reads it through `questCombatMods`. */
+  sableBond?: { a: string; b: string; wave: number };
   /** Frantic Frank (Clearance): the wave on which his refresh made Shop minions cost 2 Gold. Equal to the
    *  current wave while the discount is live; a wave comparison auto-expires it next turn (no explicit clear). */
   frankClearanceTurn?: number;

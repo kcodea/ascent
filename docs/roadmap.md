@@ -21,6 +21,9 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Art for the 2026-08-16b heroes.** Bram, Croupier Cia, Odelle, Harlan and Sable have NO portrait or power art in `C:/Game Assets/Ascent Art/Heroes`. Drop the files in (exact-name match) and re-run `npm run art:wire -- --apply`.
+- **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.
+
 - **Classify the 2026-08-16 hero-power beats.** `hero:emeraldwarden:vanguard` / `hero:underdweller:soulkeeper` / `hero:albus:empowerment` are registered `flagged: true` on a heuristic — they need the owner's real ownBeat/foldedCue call.
 
 - **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling

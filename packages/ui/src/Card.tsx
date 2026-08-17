@@ -357,6 +357,7 @@ export const Card = memo(function Card({
   suppressPop,
   tripleReady,
   contraband,
+  enchanted,
   forceFull,
   slideDir,
   handSlidePx,
@@ -435,6 +436,9 @@ export const Card = memo(function Card({
   tripleReady?: boolean;
   /** Pete (Contrabanana): a smuggled tier-above Shop offer — one-shot flash as the row lands. */
   contraband?: boolean;
+  /** Croupier Cia's Lucky Seat: this offer wears the Enchanted treatment — a purple chained wisp. Purely
+   *  cosmetic; it changes nothing about the card you buy. */
+  enchanted?: boolean;
   /** Render the full-text card regardless of the global compact setting — used by the hover reveal. */
   forceFull?: boolean;
   /** Pre-emptive reorder slide: -1 shifts the card half a slot LEFT, +1 half a slot RIGHT, 0/undefined none.
@@ -711,7 +715,7 @@ export const Card = memo(function Card({
   return (
     <div
       ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -1135,6 +1139,17 @@ export const Card = memo(function Card({
           <span className="kf-tongue" style={{ '--kx': '50%', '--kd': '0s' } as CSSProperties} />
           <span className="kf-tongue" style={{ '--kx': '68%', '--kd': '0.04s' } as CSSProperties} />
           <span className="kf-tongue" style={{ '--kx': '86%', '--kd': '0.02s' } as CSSProperties} />
+        </span>
+      )}
+      {/* Croupier Cia's Lucky Seat — the ENCHANTED treatment: purple chained wisps swirling around the card.
+          Purely cosmetic (buying it is the only thing it does). This LOOPS, so per docs/performance.md it
+          animates transform/opacity ONLY — the two rings spin at different rates and the glow breathes on a
+          ::before with a STATIC shadow. Nothing here touches a paint property per frame. */}
+      {enchanted && (
+        <span className="enchantwisp" aria-hidden="true">
+          <span className="ew-ring ew-a" />
+          <span className="ew-ring ew-b" />
+          <span className="ew-glow" />
         </span>
       )}
       {/* Bane — a battlecry just enchanted the Fodder card type run-wide: a soft purple haze swells from

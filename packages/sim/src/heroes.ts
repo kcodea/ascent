@@ -58,7 +58,9 @@ export type HeroPowerKind =
   | 'soulbind' // Sable: bond your outermost minions for a turn — a stat gain on one mirrors onto the other
   | 'allIn' // Rascal: bank 1 Gold + 2 more per turn since the last use; twice a game
   | 'startingReflector' // Yirin (passive): the run opens with a Reflector token in hand
-  | 'commission'; // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
+  | 'commission' // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
+  | 'devour' // Devourer: 1 Gold — eat a friendly minion, spitting its stats onto a random other friendly
+  | 'memory'; // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
 
 export interface HeroPower {
   name: string;
@@ -644,6 +646,33 @@ export const HEROES: HeroDef[] = [
       kind: 'empowerment',
       cost: 1,
       text: 'Choose a Shop minion. Discover a minion from the tier above it for it to become.',
+    },
+  },
+  {
+    id: 'devourer',
+    name: 'Devourer',
+    blurb: 'Nothing is wasted. What one body cannot use, another will.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Devour',
+      kind: 'devour',
+      cost: 1,
+      text: 'Consume a friendly minion and give its stats to a random other friendly minion.',
+    },
+  },
+  {
+    id: 'membrance',
+    name: 'Membrance',
+    blurb: 'She remembers every board that ever stood against her — and sells you the copy.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Memory',
+      kind: 'memory',
+      cost: 1,
+      untargeted: true,
+      text: "Refresh the Shop with plain copies of your last opponent's board.",
     },
   },
   {

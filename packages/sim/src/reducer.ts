@@ -2259,6 +2259,30 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
         s.commission = { kind: pick, dueWave: s.wave + COMMISSION_DELAY[pick] };
         s.lastCommission = pick; // …so the next offer can exclude it
+      } else if (power.kind === 'devour') {
+        // Devourer: eat a friendly BOARD minion and hand its stats to a random OTHER friendly. Needs a real
+        // second body to receive them, so a board of one is a no-op (no charge, nothing eaten) — otherwise the
+        // power would silently delete a minion for 1 Gold.
+        if (!card) return state;
+        const others = s.board.filter((c) => c.uid !== card.uid);
+        if (others.length === 0) return state;
+        const rng = makeRng(s.rngCursor);
+        const eater = others[rng.int(others.length)]!;
+        s.rngCursor = rng.state();
+        // Its CURRENT stats, buffs included — you are eating the body you built, not its printed line.
+        addBuff(eater, 'Devour', card.attack, card.health);
+        returnToPool(s, card.cardId); // the eaten body goes back, exactly as a sell would return it
+        s.board = s.board.filter((c) => c.uid !== card.uid);
+      } else if (power.kind === 'memory') {
+        // Membrance: restock the Shop with PLAIN copies of the last opponent's board — the Rune of the Muster
+        // shape, pointed at `lastCombat.initial.enemy` instead of your own board. Plain: no buffs, never
+        // golden, so you buy the shell of what beat you rather than the statted body.
+        const foe = s.lastCombat?.initial.enemy ?? [];
+        const ids = foe.map((m) => m.cardId).filter((id) => { const d = CARD_INDEX[id]; return d && !d.spell && !d.ruby; });
+        if (ids.length === 0) return state; // no fight yet (turn 1) → no charge spent
+        for (const offer of s.shop) returnToPool(s, offer.cardId);
+        s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+        applyShopRefreshed(s);
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when

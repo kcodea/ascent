@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-17 - Devourer + Membrance (Flash deferred)
+
+- **Devourer** (10 armor) — *Devour*, 1 Gold, targeted: consume a friendly minion and hand its **current**
+  stats (buffs included — you are eating the body you built, not its printed line) to a random OTHER friendly.
+  A board of ONE is a hard no-op: without a second body the power would silently delete a minion for 1 Gold.
+  The eaten body returns to the pool exactly as a sell would.
+- **Membrance** (8 armor) — *Memory*, 1 Gold, untargeted: restock the Shop with plain copies of the last
+  opponent's board. This is the **Rune of the Muster shape** pointed at `lastCombat.initial.enemy` instead of
+  your own board — plain meaning no buffs and never golden, so you buy the shell of what beat you rather than
+  the statted body. A no-op before the first fight (turn 1), with no Gold spent.
+
+Art wired for both. Gildmaster's re-done art came along in the same sweep.
+
+**NOT built: Flash.** Its power needs the identity of the FIRST and LAST minion you kill next combat, and the
+engine only tracks `enemyDeaths` as a COUNT — no ordering, no cardIds. That needs a new `CombatResult`
+carry-back, which the `liveTrackingAudit` tripwire then requires be classified LIVE or EXEMPT, plus a Choose
+One picker with its two art options (`FlashFirst` / `FlashLast`, both already in the source folder). That is a
+combat-engine change rather than a data-only hero, so it wants its own PR.
+
+**NOT done: the quest-style restyle** of Cassen's commission picker (and Flash's, once it exists).
+
+Full suite 5508 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Buff gust removed — it was ~half of all jank
 
 The full-run trace put `fx:gust` far above everything else: 16 of 599 buckets carried **492 of the run's 989

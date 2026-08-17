@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Hero: Flash** (9 armor, *First or Last*, 1 Gold) — needs first/last KILL IDENTITY carried back from
+  combat; today only `enemyDeaths` (a count) exists. Add the carry-back + its `liveTrackingAudit`
+  classification, then a Choose One picker using `FlashFirst.png` / `FlashLast.png`.
+- **Quest-style restyle** for Cassen's commission picker (and Flash's when it lands) — glass/quest treatment
+  rather than the current tiles.
+
 - **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
   buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry
   once (or pre-render to a texture) and animate transform/alpha instead. Far narrower than the items below.

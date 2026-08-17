@@ -1,3 +1,9 @@
+> **⚠️ SUPERSEDED for FTUE (2026-08-17).** The first-time-player sections of this document are superseded by
+> [`ftue-master-blueprint.md`](ftue-master-blueprint.md), which is now the FTUE source of truth. The **Tactical
+> Trials** material here remains a valid future reference, but Trials are explicitly DEFERRED until Learn
+> Ascent and the tribe primers have shipped and been validated. Kept for history and for that Trials content.
+> Do not implement FTUE work from this file.
+
 # ASCENT — Tutorial & Tactical Trials: authoring spec
 
 **Status:** scope only. Nothing built. This is the document the implementation PRs get written against.

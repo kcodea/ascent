@@ -1,5 +1,48 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE Phase 0: blueprint adopted, and the presentation-contract spike
+
+Owner handed over `ascent-first-time-player-experience-master-blueprint.md` and asked to start. This is Phase 0
+of that document's own rollout — lock the contract — plus the de-risking spike, and **no implementation code**.
+
+**The blueprint is now in-repo** as [`ftue-master-blueprint.md`](ftue-master-blueprint.md), copied verbatim
+with a **repo addendum** at the top rather than edits through the author's prose, so intent stays legible and
+drift is explicit. The addendum records six things, the load-bearing one being **vocabulary**: the document
+teaches "Resolve" throughout, and we renamed that to **Health** earlier the same day — so every player-facing
+string quoted in it must be authored as "Health". (The `data-tutorial-anchor="resolve"` id is correct as
+written; anchor ids are internal, matching the display-only split.) Also recorded: the unbuilt Basic Rune
+branch design that gates Phase 3, the accepted content-pinning coupling, and a distinction §8.4/§13 don't
+draw — Pixi world transforms are near-free to read per frame, DOM rects are not, and CLAUDE.md bans polling
+those.
+
+`tutorial-curriculum-map.md` and `tutorial-and-trials-spec.md` now carry supersession notices (they keep their
+non-FTUE content and their Tactical Trials material). `docs/roadmap.md`'s stale one-line onboarding sketch is
+replaced by the real phased plan.
+
+**The spike is the substance** — [`ftue-spike-presentation-contract.md`](ftue-spike-presentation-contract.md).
+It ran first because §8.1.4/§10.6 are the riskiest requirement in the scope: coaching must wait for semantic
+presentation completion and never advance on a timeout, and every combat lesson depends on it. Read-only
+investigation, no prototype.
+
+**Verdict: the contract is mostly already there.** `livePlayer` exposes `onBeatActivate` / `onBeatComplete` /
+`onConsequence` — the blueprint's `transactionStarted` / `transactionCompleted` under other names — and its
+half-open-window invariant means a background tab or GC pause cannot silently drop a beat the tutorial is
+waiting on, which is the genuinely hard part. Identity is real too: 719 `PRESENTATION_POLICIES` keys, plus
+`key`/`srcCard` stamped onto combat events. Completion can honestly mean "the authored envelope elapsed"
+(`completionOffsetMs`), so Beat Lab stays authoritative and the tutorial never writes timing.
+
+**The gap is coverage, not architecture.** `combatBeatsEnabled()` is OFF by default and `combatKeyedHoldMs`
+returns null for anything that isn't a quest/rune flag or a stamped minion effect; everything else keeps
+legacy pacing with no signal, and `useCombatReplay`'s own nets are TTL fail-open (2000ms / 1200ms) — exactly
+what the blueprint forbids relying on. So Phase 1 builds an ADAPTER over existing signals and widens keyed
+pacing, rather than inventing a system inside the choreographer.
+
+**Risk HIGH → MEDIUM; Phase 1 drops from 4–6 weeks to ~3.5–5.** The residual risk concentrates in widening
+combat pacing, which brushes the owner's hard line ("what i will not do is change order of operations") —
+scoping the widening to `tutorial_lobby` runs keeps normal fights byte-identical and respects it completely.
+
+Docs only; no engine, content, or UI change.
+
 ## 2026-08-17 — Mode cards 25% larger; new Play art
 
 **Play tile art replaced** with a second master from the owner (`Modes/PlayMode.png`, re-optimized 2480KB →

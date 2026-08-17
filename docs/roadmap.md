@@ -1061,7 +1061,30 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 - **CDN-front the read path** — serve the opponent pool from a static/edge blob, never hit the DB on boot.
 - **Leaderboard hardening** — server-side rating re-derivation before trusting a submission; split games-played
   into wins/losses or add a min-games gate so one lucky run can't top the board.
-- **Onboarding** — first-run tutorial (shop → hand → board → Shout → threat → combat).
+- **Onboarding / FTUE** — scoped in full by [`ftue-master-blueprint.md`](ftue-master-blueprint.md) (owner's
+  blueprint, adopted as the FTUE source of truth 2026-08-17; it replaces the one-line "shop → hand → board →
+  Shout → threat → combat" sketch that used to sit here, and supersedes the FTUE sections of
+  `tutorial-curriculum-map.md` + `tutorial-and-trials-spec.md`). Three layers: a **12-round universal "Learn
+  Ascent" lobby** (10 guided + 2 autonomous, tutorial-only hero *Aster*, every enemy an effectless `omen`),
+  five optional **6-round tribe primers**, and one-time first-real-lobby hints. Hard rules: use the real
+  reducer/simulator (never fake outcomes), never touch rating/history/telemetry, never write Beat Lab timing.
+  - **Phase 0 — lock the contract. DONE 2026-08-17.** Blueprint in-repo, old docs marked superseded, this
+    entry rewritten, presentation spike run.
+  - **Presentation-contract spike DONE** — [`ftue-spike-presentation-contract.md`](ftue-spike-presentation-contract.md).
+    Verdict: the semantic signals the blueprint needs largely EXIST (`livePlayer`'s beat activate/complete,
+    719 `PRESENTATION_POLICIES` keys, `key`/`srcCard` event stamping, compiled `completionOffsetMs`). The gap
+    is coverage: choreographed combat pacing is off by default and keyed-triggers-only. Risk HIGH → MEDIUM.
+  - **Next — Phase 1 vertical slice (~3.5–5 wk):** tutorial profile persistence, Learn hub shell,
+    `tutorial_lobby` origin, declarative course/step registry, scripted Shop provider (`rollShop` has no
+    provider seam today), Omen provider, action gating, Pixi+DOM anchor registry, focus mask, the four opening
+    panels + board-order demo, the New/Introduced/Demonstrated lesson registry, safe holds, Round 1
+    end-to-end, and save/resume/skip. Its first task is the throwaway prototype the spike deferred.
+  - Phases 2–4 author Turns 1–5, 6–10, and autonomy/graduation (~6–8 wk). **Tribe primers (Phases 5–6) and
+    Tactical Trials are DEFERRED** — ship Learn Ascent to private testing first.
+  - **Blocked design work:** §6.8's three Basic Rune branches need real Rune IDs approved against current
+    content (affordable, each visibly changing a combat, all converging to Turn 7). Gates Phase 3.
+  - **Accepted coupling:** pinning to a `contentRevision` with CI drift-failure freezes the twelve minions the
+    course uses — retuning any of them becomes a tutorial re-authoring task.
 - **Accessibility** — keyboard nav, screen-reader labels, reduced-motion, colorblind-safe threat/tribe cues.
 - **Touch** support + the COMPACT-fan hand redo.
 - **Distribution** — WebP art is done (4.3 MB); decide web (CDN / versioned deploy) vs a desktop **exe**

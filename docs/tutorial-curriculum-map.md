@@ -1,3 +1,9 @@
+> **⚠️ SUPERSEDED for FTUE (2026-08-17).** The first-time-player sections of this document are superseded by
+> [`ftue-master-blueprint.md`](ftue-master-blueprint.md), which is now the FTUE source of truth. Where the two
+> conflict, the blueprint wins — notably: the course is **12 rounds, not 10**; there is no tribe selection
+> before the universal course; and every enemy is an effectless `omen` token. Kept for its non-FTUE curriculum
+> content and for history. Do not implement FTUE work from this file.
+
 # ASCENT Teaching Curriculum — the complete map
 
 **What this is.** Every concept the two onboarding systems teach, where it is taught, and what the player is

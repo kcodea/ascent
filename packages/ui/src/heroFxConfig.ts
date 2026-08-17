@@ -59,6 +59,20 @@ export interface HeroFxConfig {
   ciaGlintSize: number;
   /** Seal — size of the enchanted mark near the top of the card, design px. */
   ciaSealSize: number;
+  // ── FIT: the foil is anchored to the measured `.art` window; these nudge it from there. Added because the
+  //    measured window is not the same shape as the visible art on every frame (owner 2026-08-17).
+  /** Fit — horizontal nudge from the art window's centre, px. */
+  ciaFitX: number;
+  /** Fit — vertical nudge from the art window's centre, px. */
+  ciaFitY: number;
+  /** Fit — width as a multiple of the measured art window. */
+  ciaFitW: number;
+  /** Fit — height as a multiple of the measured art window. */
+  ciaFitH: number;
+  /** Fit — corner radius of the foil panel, as a fraction of its short side (0.5 = a full oval). */
+  ciaFitRadius: number;
+  /** Fit — how far the edges fade out, as a fraction of the short side. Higher = softer, more film-like. */
+  ciaFeather: number;
   /** Soulbind ring — diameter, design px (× --u). */
   sbSize: number;
   /** Soulbind ring — how far BELOW the card's bottom edge it sits, design px (× --u). */
@@ -123,6 +137,12 @@ const DEFAULTS: HeroFxConfig = {
   ciaGlintCount: 3,
   ciaGlintSize: 5,
   ciaSealSize: 22,
+  ciaFitX: 0,
+  ciaFitY: 0,
+  ciaFitW: 0.92,
+  ciaFitH: 0.92,
+  ciaFitRadius: 0.42,
+  ciaFeather: 0.35,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -163,6 +183,12 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   ciaGlintCount: [0, 4, 1],
   ciaGlintSize: [1, 30, 0.5],
   ciaSealSize: [0, 60, 0.5],
+  ciaFitX: [-120, 120, 0.5],
+  ciaFitY: [-120, 120, 0.5],
+  ciaFitW: [0.1, 2, 0.01],
+  ciaFitH: [0.1, 2, 0.01],
+  ciaFitRadius: [0, 0.5, 0.01],
+  ciaFeather: [0, 0.9, 0.01],
 };
 
 export const HFX_NUM_KEYS = [
@@ -170,7 +196,7 @@ export const HFX_NUM_KEYS = [
   'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings', 'sbBuild', 'sbFlash',
   'ciaFoilOpacity', 'ciaHoverBoost', 'ciaFoilPeriod', 'ciaSweepPeriod', 'ciaSweepDuration', 'ciaSweepAngle',
   'ciaSweepWidth', 'ciaHaloOpacity', 'ciaHaloPeriod', 'ciaHaloInset', 'ciaGlintCount', 'ciaGlintSize',
-  'ciaSealSize',
+  'ciaSealSize', 'ciaFitX', 'ciaFitY', 'ciaFitW', 'ciaFitH', 'ciaFitRadius', 'ciaFeather',
 ] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as HFX_DEFAULTS };

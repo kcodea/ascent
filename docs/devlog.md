@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cia's foil gets FIT + FEATHER dials; hidden while its card is dragged
+
+I guessed the foil's shape twice and was wrong twice, so this hands the shape to the tuner instead of guessing
+a third time.
+
+**Six new dials** under *Cia: Enchanted foil* — `Fit nudge X/Y`, `Fit width/height` (multiples of the measured
+art window), `Corner radius` (0.5 = a full oval, which is what an oval card frame actually wants) and
+`Edge feather`. The measured `.art` box remains the STARTING point, because it tracks compact mode and frame
+variants automatically; the dials adjust from there, since the visible art is not the same shape as its
+layout box on every frame.
+
+The mask texture is now shape-dependent, so it is cached per `(radius, feather)` rather than built once — the
+alpha is stacked concentric rounded rects ramping inward, which is cheaper and more predictable than blurring
+a hard shape, and it is what makes the edge disappear instead of ending.
+
+**The "stays behind" case was a DRAG, not a purchase.** My previous fix covered the card being bought and
+verified that path, but the screenshot was mid-drag: the source card stays in place, dimmed, while a ghost
+follows the pointer — so a foil sitting on the source read as being left behind. It now hides while its card
+carries `dragsrc`.
+
+Full suite 5502 green, typecheck + lint + build:web clean. The shape still needs the owner's eye — that is
+what the dials are for.
+
 ## 2026-08-17 - Cia's foil: fitted to the real art window, feathered, and cleared on purchase
 
 Two owner-reported issues with the first foil pass, both real.

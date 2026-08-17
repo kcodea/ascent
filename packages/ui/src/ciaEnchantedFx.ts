@@ -29,7 +29,6 @@ let sweepTex: Texture | null = null;
 let haloTex: Texture | null = null;
 let glintTex: Texture | null = null;
 let sealTex: Texture | null = null;
-let maskTex: Texture | null = null;
 
 function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): Texture {
   const cv = document.createElement('canvas');
@@ -136,29 +135,41 @@ function makeSeal(): Texture {
 }
 
 /**
- * The foil's alpha MASK: a rounded panel whose edges fade out.
+ * The foil's alpha MASK, cached per SHAPE.
  *
- * A hard-edged `Graphics` rect read as a pane of glass sitting ON the card (owner report 2026-08-17). A
- * feathered alpha ramp is what makes it read as a FILM over the art instead — the foil simply has nowhere to
- * be at the edges, so there is no visible boundary at all.
+ * The panel's roundness and edge softness are now tunable, so the texture depends on them — it is keyed and
+ * reused rather than rebuilt per frame. `radius`/`feather` are fractions of the short side, so one square
+ * texture stretches correctly to any art window.
+ *
+ * The feather is what stops it reading as a pane of glass laid ON the card: the alpha ramps to nothing before
+ * the edge, so there is no boundary to see.
  */
-function makeMask(): Texture {
-  const W = 256, H = 256, r = 26, f = 26; // f = feather width, in mask px
-  return canvasTex(W, H, (c) => {
-    // Draw the panel, then erase a soft border by stroking progressively wider at falling alpha.
-    c.fillStyle = '#fff';
-    c.beginPath(); c.roundRect(f, f, W - f * 2, H - f * 2, r); c.fill();
-    c.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < f; i++) {
-      c.strokeStyle = `rgba(0,0,0,${(1 - i / f) * 0.16})`;
-      c.lineWidth = 2;
-      c.beginPath(); c.roundRect(f - i, f - i, W - (f - i) * 2, H - (f - i) * 2, r + i); c.stroke();
+const maskCache = new Map<string, Texture>();
+function maskFor(radiusFrac: number, featherFrac: number): Texture {
+  const key = `${radiusFrac.toFixed(2)}|${featherFrac.toFixed(2)}`;
+  const hit = maskCache.get(key);
+  if (hit) return hit;
+  const S = 256;
+  const f = Math.max(1, Math.round(featherFrac * S * 0.5));
+  const r = Math.max(0, Math.round(radiusFrac * S));
+  const tex = canvasTex(S, S, (c) => {
+    // Build the alpha as a stack of concentric rounded rects at rising alpha — a soft ramp inward from the
+    // edge, which is cheaper and more predictable than blurring a hard shape.
+    const steps = Math.max(1, f);
+    for (let i = 0; i < steps; i++) {
+      const k = i / steps;              // 0 at the outer edge → 1 at the solid core
+      const inset = f * (1 - k);
+      c.fillStyle = `rgba(255,255,255,${(1 / steps) * 1.6})`;
+      c.beginPath();
+      c.roundRect(inset, inset, S - inset * 2, S - inset * 2, Math.max(0, r - inset * 0.5));
+      c.fill();
     }
   });
+  maskCache.set(key, tex);
+  return tex;
 }
 
 function ensureTextures(): void {
-  maskTex ??= makeMask();
   foilTex ??= makeFoil();
   sweepTex ??= makeSweep();
   haloTex ??= makeHalo();
@@ -188,6 +199,12 @@ interface Offer {
   ay: number;
   aw: number;
   ah: number;
+  fx: number;       // the FITTED foil box (art window + the tuner's fit dials)
+  fy: number;
+  fw: number;
+  fh: number;
+  /** The fit dials this offer was last laid out for — a change re-runs `layout` without a resize. */
+  fitKey: string;
   /** Frames the anchor element has been missing. A bought card unmounts, so this retires the treatment even
    *  if the uid sync has not landed yet — otherwise the foil hangs in the shop after a purchase. */
   missing: number;
@@ -205,7 +222,7 @@ function buildOffer(uid: string): Offer {
 
   const clipped = new Container();
   clipped.eventMode = 'none';
-  const mask = new Sprite(maskTex!);
+  const mask = new Sprite(Texture.WHITE); // real shape assigned on first layout, from the tuner's dials
   mask.anchor.set(0.5);
   const foil = new Sprite(foilTex!);
   foil.anchor.set(0.5);
@@ -235,7 +252,7 @@ function buildOffer(uid: string): Offer {
   seal.blendMode = 'add';
 
   root.addChild(halo, clipped, glintBox, seal);
-  return { uid, root, halo, foil, sweep, seal, mask, glints, glintLife, t: 0, w: 0, h: 0, ax: 0, ay: 0, aw: 0, ah: 0, missing: 0, hover: 0 };
+  return { uid, root, halo, foil, sweep, seal, mask, glints, glintLife, t: 0, w: 0, h: 0, ax: 0, ay: 0, aw: 0, ah: 0, fx: 0, fy: 0, fw: 0, fh: 0, fitKey: '', missing: 0, hover: 0 };
 }
 
 function destroyOffer(o: Offer): void {
@@ -317,6 +334,9 @@ class CiaEnchantedFx {
         continue;
       }
       o.missing = 0;
+      // While this card is being DRAGGED the source stays put but dimmed and a ghost follows the pointer, so
+      // a foil sitting on the source reads as being left behind (owner report 2026-08-17). Hide for the drag.
+      if (el.classList.contains('dragsrc')) { o.root.visible = false; continue; }
       o.root.visible = true;
       o.root.position.set(r.left + r.width / 2, r.top + r.height / 2);
       // The ART WINDOW is what the foil sits on, and it moves with frame/compact/tribe treatment — so measure
@@ -328,8 +348,10 @@ class CiaEnchantedFx {
       const nay = ar ? ar.top + ar.height / 2 - (r.top + r.height / 2) : 0;
       const naw = ar?.width || r.width * 0.86;
       const nah = ar?.height || r.height * 0.56;
+      const fitKey = `${cfg.ciaFitX}|${cfg.ciaFitY}|${cfg.ciaFitW}|${cfg.ciaFitH}|${cfg.ciaFitRadius}|${cfg.ciaFeather}|${cfg.ciaSealSize}|${cfg.ciaHaloInset}|${cfg.ciaSweepWidth}|${cfg.ciaSweepAngle}`;
       const resized = r.width !== o.w || r.height !== o.h || naw !== o.aw || nah !== o.ah
-        || nax !== o.ax || nay !== o.ay;
+        || nax !== o.ax || nay !== o.ay || fitKey !== o.fitKey;
+      o.fitKey = fitKey;
       o.w = r.width; o.h = r.height;
       o.ax = nax; o.ay = nay; o.aw = naw; o.ah = nah;
 
@@ -362,17 +384,25 @@ class CiaEnchantedFx {
     // The mask is fitted to the MEASURED art window (`o.ax/ay/aw/ah`), not to a fraction of the card. The
     // card is a shield silhouette whose art region moves with frame, compact mode and tribe treatment, so a
     // hardcoded fraction was wrong for every variant (owner report 2026-08-17).
-    o.mask.width = o.aw;
-    o.mask.height = o.ah;
-    o.mask.position.set(o.ax, o.ay);
+    // FIT dials: the measured art window is the starting point, not the final answer — the visible art is a
+    // different shape per frame treatment, so the owner nudges/scales from here.
+    const fw = o.aw * cfg.ciaFitW;
+    const fh = o.ah * cfg.ciaFitH;
+    const fx = o.ax + cfg.ciaFitX * U;
+    const fy = o.ay + cfg.ciaFitY * U;
+    o.fx = fx; o.fy = fy; o.fw = fw; o.fh = fh;
+    o.mask.texture = maskFor(cfg.ciaFitRadius, cfg.ciaFeather);
+    o.mask.width = fw;
+    o.mask.height = fh;
+    o.mask.position.set(fx, fy);
 
     // Foil is oversized so it can drift without ever exposing its own edge inside the mask.
-    o.foil.width = o.aw * 1.8;
-    o.foil.height = o.ah * 1.8;
-    o.foil.position.set(o.ax, o.ay);
+    o.foil.width = fw * 1.8;
+    o.foil.height = fh * 1.8;
+    o.foil.position.set(fx, fy);
 
-    o.sweep.width = o.aw * cfg.ciaSweepWidth * 4;
-    o.sweep.height = Math.hypot(o.aw, o.ah) * 1.4;
+    o.sweep.width = fw * cfg.ciaSweepWidth * 4;
+    o.sweep.height = Math.hypot(fw, fh) * 1.4;
     o.sweep.rotation = (cfg.ciaSweepAngle * Math.PI) / 180;
 
     const ss = cfg.ciaSealSize * U;
@@ -385,7 +415,7 @@ class CiaEnchantedFx {
     o.halo.rotation = 0;
     o.halo.alpha = cfg.ciaHaloOpacity;
     o.foil.alpha = cfg.ciaFoilOpacity * 0.8;
-    o.foil.position.set(o.ax, o.ay);
+    o.foil.position.set(o.fx, o.fy);
     o.sweep.visible = false;
     o.seal.alpha = 1;
     for (const g of o.glints) g.visible = false;
@@ -408,10 +438,10 @@ class CiaEnchantedFx {
     if (phase < sd) {
       const k = phase / sd;                    // 0 → 1 across the visible pass
       o.sweep.visible = true;
-      const span = Math.hypot(o.aw, o.ah) * 0.85;
+      const span = Math.hypot(o.fw, o.fh) * 0.85;
       const ang = (cfg.ciaSweepAngle * Math.PI) / 180;
       // Travels bottom-left → top-right along the sweep angle.
-      o.sweep.position.set(o.ax + Math.cos(ang) * (-span + 2 * span * k), o.ay + Math.sin(ang) * (span - 2 * span * k));
+      o.sweep.position.set(o.fx + Math.cos(ang) * (-span + 2 * span * k), o.fy + Math.sin(ang) * (span - 2 * span * k));
       o.sweep.alpha = Math.sin(k * Math.PI) * boost; // in and out within the pass
       // 4) GLINTS ride the active sweep.
       this.spawnGlints(o, cfg, k);
@@ -450,7 +480,7 @@ class CiaEnchantedFx {
       if (o.glintLife[i]! > 0) continue;
       const g = o.glints[i]!;
       const jitter = ((i * 37) % 100) / 100 - 0.5;
-      g.position.set(o.ax + (k - 0.5) * o.aw * 0.9 + jitter * o.aw * 0.18, o.ay + jitter * o.ah * 0.55);
+      g.position.set(o.fx + (k - 0.5) * o.fw * 0.9 + jitter * o.fw * 0.18, o.fy + jitter * o.fh * 0.55);
       const gs = cfg.ciaGlintSize * U * 2;
       g.width = gs; g.height = gs;
       g.visible = true;

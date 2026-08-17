@@ -45,6 +45,12 @@ const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefine
   ciaGlintCount:    ['Glint count', undefined, 'How many sparks may be lit at once.'],
   ciaGlintSize:     ['Glint size', 'px', 'Size of each spark.'],
   ciaSealSize:      ['Seal size', 'px', 'Size of the enchanted seal near the top of the card.'],
+  ciaFitX:          ['Fit nudge X', 'px', 'Move the foil horizontally from the measured art window.'],
+  ciaFitY:          ['Fit nudge Y', 'px', 'Move the foil vertically from the measured art window.'],
+  ciaFitW:          ['Fit width', '×', 'Foil width as a multiple of the measured art window.'],
+  ciaFitH:          ['Fit height', '×', 'Foil height as a multiple of the measured art window.'],
+  ciaFitRadius:     ['Corner radius', undefined, 'Roundness of the foil panel. 0.5 makes it a full oval.'],
+  ciaFeather:       ['Edge feather', undefined, 'How far the edges fade out. Higher reads more like a film.'],
 };
 
 const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KEYS.map((key) => {

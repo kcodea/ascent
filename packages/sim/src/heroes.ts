@@ -61,7 +61,8 @@ export type HeroPowerKind =
   | 'commission' // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
   | 'devour' // Devourer: 1 Gold — eat a friendly minion, spitting its stats onto a random other friendly
   | 'memory' // Membrance: 1 Gold — restock the Shop with plain copies of your last opponent's board
-  | 'firstOrLast'; // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
+  | 'firstOrLast' // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
+  | 'crownTally'; // Keshi (passive): bank each purchased card's tier; at 25 grant a Triple Reward, then reset
 
 export interface HeroPower {
   name: string;
@@ -760,6 +761,20 @@ export const HEROES: HeroDef[] = [
       untargeted: true,
       maxUses: 3, // three activations a game (still once per turn via heroReady)
       text: 'Bind your left-most and right-most minions this turn: stats gained by one are gained by the other.',
+    },
+  },
+  {
+    id: 'keshi',
+    name: 'Keshi the Protector',
+    blurb: 'Tend the tavern and it tends you — every card bought coaxes the crown into bloom.',
+    resolve: 30,
+    armor: 10, // owner spec 2026-08-16 — a repeatable run-long Triple Reward engine, so the armor sits with
+    //            the strong-passive band (Flint/Pete/Merrin 10) rather than the quest heroes' 13
+    power: {
+      name: 'Keshi’s Crown',
+      kind: 'crownTally',
+      passive: true,
+      text: 'Get a **Triple Reward** every 25 shop tiers worth of cards you purchase.',
     },
   },
 ];

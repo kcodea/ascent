@@ -212,11 +212,18 @@ describe('Odelle — Exhibition', () => {
     expect(after.board.every((c) => !c.buffs?.some((b) => b.source === 'Exhibition'))).toBe(true);
   });
 
-  it('the grant improves by +2/+2 every 4 cards played', () => {
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 }))).toBe(2);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 3 }))).toBe(2);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 4 }))).toBe(4);
-    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 8 }))).toBe(6);
+  it('the grant improves by +1/+1 every 4 cards played (owner balance 2026-08-17: was +2/+2)', () => {
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 }))).toBe(1);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 3 }))).toBe(1);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 4 }))).toBe(2);
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 8 }))).toBe(3);
+  });
+
+  it('the printed text matches the live grant — the number the panel shows is the one you get', () => {
+    // The hero-power pill reads `exhibitionGrantOf` directly (StatusBar), so the rule text and the pill can
+    // only agree if the base and the step in the text are the base and the step in the helper.
+    expect(getHero('odelle').power.text).toContain('**+1/+1**');
+    expect(exhibitionGrantOf(at({ cardsPlayedTotal: 0 })), 'the base in the text').toBe(1);
   });
 });
 

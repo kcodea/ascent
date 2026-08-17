@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-17 - Odelle's Exhibition retuned to +1/+1
+
+Halved: an exhibition grants **+1/+1**, improving by **+1/+1** every 4 cards played (was +2/+2 / +2/+2). Only
+the base and the step changed — it still buffs all three minions and still reads `cardsPlayedTotal`. The rule
+text and the live hero-power pill both come off `exhibitionGrantOf`, so both moved together; a new test pins
+the printed base to the helper's base so they can't drift.
+
 ## 2026-08-17 - Paragon counts as every tribe for Odelle and for Transcendant
 
 Two bugs with one cause: an all-tribes body (Paragon, Lab Experiment) was being read as a fixed tribe pair

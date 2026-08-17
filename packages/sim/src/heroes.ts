@@ -757,7 +757,7 @@ export const HEROES: HeroDef[] = [
       name: 'Exhibition',
       kind: 'exhibition',
       passive: true,
-      text: 'Play a minion between two others of three different types: all three gain **+2/+2**. Improves **+2/+2** every 4 cards played.',
+      text: 'Play a minion between two others of three different types: all three gain **+1/+1**. Improves **+1/+1** every 4 cards played.',
     },
   },
   {

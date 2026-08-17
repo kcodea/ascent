@@ -527,14 +527,14 @@ export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
   return false;
 }
 
-/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 2, improving by 2 for every 4 cards played
- *  this run. Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
+/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 1, improving by 1 for every 4 cards played
+ *  this run (owner balance 2026-08-17: was 2, improving by 2). Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
  *  one (the live-card-text rule applies to hero powers too). */
 export function exhibitionGrantOf(state: RunState): number {
   // Reads the EXISTING run-wide `cardsPlayedTotal` rather than a private counter — "cards played" already has
   // one source of truth (every play routes through `applyCardsPlayed`), and a second tally would only be a
   // second thing to keep in sync.
-  return 2 + 2 * Math.floor((state.cardsPlayedTotal ?? 0) / 4);
+  return 1 + Math.floor((state.cardsPlayedTotal ?? 0) / 4);
 }
 
 /** Cia (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and

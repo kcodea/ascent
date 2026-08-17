@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-16 - Commission tiles restyled; Cia's links tunable; Frank's price memo dep
+
+- **Cassen's commission tiles now follow the QUEST SHOP shape** — a tall card with the art filling it, a gold
+  frame, the delay as a gem badge at the top, and the payout in its own panel overlaid on the bottom of the
+  art, exactly like a quest's REWARD block.
+- **Cassen's power is inert while a commission runs.** The reducer already refused it; the button now refuses
+  too (no picker, no `ready` glow) so a click that could not do anything no longer looks live. Its art already
+  shows the running commission.
+- **Cia's rotating links are now shape-tunable** — link COUNT, angular LENGTH and EDGE (soft ↔ hard) on top of
+  the existing inset / thickness / blur / hue / period dials. All three ride one `repeating-conic-gradient`
+  built in `applyHeroFxVars`, so any count costs the same one element per ring — no per-link DOM.
+- **The owner's tuned values are baked as the shipped DEFAULTS** for both effects (and mirrored into the CSS
+  fallbacks, per the Layout Lab rule).
+
+**Frantic Frank.** Probed the engine directly: after his Clearance, a LATER paid refresh still charges **2
+Gold** — the discount does persist for the turn, as printed. What was genuinely wrong is the UI: the memo that
+computes the displayed price reads `frankClearanceTurn` but did not list it as a dependency, so the price shown
+could go stale. Dependency added. **If the 3-Gold you saw was the price actually CHARGED rather than the pill,
+that is a different bug and I could not reproduce it — worth a re-check on this build.**
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Commission tiles get art; Soulbind moves under; Cia's rings return (tunable)
 
 - **Cassen's commission picker now reads like a Discover tile** — each option shows its own art

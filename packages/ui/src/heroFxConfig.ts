@@ -25,6 +25,12 @@ export interface HeroFxConfig {
   encPeriod: number;
   /** Enchanted ring — how much SLOWER the counter-rotating ring is (× the period). 1 = same speed. */
   encSkew: number;
+  /** Enchanted ring — how many links circle the card (per ring). */
+  encLinks: number;
+  /** Enchanted ring — angular LENGTH of each link (deg). Small = dots, large = long arcs. */
+  encArc: number;
+  /** Enchanted ring — link shape: 0 = soft (feathered ends), 1 = hard-edged blocks. */
+  encShape: number;
   /** Soulbind ring — diameter, design px (× --u). */
   sbSize: number;
   /** Soulbind ring — how far BELOW the card's bottom edge it sits, design px (× --u). */
@@ -42,18 +48,22 @@ export interface HeroFxConfig {
 }
 
 const DEFAULTS: HeroFxConfig = {
-  encInset: -4,
-  encH: 4,
-  encBlur: 1,
-  encHue: 2,
-  encDip: 0.75,
-  encPeriod: 4,
-  encSkew: 1.6,
-  sbSize: 7,
-  sbY: 7,
-  sbRing: 1.2,
-  sbBlur: 10,
-  sbHue: 275,
+  // Owner-tuned 2026-08-16 — these are the shipped values now.
+  encInset: -24,
+  encH: 5,
+  encBlur: 14,
+  encHue: 340,
+  encDip: 1,
+  encPeriod: 3,
+  encSkew: 1.35,
+  encLinks: 4,
+  encArc: 16,
+  encShape: 0,
+  sbSize: 27,
+  sbY: 40,
+  sbRing: 3.3,
+  sbBlur: 5.5,
+  sbHue: 297,
   sbDip: 0.7,
   sbPeriod: 2.4,
 };
@@ -67,6 +77,9 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   encDip: [0, 1, 0.01],
   encPeriod: [1, 20, 0.25],
   encSkew: [0.5, 4, 0.05],
+  encLinks: [1, 12, 1],
+  encArc: [2, 80, 1],
+  encShape: [0, 1, 0.01],
   sbSize: [2, 30, 0.5],
   sbY: [-10, 40, 0.5],
   sbRing: [0.2, 6, 0.1],
@@ -77,7 +90,7 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
 };
 
 export const HFX_NUM_KEYS = [
-  'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew',
+  'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
   'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod',
 ] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -109,6 +122,19 @@ export function applyHeroFxVars(): void {
   root.setProperty('--hfx-enc-dip', String(cfg.encDip));
   root.setProperty('--hfx-enc-period', `${cfg.encPeriod}s`);
   root.setProperty('--hfx-enc-skew', String(cfg.encSkew));
+  // The links are built as a REPEATING conic gradient, so "how many" and "how long" are just the repeat
+  // period and the lit fraction of it — one gradient, any count, no per-link DOM.
+  const step = 360 / Math.max(1, Math.round(cfg.encLinks));
+  const arc = Math.min(cfg.encArc, step); // a link can never be longer than its own slot
+  const feather = arc * (1 - cfg.encShape) * 0.5; // 0 shape = fully feathered ends, 1 = hard edges
+  const hue = cfg.encHue;
+  root.setProperty('--hfx-enc-links', `repeating-conic-gradient(from 0deg,
+    hsl(${hue} 90% 45% / 0) 0deg,
+    hsl(${hue} 100% 60% / 1) ${feather}deg,
+    hsl(${hue + 40} 100% 80% / 1) ${arc / 2}deg,
+    hsl(${hue} 100% 60% / 1) ${arc - feather}deg,
+    hsl(${hue} 90% 45% / 0) ${arc}deg,
+    hsl(${hue} 90% 45% / 0) ${step}deg)`);
   root.setProperty('--hfx-sb-size', String(cfg.sbSize));
   root.setProperty('--hfx-sb-y', String(cfg.sbY));
   root.setProperty('--hfx-sb-ring', String(cfg.sbRing));

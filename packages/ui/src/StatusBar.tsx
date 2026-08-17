@@ -177,7 +177,8 @@ export function StatusBar() {
     (tamerCost === undefined || run.embers >= tamerCost) &&
     (bookCost === undefined || run.embers >= bookCost) &&
     (buyCost === undefined || run.embers >= buyCost) &&
-    diceLock === 0; // Gambler: the roll is unusable while its lock runs
+    diceLock === 0 && // Gambler: the roll is unusable while its lock runs
+    !(power.kind === 'commission' && run.commission); // Cassen: locked until the running commission pays out
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
@@ -426,7 +427,9 @@ export function StatusBar() {
                 }
                 // CASSEN: the power is a CHOICE, so pressing it opens a picker rather than firing. It fires
                 // when an option is chosen (below). Untargeted, but not immediate.
-                if (power.kind === 'commission') setPickingCommission(true);
+                // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
+                // it too, so this just stops the panel opening on a click that could not do anything.
+                if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
@@ -474,11 +477,11 @@ export function StatusBar() {
                       ? <img src={heroPowerArt(`cassen-${kind}`)} alt="" draggable={false} />
                       : null}
                     <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
+                    <span
+                      className="commission-text"
+                      dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
+                    />
                   </span>
-                  <span
-                    className="commission-text"
-                    dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
-                  />
                 </button>
               ))}
             </div>

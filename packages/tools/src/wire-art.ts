@@ -161,6 +161,8 @@ const HERO_POWER_ALIASES: Record<string, string> = {
   ciaspades: 'cia-spades',
   ciadiamonds: 'cia-diamonds',
   ciaclubs: 'cia-clubs',
+  flashfirst: 'flash-first',
+  flashlast: 'flash-last',
   cassenhp1: 'cassen-discover',
   cassenhp2: 'cassen-gold',
   cassenhp3: 'cassen-spell',

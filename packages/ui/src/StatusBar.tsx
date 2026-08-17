@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_TEXT, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -139,6 +139,7 @@ export function StatusBar() {
   // Cassen: the commission picker is local to this component, which owns the button — no cross-component
   // plumbing for a panel only one hero ever opens.
   const [pickingCommission, setPickingCommission] = useState(false);
+  const [pickingFlash, setPickingFlash] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
   /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
@@ -211,6 +212,9 @@ export function StatusBar() {
       case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
       case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
+      // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
+      // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
+      case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
       default: return null;
     }
   })();
@@ -434,6 +438,7 @@ export function StatusBar() {
                 // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
                 // it too, so this just stops the panel opening on a click that could not do anything.
                 if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
+                else if (power.kind === 'firstOrLast') setPickingFlash(true);
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
@@ -471,21 +476,58 @@ export function StatusBar() {
                 <button
                   key={kind}
                   type="button"
-                  className="commission-opt"
+                  className="questcard has-art"
+                  style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
                   onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
                 >
-                  {/* Art on top, text below — the same read as a Discover / quest-reward tile (owner ask
-                      2026-08-16). Each commission has its own image (CassenHP1/2/3 → cassen-<kind>). */}
-                  <span className="commission-art" aria-hidden="true">
-                    {heroPowerArt(`cassen-${kind}`)
-                      ? <img src={heroPowerArt(`cassen-${kind}`)} alt="" draggable={false} />
-                      : null}
-                    <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
-                    <span
-                      className="commission-text"
-                      dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
-                    />
-                  </span>
+                  {heroPowerArt(`cassen-${kind}`) && <img className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
+                  <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
+                  <div className="questcard-head">
+                    <div className="questcard-tier">Commission · {COMMISSION_DELAY[kind]} turns</div>
+                    <div className="questcard-name">{COMMISSION_NAME[kind]}</div>
+                  </div>
+                  <div className="questcard-body">
+                    <div className="questcard-sect reward">
+                      <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
+                      <div className="questcard-txt">{COMMISSION_REWARD[kind]}</div>
+                    </div>
+                  </div>
+                  <span className="questcard-gem" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>, document.body)}
+      {/* FLASH'S CHOOSE ONE — the SAME markup as Cassen's picker above, so the quest-style treatment in
+          styles.css dresses both from one place rather than drifting into two lookalike panels. */}
+      {pickingFlash && createPortal(
+        <div className="discover-ov commission-ov" role="dialog" aria-label="First or Last">
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">First or Last</span></div>
+            <div className="commission-opts">
+              {(['first', 'last'] as const).map((end) => (
+                <button
+                  key={end}
+                  type="button"
+                  className="questcard has-art"
+                  style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
+                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end }); }}
+                >
+                  {heroPowerArt(`flash-${end}`) && <img className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
+                  <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
+                  <div className="questcard-head">
+                    <div className="questcard-tier">Claim · next combat</div>
+                    <div className="questcard-name">{end === 'first' ? 'First Place' : 'Last Place'}</div>
+                  </div>
+                  <div className="questcard-body">
+                    <div className="questcard-sect reward">
+                      <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
+                      <div className="questcard-txt">
+                        {end === 'first' ? 'A copy of the FIRST minion you kill' : 'A copy of the LAST minion you kill'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="questcard-gem" aria-hidden />
                 </button>
               ))}
             </div>

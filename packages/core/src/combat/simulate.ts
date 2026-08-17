@@ -373,6 +373,23 @@ export function simulate(
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
+  // Flash: the IDENTITY of the first and last enemy body you put down, not just how many. Recorded at both
+  // enemy-death sites so a Rise's real death counts exactly like an ordinary one.
+  let firstKill: string | undefined;
+  let lastKill: string | undefined;
+  const flashPick = playerState.questMods?.flashPick;
+  let flashDone = false;
+  const noteKill = (cardId: string, uid: string): void => {
+    firstKill ??= cardId;
+    lastKill = cardId;
+    // FIRST is knowable the instant it happens, so it flies to hand right then. LAST cannot be known until the
+    // fight ends — it is granted at the final step below, still inside the replay so it animates the same way.
+    if (flashPick === 'first' && !flashDone) {
+      flashDone = true;
+      const def = cards[cardId];
+      if (def && !def.spell && !def.ruby) ctx.grantToHand(cardId, 'player', uid);
+    }
+  };
 
   // ── Combat-phase quest tallies (carried back via playerQuestTally) ──────────────────────────────────────
   // Player attacks / mid-combat summons / enemy slaughters, each with a by-tribe breakdown (the acting or
@@ -1676,7 +1693,7 @@ export function simulate(
       // trigger all on death effects"). `ownAlreadyFired` stops the broadcast re-running the dying body's own
       // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
-      if (minion.side === 'enemy') enemyDeaths++;
+      if (minion.side === 'enemy') { enemyDeaths++; noteKill(minion.cardId, minion.uid); }
       deaths[minion.side] += 1;
       if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
@@ -1893,8 +1910,9 @@ export function simulate(
           { attack: tally.attack, health: tally.health, maxHealth: tally.health });
       }
     }
-    // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff).
-    if (minion.side === 'enemy') enemyDeaths++;
+    // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
+    // they were, first and last, for Flash.
+    if (minion.side === 'enemy') { enemyDeaths++; noteKill(minion.cardId, minion.uid); }
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
     if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
@@ -3399,6 +3417,16 @@ export function simulate(
     tavernBuyGain.attack += reinvest * playerSummonCount;
     tavernBuyGain.health += reinvest * playerSummonCount;
   }
+  // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
+  // rides `playerHandGrants` and flies to hand in the replay, exactly like the `first` branch does live.
+  if (flashPick === 'last' && !flashDone && lastKill) {
+    const lastDef = cards[lastKill];
+    if (lastDef && !lastDef.spell && !lastDef.ruby) {
+      flashDone = true;
+      ctx.grantToHand(lastKill, 'player', boards.player.find((m) => !m.dead)?.uid);
+    }
+  }
+
   return {
     events,
     result,
@@ -3414,6 +3442,8 @@ export function simulate(
       return alive.length > 0 ? alive : undefined;
     })(),
     enemyDeaths,
+    playerFirstKill: firstKill,
+    playerLastKill: lastKill,
     playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0 || Object.keys(questTally.statGainByTribe).length > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,

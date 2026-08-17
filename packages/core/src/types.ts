@@ -1226,6 +1226,10 @@ export interface QuestCombatMods {
    *  ONCE (no echo back — owner ruling 2026-08-16). The bond lasts a single turn, so this is present only for
    *  the fight it was forged for; the recruit phase mirrors the same rule through `addBuff`. */
   soulbind?: { a: string; b: string };
+  /** Flash's armed claim. Resolved INSIDE the fight so the copy flies to hand as it is earned, rather than
+   *  materialising at resolution. `first` grants on the opening kill; `last` can only be known once the fight
+   *  ends, so it grants at the final step — still within the replay, so it animates like any other grant. */
+  flashPick?: 'first' | 'last';
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
@@ -2048,6 +2052,11 @@ export interface CombatResult {
   /** Enemy-side minions that died this combat — Cassen's Collision banks these toward "kill 5 enemy
    *  minions → get a top-type minion" (the run loop accumulates them). */
   enemyDeaths: number;
+  /** Flash: the cardId of the FIRST and LAST enemy minion the player killed this combat. Identity, not a
+   *  count — `enemyDeaths` already carries the count, and Flash needs to know WHICH body it was. Absent when
+   *  nothing died. Player-perspective like every other `player*` carry-back. */
+  playerFirstKill?: string;
+  playerLastKill?: string;
   /** Combat-phase quest tallies for this fight — fed to the active quests in settleCombat (+N, tribe-narrowed).
    *  `attack` / `summonCombat` / `slaughter` are the player-side totals; the `*ByTribe` maps break each down by
    *  the acting/summoned minion's tribe (dual-types count for both) so "with Beasts" objectives resolve. The

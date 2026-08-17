@@ -1,5 +1,115 @@
 # ASCENT — development log
 
+## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
+
+- **Flash's options are First Place / Last Place** (were First Blood / Last Word).
+- **Cassen shows the turns remaining** on a running commission, in the same tally slot every other power
+  already uses. `dueWave` is the turn it PAYS on, so the count is the gap from now — it reads `1t` on the turn
+  before it lands and disappears once nothing is running.
+
+Verified in the browser rather than assumed: with a Gold commission due on wave 5 and the run on wave 3, the
+tally reads `2t`, the button carries `cassen-gold.webp` at full opacity, and the `committed` lock is still
+applied so the power stays unusable while it runs.
+
+Full suite 5515 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Pickers go horizontal; Flash grants in REAL TIME
+
+**The pickers stacked vertically** because I had borrowed a `quest-row` class that already exists elsewhere as
+a COLUMN list — a name collision, not a layout bug. The row owns its own direction now (explicitly `row`, with
+a note saying why), and the cards get an explicit width since they no longer sit in the quest shop's grid.
+
+**Flash grants inside the fight** (owner ask), not at resolution. The claim rides into combat on
+`questCombatMods.flashPick` and comes back on `playerHandGrants` — the channel whose `toHand` event makes the
+card fly to hand, the same one every other in-combat grant uses. Settle now only SPENDS the claim.
+
+One honest asymmetry, documented in the code: **`first` is genuinely live** — it grants the instant the
+opening kill lands. **`last` cannot be**, because "the last one" is not knowable until the fight ends; it
+grants at the final step instead, still inside the replay so it animates identically rather than materialising
+at resolution. That is as real-time as the rule allows.
+
+Test drives the REAL simulator end to end: the claim goes in via `questMods`, a kill happens, and the copy
+comes back on `playerHandGrants`.
+
+Full suite 5515 green, typecheck + lint + build:web clean.
+
+**Still queued:** Guardian + Runesmith's rune-offer discount, and quest/rune-granting heroes (Fi, Coran,
+Runesmith, Guardian) wearing the GRANTED art on their power button.
+
+## 2026-08-17 - Armor rebalance (17 heroes); the pickers become REAL quest cards
+
+**Armor pass** — owner values applied to 17 heroes: Auctioneer 10, Emissary Vale 10, Frantic Frank 9,
+Gambler 8, Indy 12, Lord of the Risen 14, Nadja 17, Odelle 10, Pete 9, Quillen 10, Rascal 9, Re-Pete 13,
+Robin 4, Runesmith 8, Guardian 10, Tiff 12, Warden 11. Five stale assertions across four test files were
+updated (not loosened) — including one that asserted a run STARTS with a different armor than its hero
+registry declares, which is exactly the drift those tests exist to catch.
+
+**The pickers were still wrong, twice, so they now emit REAL `.questcard` markup.** My first two attempts
+approximated the quest tile with bespoke CSS and neither matched. Both Cassen's commissions and Flash's
+First/Last now render the actual component structure — `questcard-art` / `-emblem` / `-head` (tier + name) /
+`-body` (labelled sections) / `-gem` — so they inherit the quest shop's own styling rather than imitating it.
+The bespoke `.commission-*` rules are deleted; only the row layout remains. Two lookalike panels can no longer
+drift apart, which was the real failure mode.
+
+Commissions gained short card NAMES and reward lines (`COMMISSION_NAME` / `COMMISSION_REWARD`) because a quest
+card wants a title and a reward block, not one sentence. The old `COMMISSION_TEXT` still drives the hero-panel
+rule, which does want a sentence.
+
+Full suite 5514 green, typecheck + lint + build:web clean.
+
+**NOT done this pass** (owner batch, remaining): Guardian + Runesmith's extra rune offerings being discounted;
+Flash's grant arriving in REAL TIME rather than at resolution; and replacing the power art with the granted
+quest/rune art for Fi, Coran, Runesmith and Guardian.
+
+## 2026-08-17 - Flash lands; both Choose-One pickers get the quest treatment
+
+**Flash** (9 armor) — *First or Last*, 1 Gold: claim a copy of the FIRST or LAST minion you kill next combat.
+
+The engine only tracked `enemyDeaths` as a COUNT, so this needed kill IDENTITY. `simulate` now records the
+cardId of the first and last enemy body you put down — at BOTH enemy-death sites, so a Rise's real death counts
+exactly like an ordinary one — and carries them back as `playerFirstKill` / `playerLastKill`.
+
+The `liveTrackingAudit` tripwire caught them immediately and required a classification, which is the tripwire
+doing its job. Both are **EXEMPT**: the kill already animates as an ordinary death, and "this was the last one"
+is only knowable once the fight is over, so neither can have a live surface.
+
+The claim is a MARK, not a charge: re-arming before the fight replaces the choice, and it is spent at settle
+whether or not a body was available — a fight where you killed nothing does not silently bank it for later.
+The payout is a plain copy: the shell of what you killed, not the statted body that killed for them.
+
+**Both pickers now wear the quest-shop treatment** (owner ask). Flash's Choose One reuses Cassen's markup
+exactly, so one CSS pass dresses both rather than two lookalike panels drifting apart: a tall glass card with
+the art filling it, a gold rim plus an inner hairline for the "pane" read, the gem badge top-centre, and the
+payout in a translucent panel over a scrim at the bottom of the art.
+
+Art wired: `Flash.png`, `FlashHP.png`, and `FlashFirst`/`FlashLast` onto `flash-first` / `flash-last` slugs
+via the alias map (aliases resolve before the `<Name>HP` rule).
+
+Full suite 5514 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Devourer + Membrance (Flash deferred)
+
+- **Devourer** (10 armor) — *Devour*, 1 Gold, targeted: consume a friendly minion and hand its **current**
+  stats (buffs included — you are eating the body you built, not its printed line) to a random OTHER friendly.
+  A board of ONE is a hard no-op: without a second body the power would silently delete a minion for 1 Gold.
+  The eaten body returns to the pool exactly as a sell would.
+- **Membrance** (8 armor) — *Memory*, 1 Gold, untargeted: restock the Shop with plain copies of the last
+  opponent's board. This is the **Rune of the Muster shape** pointed at `lastCombat.initial.enemy` instead of
+  your own board — plain meaning no buffs and never golden, so you buy the shell of what beat you rather than
+  the statted body. A no-op before the first fight (turn 1), with no Gold spent.
+
+Art wired for both. Gildmaster's re-done art came along in the same sweep.
+
+**NOT built: Flash.** Its power needs the identity of the FIRST and LAST minion you kill next combat, and the
+engine only tracks `enemyDeaths` as a COUNT — no ordering, no cardIds. That needs a new `CombatResult`
+carry-back, which the `liveTrackingAudit` tripwire then requires be classified LIVE or EXEMPT, plus a Choose
+One picker with its two art options (`FlashFirst` / `FlashLast`, both already in the source folder). That is a
+combat-engine change rather than a data-only hero, so it wants its own PR.
+
+**NOT done: the quest-style restyle** of Cassen's commission picker (and Flash's, once it exists).
+
+Full suite 5508 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Buff gust removed — it was ~half of all jank
 
 The full-run trace put `fx:gust` far above everything else: 16 of 599 buckets carried **492 of the run's 989

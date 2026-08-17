@@ -1,0 +1,142 @@
+import { describe, it, expect } from 'vitest';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate } from '@game/core';
+import { createRun, reduce, getHero, type RunState, type BoardCard } from './index';
+
+/** Owner hero batch 2026-08-17 — Devourer and Membrance. */
+
+const m = (uid: string, cardId: string, atk = 2, hp = 2): BoardCard =>
+  ({ uid, cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: atk, health: hp, keywords: [], golden: false }) as BoardCard;
+
+describe('Devourer — Devour', () => {
+  it('is a 10-armor, 1-Gold targeted power', () => {
+    const h = getHero('devourer');
+    expect([h.armor, h.power.kind, h.power.cost]).toEqual([10, 'devour', 1]);
+    expect(h.power.untargeted ?? false, 'targeted').toBe(false);
+  });
+
+  it('eats the target and hands its CURRENT stats to another friendly', () => {
+    const s = {
+      ...createRun(3), phase: 'recruit', heroId: 'devourer', embers: 10, heroReady: true,
+      board: [m('eaten', 'stray', 5, 7), m('other', 'alley', 2, 2)],
+    } as RunState;
+    const after = reduce(s, { type: 'heroPower', uid: 'eaten' } as never);
+    expect(after.board.some((c) => c.uid === 'eaten'), 'the target was consumed').toBe(false);
+    const survivor = after.board.find((c) => c.uid === 'other')!;
+    expect([survivor.attack, survivor.health], 'it gained the eaten stats').toEqual([7, 9]);
+    expect(after.embers, '1 Gold charged').toBe(9);
+  });
+
+  it('is a no-op with only ONE minion — it never silently deletes a body', () => {
+    const s = {
+      ...createRun(3), phase: 'recruit', heroId: 'devourer', embers: 10, heroReady: true,
+      board: [m('solo', 'stray')],
+    } as RunState;
+    const after = reduce(s, { type: 'heroPower', uid: 'solo' } as never);
+    expect([after.board.length, after.embers, after.heroReady]).toEqual([1, 10, true]);
+  });
+});
+
+describe('Membrance — Memory', () => {
+  it('is an 8-armor, 1-Gold untargeted power', () => {
+    const h = getHero('membrance');
+    expect([h.armor, h.power.kind, h.power.cost, h.power.untargeted]).toEqual([8, 'memory', 1, true]);
+  });
+
+  it("restocks the Shop with PLAIN copies of the last opponent's board", () => {
+    const foe = ['stray', 'alley', 'pack'];
+    const s = {
+      ...createRun(3), phase: 'recruit', heroId: 'membrance', embers: 10, heroReady: true,
+      lastCombat: {
+        result: 'win', playerDamage: 0, playerDeathrattles: 0, events: [],
+        initial: {
+          player: [],
+          enemy: foe.map((cardId, i) => ({ uid: `e${i}`, cardId, name: cardId, tribe: 'beast', attack: 9, health: 9, keywords: [] })),
+        },
+      } as never,
+    } as RunState;
+    const after = reduce(s, { type: 'heroPower' } as never);
+    expect(after.shop.map((o) => o.cardId), 'the foe board, in order').toEqual(foe);
+    expect(after.shop.every((o) => !o.golden), 'plain — never golden').toBe(true);
+    expect(after.shop.every((o) => !o.buffs?.length), 'plain — no buffs carried').toBe(true);
+    expect(after.embers, '1 Gold charged').toBe(9);
+  });
+
+  it('is a no-op before the first fight — no charge spent', () => {
+    const s = { ...createRun(3), phase: 'recruit', heroId: 'membrance', embers: 10, heroReady: true } as RunState;
+    const after = reduce(s, { type: 'heroPower' } as never);
+    expect([after.embers, after.heroReady]).toEqual([10, true]);
+  });
+});
+
+describe('Flash — First or Last', () => {
+  const combat = (kills: string[], granted?: string): object => ({
+    result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: kills.length, events: [],
+    initial: { player: [], enemy: [] },
+    playerFirstKill: kills[0], playerLastKill: kills[kills.length - 1],
+    // The copy is granted INSIDE the fight now (owner ask 2026-08-17: real-time), so it arrives on this
+    // channel — the same one every other in-combat grant flies in on.
+    ...(granted ? { playerHandGrants: [granted] } : {}),
+  });
+
+  it('is a 9-armor, 1-Gold power', () => {
+    const h = getHero('flash');
+    expect([h.armor, h.power.kind, h.power.cost]).toEqual([9, 'firstOrLast', 1]);
+  });
+
+  it('arms the chosen end, and refuses a click carrying no choice', () => {
+    const s = { ...createRun(3), phase: 'recruit', heroId: 'flash', embers: 10, heroReady: true } as RunState;
+    expect(reduce(s, { type: 'heroPower', flashPick: 'last' } as never).flashPick).toBe('last');
+    const bare = reduce(s, { type: 'heroPower' } as never);
+    expect([bare.flashPick, bare.embers, bare.heroReady]).toEqual([undefined, 10, true]);
+  });
+
+  it('re-arming REPLACES the choice rather than stacking', () => {
+    let s = { ...createRun(3), phase: 'recruit', heroId: 'flash', embers: 10, heroReady: true } as RunState;
+    s = reduce(s, { type: 'heroPower', flashPick: 'first' } as never);
+    s = reduce({ ...s, heroReady: true } as RunState, { type: 'heroPower', flashPick: 'last' } as never);
+    expect(s.flashPick).toBe('last');
+  });
+
+  it('pays the FIRST kill, and clears the claim', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'first',
+      lastCombat: combat(['stray', 'alley', 'pack'], 'stray') as never,
+    } as RunState;
+    const after = reduce(s, { type: 'resolveCombat' } as never);
+    expect(after.hand.map((c) => c.cardId), 'a plain copy of the first kill').toContain('stray');
+    expect(after.flashPick, 'the claim is spent').toBeUndefined();
+  });
+
+  it('pays the LAST kill', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'last',
+      lastCombat: combat(['stray', 'alley', 'pack'], 'pack') as never,
+    } as RunState;
+    expect(reduce(s, { type: 'resolveCombat' } as never).hand.map((c) => c.cardId)).toContain('pack');
+  });
+
+  it('grants the copy IN COMBAT, not at resolution', () => {
+    // Driven through the real simulator: the claim rides questMods into the fight and comes back on
+    // playerHandGrants, which is the channel whose `toHand` event makes the card fly to hand.
+    const r = simulate(
+      // The PLAYER must win the exchange for a kill to exist at all.
+      [{ cardId: 'stray', attack: 9, health: 20 }],
+      [{ cardId: 'alley', attack: 1, health: 1 }],
+      makeRng(4), CARD_INDEX,
+      combatSide({ tier: 6, questMods: { flashPick: 'first' } }),
+      combatSide({ tier: 6 }),
+    );
+    expect(r.playerFirstKill, 'a kill happened').toBeTruthy();
+    expect(r.playerHandGrants, 'the copy was granted inside the fight').toContain(r.playerFirstKill);
+  });
+
+  it('a fight with NO kills spends the claim rather than banking it', () => {
+    const s = {
+      ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'first',
+      lastCombat: { result: 'loss', playerDamage: 2, playerDeathrattles: 0, enemyDeaths: 0, events: [], initial: { player: [], enemy: [] } } as never,
+    } as RunState;
+    const after = reduce(s, { type: 'resolveCombat' } as never);
+    expect([after.hand.length, after.flashPick]).toEqual([0, undefined]);
+  });
+});

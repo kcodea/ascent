@@ -709,6 +709,9 @@ export interface RunState {
    *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
    *  art, so the player can see what they are working toward. */
   ciaSuit?: CiaSuit;
+  /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when
+   *  nothing is armed. Cleared on payout, so it never carries into a second fight. */
+  flashPick?: 'first' | 'last';
   /** Cassen: the commission currently in flight, or absent when none is. Only ONE can be active at a time —
    *  the power is unusable while it runs, and the button wears that commission's art until it matures. */
   commission?: Commission;
@@ -1408,7 +1411,7 @@ export type Action =
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'reorderHand'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid?: string; commission?: CommissionKind } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option
+  | { type: 'heroPower'; uid?: string; commission?: CommissionKind; flashPick?: 'first' | 'last' } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost

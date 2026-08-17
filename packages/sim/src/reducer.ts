@@ -2259,6 +2259,36 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
         s.commission = { kind: pick, dueWave: s.wave + COMMISSION_DELAY[pick] };
         s.lastCommission = pick; // …so the next offer can exclude it
+      } else if (power.kind === 'firstOrLast') {
+        // Flash: arm which end of next combat's kills to claim. The 1-Gold cost is spent by the shared block.
+        // Re-arming before the fight simply replaces the choice — it is a mark, not a stacking charge.
+        const pick = action.flashPick;
+        if (pick !== 'first' && pick !== 'last') return state; // must carry a choice
+        s.flashPick = pick;
+      } else if (power.kind === 'devour') {
+        // Devourer: eat a friendly BOARD minion and hand its stats to a random OTHER friendly. Needs a real
+        // second body to receive them, so a board of one is a no-op (no charge, nothing eaten) — otherwise the
+        // power would silently delete a minion for 1 Gold.
+        if (!card) return state;
+        const others = s.board.filter((c) => c.uid !== card.uid);
+        if (others.length === 0) return state;
+        const rng = makeRng(s.rngCursor);
+        const eater = others[rng.int(others.length)]!;
+        s.rngCursor = rng.state();
+        // Its CURRENT stats, buffs included — you are eating the body you built, not its printed line.
+        addBuff(eater, 'Devour', card.attack, card.health);
+        returnToPool(s, card.cardId); // the eaten body goes back, exactly as a sell would return it
+        s.board = s.board.filter((c) => c.uid !== card.uid);
+      } else if (power.kind === 'memory') {
+        // Membrance: restock the Shop with PLAIN copies of the last opponent's board — the Rune of the Muster
+        // shape, pointed at `lastCombat.initial.enemy` instead of your own board. Plain: no buffs, never
+        // golden, so you buy the shell of what beat you rather than the statted body.
+        const foe = s.lastCombat?.initial.enemy ?? [];
+        const ids = foe.map((m) => m.cardId).filter((id) => { const d = CARD_INDEX[id]; return d && !d.spell && !d.ruby; });
+        if (ids.length === 0) return state; // no fight yet (turn 1) → no charge spent
+        for (const offer of s.shop) returnToPool(s, offer.cardId);
+        s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+        applyShopRefreshed(s);
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
@@ -3420,6 +3450,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
+  // Flash: the copy itself was granted INSIDE the fight (via `playerHandGrants`, so it flew to hand as it was
+  // earned — owner ask 2026-08-17: real-time, not at resolution). Settle only spends the claim, and spends it
+  // whether or not a body was available, so a fight with no kills cannot bank it for a later one.
+  if (s.flashPick && getHero(s.heroId).power.kind === 'firstOrLast') s.flashPick = undefined;
   if (getHero(s.heroId).power.kind === 'collision') {
     s.cassenKills += result.enemyDeaths;
     while (s.cassenKills >= 5) {
@@ -4839,6 +4873,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
+    flashPick: getHero(s.heroId).power.kind === 'firstOrLast' ? s.flashPick : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,

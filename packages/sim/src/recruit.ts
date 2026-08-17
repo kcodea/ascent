@@ -559,6 +559,19 @@ export function commissionOffer(state: Pick<RunState, 'lastCommission'>): Commis
  *  payout — so it sits beside the printed text rather than in the reducer's payout switch. */
 export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1 };
 
+/** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. The older
+ *  `COMMISSION_TEXT` stays for the hero-panel rule, which wants one sentence rather than a card. */
+export const COMMISSION_NAME: Record<CommissionKind, string> = {
+  discover: 'The Long Job',
+  gold: 'The Fair Wage',
+  spell: 'The Quick Favour',
+};
+export const COMMISSION_REWARD: Record<CommissionKind, string> = {
+  discover: 'Discover a minion of your Tavern Tier',
+  gold: 'Gain 2 Gold',
+  spell: 'Get a random Shop spell',
+};
+
 /** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
 export const COMMISSION_TEXT: Record<CommissionKind, string> = {
   discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',

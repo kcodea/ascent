@@ -51,6 +51,10 @@ export interface HeroFxConfig {
   sbWebSpokes: number;
   /** Soulbind ring — how many concentric RINGS the web has. */
   sbWebRings: number;
+  /** Soulbind — how fast the web BUILDS out from the centre when the bond is forged (ms). One-shot. */
+  sbBuild: number;
+  /** Soulbind — how long the purple FLASH on each bound unit lasts when the bond is forged (ms). One-shot. */
+  sbFlash: number;
 }
 
 const DEFAULTS: HeroFxConfig = {
@@ -75,6 +79,8 @@ const DEFAULTS: HeroFxConfig = {
   sbWeb: 1,
   sbWebSpokes: 14,
   sbWebRings: 5,
+  sbBuild: 260,
+  sbFlash: 420,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -100,11 +106,13 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   sbWeb: [0, 1, 0.01],
   sbWebSpokes: [3, 16, 1],
   sbWebRings: [1, 8, 1],
+  sbBuild: [60, 1200, 10],
+  sbFlash: [80, 1600, 10],
 };
 
 export const HFX_NUM_KEYS = [
   'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
-  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings',
+  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings', 'sbBuild', 'sbFlash',
 ] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as HFX_DEFAULTS };
@@ -159,6 +167,8 @@ export function applyHeroFxVars(): void {
   // radial gradient). Both are static paint on one element — nothing here animates, so the web costs the
   // ring nothing per frame.
   root.setProperty('--hfx-sb-web', String(cfg.sbWeb));
+  root.setProperty('--hfx-sb-build', `${cfg.sbBuild}ms`);
+  root.setProperty('--hfx-sb-flash', `${cfg.sbFlash}ms`);
   const spoke = 360 / Math.max(3, Math.round(cfg.sbWebSpokes));
   // `sbWeb` rides the thread ALPHA. It used to write an unread `--sb-web-a`, so the dial did nothing.
   const webCol = `hsl(${cfg.sbHue} 100% 82% / ${cfg.sbWeb})`;

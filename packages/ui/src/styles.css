@@ -7852,8 +7852,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
   /* STATIC shadow — only `opacity` is animated. */
   box-shadow: 0 0 calc(var(--hfx-sb-blur, 0) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
-  animation: sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
-  will-change: opacity;
+  /* Two animations, different properties, so they compose: `sbbuild` is a ONE-SHOT that spins the web out
+     from the centre the moment the bond is forged (the element mounts exactly then), and `sbbreathe` is the
+     steady loop. Both are compositor-only — transform and opacity, never paint. */
+  animation:
+    sbbuild var(--hfx-sb-build, 260ms) cubic-bezier(0.16, 1, 0.3, 1) both,
+    sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+/* Spins out from nothing: scale from the centre with a quick counter-rotation, so the threads read as being
+   SPUN rather than simply popped in. */
+@keyframes sbbuild {
+  0%   { transform: scale(0.05) rotate(-90deg); }
+  70%  { transform: scale(1.06) rotate(6deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
@@ -7908,3 +7920,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   border: 1px solid color-mix(in srgb, var(--tc, #cbb9a2) 45%, transparent);
 }
 .herotip-type.empty { color: #8b7f70; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); }
+
+/* Sable's bind FLASH — a one-shot purple wash over each bound unit as the bond is forged. The element mounts
+   exactly when the bond appears, so the mount IS the trigger; no JS timing needed.
+
+   ONE-SHOT, so per docs/performance.md it may touch paint — but it does not need to: the gradient is static
+   and only `opacity` animates, which keeps it compositor-only anyway. `pointer-events: none` and it parks at
+   opacity 0, so it never interferes once it has played. */
+.soulbindflash {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 6; opacity: 0;
+  background: radial-gradient(circle at 50% 50%,
+    hsl(var(--hfx-sb-hue, 297) 100% 82% / 0.95) 0%,
+    hsl(var(--hfx-sb-hue, 297) 100% 66% / 0.55) 45%,
+    hsl(var(--hfx-sb-hue, 297) 100% 60% / 0) 78%);
+  animation: sbflash var(--hfx-sb-flash, 420ms) ease-out both;
+  will-change: opacity;
+}
+@keyframes sbflash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .soulbindflash { animation: none; opacity: 0; }
+  .soulbindmark { animation: none; }
+}

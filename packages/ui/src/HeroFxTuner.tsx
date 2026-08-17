@@ -30,6 +30,8 @@ const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefine
   sbWeb:       ['Web opacity', undefined, 'How visible the spiderweb fill inside the ring is. 0 turns it off.'],
   sbWebSpokes: ['Web spokes', undefined, 'How many radial threads the web has.'],
   sbWebRings:  ['Web rings', undefined, 'How many concentric threads the web has.'],
+  sbBuild:     ['Web build time', 'ms', 'How fast the web spins out from the centre when the bond is forged. One-shot.'],
+  sbFlash:     ['Bind flash time', 'ms', 'How long the purple flash on each bound unit lasts. One-shot.'],
 };
 
 const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KEYS.map((key) => {

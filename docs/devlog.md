@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-17 - Soulbind: a purple flash on the bound units + the web spins out from the centre
+
+Two one-shot cues when the bond is forged, both driven by MOUNT rather than JS timing — the mark and flash
+elements appear exactly when `sableBond` does, so the mount IS the trigger and there is no timer to keep in
+sync with the reducer.
+
+- **Purple flash** on each bound unit: a static radial wash whose OPACITY animates 0 → 1 → 0. One-shot, so it
+  would be allowed to touch paint, but it does not need to — the gradient never changes, so this stays
+  compositor-only anyway. Parks at opacity 0 with `pointer-events: none`, so it cannot interfere once played.
+- **The web spins out from the centre**: `sbbuild` scales the mark from 0.05 with a quick counter-rotation and
+  a slight overshoot, so the threads read as being SPUN rather than popped in. It composes with the existing
+  `sbbreathe` loop because the two animate different properties (transform vs opacity).
+
+Both durations are tunable (`Web build time`, `Bind flash time`), since "really quickly" is a feel judgement
+the owner will want to dial.
+
+Verified in the browser rather than asserted: with a 3-minion board, exactly the two OUTERMOST cards carry
+both elements (the middle one has neither), the mark resolves to `sbbuild, sbbreathe` at `0.26s, 2.4s`, and
+the flash to `sbflash` at `0.42s`.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Owner-tuned hero FX baked in; the web-opacity dial actually works now
 
 The owner's tuned values for Cia's rings and Sable's web are the shipped DEFAULTS, mirrored into the

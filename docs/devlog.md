@@ -54,10 +54,21 @@ step auto-advanced instantly (fixed — those are read-and-Continue beats); and 
 SELF-buff (a `buff` event), not the `rally` event type (reserved for Rally-fires-another-effect), so the Rally
 step now accepts the buff with a combat-ended fallback so it can never hard-stall.
 
-**Deliberately deferred (follow-ups, not blockers):** the interactive order-demo silhouette drag (a
-read-and-continue panel stands in); the full 12-round course (4 real rounds authored); the first-launch
-welcome prompt (the Learn button is the entry today); hard/soft action GATES (steps observe + advance, but
-don't yet block a wrong action); and save/resume mid-course.
+**Added in the same PR (continued build):**
+- **First-launch welcome** (`FirstLaunchPanel`) — a fresh profile now sees "First time here? → Learn Ascent /
+  Play Now" over the Title before any account/name/mode/hero choice (blueprint §5.1). Play Now records a SKIP
+  (not a completion), so the course still shows unplayed in the hub. Verified live.
+- **End-Turn gating** — a `gateBus` the store's `dispatch` consults: while a shop/lobby step is active that
+  isn't itself about ending the turn, `faceOmen` (End Turn) is dropped and a coach nudge flashes ("Finish the
+  highlighted step first…"). It can NEVER soft-lock — it blocks *only* `faceOmen`, only on a tutorial run, and
+  releases the instant the end-turn step is reached. Verified live: blocked at the buy step (board stayed
+  empty), released at the end-turn step (combat started).
+- **Coaching no longer paints over the Title / hero picker / end screens** — the controller gates on the
+  tutorial run being the ACTIVE screen (a backgrounded tutorial run used to overlay the Title).
+
+**Still deferred (follow-ups, not blockers):** the interactive order-demo silhouette drag (a read-and-continue
+panel stands in); the full 12-round course (4 real rounds authored); per-step soft gates beyond End Turn; and
+save/resume mid-course (a resumed tutorial currently restarts from step 1).
 
 ## 2026-08-17 — FTUE Phase 0: blueprint adopted, and the presentation-contract spike
 

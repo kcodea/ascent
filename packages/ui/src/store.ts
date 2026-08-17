@@ -48,6 +48,7 @@ import { perfMonitor } from './perfMonitor';
 import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
+import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -990,6 +991,11 @@ export const useGame = create<GameStore>((set, get) => ({
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) => {
+    // TUTORIAL gate: a guided shop/lobby step can block End Turn (`faceOmen`) so a new player can't skip the
+    // lesson into an empty-board fight. Inert on every non-tutorial run (no gate set). Never blocks anything
+    // but `faceOmen`, so it cannot soft-lock the game (see gateBus). Dropped actions fire a coach nudge.
+    const gate = gateBlocks(action);
+    if (gate.blocked) { if (gate.reason) notifyGateNudge(gate.reason); return; }
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
     const prev = get().run;

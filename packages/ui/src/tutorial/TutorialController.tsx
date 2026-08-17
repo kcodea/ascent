@@ -21,6 +21,8 @@ import {
 import { useGame } from '../store';
 import { subscribeTutorialActions } from './actionBus';
 import { subscribeTutorialPresented } from './presentationBus';
+import { setTutorialGate, subscribeGateNudge } from './gateBus';
+import type { TutorialPredicate } from '@game/sim';
 import { measureAnchors } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
@@ -115,12 +117,27 @@ function projectRun(run: RunState): TutorialRunView {
 
 const isLessonKey = (id: string): id is TutorialLessonKey => (TUTORIAL_LESSON_KEYS as readonly string[]).includes(id);
 
+/** Does this step's completion depend on ending the turn / combat? If so, ending the turn is exactly what it
+ *  asks for, so End Turn must NOT be gated. Scans the predicate tree. */
+function completionNeedsEndTurn(pred: TutorialPredicate): boolean {
+  switch (pred.kind) {
+    case 'endedTurn': case 'combatStarted': case 'combatEnded': case 'presented': return true;
+    case 'not': return completionNeedsEndTurn(pred.of);
+    case 'all': case 'any': return pred.of.some(completionNeedsEndTurn);
+    default: return false;
+  }
+}
+
 // ─── The controller ───────────────────────────────────────────────────────────────────────────────────────
 
 export function TutorialController(): JSX.Element | null {
   const run = useGame((s) => s.run);
   const inspect = useGame((s) => s.inspect);
-  const isTutorial = run.mode === 'tutorial' && !!run.tutorialCourseId;
+  const showTitle = useGame((s) => s.showTitle);
+  const heroChoices = useGame((s) => s.heroChoices);
+  // Coach only while the tutorial RUN is the active screen — never over the Title, the hero picker, or a
+  // game-over screen (a paused/backgrounded tutorial run must not paint its overlay on top of those).
+  const isTutorial = run.mode === 'tutorial' && !!run.tutorialCourseId && !showTitle && !heroChoices && run.phase !== 'gameover' && run.phase !== 'victory';
   const course = useMemo(() => (run.tutorialCourseId ? getTutorialCourse(run.tutorialCourseId) : null), [run.tutorialCourseId]);
   const items = useMemo(() => (course ? flattenCourse(course) : []), [course]);
 
@@ -128,6 +145,8 @@ export function TutorialController(): JSX.Element | null {
   // Events seen SINCE the current step activated (predicate scope), plus the run-lifetime "ever" set.
   const [events, setEvents] = useState<TutorialSemanticEvent[]>([]);
   const sawEverRef = useRef<Set<TutorialSemanticEvent['type']>>(new Set());
+  // A transient nudge shown when the player tries a gated action (e.g. End Turn mid-lesson).
+  const [nudge, setNudge] = useState<string | null>(null);
 
   const record = useCallback((e: TutorialSemanticEvent) => {
     sawEverRef.current.add(e.type);
@@ -170,6 +189,24 @@ export function TutorialController(): JSX.Element | null {
   }, []);
 
   const current = items[cursor];
+
+  // Gate End Turn while a shop/lobby step is active that isn't itself about ending the turn — so a new player
+  // can't skip the lesson into an empty-board fight. Cleared when the tutorial ends (below) or a combat/end-turn
+  // step is active. NEVER blocks anything but faceOmen (see gateBus), so it can't soft-lock.
+  useEffect(() => {
+    if (!isTutorial) { setTutorialGate(null); return; }
+    const blockEndTurn = !!current && current.kind === 'step' && current.step.phase !== 'combat' && !completionNeedsEndTurn(current.step.completion);
+    setTutorialGate({ blockEndTurn });
+    return () => setTutorialGate(null);
+  }, [isTutorial, current]);
+
+  // Flash a nudge when the player bumps a gate; auto-clear.
+  useEffect(() => subscribeGateNudge((reason) => setNudge(reason)), []);
+  useEffect(() => {
+    if (!nudge) return;
+    const t = window.setTimeout(() => setNudge(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [nudge]);
 
   // Persist the current step id, and complete the course when the walk runs out.
   useEffect(() => {
@@ -229,5 +266,10 @@ export function TutorialController(): JSX.Element | null {
   }, [isTutorial, current, run, cursor, items.length, advance]);
 
   if (!isTutorial) return null;
-  return <TutorialOverlay view={view} />;
+  return (
+    <>
+      <TutorialOverlay view={view} />
+      {nudge && <div className="tut-nudge" role="status">{nudge}</div>}
+    </>
+  );
 }

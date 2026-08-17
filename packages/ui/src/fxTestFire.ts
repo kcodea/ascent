@@ -14,7 +14,6 @@ import { getStepProcFxConfig } from './stepProcFxConfig';
 import { tendrilCfgFor } from './questTendrilConfig';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
-import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor } from './buffFxConfig';
@@ -54,20 +53,6 @@ export function testSwapFx(): void {
   const board = boardAnchor();
   if (!board || rects.length === 0) return;
   pixiFx.swapArc(center(board), center(rects[0]!), getSwapFxConfig());
-}
-
-/** 💨 Buff Gust: the tavern rush over the current shop row (+ the lift & settle on landing). */
-export function testGustFx(): void {
-  const els = shopEls();
-  if (els.length === 0) return;
-  const rects = els.map((el) => el.getBoundingClientRect());
-  pixiFx.buffGust({
-    left: Math.min(...rects.map((r) => r.left)),
-    right: Math.max(...rects.map((r) => r.right)),
-    top: Math.min(...rects.map((r) => r.top)),
-    bottom: Math.max(...rects.map((r) => r.bottom)),
-  }, getGustFxConfig());
-  applyGustLift(els);
 }
 
 /** ✨ Spell Power: the rising arrow fan + blast + floating number, fired over the shop row's centre so the

@@ -146,18 +146,6 @@ export interface SwapArcCfg {
   colorInCore: string; colorInGlow: string; colorOutCore: string; colorOutGlow: string;
 }
 
-/** Renderer-facing Buff Gust config (structural mirror of GustFxConfig — pixiFx stays import-light).
- *  Flank bracket arcs + speed-line streaks sweeping into a card row's edges; see `buffGust`. */
-export interface BuffGustCfg {
-  sweepMs: number; staggerMs: number; arcMs: number; holdMs: number; fadeMs: number;
-  streaks: number; streakLen: number; streakTravel: number; streakWidth: number; streakCurve: number; spreadY: number;
-  arcHeight: number; arcBulge: number; arcWidth: number; arcTravel: number; edgeOut: number;
-  washAlpha: number; washPad: number;
-  impactSize: number; impactMs: number; impactAlpha: number;
-  sparkCount: number; sparkSize: number; sparkLife: number; sparkRise: number;
-  coreAlpha: number; glowWidth: number; glowAlpha: number; taper: number;
-  colorCore: string; colorGlow: string;
-}
 
 /** Renderer-facing Spell Power config (structural mirror of the arrow/blast half of SpellPowerFxConfig —
  *  pixiFx stays import-light). A fan of pink/purple/gold arrows rising from the caster plus a mote blast at
@@ -171,8 +159,6 @@ export interface SpellPowerCfg {
   colorA: string; colorB: string; colorC: string; glowAlpha: number; glowWidth: number;
 }
 
-/** A card row's bounding box (screen px) — the gust anchors to its flanks. */
-export interface GustBox { left: number; right: number; top: number; bottom: number }
 
 /** Renderer-facing Aura Wave config (structural mirror of AuraFxConfig + the tribe palette — pixiFx stays
  *  import-light). A tribe-colored glow born at the board centre that expands to both edges, dissipating from
@@ -391,7 +377,6 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
-  private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
   // Weld rings — one per weld, redrawn per frame while the ring converges; retires once the ring lands and
   // its flash/sparks have been emitted (those finish on their own in the particle pool).
   private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
@@ -590,7 +575,7 @@ class FxController {
     return (
       this.extraUpdaters.length > 0 ||
       this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
-      this.gusts.length > 0 || this.weldRings.length > 0 || this.spellArrows.length > 0 ||
+      this.weldRings.length > 0 || this.spellArrows.length > 0 ||
       this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
       this.pulses.length > 0 || this.descends.length > 0 || this.aim !== null
     );
@@ -687,8 +672,6 @@ class FxController {
     this.pulses.length = 0;
     for (const d of this.descends) { d.g.destroy(); }
     this.descends.length = 0;
-    for (const w of this.gusts) { w.g.destroy(); }
-    this.gusts.length = 0;
     for (const w of this.weldRings) { w.g.destroy(); }
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { a.g.destroy(); }
@@ -1525,8 +1508,6 @@ class FxController {
     this.pulses.length = 0;
     for (const d of this.descends) { this.layer?.removeChild(d.g); d.g.destroy(); }
     this.descends.length = 0;
-    for (const w of this.gusts) { this.layer?.removeChild(w.g); w.g.destroy(); }
-    this.gusts.length = 0;
     for (const w of this.weldRings) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { this.layer?.removeChild(a.g); a.g.destroy(); }
@@ -1963,147 +1944,6 @@ class FxController {
       tip.x - tx * back + nx * half, tip.y - ty * back + ny * half,
       tip.x - tx * back - nx * half, tip.y - ty * back - ny * half,
     ]).fill({ color: hexNum(color), alpha });
-  }
-
-  /**
-   * BUFF GUST: the "tavern just got buffed" rush (Ritualist's Fodder enchant / Rune of Consumption /
-   * Staff of Guel — owner sketch): a tall bracket arc hugs each flank of the affected card row
-   * (stroke-revealed top→bottom while drifting inward) and a fan of staggered speed-line streaks sweeps in
-   * from outside, each landing just kissing the row edge — never flying over the cards. Redrawn per frame
-   * into one additive Graphics (the tendril pattern); ports buff-gust-preview.html's math 1:1 so rig-tuned
-   * values transfer verbatim.
-   */
-  buffGust(box: GustBox, cfg: BuffGustCfg): void {
-    perfMonitor.mark('fx:gust');
-    if (!this.ready || !this.layer) return;
-    const g = new Graphics();
-    g.blendMode = 'add';
-    this.layer.addChild(g);
-    this.gusts.push({ g, box: { ...box }, cfg, age: 0 });
-    this.wake();
-  }
-
-  /** Stroke a gust path twice (soft glow underlay, bright core), tapering tail→head when cfg.taper. */
-  private strokeGust(g: Graphics, pts: { x: number; y: number }[], width: number, alpha: number, cfg: BuffGustCfg): void {
-    if (pts.length < 2 || alpha <= 0) return;
-    const layers = [
-      { w: width + cfg.glowWidth, c: hexNum(cfg.colorGlow), a: cfg.glowAlpha * alpha },
-      { w: width, c: hexNum(cfg.colorCore), a: cfg.coreAlpha * alpha },
-    ];
-    for (const { w, c, a } of layers) {
-      if (a <= 0 || w <= 0) continue;
-      if (!cfg.taper) {
-        g.moveTo(pts[0]!.x, pts[0]!.y);
-        for (const p of pts) g.lineTo(p.x, p.y);
-        g.stroke({ width: w, color: c, alpha: a, cap: 'round', join: 'round' });
-      } else {
-        // taper: per-segment strokes with the width ramping tail→head (the rig's approach)
-        for (let i = 1; i < pts.length; i++) {
-          const f = i / (pts.length - 1);
-          g.moveTo(pts[i - 1]!.x, pts[i - 1]!.y).lineTo(pts[i]!.x, pts[i]!.y)
-            .stroke({ width: Math.max(0.5, w * (0.15 + 0.85 * f)), color: c, alpha: a, cap: 'round' });
-        }
-      }
-    }
-  }
-
-  /** Redraw one buff gust for this frame. Returns false once its lifecycle completes (→ retire). */
-  private drawGust(w: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }): boolean {
-    const { g, box, cfg } = w;
-    const t = w.age / 1000;
-    const lastStreak = Math.max(0, cfg.streaks - 1) * cfg.staggerMs / 1000;
-    const landAll = Math.max(lastStreak + cfg.sweepMs / 1000, cfg.arcMs / 1000);
-    const total = landAll + (cfg.holdMs + cfg.fadeMs) / 1000;
-    if (t > total) return false;
-    g.clear();
-    const easeOut = (x: number): number => 1 - Math.pow(1 - x, 3);
-    const cy = (box.top + box.bottom) / 2;
-    const rowH = box.bottom - box.top;
-    const fadeStart = landAll + cfg.holdMs / 1000;
-    const fade = 1 - Math.min(1, Math.max(0, (t - fadeStart) / (cfg.fadeMs / 1000 || 0.001)));
-
-    // Interior WASH — a soft additive ellipse filling the row while the gust plays (the "fill the tavern
-    // in" layer, owner ask 2026-07-16). Ramps in over the sweep, rides the shared fade.
-    if (cfg.washAlpha > 0) {
-      const rampIn = Math.min(1, t / Math.max(0.001, cfg.sweepMs / 1000));
-      g.ellipse((box.left + box.right) / 2, cy, (box.right - box.left) / 2 + cfg.washPad, rowH / 2 + cfg.washPad)
-        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.washAlpha * rampIn * fade });
-    }
-
-    // LANDING IMPACT — the moment everything lands: an expanding ring at row-centre + sparkle motes
-    // scattered over the cards, drifting upward (one-shot; the particles animate on their own).
-    if (!w.struck && t >= landAll) {
-      w.struck = true;
-      const cx2 = (box.left + box.right) / 2;
-      if (cfg.impactSize > 0 && cfg.impactMs > 0 && this.pulseTex) {
-        this.spawn(this.pulseTex, {
-          x: cx2, y: cy, vx: 0, vy: 0, drag: 1, life: cfg.impactMs,
-          fromScale: 0.15, toScale: cfg.impactSize / PULSE_TEX_R, spin: 0,
-          tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.impactAlpha,
-        });
-      }
-      if (cfg.sparkCount > 0 && this.glowTex) {
-        const sScale = cfg.sparkSize / TENDRIL_GLOW_R;
-        for (let i = 0; i < cfg.sparkCount; i++) {
-          this.spawn(this.glowTex, {
-            x: box.left + Math.random() * (box.right - box.left),
-            y: box.top + Math.random() * rowH,
-            vx: (Math.random() - 0.5) * 30, vy: -cfg.sparkRise * (0.6 + Math.random() * 0.8),
-            drag: 0.995, life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
-            fromScale: sScale, toScale: sScale * 0.25, spin: 0,
-            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorGlow), blend: 'add', peakAlpha: 0.9,
-          });
-        }
-      }
-    }
-
-    for (const side of [-1, 1]) { // -1 = left flank (blows right), +1 = right flank (blows left)
-      // `edgeOut` pushes each flank outward beyond the row bounds — toward the board ends (owner ask).
-      const edgeX = side < 0 ? box.left - cfg.edgeOut : box.right + cfg.edgeOut;
-      const dir = -side; // inward
-
-      // Bracket arc hugging this end: a tall quadratic bowing OUTWARD, revealed top→bottom + drifting in.
-      {
-        const p = Math.min(1, t / (cfg.arcMs / 1000 || 0.001));
-        const reveal = easeOut(p);
-        const drift = cfg.arcTravel * easeOut(p) * dir;
-        const H = rowH * cfg.arcHeight;
-        const x0 = edgeX - dir * 40 + drift;
-        const topY = cy - H / 2, botY = cy + H / 2;
-        const ctrlX = x0 - dir * cfg.arcBulge * 2;
-        const N = 30;
-        const upto = Math.max(2, Math.round(N * reveal));
-        const pts: { x: number; y: number }[] = [];
-        for (let i = 0; i <= upto; i++) {
-          const u = i / N;
-          const mu = 1 - u;
-          pts.push({ x: mu * mu * x0 + 2 * mu * u * ctrlX + u * u * x0, y: topY + (botY - topY) * u });
-        }
-        this.strokeGust(g, pts, cfg.arcWidth, fade, cfg);
-      }
-
-      // Speed-line streaks fanned vertically, staggered — each lands just kissing the row edge.
-      for (let i = 0; i < cfg.streaks; i++) {
-        const start = i * cfg.staggerMs / 1000;
-        const p = Math.min(1, Math.max(0, (t - start) / (cfg.sweepMs / 1000 || 0.001)));
-        if (p <= 0) continue;
-        const e = easeOut(p);
-        const fy = cy + ((i + 0.5) / cfg.streaks - 0.5) * cfg.spreadY;
-        const len = cfg.streakLen * (0.7 + 0.3 * ((i * 37) % 10) / 10);
-        const restX = edgeX + dir * 12;
-        const headX = restX - dir * cfg.streakTravel * (1 - e);
-        const tailX = headX - dir * len * Math.min(1, 0.3 + e);
-        const N = 14;
-        const pts: { x: number; y: number }[] = [];
-        for (let s2 = 0; s2 <= N; s2++) {
-          const u = s2 / N;
-          const bow = Math.sin(u * Math.PI) * cfg.streakCurve * len * (i % 2 === 0 ? 1 : -1) * 0.5;
-          pts.push({ x: tailX + (headX - tailX) * u, y: fy + bow });
-        }
-        this.strokeGust(g, pts, cfg.streakWidth, fade * Math.min(1, p * 3), cfg);
-      }
-    }
-    return true;
   }
 
   /**
@@ -2605,7 +2445,7 @@ class FxController {
     const alpha = t < cfg.arrowFadeAt ? 1 : 1 - (t - cfg.arrowFadeAt) / Math.max(0.001, 1 - cfg.arrowFadeAt);
     const half = cfg.arrowLen / 2;
     const head = cfg.arrowHead;
-    // Soft underlay first, then the core — the same two-pass stroke the tendrils/gust use.
+    // Soft underlay first, then the core — the same two-pass stroke the tendrils use.
     if (cfg.glowAlpha > 0 && cfg.glowWidth > 0) {
       g.moveTo(cx, cy + half).lineTo(cx, cy - half);
       g.stroke({ width: cfg.arrowWidth + cfg.glowWidth, color: a.tint, alpha: alpha * cfg.glowAlpha, cap: 'round' });
@@ -2844,16 +2684,6 @@ class FxController {
     // The live aim line: redrawn every frame while aiming (wobble + breathe are time-based).
     this.drawAimLine(performance.now() / 1000);
 
-    // Buff gusts: advance + redraw each frame; retire when the lifecycle completes.
-    for (let i = this.gusts.length - 1; i >= 0; i--) {
-      const w = this.gusts[i]!;
-      w.age += dtMs;
-      if (!this.drawGust(w)) {
-        this.layer?.removeChild(w.g);
-        w.g.destroy();
-        this.gusts.splice(i, 1);
-      }
-    }
 
     // Weld rings: advance + redraw each converging ring; retire once it lands.
     for (let i = this.weldRings.length - 1; i >= 0; i--) {

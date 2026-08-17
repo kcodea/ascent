@@ -1,5 +1,54 @@
 # ASCENT — development log
 
+## 2026-08-17 - Buff gust removed — it was ~half of all jank
+
+The full-run trace put `fx:gust` far above everything else: 16 of 599 buckets carried **492 of the run's 989
+jank frames**, and frame rate inside them collapsed from ~230fps to ~87fps.
+
+The cause was stated in its own doc comment — *"Redrawn per frame into one additive Graphics"*. With ~6
+streaks it rebuilt 2 flanks x 7 polylines x 2 stroke layers = **~28 stroked paths every frame**, each
+re-tessellated on the CPU and re-uploaded, plus hundreds of short-lived `{x,y}` objects feeding GC. At 240Hz
+that is ~6,700 path rebuilds a second — precisely what `docs/performance.md` forbids.
+
+Owner's call was to CUT it rather than rebuild: an old effect Mike will likely replace with something better.
+
+Removed: `pixiFx.buffGust` / `drawGust` / `strokeGust` / the `gusts` array + its per-frame loop + cleanup,
+`gustFxConfig.ts`, `GustFxTuner.tsx`, the DevMenu row, the tunerAll registration, the test-fire, and the
+`fireTavernGust` call sites. **485 deletions, 7 insertions.**
+
+**Deliberately KEPT:** the sim-side `buffGustSeq` stamp, the `tavernGust` presenter cue, and the EoT beat's
+`gust` flag — all now no-ops with a note. The trigger survives with no effect attached, so a replacement drops
+straight in without re-plumbing the sim, the beat or the presenter surface. Touching `buffGustSeq` would have
+reached into run state, saves and replays for no benefit.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Shop-phase perf plan scoped (and one audit claim corrected)
+
+Turned Codex's three-item performance audit into a buildable plan at
+[`docs/perf-shop-phase-plan.md`](perf-shop-phase-plan.md), after checking each claim against the code.
+
+**The correction that matters: the audit's item 1 is largely already implemented.** It describes a purchase as
+running the full generic FLIP pipeline and proposes a dedicated transition that commits the drag-preview
+positions instead. That path exists, and `buyDrop` already takes it — the manual-FLIP branch excludes the
+bought card from the captured rects and glides only its neighbours ("on a sell/buy the survivors already sat
+re-centred, so they barely move"). There is also a drag-time optimisation the audit misses: only ONE row is
+captured during a drag, added after the 2026-08-06 capture where `layout:flip` was 90% of all work.
+
+What genuinely remains from that item is a forced reflow (`void document.body.offsetWidth`) plus per-element
+rect reads on each commit — real, but a footnote rather than a headline.
+
+So the order is **re-sequenced**: rendering isolation first (React rendering is ~3.5x the layout cost in the
+audit's own profile), then the card-view signature cache for late-game scaling, then the reflow. Both traces
+independently put `render:recruit` + `layout:flip` at ~94% of measured time with the sim and reducers at ~0,
+so the diagnosis is not in doubt — only the ordering was.
+
+Flagged in the plan: **take a prod trace before starting.** The audit's figures come from dev Scene Builder,
+where StrictMode's double-invoke alone would inflate its "~32 Recruit renders", and CLAUDE.md requires
+confirming slow reports against the prod build. That could move the A-vs-B ratio.
+
+No code changed.
+
 ## 2026-08-17 - Perf trace analysed; owner-tuned Cia values baked in
 
 **Trace analysis** (`ascent-perf-1786970315203.json`, 30s, 3440x1351 @ 240Hz, DPR 1). Median frame 4.2ms —

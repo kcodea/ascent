@@ -61,7 +61,6 @@ import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
-import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
@@ -1137,25 +1136,6 @@ export function Recruit() {
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
   // `edgeOut` dial. Anchored to the SHOP ROW always (the cue means "the tavern got buffed"), never fired
-  // in combat (phase guard + the shop cards simply aren't rendered there).
-  const fireTavernGust = useCallback((): void => {
-    const st = useGame.getState().run;
-    if (!st || st.phase !== 'recruit') return;
-    const uids = [...st.shop.map((o) => o.uid), ...(st.spell ? [st.spell.uid] : [])];
-    const els = uids.flatMap((uid) => {
-      const el = document.querySelector(`[data-uid="${uid}"]`);
-      return el ? [el] : [];
-    });
-    if (els.length === 0) return;
-    const rects = els.map((el) => el.getBoundingClientRect());
-    pixiFx.buffGust({
-      left: Math.min(...rects.map((r) => r.left)),
-      right: Math.max(...rects.map((r) => r.right)),
-      top: Math.min(...rects.map((r) => r.top)),
-      bottom: Math.max(...rects.map((r) => r.bottom)),
-    }, getGustFxConfig());
-    applyGustLift(els); // lift & settle the row when the gust lands (delayed to the landing internally)
-  }, []);
   // Fodder Infusion — "the unit is SENDING Fodder into the shop" (owner ask 2026-07-16): organic violet
   // tendrils reach from the queuing unit (Maw / Godfodder / Soulfeeder / Korok / Burial Imp) up to the
   // shop line, striking just BELOW the row (never wrapping the shop cards), each with a strike flash +
@@ -1254,19 +1234,6 @@ export function Recruit() {
     const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, kind));
     return () => cancelAnimationFrame(raf);
   }, [run.weldFxSeq, run.phase, fireWeldFxBatch]);
-  // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
-  // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
-  // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
-  // from the EoT BEAT instead (see playBeat), while the shop is actually on screen.
-  const prevBuffGustSeq = useRef(run.buffGustSeq);
-  useEffect(() => {
-    const seq = run.buffGustSeq;
-    if (seq === undefined || seq === prevBuffGustSeq.current) return;
-    prevBuffGustSeq.current = seq;
-    if (run.phase !== 'recruit') return;
-    const raf = requestAnimationFrame(fireTavernGust);
-    return () => cancelAnimationFrame(raf);
-  }, [run.buffGustSeq, run.phase, fireTavernGust]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.
@@ -4190,7 +4157,9 @@ export function Recruit() {
           tendrilCfgFor(index % 2 === 0 ? 1 : -1), // alternate the arc so a wave of ribbons stays readable
         );
       },
-      tavernGust: () => fireTavernGust(),
+      // The buff-gust EFFECT was removed 2026-08-17 (owner: old, and ~half of all jank). The CUE stays on the
+      // presenter surface so the beat keeps its shape and a replacement can be dropped straight in.
+      tavernGust: () => { /* no effect authored — see docs/devlog 2026-08-17 */ },
       weldPulse: (hostUid) => {
         const at = centreOf(hostUid);
         if (at) pixiFx.weldPulse(at.x, at.y, weldCfgFor('auto'));
@@ -4445,7 +4414,8 @@ export function Recruit() {
           );
         }
       }
-      if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
+      // `b.gust` still rides the beat (Maw / Ritualist) but has no effect authored since the buff gust was
+      // removed 2026-08-17. Left in place so a replacement needs no re-plumbing.
       if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // This beat's captured FX from the projection: buff-others tendril/descend out of the firing card

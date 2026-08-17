@@ -21,11 +21,15 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **PERF: recruit re-render + FLIP dominate.** A 30s 240Hz trace (2026-08-17) puts `render:recruit` (330ms,
-  max 13.2ms) and `layout:flip` (313ms, max 12.8ms) at 94% of measured time; everything else is noise and idle
-  is a clean 240fps. At a 4.17ms budget one render burns three frames. Two leads: `shopViews` rebuilds every
-  offer when any of ~30 deps changes, and FLIP reads layout across many elements per action. Wants its own
-  measured PR.
+- **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
+  buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry
+  once (or pre-render to a texture) and animate transform/alpha instead. Far narrower than the items below.
+- **PERF: shop-phase plan is scoped — [`docs/perf-shop-phase-plan.md`](perf-shop-phase-plan.md).** Two traces
+  agree that `render:recruit` + `layout:flip` are ~94% of measured time while the sim and reducers are ~0.
+  Order: **A** isolate drag/purchase rendering (staged, one PR per stage), **B** card-view signature cache,
+  **C** the small remainder of the purchase transition. NOTE the audit's "dedicated purchase transition" is
+  largely already built — `buyDrop` already takes the manual-FLIP path — so only a forced reflow is left
+  there. Take a PROD trace first: the dev numbers are inflated by StrictMode's double-invoke.
 
 - **Cia enchanted foil — Phases 3-5** (`cia-enchanted-foil-fx-handoff.md`): purchase capture + streak to the
   hero power, the third-card payout burst, the `data-fx-anchor="hero-power"` anchor contract, and the tuner

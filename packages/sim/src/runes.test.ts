@@ -897,9 +897,9 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Guardian: Runeguard — 15 armor + schedules the Epic Runeforge for turn 8', () => {
+  it('Guardian: Runeguard — 10 armor + schedules the Epic Runeforge for turn 8', () => {
     const s = createRun(1, 'runeguard');
-    expect(s.armor).toBe(15);
+    expect(s.armor).toBe(10); // owner balance 2026-08-17
     expect(s.epicForgeWave).toBe(8);
     const next = reduce({ ...s, wave: 7, phase: 'combat', epicForgeWave: 8, lastCombat: win }, { type: 'resolveCombat' });
     expect(next.wave).toBe(8);

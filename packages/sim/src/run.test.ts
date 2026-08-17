@@ -4159,18 +4159,19 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
-    // A strong power tends to carry less armor. Values as of the 2026-08-06 per-hero rebalance pass.
-    expect(getHero('warden').armor).toBe(17);
+    // A strong power tends to carry less armor. Values as of the 2026-08-17 per-hero rebalance pass.
+    expect(getHero('warden').armor).toBe(11);
     expect(getHero('soren').armor).toBe(10);
     expect(getHero('cassen').armor).toBe(13);
     expect(getHero('darah').armor).toBe(18);
     expect(getHero('hermithank').armor).toBe(9); // Tradesman
-    expect(getHero('nadja').armor).toBe(20);
-    expect(getHero('robin').armor).toBe(2);
-    expect(getHero('indy').armor).toBe(14);
+    expect(getHero('nadja').armor).toBe(17);
+    expect(getHero('robin').armor).toBe(4);
+    expect(getHero('indy').armor).toBe(12);
+    // …and the registry value is what the RUN actually starts with, not a separate constant.
     const s = createRun(1, 'indy');
-    expect(s.armor).toBe(14);
-    expect(s.maxArmor).toBe(14);
+    expect(s.armor).toBe(12);
+    expect(s.maxArmor).toBe(12);
   });
 
   it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {

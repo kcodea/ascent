@@ -111,7 +111,7 @@ export const HEROES: HeroDef[] = [
     name: 'Warden',
     blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
-    armor: 17, // enabled 2026-08-16 (owner)
+    armor: 11, // owner balance 2026-08-17
     // PLACEHOLDER henchman: proves the whole loop in the Scene Builder (and pins it in tests). The real
     // per-hero roster replaces this as it is designed.
     henchman: { cardId: 'hm_test_squire', cost: 10 },
@@ -129,7 +129,7 @@ export const HEROES: HeroDef[] = [
     name: 'Indy',
     blurb: 'One perfect moment — gild a single minion and make it count.',
     resolve: 30,
-    armor: 14,
+    armor: 12, // owner balance 2026-08-17,
     power: {
       name: 'Masterwork',
       kind: 'gild',
@@ -142,7 +142,7 @@ export const HEROES: HeroDef[] = [
     name: 'Auctioneer',
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
-    armor: 20, // enabled 2026-08-16 (owner)
+    armor: 10, // owner balance 2026-08-17
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
@@ -196,7 +196,7 @@ export const HEROES: HeroDef[] = [
     name: 'Nadja',
     blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
     resolve: 30,
-    armor: 20,
+    armor: 17, // owner balance 2026-08-17,
     power: {
       name: 'Goldspring',
       kind: 'gainMaxMana',
@@ -254,7 +254,7 @@ export const HEROES: HeroDef[] = [
     name: 'Robin',
     blurb: 'Patience pays — every minion sold lines next turn\'s purse.',
     resolve: 30,
-    armor: 2,
+    armor: 4, // owner balance 2026-08-17,
     power: {
       name: 'Spoils',
       kind: 'sellGold',
@@ -279,7 +279,7 @@ export const HEROES: HeroDef[] = [
     name: 'Lord of the Risen',
     blurb: 'Death is a rehearsal — each turn, one soldier returns for an encore.',
     resolve: 30,
-    armor: 16,
+    armor: 14, // owner balance 2026-08-17,
     power: {
       name: 'Undying',
       kind: 'grantReborn',
@@ -332,7 +332,7 @@ export const HEROES: HeroDef[] = [
     name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
     resolve: 30,
-    armor: 6, // owner balance 2026-08-16: 19 → 6, alongside the faster +2/turn payout and a second use
+    armor: 9, // owner balance 2026-08-17
     power: {
       name: 'All In',
       // Reworked off `scalingGold` onto its own kind (owner 2026-08-16): the payout now steps by 2 (not 1)
@@ -391,7 +391,7 @@ export const HEROES: HeroDef[] = [
     name: 'Runesmith',
     blurb: 'The forge fires once — spend well, for its rune lasts the whole climb.',
     resolve: 30,
-    armor: 15,
+    armor: 8, // owner balance 2026-08-17,
     power: {
       name: 'Forgemaster',
       kind: 'runeforge',
@@ -405,7 +405,7 @@ export const HEROES: HeroDef[] = [
     name: 'Guardian',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
-    armor: 15,
+    armor: 10, // owner balance 2026-08-17,
     power: {
       name: 'Runeguard',
       kind: 'epicRuneforge',
@@ -431,7 +431,7 @@ export const HEROES: HeroDef[] = [
     name: 'Tiff',
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
-    armor: 19,
+    armor: 12, // owner balance 2026-08-17,
     // Re-added to the pool 2026-08-14 (owner) — the wip withhold is lifted.
     power: {
       name: 'Dragon Tamer',
@@ -462,7 +462,7 @@ export const HEROES: HeroDef[] = [
     name: 'Re-Pete',
     blurb: 'Anything worth having is worth having twice.',
     resolve: 30,
-    armor: 15,
+    armor: 13, // owner balance 2026-08-17,
     power: {
       name: 'Second Hand',
       kind: 'secondHand',
@@ -502,7 +502,7 @@ export const HEROES: HeroDef[] = [
     name: 'Gambler',
     blurb: 'The house always wins — unless the house is you.',
     resolve: 30,
-    armor: 10,
+    armor: 8, // owner balance 2026-08-17,
     power: {
       name: 'Dice',
       kind: 'dice',
@@ -530,7 +530,7 @@ export const HEROES: HeroDef[] = [
     name: 'Frantic Frank',
     blurb: 'Everything must go — today only.',
     resolve: 30,
-    armor: 14,
+    armor: 9, // owner balance 2026-08-17,
     power: {
       name: 'Clearance',
       kind: 'clearance',
@@ -544,7 +544,7 @@ export const HEROES: HeroDef[] = [
     name: 'Pete',
     blurb: 'He knows a guy who knows a guy.',
     resolve: 30,
-    armor: 10,
+    armor: 9, // owner balance 2026-08-17,
     power: {
       name: 'Contrabanana',
       kind: 'contraband',
@@ -570,7 +570,7 @@ export const HEROES: HeroDef[] = [
     name: 'Emissary Vale',
     blurb: 'Every banner rallies to the same horn.',
     resolve: 30,
-    armor: 7,
+    armor: 10, // owner balance 2026-08-17,
     power: {
       name: 'United Front',
       kind: 'unitedFront',
@@ -583,7 +583,7 @@ export const HEROES: HeroDef[] = [
     name: 'Quillen',
     blurb: 'Nothing is ever truly gone — only filed.',
     resolve: 30,
-    armor: 11,
+    armor: 10, // owner balance 2026-08-17,
     power: {
       name: 'Archive',
       kind: 'archive',
@@ -724,7 +724,7 @@ export const HEROES: HeroDef[] = [
     name: 'Odelle',
     blurb: 'She curates the row. Nothing beside anything it merely repeats.',
     resolve: 30,
-    armor: 8,
+    armor: 10, // owner balance 2026-08-17,
     power: {
       name: 'Exhibition',
       kind: 'exhibition',

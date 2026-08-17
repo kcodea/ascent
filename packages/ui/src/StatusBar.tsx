@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_TEXT, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -468,26 +468,28 @@ export function StatusBar() {
         <div className="discover-ov commission-ov" role="dialog" aria-label="Choose a commission">
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose a Commission</span></div>
-            <div className="commission-opts">
+            <div className="quest-row commission-opts">
               {commissionOffer(run).map((kind) => (
                 <button
                   key={kind}
                   type="button"
-                  className="commission-opt"
+                  className="questcard has-art"
+                  style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
                   onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
                 >
-                  {/* Art on top, text below — the same read as a Discover / quest-reward tile (owner ask
-                      2026-08-16). Each commission has its own image (CassenHP1/2/3 → cassen-<kind>). */}
-                  <span className="commission-art" aria-hidden="true">
-                    {heroPowerArt(`cassen-${kind}`)
-                      ? <img src={heroPowerArt(`cassen-${kind}`)} alt="" draggable={false} />
-                      : null}
-                    <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
-                    <span
-                      className="commission-text"
-                      dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
-                    />
-                  </span>
+                  {heroPowerArt(`cassen-${kind}`) && <img className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
+                  <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
+                  <div className="questcard-head">
+                    <div className="questcard-tier">Commission · {COMMISSION_DELAY[kind]} turns</div>
+                    <div className="questcard-name">{COMMISSION_NAME[kind]}</div>
+                  </div>
+                  <div className="questcard-body">
+                    <div className="questcard-sect reward">
+                      <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
+                      <div className="questcard-txt">{COMMISSION_REWARD[kind]}</div>
+                    </div>
+                  </div>
+                  <span className="questcard-gem" aria-hidden />
                 </button>
               ))}
             </div>
@@ -499,25 +501,30 @@ export function StatusBar() {
         <div className="discover-ov commission-ov" role="dialog" aria-label="First or Last">
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">First or Last</span></div>
-            <div className="commission-opts">
+            <div className="quest-row commission-opts">
               {(['first', 'last'] as const).map((end) => (
                 <button
                   key={end}
                   type="button"
-                  className="commission-opt"
+                  className="questcard has-art"
+                  style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
                   onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end }); }}
                 >
-                  <span className="commission-art" aria-hidden="true">
-                    {heroPowerArt(`flash-${end}`)
-                      ? <img src={heroPowerArt(`flash-${end}`)} alt="" draggable={false} />
-                      : null}
-                    <span className="commission-delay">{end === 'first' ? '1st' : 'Last'}</span>
-                  </span>
-                  <span className="commission-text">
-                    {end === 'first'
-                      ? 'Get a copy of the FIRST minion you kill next combat.'
-                      : 'Get a copy of the LAST minion you kill next combat.'}
-                  </span>
+                  {heroPowerArt(`flash-${end}`) && <img className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
+                  <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
+                  <div className="questcard-head">
+                    <div className="questcard-tier">Claim · next combat</div>
+                    <div className="questcard-name">{end === 'first' ? 'First Blood' : 'Last Word'}</div>
+                  </div>
+                  <div className="questcard-body">
+                    <div className="questcard-sect reward">
+                      <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
+                      <div className="questcard-txt">
+                        {end === 'first' ? 'A copy of the FIRST minion you kill' : 'A copy of the LAST minion you kill'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="questcard-gem" aria-hidden />
                 </button>
               ))}
             </div>

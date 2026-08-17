@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+## 2026-08-17 - Armor rebalance (17 heroes); the pickers become REAL quest cards
+
+**Armor pass** — owner values applied to 17 heroes: Auctioneer 10, Emissary Vale 10, Frantic Frank 9,
+Gambler 8, Indy 12, Lord of the Risen 14, Nadja 17, Odelle 10, Pete 9, Quillen 10, Rascal 9, Re-Pete 13,
+Robin 4, Runesmith 8, Guardian 10, Tiff 12, Warden 11. Five stale assertions across four test files were
+updated (not loosened) — including one that asserted a run STARTS with a different armor than its hero
+registry declares, which is exactly the drift those tests exist to catch.
+
+**The pickers were still wrong, twice, so they now emit REAL `.questcard` markup.** My first two attempts
+approximated the quest tile with bespoke CSS and neither matched. Both Cassen's commissions and Flash's
+First/Last now render the actual component structure — `questcard-art` / `-emblem` / `-head` (tier + name) /
+`-body` (labelled sections) / `-gem` — so they inherit the quest shop's own styling rather than imitating it.
+The bespoke `.commission-*` rules are deleted; only the row layout remains. Two lookalike panels can no longer
+drift apart, which was the real failure mode.
+
+Commissions gained short card NAMES and reward lines (`COMMISSION_NAME` / `COMMISSION_REWARD`) because a quest
+card wants a title and a reward block, not one sentence. The old `COMMISSION_TEXT` still drives the hero-panel
+rule, which does want a sentence.
+
+Full suite 5514 green, typecheck + lint + build:web clean.
+
+**NOT done this pass** (owner batch, remaining): Guardian + Runesmith's extra rune offerings being discounted;
+Flash's grant arriving in REAL TIME rather than at resolution; and replacing the power art with the granted
+quest/rune art for Fi, Coran, Runesmith and Guardian.
+
 ## 2026-08-17 - Flash lands; both Choose-One pickers get the quest treatment
 
 **Flash** (9 armor) — *First or Last*, 1 Gold: claim a copy of the FIRST or LAST minion you kill next combat.

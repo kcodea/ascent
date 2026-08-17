@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Guardian + Runesmith: discount their extra rune offerings** on the hero-power forge.
+- **Flash: grant in REAL TIME**, not at resolution — the claim currently pays at settle (`resolveCombat`); it
+  should land as the kill happens, like the other live carry-backs.
+- **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
+  Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
+
 - **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
   buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry
   once (or pre-render to a texture) and animate transform/alpha instead. Far narrower than the items below.

@@ -80,6 +80,12 @@ export function StatusBar() {
   // Harlan's Buyout shrinks 1 a turn and re-bases on use — the coin reads the SAME helper the reducer charges,
   // so the price shown can never drift from the price paid (the dynamiteDig / dragonTamer / Hunch pattern).
   const buyCost = power.kind === 'buyout' ? buyoutCostOf(run) : undefined;
+  // CROUPIER CIA: her power art is the SUIT that will pay next, not one fixed image — the button is how the
+  // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
+  // ever missing, so a half-wired art folder degrades instead of rendering nothing.
+  const powerArt = power.kind === 'luckySeat' && run.ciaSuit
+    ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
+    : heroPowerArt(hero.id);
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
@@ -181,7 +187,7 @@ export function StatusBar() {
       case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
       case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
       case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
-      case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted cards bought toward the prize
+      case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted buys toward the queued suit (the button art names it)
       case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
       case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
@@ -409,8 +415,8 @@ export function StatusBar() {
               <span className="hpb-glow" aria-hidden="true" />
               {/* Art sits in a CIRCULAR clipping wrapper so the 💠 tuner's art offset/scale dials move the art
                   INSIDE the circle without moving the clip. */}
-              {heroPowerArt(hero.id)
-                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
+              {powerArt
+                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}

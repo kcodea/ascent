@@ -623,7 +623,7 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Soulkeeper',
       kind: 'soulkeeper',
-      cost: 3,
+      cost: 2, // owner balance 2026-08-16: 3 -> 2
       untargeted: true,
       text: 'Discover a minion that died last combat — from **either** side.',
     },
@@ -665,7 +665,7 @@ export const HEROES: HeroDef[] = [
       name: 'Lucky Seat',
       kind: 'luckySeat',
       passive: true,
-      text: 'Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim a prize.',
+      text: 'Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim the suit shown.',
     },
   },
   {

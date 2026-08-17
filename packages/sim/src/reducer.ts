@@ -13,7 +13,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type RunState, type RubyLandedFx } from './state';
+import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -4980,30 +4980,71 @@ function refreshTavern(s: RunState, hold = false): void {
   }
 }
 
+/** Croupier Cia's four rewards, and the suit that will pay next.
+ *
+ * The suit is PUBLIC and chosen in advance (`RunState.ciaSuit`) rather than rolled at payout time, because the
+ * hero-power button shows its art — the player is meant to see what they are working toward. After a payout
+ * the next suit is drawn from the OTHER THREE, so it can never repeat twice in a row (owner spec 2026-08-16).
+ */
+const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs'];
+
+/** Draw the next suit, excluding `avoid`. Seeded like every other pick, so a replay lands the same sequence. */
+function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
+  const pool = CIA_SUITS.filter((x) => x !== avoid);
+  const rng = makeRng(s.rngCursor);
+  const next = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  return next;
+}
+
 /**
- * Croupier Cia (Lucky Seat): count an Enchanted purchase, and pay the prize on the 3rd.
+ * Croupier Cia (Lucky Seat): count an Enchanted purchase, and pay the queued suit on the 3rd.
  *
  * Called from EVERY buy path (spell slot in the minion row, a restored/held offer, and the ordinary minion
  * buy) rather than one of them — the same lesson as `applySpellBought`, which silently did nothing for spells
  * bought from the row because it was only wired to the slot.
  *
- * The prize is a DISCOVER of a minion OR a spell at your current tier (owner ruling 2026-08-16, replacing the
- * first pass's random Shop spell) — the pool is both card kinds together, so a single Discover can offer a mix
- * and the choice is yours. The counter resets whether or not the pick lands, so the streak can't be banked.
+ * The counter resets and the suit re-rolls whether or not the reward could land (a full hand forfeits it, like
+ * a Discover into a full hand), so a streak can never be banked indefinitely.
  */
 function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
   if (!offer.enchanted || getHero(s.heroId).power.kind !== 'luckySeat') return;
   const n = (s.ciaEnchantedBought ?? 0) + 1;
   if (n < 3) { s.ciaEnchantedBought = n; return; }
   s.ciaEnchantedBought = 0;
-  const pool = poolOf(s).buyable.filter((c) => !c.ruby && c.tier <= s.tier);
-  if (pool.length === 0) return;
-  const rng = makeRng(s.rngCursor);
-  const opts = [...pool];
-  const picks: string[] = [];
-  while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
-  s.rngCursor = rng.state();
-  s.discover = picks;
+  const suit = s.ciaSuit ?? 'hearts';
+  const cap = hasTier7Access(s) ? 7 : 6;
+  switch (suit) {
+    case 'hearts': {
+      // Discover a minion of your CURRENT tier.
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === s.tier);
+      if (pool.length > 0) {
+        const rng = makeRng(s.rngCursor);
+        const opts = [...pool];
+        const picks: string[] = [];
+        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        s.rngCursor = rng.state();
+        s.discover = picks;
+      }
+      break;
+    }
+    case 'spades': {
+      // TWO random Shop spells — `conjureToHand` stops at the hand cap on its own.
+      const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
+      if (pool.length > 0) conjureToHand(s, pool, 2);
+      break;
+    }
+    case 'diamonds': {
+      // A random minion from the tier ABOVE you, under the standard Tier-7 ceiling (Pete's clamp).
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === Math.min(s.tier + 1, cap));
+      if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+      break;
+    }
+    case 'clubs':
+      gainGold(s, 3);
+      break;
+  }
+  s.ciaSuit = rollCiaSuit(s, suit); // never the same suit twice running
 }
 
 /**

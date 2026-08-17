@@ -66,18 +66,65 @@ describe('Croupier Cia — Lucky Seat', () => {
     expect(after.shop.some((o) => o.enchanted)).toBe(false);
   });
 
-  it('buying 3 Enchanted cards opens a Discover of your tier and resets the counter', () => {
+  const enchantedBuy = (suit: string, over: object = {}): RunState => {
     const s = {
-      ...createRun(4), phase: 'recruit', heroId: 'cia', embers: 40, tier: 3, hand: [], board: [],
-      ciaEnchantedBought: 2,
+      ...createRun(4), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [],
+      ciaEnchantedBought: 2, ciaSuit: suit,
       shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }],
+      ...over,
     } as RunState;
-    const after = reduce(s, { type: 'buy', uid: 'sx' } as never);
-    expect(after.ciaEnchantedBought, 'reset after the prize').toBe(0);
-    expect(after.hand.length, 'the buy landed in hand').toBe(1);
-    // The prize is now a DISCOVER of a minion OR a spell at your tier (owner ruling 2026-08-16).
+    return reduce(s, { type: 'buy', uid: 'sx' } as never);
+  };
+
+  it('opens with a suit already queued, so the power button has art from turn 1', () => {
+    const s = createRun(7, 'cia') as RunState;
+    expect(['hearts', 'spades', 'diamonds', 'clubs']).toContain(s.ciaSuit);
+  });
+
+  it('HEARTS — Discover a minion of your CURRENT tier', () => {
+    const after = enchantedBuy('hearts');
     expect(after.discover, 'a Discover opened').toBeTruthy();
-    for (const id of after.discover!) expect(CARD_INDEX[id]!.tier, 'up to Shop tier').toBeLessThanOrEqual(3);
+    for (const id of after.discover!) expect(CARD_INDEX[id]!.tier, 'exactly your tier').toBe(3);
+  });
+
+  it('SPADES — two random Shop spells', () => {
+    const after = enchantedBuy('spades');
+    const spells = after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell);
+    expect(spells.length, 'two spells granted').toBe(2);
+  });
+
+  it('DIAMONDS — a random minion from the tier ABOVE you', () => {
+    const after = enchantedBuy('diamonds');
+    const got = after.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell && c.cardId !== 'stray');
+    expect(got.length).toBe(1);
+    expect(CARD_INDEX[got[0]!.cardId]!.tier, 'one tier up').toBe(4);
+  });
+
+  it('DIAMONDS clamps at Tier 6 without Tier 7 access', () => {
+    const after = enchantedBuy('diamonds', { tier: 6 });
+    const got = after.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell && c.cardId !== 'stray');
+    for (const c of got) expect(CARD_INDEX[c.cardId]!.tier, 'stays at 6, never 7').toBe(6);
+  });
+
+  it('CLUBS — 3 Gold', () => {
+    const before = 10 - 3; // the buy itself costs a minion's price
+    const after = enchantedBuy('clubs');
+    expect(after.embers, '3 Gold on top of what the buy left').toBe(before + 3);
+  });
+
+  it('re-rolls the suit after a payout, and NEVER repeats it', () => {
+    for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
+      // Vary the seed so the exclusion is tested against many draws, not one lucky one.
+      for (let seed = 1; seed <= 12; seed++) {
+        const after = enchantedBuy(suit, { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [], ciaEnchantedBought: 2, ciaSuit: suit, shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] });
+        expect(after.ciaSuit, `${suit} must not repeat`).not.toBe(suit);
+        expect(['hearts', 'spades', 'diamonds', 'clubs']).toContain(after.ciaSuit);
+      }
+    }
+  });
+
+  it('resets the counter on payout', () => {
+    expect(enchantedBuy('clubs').ciaEnchantedBought).toBe(0);
   });
 
   it('a plain (un-enchanted) buy does not advance the counter', () => {

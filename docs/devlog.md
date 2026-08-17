@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-16 - Cia's four suits, red/gold Enchanted, Underdweller 2 Gold
+
+Owner follow-ups.
+
+- **Croupier Cia's reward now cycles four suits**, drawn at random but **never the same twice in a row**:
+  **Hearts** Discover a minion of your current tier · **Spades** get 2 random Shop spells · **Diamonds** get a
+  random minion from the tier above (standard Tier-7 clamp) · **Clubs** gain 3 Gold.
+  The suit is **queued in advance and public** (`RunState.ciaSuit`) rather than rolled at payout, because her
+  power BUTTON shows that suit's art — the player is meant to see what they're working toward. Seeded at run
+  start so turn 1 already has art, and re-drawn from the other three on every payout.
+- **Her power art follows the queued suit.** The four files are named for the suit (`CiaHearts.png`, …) rather
+  than the `<Name>HP` convention, so `wire-art` gained explicit entries landing on `cia-<suit>` slugs, which
+  `StatusBar` picks by `run.ciaSuit`. Still a strict name match — just a second naming rule for one hero. Falls
+  back to her plain art if a suit image is ever missing, so a half-wired folder degrades rather than blanks.
+- **The Enchanted treatment is red/gold** (was purple): crimson chain links with white-gold hot cores, and a
+  static gold-core/crimson-bloom aura that breathes. Still transform/opacity only, `prefers-reduced-motion`
+  honoured.
+- **Underdweller's Soulkeeper costs 2 Gold** (was 3).
+
+7 new tests, including one that hammers the no-repeat rule across all four suits × 12 seeds. Full suite 5487
+green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Soulbind fix, Yirin reworked (Reflector), Cia's prize is a Discover
 
 Owner follow-ups on the hero batch.

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Croupier Cia deals four suits** — her reward now cycles at random (never twice running) between **Hearts** (Discover at your tier), **Spades** (2 Shop spells), **Diamonds** (a minion from the tier above) and **Clubs** (3 Gold), with her power button showing the suit that's queued up. Enchanted cards are now red-and-gold. **Underdweller**'s Soulkeeper costs 2.
+
 - **Yirin reworked + the Reflector** — Yirin now starts the run holding a **Reflector** (T1 1/1: spells cast on it also cast on a random friendly, once per turn) at 8 armor. **Croupier Cia**'s prize is now a Discover of a minion or spell at your tier, and the Enchanted card treatment is far more vivid. Fixed **Sable**'s Soulbind, which silently did nothing.
 
 - **Five more heroes** — **Bram** (bank a Gold a turn; the 5th pays a Gilded minion), **Croupier Cia** (Shops seat Enchanted cards; buy 3 for a prize), **Odelle** (play a minion between two others of three different types: all three grow), **Harlan** (buy the entire Shop, then reroll it) and **Sable, the Linksmith** (bind your outermost minions — stats gained by one are gained by the other, combat included). **Rascal** reworked: All In now pays 1 Gold +2 a turn, twice a game, at 6 armor.

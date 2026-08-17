@@ -363,6 +363,10 @@ export interface RubyLandedFx { uid: string; count: number; }
  *  which is only the average, and so is off on an offer that already carried a Ruby before Veinstorm hit it. */
 export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: number; health: number; }
 
+/** Croupier Cia's four rewards. Ordered as the classic suit ranking; the order is not load-bearing (the pick
+ *  is random) but keeps the reward table, the art slugs and the UI reading the same way. */
+export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
+
 export interface RunState {
   seed: number;
   /** Game mode — see `RunMode`.
@@ -695,6 +699,11 @@ export interface RunState {
   heroDiceRollWave?: number;
   /** Bram (Investment): Gold banked toward the Gilded payout. Resets to 0 the moment it reaches 5. */
   bramInvested?: number;
+  /** Croupier Cia (Lucky Seat): the suit QUEUED UP — which of the four rewards the next payout will be. Chosen
+   *  at run start and re-rolled after every payout, never landing on the same suit twice in a row (owner spec
+   *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
+   *  art, so the player can see what they are working toward. */
+  ciaSuit?: CiaSuit;
   /** Croupier Cia (Lucky Seat): Enchanted cards BOUGHT toward the prize (resets at 3). `enchanted` on a Shop
    *  offer is the mark itself — purely cosmetic on the card, and the only thing that feeds this counter. */
   ciaEnchantedBought?: number;
@@ -1588,6 +1597,13 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // Guardian (Runeguard): schedule the Epic Runeforge for turn 8 — advanceCombat's start-of-turn
   // sequencing opens it (behind any quest offer). Cleared once it fires.
   if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
+  // Croupier Cia (Lucky Seat): queue the OPENING suit so her power button has art from turn 1 and the player
+  // can see what the first payout will be. Seeded off the run's own cursor like every other pick.
+  if (hero.power.kind === 'luckySeat') {
+    const rng = makeRng(state.rngCursor);
+    state.ciaSuit = (['hearts', 'spades', 'diamonds', 'clubs'] as const)[rng.int(4)];
+    state.rngCursor = rng.state();
+  }
   // Yirin (Reflector): the run opens holding one. Keyed off the POWER KIND rather than the hero id — Yirin's
   // id is `rohan` (stable for saves), so an id check here would read as a bug to the next person.
   if (hero.power.kind === 'startingReflector') {

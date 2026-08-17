@@ -147,6 +147,13 @@ for (const h of HEROES) {
   heroPowersByName.set(norm(`${h.name}HP`), h.id);
   heroPowersByName.set(norm(`${h.id}HP`), h.id);
 }
+// CROUPIER CIA'S FOUR SUITS: her power art changes with the reward that is queued up, so she has four button
+// images instead of one `CiaHP.png`. They are named for the suit rather than the hero, which the `<Name>HP`
+// convention above can't express — so they get explicit entries, each landing on its own `cia-<suit>` slug the
+// UI picks by `run.ciaSuit`. Still a strict name match, just a second naming rule for one hero.
+for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
+  heroPowersByName.set(norm(`Cia${suit}`), `cia-${suit}`);
+}
 
 /** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
  *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no

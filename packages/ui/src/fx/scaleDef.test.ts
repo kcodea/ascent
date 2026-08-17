@@ -370,7 +370,7 @@ describe('scaling a seeded burst does not disturb its random draws', () => {
     // resize as the emit radius — a scaled-down effect keeping a full-size displacement would drift off
     // its anchor. The squash pair is deliberately absent: those are RATIOS, and scaling a ratio would
     // reshape the effect as it resized instead of resizing it.
-    expect(geometric).toEqual(['speed', 'gravity', 'turbulence', 'emitRadius', 'offsetX', 'offsetY', 'size']);
+    expect(geometric).toEqual(['speed', 'gravity', 'pointGravity', 'turbulence', 'emitRadius', 'offsetX', 'offsetY', 'size']);
     expect(Object.keys(axisTransform(BURST_SPECS, 1, 2))).toEqual(['count']);
   });
 

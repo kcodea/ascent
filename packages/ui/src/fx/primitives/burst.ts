@@ -256,6 +256,10 @@ const SPECS = {
     kind: 'slider', label: 'Gravity', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
     help: 'Downward acceleration in px/sec². 0 is weightless; positive pulls shards down into an arc (coins.json throws at ~1700 to get a real ballistic lob), negative floats them up. It is signed, so the full range covers both.',
   },
+  pointGravity: {
+    kind: 'slider', label: 'Pull to target', group: 'Motion', min: -4000, max: 4000, step: 10, default: 0, axis: 'scale',
+    help: 'A "black hole" pull toward the effect’s TARGET point, in px/sec². Positive draws every shard steadily toward the target, negative pushes them away; 0 is off. Constant strength regardless of distance (it never flings a near shard past the centre). Needs a staged source→target — with no target anchor it does nothing, so it only bites on a def anchored at one point that names another as its target.',
+  },
   life: {
     kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 6000, step: 10, default: 450, essential: true,
     // The canonical `time` param: a duration in ms. A burst emits its whole wave at t=0, so stretching this
@@ -514,6 +518,12 @@ class BurstInstance implements FxInstance<BurstParams> {
   // radians; the fire's staged source→target direction, or null for "no usable direction" (never delivered,
   // or the two points coincide). Set by `setAim`; read ONCE PER WAVE by `emit`. See `resolveBurstAimAngle`.
   private aimAngle: number | null = null;
+  // The fire's staged TARGET point (absolute screen coords), retained for `pointGravity`. `hasTarget` stays
+  // false until `setAim` delivers one (which only happens when BOTH anchors were staged — see `setAim`), so
+  // point-gravity is a clean no-op for any fire with no target. Read per frame in `update`.
+  private targetX = 0;
+  private targetY = 0;
+  private hasTarget = false;
   private timer = 0; // ms since last emit
   private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
 
@@ -565,6 +575,12 @@ class BurstInstance implements FxInstance<BurstParams> {
     const dx = tx - sx;
     const dy = ty - sy;
     this.aimAngle = dx * dx + dy * dy > AIM_EPSILON_SQ ? Math.atan2(dy, dx) : null;
+    // Keep the absolute target point too, for `pointGravity`. Unlike the angle we retain it even when source and
+    // target coincide — a zero-distance pull is harmless and self-cancels in `update`. Reaching this method at
+    // all means both anchors were staged, so a target genuinely exists.
+    this.targetX = tx;
+    this.targetY = ty;
+    this.hasTarget = true;
   }
 
   /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
@@ -669,6 +685,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     }
     const dragF = Math.pow(p.drag, dtMs / DRAG_REF_MS);
     const gravity = p.gravity;
+    const pointGravity = p.pointGravity;
     const turbulence = p.turbulence;
     const turbScale = p.turbScale;
     const orient = p.orientToVelocity;
@@ -702,6 +719,20 @@ class BurstInstance implements FxInstance<BurstParams> {
       particle.x += lp.vx * travel * dtSec;
       particle.y += lp.vy * travel * dtSec;
       lp.vy += gravity * dtSec;
+      // Point-gravity: a constant pull toward the fire's TARGET point (a "black hole"). Gated on BOTH a non-zero
+      // strength AND a staged target, so it is a byte-identical no-op for every existing def. Constant magnitude
+      // (unit direction × strength) so a near shard curves in steadily instead of being flung past the centre the
+      // way an inverse-square law would; the epsilon skips a shard sitting exactly on the target (no direction).
+      if (pointGravity !== 0 && this.hasTarget) {
+        const tdx = this.targetX - particle.x;
+        const tdy = this.targetY - particle.y;
+        const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+        if (tdist > 0.01) {
+          const accel = (pointGravity * dtSec) / tdist;
+          lp.vx += tdx * accel;
+          lp.vy += tdy * accel;
+        }
+      }
       lp.vx *= dragF;
       lp.vy *= dragF;
       // Pseudo-turbulence: a swirling lateral acceleration folded into velocity (turbulence 0 → adds 0, so

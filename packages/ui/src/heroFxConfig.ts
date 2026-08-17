@@ -73,6 +73,13 @@ export interface HeroFxConfig {
   ciaFitRadius: number;
   /** Fit — how far the edges fade out, as a fraction of the short side. Higher = softer, more film-like. */
   ciaFeather: number;
+  // ── COLOUR. Two tones, because a single hue reads as a glow — it is the INTERPLAY of a warm and a cool
+  //    highlight that makes a surface look holographic. Stored as hex strings so the tuner can show real
+  //    colour pickers (`kind: 'color'`) rather than an abstract hue number.
+  /** Foil — the WARM tone (gold by default). Drives the foil, sweep, halo and seal. */
+  ciaColorA: string;
+  /** Foil — the COOL tone (teal by default). The counter-highlight that sells the refraction. */
+  ciaColorB: string;
   /** Soulbind ring — diameter, design px (× --u). */
   sbSize: number;
   /** Soulbind ring — how far BELOW the card's bottom edge it sits, design px (× --u). */
@@ -143,10 +150,20 @@ const DEFAULTS: HeroFxConfig = {
   ciaFitH: 0.92,
   ciaFitRadius: 0.42,
   ciaFeather: 0.35,
+  ciaColorA: '#ffcd6e',
+  ciaColorB: '#78ebe1',
 };
 
+export const HFX_NUM_KEYS = [
+  'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
+  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings', 'sbBuild', 'sbFlash',
+  'ciaFoilOpacity', 'ciaHoverBoost', 'ciaFoilPeriod', 'ciaSweepPeriod', 'ciaSweepDuration', 'ciaSweepAngle',
+  'ciaSweepWidth', 'ciaHaloOpacity', 'ciaHaloPeriod', 'ciaHaloInset', 'ciaGlintCount', 'ciaGlintSize',
+  'ciaSealSize', 'ciaFitX', 'ciaFitY', 'ciaFitW', 'ciaFitH', 'ciaFitRadius', 'ciaFeather',
+] as const;
+
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = {
+export const HFX_RANGES: Record<(typeof HFX_NUM_KEYS)[number], [number, number, number]> = {
   encInset: [-24, 12, 0.5],
   encH: [0.5, 20, 0.5],
   encBlur: [0, 12, 0.25],
@@ -191,13 +208,6 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   ciaFeather: [0, 0.9, 0.01],
 };
 
-export const HFX_NUM_KEYS = [
-  'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
-  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings', 'sbBuild', 'sbFlash',
-  'ciaFoilOpacity', 'ciaHoverBoost', 'ciaFoilPeriod', 'ciaSweepPeriod', 'ciaSweepDuration', 'ciaSweepAngle',
-  'ciaSweepWidth', 'ciaHaloOpacity', 'ciaHaloPeriod', 'ciaHaloInset', 'ciaGlintCount', 'ciaGlintSize',
-  'ciaSealSize', 'ciaFitX', 'ciaFitY', 'ciaFitW', 'ciaFitH', 'ciaFitRadius', 'ciaFeather',
-] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as HFX_DEFAULTS };
 
@@ -268,6 +278,13 @@ export function setHeroFxValue(key: keyof HeroFxConfig, value: number): void {
   applyHeroFxVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
+/** Colour keys go through their own setter — the panel routes `kind: 'color'` here via `writeColor`. */
+export function setHeroFxColor(key: 'ciaColorA' | 'ciaColorB', value: string): void {
+  cfg = { ...cfg, [key]: value };
+  applyHeroFxVars();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
+}
+
 export function resetHeroFxConfig(): void {
   cfg = { ...DEFAULTS };
   applyHeroFxVars();

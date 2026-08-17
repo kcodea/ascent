@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cia's foil gets two real colour pickers
+
+The tuner schema already supports `kind: 'color'` (hex strings through `writeColor`), so the foil gets proper
+pickers rather than an abstract hue number: **Warm tone** and **Cool tone**, under *Cia: Enchanted foil*.
+
+TWO colours, not one, and that is the point: a single hue reads as a glow. It is the interplay between a warm
+and a cool highlight that makes a surface look holographic, so both drive the gradients — warm carries the
+foil body, sweep tail, halo arcs and seal; cool is the counter-highlight threaded between them.
+
+The colours are BAKED into the textures rather than applied as a Pixi `tint`, because a tint is a multiply: it
+can only push everything toward one colour, which would flatten exactly the two-tone interplay being tuned.
+The texture set is cached per `(warm, cool)` pair and rebuilt only when a picker moves, so the steady-state
+cost is unchanged; live sprites are re-pointed at the new set through the same fit-key path that already
+handles the shape dials.
+
+`heroFxConfig` now holds string values alongside numbers, so `HFX_RANGES` is keyed off `HFX_NUM_KEYS` rather
+than `keyof HeroFxConfig`, and colour writes go through their own `setHeroFxColor`. Old saved partials still
+merge over the new defaults, so nothing dialled previously is lost.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Cia's foil gets FIT + FEATHER dials; hidden while its card is dragged
 
 I guessed the foil's shape twice and was wrong twice, so this hands the shape to the tuner instead of guessing

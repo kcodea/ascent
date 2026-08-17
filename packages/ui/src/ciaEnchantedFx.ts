@@ -24,11 +24,23 @@ const U = 1;
 
 /* ── Textures (built once, reused forever) ───────────────────────────────────────────────────────────── */
 
-let foilTex: Texture | null = null;
-let sweepTex: Texture | null = null;
-let haloTex: Texture | null = null;
-let glintTex: Texture | null = null;
-let sealTex: Texture | null = null;
+/**
+ * The colour-bearing textures, cached per (warm, cool) pair.
+ *
+ * They bake their gradients rather than being tinted at draw time, because a holographic surface needs TWO
+ * tones interleaved — a single `tint` multiply can only push everything toward one colour and would flatten
+ * exactly the interplay that makes it read as foil. Rebuilt only when the owner moves a colour picker, so the
+ * steady-state cost is unchanged.
+ */
+interface ColorTextures { foil: Texture; sweep: Texture; halo: Texture; glint: Texture; seal: Texture }
+const colorCache = new Map<string, ColorTextures>();
+
+/** `#rrggbb` → `r, g, b` for use inside an `rgba()` string. */
+function rgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
 
 function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): Texture {
   const cv = document.createElement('canvas');
@@ -39,16 +51,16 @@ function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => 
 }
 
 /** A crystalline gold/teal/white wash. Drifts under the mask; never seen as a full rainbow sheet. */
-function makeFoil(): Texture {
+function makeFoil(A: string, B: string): Texture {
   return canvasTex(256, 256, (c) => {
     const g = c.createLinearGradient(0, 256, 256, 0);
-    g.addColorStop(0.00, 'rgba(255, 205, 110, 0.00)');
-    g.addColorStop(0.18, 'rgba(255, 219, 150, 0.85)');
+    g.addColorStop(0.00, `rgba(${A}, 0.00)`);
+    g.addColorStop(0.18, `rgba(${A}, 0.85)`);
     g.addColorStop(0.34, 'rgba(255, 255, 255, 0.95)');
-    g.addColorStop(0.50, 'rgba(120, 235, 225, 0.85)');
+    g.addColorStop(0.50, `rgba(${B}, 0.85)`);
     g.addColorStop(0.66, 'rgba(255, 255, 255, 0.80)');
-    g.addColorStop(0.82, 'rgba(255, 205, 110, 0.75)');
-    g.addColorStop(1.00, 'rgba(255, 205, 110, 0.00)');
+    g.addColorStop(0.82, `rgba(${A}, 0.75)`);
+    g.addColorStop(1.00, `rgba(${A}, 0.00)`);
     c.fillStyle = g;
     c.fillRect(0, 0, 256, 256);
     // Faceting: a few soft diagonal bands so it reads as crystal rather than a smooth ramp.
@@ -58,7 +70,7 @@ function makeFoil(): Texture {
       c.translate(128, 128);
       c.rotate((-35 * Math.PI) / 180);
       c.globalAlpha = 0.10 + (i % 3) * 0.05;
-      c.fillStyle = i % 2 ? '#9ff3e8' : '#ffe6b0';
+      c.fillStyle = i % 2 ? `rgb(${B})` : `rgb(${A})`;
       c.fillRect(-180 + i * 46, -180, 10 + (i % 3) * 6, 360);
       c.restore();
     }
@@ -66,21 +78,21 @@ function makeFoil(): Texture {
 }
 
 /** The travelling band: a narrow white-hot leading edge with a wider, dimmer gold/teal body behind it. */
-function makeSweep(): Texture {
+function makeSweep(A: string, B: string): Texture {
   return canvasTex(128, 8, (c) => {
     const g = c.createLinearGradient(0, 0, 128, 0);
-    g.addColorStop(0.00, 'rgba(255, 210, 120, 0.00)');
-    g.addColorStop(0.55, 'rgba(150, 240, 230, 0.45)');
+    g.addColorStop(0.00, `rgba(${A}, 0.00)`);
+    g.addColorStop(0.55, `rgba(${B}, 0.45)`);
     g.addColorStop(0.82, 'rgba(255, 255, 255, 1.00)'); // the hot edge, deliberately near the front
-    g.addColorStop(0.92, 'rgba(255, 240, 200, 0.60)');
-    g.addColorStop(1.00, 'rgba(255, 210, 120, 0.00)');
+    g.addColorStop(0.92, `rgba(${A}, 0.60)`);
+    g.addColorStop(1.00, `rgba(${A}, 0.00)`);
     c.fillStyle = g;
     c.fillRect(0, 0, 128, 8);
   });
 }
 
 /** A SEGMENTED contour — gold with teal-white highlights, broken into arcs so it reads as enchanted script. */
-function makeHalo(): Texture {
+function makeHalo(A: string, B: string): Texture {
   const S = 256;
   return canvasTex(S, S, (c) => {
     c.translate(S / 2, S / 2);
@@ -90,7 +102,7 @@ function makeHalo(): Texture {
       const a0 = (i / segs) * Math.PI * 2;
       const a1 = a0 + (Math.PI * 2) / segs * 0.55; // broken: each arc covers just over half its slot
       c.beginPath();
-      c.strokeStyle = i % 3 === 0 ? 'rgba(190, 255, 245, 0.95)' : 'rgba(255, 206, 120, 0.9)';
+      c.strokeStyle = i % 3 === 0 ? `rgba(${B}, 0.95)` : `rgba(${A}, 0.9)`;
       c.lineWidth = i % 3 === 0 ? 3 : 2;
       c.arc(0, 0, S / 2 - 8, a0, a1);
       c.stroke();
@@ -99,13 +111,13 @@ function makeHalo(): Texture {
 }
 
 /** A four-point diamond spark. Pre-blurred by construction (a soft radial), so no live blur filter is needed. */
-function makeGlint(): Texture {
+function makeGlint(A: string, B: string): Texture {
   const S = 64;
   return canvasTex(S, S, (c) => {
     const g = c.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.35, 'rgba(210,255,250,0.55)');
-    g.addColorStop(1, 'rgba(255,215,140,0)');
+    g.addColorStop(0.35, `rgba(${B}, 0.55)`);
+    g.addColorStop(1, `rgba(${A}, 0)`);
     c.fillStyle = g;
     c.fillRect(0, 0, S, S);
     c.globalCompositeOperation = 'lighter';
@@ -117,15 +129,15 @@ function makeGlint(): Texture {
 }
 
 /** The enchanted SEAL — a small non-text mark near the top, tying the card to Cia's 3-card progress. */
-function makeSeal(): Texture {
+function makeSeal(A: string, B: string): Texture {
   const S = 64;
   return canvasTex(S, S, (c) => {
     c.translate(S / 2, S / 2);
     c.rotate(Math.PI / 4);
     const g = c.createLinearGradient(-20, -20, 20, 20);
-    g.addColorStop(0, 'rgba(255, 226, 160, 1)');
+    g.addColorStop(0, `rgba(${A}, 1)`);
     g.addColorStop(0.5, 'rgba(255, 255, 255, 1)');
-    g.addColorStop(1, 'rgba(130, 240, 228, 1)');
+    g.addColorStop(1, `rgba(${B}, 1)`);
     c.fillStyle = g;
     c.fillRect(-15, -15, 30, 30);
     c.strokeStyle = 'rgba(120, 80, 20, 0.55)';
@@ -169,12 +181,17 @@ function maskFor(radiusFrac: number, featherFrac: number): Texture {
   return tex;
 }
 
-function ensureTextures(): void {
-  foilTex ??= makeFoil();
-  sweepTex ??= makeSweep();
-  haloTex ??= makeHalo();
-  glintTex ??= makeGlint();
-  sealTex ??= makeSeal();
+/** Build (or reuse) the texture set for the current colour pair, and remember it as the live set. */
+function ensureTextures(): ColorTextures {
+  const cfg = getHeroFxConfig();
+  const key = `${cfg.ciaColorA}|${cfg.ciaColorB}`;
+  let set = colorCache.get(key);
+  if (!set) {
+    const A = rgb(cfg.ciaColorA), B = rgb(cfg.ciaColorB);
+    set = { foil: makeFoil(A, B), sweep: makeSweep(A, B), halo: makeHalo(A, B), glint: makeGlint(A, B), seal: makeSeal(A, B) };
+    colorCache.set(key, set);
+  }
+  return set;
 }
 
 /* ── One enchanted offer's display tree ──────────────────────────────────────────────────────────────── */
@@ -212,11 +229,11 @@ interface Offer {
 }
 
 function buildOffer(uid: string): Offer {
-  ensureTextures();
+  const t = ensureTextures();
   const root = new Container();
   root.eventMode = 'none'; // never a hit target — the DOM owns interaction
 
-  const halo = new Sprite(haloTex!);
+  const halo = new Sprite(t.halo);
   halo.anchor.set(0.5);
   halo.blendMode = 'add';
 
@@ -224,10 +241,10 @@ function buildOffer(uid: string): Offer {
   clipped.eventMode = 'none';
   const mask = new Sprite(Texture.WHITE); // real shape assigned on first layout, from the tuner's dials
   mask.anchor.set(0.5);
-  const foil = new Sprite(foilTex!);
+  const foil = new Sprite(t.foil);
   foil.anchor.set(0.5);
   foil.blendMode = 'add';
-  const sweep = new Sprite(sweepTex!);
+  const sweep = new Sprite(t.sweep);
   sweep.anchor.set(0.5);
   sweep.blendMode = 'add';
   clipped.addChild(mask, foil, sweep);
@@ -238,7 +255,7 @@ function buildOffer(uid: string): Offer {
   const glintBox = new Container();
   glintBox.eventMode = 'none';
   for (let i = 0; i < GLINT_POOL; i++) {
-    const g = new Sprite(glintTex!);
+    const g = new Sprite(t.glint);
     g.anchor.set(0.5);
     g.blendMode = 'add';
     g.visible = false;
@@ -247,7 +264,7 @@ function buildOffer(uid: string): Offer {
     glintBox.addChild(g);
   }
 
-  const seal = new Sprite(sealTex!);
+  const seal = new Sprite(t.seal);
   seal.anchor.set(0.5);
   seal.blendMode = 'add';
 
@@ -348,7 +365,7 @@ class CiaEnchantedFx {
       const nay = ar ? ar.top + ar.height / 2 - (r.top + r.height / 2) : 0;
       const naw = ar?.width || r.width * 0.86;
       const nah = ar?.height || r.height * 0.56;
-      const fitKey = `${cfg.ciaFitX}|${cfg.ciaFitY}|${cfg.ciaFitW}|${cfg.ciaFitH}|${cfg.ciaFitRadius}|${cfg.ciaFeather}|${cfg.ciaSealSize}|${cfg.ciaHaloInset}|${cfg.ciaSweepWidth}|${cfg.ciaSweepAngle}`;
+      const fitKey = `${cfg.ciaFitX}|${cfg.ciaFitY}|${cfg.ciaFitW}|${cfg.ciaFitH}|${cfg.ciaFitRadius}|${cfg.ciaFeather}|${cfg.ciaSealSize}|${cfg.ciaHaloInset}|${cfg.ciaSweepWidth}|${cfg.ciaSweepAngle}|${cfg.ciaColorA}|${cfg.ciaColorB}`;
       const resized = r.width !== o.w || r.height !== o.h || naw !== o.aw || nah !== o.ah
         || nax !== o.ax || nay !== o.ay || fitKey !== o.fitKey;
       o.fitKey = fitKey;

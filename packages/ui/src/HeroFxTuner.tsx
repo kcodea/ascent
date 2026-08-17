@@ -1,4 +1,4 @@
-import { HFX_DEFAULTS, HFX_NUM_KEYS, HFX_RANGES, getHeroFxConfig, resetHeroFxConfig, setHeroFxValue, type HeroFxConfig } from './heroFxConfig';
+import { HFX_DEFAULTS, HFX_NUM_KEYS, HFX_RANGES, getHeroFxConfig, resetHeroFxConfig, setHeroFxColor, setHeroFxValue, type HeroFxConfig } from './heroFxConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -62,15 +62,23 @@ const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KE
   return { key, label, unit, hint, group, min, max, step };
 });
 
+/** The two colour pickers. Declared separately from the numeric map because they are `kind: 'color'` and go
+ *  back through `writeColor` as hex strings, not through the numeric setter. */
+const colorControls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = [
+  { key: 'ciaColorA', label: 'Warm tone', hint: 'The gold half of the foil. Drives the sweep, halo and seal.', group: 'Cia: Enchanted foil', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'ciaColorB', label: 'Cool tone', hint: 'The teal counter-highlight. The contrast between the two is what reads as holographic.', group: 'Cia: Enchanted foil', kind: 'color', min: 0, max: 0, step: 0 },
+];
+
 export const SPEC: TunerSpec<HeroFxConfig> = {
   id: 'herofx',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Card FX',
   note: 'dev · live · drag',
   read: getHeroFxConfig,
   write: setHeroFxValue,
+  writeColor: (k, v) => setHeroFxColor(k as 'ciaColorA' | 'ciaColorB', v),
   reset: resetHeroFxConfig,
   defaults: HFX_DEFAULTS,
-  controls,
+  controls: [...controls, ...colorControls],
 };
 
 export function HeroFxTuner(): JSX.Element {

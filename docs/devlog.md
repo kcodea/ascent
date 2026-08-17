@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-17 — FX: burst "Pull to target" (point-gravity / black-hole)
+
+New `pointGravity` slider on the burst primitive: a constant acceleration pulling every particle toward the
+effect's TARGET point, in px/sec² (signed — positive draws in, negative pushes away; 0 off). Lets an effect
+gather its shards into a unit like a black hole. The target point already reached the primitive every frame via
+`setAim(sx,sy,tx,ty)` but was collapsed to an aim ANGLE and the coords discarded; now `setAim` also retains
+`targetX/targetY` + a `hasTarget` flag, and the per-frame update adds a unit-direction × strength acceleration
+toward it, beside the existing Y `gravity`. Constant magnitude (not inverse-square) so a near shard curves in
+steadily instead of being flung past centre; an epsilon skips a shard sitting on the target. Gated on non-zero
+strength AND a staged target, so it's a byte-identical no-op for every existing def and (acting only in `update`,
+never `emit`) draws no RNG — locked seeds and replays are untouched. The `axis: 'scale'` list golden in
+`scaleDef.test.ts` gains `pointGravity`. Author a black hole by anchoring the burst at `source` with the unit as
+`target`. Verified: typecheck + lint + test 5560/5560 + build.
+
 ## 2026-08-17 — docs: account email unblocked via Gmail SMTP; Resend deferred to release
 
 **Supersedes the entry below, same day.** That entry concluded the block was unfixable without a domain. It

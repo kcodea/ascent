@@ -21,6 +21,9 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
+  buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry
+  once (or pre-render to a texture) and animate transform/alpha instead. Far narrower than the items below.
 - **PERF: shop-phase plan is scoped — [`docs/perf-shop-phase-plan.md`](perf-shop-phase-plan.md).** Two traces
   agree that `render:recruit` + `layout:flip` are ~94% of measured time while the sim and reducers are ~0.
   Order: **A** isolate drag/purchase rendering (staged, one PR per stage), **B** card-view signature cache,

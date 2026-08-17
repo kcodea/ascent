@@ -1,24 +1,62 @@
 # Shop-phase performance — the plan
 
 **Status 2026-08-17:** scoped, not started. Derived from Codex's three-item audit, **corrected against the
-code** (its item 1 is largely already built) and re-ordered accordingly.
+code**, then **re-prioritised after a full-run trace** (647s, a whole run including combat).
 
 Goal: make buying feel immediate, especially several purchases in quick succession, without changing game
 rules, card behaviour, authored FX, or how a purchase looks.
 
 ---
 
-## What the measurements actually say
+## ‼ FIRST: `buffGust` is ~half of all jank
 
-Two independent traces agree on the shape:
+The long trace makes one effect stand out far above everything else:
+
+| | buckets | avg jank | avg long | **avg fps** |
+|---|---:|---:|---:|---:|
+| containing `fx:gust` | 16 | 30.8 | 37.5 | **87.4** |
+| everything else | 586 | 0.9 | 3.2 | **229.9** |
+
+Sixteen buckets out of 599 carry **492 of the run's 989 jank frames**. Frame rate inside them collapses from
+~230fps to ~87fps.
+
+**Root cause, from `pixiFx.buffGust`'s own doc comment:** *"Redrawn per frame into one additive Graphics."*
+Rebuilding vector geometry every frame re-tessellates on the CPU and re-uploads to the GPU each time — it is
+the specific thing `docs/performance.md` forbids ("do not allocate new Graphics, Sprite, arrays, or textures
+every frame").
+
+This is a far narrower fix than any of A/B/C below and buys roughly half the jank. **Do it first.** Likely
+shape: build the gust geometry ONCE per invocation and animate transform/alpha, or pre-render the streaks to a
+texture the way the Cia foil does, rather than redrawing paths per frame.
+
+---
+
+## Two trace-reading cautions
+
+**1. Ignore the giant "worst frame" values.** The worst buckets read 42,426ms, 2,900ms and 1,404ms — with
+only ~2ms of measured work in them. Those are tab-backgrounding / idle gaps where rAF is throttled, not
+frames. Taking them at face value would distort every conclusion. The summary's own `worstFrame: 91.6` is the
+figure to trust.
+
+**2. `odds:deferred` looks alarming and is fine.** 31 calls, 491.9ms total, max 32.6ms — but the buckets
+containing it average 1.5 jank and 231fps. It genuinely runs in idle time, as designed. Do NOT prioritise it
+on the strength of its max.
+
+---
+
+## What the measurements actually say
 
 | Source | `render:recruit` | `layout:flip` | reducers |
 |---|---:|---:|---:|
-| Owner trace, 30s @ 240Hz (prod-ish) | 330.2ms total, max **13.2ms** | 313.0ms total, max 12.8ms | ~1ms |
-| Codex rapid-buy profile (dev Scene Builder) | **17.5ms** | 4.9ms | 0.2ms (3 buys) |
+| Full run, 647s @ 240Hz | **5153.3ms** (n=3010, max 19.4) | **4131.8ms** (n=925, max 14.4) | ~110ms across ALL reducers |
+| Owner trace, 30s @ 240Hz | 330.2ms (max 13.2) | 313.0ms (max 12.8) | ~1ms |
+| Codex rapid-buy profile (dev Scene Builder) | 17.5ms | 4.9ms | 0.2ms (3 buys) |
 
-Both put React rendering + layout at **~94% of measured time**, and both put the simulator and the `buy`
-reducer at effectively zero. The bottleneck is presentation, not simulation.
+All three put React rendering + layout at **~89-94% of measured time**, and all three put the simulator and
+reducers at effectively zero (`reduce:buy` is 17.6ms across 60 calls — 0.29ms each). The bottleneck is
+presentation, not simulation.
+
+Jank is overwhelmingly **recruit-phase**: 947 of 989 jank frames, versus 46 in combat.
 
 The 240Hz budget is **4.17ms**. A single 13.2ms recruit render burns three whole frames — so this is not death
 by a thousand cuts, it is a handful of very expensive spikes on action.

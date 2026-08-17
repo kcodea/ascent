@@ -8,7 +8,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV-only tuner for the HERO PANEL — the bottom-left tray. Every part gets its own offset and size, because
  * they are laid out against each other rather than on a grid: the portrait square, the two name pills and the
- * Resolve box each need nudging independently once any one of them changes.
+ * Health box each need nudging independently once any one of them changes.
  *
  * LANGUAGE. The two square-size dials read "square · width (0=snug)" — a default encoded in the label. 0 means
  * "size to the art"; that now lives in the hint where there is room to say it properly.
@@ -33,9 +33,9 @@ const SPECS: Record<keyof HeroPanelConfig, [string, TunerUnit | undefined, strin
   heroNameY:       ['Vertical nudge', 'px', 'Slides the hero-name pill vertically.', 'Hero name'],
   heroNameScale:   ['Size', '×', 'Hero-name pill size.', 'Hero name'],
 
-  resolveX:        ['Horizontal nudge', 'px', 'Slides the Resolve box sideways.', 'Resolve box'],
-  resolveY:        ['Vertical nudge', 'px', 'Slides the Resolve box vertically.', 'Resolve box'],
-  resolveScale:    ['Size', '×', 'Resolve box size.', 'Resolve box'],
+  resolveX:        ['Horizontal nudge', 'px', 'Slides the Health box sideways.', 'Health box'],
+  resolveY:        ['Vertical nudge', 'px', 'Slides the Health box vertically.', 'Health box'],
+  resolveScale:    ['Size', '×', 'Health box size.', 'Health box'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */

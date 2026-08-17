@@ -5388,7 +5388,7 @@ export function Recruit() {
                   <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
                 </div>
                 {combatOdds.lose > 0 && (
-                  <div className="oddsavg" title="Average Resolve lost across the losing simulations (round-capped) — what a typical loss of this matchup costs.">
+                  <div className="oddsavg" title="Average Health lost across the losing simulations (round-capped) — what a typical loss of this matchup costs.">
                     Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
                   </div>
                 )}

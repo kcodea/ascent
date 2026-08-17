@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-17 — Resolve is now "Health" (display-only)
+
+Owner ask: rename the hero's life total from **Resolve** to **Health** across the board. Done the same way as
+the 2026-07-17 vocabulary pass (Rating→Renown, Line→Oath): **display strings only — every identifier stays.**
+
+That split is not tidiness, it is a save-compatibility constraint. `resolve` / `maxResolve` are fields on
+`RunState`, which is PERSISTED: renaming them would invalidate every saved run, every stored replay, and the
+lobby-seat payloads (`startingResolve`, `seatResolve`). The rules doc now states the split explicitly, so the
+next reader isn't surprised that code and players use different words for the same number.
+
+Player-facing strings changed — every one is a tooltip except the mode blurb:
+
+- `StatusBar` — the hero HP box, `Resolve: 24 of 30` → `Health: 24 of 30`
+- `HeroSelect` — "Starting Resolve (HP)" → "Starting Health"; the Armor tooltip's "on top of Resolve" too
+- `MinionBook` — the hero browser's "Starting Resolve (HP) + Armor" → "Starting Health + Armor"
+- `HudBar` + `LobbyPanel` — the max-loss pills, "Most Resolve you can lose…" → "Most Health…"
+- `Recruit` — the combat-odds "Average Resolve lost…" → "Average Health lost…"
+- The dev Hero Panel tuner's "Resolve box" labels → "Health box" (its config KEYS stay `resolveX/Y/Scale`)
+
+Deliberately NOT renamed: `ProcHarness`'s "Resolve the open Choose One first" and friends — that is the verb,
+not the stat. A blind find-and-replace would have broken those three strings, which is the trap in this kind
+of rename.
+
+`docs/GAME-RULES.md` renamed throughout (its "Resolve & economy" heading included) with a note recording the
+display-only split. `docs/devlog.md` deliberately NOT rewritten: it is a historical record, and past entries
+described the stat as it was named then. Content carried no card, hero, quest or rune TEXT mentioning it, so
+no card data changed.
+
 ## 2026-08-17 — Lobby is "Play": mode-picker copy + the first mode tile art
 
 Owner pass over the mode picker, all presentation — **no run mode, id, or rule changed.** The mode is still
@@ -10,9 +38,13 @@ player reads is different. Same display-only discipline as the 2026-07-17 vocabu
   from `8 seats · last one standing` to **`8 players · last player standing`** (its `aria-label` too). Every
   remaining `Lobby` in the UI is an internal identifier — component names, types, the dev-menu "Lobby Rail"
   tuner — and stays.
-- **"8 seats" → "8 players"** on the tag pill; the description is now **"8 players. Last player standing
-  wins."**, replacing "Eight climbers, one survivor. Every fight deals damage both ways — outlast the table."
-  The both-ways damage rule is no longer stated here; it is taught by the lobby rail in-run.
+- **The tag pills are gone** from both cards (owner: unnecessary). "8 seats"/"Unscored" briefly became
+  "8 players"/"Unscored" before the pills were dropped entirely. `.mctag` and its CSS stay — the Rift card
+  still uses one to carry the live rift's name.
+- **Descriptions** are now **"8 players. Last player standing wins."** (replacing "Eight climbers, one
+  survivor. Every fight deals damage both ways — outlast the table.") and, for Practice, **"Choose any hero
+  with unlimited Health and longer shop timers."** The both-ways damage rule is no longer stated here; it is
+  taught by the lobby rail in-run.
 - **"Choose your climb"** eyebrow removed, and its now-dead `.mpeyebrow` rule deleted rather than left
   orphaned.
 

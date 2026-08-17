@@ -26,10 +26,10 @@ export function HudBar() {
         <span className="wavecol">
           {/* Course/Ascent only (a lobby hides this whole plaque and uses the rail). */}
           <span className="w">ROUND {run.wave} / {CONFIG.courseRounds}</span>
-          {/* The most Resolve a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
-              Practice, where Resolve is unlimited and losses deal no damage. */}
+          {/* The most Health a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
+              Practice, where Health is unlimited and losses deal no damage. */}
           {!practice && (
-            <span className="maxdmg" title="Most Resolve you can lose if you lose this combat">
+            <span className="maxdmg" title="Most Health you can lose if you lose this combat">
               <Icon name="heart" />{Number.isFinite(lossDamageCap(run.wave)) ? `Max −${lossDamageCap(run.wave)}` : 'No cap'}
             </span>
           )}

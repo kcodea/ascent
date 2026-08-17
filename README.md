@@ -44,7 +44,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), the format reads **8 players · last player standing**, and the picker's eyebrow line is gone. Display only: the mode is still `lobby` everywhere under the hood.
+- **Resolve is now Health** — the hero's life total is called **Health** everywhere it's shown. Display only; saves and replays are unaffected.
+
+- **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), pared back to just the name and a one-line blurb. Display only: the mode is still `lobby` everywhere under the hood.
 
 - **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
 

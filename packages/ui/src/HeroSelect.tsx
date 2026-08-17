@@ -96,10 +96,10 @@ export function HeroSelect() {
                   {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                 </div>
                 <div className="hcname">{hero.name}</div>
-                <div className="hchp" title="Starting Resolve (HP)">
+                <div className="hchp" title="Starting Health">
                   <Icon name="heart" />
                   {hero.resolve}
-                  {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Resolve">+{hero.armor}</span>}
+                  {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Health">+{hero.armor}</span>}
                 </div>
                 <div className="hcpw">
                   <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />

@@ -625,8 +625,9 @@ export function simulate(
         const side = boards[target.side];
         const i = side.indexOf(target);
         if (i < 0) return false;
-        const isDragon = target.tribe === 'dragon' || target.tribe2 === 'dragon';
-        if (!isDragon) return false;
+        // `isTribeOf`, not a bare tribe compare — an all-tribes body (Paragon, Lab Experiment) IS a Dragon
+        // for every other Dragon check in the engine, so it must be one here too (owner 2026-08-17).
+        if (!isTribeOf(target, 'dragon', cards)) return false;
         for (const nb of [side[i - 1], side[i + 1]]) {
           if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return true;
         }

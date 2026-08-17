@@ -125,6 +125,20 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
     expect(kept.has('F'), 'F is buffed twice but adjacent to neither — it keeps nothing').toBe(false);
   });
 
+  it('an ALL-TYPES neighbour is a Dragon for the aura too', () => {
+    // Paragon counts as every tribe, so it is a Dragon for every other Dragon check in the engine — it must be
+    // buffed AND engraved like one (owner 2026-08-17; the first cut compared tribes directly and missed it).
+    const paragon = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && !d.token)!;
+    const r = simulate(
+      [bm(paragon.id, 'P', 0, 9999), bm('d2_transcendence', 'T', 0, 9999)],
+      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
+      makeRng(7), CARD_INDEX, combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }),
+    );
+    const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
+    expect(kept.get('P')?.attack, 'Paragon should keep the +3/+3 like any adjacent Dragon').toBe(3);
+    expect(kept.get('P')?.engraved).toBe(true);
+  });
+
   it('golden doubles the buff, not the Engrave', () => {
     const buffs = fight(true).events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number }[];
     expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 6), 'golden should give +6/+6').toBe(true);

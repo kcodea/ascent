@@ -167,6 +167,15 @@ describe('Odelle — Exhibition', () => {
     it('rejects two of the same type', () => {
       expect(threeDistinctTypes([c('alley'), c('pack'), c('impoverseer')])).toBe(false);
     });
+    it('an ALL-TYPES body always counts as the odd one out (owner ruling 2026-08-17)', () => {
+      // Paragon counts as every tribe, so it can never be the reason an exhibition fails — not even beside two
+      // minions that already share a type between them, and not even beside a second all-types body.
+      const paragon = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell)!;
+      expect(threeDistinctTypes([c('alley'), c(paragon.id), c('impoverseer')]), 'Beast + Paragon + Demon').toBe(true);
+      expect(threeDistinctTypes([c('alley'), c(paragon.id), c('pack')]), 'two Beasts flanking Paragon').toBe(false);
+      const other = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && d.id !== paragon.id);
+      if (other) expect(threeDistinctTypes([c(paragon.id), c(other.id), c('alley')]), 'two wildcards').toBe(true);
+    });
     it('reads a DUAL-type card as whichever type avoids the clash (owner ruling)', () => {
       // Bane is Dragon/Demon. Beside a plain Dragon it must be read as a DEMON, so the pair is 2 types...
       const bane = CARD_INDEX['bane'];

@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-17 - Paragon counts as every tribe for Odelle and for Transcendant
+
+Two bugs with one cause: an all-tribes body (Paragon, Lab Experiment) was being read as a fixed tribe pair
+instead of a wildcard.
+
+**Odelle's Exhibition** wanted "three different types" and rejected Paragon outright, because its tribe list
+came back empty (neutral) and the guard treats a typeless body as unable to be one of three. Paragon can be any
+type, so it can *never* be the reason an exhibition fails — it is now pulled out of the assignment problem
+entirely and only the fixed bodies need distinct types. Two Beasts flanking it still fail, correctly: the
+wildcard covers itself, not them.
+
+**Transcendant's Engrave aura** buffed Paragon but didn't engrave it. The Start-of-Combat buff went through the
+factory's tribe check, which already honoured `universalTribe`, while the aura I added yesterday compared
+`tribe`/`tribe2` directly — so the two halves of the same card disagreed about whether Paragon is a Dragon. The
+aura now uses the shared `isTribeOf` helper, which is what every other Dragon check in the engine uses.
+
+Verified: typecheck + lint + `npm test` (5558) + `build:web` green, with a new case on each side.
+
 ## 2026-08-17 - Rune of the Long Shift pays out the moment you take it
 
 Reworded to **"Discover 2 Shop Spells. Repeat every Start of Turn."** and made the first pair fire on

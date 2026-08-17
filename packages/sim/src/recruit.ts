@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type DiscoverSpec, type RunState, type ShopCard } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -528,6 +528,27 @@ export function exhibitionGrantOf(state: RunState): number {
   // one source of truth (every play routes through `applyCardsPlayed`), and a second tally would only be a
   // second thing to keep in sync.
   return 2 + 2 * Math.floor((state.cardsPlayedTotal ?? 0) / 4);
+}
+
+/** Cia (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and
+ *  nothing else — the player should see the one thing that will actually happen, not a four-line table (owner
+ *  ask 2026-08-16). The reducer's payout switch and this map are the same four cases by construction. */
+export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
+  hearts: '**Hearts:** Discover a minion of your Tavern Tier.',
+  spades: '**Spades:** get **2** random Shop spells.',
+  diamonds: '**Diamonds:** get a random minion from the tier **above** you.',
+  clubs: '**Clubs:** gain **3 Gold**.',
+};
+
+/** The hero power's LIVE rule text. Static for every hero except Cia, whose printed rule is the queued suit's
+ *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power. */
+export function heroPowerText(state: RunState): string {
+  const power = getHero(state.heroId).power;
+  if (power.kind === 'luckySeat') {
+    const suit = state.ciaSuit ?? 'hearts';
+    return `Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim: ${CIA_SUIT_TEXT[suit]}`;
+  }
+  return power.text;
 }
 
 /** Harlan (Buyout): 11 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it re-bases to

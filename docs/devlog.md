@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-16 - Cia prints only her queued suit; calmer Enchanted glow; Soulbind ring
+
+- **Cia's power text is now the QUEUED suit's reward and nothing else** (owner ask): "Buy 3 to claim:
+  **Hearts:** Discover a minion of your Tavern Tier." and so on, one line, never a table of four. Added
+  `heroPowerText(state)` in `@game/sim` — static for every other hero — so the panel and the reducer's payout
+  switch can't drift. This is the live-card-text rule applied to a hero power. A test asserts each suit names
+  itself and mentions none of the other three.
+- **The Enchanted treatment is much calmer.** The first pass spun two conic chain rings and read as janky; it
+  is now a single warm-red glow pooled UNDER the offer, one slow 3.4s opacity breathe, no rotation. Its only
+  job is to say "this card is Enchanted" without competing with the art.
+- **Sable's bound pair now wears a purple ring above each end** while the bond is live, so the pair reads at a
+  glance. Derived from `run.sableBond` with the same wave check the reducer and combat use, so the mark can
+  never outlast the bond it draws.
+
+Both visuals keep the looping-animation rule: static box-shadows, `opacity` the only animated property, and
+`prefers-reduced-motion` honoured. Verified that neither `.card` nor `.row` clips — both elements sit outside
+the card bounds, the same pattern `contraband::before` already uses.
+
+Full suite 5489 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Capped-uses powers read honestly; Braum/Cia renames; Odelle ignores neutrals
 
 - **A capped-USES power no longer reads "once per turn."** Rascal's All In showed the generic footer even

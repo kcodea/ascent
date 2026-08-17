@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -89,6 +89,7 @@ export function StatusBar() {
   // CROUPIER CIA: her power art is the SUIT that will pay next, not one fixed image — the button is how the
   // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
   // ever missing, so a half-wired art folder degrades instead of rendering nothing.
+  const powerRule = heroPowerText(run);
   const powerArt = power.kind === 'luckySeat' && run.ciaSuit
     ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
     : heroPowerArt(hero.id);
@@ -395,7 +396,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${power.name} — ${renameTerms(power.text).replace(/\*\*/g, '')}`}
+              aria-label={`${power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
               onPointerEnter={power.kind === 'roundedSpellbook' ? (e) => showHunchTip(e.currentTarget) : undefined}
@@ -469,7 +470,7 @@ export function StatusBar() {
           <div className="herotip" role="tooltip">
             <b>{power.name}</b>{isPassive ? ' · passive' : ''}
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
-            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
             <span className="herotip-live">{powerStatus}</span>

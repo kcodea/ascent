@@ -358,6 +358,7 @@ export const Card = memo(function Card({
   tripleReady,
   contraband,
   enchanted,
+  soulbound,
   forceFull,
   slideDir,
   handSlidePx,
@@ -439,6 +440,8 @@ export const Card = memo(function Card({
   /** Croupier Cia's Lucky Seat: this offer wears the Enchanted treatment — a purple chained wisp. Purely
    *  cosmetic; it changes nothing about the card you buy. */
   enchanted?: boolean;
+  /** Sable's Soulbind: this minion is one of the two bound ends this turn — draws the ring above it. */
+  soulbound?: boolean;
   /** Render the full-text card regardless of the global compact setting — used by the hover reveal. */
   forceFull?: boolean;
   /** Pre-emptive reorder slide: -1 shifts the card half a slot LEFT, +1 half a slot RIGHT, 0/undefined none.
@@ -1145,13 +1148,10 @@ export const Card = memo(function Card({
           Purely cosmetic (buying it is the only thing it does). This LOOPS, so per docs/performance.md it
           animates transform/opacity ONLY — the two rings spin at different rates and the glow breathes on a
           ::before with a STATIC shadow. Nothing here touches a paint property per frame. */}
-      {enchanted && (
-        <span className="enchantwisp" aria-hidden="true">
-          <span className="ew-ring ew-a" />
-          <span className="ew-ring ew-b" />
-          <span className="ew-glow" />
-        </span>
-      )}
+      {enchanted && <span className="enchantwisp" aria-hidden="true" />}
+      {/* Sable's Soulbind — a purple ring hovering ABOVE each bound minion for the turn the bond is live
+          (owner ask 2026-08-16), so the pair is readable at a glance. Static shadow, opacity-only breathe. */}
+      {soulbound && <span className="soulbindmark" aria-hidden="true" />}
       {/* Bane — a battlecry just enchanted the Fodder card type run-wide: a soft purple haze swells from
           under the card (Bane itself + any Fodder on the board it buffed), matching the other Fodder FX. */}
       {karwind === 'haze' && (

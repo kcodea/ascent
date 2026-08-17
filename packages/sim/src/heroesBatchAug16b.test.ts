@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { createRun, reduce, getHero, HEROES, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
+import { createRun, reduce, getHero, HEROES, heroPowerText, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-16b — Bram, Croupier Cia, Odelle, Harlan, Sable + the Rascal rework. */
 
@@ -119,6 +119,19 @@ describe('Cia — Lucky Seat', () => {
         const after = enchantedBuy(suit, { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [], ciaEnchantedBought: 2, ciaSuit: suit, shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] });
         expect(after.ciaSuit, `${suit} must not repeat`).not.toBe(suit);
         expect(['hearts', 'spades', 'diamonds', 'clubs']).toContain(after.ciaSuit);
+      }
+    }
+  });
+
+  it('prints ONLY the queued suit reward — not a table of all four', () => {
+    const texts: Record<string, string> = {
+      hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds', clubs: 'Clubs',
+    };
+    for (const [suit, word] of Object.entries(texts)) {
+      const t = heroPowerText({ ...createRun(4, 'cia'), ciaSuit: suit } as RunState);
+      expect(t, `${suit} is named`).toContain(word);
+      for (const other of Object.values(texts)) {
+        if (other !== word) expect(t, `${other} is NOT shown`).not.toContain(other);
       }
     }
   });

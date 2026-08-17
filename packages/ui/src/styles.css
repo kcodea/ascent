@@ -7799,45 +7799,38 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
 }
 
-/* ── Croupier Cia: the ENCHANTED shop card ─────────────────────────────────────────────────────────────
-   A RED-AND-GOLD chained wisp swirling around the offer (owner ask 2026-08-16 — recoloured from the first
-   pass's purple to match her card-suit theme). Cosmetic only: it says nothing about the card itself, just
-   that buying it advances Cia's suit counter. Deliberately loud — it has to read across a whole shop row.
+/* ── Cia: the ENCHANTED shop card ──────────────────────────────────────────────────────────────────────
+   A warm red glow pooled UNDER the offer. Deliberately calm (owner ask 2026-08-16 — the first pass's spinning
+   double chain read as janky): one element, one slow breathe, no rotation. The job is only to say "this card
+   is Enchanted" at a glance; it must not compete with the card art or the row.
 
-   This is a LOOPING effect, so it obeys the rule in docs/performance.md: every moving part animates ONLY
-   `transform` and `opacity` (compositor-only). The glow carries STATIC box-shadows whose OPACITY breathes —
-   never an animated shadow/filter, which would repaint every frame. */
+   It LOOPS, so per docs/performance.md the only animated property is `opacity` — the red bloom itself is a
+   STATIC box-shadow. No paint property changes per frame. */
 .enchantwisp {
-  position: absolute; inset: calc(-5 * var(--u)); border-radius: inherit;
-  pointer-events: none; z-index: 6; overflow: visible;
-}
-/* The CHAIN: bright conic segments that read as links as the ring turns. Two rings, opposed and at different
-   rates, so the motion never looks like one spinning texture. Red bodies with white-gold hot cores. */
-.enchantwisp .ew-ring {
-  position: absolute; inset: 0; border-radius: inherit;
-  background: conic-gradient(from 0deg,
-    rgba(200, 30, 40, 0) 0deg, rgba(240, 80, 60, 1) 10deg, rgba(255, 240, 190, 1) 18deg, rgba(255, 190, 70, 1) 26deg, rgba(200, 30, 40, 0) 40deg,
-    rgba(200, 30, 40, 0) 85deg, rgba(255, 185, 60, 1) 96deg, rgba(255, 245, 205, 0.95) 104deg, rgba(230, 60, 50, 1) 112deg, rgba(200, 30, 40, 0) 128deg,
-    rgba(200, 30, 40, 0) 175deg, rgba(240, 80, 60, 1) 186deg, rgba(255, 240, 190, 1) 194deg, rgba(255, 190, 70, 1) 202deg, rgba(200, 30, 40, 0) 218deg,
-    rgba(200, 30, 40, 0) 265deg, rgba(255, 185, 60, 1) 276deg, rgba(255, 245, 205, 0.95) 284deg, rgba(230, 60, 50, 1) 292deg, rgba(200, 30, 40, 0) 308deg);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 6 * var(--u)), #000 calc(100% - 3.5 * var(--u)));
-  mask: radial-gradient(closest-side, transparent calc(100% - 6 * var(--u)), #000 calc(100% - 3.5 * var(--u)));
-  will-change: transform;
-}
-.enchantwisp .ew-a { animation: ewspin 3.4s linear infinite; }
-.enchantwisp .ew-b { animation: ewspin 5.2s linear infinite reverse; opacity: 0.85; }
-/* The AURA: a static double shadow (tight gold core + wide crimson bloom) that breathes on opacity. */
-.enchantwisp .ew-glow {
-  position: absolute; inset: calc(2 * var(--u)); border-radius: inherit;
-  box-shadow:
-    0 0 calc(10 * var(--u)) calc(2 * var(--u)) rgba(255, 214, 130, 0.95),
-    0 0 calc(30 * var(--u)) calc(9 * var(--u)) rgba(214, 40, 40, 0.85);
-  animation: ewbreathe 1.9s ease-in-out infinite;
+  position: absolute; left: 8%; right: 8%; bottom: calc(-2 * var(--u)); height: calc(3 * var(--u));
+  border-radius: 999px; pointer-events: none; z-index: 4;
+  background: linear-gradient(90deg, rgba(214, 50, 40, 0) 0%, rgba(255, 120, 80, 0.95) 50%, rgba(214, 50, 40, 0) 100%);
+  box-shadow: 0 0 calc(14 * var(--u)) calc(4 * var(--u)) rgba(214, 45, 40, 0.75); /* STATIC */
+  animation: ewbreathe 3.4s ease-in-out infinite;
   will-change: opacity;
 }
-@keyframes ewspin { to { transform: rotate(360deg); } }
-@keyframes ewbreathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes ewbreathe { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+/* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
+   A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
+   shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */
+.soulbindmark {
+  position: absolute; left: 50%; top: calc(-7 * var(--u));
+  width: calc(7 * var(--u)); height: calc(7 * var(--u));
+  margin-left: calc(-3.5 * var(--u));
+  border-radius: 50%; pointer-events: none; z-index: 7;
+  border: calc(1.2 * var(--u)) solid rgba(206, 150, 255, 0.95);
+  background: radial-gradient(circle, rgba(180, 100, 255, 0.55) 0%, rgba(150, 70, 255, 0) 70%);
+  box-shadow: 0 0 calc(10 * var(--u)) calc(2 * var(--u)) rgba(168, 96, 255, 0.85); /* STATIC */
+  animation: sbbreathe 2.4s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes sbbreathe { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .enchantwisp .ew-ring, .enchantwisp .ew-glow { animation: none; }
-  .enchantwisp .ew-glow { opacity: 0.85; }
+  .enchantwisp, .soulbindmark { animation: none; }
 }

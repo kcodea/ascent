@@ -52,6 +52,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 - **No hero amplifies spells any more** — Yirin's rework retired the last `spellAmplify` holder. Spell power now comes only from Rune of the Crown and `spellAura` cards. Decide whether a hero should carry it again.
 - **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.
 
+- **Keshi the Protector — SHIPPED 2026-08-16.** New hero: Keshi's Crown banks the tavern tier of every card
+  bought and grants a Triple Reward every 25 (details in the devlog). Follow-ups: no henchman yet (tracked
+  generally under Henchmen below); the power-button art keeps its forest backdrop rather than a transparent
+  cutout; the 25 threshold is a single-number retune if playtest says it lands wrong.
 - **Classify the 2026-08-16 hero-power beats.** `hero:emeraldwarden:vanguard` / `hero:underdweller:soulkeeper` / `hero:albus:empowerment` are registered `flagged: true` on a heuristic — they need the owner's real ownBeat/foldedCue call.
 
 - **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling

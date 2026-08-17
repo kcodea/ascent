@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
+
 - **Croupier Cia deals four suits** — her reward now cycles at random (never twice running) between **Hearts** (Discover at your tier), **Spades** (2 Shop spells), **Diamonds** (a minion from the tier above) and **Clubs** (3 Gold), with her power button showing the suit that's queued up. Enchanted cards are now red-and-gold. **Underdweller**'s Soulkeeper costs 2.
 
 - **Yirin reworked + the Reflector** — Yirin now starts the run holding a **Reflector** (T1 1/1: spells cast on it also cast on a random friendly, once per turn) at 8 armor. **Croupier Cia**'s prize is now a Discover of a minion or spell at your tier, and the Enchanted card treatment is far more vivid. Fixed **Sable**'s Soulbind, which silently did nothing.

@@ -2392,6 +2392,16 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `maxGoldBonus` sits above the base 10 that maxEmbers still climbs to on its own, so powering turns 1–4
         // reads 11/12/13/14 across turns 5–8 — the lead persists. Untargeted; falls through to the shared spend.
         s.maxGoldBonus = (s.maxGoldBonus ?? 0) + reps;
+      } else if (power.kind === 'preparation') {
+        // Aster the Guide (tutorial-only): +1/+1 to a friendly board minion. Recharges every OTHER turn — the
+        // `preparationLockUntil` wave is the REAL gate here, mirroring Gambler's Dice lock: `heroReady` resets
+        // on every wave advance and would otherwise re-arm the power next turn, so without this check it would
+        // be usable every turn. No-op (no charge, no lock set) on a still-locked power or a missing target, so
+        // a whiffed activation costs nothing (matching grantWard / fortify above).
+        if (s.wave < (s.preparationLockUntil ?? 0)) return state;
+        if (!card) return state;
+        addBuff(card, 'Preparation', 1, 1);
+        s.preparationLockUntil = s.wave + 2;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -3520,10 +3530,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  // LOBBY: the seat already took this hit (with the lobby's own cap and stall pressure) and the run was synced
-  // to it above, so applying it again here charges the player twice — visible as the HUD reading 2 lower than
-  // the table for the same fight.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby') {
+  // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
+  // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
+  // lower than the table for the same fight. A tutorial carries a lobby too, so it is excluded for the same reason.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -3594,7 +3604,9 @@ function advanceCombat(s: RunState): void {
   // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
   // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.wave >= CONFIG.courseRounds) {
+  // Tutorial is excluded alongside lobby/practice: it carries a lobby and ends by the lobby's round cap (above),
+  // never by the 17-round course clock.
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }
@@ -3610,6 +3622,9 @@ function advanceCombat(s: RunState): void {
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
+  // Tutorial: a scripted shop reads roll 0 (the turn-start offer) each new wave. Reset before the wave's shop
+  // rolls so the first roll of the turn serves the authored initial offer, refreshes then advancing 1, 2, …
+  if (s.tutorialShopScript) s.tutorialShopRoll = 0;
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
   if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);

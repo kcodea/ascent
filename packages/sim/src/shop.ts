@@ -73,6 +73,13 @@ export function takeFromPool(state: RunState, cardId: string): void {
  * cursor so rerolls are reproducible.
  */
 export function rollShop(state: RunState): void {
+  // TUTORIAL: a scripted shop serves authored offers instead of drawing from the pool, so a lesson always has
+  // the cards it needs. Kept (frozen) offers still survive a refresh, exactly like the normal path. Nothing
+  // here touches the shared pool. Returns early — the pool-draw below never runs for a scripted roll.
+  if (state.mode === 'tutorial' && state.tutorialShopScript) {
+    rollTutorialShop(state);
+    return;
+  }
   // Layaway: kept offers survive the reroll — they stay in place (never returned to the pool) and fill the
   // leftmost slots; the rest are returned and redrawn. No kept offers → identical to before (seeds unchanged).
   const kept = state.shop.filter((o) => o.kept);
@@ -148,6 +155,26 @@ export function rollShop(state: RunState): void {
   const spellId = drawSpellId(rng, state.tier, state);
   state.spell = spellId ? { uid: `s${state.uidSeq++}`, cardId: spellId } : null;
   state.rngCursor = rng.state();
+}
+
+/**
+ * Serve a tutorial's scripted offers for the current wave + roll. Frozen (kept) offers survive and fill the
+ * leftmost slots exactly like a normal reroll; the remaining slots are the authored card ids, and the spell
+ * slot is the authored spell (or empty). Bumps the per-wave roll cursor so the next refresh serves the next
+ * authored roll. The course author owns the offer list, so no pool draw and no frozen-dedup is needed here —
+ * an authored refresh simply doesn't re-list a card it froze the turn before.
+ */
+function rollTutorialShop(state: RunState): void {
+  const rolls = state.tutorialShopScript![state.wave - 1] ?? [];
+  const rollIdx = state.tutorialShopRoll ?? 0;
+  const roll = rolls.length > 0 ? rolls[Math.min(rollIdx, rolls.length - 1)]! : { minions: [] as string[] };
+  const kept = state.shop.filter((o) => o.kept);
+  state.shop = [
+    ...kept,
+    ...roll.minions.map((cardId) => ({ uid: `s${state.uidSeq++}`, cardId })),
+  ];
+  state.spell = roll.spell ? { uid: `s${state.uidSeq++}`, cardId: roll.spell } : null;
+  state.tutorialShopRoll = rollIdx + 1;
 }
 
 /**

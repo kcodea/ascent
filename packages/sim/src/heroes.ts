@@ -64,7 +64,8 @@ export type HeroPowerKind =
   | 'baldgecoin' // Juggler (passive): every 3 minions bought → a Carnival Coin (1 Gold + a board buff)
   | 'midasTouch' // Midas (passive): Gild at 2 copies, and a Gild pays a Gold Pouch instead of a Triple Reward
   | 'firstOrLast' // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
-  | 'crownTally'; // Keshi (passive): bank each purchased card's tier; at 25 grant a Triple Reward, then reset
+  | 'crownTally' // Keshi (passive): bank each purchased card's tier; at 25 grant a Triple Reward, then reset
+  | 'preparation'; // Aster the Guide (tutorial-only): give a friendly minion +1/+1; recharges every other turn (active, targeted)
 
 export interface HeroPower {
   name: string;
@@ -802,6 +803,23 @@ export const HEROES: HeroDef[] = [
       kind: 'crownTally',
       passive: true,
       text: 'Get a **Triple Reward** every 25 shop tiers worth of cards you purchase.',
+    },
+  },
+  {
+    // TUTORIAL-ONLY hero for the Learn Ascent course. `wip: true` keeps it in the registry (so the engine and
+    // saves resolve it) while hiding it from every picker + opponent seat — the tutorial hands it out by
+    // passing `heroId: 'aster'` explicitly. A tutorial-only hero means roster balance changes can never break
+    // the course (blueprint §6.2). Its power is deliberately simple: an active, targeted, fixed +1/+1.
+    id: 'aster',
+    name: 'Aster, the Guide',
+    blurb: 'Steady hands for a first climb — a little help, right where it’s needed.',
+    resolve: 30,
+    armor: 15,
+    wip: true,
+    power: {
+      name: 'Preparation',
+      kind: 'preparation',
+      text: 'Give a friendly minion **+1/+1**. Recharges every other turn.',
     },
   },
 ];

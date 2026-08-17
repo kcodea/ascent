@@ -1,5 +1,64 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE Phase 1: Learn Ascent vertical slice (Round 1 end-to-end, live-verified)
+
+The first-time-player tutorial goes from scope to a **runnable, coached Round 1** (and into Round 2). Built
+against the blueprint as a GUIDE, not gospel (owner direction) — adapted to our real architecture, changing
+**nothing** about how the game plays. Every gate green: typecheck (pkgs + web), lint (0 errors), 5560 tests,
+`build:web`. Verified LIVE in the dev server: launch → 4 foundation panels → order-demo → 3 lobby-intro steps
+→ Round 1 (buy → play → Preparation → End Turn → Rally → win) → Round 2. Parallelised across four recon agents
+and three build agents; the engine spine (hot files) was done solo to avoid collisions.
+
+**New engine (sim/core), all additive:**
+- **`tutorial` RunMode** — a scripted lobby that is deliberately NOT `mode:'lobby'` (that mode rates the player
+  and uploads telemetry; a distinct mode is excluded from every such gate for free). Audited every
+  lobby-family gate in the reducer and excluded `tutorial` where a lobby-carrying run would otherwise
+  double-charge damage (the `settleCombat` ordinary-damage path) or hit the 17-round course-victory. A tutorial
+  takes REAL damage through its lobby seat (so the authored Round-2 loss lands) — it is not invulnerable like
+  Practice.
+- **Authored omen lobby** — a new `authored` seat kind whose driver fields the course's per-round omen board.
+  Every authored seat returns the SAME board for a round, so whichever seat the seeded pairing hands the
+  player, they face the round's authored board — no change to combat, settle, or pairing. `createTutorialRun` /
+  `createTutorialLobby` in `lobby/tutorialSeats.ts`.
+- **Scripted shop** — `rollShop` serves authored offers (per wave, per refresh) for a tutorial run instead of
+  drawing from the pool; frozen offers still survive; nothing touches the shared pool. A `tutorialShopRoll`
+  cursor resets on wave advance.
+- **Aster, the Guide** — a tutorial-only hero (`wip:true`, hidden from every picker/opponent). Power
+  **Preparation**: active, targeted **+1/+1**, recharging every other turn via a `preparationLockUntil` wave
+  (the Dice-lock idiom). Verified live: a 2/2 → 3/3 with lock set to wave+2.
+- **The course as data** — `sim/tutorial/`: a pure, serializable type contract (course/turn/step/predicate/
+  anchor/lesson), a unit-testable predicate evaluator, and `learnAscent.ts` (real Set-2 card ids, verified;
+  `b2_packstrider` carries the Round-1 Rally).
+
+**New UI (presentation), mounted once at the root:**
+- **Focus mask + anchor registry + coach panel** — a DOM-only spotlight (every gameplay element is DOM, not
+  Pixi), rects measured once per step/resize (never per frame, per the perf rule), an SVG-mask dimmer with
+  feathered cutouts, and an anchored coach panel. `TutorialOverlay` is pure/prop-driven.
+- **Tutorial profile** — localStorage-backed, versioned, New→Introduced→Demonstrated lesson flags, mirroring
+  `identity.ts`.
+- **`TutorialController`** — the runtime: reads the course, records semantic events off a new **action bus**
+  (a fire-and-forget tap on the store's single `dispatch` chokepoint — a no-op on every non-tutorial run),
+  evaluates each step's predicate, resolves authored anchors (alias = cardId → live uid → rect), and drives
+  the overlay. A **Learn** button on the Title launches it.
+- **Combat presentation adapter** — a read-only `presentationBus` fed by ONE fire-and-forget line in
+  `useCombatReplay`'s existing per-beat loop, so a Predict/Confirm step advances when its effect is actually
+  shown. No timing/order/FX change; empty-set no-op otherwise.
+
+**Spike correction (recorded in [`ftue-spike-presentation-contract.md`](ftue-spike-presentation-contract.md)):**
+the spike said `livePlayer`'s clean callbacks could serve the contract — but recon found those fire for
+end-of-turn/shop only; combat runs its own clock in `useCombatReplay`. The adapter is therefore a small
+additive seam on that loop, which is what shipped.
+
+**Two mismatches caught by live verification** (the value of running it, not just typechecking): an `always`
+step auto-advanced instantly (fixed — those are read-and-Continue beats); and Packstrider's Rally is a
+SELF-buff (a `buff` event), not the `rally` event type (reserved for Rally-fires-another-effect), so the Rally
+step now accepts the buff with a combat-ended fallback so it can never hard-stall.
+
+**Deliberately deferred (follow-ups, not blockers):** the interactive order-demo silhouette drag (a
+read-and-continue panel stands in); the full 12-round course (4 real rounds authored); the first-launch
+welcome prompt (the Learn button is the entry today); hard/soft action GATES (steps observe + advance, but
+don't yet block a wrong action); and save/resume mid-course.
+
 ## 2026-08-17 — FTUE Phase 0: blueprint adopted, and the presentation-contract spike
 
 Owner handed over `ascent-first-time-player-experience-master-blueprint.md` and asked to start. This is Phase 0

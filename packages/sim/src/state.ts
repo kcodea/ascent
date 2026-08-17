@@ -299,8 +299,14 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 /** `lobby` is a seat in an 8-seat elimination lobby: it plays the ordinary game but has no course clock, because
  *  a lobby ends by elimination rather than after a fixed 17 rounds. Its Resolve is bookkeeping only — the LOBBY
- *  owns the seat's real health — so it never terminates on its own. Everything else behaves exactly like Ascent. */
-export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby';
+ *  owns the seat's real health — so it never terminates on its own. Everything else behaves exactly like Ascent.
+ *
+ *  `tutorial` is a SCRIPTED lobby for the first-time-player course (Learn Ascent): same 8-seat structure, but
+ *  the opponents are authored effectless `omen` boards and the shop is scripted. It is DELIBERATELY a distinct
+ *  mode, not `lobby` — the run-end flow rates and uploads only when `mode === 'lobby'`, so a tutorial must not
+ *  wear that mode or it would move the player's ladder rating and upload telemetry/boards. Being its own mode,
+ *  it is excluded from every one of those gates for free. */
+export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
 export type DiscoverSpec =
   | { kind: 'spell' }
@@ -702,6 +708,20 @@ export interface RunState {
   /** Gambler (Dice): the wave at which the Dice power becomes usable again — set to `wave + roll` on use, so a
    *  big roll pays more Gold but locks the power longer. Absent = usable. */
   heroDiceLockUntil?: number;
+  /** Aster the Guide (Preparation, tutorial-only): the wave at which the power recharges — set to `wave + 2`
+   *  on use so it fires every other turn, in the Dice-lock style. Absent = usable. */
+  preparationLockUntil?: number;
+  /** Set on a tutorial run so a restored/resumed run knows which course it is (survives a reload); the UI
+   *  coaching layer reads it to rehydrate the controller. Absent on every normal run. */
+  tutorialCourseId?: string;
+  /** Scripted shop for a tutorial run: authored offers per wave, per roll (index 0 = the turn-start roll, 1+ =
+   *  successive refreshes). When present + `mode === 'tutorial'`, `rollShop` serves these instead of drawing
+   *  from the pool — so the course's lessons always have the cards they need, and nothing touches the shared
+   *  pool. Plain data (card ids) so a tutorial run stays serializable and resumable. */
+  tutorialShopScript?: { minions: string[]; spell?: string }[][];
+  /** Which roll of the current wave the scripted shop is on — 0 at turn start, +1 per refresh; reset on wave
+   *  advance. Reads `tutorialShopScript[wave-1][tutorialShopRoll]`. Absent = 0. */
+  tutorialShopRoll?: number;
   /** Gambler (Dice): the face most recently rolled, and the wave it was rolled on. Display-only — the panel
    *  keeps showing the number for the REST OF THAT TURN (owner ruling 2026-08-16) instead of snapping back the
    *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */

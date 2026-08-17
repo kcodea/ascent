@@ -17,6 +17,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
+import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -40,6 +41,21 @@ import { heldFor, holdStat, releaseStat } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
+
+/** Map a just-presented CombatEvent to the tutorial's coarse "what was shown" vocabulary and report it to the
+ *  tutorial presentation bus. READ-ONLY: it observes the beat the replay already decided to show — no timing,
+ *  order, or FX change — and is a no-op (one set check inside the bus) whenever no tutorial is observing. */
+function notifyPresented(e: CombatEvent): void {
+  switch (e.type) {
+    case 'rally': return notifyTutorialPresented({ kind: 'rally', srcUid: e.source, srcCard: e.srcCard });
+    case 'buff': return notifyTutorialPresented({ kind: 'buff', srcUid: e.source, srcCard: e.srcCard });
+    case 'summon': return notifyTutorialPresented({ kind: 'summon', srcUid: e.source, srcCard: e.srcCard });
+    case 'death': return notifyTutorialPresented({ kind: 'death', srcUid: e.target, srcCard: e.srcCard });
+    case 'attack': return notifyTutorialPresented({ kind: 'attack', srcUid: e.attacker, srcCard: e.srcCard });
+    case 'sc': return notifyTutorialPresented({ kind: e.cast ? 'startOfCombat' : 'shout', srcUid: e.source, srcCard: e.srcCard });
+    default: return;
+  }
+}
 
 /** How long a combat badge roll takes, in ms (before the combat-speed divide) — both a buff counting UP and a
  *  hit counting the HP DOWN. Owner-tuned 2026-08-07 to 650ms (up from the shop's `DEFAULT_ROLL_MS`, 420) so the
@@ -1248,6 +1264,9 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
+      // TUTORIAL (read-only): report this event as PRESENTED so a Predict/Confirm coach step can advance at the
+      // right beat. A no-op on every non-tutorial fight (the bus is empty). Never changes timing/order/FX.
+      notifyPresented(e);
       // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
       // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
       if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);

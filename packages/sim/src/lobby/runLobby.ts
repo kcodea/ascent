@@ -11,6 +11,7 @@ import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
 import { handleKeyOf, uniqueHandleFor } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
+import { authoredSeat } from './tutorialSeats';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -27,10 +28,14 @@ export interface LobbySeatState {
   id: string;
   label: string;
   heroId: string;
-  kind: 'player' | 'hybrid' | 'bot' | 'snapshot';
+  kind: 'player' | 'hybrid' | 'bot' | 'snapshot' | 'authored';
   /** `snapshot` seats only: which real player run drives this seat. Stored rather than the boards themselves so
    *  the lobby stays small and serializable; resolved against the registered pool by `driverFor`. */
   runKey?: string;
+  /** `authored` seats only (the tutorial): the course's per-round omen board table (index = round − 1). Plain
+   *  data so the seat stays serializable; `driverFor` builds an `authoredSeat` driver from it. Every authored
+   *  seat in a tutorial lobby carries the SAME table, so the player faces the round's board whatever the pairing. */
+  authoredBoards?: { attack: number; health: number }[][];
   /** The seed its driver is rebuilt from. Unused for the player seat, whose board is the live run. */
   seed: number;
   resolve: number;
@@ -129,7 +134,11 @@ export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | nul
   const key = driverKey(seat);
   let d = DRIVERS.get(key);
   if (!d) {
-    if (seat.kind === 'snapshot') {
+    if (seat.kind === 'authored') {
+      // Tutorial: an authored omen board table, not a recorded run or a bot. Fields the course's board for
+      // the current round and never progresses (see `authoredSeat`).
+      d = authoredSeat(seat);
+    } else if (seat.kind === 'snapshot') {
       // A restored lobby can land in a session whose pool doesn't hold that run (different device, pruned
       // patch, backend offline). Falling back to a bot keeps the table full instead of silently dropping a
       // seat and changing the shape of someone's saved game.

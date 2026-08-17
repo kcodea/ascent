@@ -1074,11 +1074,19 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
     Verdict: the semantic signals the blueprint needs largely EXIST (`livePlayer`'s beat activate/complete,
     719 `PRESENTATION_POLICIES` keys, `key`/`srcCard` event stamping, compiled `completionOffsetMs`). The gap
     is coverage: choreographed combat pacing is off by default and keyed-triggers-only. Risk HIGH → MEDIUM.
-  - **Next — Phase 1 vertical slice (~3.5–5 wk):** tutorial profile persistence, Learn hub shell,
-    `tutorial_lobby` origin, declarative course/step registry, scripted Shop provider (`rollShop` has no
-    provider seam today), Omen provider, action gating, Pixi+DOM anchor registry, focus mask, the four opening
-    panels + board-order demo, the New/Introduced/Demonstrated lesson registry, safe holds, Round 1
-    end-to-end, and save/resume/skip. Its first task is the throwaway prototype the spike deferred.
+  - **Phase 1 vertical slice — LARGELY DONE 2026-08-17 (Round 1 live-verified end-to-end).** Shipped: the
+    `tutorial` RunMode (a distinct mode, excluded from rating/telemetry/damage-double-charge), the authored
+    omen lobby (`authored` seat kind + `createTutorialRun`), the scripted Shop seam in `rollShop`, Aster the
+    Guide (tutorial-only hero, active +1/+1 every-other-turn), the pure course/step/predicate type contract +
+    predicate evaluator, `learnAscent.ts` (4 real rounds, Round 1 fully coached), the DOM anchor registry +
+    focus mask + coach panel, the localStorage tutorial profile (New/Introduced/Demonstrated), the
+    `TutorialController` runtime driven by an action bus + a read-only combat-presentation bus, and a **Learn**
+    button on the Title. Verified live: launch → foundation panels → lobby intro → buy/play/Preparation/End
+    Turn/Rally/win → Round 2.
+  - **Phase 1 remaining (follow-ups, not blockers):** the interactive order-demo silhouette drag (a
+    read-and-continue panel stands in today), hard/soft action GATES (steps observe + advance but don't block a
+    wrong action yet), the first-launch welcome prompt (Learn button is the entry today), save/resume
+    mid-course, and rounds 5–12 of authoring.
   - Phases 2–4 author Turns 1–5, 6–10, and autonomy/graduation (~6–8 wk). **Tribe primers (Phases 5–6) and
     Tactical Trials are DEFERRED** — ship Learn Ascent to private testing first.
   - **Blocked design work:** §6.8's three Basic Rune branches need real Rune IDs approved against current

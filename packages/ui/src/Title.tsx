@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { activeRift } from '@game/sim';
+import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { Icon } from './Icon';
@@ -42,6 +42,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
+  const startTutorial = useGame((s) => s.startTutorial);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
@@ -157,6 +158,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setModePick(true); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">{txt.play}</span>
+          </button>
+          {/* Learn Ascent — the guided first-time course. Launches the scripted tutorial run directly (its own
+              hero, Aster; no picker). A brand-new player is nudged here; anyone can replay it. */}
+          <button className="menubtn" onClick={() => { sfx.pulse(); startTutorial(LEARN_ASCENT); }} title="A guided first game — learn how to play">
+            <span className="mbicon"><IconHelm /></span>
+            <span className="mblabel">Learn</span>
           </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} title="Your match history + per-hero stats">
             <span className="mbicon"><IconHelm /></span>

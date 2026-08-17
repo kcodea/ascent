@@ -1,0 +1,242 @@
+/*
+ * TUTORIAL — coaching-layer styles (self-contained).
+ *
+ * Owns the focus mask, the anchored coach panel, the keyword chip, and the connector line. Reads the game's
+ * shared theme vars (--gold, --font-ui, …) so it sits inside the dark UI aesthetic, but defines its own local
+ * fallbacks so it renders even if loaded in isolation.
+ *
+ * Z-ORDER: the mask floats above everything incl. the inspect popover (z-500) at ~600; the connector sits with
+ * it (pointer-events off); the coach panel is just above at ~601 and IS interactive.
+ *
+ * PERF: only `opacity`/`transform` animate, and only as one-shot transitions on mount — no paint-property
+ * animation in any loop (CLAUDE.md perf rule).
+ */
+
+:root {
+  --tut-z-mask: 600;
+  --tut-z-panel: 601;
+  --tut-gold: var(--gold, #c8922e);
+  --tut-gold-lt: var(--gold-lt, #e6b45a);
+  --tut-ring: rgba(240, 232, 218, 0.9);
+}
+
+/* ── Focus mask ─────────────────────────────────────────────────────────────────────────────────────── */
+.tut-focus-mask {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tut-z-mask);
+  pointer-events: none; /* live targets under the holes stay clickable — the game owns input */
+  transition: opacity 180ms ease-out; /* one-shot fade-in only */
+  will-change: opacity;
+}
+.tut-focus-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tut-focus-ring {
+  fill: none;
+  stroke: var(--tut-ring);
+  stroke-width: 2;
+  /* A soft second stroke via a subtle gold inner line keeps the ring visible on light AND dark targets, so
+     focus never depends on colour alone. Static — not animated. */
+  paint-order: stroke;
+  opacity: 0.85;
+}
+
+/* ── Connector line ─────────────────────────────────────────────────────────────────────────────────── */
+.tut-connector {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tut-z-mask);
+  pointer-events: none;
+}
+.tut-connector-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tut-connector-line {
+  stroke: var(--tut-gold-lt);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  fill: none;
+}
+.tut-connector-line.solid {
+  stroke-width: 2;
+}
+.tut-connector-arrowhead {
+  fill: var(--tut-gold-lt);
+}
+.tut-connector-label-bg {
+  fill: rgba(22, 15, 8, 0.92);
+  stroke: color-mix(in srgb, var(--tut-gold) 55%, transparent);
+  stroke-width: 1;
+}
+.tut-connector-label {
+  fill: #f4ecdd;
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  dominant-baseline: middle;
+}
+
+/* ── Coach panel ────────────────────────────────────────────────────────────────────────────────────── */
+.tut-coach-panel {
+  position: fixed;
+  z-index: var(--tut-z-panel);
+  pointer-events: auto; /* the panel itself is interactive (Why, Next) */
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Dark glass card, gold-trimmed like the game's framed surfaces. */
+  background: rgba(22, 15, 8, 0.94);
+  border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 26px -8px rgba(0, 0, 0, 0.6);
+  color: #f2eadd;
+  font-family: var(--font-body, 'Nunito Sans'), sans-serif;
+  /* One-shot pop on mount — transform/opacity only. */
+  animation: tut-panel-in 180ms ease-out both;
+}
+@keyframes tut-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* When centered (foundation), the base transform is the centering translate; re-declare the keyframe target so
+   the pop doesn't fight the centering. */
+.tut-coach-panel.centered {
+  animation: tut-panel-in-centered 180ms ease-out both;
+}
+@keyframes tut-panel-in-centered {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 6px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.tut-coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tut-coach-title {
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--tut-gold-lt);
+}
+.tut-coach-count {
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 234, 221, 0.6);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.tut-coach-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.42;
+  color: #f2eadd;
+}
+
+/* Keyword chip — a distinct, non-colour-only style (weight + underline + pill) so it survives colour-blind
+   viewing and localization. Renders plain text only. */
+.tut-keyword {
+  align-self: flex-start;
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--tut-gold-lt);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--tut-gold) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tut-gold) 14%, transparent);
+}
+
+/* Why — a collapsible rationale line. */
+.tut-coach-why {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tut-coach-why-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: inherit;
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(242, 234, 221, 0.72);
+}
+.tut-coach-why-chev {
+  font-size: 10px;
+  color: var(--tut-gold-lt);
+}
+.tut-coach-why-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(242, 234, 221, 0.82);
+}
+
+.tut-coach-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+.tut-coach-next {
+  font-family: var(--font-ui, 'Outfit'), sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  padding: 7px 16px;
+  border-radius: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
+  background: linear-gradient(180deg, var(--tut-gold-lt), var(--tut-gold));
+  color: #1a1006;
+  cursor: inherit;
+}
+.tut-coach-next:hover {
+  filter: brightness(1.06);
+}
+
+/* Respect reduced-motion: drop the one-shot pops. */
+@media (prefers-reduced-motion: reduce) {
+  .tut-focus-mask,
+  .tut-coach-panel,
+  .tut-coach-panel.centered {
+    animation: none;
+    transition: none;
+  }
+}

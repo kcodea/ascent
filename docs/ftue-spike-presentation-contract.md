@@ -3,6 +3,14 @@
 **Date:** 2026-08-17 · **Status:** spike complete, read-only investigation · **Verdict: YES, with one real
 gap.** Risk downgraded from HIGH to MEDIUM. Phase 1 estimate drops by roughly a week.
 
+> **Correction (Phase 1 build, same day).** This spike leaned on `livePlayer`'s `onBeatActivate` /
+> `onBeatComplete` callbacks as if they served combat. A subsequent recon found they fire for **end-of-turn /
+> shop choreography only** — combat runs its own hand-rolled clock in `useCombatReplay.ts` and never drives
+> `livePlayer`. The conclusion still holds (the seam is small and additive, no timing/FX change), but the seam
+> that actually shipped is a single read-only `notifyTutorialPresented(...)` line in `useCombatReplay`'s
+> existing per-beat classification loop, feeding a `presentationBus` — not a `livePlayer` subscription. Risk
+> stayed MEDIUM as predicted.
+
 ## Why this spike ran first
 
 [`ftue-master-blueprint.md`](ftue-master-blueprint.md) §8.1.4 and §10.6 make the hardest demand in the whole

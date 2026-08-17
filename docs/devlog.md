@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-17 - Pickers go horizontal; Flash grants in REAL TIME
+
+**The pickers stacked vertically** because I had borrowed a `quest-row` class that already exists elsewhere as
+a COLUMN list — a name collision, not a layout bug. The row owns its own direction now (explicitly `row`, with
+a note saying why), and the cards get an explicit width since they no longer sit in the quest shop's grid.
+
+**Flash grants inside the fight** (owner ask), not at resolution. The claim rides into combat on
+`questCombatMods.flashPick` and comes back on `playerHandGrants` — the channel whose `toHand` event makes the
+card fly to hand, the same one every other in-combat grant uses. Settle now only SPENDS the claim.
+
+One honest asymmetry, documented in the code: **`first` is genuinely live** — it grants the instant the
+opening kill lands. **`last` cannot be**, because "the last one" is not knowable until the fight ends; it
+grants at the final step instead, still inside the replay so it animates identically rather than materialising
+at resolution. That is as real-time as the rule allows.
+
+Test drives the REAL simulator end to end: the claim goes in via `questMods`, a kill happens, and the copy
+comes back on `playerHandGrants`.
+
+Full suite 5515 green, typecheck + lint + build:web clean.
+
+**Still queued:** Guardian + Runesmith's rune-offer discount, and quest/rune-granting heroes (Fi, Coran,
+Runesmith, Guardian) wearing the GRANTED art on their power button.
+
 ## 2026-08-17 - Armor rebalance (17 heroes); the pickers become REAL quest cards
 
 **Armor pass** — owner values applied to 17 heroes: Auctioneer 10, Emissary Vale 10, Frantic Frank 9,

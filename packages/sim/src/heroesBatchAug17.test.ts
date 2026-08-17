@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate } from '@game/core';
 import { createRun, reduce, getHero, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-17 — Devourer and Membrance. */
@@ -69,10 +70,13 @@ describe('Membrance — Memory', () => {
 });
 
 describe('Flash — First or Last', () => {
-  const combat = (kills: string[]): object => ({
+  const combat = (kills: string[], granted?: string): object => ({
     result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: kills.length, events: [],
     initial: { player: [], enemy: [] },
     playerFirstKill: kills[0], playerLastKill: kills[kills.length - 1],
+    // The copy is granted INSIDE the fight now (owner ask 2026-08-17: real-time), so it arrives on this
+    // channel — the same one every other in-combat grant flies in on.
+    ...(granted ? { playerHandGrants: [granted] } : {}),
   });
 
   it('is a 9-armor, 1-Gold power', () => {
@@ -97,7 +101,7 @@ describe('Flash — First or Last', () => {
   it('pays the FIRST kill, and clears the claim', () => {
     const s = {
       ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'first',
-      lastCombat: combat(['stray', 'alley', 'pack']) as never,
+      lastCombat: combat(['stray', 'alley', 'pack'], 'stray') as never,
     } as RunState;
     const after = reduce(s, { type: 'resolveCombat' } as never);
     expect(after.hand.map((c) => c.cardId), 'a plain copy of the first kill').toContain('stray');
@@ -107,9 +111,24 @@ describe('Flash — First or Last', () => {
   it('pays the LAST kill', () => {
     const s = {
       ...createRun(3), phase: 'combat', heroId: 'flash', hand: [], flashPick: 'last',
-      lastCombat: combat(['stray', 'alley', 'pack']) as never,
+      lastCombat: combat(['stray', 'alley', 'pack'], 'pack') as never,
     } as RunState;
     expect(reduce(s, { type: 'resolveCombat' } as never).hand.map((c) => c.cardId)).toContain('pack');
+  });
+
+  it('grants the copy IN COMBAT, not at resolution', () => {
+    // Driven through the real simulator: the claim rides questMods into the fight and comes back on
+    // playerHandGrants, which is the channel whose `toHand` event makes the card fly to hand.
+    const r = simulate(
+      // The PLAYER must win the exchange for a kill to exist at all.
+      [{ cardId: 'stray', attack: 9, health: 20 }],
+      [{ cardId: 'alley', attack: 1, health: 1 }],
+      makeRng(4), CARD_INDEX,
+      combatSide({ tier: 6, questMods: { flashPick: 'first' } }),
+      combatSide({ tier: 6 }),
+    );
+    expect(r.playerFirstKill, 'a kill happened').toBeTruthy();
+    expect(r.playerHandGrants, 'the copy was granted inside the fight').toContain(r.playerFirstKill);
   });
 
   it('a fight with NO kills spends the claim rather than banking it', () => {

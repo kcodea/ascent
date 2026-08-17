@@ -7891,7 +7891,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Cassen's commissions and Flash's First/Last both render REAL `.questcard`s (owner ask 2026-08-17 — the
    bespoke tiles never matched). Only the row needs anything here; every card style is inherited from the
    quest shop, so the two can no longer drift apart. */
-.commission-opts { display: flex; gap: calc(16 * var(--u)); padding: calc(16 * var(--u)) calc(18 * var(--u)) calc(22 * var(--u)); justify-content: center; }
+.commission-opts {
+  display: flex; flex-direction: row; /* explicit: `.quest-row` elsewhere is a COLUMN, and the name collided */
+  gap: calc(16 * var(--u)); padding: calc(16 * var(--u)) calc(18 * var(--u)) calc(22 * var(--u));
+  justify-content: center; align-items: stretch;
+}
+/* The cards size themselves in the quest shop's grid; side by side here they need an explicit width. */
+.commission-opts .questcard { flex: 0 0 calc(210 * var(--u)); width: calc(210 * var(--u)); }
 
 
 /* Quillen's archived types under the power rule — each in its own tribe colour, unused slots muted. */

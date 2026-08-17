@@ -3450,15 +3450,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   //  combat and added above via playerHandGrants, so the real card animates in. No separate settle pick.)
   // Cassen's Collision: bank this combat's enemy kills; every 5 grants a minion of the board's most
   // common tribe (then spends 5). A failed grant (full hand / no tribe) keeps the kills banked for later.
-  // Flash: pay the armed claim from THIS combat's kills. Spent whether or not a body is available, so a fight
-  // where you killed nothing does not silently bank the claim for a later one.
-  if (s.flashPick && getHero(s.heroId).power.kind === 'firstOrLast') {
-    const id = s.flashPick === 'first' ? result.playerFirstKill : result.playerLastKill;
-    s.flashPick = undefined;
-    const def = id ? CARD_INDEX[id] : undefined;
-    // A plain copy — the shell of what you killed, not the statted body that killed for them.
-    if (def && !def.spell && !def.ruby && s.hand.length < handCap(s)) conjureToHand(s, [def], 1);
-  }
+  // Flash: the copy itself was granted INSIDE the fight (via `playerHandGrants`, so it flew to hand as it was
+  // earned — owner ask 2026-08-17: real-time, not at resolution). Settle only spends the claim, and spends it
+  // whether or not a body was available, so a fight with no kills cannot bank it for a later one.
+  if (s.flashPick && getHero(s.heroId).power.kind === 'firstOrLast') s.flashPick = undefined;
   if (getHero(s.heroId).power.kind === 'collision') {
     s.cassenKills += result.enemyDeaths;
     while (s.cassenKills >= 5) {
@@ -4878,6 +4873,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
+    flashPick: getHero(s.heroId).power.kind === 'firstOrLast' ? s.flashPick : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,

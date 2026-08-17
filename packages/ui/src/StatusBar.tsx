@@ -468,7 +468,7 @@ export function StatusBar() {
         <div className="discover-ov commission-ov" role="dialog" aria-label="Choose a commission">
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose a Commission</span></div>
-            <div className="quest-row commission-opts">
+            <div className="commission-opts">
               {commissionOffer(run).map((kind) => (
                 <button
                   key={kind}
@@ -501,7 +501,7 @@ export function StatusBar() {
         <div className="discover-ov commission-ov" role="dialog" aria-label="First or Last">
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">First or Last</span></div>
-            <div className="quest-row commission-opts">
+            <div className="commission-opts">
               {(['first', 'last'] as const).map((end) => (
                 <button
                   key={end}

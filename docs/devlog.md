@@ -519,6 +519,28 @@ runic rift at wave 6, which lets the pivot rule be observed on its own. Updated,
 asserts the same rule, just through a hero that has only that rule.
 
 Full suite 5518 green, typecheck + lint + build:web clean.
+## 2026-08-17 — End Turn hover tip is tunable, and wraps to two lines
+
+The label pill under the End Turn diamond ("End your turn and start combat" / "End combat and go back to
+shop") was the one part of that button with no tuner coverage — every other dial (position, gem fit, glow,
+sheen, strike, pressed art) reflects to a `--etb-*` var, while the pill's geometry was hardcoded in
+`styles.css`. It also ran wide: `white-space: nowrap` forced one long bar that spilled past both corners of
+the diamond it hangs under.
+
+- **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
+  EVEN lines and reads as a squarer pill seated under the gem. Shipped default `tipW: 150` puts both labels on
+  two lines; sliding the width dial wide enough collapses it back to one line, so the old look stays reachable.
+- **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
+  max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
+  corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.
+- **The lobby override was updated in step.** `.app.lobby .etb-tip` sets its own `transform` to dodge the seat
+  rail, so it had to fold in `--etb-tip-x` too — otherwise the new offset dial would silently do nothing in
+  the lobby, which is exactly the kind of drift that override caused once before.
+- **Note:** the pill is not only a hover tip — it is pinned always-on by `.urgent` (shop timer at 0) and
+  `.ready` (replay finished), so these dials shape a persistent prompt, not just a hover.
+- Transitions remain `opacity`/`transform` only (compositor-safe, per the performance rules).
+- **Verified.** typecheck + lint (0 errors) + 5531 tests + build:web all green. The default width was chosen
+  to break both labels cleanly; it is a slider, so it is meant to be dialled by eye rather than argued about.
 
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 

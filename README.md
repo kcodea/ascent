@@ -47,6 +47,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Resolve is now Health** — the hero's life total is called **Health** everywhere it's shown, and **Oath is off the Career profile card** (the course modes it belonged to are no longer reachable). Display only; saves and replays are unaffected.
 
 - **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), pared back to just the name and a one-line blurb. Display only: the mode is still `lobby` everywhere under the hood.
+- **End Turn hover tip is tunable** — the label pill under the diamond now wraps to two balanced lines instead of running wide, and gets eight dials (width, offset, drop, text size, line spacing, padding, radius) in the End Turn tuner.
 
 - **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
 

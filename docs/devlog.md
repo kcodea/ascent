@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
+
+- **Flash's options are First Place / Last Place** (were First Blood / Last Word).
+- **Cassen shows the turns remaining** on a running commission, in the same tally slot every other power
+  already uses. `dueWave` is the turn it PAYS on, so the count is the gap from now — it reads `1t` on the turn
+  before it lands and disappears once nothing is running.
+
+Verified in the browser rather than assumed: with a Gold commission due on wave 5 and the run on wave 3, the
+tally reads `2t`, the button carries `cassen-gold.webp` at full opacity, and the `committed` lock is still
+applied so the power stays unusable while it runs.
+
+Full suite 5515 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Pickers go horizontal; Flash grants in REAL TIME
 
 **The pickers stacked vertically** because I had borrowed a `quest-row` class that already exists elsewhere as

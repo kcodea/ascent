@@ -212,6 +212,9 @@ export function StatusBar() {
       case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
       case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
+      // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
+      // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
+      case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
       default: return null;
     }
   })();
@@ -514,7 +517,7 @@ export function StatusBar() {
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
                   <div className="questcard-head">
                     <div className="questcard-tier">Claim · next combat</div>
-                    <div className="questcard-name">{end === 'first' ? 'First Blood' : 'Last Word'}</div>
+                    <div className="questcard-name">{end === 'first' ? 'First Place' : 'Last Place'}</div>
                   </div>
                   <div className="questcard-body">
                     <div className="questcard-sect reward">

@@ -2874,8 +2874,9 @@ export function simulate(
       }
     }
     if (rmods.unitedFront && rmods.unitedFront > 0) {
-      // Emissary Vale (United Front): the Five Banners rule, tier-scaled — one friendly of each type gains
-      // +N/+N (N = the hero's tier when the fight began). Same one-banner-per-body selection.
+      // Emissary (United Front): the Five Banners rule — one friendly of each type gains +N/+N, where N is
+      // the number of spells cast this GAME (owner respec 2026-08-17; it was the hero's tavern tier). Same
+      // one-banner-per-body selection: a body claims the first type nobody has claimed yet.
       const n = rmods.unitedFront;
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);

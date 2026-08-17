@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type Tribe } from '@game/core';
 import { HEROES } from './heroes';
-import { createRun, reduce, CONFIG, type RunState } from './index';
+import { createRun, questCombatMods, reduce, CONFIG, type RunState } from './index';
 
 const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 
@@ -155,8 +155,8 @@ describe('Foreman Flint — Company Rate', () => {
   });
 });
 
-describe('Emissary Vale — United Front', () => {
-  it('Start of Combat gives one minion of each tribe +tier/+tier', () => {
+describe('Emissary — United Front', () => {
+  it('Start of Combat gives one minion of each type the banner', () => {
     const p: BoardMinion[] = [
       { cardId: 'stray', attack: 2, health: 20 },    // beast
       { cardId: 'dm_clerk', attack: 2, health: 20 }, // demon
@@ -168,11 +168,23 @@ describe('Emissary Vale — United Front', () => {
     expect(banners.length, 'one banner per tribe (beast + demon) at +4/+4').toBe(2);
   });
 
-  it('grants a Fatecarver when the Shop reaches Tier 6', () => {
+  // Respec'd 2026-08-17: the banner is +1/+1 per SPELL CAST THIS GAME, not the tavern tier, and the Fatecarver
+  // clause is gone — the owner restated the power as the Start-of-Combat effect alone.
+  it('scales with spells cast this game, not the Shop tier', () => {
+    const s: RunState = { ...createRun(5, 'vale'), tier: 2, spellsCast: 7 };
+    expect(questCombatMods(s).unitedFront, 'the magnitude is the spell count').toBe(7);
+  });
+
+  it('does nothing before a single spell has been cast', () => {
+    const s: RunState = { ...createRun(5, 'vale'), tier: 6, spellsCast: 0 };
+    expect(questCombatMods(s).unitedFront, 'zero, so the SoC block is skipped').toBe(0);
+  });
+
+  it('no longer grants a Fatecarver at Tier 6', () => {
     let s: RunState = { ...createRun(5, 'vale'), embers: 50, maxEmbers: 50, tier: 5, hand: [] };
     s = reduce(s, { type: 'upgrade' });
-    expect(s.tier, 'upgraded to Tier 6').toBe(6);
-    expect(s.hand.some((c) => c.cardId === 'n2_fatecarver'), 'a Fatecarver arrived').toBe(true);
+    expect(s.tier).toBe(6);
+    expect(s.hand.some((c) => c.cardId === 'n2_fatecarver'), 'that clause was removed').toBe(false);
   });
 });
 

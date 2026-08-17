@@ -1030,6 +1030,16 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
     the web. Identity is now portable across devices and survives a site-data wipe. Purely client-side (email
     lives in `auth.users`), so no schema change. **Needs the Supabase email templates to include `{{ .Token }}`**
     (Magic Link + Change Email Address) so the code is delivered.
+    **Mail provider is a two-stage plan (2026-08-17).** Owner testing found sign-in email reaching only the
+    owner's inbox — Resend's unverified-domain gate permits sending solely from `onboarding@resend.dev` and
+    solely *to* the Resend account owner's address. **Fixed for now by moving Supabase's custom SMTP to a
+    dedicated Gmail account over `smtp.gmail.com` + App Password**, which has no recipient allow-list and needs
+    no domain, so friends/testers can link accounts today. It is a BRIDGE: ~500/day, From forced to the Gmail
+    address, outside Google's terms for bulk sending. **At full release, move to Resend on the verified release
+    domain** (`noreply@<domain>`) and revoke the App Password. Both runbooks in
+    [`supabase/README.md`](../supabase/README.md). Rejected: Supabase's built-in mailer — 2/hour, and the Free
+    plan's lowest grantable role is Developer (content access to the live project), so it would trade database
+    access for a test email.
   - **C2b — handles + offline queue SHIPPED 2026-08-09.** The `Kevin#4821` discriminator (`profiles` gains
     `discriminator` + a unique `(lower(author), discriminator)` index, assigned client-side with
     retry-on-conflict) + denormalised `profiles.email`; the offline upload queue (queues every write path to

@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-17 - Rune of the Long Shift pays out the moment you take it
+
+Reworded to **"Discover 2 Shop Spells. Repeat every Start of Turn."** and made the first pair fire on
+acquisition instead of waiting for the next turn — a 2-cost epic that does literally nothing on the turn you
+buy it reads as broken. The start-of-turn repeat is unchanged; taking the rune now simply queues the same two
+Discovers immediately (one opens, one waits behind it). Covered by a new case in `devGrant.test.ts` that drives
+the real reward engine, plus a text assertion so the printed rule and the behaviour can't drift apart.
+
+## 2026-08-17 - Transcendant: Engrave becomes a live adjacency aura
+
+Renamed **Transcendence → Transcendant** (id `d2_transcendence` unchanged, so saves, replays and art keep
+working) and respecced its Engrave half per the owner. It no longer *grants* the Engrave keyword to its Dragon
+neighbours once at Start of Combat; instead **adjacent Dragons are Engraved for as long as Transcendant is
+alive and standing next to them**. Start of Combat now does one thing: give your Dragons +3/+3 (+6/+6 golden).
+
+The interesting part is *where* the aura lives. Granting `EG` on the fly would be wrong — the keyword sticks,
+so one adjacent buff would silently engrave the rest of the fight even after Transcendant died. Instead the
+aura is evaluated inside `ctx.buff`, the single funnel every combat stat-gain passes through: at the moment a
+gain lands on a Dragon, we look left and right for a *living* Transcendant, and if one is there the gain accrues
+into `permaGain` exactly as an `EG` carrier's would. That makes "while alive and adjacent" literally true per
+gain — a neighbour keeps what it gained beside a living Transcendant and nothing it gains afterwards. A new
+`Minion.auraEngraved` marker only exists so the carry-back entry at settle is flagged `engraved` correctly.
+Per the owner's ruling this is **combat-only** — there is no recruit-phase Engraved pill — and it keeps **Ward**.
+
+The effect factory `scEngraveTribeNeighboursBuffTribe` lost its Engrave half and is now just
+**`scBuffTribe`** (renamed through `types.ts`, `schema.ts`, `policies.ts`, the factory and the card).
+
+Verified: typecheck + lint + `npm test` (343 files / 5554 tests) + `build:web` all green. The existing
+Transcendence cases pass unchanged — its own +3/+3 is still engraved for its neighbours, since it is trivially
+alive when its own Start of Combat resolves — and a new case proves the respec: with a *second* Transcendant on
+the board, the neighbour keeps **both** buffs (+6/+6, flagged engraved) while a Dragon buffed by both but
+adjacent to neither keeps nothing.
 ## 2026-08-17 - Emissary Vale → Emissary, respec'd to scale on spells cast
 
 - **Renamed to Emissary** (id `vale` unchanged, so saves and art keep resolving).

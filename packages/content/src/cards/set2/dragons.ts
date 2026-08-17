@@ -339,20 +339,22 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
   },
   {
-    // Owner add 2026-08-14. The Dragon line's PERMANENCE card: a warded T4 whose Start of Combat Engraves its
-    // Dragon neighbours and then buffs the whole flight. The order inside `scEngraveTribeNeighboursBuffTribe`
-    // is load-bearing — the Engrave lands FIRST, so this very fight's +3/+3 is part of what the neighbours keep
-    // (an EG carrier accrues its combat gains into `permaGain` → carried back by `playerPermaBuffs`). Every
-    // other Dragon still gets the +3/+3, it just doesn't keep it. Golden doubles the buff, not the Engrave.
+    // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of
+    // Combat buffs the whole flight, and whose Engrave is a LIVE ADJACENCY AURA rather than a one-shot grant.
+    // The aura is evaluated in `ctx.buff` at the moment stats are gained (see `auraEngraved` in simulate.ts),
+    // which is what makes "while alive and adjacent" literally true: a neighbour keeps the gains it made
+    // beside a living Transcendant and nothing it gains after Transcendant dies. Its own +3/+3 is engraved for
+    // its neighbours for free, since Transcendant is trivially alive when its own SoC resolves. Every other
+    // Dragon still gets the +3/+3, it just doesn't keep it. Golden doubles the buff, not the Engrave.
     id: 'd2_transcendence',
-    name: 'Transcendence',
+    name: 'Transcendant',
     tribe: 'dragon',
     tier: 4,
     attack: 4,
     health: 5,
     keywords: ['DS', 'SC'], // Ward + the Start-of-Combat pill
-    effects: [{ on: 'startOfCombat', do: 'scEngraveTribeNeighboursBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: '**Ward.** **Start of Combat:** **Engrave** adjacent **Dragons**. Give your **Dragons +3/+3**.',
-    goldenText: '**Ward.** **Start of Combat:** **Engrave** adjacent **Dragons**. Give your **Dragons +6/+6**.',
+    effects: [{ on: 'startOfCombat', do: 'scBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
+    text: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **Dragons +3/+3**.',
+    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **Dragons +6/+6**.',
   },
 ];

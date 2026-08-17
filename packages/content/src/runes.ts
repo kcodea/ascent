@@ -1373,9 +1373,11 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Long Shift',
     cost: 2,
     epic: true,
-    // Owner rework 2026-08-11: from a buy-meter to a start-of-turn double Discover. The window opens in the
-    // shop as normal (the "no window" ruling is only for END-of-turn discovers, which fire mid-transition).
-    text: '**Start of Turn:** Discover **2 Shop Spells**.',
+    // Owner rework 2026-08-11: from a buy-meter to a double Discover. Reworded 2026-08-17 — the pair now fires
+    // IMMEDIATELY on taking the rune and repeats every Start of Turn, rather than waiting for the next turn.
+    // The window opens in the shop as normal (the "no window" ruling is only for END-of-turn discovers, which
+    // fire mid-transition).
+    text: 'Discover **2 Shop Spells**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeLongShift' },
   },
   {

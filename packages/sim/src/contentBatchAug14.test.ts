@@ -56,9 +56,13 @@ describe('Grobbus — Avenge (3) grants a random Demon', () => {
   });
 });
 
-// ── TRANSCENDENCE (T4 Dragon 4/5, Ward) — SoC: Engrave adjacent Dragons, then buff your Dragons ─────────────
-describe('Transcendence — Start of Combat Engraves adjacent Dragons, then buffs the flight', () => {
-  // Layout: Dragon | Transcendence | Beast. The left neighbour is a Dragon (engraved + buffed), the right one
+// ── TRANSCENDANT (T4 Dragon 4/5, Ward) — adjacent Dragons are Engraved; SoC buffs your Dragons ──────────────
+// Owner respec 2026-08-17: the Engrave is no longer a one-shot Start-of-Combat grant, it is a LIVE ADJACENCY
+// AURA evaluated as stats are gained (`auraEngraved` in simulate.ts). Its OWN +3/+3 still ends up engraved for
+// the neighbours — Transcendant is trivially alive when its own SoC resolves — so the cases below read the same
+// as they did before the respec. What is new is the third `it`: the aura engraves gains from ANY source.
+describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat buffs the flight', () => {
+  // Layout: Dragon | Transcendant | Beast. The left neighbour is a Dragon (engraved + buffed), the right one
   // is not (buffed by nothing — it isn't a Dragon — and never engraved).
   const fight = (golden = false) => simulate(
     [
@@ -90,12 +94,35 @@ describe('Transcendence — Start of Combat Engraves adjacent Dragons, then buff
   });
 
   it('only the ADJACENT Dragon keeps its gains — Engrave is the difference', () => {
-    // `playerPermaBuffs` is the carry-back for combat gains that stick, and an EG carrier is what earns an entry.
+    // `playerPermaBuffs` is the carry-back for combat gains that stick; the aura is what earns an entry.
     const perma = fight().playerPermaBuffs ?? [];
     const kept = new Set(perma.map((p) => p.sourceUid));
     expect(kept.has('L'), 'the adjacent Dragon should have been Engraved').toBe(true);
     expect(kept.has('F'), 'a far Dragon is buffed but NOT Engraved — it keeps nothing').toBe(false);
     expect(kept.has('R'), 'the Beast neighbour is off-tribe — never Engraved').toBe(false);
+  });
+
+  it('the aura engraves gains from ANY source, not just its own Start of Combat', () => {
+    // This is the respec in one assertion. A SECOND Transcendant sits far from `L` and buffs the whole flight;
+    // `L` keeps that buff too, purely because it is standing next to a living Transcendant when the buff lands.
+    // Under the old one-shot rule the neighbour carried the EG keyword and would have kept it either way, so
+    // the difference shows in `F`: it is buffed by BOTH Transcendants and adjacent to NEITHER, and keeps nothing.
+    const r = simulate(
+      [
+        bm('d2_transcendence', 'T2', 0, 9999),
+        bm('d2_orivax', 'L', 0, 9999),      // flanked by both Transcendants
+        bm('d2_transcendence', 'T1', 0, 9999),
+        bm('pack', 'B', 0, 9999),           // a Beast spacer, so F touches no Transcendant
+        bm('d2_orivax', 'F', 0, 9999),
+      ],
+      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
+      makeRng(6), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
+    );
+    const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
+    // Both Transcendants buff every Dragon, so `L` keeps +6/+6 — two separate grants, both engraved by the aura.
+    expect(kept.get('L')?.attack, 'the neighbour should keep BOTH Start-of-Combat buffs').toBe(6);
+    expect(kept.get('L')?.engraved, 'the carry-back entry must be flagged Engraved').toBe(true);
+    expect(kept.has('F'), 'F is buffed twice but adjacent to neither — it keeps nothing').toBe(false);
   });
 
   it('golden doubles the buff, not the Engrave', () => {

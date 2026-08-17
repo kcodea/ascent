@@ -1156,6 +1156,7 @@ export const Card = memo(function Card({
       )}
       {/* Sable's Soulbind — a purple ring hovering ABOVE each bound minion for the turn the bond is live
           (owner ask 2026-08-16), so the pair is readable at a glance. Static shadow, opacity-only breathe. */}
+      {soulbound && <span className="soulbindflash" aria-hidden="true" />}
       {soulbound && <span className="soulbindmark" aria-hidden="true" />}
       {/* Bane — a battlecry just enchanted the Fodder card type run-wide: a soft purple haze swells from
           under the card (Bane itself + any Fodder on the board it buffed), matching the other Fodder FX. */}

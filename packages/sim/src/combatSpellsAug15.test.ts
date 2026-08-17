@@ -73,6 +73,16 @@ describe('Parting Cry — the Shout fires on death', () => {
     expect(r.events.some((ev) => ev.type === 'sc' && /parting cry/.test(ev.text ?? '')), 'the cry fired').toBe(true);
   });
 
+  // The UI draws NOTHING for an `sc` without `cast` — it classifies it as narration (see the `sc` case in
+  // useCombatReplay). The cry is a real, visible proc, so the flag is part of the behaviour, not decoration
+  // (owner report 2026-08-17: the Shout animation never played).
+  it('flags the cry as a CAST so the UI actually animates it', () => {
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 1, health: 1, partingCry: true } as BoardMinion];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 30, health: 60 }];
+    const cry = sim(p, e, {}).events.find((ev) => ev.type === 'sc' && /parting cry/.test(ev.text ?? ''));
+    expect(cry && 'cast' in cry ? cry.cast : undefined, 'a silent sc draws no animation').toBe(true);
+  });
+
   // REGRESSION (owner report 2026-08-16): the cry fired the effect but ran the raw `onPlay` FACTORIES
   // directly, skipping `replayCombatBattlecry` + the `battlecryTriggered` bus emit that every OTHER
   // Shout-trigger (Dawnclaw, Ryme, Thunderous Sovereign) goes through. So "after you trigger a Shout"

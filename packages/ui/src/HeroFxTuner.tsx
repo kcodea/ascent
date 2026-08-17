@@ -1,4 +1,4 @@
-import { HFX_DEFAULTS, HFX_NUM_KEYS, HFX_RANGES, getHeroFxConfig, resetHeroFxConfig, setHeroFxValue, type HeroFxConfig } from './heroFxConfig';
+import { HFX_DEFAULTS, HFX_NUM_KEYS, HFX_RANGES, getHeroFxConfig, resetHeroFxConfig, setHeroFxColor, setHeroFxValue, type HeroFxConfig } from './heroFxConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -27,14 +27,47 @@ const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefine
   sbHue:     ['Ring hue', undefined, 'Colour of the ring (deg). Around 275 is purple.'],
   sbDip:     ['Ring breathe depth', undefined, 'How faint the ring gets at the bottom of its breathe.'],
   sbPeriod:  ['Ring breathe period', 's', 'Seconds per breathe.'],
+  sbWeb:       ['Web opacity', undefined, 'How visible the spiderweb fill inside the ring is. 0 turns it off.'],
+  sbWebSpokes: ['Web spokes', undefined, 'How many radial threads the web has.'],
+  sbWebRings:  ['Web rings', undefined, 'How many concentric threads the web has.'],
+  sbBuild:     ['Web build time', 'ms', 'How fast the web spins out from the centre when the bond is forged. One-shot.'],
+  sbFlash:     ['Bind flash time', 'ms', 'How long the purple flash on each bound unit lasts. One-shot.'],
+  ciaFoilOpacity:   ['Foil opacity', undefined, 'How visible the holographic foil is inside its mask.'],
+  ciaHoverBoost:    ['Hover boost', '×', 'How much brighter the whole treatment reads while hovered.'],
+  ciaFoilPeriod:    ['Foil drift period', 's', 'Seconds per drift cycle. Slow reads as reflected light.'],
+  ciaSweepPeriod:   ['Sweep period', 's', 'Seconds between diagonal light passes.'],
+  ciaSweepDuration: ['Sweep duration', 's', 'How long one visible pass lasts. Keep under the period.'],
+  ciaSweepAngle:    ['Sweep angle', undefined, 'Direction in degrees. Negative runs bottom-left to top-right.'],
+  ciaSweepWidth:    ['Sweep width', undefined, 'Width of the reflective band, in card widths.'],
+  ciaHaloOpacity:   ['Halo opacity', undefined, 'How visible the segmented outer contour is.'],
+  ciaHaloPeriod:    ['Halo period', 's', 'Seconds per full rotation of the contour.'],
+  ciaHaloInset:     ['Halo inset', 'px', 'How far outside the card the contour sits. Negative pushes it out.'],
+  ciaGlintCount:    ['Glint count', undefined, 'How many sparks may be lit at once.'],
+  ciaGlintSize:     ['Glint size', 'px', 'Size of each spark.'],
+  ciaSealSize:      ['Seal size', 'px', 'Size of the enchanted seal near the top of the card.'],
+  ciaFitX:          ['Fit nudge X', 'px', 'Move the foil horizontally from the measured art window.'],
+  ciaFitY:          ['Fit nudge Y', 'px', 'Move the foil vertically from the measured art window.'],
+  ciaFitW:          ['Fit width', '×', 'Foil width as a multiple of the measured art window.'],
+  ciaFitH:          ['Fit height', '×', 'Foil height as a multiple of the measured art window.'],
+  ciaFitRadius:     ['Corner radius', undefined, 'Roundness of the foil panel. 0.5 makes it a full oval.'],
+  ciaFeather:       ['Edge feather', undefined, 'How far the edges fade out. Higher reads more like a film.'],
 };
 
 const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = HFX_RANGES[key];
-  const group = key.startsWith('enc') ? 'Cia: Enchanted glow' : 'Sable: Soulbind ring';
+  const group = key.startsWith('cia') ? 'Cia: Enchanted foil'
+    : key.startsWith('enc') ? 'Cia: CSS fallback (no WebGL / reduced motion)'
+    : 'Sable: Soulbind ring';
   return { key, label, unit, hint, group, min, max, step };
 });
+
+/** The two colour pickers. Declared separately from the numeric map because they are `kind: 'color'` and go
+ *  back through `writeColor` as hex strings, not through the numeric setter. */
+const colorControls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = [
+  { key: 'ciaColorA', label: 'Warm tone', hint: 'The gold half of the foil. Drives the sweep, halo and seal.', group: 'Cia: Enchanted foil', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'ciaColorB', label: 'Cool tone', hint: 'The teal counter-highlight. The contrast between the two is what reads as holographic.', group: 'Cia: Enchanted foil', kind: 'color', min: 0, max: 0, step: 0 },
+];
 
 export const SPEC: TunerSpec<HeroFxConfig> = {
   id: 'herofx',                     // FROZEN — indexes this panel's dragged position in localStorage
@@ -42,9 +75,10 @@ export const SPEC: TunerSpec<HeroFxConfig> = {
   note: 'dev · live · drag',
   read: getHeroFxConfig,
   write: setHeroFxValue,
+  writeColor: (k, v) => setHeroFxColor(k as 'ciaColorA' | 'ciaColorB', v),
   reset: resetHeroFxConfig,
   defaults: HFX_DEFAULTS,
-  controls,
+  controls: [...controls, ...colorControls],
 };
 
 export function HeroFxTuner(): JSX.Element {

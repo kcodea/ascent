@@ -7802,6 +7802,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
 }
 
+/* ── Cia: the ENCHANTED shop card — CSS FALLBACK ONLY ─────────────────────────────────────────────────
+   The shipped treatment is the Pixi holographic foil (`ciaEnchantedFx.ts`). This ring effect is RETAINED as
+   the no-WebGL / Pixi-failed fallback, per the handoff's migration rule: it is hidden only once the
+   controller has actually mounted and stamped `.pixi-enchanted-ready` on <html>, so a session where Pixi
+   never comes up still shows an unmistakable enchanted card.
+
+   Reduced motion is handled inside the controller (a static contour + seal), so it is NOT gated here.
+   ────────────────────────────────────────────────────────────────────────────────────────────────────── */
+:root.pixi-enchanted-ready .enchantwisp { display: none; }
+
 /* ── Cia: the ENCHANTED shop card ──────────────────────────────────────────────────────────────────────
    A warm red glow pooled UNDER the offer. Deliberately calm (owner ask 2026-08-16 — the first pass's spinning
    double chain read as janky): one element, one slow breathe, no rotation. The job is only to say "this card
@@ -7820,14 +7830,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: absolute; inset: 0; border-radius: inherit;
   /* One repeating conic gradient carries the link COUNT, LENGTH and EDGE — see applyHeroFxVars(). */
   background: var(--hfx-enc-links);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 5) * var(--u) + 1px));
-  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 5) * var(--u) + 1px));
-  filter: blur(calc(var(--hfx-enc-blur, 14) * var(--u) * 0.08)); /* STATIC — never animated */
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
+  filter: blur(calc(var(--hfx-enc-blur, 12) * var(--u) * 0.08)); /* STATIC — never animated */
   will-change: transform;
 }
-.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 3s) linear infinite; }
+.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 2.75s) linear infinite; }
 .enchantwisp .ew-b {
-  animation: ewspin calc(var(--hfx-enc-period, 3s) * var(--hfx-enc-skew, 1.35)) linear infinite reverse;
+  animation: ewspin calc(var(--hfx-enc-period, 2.75s) * var(--hfx-enc-skew, 2.95)) linear infinite reverse;
   opacity: var(--hfx-enc-dip, 1);
 }
 @keyframes ewspin { to { transform: rotate(360deg); } }
@@ -7838,16 +7848,37 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .soulbindmark {
   position: absolute; left: 50%;
   /* UNDER the minion (owner ask 2026-08-16) — `sbY` now measures DOWNWARD from the card's bottom edge. */
-  bottom: calc(-1 * var(--hfx-sb-y, 40) * var(--u));
-  width: calc(var(--hfx-sb-size, 27) * var(--u)); height: calc(var(--hfx-sb-size, 27) * var(--u));
-  margin-left: calc(-0.5 * var(--hfx-sb-size, 27) * var(--u));
+  bottom: calc(-1 * var(--hfx-sb-y, -23) * var(--u));
+  width: calc(var(--hfx-sb-size, 120) * var(--u)); height: calc(var(--hfx-sb-size, 120) * var(--u));
+  margin-left: calc(-0.5 * var(--hfx-sb-size, 120) * var(--u));
   border-radius: 50%; pointer-events: none; z-index: 7;
   border: calc(var(--hfx-sb-ring, 3.3) * var(--u)) solid hsl(var(--hfx-sb-hue, 297) 100% 79% / 0.95);
-  background: radial-gradient(circle, hsl(var(--hfx-sb-hue, 297) 100% 70% / 0.55) 0%, hsl(var(--hfx-sb-hue, 297) 100% 63% / 0) 70%);
+  /* SPIDERWEB fill (owner ask 2026-08-17): radial spokes crossed with concentric rings, over the soft core
+     glow. Both webs are STATIC paint on this one element — nothing here animates, so the web is free per
+     frame; only the element's own opacity breathes. */
+  background:
+    var(--hfx-sb-web-spokes, none),
+    var(--hfx-sb-web-rings, none),
+    radial-gradient(circle, hsl(var(--hfx-sb-hue, 297) 100% 70% / 0.55) 0%, hsl(var(--hfx-sb-hue, 297) 100% 63% / 0) 70%);
+  /* The web threads fade toward the rim so they read as silk rather than a pie chart. */
+  -webkit-mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
+  mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
   /* STATIC shadow — only `opacity` is animated. */
-  box-shadow: 0 0 calc(var(--hfx-sb-blur, 5.5) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
-  animation: sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
-  will-change: opacity;
+  box-shadow: 0 0 calc(var(--hfx-sb-blur, 0) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
+  /* Two animations, different properties, so they compose: `sbbuild` is a ONE-SHOT that spins the web out
+     from the centre the moment the bond is forged (the element mounts exactly then), and `sbbreathe` is the
+     steady loop. Both are compositor-only — transform and opacity, never paint. */
+  animation:
+    sbbuild var(--hfx-sb-build, 260ms) cubic-bezier(0.16, 1, 0.3, 1) both,
+    sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+/* Spins out from nothing: scale from the centre with a quick counter-rotation, so the threads read as being
+   SPUN rather than simply popped in. */
+@keyframes sbbuild {
+  0%   { transform: scale(0.05) rotate(-90deg); }
+  70%  { transform: scale(1.06) rotate(6deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
@@ -7890,4 +7921,41 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: rgba(18, 12, 8, 0.88);
   border: calc(1.5 * var(--u)) solid rgba(255, 196, 96, 0.5);
   font-size: calc(11.5 * var(--u)); line-height: 1.35; color: #f6e9d2;
+}
+
+/* Quillen's archived types under the power rule — each in its own tribe colour, unused slots muted. */
+.herotip-types { display: flex; gap: calc(5 * var(--u)); justify-content: center; margin-top: calc(5 * var(--u)); }
+.herotip-type {
+  padding: calc(1.5 * var(--u)) calc(6 * var(--u)); border-radius: 999px;
+  font-size: calc(10 * var(--u)); font-weight: 700; line-height: 1.4;
+  color: var(--tc, #cbb9a2);
+  background: color-mix(in srgb, var(--tc, #cbb9a2) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc, #cbb9a2) 45%, transparent);
+}
+.herotip-type.empty { color: #8b7f70; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); }
+
+/* Sable's bind FLASH — a one-shot purple wash over each bound unit as the bond is forged. The element mounts
+   exactly when the bond appears, so the mount IS the trigger; no JS timing needed.
+
+   ONE-SHOT, so per docs/performance.md it may touch paint — but it does not need to: the gradient is static
+   and only `opacity` animates, which keeps it compositor-only anyway. `pointer-events: none` and it parks at
+   opacity 0, so it never interferes once it has played. */
+.soulbindflash {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 6; opacity: 0;
+  background: radial-gradient(circle at 50% 50%,
+    hsl(var(--hfx-sb-hue, 297) 100% 82% / 0.95) 0%,
+    hsl(var(--hfx-sb-hue, 297) 100% 66% / 0.55) 45%,
+    hsl(var(--hfx-sb-hue, 297) 100% 60% / 0) 78%);
+  animation: sbflash var(--hfx-sb-flash, 420ms) ease-out both;
+  will-change: opacity;
+}
+@keyframes sbflash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .soulbindflash { animation: none; opacity: 0; }
+  .soulbindmark { animation: none; }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
@@ -521,6 +521,25 @@ export function StatusBar() {
             <b>{power.name}</b>{isPassive ? ' · passive' : ''}
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
+            {/* QUILLEN: the archived TYPES, each in its own tribe colour, with unused slots as "Empty". A
+                plain rule string cannot carry per-word colour, so the live state is rendered here instead of
+                being folded into the text (owner ask 2026-08-17). */}
+            {power.kind === 'archive' && (
+              <span className="herotip-types">
+                {Array.from({ length: 3 }, (_, i) => {
+                  const t = run.archivedTribes?.[i];
+                  return (
+                    <span
+                      key={i}
+                      className={`herotip-type${t ? '' : ' empty'}`}
+                      style={t ? ({ '--tc': `var(--t-${t})` } as CSSProperties) : undefined}
+                    >
+                      {t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Empty'}
+                    </span>
+                  );
+                })}
+              </span>
+            )}
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
             <span className="herotip-live">{powerStatus}</span>

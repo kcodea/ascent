@@ -1,5 +1,236 @@
 # ASCENT — development log
 
+## 2026-08-17 - Perf trace analysed; owner-tuned Cia values baked in
+
+**Trace analysis** (`ascent-perf-1786970315203.json`, 30s, 3440x1351 @ 240Hz, DPR 1). Median frame 4.2ms —
+exactly the 4.17ms budget — but `fpsMin` 181, 94 long frames, 33 jank, worst 33.4ms.
+
+Two hotspots are **94% of all measured time**:
+
+| | calls | total | max |
+|---|---:|---:|---:|
+| `render:recruit` | 128 | **330.2ms** | **13.2ms** |
+| `layout:flip` | 69 | **313.0ms** | **12.8ms** |
+| everything else combined | — | ~40ms | 4.1ms |
+
+At 240Hz a single 13.2ms render burns **three whole frames**. That is the entire story.
+
+**What it is NOT.** `particles`, `sprite pool`, `weld rings` and `spell arrows` are 0 in every bucket, so the
+Pixi/FX layer is not involved at all. The reducer is negligible (`reduce:buy` 1.2ms across 7 calls). Drag is
+well optimised — 758 `drag:flushMove` calls for 9.6ms TOTAL. DOM nodes hold flat at ~2100, so nothing leaks.
+
+**The correlation is exact.** Every bad bucket is a burst of shop actions: t=19013 has 38 recruit renders →
+181fps; t=26021 has 44 → 187fps. Every bucket with ZERO renders (t=28021, 29021, 30021) sits at a clean 240fps
+with 0 long frames and 0 jank. Idle costs nothing; the cost is entirely per-ACTION React work.
+
+So the drops are a re-render + FLIP-measure cost on buy/play/sell/reorder, not an animation problem. The two
+leads worth pulling, NOT done here because they want their own measured PR:
+1. `shopViews` rebuilds every offer view when ANY of its ~30 deps changes — one action invalidates the lot.
+2. `layout:flip` averages 4.5ms and peaks at 12.8ms, reading layout across many elements per action.
+
+**Also baked the owner's tuned Cia values.** Notably halo, glints and seal are all dialled to 0 — the foil
+alone carries the read — so those layers are now skipped outright rather than drawn transparent (an invisible
+sprite still costs a draw call). Any glint still lit when the count drops to zero is parked first, so it
+cannot freeze on screen.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Cia's foil gets two real colour pickers
+
+The tuner schema already supports `kind: 'color'` (hex strings through `writeColor`), so the foil gets proper
+pickers rather than an abstract hue number: **Warm tone** and **Cool tone**, under *Cia: Enchanted foil*.
+
+TWO colours, not one, and that is the point: a single hue reads as a glow. It is the interplay between a warm
+and a cool highlight that makes a surface look holographic, so both drive the gradients — warm carries the
+foil body, sweep tail, halo arcs and seal; cool is the counter-highlight threaded between them.
+
+The colours are BAKED into the textures rather than applied as a Pixi `tint`, because a tint is a multiply: it
+can only push everything toward one colour, which would flatten exactly the two-tone interplay being tuned.
+The texture set is cached per `(warm, cool)` pair and rebuilt only when a picker moves, so the steady-state
+cost is unchanged; live sprites are re-pointed at the new set through the same fit-key path that already
+handles the shape dials.
+
+`heroFxConfig` now holds string values alongside numbers, so `HFX_RANGES` is keyed off `HFX_NUM_KEYS` rather
+than `keyof HeroFxConfig`, and colour writes go through their own `setHeroFxColor`. Old saved partials still
+merge over the new defaults, so nothing dialled previously is lost.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Cia's foil gets FIT + FEATHER dials; hidden while its card is dragged
+
+I guessed the foil's shape twice and was wrong twice, so this hands the shape to the tuner instead of guessing
+a third time.
+
+**Six new dials** under *Cia: Enchanted foil* — `Fit nudge X/Y`, `Fit width/height` (multiples of the measured
+art window), `Corner radius` (0.5 = a full oval, which is what an oval card frame actually wants) and
+`Edge feather`. The measured `.art` box remains the STARTING point, because it tracks compact mode and frame
+variants automatically; the dials adjust from there, since the visible art is not the same shape as its
+layout box on every frame.
+
+The mask texture is now shape-dependent, so it is cached per `(radius, feather)` rather than built once — the
+alpha is stacked concentric rounded rects ramping inward, which is cheaper and more predictable than blurring
+a hard shape, and it is what makes the edge disappear instead of ending.
+
+**The "stays behind" case was a DRAG, not a purchase.** My previous fix covered the card being bought and
+verified that path, but the screenshot was mid-drag: the source card stays in place, dimmed, while a ghost
+follows the pointer — so a foil sitting on the source read as being left behind. It now hides while its card
+carries `dragsrc`.
+
+Full suite 5502 green, typecheck + lint + build:web clean. The shape still needs the owner's eye — that is
+what the dials are for.
+
+## 2026-08-17 - Cia's foil: fitted to the real art window, feathered, and cleared on purchase
+
+Two owner-reported issues with the first foil pass, both real.
+
+**1. Wrong size/shape, hard edges.** I had derived the foil region from a fraction of the card box
+(89% × 60% from the top). Measuring the actual DOM says the card box is 127×127 while its `.art` window is
+**119×153** — taller than the box it sits in, because the shield frame overflows. So the guess was wrong on
+every axis. The foil now measures `.art` directly, which also makes it correct for compact mode, tribe frames
+and Gilded treatments for free (it falls back to a card-box fraction only if a future card has no `.art`).
+
+The hard-edged `Graphics` mask is replaced by a FEATHERED alpha texture — a rounded panel whose edges erase
+to nothing. That is what makes it read as a film ON the art rather than a pane of glass sitting over the card:
+the foil simply has nowhere to be at the edges, so there is no boundary to notice.
+
+**2. The foil survived buying the card.** The treatment was retired only by the uid sync, but the offer is
+spliced out of the shop and the sync can land a frame or more later — so a bought card left its foil hanging
+in the shop. The controller now self-heals: if its anchor element is missing for two consecutive frames it
+retires that offer itself, and stops entirely when that was the last one. Retirement happens outside the
+iteration so the map is never mutated mid-loop.
+
+Verified in the browser: before the buy the enchanted card is present; after it the shop no longer holds the
+offer, no `.card.enchanted` element remains, `pixi-enchanted-ready` is GONE (proving the controller tore down
+rather than merely hiding), and Cia's counter still advanced to 1 — the FX work did not touch the mechanics.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Cia's enchanted foil moves to the shared Pixi layer (handoff Phases 1-2)
+
+Implements `cia-enchanted-foil-fx-handoff.md` Phases 1-2: the persistent card treatment. The looping CSS rings
+are replaced by a holographic foil rendered through the ONE shared Pixi application.
+
+- `ciaEnchantedFx.ts` — the controller. One root `Container` via `pixiFx.mountLayer(root, 'over')` plus one
+  `pixiFx.addUpdater`. Per offer uid: a segmented rotating halo, a masked foil + diagonal sweep, pooled
+  glints, and a pulsing seal. Textures are generated once from detached 2D canvases and shared, so no live
+  blur filter and no per-frame allocation. The updater and mount are BOTH disposed the moment the last
+  enchanted offer goes away, so an ordinary shop pays nothing.
+- The mask is the first-prototype shape the handoff sanctions — the art window plus a narrow frame contour,
+  never an opaque rectangle over the whole card, which would tint the rules text.
+- `useCiaEnchantedFx.ts` — a deliberately thin hook: React owns only WHICH uids are enchanted, keyed on the
+  joined uid list so the shop object being rebuilt every action does not re-sync. No React state per frame.
+- Tuner: a new **Cia: Enchanted foil** group with the handoff's 13 controls at its suggested defaults. The old
+  `enc*` dials are kept and relabelled **Cia: CSS fallback**, because that effect is still the no-WebGL path.
+- Fallback: `.enchantwisp` is hidden only under `:root.pixi-enchanted-ready`, a class the controller stamps
+  after `mountLayer`/`addUpdater` succeed — so a session where Pixi never comes up still shows an
+  unmistakable enchanted card. Reduced motion is handled inside the controller (static contour + seal).
+
+**Verified:** the class is stamped (so the controller genuinely mounted), the `.card.enchanted[data-uid]`
+anchor resolves, the CSS fallback computes to `display: none`, no additional canvas/WebGL context appears, and
+the full gate is green.
+
+**NOT verified:** how the foil actually LOOKS. I could not reach the Pixi stage from the console to inspect
+sprite alphas, and the effect is subtle enough at screenshot scale that I will not claim it reads correctly.
+It wants a real look before approval, and the 13 dials exist precisely so it can be tuned rather than guessed.
+
+**NOT implemented (Phases 3-5):** the purchase capture/streak, the third-card payout burst, the
+`data-fx-anchor="hero-power"` contract, and the tuner preview actions. Those are one-shot EVENTS whose timings
+the handoff requires stay authored rather than hardcoded in React, so they belong with the FX-authoring work.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Soulbind: a purple flash on the bound units + the web spins out from the centre
+
+Two one-shot cues when the bond is forged, both driven by MOUNT rather than JS timing — the mark and flash
+elements appear exactly when `sableBond` does, so the mount IS the trigger and there is no timer to keep in
+sync with the reducer.
+
+- **Purple flash** on each bound unit: a static radial wash whose OPACITY animates 0 → 1 → 0. One-shot, so it
+  would be allowed to touch paint, but it does not need to — the gradient never changes, so this stays
+  compositor-only anyway. Parks at opacity 0 with `pointer-events: none`, so it cannot interfere once played.
+- **The web spins out from the centre**: `sbbuild` scales the mark from 0.05 with a quick counter-rotation and
+  a slight overshoot, so the threads read as being SPUN rather than popped in. It composes with the existing
+  `sbbreathe` loop because the two animate different properties (transform vs opacity).
+
+Both durations are tunable (`Web build time`, `Bind flash time`), since "really quickly" is a feel judgement
+the owner will want to dial.
+
+Verified in the browser rather than asserted: with a 3-minion board, exactly the two OUTERMOST cards carry
+both elements (the middle one has neither), the mark resolves to `sbbuild, sbbreathe` at `0.26s, 2.4s`, and
+the flash to `sbflash` at `0.42s`.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Owner-tuned hero FX baked in; the web-opacity dial actually works now
+
+The owner's tuned values for Cia's rings and Sable's web are the shipped DEFAULTS, mirrored into the
+styles.css fallbacks per the Layout Lab rule. Notably `encShape: 1` (hard-edged links), `encSkew: 2.95` (the
+counter-ring turns much slower), and a Soulbind mark that is far larger and sits higher — `sbSize: 120`,
+`sbY: -23`, `sbBlur: 0`, with a dense 14-spoke / 5-ring web at full opacity.
+
+**Bug found while baking them: `sbWeb` did nothing.** It only wrote a `--sb-web-a` custom property that no
+rule ever read (alongside a no-op `background-blend-mode: normal`). The dial now folds straight into the
+thread ALPHA where the web gradients are built, and both dead declarations are gone. It happened to be
+invisible in review because the owner tuned it to 1 — the value where a broken opacity dial and a working one
+look identical.
+
+`sbSize: 120` sits exactly on its slider ceiling, so that range may want raising again if the mark should grow
+further.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Death-time procs keep an anchor; Quillen's archived types; Sable's web
+
+**The Shout FX gap, properly diagnosed.** The Effect Arena work DID unblock the mechanics — `rubyStatGain` is
+a real combat factory, `replayCombatBattlecry` runs it live, and `gainRubyBonus` emits its `+A/+H Ruby Power`
+narration. The Ruby flourish is wired to that narration too. What failed is the ANCHOR:
+
+    const el = findEl(e.source);
+    if (!el) continue;            // ← a dying body has no element
+
+`findEl` only resolves LIVING units. A proc fired by a dying body — Parting Cry replaying its own Shout as it
+dies — has no element by the time the beat renders, so the effect bailed and drew nothing even though the gain
+applied. It looked inconsistent rather than broken because the SAME Deepvein Shout re-fired by Dawnclaw on a
+living neighbour animates fine.
+
+Fixed generally rather than per-effect: the replay now keeps a LAST-KNOWN slot rect per uid, refreshed every
+beat, and all four source-anchored blocks (Ruby Power, spell power, proc crit, and the fourth gain channel)
+resolve through a shared `anchorOf` that falls back to it. Order matters — the refresh runs before the
+per-event pass, because a unit that dies in this beat is already gone from the DOM and must be served from the
+previous beat's snapshot. This covers every death-time proc, not just Parting Cry.
+
+*(My earlier `cast: true` change is still right and still needed — that makes the cry itself flash — but it was
+never the reason the Ruby animation was missing. Two separate bugs behind one symptom.)*
+
+**Quillen** — rule reworded to "Archive a friendly or shop minion. When full, discover a minion of those
+types.", with the archived types rendered beside it as three slots, each in its own tribe colour and unused
+ones reading "Empty". A plain rule string cannot carry per-word colour, so the live state is rendered rather
+than folded into the text.
+
+**Sable** — `sbSize` and `sbY` ranges widened a lot ("more room to move it around"), plus a **spiderweb fill**:
+radial spokes crossed with concentric rings, with dials for opacity, spoke count and ring count. Both webs are
+static paint on the existing element and the threads fade toward the rim; nothing new animates, so the web
+costs nothing per frame.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
+## 2026-08-17 - Parting Cry now ANIMATES: an `sc` without `cast` draws nothing
+
+Follow-up to yesterday's Parting Cry fix. That change made the cry's Shout fire correctly (the watchers get
+paid), but nothing was drawn on screen. The reason is a presentation contract I missed:
+
+    case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine cast flashes
+
+An `sc` event WITHOUT `cast: true` is classified as narration — it writes a combat-log line and a small trigger
+pulse, and draws no animation at all. The cry emitted a bare `sc`, so it was silent by construction. It now
+carries `cast: true` and flashes on the dying body, with a test asserting the flag (it is behaviour here, not
+decoration — without it the feature is invisible).
+
+**Wider gap, deliberately NOT changed here:** no combat Shout RE-TRIGGER animates the minion whose Shout fires.
+Dawnclaw and Ryme log `sc` without `cast`, and they point `source` at the TRIGGERING minion rather than the one
+whose Shout actually goes off — so even with the flag they would flash the wrong body. Making triggered Shouts
+animate properly is a shared presentation change (and the natural home for the Beat Lab's FX-on-beat work),
+not a one-line edit, so it wants its own PR and an owner ruling on what it should look like.
 ## 2026-08-17 - Cassen's running-commission art was dimmed to 10%, not missing
 
 The art was never absent — it was rendering at **10% opacity**, which reads as an empty button. My first two

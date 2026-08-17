@@ -746,6 +746,16 @@ export function useCombatReplay(
   opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number; paused?: boolean },
 ): CombatReplay {
   const { active, findEl, paused = false } = opts;
+  /**
+   * LAST-KNOWN slot rect per unit uid, refreshed every beat.
+   *
+   * Source-anchored FX (Ruby Power, spell power, proc crits) resolve their anchor through `findEl`, which
+   * only sees LIVING units. A proc fired by a DYING body — Parting Cry replaying its own Shout as it dies —
+   * therefore had no element by the time the beat rendered, so the effect bailed and nothing was drawn even
+   * though the gain applied (owner report 2026-08-17: Deepvein Tender's +1 Health showed no Ruby flourish).
+   * Keeping the previous beat's rect gives those procs somewhere to land.
+   */
+  const lastRectRef = useRef(new Map<string, { cx: number; cy: number; w: number; h: number }>());
   // Bloom the board aura-wash for a run-wide tribe aura that rose mid-combat — the same cue the recruit phase
   // shows off `auraFxSeq`, anchored to the player's board region. `'any'` (a board-wide aura) uses the neutral
   // palette. Mirrors Recruit.fireAuraWave 1:1 so the two phases read identically (owner ask 2026-07-21).
@@ -1221,6 +1231,20 @@ export function useCombatReplay(
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
     const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
     for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
+    // Refresh the last-known rects for everyone still on screen, THEN resolve anchors below through
+    // `anchorOf`. Order matters: a unit that dies in this beat is already gone from the DOM, so its entry has
+    // to come from the previous beat's snapshot.
+    const rects = lastRectRef.current;
+    for (const uid of playerUids) {
+      const el = findEl(uid);
+      if (el) rects.set(uid, layoutRectOf(el));
+    }
+    /** The slot to hang a source-anchored effect on: live if the unit is still up, else where it last was. */
+    const anchorOf = (uid: string): { cx: number; cy: number; w: number; h: number } | null => {
+      const el = findEl(uid);
+      if (el) { const r = layoutRectOf(el); rects.set(uid, r); return r; }
+      return rects.get(uid) ?? null;
+    };
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
@@ -1279,9 +1303,9 @@ export function useCombatReplay(
       // (owner report). Gate on a set of the player's uids: the initial player board plus everything the
       // player summoned this fight. An enemy source isn't in the set, so it's skipped.
       if (!playerUids.has(e.source)) continue;
-      const el = findEl(e.source);
-      if (!el) continue;
-      const { cx, cy, h } = layoutRectOf(el); // SLOT — the source can be mid-lunge when its spell power rises
+      const a = anchorOf(e.source);
+      if (!a) continue;
+      const { cx, cy, h } = a; // SLOT — the source can be mid-lunge when its spell power rises
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held SPELLS, whose printed values just moved. Without this the cards themselves only
@@ -1320,9 +1344,9 @@ export function useCombatReplay(
       const gA = Number(m[1]), gH = Number(m[2]);
       if (gA <= 0 && gH <= 0) continue;
       if (!playerUids.has(e.source)) continue;
-      const el = findEl(e.source);
-      if (!el) continue;
-      const { cx, cy, h } = layoutRectOf(el);
+      const a = anchorOf(e.source);
+      if (!a) continue;
+      const { cx, cy, h } = a;
       pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
       floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
@@ -1335,9 +1359,9 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e || e.type !== 'proccrit') continue;
-      const el = findEl(e.source);
-      if (!el) continue;
-      const { cx, cy, h } = layoutRectOf(el); // SLOT, not the live rect — the proccer may be mid-lunge
+      const a = anchorOf(e.source);
+      if (!a) continue;
+      const { cx, cy, h } = a; // SLOT, not the live rect — the proccer may be mid-lunge
       pixiFx.procCritText(cx, cy - h * 0.45, `${e.mult}x`);
     }
     // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
@@ -1352,9 +1376,9 @@ export function useCombatReplay(
       const gA = Number(m[1]), gH = Number(m[2]);
       if (gA <= 0 && gH <= 0) continue;
       if (!playerUids.has(e.source)) continue;
-      const el = findEl(e.source);
-      if (!el) continue;
-      const { cx, cy, h } = layoutRectOf(el);
+      const a = anchorOf(e.source);
+      if (!a) continue;
+      const { cx, cy, h } = a;
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board

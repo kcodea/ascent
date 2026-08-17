@@ -1,5 +1,61 @@
 # ASCENT — development log
 
+## 2026-08-17 — docs: account email unblocked via Gmail SMTP; Resend deferred to release
+
+**Supersedes the entry below, same day.** That entry concluded the block was unfixable without a domain. It
+wasn't — the wrong assumption was that Resend was the only provider on the table.
+
+Supabase's custom SMTP accepts *any* SMTP server, and Google is a supported one. Pointing it at a **dedicated
+Gmail account via `smtp.gmail.com`:465 with an App Password** removes the recipient restriction entirely: no
+allow-list, no domain, no cost. Friends can link accounts today. The owner's original instinct — "I have a new
+email for us to use" — was right; it just belonged as the *SMTP account* rather than as a Resend sender, which
+is the distinction that made the first diagnosis look terminal. Sending as `@gmail.com` through Resend is
+impossible (can't DKIM-verify Google's domain); sending *through Gmail's own server* is ordinary
+authenticated SMTP.
+
+Documented as an explicit **two-stage plan** rather than a fix, because the bridge has real limits: ~500
+recipients/day, Supabase's 30/hour custom-SMTP default, a From address forced to the Gmail account (friends
+see `something@gmail.com`, not an ASCENT sender), and Google's terms not covering bulk transactional mail. At
+release it moves to Resend on the verified domain, and step 8 of that runbook now includes revoking the App
+Password — it's a live credential on a personal account for as long as it exists.
+
+Also evaluated and rejected: Supabase's built-in mailer with friends invited to the org. Capped at 2
+messages/hour, and the **Read-Only role is Team/Enterprise-only**, so on the Free plan the lowest grantable
+role is Developer — content access to the live project. Not a trade worth making for a test email.
+
+Docs only, no code: `supabase/README.md` carries both runbooks (current Gmail config, release Resend config)
+plus the diagnosis so the symptom isn't re-attributed to templates; `docs/roadmap.md`'s C2a entry records the
+staged plan. Config itself is owner-side dashboard work.
+
+## 2026-08-17 — docs: sign-in email is owner-inbox-only until we own a domain (Resend gate) [SUPERSEDED]
+
+**Owner report: account emails send to the owner's personal inbox and to nobody else.** Diagnosed as Resend's
+unverified-domain restriction rather than anything wrong in our config: with no verified domain a Resend
+account may only send *from* the shared `onboarding@resend.dev` and only *to* the address the Resend account
+was registered with. Every other recipient is refused at the API, and no setting lifts it.
+
+The session started from the premise of pointing a **new email address** at the integration. Documented why
+that can't work, since it's the natural next thing to try: `gmail.com` (or any free-mail domain) can never be
+verified in Resend — verification publishes DKIM/SPF at the domain's nameservers, which we don't control for
+Google — and a new free-mail address is still a blocked *recipient*, since only the Resend account owner's
+address is exempt. Supabase's built-in mailer is not an escape either: it carries the mirror restriction
+(delivers only to Supabase org members).
+
+The single unblock is a domain we control. Owner's call: **defer to full release**, where domain registration
+is already planned. So this commit ships documentation, not code:
+
+- **`supabase/README.md`** gains a prominent warning section stating the limitation up front (so the symptom
+  isn't re-diagnosed as an SMTP or template bug — the previous email failure genuinely *was* a template bug,
+  which makes this one easy to misattribute), plus an 8-step runbook for the day the domain exists: DNS
+  records → wait for Verified → Supabase custom-SMTP fields (`smtp.resend.com`, port 465, username the literal
+  `resend`, password an API key) → re-check `{{ .Token }}` in both templates → raise the auth rate limit →
+  **test to a non-owner address**, which is the only test that proves anything here.
+- **`docs/roadmap.md`** — the C2a entry now records the block, its cause, the three non-fixes, and the
+  unblock, so the queue doesn't read as though accounts are player-ready.
+
+No engine, content, or UI change; anonymous play (C1) is unaffected and is what every player currently uses,
+so nothing player-facing regresses while this waits.
+
 ## 2026-08-17 - An unaffordable hero power no longer reads as an EMPTY slot
 
 Owner report: Tiff's hero-power art "goes away when the cost is reduced". It was not the discount — the art

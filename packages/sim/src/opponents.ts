@@ -31,10 +31,10 @@ export const OPPONENT_POOL: BoardSnapshot[] = [];
  * 0 wins — a struggling run — landed on a turn-1 player as Tier-2 units). Within that wave, opponents are
  * served by SOURCE PRIORITY and otherwise FULLY RANDOM (no power weighting):
  *   1) the live Supabase shared pool (`remote`), then
- *   2) any local player / friend board (`origin` self/friend), then
- *   3) the committed synthetic floor —
- * picking uniformly at random within the highest non-empty tier. So you always face real player boards when
- * any exist (freshest from Supabase first), falling to synthetic only when there are none for the wave.
+ *   2) BOT boards (`origin: 'synthetic'`) —
+ * picking uniformly at random within the highest non-empty tier. Locally stored player/friend boards are NOT
+ * a tier (owner ruling 2026-08-16): they used to outrank the synthetic floor, which made a dev machine field
+ * a lobby of its own saved runs.
  * Widens to the closest wave if none match exactly; null only on an empty pool (→ procedural fallback, rng
  * untouched). Consumes `rng` only when it returns a board. `power` is retained for signature stability but no
  * longer weights the pick (selection is fully random within the chosen tier).
@@ -89,10 +89,16 @@ export function pickOpponent(
       if (poolFresh.length) candidates = closestByWave(poolFresh);
     }
   }
-  // 3) Source priority: live Supabase pool → local player/friend boards → committed synthetic floor.
+  // 3) Source priority (owner ruling 2026-08-16): **Supabase snapshots only, then bot boards.** Locally
+  //    stored player/friend boards are NO LONGER a tier of their own — they were being served ahead of the
+  //    synthetic floor, which is how a dev machine ended up fielding a lobby of its own saved runs. They can
+  //    still be reached, but only through the degenerate last resort below.
   const remote = candidates.filter((s) => s.remote);
-  const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
-  const tier = remote.length ? remote : real.length ? real : candidates;
+  const bots = candidates.filter((s) => !s.remote && s.origin === 'synthetic');
+  // Last resort is `candidates` rather than null so a wave with neither a remote nor a synthetic board still
+  // fields SOMETHING instead of dropping to the procedural threat. In practice that only happens on a pool
+  // with no Supabase reach and no floor for the wave — i.e. a local-only dev pool.
+  const tier = remote.length ? remote : bots.length ? bots : candidates;
   // 4) Pick within the chosen tier. With win-rate weighting ON (matchmaking.ts — the LAST pipeline stage,
   //    so it can never override the wave filter / source cascade / no-repeat above), each candidate's chance
   //    is proportional to its ledger-derived band weight × the loss-streak softener. OFF = the exact legacy

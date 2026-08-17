@@ -14,7 +14,9 @@ import type { BoardSnapshot } from './snapshot';
  * win-rate: the full-weight core is 0–55%, tapering above.
  */
 export const MATCHMAKING = {
-  /** Master switch — false = uniform pick within the source tier (the pre-weighting behavior, exactly). */
+  /** Master switch — false = uniform pick within the source tier (the pre-weighting behavior, exactly).
+   *  Kept ON (owner 2026-08-16): the SOURCE cascade was the real cause of the self-heavy lobbies, not the
+   *  weighting, and the weighting still shapes difficulty sensibly. */
   winrateWeighting: true,
   /** Bayesian prior: adjusted = (wins + priorWins) / (fights + priorFights) — ten imaginary 50/50 fights,
    *  so a 4–0 board reads 64%, not 100%; real results gradually override the prior. */

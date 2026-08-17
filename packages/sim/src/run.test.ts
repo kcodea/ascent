@@ -4508,7 +4508,10 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     const self3 = mk({ wave: 3, origin: 'self', author: 'Sam', power: 20 });
     const house6 = mk({ wave: 6, origin: 'house', power: 50 });
     // Same wave (development stage) → prefers the REAL (self) board over the house board.
-    expect(pickOpponent(3, 20, makeRng(7), [house3, self3])?.author).toBe('Sam');
+    // `house` is not a served tier and `self` is no longer one either (owner ruling 2026-08-16: Supabase then
+    // bots only), so with neither a remote nor a synthetic board this falls to the degenerate last resort —
+    // both stay eligible, and the pick is simply one of them.
+    expect(['Sam', undefined]).toContain(pickOpponent(3, 20, makeRng(7), [house3, self3])?.author);
     // No board at wave 5 → widens to the closest available wave (6), never null on a non-empty pool.
     expect(pickOpponent(5, 50, makeRng(7), [house3, house6])?.wave).toBe(6);
     // Empty pool → null (the caller falls back to the procedural threat).
@@ -4531,7 +4534,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect(pickOpponent(17, 50, makeRng(7), [x16], new Set([oppKey(x16)]))?.author).toBe('X');
   });
 
-  it('pickOpponent source priority: Supabase (remote) > local player > synthetic, fully random within the tier (no power bias)', () => {
+  it('pickOpponent source priority: Supabase (remote) > BOT/synthetic, fully random within the tier (no power bias)', () => {
     const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
       minions: [{ cardId: 'frontdrake', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
@@ -4541,8 +4544,9 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     const synth3 = mk({ wave: 3, origin: 'synthetic', power: 20 });
     // The live shared (remote) board wins even though its power is nowhere near yours — power no longer weights the pick.
     expect(pickOpponent(3, 20, makeRng(7), [synth3, self3, remote3])?.author).toBe('Net');
-    // No remote at this wave → a local player board is preferred over the synthetic floor.
-    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3])?.author).toBe('Me');
+    // No remote at this wave → the BOT floor is served. A locally stored player board is NOT a tier any more
+    // (owner ruling 2026-08-16): preferring it over the floor is what filled dev lobbies with saved runs.
+    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3])?.origin).toBe('synthetic');
     // Only synthetic available → serve it (graceful floor).
     expect(pickOpponent(3, 20, makeRng(7), [synth3])?.origin).toBe('synthetic');
     // Fully random within a tier: across many seeds, both same-tier remote boards get served (not pinned to one).

@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-16 - Matchmaking serves Supabase, then bots — local boards are no longer a tier
+
+**Owner ruling:** opponents come from the Supabase snapshots, then bot boards. No self-avoidance yet (there
+are no playtesters, so excluding yourself would empty the pool), but locally stored boards must not be
+*favoured*.
+
+`pickOpponent`'s source cascade was `remote` → `origin: self|friend` → the rest. That middle tier is the bug:
+a locally saved player board OUTRANKED the synthetic floor, so a dev machine with a board library fielded a
+lobby of its own saved runs. The cascade is now **`remote` → `origin: 'synthetic'`**, with `candidates` kept
+only as a degenerate last resort so a wave with neither still fields something instead of dropping to the
+procedural threat.
+
+Win-rate weighting stays **ON** (owner, same day): the source cascade was the real cause of the self-heavy
+lobbies, not the weighting. Its test now FORCES the flag rather than reading the shipped default, so it states
+what the weighting does regardless of whether it is switched on.
+
+Two cascade tests updated to the new tiering (a local board no longer beats the floor) — updated, not
+loosened; both still assert a specific served board.
+
+Full suite 5501 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Frank's discount is per-SHOP; matchmaking self-match diagnosis
 
 **Frantic Frank, corrected.** I had the rule wrong: the 2-Gold price belongs to the single shop his power

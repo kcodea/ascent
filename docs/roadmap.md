@@ -21,10 +21,9 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **MATCHMAKING: you fight your own boards.** `pickOpponent` never filters on `author`, so your boards enter at
-  tier 1 (once synced they are `remote`) AND tier 2 (`origin: 'self'`). In a thin pool the lobby fills with
-  your own handle. Decide the policy — presumably prefer non-self boards at every tier, falling back to your
-  own only when nothing else can be served — then implement in `opponents.ts` (mind its determinism contract).
+- **MATCHMAKING self-avoidance** — deliberately NOT implemented (owner 2026-08-16: no playtesters yet, so
+  excluding your own boards would empty the pool). The local-board tier is gone, so you now face Supabase
+  snapshots then bots; revisit once there are real players to match against.
 
 - **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
 

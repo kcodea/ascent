@@ -162,6 +162,28 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
   s.heroPowerSpent = true; // quest complete
 }
 
+/** Keshi's Crown: every PAID card purchase banks that card's tavern tier; at 25 the run gets a Triple Reward
+ *  (the same `discoverspell` a golden minion grants) and the bank resets to 0 — the overflow is DISCARDED, not
+ *  carried (owner spec 2026-08-16; Cassen's counter subtracts instead, so both patterns exist in here).
+ *
+ *  Spells count too — "25 shop tiers worth of CARDS" — so this is called from all four `buy` branches plus
+ *  `buyHenchman`, the same split-path hazard that once left `applySpellBought` firing from only one of them.
+ *
+ *  Full hand: `grantGoldenDiscover` silently drops the card when there's no room. Every other hand-capped
+ *  grant accepts that, but this is Keshi's ENTIRE power, so the bank is HELD at 25+ and pays out on the next
+ *  purchase that finds room. `keshiTierPoints` can therefore legitimately read above 25. */
+function keshiCrownBuy(s: RunState, card: CardDef): void {
+  if (getHero(s.heroId).power.kind !== 'crownTally') return;
+  s.keshiTierPoints += card.tier;
+  // A `while` (not an `if`) purely for safety: max tier 7 against a threshold of 25 means one purchase can
+  // never pay twice today, but this can't silently break if either number is retuned later.
+  while (s.keshiTierPoints >= 25) {
+    if (s.hand.length >= handCap(s)) break; // hold the bank — see above
+    grantGoldenDiscover(s);
+    s.keshiTierPoints = 0;
+  }
+}
+
 /** Shop minion cost for the current hero: Hermit Hank's minions cost 2 Gold; everyone else pays the config
  *  default. A Moe set-price (`offer.cost`) or a Merchant's Mark override still take priority over this. */
 export function minionCostOf(s: RunState): number {
@@ -971,6 +993,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.spell = null; // bought — the slot stays empty until the next roll
         tiffBuyDiscount(s, spellDef); // Tiff: a spell buy banks a Dragon Tamer discount
         applySpellBought(s, spellDef.id); // Set 2 — fires `spellBought` (Moonhowl Mentor mints a Mage-Pup taught this spell)
+        keshiCrownBuy(s, spellDef); // Keshi: a bought spell banks its tier toward the Crown
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
@@ -992,6 +1015,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // and `spellBought` must fire from both. It only fired from the slot, so Moonhowl Mentor silently did
         // nothing for any spell bought from the row (owner report 2026-07-24: buying Spirit Fire didn't proc).
         applySpellBought(s, card.id);
+        keshiCrownBuy(s, card); // Keshi: same for a spell bought out of the minion row
         return s;
       }
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
@@ -1014,6 +1038,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
+        keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
@@ -1115,6 +1140,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
+      keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -1916,6 +1942,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, offer.cost);
       s.henchmanBought = true;
       grantMinionToHandOrBoard(s, def, false, true);
+      keshiCrownBuy(s, def); // Keshi: Gold spent on your henchman is Gold spent on a card
       checkTriples(s); // future-proof: an explicitly-shop-offered henchman copy could complete a triple
       return s;
     }

@@ -671,6 +671,11 @@ export interface RunState {
   /** Cassen hero: enemy minions killed since the last Collision payoff — at 5 it grants a minion of the
    *  board's most common tribe (then subtracts 5). Banks across combats until a minion can be granted. */
   cassenKills: number;
+  /** Keshi hero: shop tiers banked toward the next Triple Reward. Every PAID card purchase adds that card's
+   *  tier; at 25 Keshi's Crown grants a Triple Reward and this resets to 0 (overflow is discarded, unlike
+   *  Cassen's counter which subtracts). Can sit ABOVE 25 while the hand is full — the payout is held, not
+   *  spent into nothing. */
+  keshiTierPoints: number;
   /** Board power (Σ attack+health) captured at the START of the recruit turn — pins the telegraphed
    *  opponent match for the whole turn, so buying / selling / Hero Power can't re-roll the foe. */
   turnStartPower: number;
@@ -1584,6 +1589,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     tavernBuyBonus: { atk: 0, hp: 0 },
     drakkoBuys: 0,
     cassenKills: 0,
+    keshiTierPoints: 0,
     turnStartPower: 0,
     servedBoards: {},
     spellCostMod: 0,

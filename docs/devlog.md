@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-16 - Cassen's Commission, Aegis scales, Auctioneer/Sable renames, three heroes enabled
+
+- **Cassen reworked + enabled.** *Collision* is retired; his power is **Commission** — free, untargeted, choose
+  one delayed payout: Discover a minion of your tier in **3** turns · **2 Gold** in **2** · a random Shop spell
+  in **1**. Only one runs at a time (a second click while one is in flight is a no-op), and the next offer
+  excludes the one taken last, so the same commission can never be picked twice running. All three are offered
+  on the first use. It matures at the turn advance, AFTER the wave bump, so `dueWave` names the turn the reward
+  actually lands on. The button wears that commission's art while it runs and reverts to his plain art after.
+- **Warden's Aegis now scales + enabled.** Still 4 Gold to grant Ward, but it also gives **every** Warded
+  minion **+Tier/+Tier+1**. The value is printed live via `heroPowerText`, so the number shown is the number
+  given (the card-text rule, applied to a hero power).
+- **Myra → Auctioneer**, enabled (id `myra` kept stable for saves + art). **Sable, the Linksmith → Sable.**
+- **Cia's rule text drops the 50% clause** — it now reads "Buy **3** Enchanted cards for a reward." followed by
+  only the queued suit's line.
+
+`collision` joins `scalingGold`, `spellAmplify` and `possession` as a retired kind: still in the union and in
+`settleCombat` so saves resolve, but no hero drives it, so its policy key is deleted (no-ghosts). The stale
+Collision test was removed rather than rewritten — there is nothing left to assert.
+
+Full suite 5499 green, typecheck + lint + build:web clean.
+
+**Known art gaps (reported, never guessed):** `CassenHP2.png` loses its mapping to a generic numbered-variant
+rule and lands on `cassen2` instead of `cassen-gold`, so the GOLD commission falls back to Cassen's plain art;
+and `Auctioneer.png` / `Myra.png` both resolve to `myra`, a collision the tool reports.
+
+**NOT DONE this pass:** the requested DEV TUNERS for the Sable and Cia effects.
+
 ## 2026-08-16 - Cia prints only her queued suit; calmer Enchanted glow; Soulbind ring
 
 - **Cia's power text is now the QUEUED suit's reward and nothing else** (owner ask): "Buy 3 to claim:

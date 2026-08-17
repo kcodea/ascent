@@ -12,8 +12,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type RunState, type RubyLandedFx } from './state';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -2067,6 +2067,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // charge/gold spent) on a missing target or one that already has a Ward.
         if (!card || card.keywords.includes('DS')) return state;
         card.keywords.push('DS');
+        // …and every minion that now HAS Ward (the fresh one included) gains +Tier/+Tier+1 (owner 2026-08-16).
+        const g = aegisGrantOf(s);
+        for (const c of s.board) if (c.keywords.includes('DS')) addBuff(c, 'Aegis', g.attack, g.health);
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
@@ -2240,6 +2243,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.board.length < 2) return state;
         s.sableBond = { a: s.board[0]!.uid, b: s.board[s.board.length - 1]!.uid, wave: s.wave };
         stampSableBond(s); // take effect immediately — a buff later in THIS dispatch should already mirror
+      } else if (power.kind === 'commission') {
+        // Cassen: pick one of the offered commissions; it matures `delay` turns later. Free and untargeted.
+        // Only one runs at a time — a second click while one is in flight is a no-op (no charge spent), and
+        // the UI hides the arm state for the same reason.
+        if (s.commission) return state;
+        const pick = action.commission as CommissionKind | undefined;
+        if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
+        s.commission = { kind: pick, dueWave: s.wave + COMMISSION_DELAY[pick] };
+        s.lastCommission = pick; // …so the next offer can exclude it
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
@@ -3498,6 +3510,9 @@ function advanceCombat(s: RunState): void {
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
+  // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
+  // `dueWave` names the turn the reward actually lands on.
+  if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
@@ -4978,6 +4993,26 @@ function refreshTavern(s: RunState, hold = false): void {
     s.rngCursor = rng.state();
     if (lucky) s.shop[slot]!.enchanted = true;
   }
+}
+
+/**
+ * Cassen's commissions: what each one pays and how long it takes. The delay IS the trade — a longer wait buys
+ * a bigger payout — so the two live together rather than being scattered across the payout switch.
+ */
+export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1 };
+
+/** Pay a matured commission and clear it. Called from the turn advance, so the reward lands as the shop opens. */
+function payCommission(s: RunState, c: Commission): void {
+  s.commission = undefined;
+  if (c.kind === 'gold') { gainGold(s, 2); return; }
+  if (c.kind === 'spell') {
+    const pool = poolOf(s).spells.filter((x) => x.tier <= s.tier);
+    if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+    return;
+  }
+  // `queueDiscover` builds the offer itself from the spec (same pools / tier rules / rng stream as every other
+  // Discover), so there is nothing to pre-roll here.
+  queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
 }
 
 /** Croupier Cia's four rewards, and the suit that will pay next.

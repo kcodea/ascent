@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { createRun, reduce, getHero, HEROES, heroPowerText, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
+import { createRun, reduce, getHero, HEROES, heroPowerText, commissionOffer, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-16b — Bram, Croupier Cia, Odelle, Harlan, Sable + the Rascal rework. */
 
@@ -402,5 +402,82 @@ describe('Yirin — Reflector', () => {
     s = { ...s, hand: [{ uid: 'sp2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
     const after = reduce(s, { type: 'play', uid: 'sp2', targetUid: 'r' } as never);
     expect(after.board.find((c) => c.uid === 'o')!.attack, 'the bystander was not hit twice').toBe(afterFirst);
+  });
+});
+
+describe('Cassen — Commission (owner rework 2026-08-16)', () => {
+  it('is enabled, free and untargeted', () => {
+    const h = getHero('cassen');
+    expect([h.power.kind, h.power.untargeted, h.wip ?? false]).toEqual(['commission', true, false]);
+    expect(h.power.cost ?? 0, 'free to activate').toBe(0);
+  });
+
+  it('offers all three the first time, then never the one taken last', () => {
+    expect(commissionOffer({} as RunState).sort()).toEqual(['discover', 'gold', 'spell']);
+    expect(commissionOffer({ lastCommission: 'gold' } as RunState)).not.toContain('gold');
+    expect(commissionOffer({ lastCommission: 'gold' } as RunState).length).toBe(2);
+  });
+
+  it('starts a commission with the right due wave and records it as last-taken', () => {
+    const s = at({ heroId: 'cassen', heroReady: true, wave: 4 });
+    const after = reduce(s, { type: 'heroPower', commission: 'gold' } as never);
+    expect(after.commission, 'gold matures in 2 turns').toEqual({ kind: 'gold', dueWave: 6 });
+    expect(after.lastCommission).toBe('gold');
+  });
+
+  it('refuses a commission that is not on offer', () => {
+    const s = at({ heroId: 'cassen', heroReady: true, wave: 4, lastCommission: 'gold' });
+    const after = reduce(s, { type: 'heroPower', commission: 'gold' } as never);
+    expect([after.commission, after.heroReady]).toEqual([undefined, true]);
+  });
+
+  it('only ONE can run at a time', () => {
+    const s = at({ heroId: 'cassen', heroReady: true, wave: 4, commission: { kind: 'spell', dueWave: 5 } });
+    const after = reduce(s, { type: 'heroPower', commission: 'discover' } as never);
+    expect(after.commission, 'the running one is untouched').toEqual({ kind: 'spell', dueWave: 5 });
+  });
+
+  it('the panel prints the running commission, otherwise the options on offer', () => {
+    const running = heroPowerText({ ...createRun(3, 'cassen'), commission: { kind: 'gold', dueWave: 6 } } as RunState);
+    expect(running).toContain('Working');
+    expect(running).toContain('2 Gold');
+    const offering = heroPowerText({ ...createRun(3, 'cassen'), lastCommission: 'gold' } as RunState);
+    expect(offering).toContain('Choose one');
+    expect(offering, 'the last-taken option is not re-offered').not.toContain('2 Gold');
+  });
+});
+
+describe('Warden — Aegis scales with Tavern Tier', () => {
+  it('is enabled', () => {
+    expect(getHero('warden').wip ?? false).toBe(false);
+  });
+
+  it('grants Ward AND buffs every Warded minion by +Tier/+Tier+1', () => {
+    const s = at({
+      heroId: 'warden', heroReady: true, embers: 10, tier: 3,
+      board: [m('a', 'stray'), { ...m('b', 'alley'), keywords: ['DS'] } as never, m('c', 'pack')],
+    });
+    const after = reduce(s, { type: 'heroPower', uid: 'a' } as never);
+    const a = after.board.find((c) => c.uid === 'a')!;
+    const b = after.board.find((c) => c.uid === 'b')!;
+    const c = after.board.find((x) => x.uid === 'c')!;
+    expect(a.keywords, 'the target gained Ward').toContain('DS');
+    expect([a.attack - 2, a.health - 2], 'and the fresh Ward is buffed too').toEqual([3, 4]);
+    expect([b.attack - 2, b.health - 2], 'an already-Warded minion is buffed').toEqual([3, 4]);
+    expect([c.attack, c.health], 'an unwarded minion is untouched').toEqual([2, 2]);
+  });
+
+  it('the printed rule shows the LIVE tier value', () => {
+    expect(heroPowerText({ ...createRun(3, 'warden'), tier: 5 } as RunState)).toContain('+5/+6');
+  });
+});
+
+describe('Auctioneer + Sable renames', () => {
+  it('Myra is displayed as Auctioneer and is enabled', () => {
+    const h = getHero('myra'); // id kept stable for saves / art
+    expect([h.name, h.wip ?? false]).toEqual(['Auctioneer', false]);
+  });
+  it('Sable dropped her title', () => {
+    expect(getHero('sable').name).toBe('Sable');
   });
 });

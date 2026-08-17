@@ -367,6 +367,11 @@ export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: numbe
  *  is random) but keeps the reward table, the art slugs and the UI reading the same way. */
 export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
 
+/** Cassen's three commissions. The delay is part of the identity — a longer wait buys a bigger payout. */
+export type CommissionKind = 'discover' | 'gold' | 'spell';
+/** An ACTIVE commission: what was picked and the wave it matures on. Only ever one at a time. */
+export interface Commission { kind: CommissionKind; dueWave: number; }
+
 export interface RunState {
   seed: number;
   /** Game mode — see `RunMode`.
@@ -704,6 +709,13 @@ export interface RunState {
    *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
    *  art, so the player can see what they are working toward. */
   ciaSuit?: CiaSuit;
+  /** Cassen: the commission currently in flight, or absent when none is. Only ONE can be active at a time —
+   *  the power is unusable while it runs, and the button wears that commission's art until it matures. */
+  commission?: Commission;
+  /** Cassen: the commission taken LAST, so the next offer can exclude it — "all 3 are offered first, but then
+   *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
+   *  the opening choice shows all three. */
+  lastCommission?: CommissionKind;
   /** Croupier Cia (Lucky Seat): Enchanted cards BOUGHT toward the prize (resets at 3). `enchanted` on a Shop
    *  offer is the mark itself — purely cosmetic on the card, and the only thing that feeds this counter. */
   ciaEnchantedBought?: number;
@@ -1396,7 +1408,7 @@ export type Action =
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'reorderHand'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
+  | { type: 'heroPower'; uid?: string; commission?: CommissionKind } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost

@@ -57,7 +57,8 @@ export type HeroPowerKind =
   | 'buyout' // Harlan: take the whole Shop, then reroll it. 11 Gold, −1 per turn, re-based on use
   | 'soulbind' // Sable: bond your outermost minions for a turn — a stat gain on one mirrors onto the other
   | 'allIn' // Rascal: bank 1 Gold + 2 more per turn since the last use; twice a game
-  | 'startingReflector'; // Yirin (passive): the run opens with a Reflector token in hand
+  | 'startingReflector' // Yirin (passive): the run opens with a Reflector token in hand
+  | 'commission'; // Cassen: pick one of three DELAYED payouts; it matures in 1-3 turns
 
 export interface HeroPower {
   name: string;
@@ -107,16 +108,17 @@ export const HEROES: HeroDef[] = [
     name: 'Warden',
     blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
-    armor: 17,
-    wip: true, // temporarily withheld from the picker (owner 2026-07-13)
-    // PLACEHOLDER henchman on a WIP hero: proves the whole loop in the Scene Builder (and pins it in tests)
-    // without touching a live hero. The real per-hero roster replaces this as it is designed.
+    armor: 17, // enabled 2026-08-16 (owner)
+    // PLACEHOLDER henchman: proves the whole loop in the Scene Builder (and pins it in tests). The real
+    // per-hero roster replaces this as it is designed.
     henchman: { cardId: 'hm_test_squire', cost: 10 },
     power: {
       name: 'Aegis',
       kind: 'grantWard',
       cost: 4,
-      text: 'Give a friendly minion permanent **Ward**.',
+      // The +X/+Y scales with Tavern Tier, so the printed value is filled in live by `heroPowerText`
+      // (the card-text rule). This static string is the fallback shape only.
+      text: 'Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+1/+1**.',
     },
   },
   {
@@ -133,12 +135,11 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'myra',
-    name: 'Myra',
+    id: 'myra', // id kept stable (saves / references); display name is Auctioneer
+    name: 'Auctioneer',
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
-    armor: 20,
-    wip: true, // temporarily withheld from the picker (owner 2026-07-13)
+    armor: 20, // enabled 2026-08-16 (owner)
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
@@ -206,13 +207,15 @@ export const HEROES: HeroDef[] = [
     name: 'Cassen',
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
-    armor: 13,
-    wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
+    armor: 13, // re-enabled 2026-08-16 with a brand-new power (owner)
     power: {
-      name: 'Collision',
-      kind: 'collision',
-      passive: true, // a carry-back — the work happens after combat (settleCombat), nothing to arm
-      text: 'Every 5 enemy minions you kill, get a minion of your most common type.',
+      // Reworked off `collision` (owner 2026-08-16). `collision` stays in the union + settleCombat as a
+      // retired kind; no hero uses it, so its policy key goes (the no-ghosts rule).
+      name: 'Commission',
+      kind: 'commission',
+      untargeted: true,
+      // The offered options change every use, so the live text is built by `heroPowerText`.
+      text: 'Choose a commission — it pays out in a few turns.',
     },
   },
   {
@@ -665,7 +668,7 @@ export const HEROES: HeroDef[] = [
       name: 'Lucky Seat',
       kind: 'luckySeat',
       passive: true,
-      text: 'Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim the suit shown.',
+      text: 'Buy **3** Enchanted cards for a reward.',
     },
   },
   {
@@ -699,7 +702,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'sable',
-    name: 'Sable, the Linksmith',
+    name: 'Sable',
     blurb: 'Two ends of one chain. Pull on either and both come along.',
     resolve: 30,
     armor: 10,

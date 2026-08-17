@@ -3985,41 +3985,9 @@ describe('hero powers (@game/sim)', () => {
     expect(capped.maxEmbers).toBe(CONFIG.embersCap);
   });
 
-  it("Cassen's Collision banks enemy kills and grants a top-type minion at 5 (neutral isn't a type)", () => {
-    // A Beast-dominant board → the grant is a Beast of your tavern tier. Neutral is NOT counted as a type.
-    const beast = (uid: string): BoardCard => ({
-      uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false,
-    });
-    // 3 banked + 2 this combat = 5 → one grant, kills back to 0.
-    let s: RunState = {
-      ...createRun(1, 'cassen'),
-      phase: 'combat',
-      cassenKills: 3,
-      board: [beast('a'), beast('b')],
-      hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 2, initial: { player: [], enemy: [] } },
-    };
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.cassenKills).toBe(0); // 5 spent on the grant
-    expect(s.hand.length).toBe(1); // a minion was conjured to the hand
-    const granted = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect([granted.tribe, granted.tribe2]).toContain('beast'); // of the board's most common (non-neutral) tribe
-    expect(granted.tier).toBeLessThanOrEqual(s.tier); // bound by your tavern tier
-
-    // Under 5 → no grant, kills simply bank.
-    let t: RunState = {
-      ...createRun(1, 'cassen'),
-      phase: 'combat',
-      cassenKills: 0,
-      board: [beast('a')],
-      hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] } },
-    };
-    t = reduce(t, { type: 'resolveCombat' });
-    expect(t.cassenKills).toBe(3); // banked, not spent
-    expect(t.hand.length).toBe(0); // nothing granted yet
-  });
-
+  // Cassen's Collision was RETIRED on 2026-08-16 — his power is now Commission (a delayed, chosen payout).
+  // `collision` stays in the union + settleCombat as a retired kind, but no hero drives it, so there is
+  // nothing left to assert here. Commission's own behaviour is covered in heroesBatchAug16b.test.ts.
   it("Cassen's Collision does nothing for other heroes", () => {
     let s: RunState = {
       ...createRun(1, 'warden'), // not Cassen

@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -540,13 +540,46 @@ export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
   clubs: '**Clubs:** gain **3 Gold**.',
 };
 
+/** Warden's Aegis: the +X/+Y it grants every Warded minion, scaling with Tavern Tier (owner spec 2026-08-16).
+ *  Attack is the tier, Health the tier + 1 — so it stays a defensive buff as it grows. Shared by the reducer's
+ *  grant and the panel's printed rule, so the number shown is the number given. */
+export function aegisGrantOf(state: RunState): { attack: number; health: number } {
+  return { attack: state.tier, health: state.tier + 1 };
+}
+
+/** Which commissions may be offered right now: all three on the first use, then everything except the one
+ *  taken last, so the same commission can never be picked twice running (owner spec 2026-08-16). Lives here
+ *  rather than in the reducer because the panel needs it too, and reducer -> recruit is the allowed direction. */
+export function commissionOffer(state: Pick<RunState, 'lastCommission'>): CommissionKind[] {
+  const all: CommissionKind[] = ['discover', 'gold', 'spell'];
+  return state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
+}
+
+/** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
+export const COMMISSION_TEXT: Record<CommissionKind, string> = {
+  discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',
+  gold: 'In **2 turns**, gain **2 Gold**.',
+  spell: 'In **1 turn**, get a random Shop spell.',
+};
+
 /** The hero power's LIVE rule text. Static for every hero except Cia, whose printed rule is the queued suit's
  *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power. */
 export function heroPowerText(state: RunState): string {
   const power = getHero(state.heroId).power;
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
-    return `Each Shop has a **50%** chance to hold an **Enchanted** card. Buy **3** to claim: ${CIA_SUIT_TEXT[suit]}`;
+    return `Buy **3** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;
+  }
+  if (power.kind === 'grantWard') {
+    const g = aegisGrantOf(state);
+    return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
+  }
+  if (power.kind === 'commission') {
+    // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
+    // options actually on offer (never the one taken last).
+    const live = state.commission;
+    if (live) return `Working: ${COMMISSION_TEXT[live.kind]} (due turn ${live.dueWave})`;
+    return `Choose one — ${commissionOffer(state).map((k) => COMMISSION_TEXT[k]).join(' · ')}`;
   }
   return power.text;
 }

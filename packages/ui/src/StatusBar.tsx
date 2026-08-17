@@ -90,9 +90,14 @@ export function StatusBar() {
   // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
   // ever missing, so a half-wired art folder degrades instead of rendering nothing.
   const powerRule = heroPowerText(run);
+  // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
+  // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
+  // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
   const powerArt = power.kind === 'luckySeat' && run.ciaSuit
     ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
-    : heroPowerArt(hero.id);
+    : power.kind === 'commission' && run.commission
+      ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
+      : heroPowerArt(hero.id);
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.

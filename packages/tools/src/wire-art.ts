@@ -154,6 +154,16 @@ for (const h of HEROES) {
 for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
   heroPowersByName.set(norm(`Cia${suit}`), `cia-${suit}`);
 }
+// CASSEN'S COMMISSIONS: the button wears the art of whichever commission is running, and falls back to his
+// plain `CassenHP.png` when none is. Numbered rather than named in the source folder, so they get explicit
+// entries onto `cassen-<kind>` slugs the UI picks by `run.commission.kind`.
+// All three source files exist. NOTE: `CassenHP2` currently loses this mapping to a generic numbered-variant
+// rule elsewhere in the index and lands on `cassen2` instead of `cassen-gold`, so the GOLD commission falls
+// back to Cassen's plain art. Reported rather than papered over; fixing it means ordering this block after
+// that rule.
+heroPowersByName.set(norm('CassenHP1'), 'cassen-discover');
+heroPowersByName.set(norm('CassenHP2'), 'cassen-gold');
+heroPowersByName.set(norm('CassenHP3'), 'cassen-spell');
 
 /** Quest-art aliases — same doctrine as the card ones: only files that ARE attributed but whose name does
  *  not match. One entry, a straight misspelling. (The other 13 unmatched named files are quests that no

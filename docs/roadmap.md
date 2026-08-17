@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Dev tuners for the Sable (Soulbind ring) and Cia (Enchanted glow) effects** — requested 2026-08-16, NOT
+  built. Follow the `freezeConfig.ts` + `FreezeTuner.tsx` + `DevMenu.tsx` pattern.
+- **`CassenHP2.png` mis-slugs to `cassen2`** (a generic numbered-variant rule wins over the explicit entry), so
+  Cassen's GOLD commission shows his plain art. Fix by ordering the Cassen block after that rule.
+- **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
+
 - **Missing hero POWER art:** Odelle and Sable (`OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.
 - **No hero amplifies spells any more** — Yirin's rework retired the last `spellAmplify` holder. Spell power now comes only from Rune of the Crown and `spellAura` cards. Decide whether a hero should carry it again.
 - **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.

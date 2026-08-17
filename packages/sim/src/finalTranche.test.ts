@@ -188,8 +188,10 @@ describe('Tier 7 access (owner ruling 2026-07-28)', () => {
 describe('hero disables (owner 2026-07-28)', () => {
   // Tiff was RE-ADDED to the pool by the owner 2026-08-14 — the other four stay withheld. She keeps her row in
   // RESOLVABLE below: re-enabling is a picker concern, exactly like disabling was.
-  const DISABLED = ['cassen', 'jenkins', 'chronoshero', 'djinn'];
-  const RESOLVABLE = [...DISABLED, 'tiff'];
+  // Cassen was re-enabled 2026-08-16 with a brand-new power (Commission), so he is no longer withheld — but he
+  // must still RESOLVE, which the second test below covers.
+  const DISABLED = ['jenkins', 'chronoshero', 'djinn'];
+  const RESOLVABLE = [...DISABLED, 'tiff', 'cassen'];
 
   it('the withheld heroes are kept from every picker', () => {
     for (const id of DISABLED) {

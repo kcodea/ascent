@@ -709,8 +709,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:baggerben:allIn': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   // Yirin (id `rohan`) moved off `spellAmplify` on 2026-08-16; the old key is deleted for the same reason.
   'hero:rohan:startingReflector': { policy: 'passive', family: 'passive', flagged: true },
+  // Cassen moved off `collision` on 2026-08-16; the old key is deleted for the same no-ghosts reason.
+  'hero:cassen:commission': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
-  'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chronoshero:questChronos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:coran:pathfinder': { policy: 'passive', family: 'passive', flagged: true },

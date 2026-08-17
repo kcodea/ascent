@@ -735,6 +735,45 @@ A new hero whose passive, **Keshi's Crown**, banks the tavern tier of every card
   power-button art is not a transparent cutout, so the circle shows its forest backdrop. The 25 threshold is
   a single-number retune if playtest says it lands wrong.
 
+### Follow-up (same day) — final review fixes
+
+Applied the fixes from the branch's final review before merge.
+
+- **`keshiCrownBuy`'s full-hand guard now respects reserved hand slots.** It read `s.hand.length >= handCap(s)`,
+  ignoring `reservedHandSlots(s)` (hand space reserved for an open/queued Discover pick, which `takeDiscoverPick`
+  FORFEITS outright if the hand is full when the player chooses). Now `s.hand.length >= handCap(s) -
+  reservedHandSlots(s)`, matching the established convention in `conjureToHand` (owner ruling 2026-08-04: a
+  passive grant must not destroy a card being discovered). Investigated whether this is reachable today: it
+  isn't — `reduceCore`'s `modalOpen` guard already refuses `buy`/`buyHenchman` outright whenever `s.discover` is
+  set (minimizing the Discover panel is local UI state, not a dispatch, so it never clears `run.discover`), so
+  `reservedHandSlots(s)` reads 0 at every call site `keshiCrownBuy` fires from today. The fix stays in as
+  defense-in-depth against a future relaxation of the `modalOpen` exemption list; a new test pins the current
+  invariant (a `buy` while `discover` is open is refused outright) so a future change that makes the guard
+  load-bearing shows up as a test break, not silently. The identical situation exists for the Runeforge (`buy`
+  is also refused outright while `runeforgeOffer` is set, so the raised `handCap` it grants during that window
+  never reaches Keshi's guard either) — pinned with the same style of invariant test.
+- **`keshiCrownBuy` now fires AFTER `checkTriples`** in the two minion buy branches (normal buy and the
+  held/displaced restore) instead of before. A buy that completes a triple was evaluating the full-hand guard
+  against the hand BEFORE the triple collapsed 3→1, so a triple-completing buy at bank 24 could be wrongly held
+  even though the hand had room right after. The two spell buy branches are untouched (no `checkTriples` there).
+  New test: bank 24, two copies of a minion in hand, buy the third — the triple resolves and the reward lands
+  (not held).
+- **New `KESHI_CROWN_THRESHOLD` constant** in `packages/sim/src/config.ts` (exported via `@game/sim`, alongside
+  `CONFIG`), replacing the literal `25` in `reducer.ts` and twice in `StatusBar.tsx`, so the threshold really is
+  "a single-number retune" as the doc above claims. The hero's power TEXT in `heroes.ts` still hand-writes "25"
+  in its player-facing copy — left alone since it's prose, not logic, but noted here since it's now the one
+  place the number isn't derived from the constant.
+- **Reworded "PAID" → "acquired by a SHOP PURCHASE"** in `keshiCrownBuy`'s doc comment and the test suite's
+  header comment: the Freedom rift's free first buy still banks its tier (it's still a card acquired from the
+  shop, Gold or no Gold), and "PAID" undersold that. New test pins it: a Keshi run under `rift: 'freedom'` buys
+  its first minion for 0 Gold and still banks the tier.
+- **`packages/sim/src/keshiCrown.test.ts`** grew from 10 to 16 tests covering: the pending-Discover invariant,
+  the Runeforge invariant, the triple-completing buy, a spell purchase crossing the threshold via the
+  right-hand slot, the Freedom-rift free buy, and (removed before commit) a scratch probe used to confirm the
+  Runeforge-blocks-buy finding empirically.
+- **Verified.** `npx vitest run packages/sim/src/keshiCrown.test.ts` (16/16), then full
+  `typecheck` + `lint` + `test` (5458 tests) + `build:web`, all green.
+
 ## 2026-08-16 - Three heroes (Emerald Warden, Underdweller, Albus) + the Gambler's die stays up
 
 Owner batch. Three new heroes, their art wired, and one presentation fix.

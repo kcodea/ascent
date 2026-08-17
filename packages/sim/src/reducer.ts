@@ -3,7 +3,7 @@ import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG, maxTierFor, hasTier7Access } from './config';
+import { CONFIG, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -13,7 +13,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
+import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -162,23 +162,35 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
   s.heroPowerSpent = true; // quest complete
 }
 
-/** Keshi's Crown: every PAID card purchase banks that card's tavern tier; at 25 the run gets a Triple Reward
- *  (the same `discoverspell` a golden minion grants) and the bank resets to 0 — the overflow is DISCARDED, not
- *  carried (owner spec 2026-08-16; Cassen's counter subtracts instead, so both patterns exist in here).
+/** Keshi's Crown: every card acquired by a SHOP PURCHASE — including one made free by a discount or the
+ *  Freedom rift's free first buy — banks that card's tavern tier; at `KESHI_CROWN_THRESHOLD` the run gets a
+ *  Triple Reward (the same `discoverspell` a golden minion grants) and the bank resets to 0 — the overflow is
+ *  DISCARDED, not carried (owner spec 2026-08-16; Cassen's counter subtracts instead, so both patterns exist
+ *  in here).
  *
  *  Spells count too — "25 shop tiers worth of CARDS" — so this is called from all four `buy` branches plus
  *  `buyHenchman`, the same split-path hazard that once left `applySpellBought` firing from only one of them.
  *
  *  Full hand: `grantGoldenDiscover` silently drops the card when there's no room. Every other hand-capped
- *  grant accepts that, but this is Keshi's ENTIRE power, so the bank is HELD at 25+ and pays out on the next
- *  purchase that finds room. `keshiTierPoints` can therefore legitimately read above 25. */
+ *  grant accepts that, but this is Keshi's ENTIRE power, so the bank is HELD at the threshold+ and pays out
+ *  on the next purchase that finds room. `keshiTierPoints` can therefore legitimately read above the
+ *  threshold. */
 function keshiCrownBuy(s: RunState, card: CardDef): void {
   if (getHero(s.heroId).power.kind !== 'crownTally') return;
   s.keshiTierPoints += card.tier;
-  // A `while` (not an `if`) purely for safety: max tier 7 against a threshold of 25 means one purchase can
-  // never pay twice today, but this can't silently break if either number is retuned later.
-  while (s.keshiTierPoints >= 25) {
-    if (s.hand.length >= handCap(s)) break; // hold the bank — see above
+  // A `while` (not an `if`) purely for safety: max tier 7 against KESHI_CROWN_THRESHOLD (25) means one
+  // purchase can never pay twice today, but this can't silently break if either number is retuned later.
+  while (s.keshiTierPoints >= KESHI_CROWN_THRESHOLD) {
+    // Yield to a pending Discover pick: `reservedHandSlots` counts the open prompt + anything queued behind
+    // it, and `takeDiscoverPick` FORFEITS its pick outright if the hand is full when the player chooses. A
+    // payout that fills the last slot would destroy a choice the player already earned. NOTE (2026-08-16
+    // review): under the current reducer, `buy`/`buyHenchman` are already refused outright by the modalOpen
+    // guard in `reduceCore` whenever `s.discover` is set — including while the Recruit screen's Discover
+    // panel is merely minimized, which only hides the overlay locally and never clears `run.discover` — so
+    // `reservedHandSlots(s)` is 0 at every call site this fires from today. This check is defense-in-depth
+    // against that invariant changing (e.g. `buy` ever being added to the modalOpen exemption list), not a
+    // guard against a currently-reachable interleaving.
+    if (s.hand.length >= handCap(s) - reservedHandSlots(s)) break;
     grantGoldenDiscover(s);
     s.keshiTierPoints = 0;
   }
@@ -1038,8 +1050,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
-        keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase
         checkTriples(s); // a restored copy can still complete a triple
+        keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
+        // so a buy that completes a triple (3→1) frees hand space before the guard checks it (owner report: a
+        // triple-completing buy at bank 24 was held against a hand that was about to empty)
         return s;
       }
       // "Freedom" rift: the FIRST minion bought each turn is free (overrides every price source below).
@@ -1140,8 +1154,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
-      keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
+      keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown — AFTER checkTriples, so a
+      // buy that completes a triple (3→1) frees hand space before the full-hand guard checks it
       return s;
     }
 

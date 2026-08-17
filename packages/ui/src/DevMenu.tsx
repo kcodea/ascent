@@ -7,7 +7,6 @@ import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { CleaveFxTuner } from './CleaveFxTuner';
 import { SwapFxTuner } from './SwapFxTuner';
-import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
@@ -155,7 +154,6 @@ const GROUPS: Group[] = [
     title: 'Buffs & Auras',
     items: [
       { key: 'bufffx', icon: '⬆️', label: 'Buff', C: BuffFxTuner, hint: 'What plays on a minion when something buffs it', alt: 'stat gain' },
-      { key: 'gustfx', icon: '💨', label: 'Buff Gust', C: GustFxTuner, hint: 'The rush a tavern-buffed minion sweeps in with' },
       { key: 'spellbufffx', icon: '🔮', label: 'Spell Buff', C: SpellBuffFxTuner, hint: "The cue when a spell or Ruby's printed value goes up" },
       { key: 'spellpowerfx', icon: '✨', label: 'Spell Power', C: SpellPowerFxTuner, hint: 'The flourish when a spell resolves' },
       { key: 'rubypowerfx', icon: '♦️', label: 'Ruby Power', C: RubyPowerFxTuner, hint: 'The Ruby-strength flourish', alt: 'gem' },

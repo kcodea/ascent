@@ -8,26 +8,17 @@ rules, card behaviour, authored FX, or how a purchase looks.
 
 ---
 
-## ‼ FIRST: `buffGust` is ~half of all jank
+## ✅ DONE: `buffGust` removed (2026-08-17)
 
-The long trace makes one effect stand out far above everything else:
+It was ~half of all jank: 16 of 599 buckets carried **492 of 989 jank frames**, with fps inside them collapsing
+from ~230 to ~87. Cause was in its own doc comment — *"Redrawn per frame into one additive Graphics"* — i.e.
+re-tessellating ~28 stroked paths every frame, the exact thing `docs/performance.md` forbids.
 
-| | buckets | avg jank | avg long | **avg fps** |
-|---|---:|---:|---:|---:|
-| containing `fx:gust` | 16 | 30.8 | 37.5 | **87.4** |
-| everything else | 586 | 0.9 | 3.2 | **229.9** |
+Rather than rebuild it, the owner cut it (2026-08-17): an old effect due for replacement anyway.
 
-Sixteen buckets out of 599 carry **492 of the run's 989 jank frames**. Frame rate inside them collapses from
-~230fps to ~87fps.
-
-**Root cause, from `pixiFx.buffGust`'s own doc comment:** *"Redrawn per frame into one additive Graphics."*
-Rebuilding vector geometry every frame re-tessellates on the CPU and re-uploads to the GPU each time — it is
-the specific thing `docs/performance.md` forbids ("do not allocate new Graphics, Sprite, arrays, or textures
-every frame").
-
-This is a far narrower fix than any of A/B/C below and buys roughly half the jank. **Do it first.** Likely
-shape: build the gust geometry ONCE per invocation and animate transform/alpha, or pre-render the streaks to a
-texture the way the Cia foil does, rather than redrawing paths per frame.
+**What was kept on purpose:** the sim-side `buffGustSeq` stamp, the `tavernGust` presenter cue, and the EoT
+beat's `gust` flag. The TRIGGER survives with no effect attached, so a replacement drops in without
+re-plumbing the sim, the beat or the presenter surface.
 
 ---
 

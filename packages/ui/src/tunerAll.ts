@@ -37,7 +37,6 @@ import { SPEC as FlurrySwingSpec } from './FlurrySwingTuner';
 import { SPEC as FrameSpec } from './FrameTuner';
 import { SPEC as FreezeSpec } from './FreezeTuner';
 import { SPEC as GlowSpec } from './GlowTuner';
-import { SPEC as GustFxSpec } from './GustFxTuner';
 import { SPEC as HeroBuffFxSpec } from './HeroBuffFxTuner';
 import { SPEC as HeroPanelSpec } from './HeroPanelTuner';
 import { SPEC as HeroPowerSpec } from './HeroPowerTuner';
@@ -90,7 +89,6 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   FreezeSpec,
   GlowSpec,
   AlignArcSpec,
-  GustFxSpec,
   HeroBuffFxSpec,
   HeroPanelSpec,
   HeroPowerSpec,

@@ -7840,12 +7840,24 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   margin-left: calc(-0.5 * var(--hfx-sb-size, 27) * var(--u));
   border-radius: 50%; pointer-events: none; z-index: 7;
   border: calc(var(--hfx-sb-ring, 3.3) * var(--u)) solid hsl(var(--hfx-sb-hue, 297) 100% 79% / 0.95);
-  background: radial-gradient(circle, hsl(var(--hfx-sb-hue, 297) 100% 70% / 0.55) 0%, hsl(var(--hfx-sb-hue, 297) 100% 63% / 0) 70%);
+  /* SPIDERWEB fill (owner ask 2026-08-17): radial spokes crossed with concentric rings, over the soft core
+     glow. Both webs are STATIC paint on this one element — nothing here animates, so the web is free per
+     frame; only the element's own opacity breathes. */
+  background:
+    var(--hfx-sb-web-spokes, none),
+    var(--hfx-sb-web-rings, none),
+    radial-gradient(circle, hsl(var(--hfx-sb-hue, 297) 100% 70% / 0.55) 0%, hsl(var(--hfx-sb-hue, 297) 100% 63% / 0) 70%);
+  /* The web threads fade toward the rim so they read as silk rather than a pie chart. */
+  -webkit-mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
+  mask: radial-gradient(closest-side, #000 0%, #000 62%, rgba(0,0,0,0.35) 88%, transparent 100%);
   /* STATIC shadow — only `opacity` is animated. */
   box-shadow: 0 0 calc(var(--hfx-sb-blur, 5.5) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 297) 100% 69% / 0.85);
   animation: sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
   will-change: opacity;
+  --sb-web-a: var(--hfx-sb-web, 0.55);
 }
+/* Dial the web down independently of the ring: a second, non-animated layer under the same clip. */
+.soulbindmark { background-blend-mode: normal; }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .enchantwisp .ew-ring, .soulbindmark { animation: none; }
@@ -7888,3 +7900,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   border: calc(1.5 * var(--u)) solid rgba(255, 196, 96, 0.5);
   font-size: calc(11.5 * var(--u)); line-height: 1.35; color: #f6e9d2;
 }
+
+/* Quillen's archived types under the power rule — each in its own tribe colour, unused slots muted. */
+.herotip-types { display: flex; gap: calc(5 * var(--u)); justify-content: center; margin-top: calc(5 * var(--u)); }
+.herotip-type {
+  padding: calc(1.5 * var(--u)) calc(6 * var(--u)); border-radius: 999px;
+  font-size: calc(10 * var(--u)); font-weight: 700; line-height: 1.4;
+  color: var(--tc, #cbb9a2);
+  background: color-mix(in srgb, var(--tc, #cbb9a2) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc, #cbb9a2) 45%, transparent);
+}
+.herotip-type.empty { color: #8b7f70; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); }

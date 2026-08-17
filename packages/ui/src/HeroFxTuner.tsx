@@ -27,6 +27,9 @@ const SPECS: Record<(typeof HFX_NUM_KEYS)[number], [string, TunerUnit | undefine
   sbHue:     ['Ring hue', undefined, 'Colour of the ring (deg). Around 275 is purple.'],
   sbDip:     ['Ring breathe depth', undefined, 'How faint the ring gets at the bottom of its breathe.'],
   sbPeriod:  ['Ring breathe period', 's', 'Seconds per breathe.'],
+  sbWeb:       ['Web opacity', undefined, 'How visible the spiderweb fill inside the ring is. 0 turns it off.'],
+  sbWebSpokes: ['Web spokes', undefined, 'How many radial threads the web has.'],
+  sbWebRings:  ['Web rings', undefined, 'How many concentric threads the web has.'],
 };
 
 const controls: TunerControl<Extract<keyof HeroFxConfig, string>>[] = HFX_NUM_KEYS.map((key) => {

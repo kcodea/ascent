@@ -45,6 +45,12 @@ export interface HeroFxConfig {
   sbDip: number;
   /** Soulbind ring — breathe period, seconds. */
   sbPeriod: number;
+  /** Soulbind ring — spiderweb fill: how visible the web inside the ring is (0 = off). */
+  sbWeb: number;
+  /** Soulbind ring — how many SPOKES the web has. */
+  sbWebSpokes: number;
+  /** Soulbind ring — how many concentric RINGS the web has. */
+  sbWebRings: number;
 }
 
 const DEFAULTS: HeroFxConfig = {
@@ -66,6 +72,9 @@ const DEFAULTS: HeroFxConfig = {
   sbHue: 297,
   sbDip: 0.7,
   sbPeriod: 2.4,
+  sbWeb: 0.55,
+  sbWebSpokes: 8,
+  sbWebRings: 3,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -80,18 +89,22 @@ export const HFX_RANGES: Record<keyof HeroFxConfig, [number, number, number]> = 
   encLinks: [1, 12, 1],
   encArc: [2, 80, 1],
   encShape: [0, 1, 0.01],
-  sbSize: [2, 30, 0.5],
-  sbY: [-10, 40, 0.5],
+  // Wide on purpose (owner ask 2026-08-17: "more room to move it around").
+  sbSize: [2, 120, 0.5],
+  sbY: [-120, 160, 0.5],
   sbRing: [0.2, 6, 0.1],
   sbBlur: [0, 40, 0.5],
   sbHue: [0, 360, 1],
   sbDip: [0, 1, 0.01],
   sbPeriod: [0.5, 10, 0.1],
+  sbWeb: [0, 1, 0.01],
+  sbWebSpokes: [3, 16, 1],
+  sbWebRings: [1, 8, 1],
 };
 
 export const HFX_NUM_KEYS = [
   'encInset', 'encH', 'encBlur', 'encHue', 'encDip', 'encPeriod', 'encSkew', 'encLinks', 'encArc', 'encShape',
-  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod',
+  'sbSize', 'sbY', 'sbRing', 'sbBlur', 'sbHue', 'sbDip', 'sbPeriod', 'sbWeb', 'sbWebSpokes', 'sbWebRings',
 ] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as HFX_DEFAULTS };
@@ -142,6 +155,17 @@ export function applyHeroFxVars(): void {
   root.setProperty('--hfx-sb-hue', String(cfg.sbHue));
   root.setProperty('--hfx-sb-dip', String(cfg.sbDip));
   root.setProperty('--hfx-sb-period', `${cfg.sbPeriod}s`);
+  // SPIDERWEB fill: radial SPOKES (a repeating conic gradient) crossed with concentric RINGS (a repeating
+  // radial gradient). Both are static paint on one element — nothing here animates, so the web costs the
+  // ring nothing per frame.
+  root.setProperty('--hfx-sb-web', String(cfg.sbWeb));
+  const spoke = 360 / Math.max(3, Math.round(cfg.sbWebSpokes));
+  const webCol = `hsl(${cfg.sbHue} 100% 82% / 1)`;
+  root.setProperty('--hfx-sb-web-spokes', `repeating-conic-gradient(from 0deg,
+    ${webCol} 0deg, ${webCol} 0.6deg, transparent 0.6deg, transparent ${spoke}deg)`);
+  const ringStep = 50 / Math.max(1, Math.round(cfg.sbWebRings)); // % of the radius per ring
+  root.setProperty('--hfx-sb-web-rings', `repeating-radial-gradient(circle,
+    transparent 0%, transparent ${ringStep - 1.2}%, ${webCol} ${ringStep - 1.2}%, ${webCol} ${ringStep}%)`);
 }
 
 export function setHeroFxValue(key: keyof HeroFxConfig, value: number): void {

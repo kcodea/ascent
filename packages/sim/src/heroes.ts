@@ -585,7 +585,9 @@ export const HEROES: HeroDef[] = [
       name: 'Archive',
       kind: 'archive',
       // Targeted at a friendly BOARD minion or a SHOP offer. Once per turn (heroReady).
-      text: 'Archive a friendly or Shop minion (records its type). Every 3rd, Discover one minion of each archived type.',
+      // The archived TYPES are shown separately by the panel, in each tribe's own colour — a plain string
+      // cannot carry that, so the rule stays generic and the state is rendered beside it.
+      text: 'Archive a friendly or shop minion. When full, discover a minion of those types.',
     },
   },
   {

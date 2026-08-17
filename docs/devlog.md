@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-17 - Death-time procs keep an anchor; Quillen's archived types; Sable's web
+
+**The Shout FX gap, properly diagnosed.** The Effect Arena work DID unblock the mechanics — `rubyStatGain` is
+a real combat factory, `replayCombatBattlecry` runs it live, and `gainRubyBonus` emits its `+A/+H Ruby Power`
+narration. The Ruby flourish is wired to that narration too. What failed is the ANCHOR:
+
+    const el = findEl(e.source);
+    if (!el) continue;            // ← a dying body has no element
+
+`findEl` only resolves LIVING units. A proc fired by a dying body — Parting Cry replaying its own Shout as it
+dies — has no element by the time the beat renders, so the effect bailed and drew nothing even though the gain
+applied. It looked inconsistent rather than broken because the SAME Deepvein Shout re-fired by Dawnclaw on a
+living neighbour animates fine.
+
+Fixed generally rather than per-effect: the replay now keeps a LAST-KNOWN slot rect per uid, refreshed every
+beat, and all four source-anchored blocks (Ruby Power, spell power, proc crit, and the fourth gain channel)
+resolve through a shared `anchorOf` that falls back to it. Order matters — the refresh runs before the
+per-event pass, because a unit that dies in this beat is already gone from the DOM and must be served from the
+previous beat's snapshot. This covers every death-time proc, not just Parting Cry.
+
+*(My earlier `cast: true` change is still right and still needed — that makes the cry itself flash — but it was
+never the reason the Ruby animation was missing. Two separate bugs behind one symptom.)*
+
+**Quillen** — rule reworded to "Archive a friendly or shop minion. When full, discover a minion of those
+types.", with the archived types rendered beside it as three slots, each in its own tribe colour and unused
+ones reading "Empty". A plain rule string cannot carry per-word colour, so the live state is rendered rather
+than folded into the text.
+
+**Sable** — `sbSize` and `sbY` ranges widened a lot ("more room to move it around"), plus a **spiderweb fill**:
+radial spokes crossed with concentric rings, with dials for opacity, spoke count and ring count. Both webs are
+static paint on the existing element and the threads fade toward the rim; nothing new animates, so the web
+costs nothing per frame.
+
+Full suite 5502 green, typecheck + lint + build:web clean.
+
 ## 2026-08-17 - Parting Cry now ANIMATES: an `sc` without `cast` draws nothing
 
 Follow-up to yesterday's Parting Cry fix. That change made the cry's Shout fire correctly (the watchers get

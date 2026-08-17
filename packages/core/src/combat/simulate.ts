@@ -600,8 +600,28 @@ export function simulate(
       return Object.values(cards).filter((c) => allow.has(c.id));
     },
     buff: (target, attack, health, source, ruby) => {
-      // Golden Taurus doubles every combat stat-gain its engraved neighbors receive (`gainMult`).
-      const gm = target.gainMult ?? 1;
+      // TRANSCENDANT: Engraved as a LIVE ADJACENCY AURA rather than a one-shot grant (owner respec
+      // 2026-08-17). Resolved HERE, at the moment stats are gained, which is what makes "while alive and
+      // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
+      // dies do not. Granting the EG keyword instead would be wrong — the keyword persists, so a single
+      // adjacent buff would silently engrave the rest of the fight.
+      const transcendant = ((): Minion | undefined => {
+        const side = boards[target.side];
+        const i = side.indexOf(target);
+        if (i < 0) return undefined;
+        // `isTribeOf`, not a bare tribe compare — an all-tribes body (Paragon, Lab Experiment) IS a Dragon
+        // for every other Dragon check in the engine, so it must be one here too (owner 2026-08-17).
+        if (!isTribeOf(target, 'dragon', cards)) return undefined;
+        for (const nb of [side[i - 1], side[i + 1]]) {
+          if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return nb;
+        }
+        return undefined;
+      })();
+      // Golden Taurus doubles every combat stat-gain its engraved neighbours receive (`gainMult`), and a GOLDEN
+      // Transcendant does the same for its adjacent Dragons — live rather than stamped, so the doubling stops
+      // the moment it dies. The LARGER of the two wins rather than the product: two separate "2x stats" sources
+      // should not compound into 4x.
+      const gm = Math.max(target.gainMult ?? 1, transcendant?.golden ? 2 : 1);
       if (gm !== 1) { attack *= gm; health *= gm; }
       target.attack = Math.max(0, target.attack + attack); // Attack never drops below 0
       target.health += health;
@@ -616,27 +636,10 @@ export function simulate(
         const g = Math.max(0, attack) + Math.max(0, health);
         if (g > 0) for (const t of tribesFor(target)) questTally.statGainByTribe[t] = (questTally.statGainByTribe[t] ?? 0) + g;
       }
-      // TRANSCENDANT: Engraved as a LIVE ADJACENCY AURA rather than a one-shot grant (owner respec
-      // 2026-08-17). Evaluated HERE, at the moment stats are gained, which is what makes "while alive and
-      // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
-      // dies do not. Granting the EG keyword instead would be wrong — the keyword persists, so a single
-      // adjacent buff would silently engrave the rest of the fight.
-      const auraEngraved = ((): boolean => {
-        const side = boards[target.side];
-        const i = side.indexOf(target);
-        if (i < 0) return false;
-        // `isTribeOf`, not a bare tribe compare — an all-tribes body (Paragon, Lab Experiment) IS a Dragon
-        // for every other Dragon check in the engine, so it must be one here too (owner 2026-08-17).
-        if (!isTribeOf(target, 'dragon', cards)) return false;
-        for (const nb of [side[i - 1], side[i + 1]]) {
-          if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return true;
-        }
-        return false;
-      })();
-      if (auraEngraved) target.auraEngraved = true; // so the carry-back entry attributes it correctly
+      if (transcendant) target.auraEngraved = true; // so the carry-back entry attributes it correctly
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
-      if (target.keywords.includes('EG') || auraEngraved) {
+      if (target.keywords.includes('EG') || transcendant) {
         target.permaGain = {
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,

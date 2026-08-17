@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-17 - Golden Transcendant doubles its neighbours' combat gains
+
+Owner text: *"Ward. Adjacent Dragons are Engraved and gain 2x Stats in combat. Start of Combat: Give your
+Dragons +6/+6."* That second clause is the same upgrade **golden Taurus** already gets, worded identically on
+the card — and it rides the same `gainMult` machinery, so this was wiring rather than a new primitive.
+
+The one real difference: Taurus *stamps* `gainMult = 2` on its neighbours at Start of Combat, whereas
+Transcendant's is live, resolved inside `ctx.buff` alongside the Engrave aura — so the doubling stops the
+moment it dies, exactly like the Engrave does. Where a minion is covered by both sources the LARGER wins
+rather than the product: two separate "2x stats" effects shouldn't compound into 4x.
+
+Reorganised `ctx.buff` slightly so the aura resolves ONCE at the top (it now returns the adjacent Transcendant
+rather than a boolean) and feeds both the multiplier and the Engrave — the multiplier has to be known before
+the stats are applied, and it was previously computed below them.
+
+Verified: typecheck + lint + `npm test` (5560) + `build:web` green. New case: a plain Transcendant's neighbour
+carries back +3/+3, a golden one's carries back +12/+12 (+6/+6 doubled), and the existing golden case now
+distinguishes the far Dragon (+6/+6, raw grant) from the adjacent one (+12/+12).
+
 ## 2026-08-17 - Odelle's Exhibition retuned to +1/+1
 
 Halved: an exhibition grants **+1/+1**, improving by **+1/+1** every 4 cards played (was +2/+2 / +2/+2). Only

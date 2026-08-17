@@ -139,9 +139,26 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
     expect(kept.get('P')?.engraved).toBe(true);
   });
 
-  it('golden doubles the buff, not the Engrave', () => {
+  it('GOLDEN also doubles every combat stat-gain its adjacent Dragons receive', () => {
+    // Same upgrade golden Taurus gets (`gainMult`), and worded the same on the card — but live rather than
+    // stamped, so it applies to whatever lands while Transcendant is alive beside them.
+    const layout = (golden: boolean) => simulate(
+      [bm('d2_orivax', 'L', 0, 9999), bm('d2_transcendence', 'T', 0, 9999, golden ? { golden: true } : {})],
+      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
+      makeRng(8), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }),
+    );
+    // Plain: +3/+3 lands as +3/+3. Golden: the grant is +6/+6 AND the neighbour's gains are doubled → +12/+12.
+    const keptOf = (g: boolean) => (layout(g).playerPermaBuffs ?? []).find((p) => p.sourceUid === 'L');
+    expect(keptOf(false)?.attack, 'plain Transcendant grants +3/+3').toBe(3);
+    expect(keptOf(true)?.attack, 'golden: +6/+6 doubled again by the 2x aura').toBe(12);
+  });
+
+  it('golden doubles the buff and its neighbours gains, but never widens the Engrave', () => {
     const buffs = fight(true).events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number }[];
-    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 6), 'golden should give +6/+6').toBe(true);
+    // The FAR Dragon shows the raw golden grant: +6/+6. The adjacent one is inside the 2x aura, so the same
+    // grant lands on it as +12/+12 — the two upgrades compose exactly as the card text reads.
+    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm3' && b.attack === 6), 'golden should give +6/+6').toBe(true);
+    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 12), 'doubled again for a neighbour').toBe(true);
     const kept = new Set((fight(true).playerPermaBuffs ?? []).map((p) => p.sourceUid));
     expect(kept.has('F'), 'golden must not widen the Engrave beyond the neighbours').toBe(false);
   });

@@ -1026,8 +1026,11 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
    never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not
    clickable) but never glows — so every hero shows its power art, only active ones pulse. */
-.heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art,
-.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: var(--hpb-art-dim, 0.1); filter: saturate(0.75); }
+/* `.committed` (Cassen with a commission in flight) is EXEMPT: the button is deliberately unusable, but its
+   art is the whole point — it is how the player sees which commission is running. Dimming it to 10% made the
+   button read as empty (owner report 2026-08-17). */
+.heropowerbtn:not(.ready):not(.armed):not(.passive):not(.committed) .hpb-art,
+.heropowerbtn:not(.ready):not(.armed):not(.passive):not(.committed) > svg { opacity: var(--hpb-art-dim, 0.1); filter: saturate(0.75); }
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */

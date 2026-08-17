@@ -231,6 +231,26 @@ Dawnclaw and Ryme log `sc` without `cast`, and they point `source` at the TRIGGE
 whose Shout actually goes off — so even with the flag they would flash the wrong body. Making triggered Shouts
 animate properly is a shared presentation change (and the natural home for the Beat Lab's FX-on-beat work),
 not a one-line edit, so it wants its own PR and an owner ruling on what it should look like.
+## 2026-08-17 - Cassen's running-commission art was dimmed to 10%, not missing
+
+The art was never absent — it was rendering at **10% opacity**, which reads as an empty button. My first two
+guesses (a stale eager `import.meta.glob`, then a bad art slug) were both wrong, and the owner was right to
+push back on the glob theory.
+
+The real cause is a shared rule interacting with my own change from the previous PR:
+
+    .heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art { opacity: var(--hpb-art-dim, 0.1); }
+
+That rule exists so an active power you cannot currently use fades against its dark backing. Making Cassen's
+button unusable while a commission is in flight (owner ask: "not activatable until the reward has been
+granted") dropped it into exactly that state — so the very art we had just wired to communicate the running
+commission was the thing being hidden.
+
+Fixed with a `.committed` marker on the button, exempted from the dim: the button stays deliberately
+unusable, but its art stays bright, because that art is the entire point of the state.
+
+Verified in the browser rather than asserted: the button resolves to `heropowerbtn committed`, its `src` is
+`cassen-discover.webp`, and computed art opacity is `1` (was `0.1`).
 
 Full suite 5501 green, typecheck + lint + build:web clean.
 

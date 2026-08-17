@@ -73,6 +73,23 @@ describe('Parting Cry — the Shout fires on death', () => {
     expect(r.events.some((ev) => ev.type === 'sc' && /parting cry/.test(ev.text ?? '')), 'the cry fired').toBe(true);
   });
 
+  // REGRESSION (owner report 2026-08-16): the cry fired the effect but ran the raw `onPlay` FACTORIES
+  // directly, skipping `replayCombatBattlecry` + the `battlecryTriggered` bus emit that every OTHER
+  // Shout-trigger (Dawnclaw, Ryme, Thunderous Sovereign) goes through. So "after you trigger a Shout"
+  // watchers silently missed it — Embermouth Whelp gained nothing at all.
+  it('drives the full Shout machinery, so on-Shout watchers proc', () => {
+    // Embermouth Whelp: "After you trigger a Shout, gain +1/+1." It must grow off the parting cry.
+    const p: BoardMinion[] = [
+      { cardId: 'alley', attack: 1, health: 1, partingCry: true } as BoardMinion,
+      { cardId: 'd2_embermouth', attack: 1, health: 40 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 30, health: 60 }];
+    const r = sim(p, e, {});
+    expect(r.events.some((ev) => ev.type === 'sc' && /parting cry/.test(ev.text ?? '')), 'the cry fired').toBe(true);
+    const whelp = r.events.filter((ev) => ev.type === 'buff');
+    expect(whelp.length, 'the on-Shout watcher was paid').toBeGreaterThan(0);
+  });
+
   it('an UNMARKED body dies quietly', () => {
     const p: BoardMinion[] = [{ cardId: 'alley', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 30, health: 60 }];

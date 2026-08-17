@@ -21,8 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Dev tuners for the Sable (Soulbind ring) and Cia (Enchanted glow) effects** — requested 2026-08-16, NOT
-  built. Follow the `freezeConfig.ts` + `FreezeTuner.tsx` + `DevMenu.tsx` pattern.
 - **`CassenHP2.png` mis-slugs to `cassen2`** (a generic numbered-variant rule wins over the explicit entry), so
   Cassen's GOLD commission shows his plain art. Fix by ordering the Cassen block after that rule.
 - **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.

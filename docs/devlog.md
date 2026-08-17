@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-16 - Parting Cry drives the real Shout machinery; Cassen's picker; Hero Card FX tuner
+
+**Parting Cry bug (owner report).** The cry fired the marked body's `onPlay` effects by calling the raw
+FACTORIES directly — which runs the effect but skips `replayCombatBattlecry` AND the `battlecryTriggered` bus
+emit that every other Shout-trigger in the game (Dawnclaw, Ryme, Thunderous Sovereign) goes through. So every
+"after you trigger a Shout" watcher silently missed it: Embermouth Whelp gained nothing, and Deepvein Tender's
++1 Health never showed its buff text. It now routes through the same two calls as Dawnclaw. Regression test
+asserts the watcher is actually paid, not just that the `sc` line appears.
+
+**Cassen's picker.** His power is a CHOICE, so pressing the button now opens a small overlay with the offered
+commissions instead of firing immediately (the reducer already required `action.commission`, so a plain click
+was a no-op — that is why he "wasn't working"). The panel reuses the Discover overlay's shell so it reads as
+the same class of decision, but its options are text tiles: a commission is a promise, not a card, and drawing
+it as one would be a lie. It lives in `StatusBar`, which owns the button, so no cross-component plumbing.
+
+**Hero Card FX tuner** (`🃏 Hero Card FX` in the dev menu) — live dials for Cia's Enchanted glow and Sable's
+Soulbind ring: size, offset, thickness, blur/spread, hue, breathe depth and period. Deliberately no
+"animate the shadow" dial: both effects LOOP, so the shadows stay static and only `opacity` animates
+(docs/performance.md). CSS reads `--hfx-*` with the DEFAULTS as fallbacks, per the Layout Lab rule.
+
+**All hero + hero-power art re-wired** from the source folders (44 heroes, 47 powers). Non-hero art categories
+were left untouched to keep the diff honest — `art:wire` re-encodes every webp non-deterministically, so
+including them would have added ~600 files with no visual change.
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Cassen's Commission, Aegis scales, Auctioneer/Sable renames, three heroes enabled
 
 - **Cassen reworked + enabled.** *Collision* is retired; his power is **Commission** — free, untargeted, choose

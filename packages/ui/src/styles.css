@@ -7807,30 +7807,58 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    It LOOPS, so per docs/performance.md the only animated property is `opacity` — the red bloom itself is a
    STATIC box-shadow. No paint property changes per frame. */
 .enchantwisp {
-  position: absolute; left: 8%; right: 8%; bottom: calc(-2 * var(--u)); height: calc(3 * var(--u));
+  position: absolute;
+  left: var(--hfx-enc-inset, 8%); right: var(--hfx-enc-inset, 8%);
+  bottom: calc(var(--hfx-enc-y, -2) * var(--u));
+  height: calc(var(--hfx-enc-h, 3) * var(--u));
   border-radius: 999px; pointer-events: none; z-index: 4;
-  background: linear-gradient(90deg, rgba(214, 50, 40, 0) 0%, rgba(255, 120, 80, 0.95) 50%, rgba(214, 50, 40, 0) 100%);
-  box-shadow: 0 0 calc(14 * var(--u)) calc(4 * var(--u)) rgba(214, 45, 40, 0.75); /* STATIC */
-  animation: ewbreathe 3.4s ease-in-out infinite;
+  background: linear-gradient(90deg,
+    hsl(var(--hfx-enc-hue, 2) 78% 50% / 0) 0%,
+    hsl(var(--hfx-enc-hue, 2) 100% 66% / 0.95) 50%,
+    hsl(var(--hfx-enc-hue, 2) 78% 50% / 0) 100%);
+  /* STATIC shadow — only `opacity` is animated (docs/performance.md). */
+  box-shadow: 0 0 calc(var(--hfx-enc-blur, 14) * var(--u)) calc(var(--hfx-enc-spread, 4) * var(--u))
+    hsl(var(--hfx-enc-hue, 2) 76% 50% / 0.75);
+  animation: ewbreathe var(--hfx-enc-period, 3.4s) ease-in-out infinite;
   will-change: opacity;
 }
-@keyframes ewbreathe { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes ewbreathe { 0%, 100% { opacity: var(--hfx-enc-dip, 0.6); } 50% { opacity: 1; } }
 
 /* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
    A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
    shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */
 .soulbindmark {
-  position: absolute; left: 50%; top: calc(-7 * var(--u));
-  width: calc(7 * var(--u)); height: calc(7 * var(--u));
-  margin-left: calc(-3.5 * var(--u));
+  position: absolute; left: 50%;
+  top: calc(-1 * var(--hfx-sb-y, 7) * var(--u));
+  width: calc(var(--hfx-sb-size, 7) * var(--u)); height: calc(var(--hfx-sb-size, 7) * var(--u));
+  margin-left: calc(-0.5 * var(--hfx-sb-size, 7) * var(--u));
   border-radius: 50%; pointer-events: none; z-index: 7;
-  border: calc(1.2 * var(--u)) solid rgba(206, 150, 255, 0.95);
-  background: radial-gradient(circle, rgba(180, 100, 255, 0.55) 0%, rgba(150, 70, 255, 0) 70%);
-  box-shadow: 0 0 calc(10 * var(--u)) calc(2 * var(--u)) rgba(168, 96, 255, 0.85); /* STATIC */
-  animation: sbbreathe 2.4s ease-in-out infinite;
+  border: calc(var(--hfx-sb-ring, 1.2) * var(--u)) solid hsl(var(--hfx-sb-hue, 275) 100% 79% / 0.95);
+  background: radial-gradient(circle, hsl(var(--hfx-sb-hue, 275) 100% 70% / 0.55) 0%, hsl(var(--hfx-sb-hue, 275) 100% 63% / 0) 70%);
+  /* STATIC shadow — only `opacity` is animated. */
+  box-shadow: 0 0 calc(var(--hfx-sb-blur, 10) * var(--u)) calc(2 * var(--u)) hsl(var(--hfx-sb-hue, 275) 100% 69% / 0.85);
+  animation: sbbreathe var(--hfx-sb-period, 2.4s) ease-in-out infinite;
   will-change: opacity;
 }
-@keyframes sbbreathe { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+@keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .enchantwisp, .soulbindmark { animation: none; }
 }
+
+/* ── Cassen's commission picker ────────────────────────────────────────────────────────────────────────
+   Reuses `.discover-ov` / `.disc-panel` so it reads as the same class of decision, but its options are text
+   tiles: a commission is a promise, not a card, and rendering it as one would be a lie. */
+.commission-opts { display: flex; gap: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)) calc(16 * var(--u)); }
+.commission-opt {
+  display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u));
+  width: calc(120 * var(--u)); padding: calc(14 * var(--u)) calc(10 * var(--u));
+  border-radius: calc(10 * var(--u)); border: 2px solid var(--line);
+  background: var(--card); color: inherit; cursor: inherit; text-align: center;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.commission-opt:hover { transform: translateY(calc(-2 * var(--u))); border-color: rgba(255, 214, 130, 0.9); }
+.commission-delay {
+  font-weight: 800; font-size: calc(20 * var(--u)); line-height: 1;
+  color: rgba(255, 214, 130, 0.95);
+}
+.commission-text { font-size: calc(11 * var(--u)); line-height: 1.35; }

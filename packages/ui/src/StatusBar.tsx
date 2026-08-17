@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_TEXT, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -132,6 +132,9 @@ export function StatusBar() {
   // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
   // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
   // card-text rule: never show a base number where the real one is knowable.
+  // Cassen: the commission picker is local to this component, which owns the button — no cross-component
+  // plumbing for a panel only one hero ever opens.
+  const [pickingCommission, setPickingCommission] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
   /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
@@ -421,7 +424,10 @@ export function StatusBar() {
                   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
                   playDef('hero-power-spark', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
                 }
-                if (power.untargeted) dispatch({ type: 'heroPower' });
+                // CASSEN: the power is a CHOICE, so pressing it opens a picker rather than firing. It fires
+                // when an option is chosen (below). Untargeted, but not immediate.
+                if (power.kind === 'commission') setPickingCommission(true);
+                else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
             >
@@ -446,7 +452,32 @@ export function StatusBar() {
               : diceHeld != null
                 ? <span key="die-held" className="hpb-tally hpb-dice settled">{diceHeld}</span>
                 : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
-            {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
+            {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
+          decision, but its options are plain text tiles rather than cards (a commission is not a card). Only
+          the OFFERED commissions appear, so the one taken last is absent. */}
+      {pickingCommission && createPortal(
+        <div className="discover-ov commission-ov" role="dialog" aria-label="Choose a commission">
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">Choose a Commission</span></div>
+            <div className="commission-opts">
+              {commissionOffer(run).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="commission-opt"
+                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
+                >
+                  <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
+                  <span
+                    className="commission-text"
+                    dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>, document.body)}
+      {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
             {hunchPreview && hunchTip && createPortal(

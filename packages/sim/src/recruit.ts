@@ -555,6 +555,10 @@ export function commissionOffer(state: Pick<RunState, 'lastCommission'>): Commis
   return state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
 }
 
+/** Cassen's commissions: how long each takes to mature. The delay IS the trade — a longer wait buys a bigger
+ *  payout — so it sits beside the printed text rather than in the reducer's payout switch. */
+export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1 };
+
 /** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
 export const COMMISSION_TEXT: Record<CommissionKind, string> = {
   discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',

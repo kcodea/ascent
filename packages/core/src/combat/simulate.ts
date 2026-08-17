@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -1903,12 +1903,15 @@ export function simulate(
     // Rise/resummon of the same body never pays twice.
     if (minion.partingCry) {
       minion.partingCry = false;
-      const shouts = minion.effects.filter((e) => e.on === 'onPlay');
-      if (shouts.length > 0) {
+      if (minion.effects.some((e) => e.on === 'onPlay')) {
         emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry` });
-        for (const effect of shouts) {
-          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
-        }
+        // Route through the SAME machinery every other Shout-trigger uses (Dawnclaw, Ryme, Thunderous
+        // Sovereign): `replayCombatBattlecry` for the effect itself, then the `battlecryTriggered` bus emit.
+        // Calling the `onPlay` FACTORIES directly — as this used to — fired the effect but skipped the emit,
+        // so every "after you trigger a Shout" watcher silently missed it (owner report 2026-08-16:
+        // Embermouth Whelp gained nothing, and Deepvein Tender's +1 Health never showed its buff text).
+        replayCombatBattlecry(ctx, minion);
+        bus.emit('battlecryTriggered', { side: minion.side, minion });
       }
     }
     bus.emit('onDeath', { minion, side: minion.side, killer });

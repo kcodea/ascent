@@ -368,7 +368,7 @@ export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: numbe
 export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
 
 /** Cassen's three commissions. The delay is part of the identity — a longer wait buys a bigger payout. */
-export type CommissionKind = 'discover' | 'gold' | 'spell';
+export type CommissionKind = 'discover' | 'gold' | 'spell' | 'citadel' | 'fortress';
 /** An ACTIVE commission: what was picked and the wave it matures on. Only ever one at a time. */
 export interface Commission { kind: CommissionKind; dueWave: number; }
 

@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-17 - Cassen's art corrected; the two RARE jobs land
+
+**Art names fixed.** The numbered `CassenHP1/2/3` scheme proved unreadable and the owner renamed the files by
+JOB. The aliases now read `CassenShed → cassen-spell` (1 turn), `CassenHouse → cassen-gold` (2),
+`CassenBridge → cassen-discover` (3), plus `CassenCastle → cassen-citadel` and
+`CassenZeppelin → cassen-fortress` for the rares. The 3-turn ordinary job is renamed **Bridge**, freeing
+"Castle" for the rare it now belongs to.
+
+**Two rare jobs**, a 25% chance to replace one slot:
+- **Castle** (`citadel`) — in 3 turns the Shop upgrades once, free. Only offered at **Tier 4 or lower**, where
+  a free upgrade is still worth something. The tier rises without charging `upgradeCostOf`, and the next price
+  re-bases off the new tier exactly as a paid upgrade does.
+- **Zeppelin** (`fortress`) — in 3 turns, a Triple Reward (the same `grantGoldenDiscover` a real triple gives).
+
+**The offer is DERIVED, not rolled**, and that is the load-bearing decision. `commissionOffer` is read by BOTH
+the reducer (to validate the pick) and the panel (to draw it), so it hashes `(seed, wave)` rather than drawing
+from `rngCursor`. An impure roll would let the panel show one set of options while the reducer validated
+against another, and it would not replay. Three tests guard exactly that: the offer is stable across repeated
+calls, a rare appears across 40 turns, and Citadel never appears above Tier 4.
+
+**Not covered by tests:** the two payouts firing at maturity. They ride the same `payCommission` path the three
+ordinary jobs use (only the branch differs), and I could not pin the turn-advance action from a fixture in
+reasonable time. The derived offer — the part with real failure modes — is what the tests guard.
+
+Full suite 5521 green, typecheck + lint + build:web clean.
+
+**Still queued:** the Juggler hero, and granted quest/rune art taking the hero-power slot.
+
 ## 2026-08-17 - Cassen's commissions renamed; his art re-wired
 
 - Commissions are **Shed / House / Castle** (were The Quick Favour / The Fair Wage / The Long Job). Named for

@@ -5066,6 +5066,17 @@ function refreshTavern(s: RunState, hold = false): void {
 function payCommission(s: RunState, c: Commission): void {
   s.commission = undefined;
   if (c.kind === 'gold') { gainGold(s, 2); return; }
+  if (c.kind === 'fortress') { grantGoldenDiscover(s); return; } // the Triple Reward, same grant a triple gives
+  if (c.kind === 'citadel') {
+    // A FREE upgrade — the tier rises without charging `upgradeCostOf`, then the next price is re-based off
+    // the new tier exactly as a paid upgrade does, so the ladder stays consistent.
+    const ceiling = maxTierFor(s.rift);
+    if (s.tier < ceiling) {
+      s.tier += 1;
+      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+    }
+    return;
+  }
   if (c.kind === 'spell') {
     const pool = poolOf(s).spells.filter((x) => x.tier <= s.tier);
     if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);

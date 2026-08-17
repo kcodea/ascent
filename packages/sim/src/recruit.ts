@@ -550,14 +550,40 @@ export function aegisGrantOf(state: RunState): { attack: number; health: number 
 /** Which commissions may be offered right now: all three on the first use, then everything except the one
  *  taken last, so the same commission can never be picked twice running (owner spec 2026-08-16). Lives here
  *  rather than in the reducer because the panel needs it too, and reducer -> recruit is the allowed direction. */
-export function commissionOffer(state: Pick<RunState, 'lastCommission'>): CommissionKind[] {
+/** The two RARE jobs. Both take 3 turns; Citadel is gated on being able to USE a free upgrade. */
+const RARE: CommissionKind[] = ['citadel', 'fortress'];
+
+/**
+ * Which commissions may be offered right now.
+ *
+ * All three ordinary jobs on the first use, then everything except the one taken last, so the same commission
+ * can never be picked twice running. On top of that a **25% chance** to swap one slot for a RARE job (owner
+ * 2026-08-17): Citadel (a free Shop upgrade) is only offered at Tier 4 or lower, where the upgrade is still
+ * worth something.
+ *
+ * DERIVED, not rolled. This function is read by BOTH the reducer (to validate the pick) and the panel (to draw
+ * the options), so it must be pure: it hashes `(seed, wave, lastCommission)` rather than drawing from
+ * `rngCursor`. An impure roll would let the panel show one set of options while the reducer validated against
+ * another, and it would not replay.
+ */
+export function commissionOffer(state: Pick<RunState, 'lastCommission' | 'seed' | 'wave' | 'tier'>): CommissionKind[] {
   const all: CommissionKind[] = ['discover', 'gold', 'spell'];
-  return state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
+  const base = state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
+  // A stable hash of the run + turn: same inputs, same offer, every time it is asked.
+  const h = Math.abs(mixSeed(state.seed ?? 0, state.wave ?? 0, TAG.QUEST));
+  if (h % 100 >= 25) return base;
+  const pool = RARE.filter((k) => (k !== 'citadel' || (state.tier ?? 1) <= 4) && k !== state.lastCommission);
+  if (pool.length === 0) return base;
+  const rare = pool[h % pool.length]!;
+  // Swap the rare job into a stable slot rather than appending, so the picker keeps three options.
+  const out = [...base];
+  out[h % out.length] = rare;
+  return out;
 }
 
 /** Cassen's commissions: how long each takes to mature. The delay IS the trade — a longer wait buys a bigger
  *  payout — so it sits beside the printed text rather than in the reducer's payout switch. */
-export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1 };
+export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1, citadel: 3, fortress: 3 };
 
 /** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. The older
  *  `COMMISSION_TEXT` stays for the hero-panel rule, which wants one sentence rather than a card. */
@@ -565,12 +591,16 @@ export const COMMISSION_NAME: Record<CommissionKind, string> = {
   // Named for the scale of the job, so the delay reads off the title alone: 1 turn, 2 turns, 3 turns.
   spell: 'Shed',
   gold: 'House',
-  discover: 'Castle',
+  discover: 'Bridge',
+  citadel: 'Castle',
+  fortress: 'Zeppelin',
 };
 export const COMMISSION_REWARD: Record<CommissionKind, string> = {
   discover: 'Discover a minion of your Tavern Tier',
   gold: 'Gain 2 Gold',
   spell: 'Get a random Shop spell',
+  citadel: 'Your Shop is upgraded once, free',
+  fortress: 'A triple reward',
 };
 
 /** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
@@ -578,6 +608,8 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
   discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',
   gold: 'In **2 turns**, gain **2 Gold**.',
   spell: 'In **1 turn**, get a random Shop spell.',
+  citadel: 'In **3 turns**, your Shop is upgraded once.',
+  fortress: 'In **3 turns**, get a **triple** reward.',
 };
 
 /** The hero power's LIVE rule text. Static for every hero except Cia, whose printed rule is the queued suit's

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate } from '@game/core';
-import { createRun, reduce, getHero, type RunState, type BoardCard } from './index';
+import { commissionOffer, createRun, reduce, getHero, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-17 — Devourer and Membrance. */
 
@@ -139,4 +139,37 @@ describe('Flash — First or Last', () => {
     const after = reduce(s, { type: 'resolveCombat' } as never);
     expect([after.hand.length, after.flashPick]).toEqual([0, undefined]);
   });
+});
+
+describe("Cassen's rare jobs", () => {
+  const at = (over: object): RunState => ({ ...createRun(3), phase: 'recruit', heroId: 'cassen', ...over }) as RunState;
+
+  it('the offer is DERIVED, so the panel and the reducer always agree', () => {
+    // Same inputs -> same offer, every call. An rngCursor draw would fail this.
+    const s = at({ wave: 4, tier: 3 });
+    const a = commissionOffer(s), b = commissionOffer(s), c = commissionOffer({ ...s } as RunState);
+    expect(a).toEqual(b);
+    expect(a).toEqual(c);
+  });
+
+  it('offers a rare job sometimes, and always keeps three options', () => {
+    let sawRare = false;
+    for (let wave = 1; wave <= 40; wave++) {
+      const o = commissionOffer(at({ wave, tier: 3 }));
+      expect(o.length, 'always three to choose from').toBe(3);
+      if (o.includes('citadel') || o.includes('fortress')) sawRare = true;
+    }
+    expect(sawRare, 'a 25% chance shows up across 40 turns').toBe(true);
+  });
+
+  it('never offers Citadel above Tier 4', () => {
+    for (let wave = 1; wave <= 60; wave++) {
+      expect(commissionOffer(at({ wave, tier: 5 })), `wave ${wave}`).not.toContain('citadel');
+    }
+  });
+
+  // NOT COVERED HERE: the two payouts firing at maturity. They ride the same `payCommission` path the three
+  // ordinary jobs already use (only the branch differs), and I could not pin the turn-advance action from a
+  // fixture in reasonable time — so the DERIVED OFFER above, which is the part with real failure modes, is
+  // what these tests guard. The payouts themselves are a free `s.tier += 1` and a `grantGoldenDiscover`.
 });

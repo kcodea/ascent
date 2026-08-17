@@ -3481,9 +3481,17 @@ export function Recruit() {
       const w = sample?.width ?? rr.height * 0.752;
       const h = sample?.height ?? rr.height;
       const ghosts = events.map((ev, i) => {
-        const gx = rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72);
-        // Hover ABOVE the shop line: the ghost's centre sits just over the row's top edge.
-        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: rr.top - h * 0.62, w, h, eaterUid: ev.eaterUid };
+        // Start from the eaten card's OWN slot — its pre-removal centre, captured in `shopRectsRef.prev` — so it
+        // flies out of where it sat rather than from the row centre. A shop-minion consume carries the offer's
+        // `uid`; a Fodder token has none, and an unmeasured slot (a consume before the shop laid out) also misses:
+        // both fall back to the original fanned row-centre, hovering just above the shop line.
+        const uid = (ev as { uid?: string }).uid;
+        const snap = uid ? shopRectsRef.current.prev.get(uid) : undefined;
+        const gw = snap?.w ?? w;
+        const gh = snap?.h ?? h;
+        const x0 = snap ? snap.cx - gw / 2 : rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72) - w / 2;
+        const y0 = snap ? snap.cy - gh / 2 : rr.top - h * 0.62;
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
       const CRUMBLE_MS = FODDER_CRUMBLE_MS;
@@ -3755,6 +3763,23 @@ export function Recruit() {
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
     displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
+  // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
+  // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
+  // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
+  // Layout effects run BEFORE passive effects, so on the consume commit this swaps `cur`→`prev` (capturing the
+  // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads `prev` to find the eaten card's real slot.
+  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
+  useLayoutEffect(() => {
+    const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
+    for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue; // an unlaid-out / hidden card measures at the corner — skip it
+      cur.set(uid, { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height });
+    }
+    shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
+  }, [flipKey]);
   // Carry each row's live gap to the next frame so `reorderIndexFromSlots` can place neighbours at their
   // CURRENT (shifted) spots (symmetric swap thresholds). Only while actually reordering (gap >= 0).
   useEffect(() => {

@@ -1,5 +1,20 @@
 # ASCENT — development log
 
+## 2026-08-17 — a consumed shop minion flies out of its own slot, not the screen centre
+
+The eat/consume ghost used to spawn at the tavern row's CENTRE (`playFodderEat` anchored it to
+`rr.left + rr.width/2`) and never looked up the eaten card's slot — so a shop-minion consume looked like the card
+teleported to mid-row before its tendril whipped to the eater. Cause: the offer is spliced from `run.shop` (and the
+DOM) in the same commit that fires the eat cue, so by animation time the slot is gone.
+
+Fix (`Recruit.tsx`): a double-buffered `shopRectsRef` snapshot of every shop card's centre/size by uid, updated in a
+`useLayoutEffect` keyed on `flipKey`. Layout effects run before passive effects, so on the consume commit the
+buffer swaps `cur`→`prev` (capturing the pre-removal layout) BEFORE the seq-watcher reads `prev`. A shop consume
+carries the offer's `uid` (`shopEaten`), so `playFodderEat` looks up its real slot and starts the ghost there;
+a Fodder token (no uid) or an unmeasured slot falls back to the exact old row-centre behaviour. Verified: typecheck
++ lint + test 5560/5560 + build. **Follow-up:** the survivors still reflow the instant the card leaves (the FLIP
+keys off `run.shop`, which the reducer splices immediately) — holding the slot open until the ghost departs is the
+next, separate change.
 ## 2026-08-17 — FX: burst "Pull to target" (point-gravity / black-hole)
 
 New `pointGravity` slider on the burst primitive: a constant acceleration pulling every particle toward the

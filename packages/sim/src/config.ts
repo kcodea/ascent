@@ -62,6 +62,11 @@ export const CONFIG = {
   runeforgeEnabled: true, // ON for set 2 (owner 2026-07-31): basic forge turn 6, epic turn 9, every hero
 };
 
+/** Keshi's Crown: the tavern-tier bank threshold that grants a Triple Reward — a single-number retune from
+ *  here alone. Read by `keshiCrownBuy` (reducer.ts) and the UI's StatusBar (both the compact and expanded
+ *  power readouts); nowhere else should hardcode this as a literal 25. */
+export const KESHI_CROWN_THRESHOLD = 25;
+
 /**
  * ── Rifts ──────────────────────────────────────────────────────────────────────────────────────────────
  * A limited-time "rift" is a **global rule bent for fun for a while, then switched back off** — think

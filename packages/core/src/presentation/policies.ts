@@ -762,6 +762,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:odelle:exhibition': { policy: 'passive', family: 'passive', flagged: true },
   'hero:harlan:buyout': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:sable:soulbind': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:keshi:crownTally': { policy: 'passive', family: 'passive' },
 
 };
 

@@ -66,7 +66,7 @@ describe('Croupier Cia — Lucky Seat', () => {
     expect(after.shop.some((o) => o.enchanted)).toBe(false);
   });
 
-  it('buying 3 Enchanted cards pays a prize and resets the counter', () => {
+  it('buying 3 Enchanted cards opens a Discover of your tier and resets the counter', () => {
     const s = {
       ...createRun(4), phase: 'recruit', heroId: 'cia', embers: 40, tier: 3, hand: [], board: [],
       ciaEnchantedBought: 2,
@@ -74,9 +74,10 @@ describe('Croupier Cia — Lucky Seat', () => {
     } as RunState;
     const after = reduce(s, { type: 'buy', uid: 'sx' } as never);
     expect(after.ciaEnchantedBought, 'reset after the prize').toBe(0);
-    // The bought minion plus the prize spell.
-    expect(after.hand.length, 'the buy AND the prize landed').toBe(2);
-    expect(after.hand.some((c) => CARD_INDEX[c.cardId]!.spell), 'the prize is a Shop spell').toBe(true);
+    expect(after.hand.length, 'the buy landed in hand').toBe(1);
+    // The prize is now a DISCOVER of a minion OR a spell at your tier (owner ruling 2026-08-16).
+    expect(after.discover, 'a Discover opened').toBeTruthy();
+    for (const id of after.discover!) expect(CARD_INDEX[id]!.tier, 'up to Shop tier').toBeLessThanOrEqual(3);
   });
 
   it('a plain (un-enchanted) buy does not advance the counter', () => {
@@ -253,10 +254,90 @@ describe('Sable — Soulbind', () => {
     expect(board[0]!.buffs?.find((b) => b.source === 'Soulbind'), 'the origin was not re-buffed').toBeUndefined();
   });
 
+  // REGRESSION (owner report 2026-08-16): the bond silently did nothing in real play. The helper-level tests
+  // above all passed, because they stamped and buffed the SAME array — the reducer does not. It deep-clones
+  // the draft, and the stamp was taken from the pre-clone state, so every mirrored buff landed on a discarded
+  // object. This test drives the REAL dispatch path, which is the only thing that would have caught it.
+  it('mirrors through a real dispatch — a spell cast on one end reaches the other', () => {
+    const board = [m('a', 'stray'), m('b', 'alley'), m('c', 'pack')];
+    let s = at({
+      heroId: 'sable', heroReady: true, wave: 2, embers: 20, board,
+      hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    });
+    s = reduce(s, { type: 'heroPower' } as never);
+    expect(s.sableBond, 'the bond was forged').toBeTruthy();
+    // Growth buffs the WHOLE board, so use a single-target grant instead: Front to Back on the left end.
+    s = { ...s, hand: [{ uid: 'sp2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
+    const after = reduce(s, { type: 'play', uid: 'sp2', targetUid: 'a' } as never);
+    const left = after.board.find((c) => c.uid === 'a')!;
+    const right = after.board.find((c) => c.uid === 'c')!;
+    const mid = after.board.find((c) => c.uid === 'b')!;
+    expect(left.attack, 'the target grew').toBeGreaterThan(2);
+    expect([right.attack, right.health], 'and the bound far end matched it').toEqual([left.attack, left.health]);
+    expect([mid.attack, mid.health], 'the middle is untouched').toEqual([2, 2]);
+  });
+
   it('an expired bond (a later wave) does not mirror', () => {
     const board = [m('a', 'stray'), m('c', 'pack')];
     stampSableBond({ sableBond: { a: 'a', b: 'c', wave: 2 }, wave: 3, board } as RunState);
     addBuff(board[0]!, 'Test', 4, 4);
     expect(board[1]!.attack, 'the bond lapsed with the turn').toBe(2);
+  });
+});
+
+describe('Yirin — Reflector', () => {
+  it('is an 8-armor passive', () => {
+    const h = getHero('rohan'); // id kept stable for saves; display name is Yirin
+    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Yirin', 8, 'startingReflector', true]);
+  });
+
+  it('starts the run holding one Reflector', () => {
+    const s = createRun(5, 'rohan') as RunState;
+    expect(s.hand.filter((c) => c.cardId === 'n2_reflector').length).toBe(1);
+  });
+
+  it('no other hero starts with one', () => {
+    expect((createRun(5, 'indy') as RunState).hand.some((c) => c.cardId === 'n2_reflector')).toBe(false);
+  });
+
+  it('the Reflector is a TOKEN — never drawable from a shop pool', () => {
+    const def = CARD_INDEX['n2_reflector']!;
+    expect([def.tier, def.tribe, def.attack, def.health, def.token]).toEqual([1, 'neutral', 1, 1, true]);
+  });
+
+  it('a spell cast on it also lands on ONE other friendly — once per turn', () => {
+    const s = at({
+      heroId: 'rohan', embers: 20,
+      board: [m('r', 'n2_reflector'), m('o', 'alley')],
+      hand: [{ uid: 'sp', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    });
+    const after = reduce(s, { type: 'play', uid: 'sp', targetUid: 'r' } as never);
+    expect(after.board.find((c) => c.uid === 'r')!.attack, 'the Reflector took the cast').toBeGreaterThan(2);
+    expect(after.board.find((c) => c.uid === 'o')!.attack, 'and it was mirrored on').toBeGreaterThan(2);
+  });
+
+  it('does not re-cast on ITSELF when it is the only minion', () => {
+    const s = at({
+      heroId: 'rohan', embers: 20,
+      board: [m('r', 'n2_reflector')],
+      hand: [{ uid: 'sp', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    });
+    const after = reduce(s, { type: 'play', uid: 'sp', targetUid: 'r' } as never);
+    // Front to Back grants +2/+2 (plus spell power). A self re-cast would roughly double it.
+    const grown = after.board[0]!.attack - 2;
+    expect(grown, 'exactly one cast landed').toBeLessThan(6);
+  });
+
+  it('the SECOND spell in a turn does not spread (once per turn)', () => {
+    let s = at({
+      heroId: 'rohan', embers: 20,
+      board: [m('r', 'n2_reflector'), m('o', 'alley')],
+      hand: [{ uid: 'sp', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    });
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'r' } as never);
+    const afterFirst = s.board.find((c) => c.uid === 'o')!.attack;
+    s = { ...s, hand: [{ uid: 'sp2', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
+    const after = reduce(s, { type: 'play', uid: 'sp2', targetUid: 'r' } as never);
+    expect(after.board.find((c) => c.uid === 'o')!.attack, 'the bystander was not hit twice').toBe(afterFirst);
   });
 });

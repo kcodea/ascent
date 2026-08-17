@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-16 - Soulbind fix, Yirin reworked (Reflector), Cia's prize is a Discover
+
+Owner follow-ups on the hero batch.
+
+**Soulbind silently did nothing — the bug and why the tests missed it.** `stampSableBond(state)` was called at
+reducer entry, but the working draft is a `structuredClone` created ~370 lines LATER. Unlike its neighbour
+`stampImproveReps` (which stamps a plain number, so the source doesn't matter) the Sable stamp captures the
+BOARD ARRAY — so every mirrored buff landed on an object that was immediately thrown away. The stamp now
+happens from the draft `s`, right after the clone.
+
+The unit tests all passed because they stamped and buffed the same array; the reducer does not. Added a
+regression test that drives the REAL dispatch path (hero power, then a targeted spell) — the only shape that
+would have caught it.
+
+- **Yirin** (id `rohan`) — 17 → 8 armor, and *Attunement* (`spellAmplify`) is replaced by **Reflector**: the run
+  opens holding one. Keyed off the power KIND rather than the hero id, since `rohan` ≠ "Yirin" would read as a
+  bug to the next person.
+- **Reflector** — new T1 Neutral 1/1 token: *"Spells cast on this also cast on a random friendly minion.
+  (Once per turn)"*. `token: true`, so it is never drawable from a shop or Discover — the only source is Yirin
+  (the Chaos / Symbiotic Attachment treatment). The effect is Runefire's shape with a seeded random friendly
+  instead of the neighbours, including the same `spellsOnThisTurn === 1` guard: the spread re-enters
+  `castSpell`, and only the pre-bumped counter stops it recursing. It never re-casts on itself.
+- **Croupier Cia's prize** is now a **Discover of a minion OR a spell at your tier** (was a random Shop spell).
+  One pool of both kinds, so a single Discover can offer a mix.
+- **The Enchanted treatment is much louder** — brighter conic "links" with white-hot cores, two rings spinning
+  faster and opposed, and a double aura (tight white-violet core + wide purple bloom). Still transform/opacity
+  only, static shadows, `prefers-reduced-motion` honoured.
+
+**Consequence worth flagging: no hero amplifies spells any more.** Yirin was the only `spellAmplify` holder.
+The mechanic itself is alive — `spellStatBonus` still reads Rune of the Crown and `spellAura` cards — so the
+six tests that used Rohan as a +1 spell-power source were re-pointed at the RUNE rather than deleted, keeping
+coverage of the spell-power pipeline (Front to Back's per-cast escalation, Lantern of Souls, the display-value
+match). `spellAmplify` joins `scalingGold` and `possession` as a retired kind; its policy key is deleted for
+the same no-ghosts reason.
+
+Art wired by strict name match: the new Yirin portrait + power art, the Reflector minion, and the portraits
+that appeared for Bram, Cia, Harlan, Odelle and Sable (plus Cia's and Harlan's power art). Still missing:
+power art for Bram, Odelle and Sable.
+
+7 new tests; full suite 5480 green, typecheck + lint + build:web clean.
+
 ## 2026-08-16 - Five more heroes (Bram, Cia, Odelle, Harlan, Sable) + Rascal reworked
 
 Owner batch, scoped and answered before building.

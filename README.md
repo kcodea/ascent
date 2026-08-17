@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Yirin reworked + the Reflector** — Yirin now starts the run holding a **Reflector** (T1 1/1: spells cast on it also cast on a random friendly, once per turn) at 8 armor. **Croupier Cia**'s prize is now a Discover of a minion or spell at your tier, and the Enchanted card treatment is far more vivid. Fixed **Sable**'s Soulbind, which silently did nothing.
+
 - **Five more heroes** — **Bram** (bank a Gold a turn; the 5th pays a Gilded minion), **Croupier Cia** (Shops seat Enchanted cards; buy 3 for a prize), **Odelle** (play a minion between two others of three different types: all three grow), **Harlan** (buy the entire Shop, then reroll it) and **Sable, the Linksmith** (bind your outermost minions — stats gained by one are gained by the other, combat included). **Rascal** reworked: All In now pays 1 Gold +2 a turn, twice a game, at 6 armor.
 
 - **Three new heroes** — **Emerald Warden** (*Vanguard*: every tavern-up also hands you a random minion of the new tier), **Underdweller** (*Soulkeeper*, 3 Gold: Discover a minion that died last combat, from **either** side), and **Albus** (*Empowerment*, 1 Gold: pick a Shop minion and Discover what it turns into from the tier above). The **Gambler**'s rolled number now stays on the panel for the rest of the turn instead of vanishing a second after it lands.

@@ -7801,37 +7801,43 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ── Croupier Cia: the ENCHANTED shop card ─────────────────────────────────────────────────────────────
    A purple chained wisp swirling around the offer. Cosmetic only — it says nothing about the card itself,
-   just that buying it advances Cia's prize counter.
+   just that buying it advances Cia's prize counter. Deliberately LOUD (owner ask 2026-08-16: "much more
+   noticeable/vibrant") — it has to read instantly across a shop row.
 
-   This is a LOOPING effect, so it obeys the rule in docs/performance.md: the moving parts animate ONLY
-   `transform` and `opacity` (compositor-only). The glow is a ::before carrying a STATIC box-shadow whose
-   OPACITY breathes — never an animated shadow/filter, which would repaint every frame. */
+   This is a LOOPING effect, so it obeys the rule in docs/performance.md: every moving part animates ONLY
+   `transform` and `opacity` (compositor-only). The glow layers carry STATIC box-shadows whose OPACITY
+   breathes — never an animated shadow/filter, which would repaint every frame. */
 .enchantwisp {
-  position: absolute; inset: calc(-3 * var(--u)); border-radius: inherit;
-  pointer-events: none; z-index: 4; overflow: visible;
+  position: absolute; inset: calc(-5 * var(--u)); border-radius: inherit;
+  pointer-events: none; z-index: 6; overflow: visible;
 }
+/* The CHAIN: bright conic segments that read as links as the ring turns. Two rings, opposed and at
+   different rates, so the motion never looks like a single spinning texture. */
 .enchantwisp .ew-ring {
   position: absolute; inset: 0; border-radius: inherit;
-  /* The "chain": dashed conic segments that read as links as the ring turns. */
   background: conic-gradient(from 0deg,
-    rgba(178, 112, 255, 0) 0deg, rgba(196, 140, 255, 0.85) 14deg, rgba(178, 112, 255, 0) 30deg,
-    rgba(178, 112, 255, 0) 90deg, rgba(214, 168, 255, 0.75) 104deg, rgba(178, 112, 255, 0) 120deg,
-    rgba(178, 112, 255, 0) 180deg, rgba(196, 140, 255, 0.85) 194deg, rgba(178, 112, 255, 0) 210deg,
-    rgba(178, 112, 255, 0) 270deg, rgba(214, 168, 255, 0.75) 284deg, rgba(178, 112, 255, 0) 300deg);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3.5 * var(--u)), #000 calc(100% - 2 * var(--u)));
-  mask: radial-gradient(closest-side, transparent calc(100% - 3.5 * var(--u)), #000 calc(100% - 2 * var(--u)));
+    rgba(150, 70, 255, 0) 0deg, rgba(215, 150, 255, 1) 10deg, rgba(255, 235, 255, 1) 18deg, rgba(215, 150, 255, 1) 26deg, rgba(150, 70, 255, 0) 40deg,
+    rgba(150, 70, 255, 0) 85deg, rgba(196, 120, 255, 1) 96deg, rgba(255, 235, 255, 0.95) 104deg, rgba(196, 120, 255, 1) 112deg, rgba(150, 70, 255, 0) 128deg,
+    rgba(150, 70, 255, 0) 175deg, rgba(215, 150, 255, 1) 186deg, rgba(255, 235, 255, 1) 194deg, rgba(215, 150, 255, 1) 202deg, rgba(150, 70, 255, 0) 218deg,
+    rgba(150, 70, 255, 0) 265deg, rgba(196, 120, 255, 1) 276deg, rgba(255, 235, 255, 0.95) 284deg, rgba(196, 120, 255, 1) 292deg, rgba(150, 70, 255, 0) 308deg);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 6 * var(--u)), #000 calc(100% - 3.5 * var(--u)));
+  mask: radial-gradient(closest-side, transparent calc(100% - 6 * var(--u)), #000 calc(100% - 3.5 * var(--u)));
   will-change: transform;
 }
-.enchantwisp .ew-a { animation: ewspin 5.5s linear infinite; }
-.enchantwisp .ew-b { animation: ewspin 8.5s linear infinite reverse; opacity: 0.6; }
+.enchantwisp .ew-a { animation: ewspin 3.4s linear infinite; }
+.enchantwisp .ew-b { animation: ewspin 5.2s linear infinite reverse; opacity: 0.85; }
+/* The AURA: a static double shadow (tight white-violet core + wide purple bloom) that breathes on opacity. */
 .enchantwisp .ew-glow {
-  position: absolute; inset: 0; border-radius: inherit;
-  box-shadow: 0 0 calc(14 * var(--u)) calc(3 * var(--u)) rgba(168, 96, 255, 0.55); /* STATIC */
-  animation: ewbreathe 2.8s ease-in-out infinite;
+  position: absolute; inset: calc(2 * var(--u)); border-radius: inherit;
+  box-shadow:
+    0 0 calc(10 * var(--u)) calc(2 * var(--u)) rgba(228, 190, 255, 0.9),
+    0 0 calc(30 * var(--u)) calc(9 * var(--u)) rgba(150, 60, 255, 0.85);
+  animation: ewbreathe 1.9s ease-in-out infinite;
   will-change: opacity;
 }
 @keyframes ewspin { to { transform: rotate(360deg); } }
-@keyframes ewbreathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.85; } }
+@keyframes ewbreathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .enchantwisp .ew-ring, .enchantwisp .ew-glow { animation: none; }
+  .enchantwisp .ew-glow { opacity: 0.85; }
 }

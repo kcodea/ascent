@@ -3989,6 +3989,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < num(params.count, 1) * gold(self); i++) castSpell(ctx.state, spellDef, self);
   },
 
+  /** Yirin's Reflector: the FIRST spell cast on this each turn ALSO casts on ONE random other friendly minion.
+   *  Runefire's shape with a seeded random target instead of the neighbours. Same first-per-turn guard, and for
+   *  the same reason — the spread re-enters `castSpell`, and only the pre-bumped counter stops the recursion.
+   *  Never re-casts on ITSELF (that would double-dip the original cast), so it no-ops on a lone board. */
+  onSpellCastOnThisSpreadRandom: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    const others = ctx.state.board.filter((c) => c.uid !== self.uid);
+    if (others.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const pick = others[rng.int(others.length)]!;
+    ctx.state.rngCursor = rng.state();
+    for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, pick);
+  },
+
   /** Set 2 — Runefire: the FIRST spell cast on this each turn ALSO casts on its adjacent `tribe` neighbours.
    *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
    *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */

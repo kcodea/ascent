@@ -2222,9 +2222,13 @@ describe('run loop (@game/sim)', () => {
 
   // --- Spell batch -------------------------------------------------------------------------------
 
-  const castOnBoard = (spellId: string, board: BoardCard[], targetUid?: string, hero?: string): RunState => {
+  /** `spellPower` arms Rune of the Crown at `per: 0` so it pays from the first cast — a flat, always-on +N/+N.
+   *  Yirin (id `rohan`) used to be the spell-power hero; his Attunement was retired on 2026-08-16, so the
+   *  spell-power tests below source it from the RUNE instead. Same number, a source that still exists. */
+  const castOnBoard = (spellId: string, board: BoardCard[], targetUid?: string, hero?: string, spellPower = 0): RunState => {
     let s: RunState = {
       ...createRun(1, hero), embers: 0, shop: [], board,
+      ...(spellPower ? { runeCrown: { per: 0, attack: spellPower, health: spellPower } } : {}),
       hand: [{ uid: 'sp', cardId: spellId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp', ...(targetUid ? { targetUid } : {}) });
@@ -2281,8 +2285,8 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Front to Back adds spell power to both the grant AND the escalation step (owner 2026-07-09)', () => {
-    // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
-    const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
+    // +1 spell power → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
+    const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', undefined, 1);
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
     expect(s.frontToBackBonus).toBe(3); // improves EACH cast → after one cast the step (2 + power 1) has landed
     // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) now ALSO folds in spell power.
@@ -2296,10 +2300,10 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Front to Back: two casts with spell power — improves each cast', () => {
-    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3, THEN the step grows by 2+1=3.
+    // +1 spell power (Rune of the Crown), two casts on the same target. Cast 1: +(2+0+1)=+3/+3, THEN the step grows by 2+1=3.
     // Cast 2: +(2 + escalation 3 + power 1)=+6/+6. So the target ends at 3/3 + 6/6 = 9/9.
     let s: RunState = {
-      ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
+      ...createRun(1), embers: 0, shop: [], runeCrown: { per: 0, attack: 1, health: 1 },
       board: [oneNeutral('m', { attack: 0, health: 0 })],
       hand: [
         { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
@@ -3018,7 +3022,7 @@ describe('run loop (@game/sim)', () => {
 
   it('Lantern of Souls scales with spell power (+4/+1 at +1) and the card shows it', () => {
     // Rohan amplifies +1 at wave 1 → base +3 Attack becomes +4 Attack / +1 Health.
-    const s = castOnBoard('lanternofsouls', [], undefined, 'rohan');
+    const s = castOnBoard('lanternofsouls', [], undefined, undefined, 1);
     expect(s.undeadAttackBonus).toBe(4);
     expect(s.undeadHealthBonus).toBe(1);
     // The card text reflects the live value (green {{…}}); the base shows just +3 Attack.
@@ -3923,21 +3927,26 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(1); // unchanged
   });
 
-  it('Rohan amplifies stat-granting spells (+1 base, +1 per 10 spells cast), hero-gated', () => {
-    const cast = (heroId: string, spellsCast: number): BoardCard => {
+  // Yirin (id `rohan`) carried `spellAmplify` until 2026-08-16, when his power became Reflector. NO hero
+  // amplifies spells any more, so this now covers the surviving run-level source, Rune of the Crown — the
+  // spell-power PIPELINE is what matters here, not which thing feeds it.
+  it('Rune of the Crown amplifies stat-granting spells once its threshold is met', () => {
+    const cast = (crown: { per: number; attack: number; health: number } | undefined, spellsCast: number): BoardCard => {
       let s: RunState = {
-        ...createRun(1, heroId), spellsCast, board: [mk('t', 2, 2)],
+        ...createRun(1), spellsCast, board: [mk('t', 2, 2)],
+        ...(crown ? { runeCrown: crown } : {}),
         hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
       };
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +2/+3. Rohan adds +1 with < 10 casts so far → +3/+4 (2/2 → 5/6).
-    expect(cast('rohan', 0).attack).toBe(5);
-    // Scales: +2 once 10 spells have been cast → +4/+5 (→ 6/7).
-    expect(cast('rohan', 10).attack).toBe(6);
-    // Hero-gated: a non-Rohan gets the base +2/+3 (→ 4/5).
-    expect(cast('warden', 0).attack).toBe(4);
+    const crown = { per: 6, attack: 1, health: 1 };
+    // Spirit Fire = +2/+3. Below the threshold the rune pays nothing → base (2/2 → 4/5).
+    expect(cast(crown, 0).attack).toBe(4);
+    // At/over the threshold it adds +1 → +3/+4 (2/2 → 5/6).
+    expect(cast(crown, 6).attack).toBe(5);
+    // Un-runed runs are unaffected.
+    expect(cast(undefined, 20).attack).toBe(4);
   });
 
   it('Soren marks one minion for resummon (clearing any previous mark)', () => {
@@ -4267,10 +4276,11 @@ describe('PvE course + record (@game/sim)', () => {
 });
 
 describe('spell stat bonus + display (@game/sim)', () => {
-  it('spellStatBonus aggregates active sources (Rohan scales by spells cast; others = 0)', () => {
+  it('spellStatBonus aggregates active sources (Rune of the Crown at its threshold; others = 0)', () => {
     expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 0 })).toBe(1);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 10 })).toBe(2);
+    // No hero amplifies spells since Yirin's 2026-08-16 rework — the rune is the run-level source now.
+    expect(spellStatBonus({ ...createRun(1), runeCrown: { per: 6, attack: 1, health: 1 }, spellsCast: 0 })).toBe(0);
+    expect(spellStatBonus({ ...createRun(1), runeCrown: { per: 6, attack: 1, health: 1 }, spellsCast: 6 })).toBe(1);
   });
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
@@ -4302,17 +4312,17 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellStatBonus(two)).toBe(2); // stacked welds → +2/+2
   });
 
-  it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
-    const s = { ...createRun(1, 'rohan'), wave: 1 };
+  it('the displayed value matches what a cast actually grants (Rune of the Crown)', () => {
+    const s = { ...createRun(1), wave: 1, runeCrown: { per: 0, attack: 1, health: 1 } } as RunState;
     const bonus = spellStatBonus(s);
-    // Spirit Fire's base is +2/+3; with Rohan's turn-1 bonus the card shows +3/+4 and a cast grants +3/+4.
+    // Spirit Fire's base is +2/+3; with +1 spell power the card shows +3/+4 and a cast grants +3/+4.
     expect(spellDisplayText('spiritfire', bonus)).toContain('+3/+4');
     let r: RunState = {
       ...s, board: [{ uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     r = reduce(r, { type: 'play', uid: 'sf', targetUid: 't' });
-    expect(r.board[0]!.attack).toBe(5); // 2 + (2 base + 1 Rohan bonus)
+    expect(r.board[0]!.attack).toBe(5); // 2 + (2 base + 1 spell power)
     expect(r.board[0]!.health).toBe(6); // 2 + (3 base + 1 Rohan bonus)
   });
 });

@@ -56,7 +56,8 @@ export type HeroPowerKind =
   | 'exhibition' // Odelle (passive): play a minion BETWEEN two others of three distinct types → all three buffed
   | 'buyout' // Harlan: take the whole Shop, then reroll it. 11 Gold, −1 per turn, re-based on use
   | 'soulbind' // Sable: bond your outermost minions for a turn — a stat gain on one mirrors onto the other
-  | 'allIn'; // Rascal: bank 1 Gold + 2 more per turn since the last use; twice a game
+  | 'allIn' // Rascal: bank 1 Gold + 2 more per turn since the last use; twice a game
+  | 'startingReflector'; // Yirin (passive): the run opens with a Reflector token in hand
 
 export interface HeroPower {
   name: string;
@@ -162,12 +163,14 @@ export const HEROES: HeroDef[] = [
     name: 'Yirin',
     blurb: 'Words sharpen in skilled hands — and sharpen further the more you speak them.',
     resolve: 30,
-    armor: 17,
+    armor: 8, // owner balance 2026-08-16: 17 -> 8, alongside the power swap below
     power: {
-      name: 'Attunement',
-      kind: 'spellAmplify',
+      // Reworked off `spellAmplify` (owner 2026-08-16). `spellAmplify` stays in the union + `spellStatBonus`
+      // as a retired kind — no hero uses it now, and its policy key goes with it (the no-ghosts tripwire).
+      name: 'Reflector',
+      kind: 'startingReflector',
       passive: true,
-      text: 'Your spells give +1/+1 more. Improves every 10 spells you cast.',
+      text: 'Start the game with a **Reflector**.',
     },
   },
   {

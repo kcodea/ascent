@@ -1588,6 +1588,22 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // Guardian (Runeguard): schedule the Epic Runeforge for turn 8 — advanceCombat's start-of-turn
   // sequencing opens it (behind any quest offer). Cleared once it fires.
   if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
+  // Yirin (Reflector): the run opens holding one. Keyed off the POWER KIND rather than the hero id — Yirin's
+  // id is `rohan` (stable for saves), so an id check here would read as a bug to the next person.
+  if (hero.power.kind === 'startingReflector') {
+    const def = CARD_INDEX['n2_reflector'];
+    if (def && state.hand.length < handCap(state)) {
+      state.hand.push({
+        uid: `b${state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  }
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < handCap(state)) {

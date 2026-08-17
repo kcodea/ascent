@@ -188,6 +188,7 @@ export type EffectFactoryId =
   | 'onRallyBuffOnePerTribe'       // Paragon: any friendly Rally buffs one minion of every type, permanently
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
+  | 'onSpellCastOnThisSpreadRandom' // Reflector (Yirin): it also casts on one random other friendly minion
   | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout

@@ -205,6 +205,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSpellCastFirstBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastImproveSummon:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastOnThisRecast:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
+  // Reflector (Yirin's token) — same shape as the recast above: a second cast the player should SEE land.
+  'factory:onSpellCastOnThisSpreadRandom:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
   'factory:onSpellCastSecondCopyFirst:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
   'factory:onSummonImpBuff:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onSummonOverflowBuffTribe:summonOverflow': { policy: 'foldedCue', family: 'react' },
@@ -705,6 +707,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // rather than kept: policies are looked up by the LIVE hero's kind, so with no hero on `scalingGold` the key
   // is unreachable — which is exactly what the no-ghosts tripwire in heroPolicies.test.ts exists to catch.
   'hero:baggerben:allIn': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  // Yirin (id `rohan`) moved off `spellAmplify` on 2026-08-16; the old key is deleted for the same reason.
+  'hero:rohan:startingReflector': { policy: 'passive', family: 'passive', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
   'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
@@ -724,7 +728,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:nadja:gainMaxMana': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:risen:grantReborn': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
   'hero:robin:sellGold': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
-  'hero:rohan:spellAmplify': { policy: 'passive', family: 'passive', flagged: true },
   'hero:runeguard:epicRuneforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:runesmith:runeforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:soren:resummon': { policy: 'ownBeat', family: 'heroPower', flagged: true },

@@ -562,7 +562,6 @@ export function reduce(state: RunState, action: Action): RunState {
   // until the UI reads it and still never leaks between actions.
   state.weldFxBaseSeq = state.weldFxSeq ?? 0;
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
-  stampSableBond(state); // Sable: mirror this turn's Soulbind onto the same stateless hook
   // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
   // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed
   // foe survives a reload instead of being re-picked from a session-variable pool (Supabase drift / fetch
@@ -931,6 +930,11 @@ function reduceCore(state: RunState, action: Action): RunState {
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
   s.servedBoards = servedBoards;
+  // Sable: mirror this turn's Soulbind onto the stateless `addBuff` hook. MUST be stamped from the DRAFT `s`,
+  // never from `state` — unlike `stampImproveReps` (which stamps a plain number) this captures the BOARD ARRAY,
+  // and the pre-clone board is thrown away by the `structuredClone` directly above. Stamping it earlier meant
+  // every mirrored buff landed on a discarded object, so the bond silently did nothing (owner report 2026-08-16).
+  stampSableBond(s);
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
@@ -2274,6 +2278,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
         || power.kind === 'vanguard' || power.kind === 'luckySeat' || power.kind === 'exhibition'
+        || power.kind === 'startingReflector'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
@@ -4982,17 +4987,23 @@ function refreshTavern(s: RunState, hold = false): void {
  * buy) rather than one of them — the same lesson as `applySpellBought`, which silently did nothing for spells
  * bought from the row because it was only wired to the slot.
  *
- * The prize is a random Shop spell up to the current tier, matching Merrin's Pocket Magic — a concrete,
- * already-supported "random prize" rather than a new grant primitive. A full hand forfeits it (like a
- * Discover into a full hand) but still resets the counter, so the streak can't be banked indefinitely.
+ * The prize is a DISCOVER of a minion OR a spell at your current tier (owner ruling 2026-08-16, replacing the
+ * first pass's random Shop spell) — the pool is both card kinds together, so a single Discover can offer a mix
+ * and the choice is yours. The counter resets whether or not the pick lands, so the streak can't be banked.
  */
 function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
   if (!offer.enchanted || getHero(s.heroId).power.kind !== 'luckySeat') return;
   const n = (s.ciaEnchantedBought ?? 0) + 1;
   if (n < 3) { s.ciaEnchantedBought = n; return; }
   s.ciaEnchantedBought = 0;
-  const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
-  if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+  const pool = poolOf(s).buyable.filter((c) => !c.ruby && c.tier <= s.tier);
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  const opts = [...pool];
+  const picks: string[] = [];
+  while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+  s.rngCursor = rng.state();
+  s.discover = picks;
 }
 
 /**

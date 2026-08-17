@@ -21,7 +21,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Art for the 2026-08-16b heroes.** Bram, Croupier Cia, Odelle, Harlan and Sable have NO portrait or power art in `C:/Game Assets/Ascent Art/Heroes`. Drop the files in (exact-name match) and re-run `npm run art:wire -- --apply`.
+- **Missing hero POWER art:** Bram, Odelle and Sable (`BramHP.png` / `OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.
+- **No hero amplifies spells any more** — Yirin's rework retired the last `spellAmplify` holder. Spell power now comes only from Rune of the Crown and `spellAura` cards. Decide whether a hero should carry it again.
 - **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.
 
 - **Classify the 2026-08-16 hero-power beats.** `hero:emeraldwarden:vanguard` / `hero:underdweller:soulkeeper` / `hero:albus:empowerment` are registered `flagged: true` on a heuristic — they need the owner's real ownBeat/foldedCue call.

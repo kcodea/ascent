@@ -205,6 +205,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSpellCastFirstBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastImproveSummon:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastOnThisRecast:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
+  // Reflector (Yirin's token) — same shape as the recast above: a second cast the player should SEE land.
+  'factory:onSpellCastOnThisSpreadRandom:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
   'factory:onSpellCastSecondCopyFirst:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
   'factory:onSummonImpBuff:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onSummonOverflowBuffTribe:summonOverflow': { policy: 'foldedCue', family: 'react' },
@@ -701,9 +703,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── HEROES — hero:<id>:<power.kind> (DoD item 1b; heuristic classification, all flagged for owner review) ──
   // PR 22: Bag It is an ACTIVATED payout (click → Gold now, climbing each turn) — `passive` was
   // factually wrong; the reducer has an activation branch for it. Still flagged for the owner pass.
-  'hero:baggerben:scalingGold': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  // Rascal (id `baggerben`) moved from `scalingGold` to his own `allIn` on 2026-08-16. The old key is DELETED
+  // rather than kept: policies are looked up by the LIVE hero's kind, so with no hero on `scalingGold` the key
+  // is unreachable — which is exactly what the no-ghosts tripwire in heroPolicies.test.ts exists to catch.
+  'hero:baggerben:allIn': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  // Yirin (id `rohan`) moved off `spellAmplify` on 2026-08-16; the old key is deleted for the same reason.
+  'hero:rohan:startingReflector': { policy: 'passive', family: 'passive', flagged: true },
+  // Cassen moved off `collision` on 2026-08-16; the old key is deleted for the same no-ghosts reason.
+  'hero:cassen:commission': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:brackus:summitLock': { policy: 'passive', family: 'passive', flagged: true },
-  'hero:cassen:collision': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chaos:chaos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:chronoshero:questChronos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:coran:pathfinder': { policy: 'passive', family: 'passive', flagged: true },
@@ -721,7 +729,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:nadja:gainMaxMana': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:risen:grantReborn': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
   'hero:robin:sellGold': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
-  'hero:rohan:spellAmplify': { policy: 'passive', family: 'passive', flagged: true },
   'hero:runeguard:epicRuneforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:runesmith:runeforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:soren:resummon': { policy: 'ownBeat', family: 'heroPower', flagged: true },
@@ -743,6 +750,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:emeraldwarden:vanguard': { policy: 'passive', family: 'passive', flagged: true },
   'hero:underdweller:soulkeeper': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:albus:empowerment': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  // Heroes batch 2026-08-16b (heuristic classification, flagged for owner review).
+  'hero:bram:investment': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:cia:luckySeat': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:odelle:exhibition': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:harlan:buyout': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:sable:soulbind': { policy: 'ownBeat', family: 'heroPower', flagged: true },
 
 };
 

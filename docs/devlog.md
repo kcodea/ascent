@@ -1,5 +1,300 @@
 # ASCENT — development log
 
+## 2026-08-16 - Matchmaking serves Supabase, then bots — local boards are no longer a tier
+
+**Owner ruling:** opponents come from the Supabase snapshots, then bot boards. No self-avoidance yet (there
+are no playtesters, so excluding yourself would empty the pool), but locally stored boards must not be
+*favoured*.
+
+`pickOpponent`'s source cascade was `remote` → `origin: self|friend` → the rest. That middle tier is the bug:
+a locally saved player board OUTRANKED the synthetic floor, so a dev machine with a board library fielded a
+lobby of its own saved runs. The cascade is now **`remote` → `origin: 'synthetic'`**, with `candidates` kept
+only as a degenerate last resort so a wave with neither still fields something instead of dropping to the
+procedural threat.
+
+Win-rate weighting stays **ON** (owner, same day): the source cascade was the real cause of the self-heavy
+lobbies, not the weighting. Its test now FORCES the flag rather than reading the shipped default, so it states
+what the weighting does regardless of whether it is switched on.
+
+Two cascade tests updated to the new tiering (a local board no longer beats the floor) — updated, not
+loosened; both still assert a specific served board.
+
+Full suite 5501 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Frank's discount is per-SHOP; matchmaking self-match diagnosis
+
+**Frantic Frank, corrected.** I had the rule wrong: the 2-Gold price belongs to the single shop his power
+ROLLS, not to the turn. It rode a `frankClearanceTurn === wave` flag, so every later roll that turn was
+discounted too. The price is now stamped onto those offers' own `cost` (which already outranks the hero-wide
+rule in the buy path), which makes the scoping true by construction — any later roll builds new offers with no
+stamp, so there is no flag to expire and no way for the discount to leak. `heroOfferPrice` keeps only Flint.
+
+**Matchmaking — root cause found, NOT yet fixed (needs an owner policy call).**
+
+Both players report lobbies made almost entirely of their own boards. `pickOpponent` filters by wave, applies
+the no-repeat exclusion and the set filter, then tiers by source: `remote` → `origin self|friend` → the rest.
+**Nothing anywhere excludes boards the asking player AUTHORED.** `author` is used only for the `oppKey` dedupe
+key and for seat labels — never as a filter.
+
+So your own boards enter at BOTH tiers: once they sync to Supabase they are `remote`, which is tier 1, and
+locally they are `origin: 'self'`, which is tier 2. In a thin pool tier 1 is then dominated by your own past
+uploads, and you fight yourself over and over. The `(2)`, `(3)`, `(4)` suffixes in the lobby rail are
+`uniqueHandleFor` disambiguating several seats that resolve to the SAME author handle — the visible
+fingerprint of exactly this.
+
+The fix is a policy decision, so it is the owner's: presumably prefer boards you did not author, at every
+tier, falling back to your own only when nothing else can be served (a thin pool must still serve something).
+That touches `opponents.ts`, which carries a documented determinism contract, so it wants its own PR rather
+than being bolted onto this one.
+
+Full suite 5501 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Commission tiles restyled; Cia's links tunable; Frank's price memo dep
+
+- **Cassen's commission tiles now follow the QUEST SHOP shape** — a tall card with the art filling it, a gold
+  frame, the delay as a gem badge at the top, and the payout in its own panel overlaid on the bottom of the
+  art, exactly like a quest's REWARD block.
+- **Cassen's power is inert while a commission runs.** The reducer already refused it; the button now refuses
+  too (no picker, no `ready` glow) so a click that could not do anything no longer looks live. Its art already
+  shows the running commission.
+- **Cia's rotating links are now shape-tunable** — link COUNT, angular LENGTH and EDGE (soft ↔ hard) on top of
+  the existing inset / thickness / blur / hue / period dials. All three ride one `repeating-conic-gradient`
+  built in `applyHeroFxVars`, so any count costs the same one element per ring — no per-link DOM.
+- **The owner's tuned values are baked as the shipped DEFAULTS** for both effects (and mirrored into the CSS
+  fallbacks, per the Layout Lab rule).
+
+**Frantic Frank.** Probed the engine directly: after his Clearance, a LATER paid refresh still charges **2
+Gold** — the discount does persist for the turn, as printed. What was genuinely wrong is the UI: the memo that
+computes the displayed price reads `frankClearanceTurn` but did not list it as a dependency, so the price shown
+could go stale. Dependency added. **If the 3-Gold you saw was the price actually CHARGED rather than the pill,
+that is a different bug and I could not reproduce it — worth a re-check on this build.**
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Commission tiles get art; Soulbind moves under; Cia's rings return (tunable)
+
+- **Cassen's commission picker now reads like a Discover tile** — each option shows its own art
+  (`CassenHP1/2/3` → `cassen-<kind>`) with the text below and the delay badged on the image.
+- **The `CassenHP2` mis-slug is fixed.** It was landing on the `cassen2` variant slot because the
+  `<Name>2` convention strips a trailing "2" before the index is consulted. The Cia + Cassen variants moved
+  from the index into the job's **aliases** map, which resolves FIRST — so all seven variant images now wire
+  correctly. `cassen2.webp` deleted.
+- **Sable's Soulbind ring sits UNDER the bound minions** instead of above them; `sbY` now measures downward
+  from the card's bottom edge.
+- **Cia's Enchanted treatment is back to the circling look** — two counter-rotating rings of red/gold links
+  tracing the card — and it is fully tunable: inset, thickness, link softness, hue, second-ring opacity,
+  rotation period, and how much slower the counter-rotating ring turns.
+
+The tuner's dials stay restricted to things that are compositor-only. Only `transform` and `opacity` animate;
+the blur is static. There is deliberately no control that animates a shadow, blur or filter, because that is
+the one thing docs/performance.md forbids in a looping animation.
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Parting Cry drives the real Shout machinery; Cassen's picker; Hero Card FX tuner
+
+**Parting Cry bug (owner report).** The cry fired the marked body's `onPlay` effects by calling the raw
+FACTORIES directly — which runs the effect but skips `replayCombatBattlecry` AND the `battlecryTriggered` bus
+emit that every other Shout-trigger in the game (Dawnclaw, Ryme, Thunderous Sovereign) goes through. So every
+"after you trigger a Shout" watcher silently missed it: Embermouth Whelp gained nothing, and Deepvein Tender's
++1 Health never showed its buff text. It now routes through the same two calls as Dawnclaw. Regression test
+asserts the watcher is actually paid, not just that the `sc` line appears.
+
+**Cassen's picker.** His power is a CHOICE, so pressing the button now opens a small overlay with the offered
+commissions instead of firing immediately (the reducer already required `action.commission`, so a plain click
+was a no-op — that is why he "wasn't working"). The panel reuses the Discover overlay's shell so it reads as
+the same class of decision, but its options are text tiles: a commission is a promise, not a card, and drawing
+it as one would be a lie. It lives in `StatusBar`, which owns the button, so no cross-component plumbing.
+
+**Hero Card FX tuner** (`🃏 Hero Card FX` in the dev menu) — live dials for Cia's Enchanted glow and Sable's
+Soulbind ring: size, offset, thickness, blur/spread, hue, breathe depth and period. Deliberately no
+"animate the shadow" dial: both effects LOOP, so the shadows stay static and only `opacity` animates
+(docs/performance.md). CSS reads `--hfx-*` with the DEFAULTS as fallbacks, per the Layout Lab rule.
+
+**All hero + hero-power art re-wired** from the source folders (44 heroes, 47 powers). Non-hero art categories
+were left untouched to keep the diff honest — `art:wire` re-encodes every webp non-deterministically, so
+including them would have added ~600 files with no visual change.
+
+Full suite 5500 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Cassen's Commission, Aegis scales, Auctioneer/Sable renames, three heroes enabled
+
+- **Cassen reworked + enabled.** *Collision* is retired; his power is **Commission** — free, untargeted, choose
+  one delayed payout: Discover a minion of your tier in **3** turns · **2 Gold** in **2** · a random Shop spell
+  in **1**. Only one runs at a time (a second click while one is in flight is a no-op), and the next offer
+  excludes the one taken last, so the same commission can never be picked twice running. All three are offered
+  on the first use. It matures at the turn advance, AFTER the wave bump, so `dueWave` names the turn the reward
+  actually lands on. The button wears that commission's art while it runs and reverts to his plain art after.
+- **Warden's Aegis now scales + enabled.** Still 4 Gold to grant Ward, but it also gives **every** Warded
+  minion **+Tier/+Tier+1**. The value is printed live via `heroPowerText`, so the number shown is the number
+  given (the card-text rule, applied to a hero power).
+- **Myra → Auctioneer**, enabled (id `myra` kept stable for saves + art). **Sable, the Linksmith → Sable.**
+- **Cia's rule text drops the 50% clause** — it now reads "Buy **3** Enchanted cards for a reward." followed by
+  only the queued suit's line.
+
+`collision` joins `scalingGold`, `spellAmplify` and `possession` as a retired kind: still in the union and in
+`settleCombat` so saves resolve, but no hero drives it, so its policy key is deleted (no-ghosts). The stale
+Collision test was removed rather than rewritten — there is nothing left to assert.
+
+Full suite 5499 green, typecheck + lint + build:web clean.
+
+**Known art gaps (reported, never guessed):** `CassenHP2.png` loses its mapping to a generic numbered-variant
+rule and lands on `cassen2` instead of `cassen-gold`, so the GOLD commission falls back to Cassen's plain art;
+and `Auctioneer.png` / `Myra.png` both resolve to `myra`, a collision the tool reports.
+
+**NOT DONE this pass:** the requested DEV TUNERS for the Sable and Cia effects.
+
+## 2026-08-16 - Cia prints only her queued suit; calmer Enchanted glow; Soulbind ring
+
+- **Cia's power text is now the QUEUED suit's reward and nothing else** (owner ask): "Buy 3 to claim:
+  **Hearts:** Discover a minion of your Tavern Tier." and so on, one line, never a table of four. Added
+  `heroPowerText(state)` in `@game/sim` — static for every other hero — so the panel and the reducer's payout
+  switch can't drift. This is the live-card-text rule applied to a hero power. A test asserts each suit names
+  itself and mentions none of the other three.
+- **The Enchanted treatment is much calmer.** The first pass spun two conic chain rings and read as janky; it
+  is now a single warm-red glow pooled UNDER the offer, one slow 3.4s opacity breathe, no rotation. Its only
+  job is to say "this card is Enchanted" without competing with the art.
+- **Sable's bound pair now wears a purple ring above each end** while the bond is live, so the pair reads at a
+  glance. Derived from `run.sableBond` with the same wave check the reducer and combat use, so the mark can
+  never outlast the bond it draws.
+
+Both visuals keep the looping-animation rule: static box-shadows, `opacity` the only animated property, and
+`prefers-reduced-motion` honoured. Verified that neither `.card` nor `.row` clips — both elements sit outside
+the card bounds, the same pattern `contraband::before` already uses.
+
+Full suite 5489 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Capped-uses powers read honestly; Braum/Cia renames; Odelle ignores neutrals
+
+- **A capped-USES power no longer reads "once per turn."** Rascal's All In showed the generic footer even
+  though it is twice a game. The fix is general rather than per-hero: any power with `maxUses` now prints
+  "twice per game" / "3 times per game" (and "spent" when exhausted), so **Sable** and **Gildmaster** were
+  quietly wrong in the same way and are fixed too. The once-per-turn gate still applies — it just isn't the
+  headline the player needs.
+- **Croupier Cia → Cia**, and **Bram → Braum** (id `bram` kept stable for saves + art, the `hermithank` →
+  "Tradesman" convention). `BraumHP.png` wires through the existing `<Name>HP` rule with no tool change.
+- **Odelle: neutrals are NOT a type** (owner ruling). A neutral minion has no tribe to be different FROM, so
+  any trio containing one now fails outright — the neutral is dropped from the options rather than treated as
+  a fourth colour, and a dual-type card keeps only its non-neutral types for the same reason. This reverses my
+  earlier assumption, which had been flagged as a judgement call rather than confirmed.
+
+Full suite 5488 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Cia's four suits, red/gold Enchanted, Underdweller 2 Gold
+
+Owner follow-ups.
+
+- **Croupier Cia's reward now cycles four suits**, drawn at random but **never the same twice in a row**:
+  **Hearts** Discover a minion of your current tier · **Spades** get 2 random Shop spells · **Diamonds** get a
+  random minion from the tier above (standard Tier-7 clamp) · **Clubs** gain 3 Gold.
+  The suit is **queued in advance and public** (`RunState.ciaSuit`) rather than rolled at payout, because her
+  power BUTTON shows that suit's art — the player is meant to see what they're working toward. Seeded at run
+  start so turn 1 already has art, and re-drawn from the other three on every payout.
+- **Her power art follows the queued suit.** The four files are named for the suit (`CiaHearts.png`, …) rather
+  than the `<Name>HP` convention, so `wire-art` gained explicit entries landing on `cia-<suit>` slugs, which
+  `StatusBar` picks by `run.ciaSuit`. Still a strict name match — just a second naming rule for one hero. Falls
+  back to her plain art if a suit image is ever missing, so a half-wired folder degrades rather than blanks.
+- **The Enchanted treatment is red/gold** (was purple): crimson chain links with white-gold hot cores, and a
+  static gold-core/crimson-bloom aura that breathes. Still transform/opacity only, `prefers-reduced-motion`
+  honoured.
+- **Underdweller's Soulkeeper costs 2 Gold** (was 3).
+
+7 new tests, including one that hammers the no-repeat rule across all four suits × 12 seeds. Full suite 5487
+green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Soulbind fix, Yirin reworked (Reflector), Cia's prize is a Discover
+
+Owner follow-ups on the hero batch.
+
+**Soulbind silently did nothing — the bug and why the tests missed it.** `stampSableBond(state)` was called at
+reducer entry, but the working draft is a `structuredClone` created ~370 lines LATER. Unlike its neighbour
+`stampImproveReps` (which stamps a plain number, so the source doesn't matter) the Sable stamp captures the
+BOARD ARRAY — so every mirrored buff landed on an object that was immediately thrown away. The stamp now
+happens from the draft `s`, right after the clone.
+
+The unit tests all passed because they stamped and buffed the same array; the reducer does not. Added a
+regression test that drives the REAL dispatch path (hero power, then a targeted spell) — the only shape that
+would have caught it.
+
+- **Yirin** (id `rohan`) — 17 → 8 armor, and *Attunement* (`spellAmplify`) is replaced by **Reflector**: the run
+  opens holding one. Keyed off the power KIND rather than the hero id, since `rohan` ≠ "Yirin" would read as a
+  bug to the next person.
+- **Reflector** — new T1 Neutral 1/1 token: *"Spells cast on this also cast on a random friendly minion.
+  (Once per turn)"*. `token: true`, so it is never drawable from a shop or Discover — the only source is Yirin
+  (the Chaos / Symbiotic Attachment treatment). The effect is Runefire's shape with a seeded random friendly
+  instead of the neighbours, including the same `spellsOnThisTurn === 1` guard: the spread re-enters
+  `castSpell`, and only the pre-bumped counter stops it recursing. It never re-casts on itself.
+- **Croupier Cia's prize** is now a **Discover of a minion OR a spell at your tier** (was a random Shop spell).
+  One pool of both kinds, so a single Discover can offer a mix.
+- **The Enchanted treatment is much louder** — brighter conic "links" with white-hot cores, two rings spinning
+  faster and opposed, and a double aura (tight white-violet core + wide purple bloom). Still transform/opacity
+  only, static shadows, `prefers-reduced-motion` honoured.
+
+**Consequence worth flagging: no hero amplifies spells any more.** Yirin was the only `spellAmplify` holder.
+The mechanic itself is alive — `spellStatBonus` still reads Rune of the Crown and `spellAura` cards — so the
+six tests that used Rohan as a +1 spell-power source were re-pointed at the RUNE rather than deleted, keeping
+coverage of the spell-power pipeline (Front to Back's per-cast escalation, Lantern of Souls, the display-value
+match). `spellAmplify` joins `scalingGold` and `possession` as a retired kind; its policy key is deleted for
+the same no-ghosts reason.
+
+Art wired by strict name match: the new Yirin portrait + power art, the Reflector minion, and the portraits
+that appeared for Bram, Cia, Harlan, Odelle and Sable (plus Cia's and Harlan's power art). Still missing:
+power art for Bram, Odelle and Sable.
+
+7 new tests; full suite 5480 green, typecheck + lint + build:web clean.
+
+## 2026-08-16 - Five more heroes (Bram, Cia, Odelle, Harlan, Sable) + Rascal reworked
+
+Owner batch, scoped and answered before building.
+
+- **Bram** (16 armor) — *Investment*, 1g/turn: bank a Gold; the 5th pays a random **Gilded** minion up to your
+  Shop tier, then resets. A full hand blocks the payout entirely — no charge, bank untouched — so the reward
+  can never be silently dropped.
+- **Croupier Cia** (10 armor) — *Lucky Seat*, passive: each filled Shop has a 50% chance to seat one
+  **Enchanted** card. Per the owner ruling the mark does NOTHING to the card — it is a purple chained wisp and
+  a counter; buying 3 pays a random Shop spell (Merrin's grant, reused rather than a new primitive). Rolled in
+  `refreshTavern`, the single funnel every fill goes through, so a turn-setup roll and a paid refresh behave
+  identically. Counted from EVERY buy path — the `applySpellBought` lesson, which once silently did nothing
+  for spells bought from the minion row because it was wired to only one of them.
+- **Odelle** (8 armor) — *Exhibition*, passive: play a minion BETWEEN two others of three different types and
+  all three gain +2/+2, improving +2/+2 every 4 cards played. The type rule is the interesting part: a
+  dual-type card counts as EITHER of its types, whichever avoids a clash (owner ruling — "a Dragon next to a
+  Dragon/Demon is 2 different tribes; the Dragon/Demon is being considered a Demon"). That makes it a tiny
+  assignment problem rather than a set-size check, so `threeDistinctTypes` brute-forces the ≤8 combinations.
+  Reads the existing run-wide `cardsPlayedTotal` rather than adding a second tally.
+- **Harlan** (9 armor) — *Buyout*: take the whole Shop, then reroll it. 11 Gold, −1 a turn, re-based on use.
+  Owner ruling on the hand cap: take what fits and DROP the rest (dropped offers return to the pool like an
+  un-bought reroll) rather than raising the cap the way the Runeforge does.
+- **Sable, the Linksmith** (10 armor) — *Soulbind*, 3 uses: bind the outermost minions for the turn; a stat
+  gain on one is gained by the other, in full, ONE hop with no echo back.
+- **Rascal** — 19 → 6 armor; *All In* is now 1 Gold + 2 per turn since the last use, twice a game, re-basing
+  on each use.
+
+**Sable is the only structurally new thing here.** Stat gains funnel through exactly two places — `addBuff` in
+recruit and `ctx.buff` in combat — so the bond is mirrored in both, following the Sergeant precedent
+(`onGainAttackImproveHpGrant`) which already does "when this gains stats, do something" across the same seam.
+The load-bearing detail is the re-entrancy guard: the mirrored grant is ITSELF a stat gain that re-enters the
+same function, so without a guard the pair buff each other forever. The recruit side reaches the stateless
+`addBuff` through a `stampSableBond` hook, the same trick `IMPROVE_REPS` already uses; the combat side carries
+the bond over as `QuestCombatMods.soulbind` and expires it by wave, so it can only ever apply to the fight it
+was forged for.
+
+**Two things the tripwires caught, both correctly.** Rascal's hero id is `baggerben` — one hero whose display
+name is "Rascal" (the `hermithank` → "Tradesman" convention), not two heroes. I initially kept
+`hero:baggerben:scalingGold` in the policy registry "for saves"; the no-ghosts test was right to reject it,
+since policies resolve off the LIVE hero's kind and nothing can produce the old key any more. It is deleted;
+the `scalingGold` KIND stays in the union as a retired kind (the `possession` precedent).
+
+The Enchanted wisp LOOPS, so per `docs/performance.md` it animates transform/opacity only: two conic-gradient
+rings spinning at different rates, and a ::before glow with a STATIC shadow whose opacity breathes. No paint
+property is animated per frame, and it honours `prefers-reduced-motion`.
+
+**No art exists yet** for Bram, Cia, Odelle, Harlan or Sable — neither portraits nor power art are in the
+source folder, so nothing was wired (reported, never guessed).
+
+30 new tests; three stale assertions updated for Rascal's rework. Full suite 5472 green, typecheck + lint +
+build:web clean.
+
 ## 2026-08-16 - Three heroes (Emerald Warden, Underdweller, Albus) + the Gambler's die stays up
 
 Owner batch. Three new heroes, their art wired, and one presentation fix.

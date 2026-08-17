@@ -122,4 +122,20 @@ export const SET2_NEUTRAL: CardDef[] = [
     text: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +2/+2**, or cast **Growth** when a friendly minion attacks.',
     goldenText: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +4/+4**, or cast **Growth twice** when a friendly minion attacks.',
   },
+  {
+    // YIRIN'S REFLECTOR — a hero-granted TOKEN, never drawable. `token: true` keeps it out of every shop pool
+    // and Discover (the same treatment Chaos's Symbiotic Attachment gets); the only way to get one is to start
+    // a run as Yirin. Its effect is Runefire's shape with a seeded random friendly instead of the neighbours.
+    id: 'n2_reflector',
+    name: 'Reflector',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadRandom', params: { count: 1 } }],
+    text: 'Spells cast on this **also cast** on a random friendly minion. **(Once per turn)**',
+    goldenText: 'Spells cast on this **also cast twice** on a random friendly minion. **(Once per turn)**',
+  },
 ];

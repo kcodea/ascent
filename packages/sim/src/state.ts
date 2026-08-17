@@ -67,6 +67,10 @@ export interface ShopCard {
   /** Pete (Contrabanana): this offer was upgraded to the tier ABOVE the Shop tier on his 3rd refresh — the UI
    *  flashes it once as the row lands so the smuggled unit reads as special. Presentation only. */
   contraband?: boolean;
+  /** Croupier Cia (Lucky Seat): this offer wears the Enchanted treatment — a purple chained wisp swirling
+   *  around the card. Purely cosmetic on the card itself (it changes NOTHING about what you buy); its only
+   *  mechanical role is that buying it advances `ciaEnchantedBought` toward her prize. */
+  enchanted?: boolean;
   /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
    *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
   cost?: number;
@@ -358,6 +362,15 @@ export interface RubyLandedFx { uid: string; count: number; }
  *  withhold EXACTLY what just landed, rather than recovering it from the offer's Ruby-buff total ÷ count —
  *  which is only the average, and so is off on an offer that already carried a Ruby before Veinstorm hit it. */
 export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: number; health: number; }
+
+/** Croupier Cia's four rewards. Ordered as the classic suit ranking; the order is not load-bearing (the pick
+ *  is random) but keeps the reward table, the art slugs and the UI reading the same way. */
+export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
+
+/** Cassen's three commissions. The delay is part of the identity — a longer wait buys a bigger payout. */
+export type CommissionKind = 'discover' | 'gold' | 'spell';
+/** An ACTIVE commission: what was picked and the wave it matures on. Only ever one at a time. */
+export interface Commission { kind: CommissionKind; dueWave: number; }
 
 export interface RunState {
   seed: number;
@@ -689,6 +702,32 @@ export interface RunState {
    *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */
   heroDiceRoll?: number;
   heroDiceRollWave?: number;
+  /** Bram (Investment): Gold banked toward the Gilded payout. Resets to 0 the moment it reaches 5. */
+  bramInvested?: number;
+  /** Croupier Cia (Lucky Seat): the suit QUEUED UP — which of the four rewards the next payout will be. Chosen
+   *  at run start and re-rolled after every payout, never landing on the same suit twice in a row (owner spec
+   *  2026-08-16). Public rather than rolled-at-payout precisely because the hero-power BUTTON shows the suit's
+   *  art, so the player can see what they are working toward. */
+  ciaSuit?: CiaSuit;
+  /** Cassen: the commission currently in flight, or absent when none is. Only ONE can be active at a time —
+   *  the power is unusable while it runs, and the button wears that commission's art until it matures. */
+  commission?: Commission;
+  /** Cassen: the commission taken LAST, so the next offer can exclude it — "all 3 are offered first, but then
+   *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
+   *  the opening choice shows all three. */
+  lastCommission?: CommissionKind;
+  /** Croupier Cia (Lucky Seat): Enchanted cards BOUGHT toward the prize (resets at 3). `enchanted` on a Shop
+   *  offer is the mark itself — purely cosmetic on the card, and the only thing that feeds this counter. */
+  ciaEnchantedBought?: number;
+  /** Harlan (Buyout): the wave his price was last re-based on — the cost falls 1 per turn since. Absent = the
+   *  run start, so the discount accrues from turn 1 exactly like Hunch's. */
+  harlanResetWave?: number;
+  /** Rascal (All In): the wave his payout was last re-based on. Same lifecycle as `harlanResetWave`. */
+  rascalResetWave?: number;
+  /** Sable (Soulbind): the uids bound THIS turn, and the wave the bond was forged. A stat gain on either
+   *  mirrors onto the other — once, never echoing back (owner ruling 2026-08-16). Expired by wave comparison
+   *  so nothing has to clear it; the combat sim reads it through `questCombatMods`. */
+  sableBond?: { a: string; b: string; wave: number };
   /** Frantic Frank (Clearance): the wave on which his refresh made Shop minions cost 2 Gold. Equal to the
    *  current wave while the discount is live; a wave comparison auto-expires it next turn (no explicit clear). */
   frankClearanceTurn?: number;
@@ -1369,7 +1408,7 @@ export type Action =
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'reorderHand'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
+  | { type: 'heroPower'; uid?: string; commission?: CommissionKind } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost
@@ -1570,6 +1609,29 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // Guardian (Runeguard): schedule the Epic Runeforge for turn 8 — advanceCombat's start-of-turn
   // sequencing opens it (behind any quest offer). Cleared once it fires.
   if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
+  // Croupier Cia (Lucky Seat): queue the OPENING suit so her power button has art from turn 1 and the player
+  // can see what the first payout will be. Seeded off the run's own cursor like every other pick.
+  if (hero.power.kind === 'luckySeat') {
+    const rng = makeRng(state.rngCursor);
+    state.ciaSuit = (['hearts', 'spades', 'diamonds', 'clubs'] as const)[rng.int(4)];
+    state.rngCursor = rng.state();
+  }
+  // Yirin (Reflector): the run opens holding one. Keyed off the POWER KIND rather than the hero id — Yirin's
+  // id is `rohan` (stable for saves), so an id check here would read as a bug to the next person.
+  if (hero.power.kind === 'startingReflector') {
+    const def = CARD_INDEX['n2_reflector'];
+    if (def && state.hand.length < handCap(state)) {
+      state.hand.push({
+        uid: `b${state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  }
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < handCap(state)) {

@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -243,9 +243,34 @@ export function stampImproveReps(state: RunState): void {
   IMPROVE_REPS = improveReps(state);
 }
 
+/**
+ * Sable (Soulbind): the bond in force for THIS dispatch, mirrored onto the stateless `addBuff` hook exactly
+ * like `IMPROVE_REPS` above. Holds the live board array so the partner body can be found by uid.
+ *
+ * `mirroring` is the re-entrancy guard and it is load-bearing: the mirrored grant is itself an `addBuff`, so
+ * without it A→B→A→B recurses forever. One hop, no echo (owner ruling 2026-08-16).
+ */
+let SABLE: { a: string; b: string; board: BoardCard[] } | null = null;
+let SABLE_MIRRORING = false;
+export function stampSableBond(state: RunState): void {
+  const bond = state.sableBond;
+  SABLE = bond && bond.wave === state.wave ? { a: bond.a, b: bond.b, board: state.board } : null;
+  SABLE_MIRRORING = false;
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // Sable's bond: a stat gain on one end is gained by the other, in full. Guarded against the obvious
+  // infinite regress — the mirrored call re-enters here — and skipped for a 0/0 buff (a pure counter bump).
+  if (SABLE && !SABLE_MIRRORING && (attack !== 0 || health !== 0)) {
+    const partnerUid = card.uid === SABLE.a ? SABLE.b : card.uid === SABLE.b ? SABLE.a : undefined;
+    const partner = partnerUid ? SABLE.board.find((c) => c.uid === partnerUid) : undefined;
+    if (partner) {
+      SABLE_MIRRORING = true;
+      try { addBuff(partner, 'Soulbind', attack, health, count); } finally { SABLE_MIRRORING = false; }
+    }
+  }
   // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
   // its Deathrattle HP grant — in the shop here, mirrored in combat by `onGainAttackImproveHpGrant`. One
   // improvement per buff event (not scaled by the Attack amount), so two Forsaken Weavers buffing it on a
@@ -437,14 +462,14 @@ export function dragonTamerCostOf(state: RunState): number {
 /**
  * The HERO-set price of a Shop offer, or undefined when the hero doesn't price it.
  *
- * Frantic Frank's Clearance (every minion, the turn he fires it) and Foreman Flint's Company Rate (Dwarves,
- * always) both set a flat 2 Gold. Shared by the reducer's buy charge AND the UI's cost coin, so the price a
+ * Foreman Flint's Company Rate (Dwarves, always) sets a flat 2 Gold. Frantic Frank's Clearance is NOT here:
+ * his discount belongs to the single shop his power rolled, so it is stamped onto those offers' own `cost`
+ * (which already outranks this) rather than being a hero-wide rule that would apply to every later roll too. Shared by the reducer's buy charge AND the UI's cost coin, so the price a
  * player SEES is provably the price they PAY — the `sellValueOf` rule (owner report 2026-08-14: Frank's
  * discount was charged correctly but the pill still showed full price).
  */
 export function heroOfferPrice(state: RunState, offer: { cardId: string }): number | undefined {
   const kind = getHero(state.heroId).power.kind;
-  if (kind === 'clearance' && state.frankClearanceTurn === state.wave) return 2;
   if (kind === 'companyRate') {
     const def = CARD_INDEX[offer.cardId];
     if (def && (def.tribe === 'dwarf' || def.tribe2 === 'dwarf')) return 2;
@@ -459,6 +484,125 @@ export function heroOfferPrice(state: RunState, offer: { cardId: string }): numb
 export function roundedSpellbookCostOf(state: RunState): number {
   const base = state.hunchResetWave ?? 1; // runs open on wave 1
   return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
+/**
+ * Odelle (Exhibition): can these three minions be read as three DIFFERENT types?
+ *
+ * A dual-type card counts as EITHER of its types — whichever one avoids a clash (owner ruling 2026-08-16:
+ * "a Dragon next to a Dragon/Demon should be considered 2 different tribes; the Dragon/Demon is being
+ * considered a Demon"). So this is a tiny assignment problem, not a set-size check: pick one type per minion
+ * and ask whether SOME choice makes all three distinct. With at most 2 options each that is 8 combinations —
+ * cheap enough to brute-force, and far clearer than a hand-rolled matching.
+ *
+ * `neutral` is NOT a type (owner ruling 2026-08-16): a neutral minion has no tribe to be different FROM, so
+ * any trio containing one fails outright — it is dropped from the options rather than treated as a fourth
+ * colour. A dual-type card keeps only its non-neutral types for the same reason.
+ */
+export function threeDistinctTypes(cards: readonly BoardCard[]): boolean {
+  if (cards.length !== 3) return false;
+  const opts: string[][] = [];
+  for (const c of cards) {
+    const def = CARD_INDEX[c.cardId];
+    const t: string[] = [];
+    for (const tribe of [def?.tribe ?? c.tribe, def?.tribe2]) {
+      if (tribe && tribe !== 'neutral' && !t.includes(tribe)) t.push(tribe);
+    }
+    if (t.length === 0) return false; // a neutral-only body can never be one of three different types
+    opts.push(t);
+  }
+  for (const a of opts[0]!) {
+    for (const b of opts[1]!) {
+      if (b === a) continue;
+      for (const c of opts[2]!) if (c !== a && c !== b) return true;
+    }
+  }
+  return false;
+}
+
+/** Odelle (Exhibition): the +X/+X an exhibition grants right now — 2, improving by 2 for every 4 cards played
+ *  this run. Shared by the reducer's grant and the hero panel's live text, so the printed number is the real
+ *  one (the live-card-text rule applies to hero powers too). */
+export function exhibitionGrantOf(state: RunState): number {
+  // Reads the EXISTING run-wide `cardsPlayedTotal` rather than a private counter — "cards played" already has
+  // one source of truth (every play routes through `applyCardsPlayed`), and a second tally would only be a
+  // second thing to keep in sync.
+  return 2 + 2 * Math.floor((state.cardsPlayedTotal ?? 0) / 4);
+}
+
+/** Cia (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and
+ *  nothing else — the player should see the one thing that will actually happen, not a four-line table (owner
+ *  ask 2026-08-16). The reducer's payout switch and this map are the same four cases by construction. */
+export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
+  hearts: '**Hearts:** Discover a minion of your Tavern Tier.',
+  spades: '**Spades:** get **2** random Shop spells.',
+  diamonds: '**Diamonds:** get a random minion from the tier **above** you.',
+  clubs: '**Clubs:** gain **3 Gold**.',
+};
+
+/** Warden's Aegis: the +X/+Y it grants every Warded minion, scaling with Tavern Tier (owner spec 2026-08-16).
+ *  Attack is the tier, Health the tier + 1 — so it stays a defensive buff as it grows. Shared by the reducer's
+ *  grant and the panel's printed rule, so the number shown is the number given. */
+export function aegisGrantOf(state: RunState): { attack: number; health: number } {
+  return { attack: state.tier, health: state.tier + 1 };
+}
+
+/** Which commissions may be offered right now: all three on the first use, then everything except the one
+ *  taken last, so the same commission can never be picked twice running (owner spec 2026-08-16). Lives here
+ *  rather than in the reducer because the panel needs it too, and reducer -> recruit is the allowed direction. */
+export function commissionOffer(state: Pick<RunState, 'lastCommission'>): CommissionKind[] {
+  const all: CommissionKind[] = ['discover', 'gold', 'spell'];
+  return state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
+}
+
+/** Cassen's commissions: how long each takes to mature. The delay IS the trade — a longer wait buys a bigger
+ *  payout — so it sits beside the printed text rather than in the reducer's payout switch. */
+export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1 };
+
+/** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
+export const COMMISSION_TEXT: Record<CommissionKind, string> = {
+  discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',
+  gold: 'In **2 turns**, gain **2 Gold**.',
+  spell: 'In **1 turn**, get a random Shop spell.',
+};
+
+/** The hero power's LIVE rule text. Static for every hero except Cia, whose printed rule is the queued suit's
+ *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power. */
+export function heroPowerText(state: RunState): string {
+  const power = getHero(state.heroId).power;
+  if (power.kind === 'luckySeat') {
+    const suit = state.ciaSuit ?? 'hearts';
+    return `Buy **3** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;
+  }
+  if (power.kind === 'grantWard') {
+    const g = aegisGrantOf(state);
+    return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
+  }
+  if (power.kind === 'commission') {
+    // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
+    // options actually on offer (never the one taken last).
+    const live = state.commission;
+    if (live) return `Working: ${COMMISSION_TEXT[live.kind]} (due turn ${live.dueWave})`;
+    return `Choose one — ${commissionOffer(state).map((k) => COMMISSION_TEXT[k]).join(' · ')}`;
+  }
+  return power.text;
+}
+
+/** Harlan (Buyout): 11 Gold, dropping 1 per TURN elapsed since the last use (floor 0). Using it re-bases to
+ *  the current wave — "resets to 11 Gold after each use" (owner spec 2026-08-16), the discount then accruing
+ *  again from that turn. Same shape and sharing rule as `roundedSpellbookCostOf`: the reducer charges it and
+ *  the UI's cost coin reads it, so the price shown is the price paid. */
+export function buyoutCostOf(state: RunState): number {
+  const base = state.harlanResetWave ?? 1; // runs open on wave 1
+  return Math.max(0, 11 - Math.max(0, state.wave - base));
+}
+
+/** Rascal (All In): 1 Gold plus 2 for every TURN elapsed since the last use. The mirror image of the two cost
+ *  helpers above — a payout that CLIMBS rather than a price that falls — and re-based on use the same way, so
+ *  the second of his two activations starts its accrual over. Shared by the reducer and the panel tally. */
+export function allInPayoutOf(state: RunState): number {
+  const base = state.rascalResetWave ?? 1; // runs open on wave 1
+  return 1 + 2 * Math.max(0, state.wave - base);
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
@@ -3907,6 +4051,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
     for (let i = 0; i < num(params.count, 1) * gold(self); i++) castSpell(ctx.state, spellDef, self);
+  },
+
+  /** Yirin's Reflector: the FIRST spell cast on this each turn ALSO casts on ONE random other friendly minion.
+   *  Runefire's shape with a seeded random target instead of the neighbours. Same first-per-turn guard, and for
+   *  the same reason — the spread re-enters `castSpell`, and only the pre-bumped counter stops the recursion.
+   *  Never re-casts on ITSELF (that would double-dip the original cast), so it no-ops on a lone board. */
+  onSpellCastOnThisSpreadRandom: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    const others = ctx.state.board.filter((c) => c.uid !== self.uid);
+    if (others.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const pick = others[rng.int(others.length)]!;
+    ctx.state.rngCursor = rng.state();
+    for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, pick);
   },
 
   /** Set 2 — Runefire: the FIRST spell cast on this each turn ALSO casts on its adjacent `tribe` neighbours.

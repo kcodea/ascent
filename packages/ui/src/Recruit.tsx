@@ -751,6 +751,12 @@ export function Recruit() {
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   // Quillen's Archive files a friendly OR a Shop minion, so it accepts tavern picks like Fortify does.
+  // Sable's Soulbind: the two bound ends wear a ring for the turn the bond is live. Expired by wave, exactly as
+  // the reducer + combat read it, so the mark can never outlast the bond it is drawing.
+  const soulboundUids = useMemo(
+    () => (run.sableBond && run.sableBond.wave === run.wave ? new Set([run.sableBond.a, run.sableBond.b]) : new Set<string>()),
+    [run.sableBond, run.wave],
+  );
   // Albus's Empowerment targets a Shop offer ONLY (it upgrades what's for sale, never your board).
   const heroTargetsTavern = heroPowerKind === 'fortify' || heroPowerKind === 'archive' || heroPowerKind === 'empowerment';
   const heroTargetsTavernOnly = heroPowerKind === 'empowerment';
@@ -2258,7 +2264,7 @@ export function Recruit() {
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, eotShopStats],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats],
   );
   const spellView = useMemo(
     () => {
@@ -5021,6 +5027,7 @@ export function Recruit() {
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}
+                enchanted={o.enchanted}
                 suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
@@ -5074,6 +5081,7 @@ export function Recruit() {
                     highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
+                    soulbound={soulboundUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.

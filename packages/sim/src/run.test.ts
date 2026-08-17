@@ -2222,9 +2222,13 @@ describe('run loop (@game/sim)', () => {
 
   // --- Spell batch -------------------------------------------------------------------------------
 
-  const castOnBoard = (spellId: string, board: BoardCard[], targetUid?: string, hero?: string): RunState => {
+  /** `spellPower` arms Rune of the Crown at `per: 0` so it pays from the first cast — a flat, always-on +N/+N.
+   *  Yirin (id `rohan`) used to be the spell-power hero; his Attunement was retired on 2026-08-16, so the
+   *  spell-power tests below source it from the RUNE instead. Same number, a source that still exists. */
+  const castOnBoard = (spellId: string, board: BoardCard[], targetUid?: string, hero?: string, spellPower = 0): RunState => {
     let s: RunState = {
       ...createRun(1, hero), embers: 0, shop: [], board,
+      ...(spellPower ? { runeCrown: { per: 0, attack: spellPower, health: spellPower } } : {}),
       hand: [{ uid: 'sp', cardId: spellId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp', ...(targetUid ? { targetUid } : {}) });
@@ -2281,8 +2285,8 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Front to Back adds spell power to both the grant AND the escalation step (owner 2026-07-09)', () => {
-    // Rohan's amplify is +1 at wave 1 → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
-    const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', 'rohan');
+    // +1 spell power → first cast is +(step 2 + escalation 0 + power 1) = +3/+3.
+    const s = castOnBoard('fronttoback', [oneNeutral('m', { attack: 0, health: 1 })], 'm', undefined, 1);
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 4]); // 0/1 + 3/3
     expect(s.frontToBackBonus).toBe(3); // improves EACH cast → after one cast the step (2 + power 1) has landed
     // The grant (slot 0) scales with escalation + spell power; the improvement (slot 1) now ALSO folds in spell power.
@@ -2296,10 +2300,10 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('Front to Back: two casts with spell power — improves each cast', () => {
-    // +1 spell power (Rohan), two casts on the same target. Cast 1: +(2+0+1)=+3/+3, THEN the step grows by 2+1=3.
+    // +1 spell power (Rune of the Crown), two casts on the same target. Cast 1: +(2+0+1)=+3/+3, THEN the step grows by 2+1=3.
     // Cast 2: +(2 + escalation 3 + power 1)=+6/+6. So the target ends at 3/3 + 6/6 = 9/9.
     let s: RunState = {
-      ...createRun(1), embers: 0, shop: [], heroId: 'rohan',
+      ...createRun(1), embers: 0, shop: [], runeCrown: { per: 0, attack: 1, health: 1 },
       board: [oneNeutral('m', { attack: 0, health: 0 })],
       hand: [
         { uid: 's1', cardId: 'fronttoback', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
@@ -3018,7 +3022,7 @@ describe('run loop (@game/sim)', () => {
 
   it('Lantern of Souls scales with spell power (+4/+1 at +1) and the card shows it', () => {
     // Rohan amplifies +1 at wave 1 → base +3 Attack becomes +4 Attack / +1 Health.
-    const s = castOnBoard('lanternofsouls', [], undefined, 'rohan');
+    const s = castOnBoard('lanternofsouls', [], undefined, undefined, 1);
     expect(s.undeadAttackBonus).toBe(4);
     expect(s.undeadHealthBonus).toBe(1);
     // The card text reflects the live value (green {{…}}); the base shows just +3 Attack.
@@ -3923,21 +3927,26 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(1); // unchanged
   });
 
-  it('Rohan amplifies stat-granting spells (+1 base, +1 per 10 spells cast), hero-gated', () => {
-    const cast = (heroId: string, spellsCast: number): BoardCard => {
+  // Yirin (id `rohan`) carried `spellAmplify` until 2026-08-16, when his power became Reflector. NO hero
+  // amplifies spells any more, so this now covers the surviving run-level source, Rune of the Crown — the
+  // spell-power PIPELINE is what matters here, not which thing feeds it.
+  it('Rune of the Crown amplifies stat-granting spells once its threshold is met', () => {
+    const cast = (crown: { per: number; attack: number; health: number } | undefined, spellsCast: number): BoardCard => {
       let s: RunState = {
-        ...createRun(1, heroId), spellsCast, board: [mk('t', 2, 2)],
+        ...createRun(1), spellsCast, board: [mk('t', 2, 2)],
+        ...(crown ? { runeCrown: crown } : {}),
         hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
       };
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +2/+3. Rohan adds +1 with < 10 casts so far → +3/+4 (2/2 → 5/6).
-    expect(cast('rohan', 0).attack).toBe(5);
-    // Scales: +2 once 10 spells have been cast → +4/+5 (→ 6/7).
-    expect(cast('rohan', 10).attack).toBe(6);
-    // Hero-gated: a non-Rohan gets the base +2/+3 (→ 4/5).
-    expect(cast('warden', 0).attack).toBe(4);
+    const crown = { per: 6, attack: 1, health: 1 };
+    // Spirit Fire = +2/+3. Below the threshold the rune pays nothing → base (2/2 → 4/5).
+    expect(cast(crown, 0).attack).toBe(4);
+    // At/over the threshold it adds +1 → +3/+4 (2/2 → 5/6).
+    expect(cast(crown, 6).attack).toBe(5);
+    // Un-runed runs are unaffected.
+    expect(cast(undefined, 20).attack).toBe(4);
   });
 
   it('Soren marks one minion for resummon (clearing any previous mark)', () => {
@@ -3976,41 +3985,9 @@ describe('hero powers (@game/sim)', () => {
     expect(capped.maxEmbers).toBe(CONFIG.embersCap);
   });
 
-  it("Cassen's Collision banks enemy kills and grants a top-type minion at 5 (neutral isn't a type)", () => {
-    // A Beast-dominant board → the grant is a Beast of your tavern tier. Neutral is NOT counted as a type.
-    const beast = (uid: string): BoardCard => ({
-      uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false,
-    });
-    // 3 banked + 2 this combat = 5 → one grant, kills back to 0.
-    let s: RunState = {
-      ...createRun(1, 'cassen'),
-      phase: 'combat',
-      cassenKills: 3,
-      board: [beast('a'), beast('b')],
-      hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 2, initial: { player: [], enemy: [] } },
-    };
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.cassenKills).toBe(0); // 5 spent on the grant
-    expect(s.hand.length).toBe(1); // a minion was conjured to the hand
-    const granted = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect([granted.tribe, granted.tribe2]).toContain('beast'); // of the board's most common (non-neutral) tribe
-    expect(granted.tier).toBeLessThanOrEqual(s.tier); // bound by your tavern tier
-
-    // Under 5 → no grant, kills simply bank.
-    let t: RunState = {
-      ...createRun(1, 'cassen'),
-      phase: 'combat',
-      cassenKills: 0,
-      board: [beast('a')],
-      hand: [],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] } },
-    };
-    t = reduce(t, { type: 'resolveCombat' });
-    expect(t.cassenKills).toBe(3); // banked, not spent
-    expect(t.hand.length).toBe(0); // nothing granted yet
-  });
-
+  // Cassen's Collision was RETIRED on 2026-08-16 — his power is now Commission (a delayed, chosen payout).
+  // `collision` stays in the union + settleCombat as a retired kind, but no hero drives it, so there is
+  // nothing left to assert here. Commission's own behaviour is covered in heroesBatchAug16b.test.ts.
   it("Cassen's Collision does nothing for other heroes", () => {
     let s: RunState = {
       ...createRun(1, 'warden'), // not Cassen
@@ -4044,17 +4021,27 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(none, { type: 'heroPower' })).toBe(none);
   });
 
-  it("Bagger Ben's Bag It gains 2 Gold on turn 1, climbing +1 each turn — once per game", () => {
+  // Hero id `baggerben`, display name "Rascal". Reworked 2026-08-16: `scalingGold` (1 + wave, once per game)
+  // became `allIn` — 1 Gold + 2 per turn since the LAST USE, twice a game, re-basing on each use.
+  it("Rascal's All In pays 1 Gold on turn 1, +2 a turn, twice a game", () => {
     let s: RunState = { ...createRun(1, 'baggerben'), wave: 1, embers: 0, heroReady: true };
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(2); // turn 1 → +2
-    expect(s.heroPowerSpent).toBe(true); // once per game — spent, not just this-turn used
-    // Spent → a second activation is a no-op (no more Gold).
-    expect(reduce(s, { type: 'heroPower' }).embers).toBe(2);
-    // Cashing later pays more: turn 3 → +4 (the later you wait, the bigger the single payout).
-    let s3: RunState = { ...createRun(1, 'baggerben'), wave: 3, embers: 0, heroReady: true };
-    s3 = reduce(s3, { type: 'heroPower' });
-    expect(s3.embers).toBe(4);
+    expect(s.embers).toBe(1); // turn 1, never used → 1
+    expect(s.heroPowerUses).toBe(1); // TWO uses a game, tracked by count — not `heroPowerSpent`
+    expect(s.rascalResetWave).toBe(1); // …and the accrual re-bases on use
+
+    // Waiting pays more: turn 4 from a fresh run → 1 + 2*3 = 7.
+    let s4: RunState = { ...createRun(1, 'baggerben'), wave: 4, embers: 0, heroReady: true };
+    s4 = reduce(s4, { type: 'heroPower' });
+    expect(s4.embers).toBe(7);
+
+    // The SECOND use starts its accrual over from the first: used on turn 4, cashed on turn 6 → 1 + 2*2 = 5.
+    const s6 = reduce({ ...s4, wave: 6, embers: 0, heroReady: true }, { type: 'heroPower' });
+    expect(s6.embers).toBe(5);
+    expect(s6.heroPowerUses).toBe(2);
+
+    // Both uses spent → a third activation pays nothing.
+    expect(reduce({ ...s6, wave: 9, embers: 0, heroReady: true }, { type: 'heroPower' }).embers).toBe(0);
   });
 
 
@@ -4257,10 +4244,11 @@ describe('PvE course + record (@game/sim)', () => {
 });
 
 describe('spell stat bonus + display (@game/sim)', () => {
-  it('spellStatBonus aggregates active sources (Rohan scales by spells cast; others = 0)', () => {
+  it('spellStatBonus aggregates active sources (Rune of the Crown at its threshold; others = 0)', () => {
     expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 0 })).toBe(1);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 10 })).toBe(2);
+    // No hero amplifies spells since Yirin's 2026-08-16 rework — the rune is the run-level source now.
+    expect(spellStatBonus({ ...createRun(1), runeCrown: { per: 6, attack: 1, health: 1 }, spellsCast: 0 })).toBe(0);
+    expect(spellStatBonus({ ...createRun(1), runeCrown: { per: 6, attack: 1, health: 1 }, spellsCast: 6 })).toBe(1);
   });
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
@@ -4292,17 +4280,17 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellStatBonus(two)).toBe(2); // stacked welds → +2/+2
   });
 
-  it('the displayed value matches what a cast actually grants (Rohan, turn 1)', () => {
-    const s = { ...createRun(1, 'rohan'), wave: 1 };
+  it('the displayed value matches what a cast actually grants (Rune of the Crown)', () => {
+    const s = { ...createRun(1), wave: 1, runeCrown: { per: 0, attack: 1, health: 1 } } as RunState;
     const bonus = spellStatBonus(s);
-    // Spirit Fire's base is +2/+3; with Rohan's turn-1 bonus the card shows +3/+4 and a cast grants +3/+4.
+    // Spirit Fire's base is +2/+3; with +1 spell power the card shows +3/+4 and a cast grants +3/+4.
     expect(spellDisplayText('spiritfire', bonus)).toContain('+3/+4');
     let r: RunState = {
       ...s, board: [{ uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     r = reduce(r, { type: 'play', uid: 'sf', targetUid: 't' });
-    expect(r.board[0]!.attack).toBe(5); // 2 + (2 base + 1 Rohan bonus)
+    expect(r.board[0]!.attack).toBe(5); // 2 + (2 base + 1 spell power)
     expect(r.board[0]!.health).toBe(6); // 2 + (3 base + 1 Rohan bonus)
   });
 });
@@ -4520,7 +4508,10 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     const self3 = mk({ wave: 3, origin: 'self', author: 'Sam', power: 20 });
     const house6 = mk({ wave: 6, origin: 'house', power: 50 });
     // Same wave (development stage) → prefers the REAL (self) board over the house board.
-    expect(pickOpponent(3, 20, makeRng(7), [house3, self3])?.author).toBe('Sam');
+    // `house` is not a served tier and `self` is no longer one either (owner ruling 2026-08-16: Supabase then
+    // bots only), so with neither a remote nor a synthetic board this falls to the degenerate last resort —
+    // both stay eligible, and the pick is simply one of them.
+    expect(['Sam', undefined]).toContain(pickOpponent(3, 20, makeRng(7), [house3, self3])?.author);
     // No board at wave 5 → widens to the closest available wave (6), never null on a non-empty pool.
     expect(pickOpponent(5, 50, makeRng(7), [house3, house6])?.wave).toBe(6);
     // Empty pool → null (the caller falls back to the procedural threat).
@@ -4543,7 +4534,7 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect(pickOpponent(17, 50, makeRng(7), [x16], new Set([oppKey(x16)]))?.author).toBe('X');
   });
 
-  it('pickOpponent source priority: Supabase (remote) > local player > synthetic, fully random within the tier (no power bias)', () => {
+  it('pickOpponent source priority: Supabase (remote) > BOT/synthetic, fully random within the tier (no power bias)', () => {
     const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
       minions: [{ cardId: 'frontdrake', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
@@ -4553,8 +4544,9 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     const synth3 = mk({ wave: 3, origin: 'synthetic', power: 20 });
     // The live shared (remote) board wins even though its power is nowhere near yours — power no longer weights the pick.
     expect(pickOpponent(3, 20, makeRng(7), [synth3, self3, remote3])?.author).toBe('Net');
-    // No remote at this wave → a local player board is preferred over the synthetic floor.
-    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3])?.author).toBe('Me');
+    // No remote at this wave → the BOT floor is served. A locally stored player board is NOT a tier any more
+    // (owner ruling 2026-08-16): preferring it over the floor is what filled dev lobbies with saved runs.
+    expect(pickOpponent(3, 20, makeRng(7), [synth3, self3])?.origin).toBe('synthetic');
     // Only synthetic available → serve it (graceful floor).
     expect(pickOpponent(3, 20, makeRng(7), [synth3])?.origin).toBe('synthetic');
     // Fully random within a tier: across many seeds, both same-tier remote boards get served (not pinned to one).

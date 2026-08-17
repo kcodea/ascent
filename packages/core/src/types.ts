@@ -188,6 +188,7 @@ export type EffectFactoryId =
   | 'onRallyBuffOnePerTribe'       // Paragon: any friendly Rally buffs one minion of every type, permanently
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
+  | 'onSpellCastOnThisSpreadRandom' // Reflector (Yirin): it also casts on one random other friendly minion
   | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
@@ -1221,6 +1222,10 @@ export interface QuestCombatMods {
    *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
    *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
   beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
+  /** Sable's Soulbind: two bound player uids. A stat gain on either is mirrored onto the other, in full and
+   *  ONCE (no echo back — owner ruling 2026-08-16). The bond lasts a single turn, so this is present only for
+   *  the fight it was forged for; the recruit phase mirrors the same rule through `addBuff`. */
+  soulbind?: { a: string; b: string };
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type Tribe } from '@game/core';
 import { HEROES } from './heroes';
-import { createRun, reduce, type RunState } from './index';
+import { createRun, reduce, CONFIG, type RunState } from './index';
 
 const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 
@@ -117,15 +117,28 @@ describe('Hunch — Rounded Spellbook', () => {
 });
 
 describe('Frantic Frank — Clearance', () => {
-  it('refreshes the Shop and makes its minions cost 2 Gold this turn', () => {
+  it('refreshes the Shop and makes THAT shop’s minions cost 2 Gold', () => {
     let s: RunState = { ...createRun(3, 'frank'), embers: 10, maxEmbers: 20, heroReady: true, tier: 3 };
     s = reduce(s, { type: 'heroPower' });
-    expect(s.frankClearanceTurn, 'clearance armed for this turn').toBe(s.wave);
-    const offer = s.shop.find((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby && !(o.cost != null); });
-    expect(offer, 'a normal Shop minion to buy').toBeTruthy();
+    const offer = s.shop.find((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby; });
+    expect(offer, 'a Shop minion to buy').toBeTruthy();
+    expect(offer!.cost, 'the price rides on the OFFER, not a turn flag').toBe(2);
     const before = s.embers;
     const after = reduce(s, { type: 'buy', uid: offer!.uid });
     expect(before - after.embers, 'that minion cost 2 Gold under Clearance').toBe(2);
+  });
+
+  // Owner clarification 2026-08-16: the discount belongs to the shop his power ROLLED, not to the turn. It
+  // used to ride a `frankClearanceTurn === wave` flag, so every later roll that turn was discounted too.
+  it('a NORMAL refresh afterwards is back to full price', () => {
+    let s: RunState = { ...createRun(3, 'frank'), embers: 20, maxEmbers: 20, heroReady: true, tier: 3 };
+    s = reduce(s, { type: 'heroPower' });
+    s = reduce(s, { type: 'roll' });
+    const offer = s.shop.find((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby; })!;
+    expect(offer.cost, 'the new offers carry no discount').toBeUndefined();
+    const before = s.embers;
+    const after = reduce(s, { type: 'buy', uid: offer.uid });
+    expect(before - after.embers, 'full price again').toBe(CONFIG.minionCost);
   });
 });
 

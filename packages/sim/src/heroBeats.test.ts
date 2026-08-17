@@ -161,10 +161,11 @@ describe('PR 22 — ALL activated hero powers emit at the action chokepoint', ()
     expect(out.batch!.events.some((e) => e.type === 'resourceChanged' && e.resource === 'maxGold' && e.parentId === t!.id)).toBe(true);
   });
 
-  it("Bagger Ben's Bag It (was misfiled `passive`): hero beat + a gold consequence", () => {
+  // Hero id `baggerben`, display name "Rascal" — reworked from `scalingGold` to `allIn` on 2026-08-16.
+  it("Rascal's All In (was misfiled `passive`): hero beat + a gold consequence", () => {
     const { out } = powerOn('baggerben');
     const t = heroTrigger(out.batch?.events);
-    expect(t?.policyKey).toBe('hero:baggerben:scalingGold');
+    expect(t?.policyKey).toBe('hero:baggerben:allIn');
     expect(out.batch!.events.some((e) => e.type === 'resourceChanged' && e.resource === 'gold' && e.amount > 0)).toBe(true);
   });
 

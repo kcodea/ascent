@@ -38,7 +38,12 @@ describe('win-rate math (board perspective, Bayesian prior 5/10)', () => {
 });
 
 describe('weighted pick — the LAST pipeline stage', () => {
+  // FORCES the flag rather than reading the shipped default, so this test states what the weighting DOES
+  // regardless of whether it happens to be switched on (it was briefly off on 2026-08-16).
   it('a proven boss board appears far less often than a core board (but still appears)', () => {
+    const wasOn = MATCHMAKING.winrateWeighting;
+    MATCHMAKING.winrateWeighting = true;
+    try {
     registerBoardRecords(new Map([
       ['boss', { wins: 95, fights: 100 }],  // adjusted ≈ 0.909 → weight 0.09
       ['core', { wins: 40, fights: 100 }],  // adjusted ≈ 0.409 → weight 1.0
@@ -51,7 +56,9 @@ describe('weighted pick — the LAST pipeline stage', () => {
     // Expected share ≈ 0.09 / 1.09 ≈ 8% — assert well under uniform (50%) and above zero (never quarantined).
     expect(boss).toBeGreaterThan(0);
     expect(boss).toBeLessThan(80);
+    } finally { MATCHMAKING.winrateWeighting = wasOn; }
   });
+
 
   it('weighting never overrides the no-repeat exclusion or the source cascade', () => {
     registerBoardRecords(new Map([['easy', { wins: 0, fights: 50 }]]));

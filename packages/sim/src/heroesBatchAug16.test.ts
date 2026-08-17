@@ -48,7 +48,7 @@ describe('Underdweller — Soulkeeper', () => {
 
   it('is a 9-armor, 3-Gold untargeted power', () => {
     const h = getHero('underdweller');
-    expect([h.armor, h.power.kind, h.power.cost, h.power.untargeted]).toEqual([9, 'soulkeeper', 3, true]);
+    expect([h.armor, h.power.kind, h.power.cost, h.power.untargeted]).toEqual([9, 'soulkeeper', 2, true]); // owner balance 2026-08-16: 3 -> 2
   });
 
   it('offers a Discover built from what died last combat', () => {
@@ -59,7 +59,7 @@ describe('Underdweller — Soulkeeper', () => {
     const after = reduce(s, { type: 'heroPower' } as never);
     expect(after.discover, 'a Discover opened').toBeTruthy();
     expect(new Set(after.discover), 'exactly the dead').toEqual(new Set(['stray', 'alley']));
-    expect(after.embers, '3 Gold charged').toBe(7);
+    expect(after.embers, '2 Gold charged').toBe(8);
   });
 
   it('reaches BOTH sides of the board (the owner ruling)', () => {

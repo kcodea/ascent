@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -525,6 +525,9 @@ export function simulate(
   const enemyBeastsPlayed = enemyState.beastsPlayed;
   const enemyDeathrattles = enemyState.deathrattles;
 
+  // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
+  // calling itself. See the mirror block inside `buff`.
+  let soulbindMirroring = false;
   const ctx: CombatContext = {
     rng,
     bus,
@@ -621,6 +624,18 @@ export function simulate(
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
       // handlers grant Health only (no further Attack gain) so it can't loop. Cheap when unsubscribed (a Map miss).
       if (attack > 0) bus.emit('onGainAttack', { minion: target, side: target.side });
+      // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
+      // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
+      // pair buff each other forever. Player-side only: the bond is forged in the player's shop.
+      const bond = modsFor('player').soulbind;
+      if (bond && !soulbindMirroring && target.side === 'player' && (attack !== 0 || health !== 0)) {
+        const otherUid = target.uid === bond.a ? bond.b : target.uid === bond.b ? bond.a : undefined;
+        const partner = otherUid ? boards.player.find((m) => m.uid === otherUid && !m.dead) : undefined;
+        if (partner) {
+          soulbindMirroring = true;
+          try { ctx.buff(partner, attack, health, source ?? 'Soulbind', ruby); } finally { soulbindMirroring = false; }
+        }
+      }
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });
@@ -1888,12 +1903,15 @@ export function simulate(
     // Rise/resummon of the same body never pays twice.
     if (minion.partingCry) {
       minion.partingCry = false;
-      const shouts = minion.effects.filter((e) => e.on === 'onPlay');
-      if (shouts.length > 0) {
+      if (minion.effects.some((e) => e.on === 'onPlay')) {
         emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry` });
-        for (const effect of shouts) {
-          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
-        }
+        // Route through the SAME machinery every other Shout-trigger uses (Dawnclaw, Ryme, Thunderous
+        // Sovereign): `replayCombatBattlecry` for the effect itself, then the `battlecryTriggered` bus emit.
+        // Calling the `onPlay` FACTORIES directly — as this used to — fired the effect but skipped the emit,
+        // so every "after you trigger a Shout" watcher silently missed it (owner report 2026-08-16:
+        // Embermouth Whelp gained nothing, and Deepvein Tender's +1 Health never showed its buff text).
+        replayCombatBattlecry(ctx, minion);
+        bus.emit('battlecryTriggered', { side: minion.side, minion });
       }
     }
     bus.emit('onDeath', { minion, side: minion.side, killer });

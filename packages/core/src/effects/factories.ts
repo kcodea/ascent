@@ -381,7 +381,7 @@ const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
  *   • **Reads state combat doesn't carry.** `battlecryBuffTargetPerGoldSpent` (Baby Gastrid) scales off
  *     `goldSpentThisTurn`, which is not on `CombatContext`; and `battlecryCopyEcho` (Gravetwin) needs the
  *     CHOSEN target that a re-fire has no way to reproduce. */
-function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
+export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // THE SWITCH IS DEAD (2026-08-04). Every combat-meaningful Shout lives in FACTORIES (arena-backed, or
   // phase-split by ruling) and resolves LIVE here; anything else is economy — no tavern, Gold or hand exists
   // in pure combat — and defers to settle, where it replays through its recruit factory.

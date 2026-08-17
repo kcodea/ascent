@@ -21,6 +21,16 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **MATCHMAKING self-avoidance** — deliberately NOT implemented (owner 2026-08-16: no playtesters yet, so
+  excluding your own boards would empty the pool). The local-board tier is gone, so you now face Supabase
+  snapshots then bots; revisit once there are real players to match against.
+
+- **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
+
+- **Missing hero POWER art:** Odelle and Sable (`OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.
+- **No hero amplifies spells any more** — Yirin's rework retired the last `spellAmplify` holder. Spell power now comes only from Rune of the Crown and `spellAura` cards. Decide whether a hero should carry it again.
+- **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.
+
 - **Classify the 2026-08-16 hero-power beats.** `hero:emeraldwarden:vanguard` / `hero:underdweller:soulkeeper` / `hero:albus:empowerment` are registered `flagged: true` on a heuristic — they need the owner's real ownBeat/foldedCue call.
 
 - **BEAT SYSTEM — the finish line is now [`docs/beat-system-status.md`](beat-system-status.md)** (owner ruling

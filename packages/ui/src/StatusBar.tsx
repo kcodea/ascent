@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, roundedSpellbookCostOf, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_TEXT, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
@@ -45,6 +45,12 @@ function useFitText(text: string) {
   return ref;
 }
 
+/** "twice per game" reads better than "2 per game" at the counts we actually use (2 and 3); anything larger
+ *  falls back to the numeral rather than inventing English for a case no hero has. */
+function usesPerGame(n: number): string {
+  return `${n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`} per game`;
+}
+
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
@@ -77,6 +83,21 @@ export function StatusBar() {
   // Hunch's Rounded Spellbook also shrinks — 3, −1 per turn since the last use (shared helper, so the coin
   // shows exactly what the reducer charges).
   const bookCost = power.kind === 'roundedSpellbook' ? roundedSpellbookCostOf(run) : undefined;
+  // Harlan's Buyout shrinks 1 a turn and re-bases on use — the coin reads the SAME helper the reducer charges,
+  // so the price shown can never drift from the price paid (the dynamiteDig / dragonTamer / Hunch pattern).
+  const buyCost = power.kind === 'buyout' ? buyoutCostOf(run) : undefined;
+  // CROUPIER CIA: her power art is the SUIT that will pay next, not one fixed image — the button is how the
+  // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
+  // ever missing, so a half-wired art folder degrades instead of rendering nothing.
+  const powerRule = heroPowerText(run);
+  // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
+  // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
+  // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
+  const powerArt = power.kind === 'luckySeat' && run.ciaSuit
+    ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
+    : power.kind === 'commission' && run.commission
+      ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
+      : heroPowerArt(hero.id);
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
@@ -111,6 +132,9 @@ export function StatusBar() {
   // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
   // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
   // card-text rule: never show a base number where the real one is knowable.
+  // Cassen: the commission picker is local to this component, which owns the button — no cross-component
+  // plumbing for a panel only one hero ever opens.
+  const [pickingCommission, setPickingCommission] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
   /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
@@ -152,7 +176,9 @@ export function StatusBar() {
     (digCost === undefined || run.embers >= digCost) &&
     (tamerCost === undefined || run.embers >= tamerCost) &&
     (bookCost === undefined || run.embers >= bookCost) &&
-    diceLock === 0; // Gambler: the roll is unusable while its lock runs
+    (buyCost === undefined || run.embers >= buyCost) &&
+    diceLock === 0 && // Gambler: the roll is unusable while its lock runs
+    !(power.kind === 'commission' && run.commission); // Cassen: locked until the running commission pays out
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
@@ -176,6 +202,11 @@ export function StatusBar() {
       case 'dice': return diceLock > 0 ? `${diceLock}t` : null; // Gambler — turns until the roll unlocks
       case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
       case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
+      case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
+      case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted buys toward the queued suit (the button art names it)
+      case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
+      case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
+      case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
       default: return null;
     }
   })();
@@ -215,7 +246,12 @@ export function StatusBar() {
                           // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
                           : power.oncePerGame
                             ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-                            : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                            // …and neither must a capped-USES power (Rascal: twice a game, not once a turn —
+                            // owner report 2026-08-16). The cap is the headline; the once-per-turn gate is
+                            // still enforced, it just isn't what the player needs told.
+                            : power.maxUses
+                              ? `${power.name} · ${(run.heroPowerUses ?? 0) >= power.maxUses ? 'spent' : usesPerGame(power.maxUses)}`
+                              : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
@@ -369,7 +405,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${power.name} — ${renameTerms(power.text).replace(/\*\*/g, '')}`}
+              aria-label={`${power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
               onPointerEnter={power.kind === 'roundedSpellbook' ? (e) => showHunchTip(e.currentTarget) : undefined}
@@ -389,7 +425,12 @@ export function StatusBar() {
                   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
                   playDef('hero-power-spark', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
                 }
-                if (power.untargeted) dispatch({ type: 'heroPower' });
+                // CASSEN: the power is a CHOICE, so pressing it opens a picker rather than firing. It fires
+                // when an option is chosen (below). Untargeted, but not immediate.
+                // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
+                // it too, so this just stops the panel opening on a click that could not do anything.
+                if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
+                else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
             >
@@ -400,13 +441,13 @@ export function StatusBar() {
               <span className="hpb-glow" aria-hidden="true" />
               {/* Art sits in a CIRCULAR clipping wrapper so the 💠 tuner's art offset/scale dials move the art
                   INSIDE the circle without moving the clip. */}
-              {heroPowerArt(hero.id)
-                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
+              {powerArt
+                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {(digCost ?? tamerCost ?? bookCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? power.cost}</span></span> : null}
+            {(digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
             {diceFace != null
@@ -414,7 +455,39 @@ export function StatusBar() {
               : diceHeld != null
                 ? <span key="die-held" className="hpb-tally hpb-dice settled">{diceHeld}</span>
                 : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
-            {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
+            {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
+          decision, but its options are plain text tiles rather than cards (a commission is not a card). Only
+          the OFFERED commissions appear, so the one taken last is absent. */}
+      {pickingCommission && createPortal(
+        <div className="discover-ov commission-ov" role="dialog" aria-label="Choose a commission">
+          <div className="disc-panel">
+            <div className="disc-banner"><span className="disp">Choose a Commission</span></div>
+            <div className="commission-opts">
+              {commissionOffer(run).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="commission-opt"
+                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
+                >
+                  {/* Art on top, text below — the same read as a Discover / quest-reward tile (owner ask
+                      2026-08-16). Each commission has its own image (CassenHP1/2/3 → cassen-<kind>). */}
+                  <span className="commission-art" aria-hidden="true">
+                    {heroPowerArt(`cassen-${kind}`)
+                      ? <img src={heroPowerArt(`cassen-${kind}`)} alt="" draggable={false} />
+                      : null}
+                    <span className="commission-delay">{COMMISSION_DELAY[kind]}t</span>
+                    <span
+                      className="commission-text"
+                      dangerouslySetInnerHTML={{ __html: mdBold(COMMISSION_TEXT[kind]) }}
+                    />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>, document.body)}
+      {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
             {hunchPreview && hunchTip && createPortal(
@@ -443,7 +516,7 @@ export function StatusBar() {
           <div className="herotip" role="tooltip">
             <b>{power.name}</b>{isPassive ? ' · passive' : ''}
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
-            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
             <span className="herotip-live">{powerStatus}</span>

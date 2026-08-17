@@ -12,8 +12,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState, type RubyLandedFx } from './state';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { handCap, mixSeed, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -930,6 +930,11 @@ function reduceCore(state: RunState, action: Action): RunState {
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
   s.servedBoards = servedBoards;
+  // Sable: mirror this turn's Soulbind onto the stateless `addBuff` hook. MUST be stamped from the DRAFT `s`,
+  // never from `state` — unlike `stampImproveReps` (which stamps a plain number) this captures the BOARD ARRAY,
+  // and the pre-clone board is thrown away by the `structuredClone` directly above. Stamping it earlier meant
+  // every mirrored buff landed on a discarded object, so the bond silently did nothing (owner report 2026-08-16).
+  stampSableBond(s);
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
@@ -980,6 +985,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);
+        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
@@ -995,6 +1001,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
+        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
         const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
         // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
@@ -1022,6 +1029,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
+      ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) s.tradeInTribe = undefined; // spent
@@ -1476,6 +1484,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           ? s.board.length
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
+      // Odelle (Exhibition): landing a minion BETWEEN two others, where the three can be read as three
+      // different types, buffs all three. Checked on the PLAY only (owner ruling 2026-08-16) — repositioning
+      // into the same sandwich later does nothing — and read from the drop index, so it needs a real neighbour
+      // on each side. `threeDistinctTypes` resolves a dual-type card to whichever of its types avoids a clash.
+      if (getHero(s.heroId).power.kind === 'exhibition' && to > 0 && to < s.board.length - 1) {
+        const trio = [s.board[to - 1]!, card, s.board[to + 1]!];
+        if (threeDistinctTypes(trio)) {
+          const amt = exhibitionGrantOf(s);
+          for (const m of trio) addBuff(m, 'Exhibition', amt, amt);
+        }
+      }
       playCard(s, card);
       // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
       // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
@@ -2048,6 +2067,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // charge/gold spent) on a missing target or one that already has a Ward.
         if (!card || card.keywords.includes('DS')) return state;
         card.keywords.push('DS');
+        // …and every minion that now HAS Ward (the fresh one included) gains +Tier/+Tier+1 (owner 2026-08-16).
+        const g = aegisGrantOf(s);
+        for (const c of s.board) if (c.keywords.includes('DS')) addBuff(c, 'Aegis', g.attack, g.health);
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
@@ -2143,7 +2165,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
         refreshTavern(s);
         applyShopRefreshed(s);
-        s.frankClearanceTurn = s.wave;
+        // The 2-Gold price belongs to THIS SHOP, not the turn (owner clarification 2026-08-16): refresh again
+        // normally, or roll into the next turn, and minions are back to full price. Stamping the price onto
+        // the offers themselves is what makes that true by construction — any later roll builds new offers
+        // with no stamp, so there is no flag to expire and no way for the discount to leak.
+        for (const o of s.shop) {
+          const d = CARD_INDEX[o.cardId];
+          if (d && !d.spell && !d.ruby) o.cost = 2;
+        }
       } else if (power.kind === 'archive') {
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
@@ -2169,6 +2198,67 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.archivedTribes = [];
           if (picks.length > 0) s.discover = picks;
         }
+      } else if (power.kind === 'investment') {
+        // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
+        // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
+        // block. A full hand blocks the payout, so the bank is only advanced when it can actually pay.
+        const invested = (s.bramInvested ?? 0) + 1;
+        if (invested >= 5) {
+          if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
+          const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
+          if (pool.length === 0) return state;
+          const rng = makeRng(s.rngCursor);
+          const pick = pool[rng.int(pool.length)]!;
+          s.rngCursor = rng.state();
+          conjureToHand(s, [pick], 1);
+          const granted = s.hand[s.hand.length - 1];
+          if (granted) gildMinion(granted); // the payout arrives already Gilded, like a golden Discover
+          s.bramInvested = 0;
+        } else {
+          s.bramInvested = invested;
+        }
+      } else if (power.kind === 'buyout') {
+        // Harlan: take the WHOLE Shop, then reroll it. The price falls 1 a turn and re-bases on use, so it is
+        // charged here rather than by the shared block (the dragonTamer/roundedSpellbook pattern).
+        const price = buyoutCostOf(s);
+        if (s.embers < price) return state; // can't afford → no charge spent
+        spendGold(s, price);
+        s.harlanResetWave = s.wave;
+        // Owner ruling 2026-08-16: take what fits and DROP the rest — the hand cap is not raised for this.
+        // Dropped offers go back to the shared pool, exactly as an un-bought reroll would return them.
+        for (const offer of s.shop) {
+          const def = CARD_INDEX[offer.cardId];
+          if (!def) continue;
+          if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+          s.hand.push({
+            uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
+            ...conjuredStats(s, def, cardBuff(s, def.id)),
+            keywords: [...def.keywords], golden: offer.golden ?? false,
+          });
+        }
+        s.shop = [];
+        refreshTavern(s);
+        applyShopRefreshed(s);
+      } else if (power.kind === 'allIn') {
+        // Rascal: 1 Gold + 2 per turn since the last use, then re-base. Twice a game (`maxUses`), still once
+        // per turn through `heroReady`. Untargeted and free, so the shared block only spends the charge.
+        gainGold(s, allInPayoutOf(s) * reps);
+        s.rascalResetWave = s.wave;
+      } else if (power.kind === 'soulbind') {
+        // Sable: bind the OUTERMOST minions for this turn — a stat gain on one is gained by the other, in
+        // full, one hop only. Needs two distinct bodies, so a board of 0 or 1 is a no-op (no charge spent).
+        if (s.board.length < 2) return state;
+        s.sableBond = { a: s.board[0]!.uid, b: s.board[s.board.length - 1]!.uid, wave: s.wave };
+        stampSableBond(s); // take effect immediately — a buff later in THIS dispatch should already mirror
+      } else if (power.kind === 'commission') {
+        // Cassen: pick one of the offered commissions; it matures `delay` turns later. Free and untargeted.
+        // Only one runs at a time — a second click while one is in flight is a no-op (no charge spent), and
+        // the UI hides the arm state for the same reason.
+        if (s.commission) return state;
+        const pick = action.commission as CommissionKind | undefined;
+        if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
+        s.commission = { kind: pick, dueWave: s.wave + COMMISSION_DELAY[pick] };
+        s.lastCommission = pick; // …so the next offer can exclude it
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
@@ -2206,7 +2296,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
-        || power.kind === 'vanguard'
+        || power.kind === 'vanguard' || power.kind === 'luckySeat' || power.kind === 'exhibition'
+        || power.kind === 'startingReflector'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
@@ -3426,6 +3517,9 @@ function advanceCombat(s: RunState): void {
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
+  // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
+  // `dueWave` names the turn the reward actually lands on.
+  if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
@@ -4743,6 +4837,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     beastAuraHp: s.beastBuyHp || undefined,
     beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
+    // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
+    soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
@@ -4893,6 +4989,98 @@ function refreshTavern(s: RunState, hold = false): void {
     s.nextShopBuff = undefined;
   }
   injectPendingTavern(s, hold);
+  // Croupier Cia (Lucky Seat): each freshly-filled Shop has a 50% chance to seat ONE Enchanted card. The mark
+  // is purely cosmetic on the card itself (owner ruling 2026-08-16: "it does nothing to the card") — buying it
+  // is the only thing it does, feeding `ciaEnchantedBought`. Rolled here, the single funnel every fill goes
+  // through, so a turn-setup roll and a paid refresh are treated identically.
+  if (getHero(s.heroId).power.kind === 'luckySeat' && s.shop.length > 0) {
+    const rng = makeRng(s.rngCursor);
+    const lucky = rng.int(2) === 0;
+    const slot = rng.int(s.shop.length);
+    s.rngCursor = rng.state();
+    if (lucky) s.shop[slot]!.enchanted = true;
+  }
+}
+
+/** Pay a matured commission and clear it. Called from the turn advance, so the reward lands as the shop opens. */
+function payCommission(s: RunState, c: Commission): void {
+  s.commission = undefined;
+  if (c.kind === 'gold') { gainGold(s, 2); return; }
+  if (c.kind === 'spell') {
+    const pool = poolOf(s).spells.filter((x) => x.tier <= s.tier);
+    if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+    return;
+  }
+  // `queueDiscover` builds the offer itself from the spec (same pools / tier rules / rng stream as every other
+  // Discover), so there is nothing to pre-roll here.
+  queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+}
+
+/** Croupier Cia's four rewards, and the suit that will pay next.
+ *
+ * The suit is PUBLIC and chosen in advance (`RunState.ciaSuit`) rather than rolled at payout time, because the
+ * hero-power button shows its art — the player is meant to see what they are working toward. After a payout
+ * the next suit is drawn from the OTHER THREE, so it can never repeat twice in a row (owner spec 2026-08-16).
+ */
+const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs'];
+
+/** Draw the next suit, excluding `avoid`. Seeded like every other pick, so a replay lands the same sequence. */
+function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
+  const pool = CIA_SUITS.filter((x) => x !== avoid);
+  const rng = makeRng(s.rngCursor);
+  const next = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  return next;
+}
+
+/**
+ * Croupier Cia (Lucky Seat): count an Enchanted purchase, and pay the queued suit on the 3rd.
+ *
+ * Called from EVERY buy path (spell slot in the minion row, a restored/held offer, and the ordinary minion
+ * buy) rather than one of them — the same lesson as `applySpellBought`, which silently did nothing for spells
+ * bought from the row because it was only wired to the slot.
+ *
+ * The counter resets and the suit re-rolls whether or not the reward could land (a full hand forfeits it, like
+ * a Discover into a full hand), so a streak can never be banked indefinitely.
+ */
+function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
+  if (!offer.enchanted || getHero(s.heroId).power.kind !== 'luckySeat') return;
+  const n = (s.ciaEnchantedBought ?? 0) + 1;
+  if (n < 3) { s.ciaEnchantedBought = n; return; }
+  s.ciaEnchantedBought = 0;
+  const suit = s.ciaSuit ?? 'hearts';
+  const cap = hasTier7Access(s) ? 7 : 6;
+  switch (suit) {
+    case 'hearts': {
+      // Discover a minion of your CURRENT tier.
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === s.tier);
+      if (pool.length > 0) {
+        const rng = makeRng(s.rngCursor);
+        const opts = [...pool];
+        const picks: string[] = [];
+        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        s.rngCursor = rng.state();
+        s.discover = picks;
+      }
+      break;
+    }
+    case 'spades': {
+      // TWO random Shop spells — `conjureToHand` stops at the hand cap on its own.
+      const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
+      if (pool.length > 0) conjureToHand(s, pool, 2);
+      break;
+    }
+    case 'diamonds': {
+      // A random minion from the tier ABOVE you, under the standard Tier-7 ceiling (Pete's clamp).
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === Math.min(s.tier + 1, cap));
+      if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+      break;
+    }
+    case 'clubs':
+      gainGold(s, 3);
+      break;
+  }
+  s.ciaSuit = rollCiaSuit(s, suit); // never the same suit twice running
 }
 
 /**

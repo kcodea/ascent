@@ -111,7 +111,7 @@ export type GameEvent =
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
-  | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Chosen Fiend. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
+  | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Axeman. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
@@ -283,7 +283,7 @@ export type EffectFactoryId =
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
-  | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Chosen Fiend: buff self (and maybe Imps) when a friendly Demon deals damage
+  | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
   | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (Start of Combat): play N permanent Rubies on self + adjacent same-tribe
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
   | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
@@ -292,7 +292,7 @@ export type EffectFactoryId =
   | 'goldSpentBuffRandomTribe' // Set 2 — Billings (goldSpent): give N random friendly tribe minions +atk/+hp
   | 'onGainCardBuffTribe' // Set 2 — Gangplank (onGainCard): a card added to hand buffs a friendly tribe minion
   | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
-  | 'onConsumeBuffShop' // Set 2 — Jumbo (onConsume): when this consumes a minion, buff Shop minions permanently
+  | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when this consumes a minion, buff Shop minions permanently
   | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'

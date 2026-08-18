@@ -2106,7 +2106,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Jumbo (this consumed a minion): give minions in the Shop +attack/+health PERMANENTLY, via the same
+  /** Set 2 — Enigma (this consumed a minion): give minions in the Shop +attack/+health PERMANENTLY, via the same
    *  `tavernBuyBonus` channel Contract Butcher / Staff of Guel use (a lasting buff on everything you buy from
    *  here on, Fodder included). Guarded to THIS body's consume (`payload.minion === self`), matching Ashen
    *  Broodlord's "when this consumes". Golden doubles. */

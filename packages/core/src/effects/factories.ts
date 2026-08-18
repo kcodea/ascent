@@ -3475,7 +3475,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Traveling Skald: whenever ANOTHER friendly minion of `tribe` attacks, give IT +atk/+hp. The
    *  payload's attacker is the target; the Skald's OWN swing never buffs itself (owner ruling 2026-08-01 —
    *  the printed text says "another"). Golden doubles. */
-  /** Set 2 — Impossible Todd / Leech / Chosen Fiend: react whenever a FRIENDLY Demon deals combat damage
+  /** Set 2 — Impossible Todd / Leech / Axeman: react whenever a FRIENDLY Demon deals combat damage
    *  (attack, retaliation, or incidental; a Ward-absorbed 0-damage hit never fires the event). Gains `attack`/
    *  `health` on self, and optionally grants your Imps `impAttack`/`impHealth` run-wide (`grantImpBuff` carries
    *  back to RunState.impBuff — "this game"). The emit already guaranteed the dealer is a Demon; we just

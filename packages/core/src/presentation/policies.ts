@@ -193,7 +193,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onOrbitBuffShopRightmost:orbitFired': { policy: 'foldedCue', family: 'orbitReact' },
   'factory:onOtherDemonConsumeEcho:onConsume': { policy: 'foldedCue', family: 'react' },
   // ── Set 2 batch B (2026-08-18): new primitives ──
-  'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Chosen Fiend
+  'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
   'factory:scPlayRubiesSelfAndAdjacentTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Kobe
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
@@ -202,7 +202,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:goldSpentBuffRandomTribe:goldSpent': { policy: 'foldedCue', family: 'economyReact' }, // Billings
   'factory:onGainCardBuffTribe:onGainCard': { policy: 'foldedCue', family: 'economyReact' }, // Gangplank
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
-  'factory:onConsumeBuffShop:onConsume': { policy: 'foldedCue', family: 'react' }, // Jumbo
+  'factory:onConsumeBuffShop:onConsume': { policy: 'foldedCue', family: 'react' }, // Enigma
   'factory:deathrattleDamageAllExceptTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Fel Spikes
   'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },

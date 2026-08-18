@@ -270,10 +270,10 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'When you **sell 3 minions**, a **Demon** consumes the **2 right-most** minions in the **Shop**.',
   },
   {
-    // Set 2 — Jumbo (owner add 2026-08-18): every meal fattens the whole Shop. Guarded to THIS body's consume,
+    // Set 2 — Enigma (owner add 2026-08-18): every meal fattens the whole Shop. Guarded to THIS body's consume,
     // like Ashen Broodlord. Golden doubles the permanent Shop buff.
     id: 'dm_jumbo',
-    name: 'Jumbo',
+    name: 'Enigma',
     tribe: 'demon',
     tier: 5,
     attack: 4,
@@ -312,9 +312,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Taunt.** **Echo:** deal **2 damage** to all minions except friendly **Demons**.',
   },
   {
-    // Set 2 — Chosen Fiend (owner add 2026-08-18): the mid-tier demon-damage body. Golden doubles.
+    // Set 2 — Axeman (owner add 2026-08-18): the mid-tier demon-damage body. Golden doubles.
     id: 'dm_chosenfiend',
-    name: 'Chosen Fiend',
+    name: 'Axeman',
     tribe: 'demon',
     tier: 4,
     attack: 4,

@@ -12,11 +12,11 @@ Part B — the new cards and the engine they needed (Part A was the changes + ar
   a Dwarf +1/+2).
 - Demons: **Impossible Todd** (T6, friendly Demon deals damage → +4/+4 permanently and Imps +2/+2 this game),
   **Knocked** (T1, Echo: Imp), **Grevlin & Co.** (T6, sell 3 → a Demon eats the right-most Shop minion),
-  **Jumbo** (T5, consume → Shop +2/+1), **Leech** (T1, friendly Demon deals damage → +1 Attack permanently),
-  **Fel Spikes** (T3, Taunt, Echo: 1 dmg to all but your Demons), **Chosen Fiend** (T4, friendly Demon deals
+  **Enigma** (T5, consume → Shop +2/+1), **Leech** (T1, friendly Demon deals damage → +1 Attack permanently),
+  **Fel Spikes** (T3, Taunt, Echo: 1 dmg to all but your Demons), **Axeman** (T4, friendly Demon deals
   damage → +3/+3 permanently).
 
-**Owner tuning (same PR):** the three Demon-damage reactors (Leech, Chosen Fiend, Impossible Todd) now stack
+**Owner tuning (same PR):** the three Demon-damage reactors (Leech, Axeman, Impossible Todd) now stack
 their self-buff **permanently** (accrued into `permaGain`, so it carries back to the run board); Todd retuned
 to +4/+4 & Imps +2/+2. **Malphas** reworked from the Avenge Imp lord into "**Shout and Echo:** give minions in
 the Shop **+8/+8**" — the Shout is the recruit `buffShopPermanent`, the Echo a new combat twin
@@ -36,7 +36,7 @@ a Veinstorm + improve Rubies +1/+1 · Legion Shepherd → Echo: Imps +5/+5 this 
   to the run board), sell→rubies, goldSpent buff-random-tribe, onGainCard buff-tribe, sell-threshold→consume,
   onConsume→shop-buff, and a deathrattle AoE that spares your own tribe.
 
-Art wired for the 13 new minions with masters (Impossible Todd included; Jumbo has none → fallback). Verified by
+Art wired for the 13 new minions with masters (Impossible Todd included; Enigma has none → fallback). Verified by
 13 new behavioral tests (demon-trigger co-fire + Ward-skip + imp carry-back, Fel Spikes friendly/enemy split,
 permanent-Ruby carry-back, and every recruit factory driven through the reducer) — no bugs found. Gates:
 typecheck, lint (0 errors), 5582 tests, build:web.

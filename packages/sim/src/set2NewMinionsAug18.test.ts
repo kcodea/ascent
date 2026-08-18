@@ -32,21 +32,21 @@ const recruitBody = (cardId: string, uid: string): BoardCard => {
 // matters: every proc is the right magnitude, co-firing reactors agree instance-for-instance, and the Imp
 // carry-back equals +3/+3 times the number of procs.
 describe('set 2 — the Demon-damage trigger (combat)', () => {
-  it('Chosen Fiend gains +3/+3 and Leech gains +1 Attack on the SAME Demon-damage instances', () => {
+  it('Axeman gains +3/+3 and Leech gains +1 Attack on the SAME Demon-damage instances', () => {
     const r = simulate(
       [bm('dm_chosenfiend', 'CF', 0, 400), bm('dm_leech', 'LE', 0, 400), bm('dm_clerk', 'AT', 5, 400)],
       [bm('dm_clerk', 'BAG', 0, 99999)],
       makeRng(3), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 1 }));
-    const cf = buffsFrom(r.events, 'm0'); // Chosen Fiend
+    const cf = buffsFrom(r.events, 'm0'); // Axeman
     const le = buffsFrom(r.events, 'm1'); // Leech
     expect(cf.length, 'the trigger fired repeatedly').toBeGreaterThan(1);
-    expect(cf.every((b) => b.attack === 3 && b.health === 3), 'each Chosen Fiend proc is +3/+3').toBe(true);
+    expect(cf.every((b) => b.attack === 3 && b.health === 3), 'each Axeman proc is +3/+3').toBe(true);
     expect(le.every((b) => b.attack === 1 && b.health === 0), 'each Leech proc is +1 Attack only').toBe(true);
     expect(le.length, 'both react to the exact same damage instances').toBe(cf.length);
   });
 
   it('a hit absorbed by a WARD (0 damage landed) does NOT proc the trigger', () => {
-    // Chosen Fiend alone into a single 0/1 warded bag. Hit 1 pops the shield (0 landed → no proc, and no
+    // Axeman alone into a single 0/1 warded bag. Hit 1 pops the shield (0 landed → no proc, and no
     // on-damaged either); the bag survives at 1 HP with 0 Attack, and hit 2 kills it (4 landed → one proc). So
     // the fight ends with EXACTLY one proc — proof the shield-absorbed hit was skipped. A trigger that fired on
     // the shield pop would show 2.
@@ -162,10 +162,10 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(s.board.find((c) => c.uid === 'grv')!.attack, 'Grevlin grew on the eaten minion').toBeGreaterThan(atkBefore);
   });
 
-  it('Jumbo: consuming a minion permanently buffs the Shop', () => {
+  it('Enigma: consuming a minion permanently buffs the Shop', () => {
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([0, 0]);
-    consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Jumbo itself eats
+    consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Enigma itself eats
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +2/+1 permanently').toEqual([2, 1]);
   });
 

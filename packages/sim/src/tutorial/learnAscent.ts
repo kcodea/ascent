@@ -147,18 +147,18 @@ const round2Steps: TutorialStep[] = [
   {
     id: 'r2-buy',
     phase: 'shop', focusMode: 'action', title: 'Add a Body',
-    body: 'Buy this Taunt minion. A wider board means more attacks — one minion rarely wins a fight.',
-    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.candleback }],
+    body: 'Buy a second Packstrider. A wider board means more attacks — one minion rarely wins a fight.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }],
     gate: 'hard', lessonId: 'buy_minion',
-    completion: { kind: 'bought', cardId: CARD_IDS.candleback },
+    completion: { kind: 'bought', cardId: CARD_IDS.packstrider },
   },
   {
     id: 'r2-play',
     phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play it onto your board, next to Packstrider, so both fight this round.',
+    body: 'Play it onto your board beside the first, so both fight this round.',
     anchors: [{ kind: 'ui', id: 'warband' }],
     gate: 'hard', lessonId: 'play_minion',
-    completion: { kind: 'played', cardId: CARD_IDS.candleback },
+    completion: { kind: 'played', cardId: CARD_IDS.packstrider },
   },
   {
     id: 'r2-tavern',
@@ -212,17 +212,9 @@ const round3Steps: TutorialStep[] = [
 
 const round4Steps: TutorialStep[] = [
   {
-    id: 'r4-freeze',
-    phase: 'shop', focusMode: 'action', title: 'Freeze the Shop',
-    body: 'Freeze keeps these offers for next turn — handy to save a strong minion you cannot afford yet.',
-    anchors: [{ kind: 'ui', id: 'freeze' }],
-    gate: 'hard', lessonId: 'freeze_shop',
-    completion: { kind: 'froze' },
-  },
-  {
     id: 'r4-buy',
     phase: 'shop', focusMode: 'action', title: 'Round Out the Board',
-    body: 'Buy one more Beast. A board of minions that support each other beats a pile of loose bodies.',
+    body: 'Buy Wolvie — a Taunt Beast. A board of minions that support each other beats a pile of loose bodies.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.wolvie }],
     gate: 'hard', lessonId: 'buy_minion',
     completion: { kind: 'bought', cardId: CARD_IDS.wolvie },
@@ -234,6 +226,15 @@ const round4Steps: TutorialStep[] = [
     anchors: [{ kind: 'ui', id: 'warband' }],
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.wolvie },
+  },
+  {
+    id: 'r4-freeze',
+    phase: 'shop', focusMode: 'action', title: 'Freeze for Later',
+    body: 'See the other minion still in your shop? Freeze the shop to keep it for next turn instead of losing it.',
+    why: 'Freeze saves offers you want but cannot use yet — plan a turn ahead.',
+    anchors: [{ kind: 'ui', id: 'freeze' }],
+    gate: 'hard', lessonId: 'freeze_shop',
+    completion: { kind: 'froze' },
   },
   endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
   combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics; now let us add some synergy. Click here to return to the shop.'),
@@ -247,7 +248,7 @@ const round5Steps: TutorialStep[] = [
   {
     id: 'r5-buy',
     phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
-    body: 'Buy Contract Butcher. It has a Shout — an effect that fires the instant you play it from your hand.',
+    body: 'There is the minion you froze. Buy Contract Butcher — it has a Shout, an effect that fires the instant you play it.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }],
     gate: 'hard', lessonId: 'buy_minion',
     completion: { kind: 'bought', cardId: CARD_IDS.butcher },
@@ -350,11 +351,11 @@ const turns: TutorialTurn[] = [
     turn: 2,
     opponentSeatId: 's2',
     combatSeed: 'learn-ascent-r2',
-    // Beatable by Packstrider + the Taunt body the round has you buy.
+    // Beatable by two Packstriders (each Rally-buffing off the other).
     omenBoard: [{ attack: 2, health: 2 }, { attack: 1, health: 3 }],
-    // All Tier 1 (the tavern is still Tier 1 when this shop opens) — the round buys Candleback, then upgrades.
+    // Offers a second Packstrider (T1) — the round buys it, then upgrades. Clean fillers (no Ruby/Consume clutter).
     shopRolls: [
-      { minions: [CARD_IDS.candleback, 'dm_clerk', 'k_chipwick'] },
+      { minions: [CARD_IDS.packstrider, 'dm_errand', 'dm_hank'] },
     ],
     steps: round2Steps,
   },
@@ -375,9 +376,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's4',
     combatSeed: 'learn-ascent-r4',
     omenBoard: [{ attack: 3, health: 4 }, { attack: 3, health: 3 }, { attack: 2, health: 2 }],
-    // Offers Wolvie (the round freezes, then buys it).
+    // Offers Wolvie (bought) and Contract Butcher — the round buys Wolvie, then FREEZES to keep Butcher, which
+    // carries into Round 5's Shout lesson so freezing visibly "kept" a minion.
     shopRolls: [
-      { minions: [CARD_IDS.wolvie, 'dw_ironlung', 'dm_hank'] },
+      { minions: [CARD_IDS.wolvie, CARD_IDS.butcher, 'dm_hank'] },
     ],
     steps: round4Steps,
   },

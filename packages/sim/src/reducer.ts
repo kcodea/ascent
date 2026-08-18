@@ -3772,7 +3772,14 @@ function advanceCombat(s: RunState): void {
     // extra visit, not a replacement.)
     s.pendingBasicForge = { deferred: false };
   }
-  if (questOffer.length > 0) {
+  if (s.mode === 'tutorial' && s.tutorialShopScript) {
+    // The scripted shop ALWAYS wins on a new tutorial turn: a frozen tavern would otherwise carry the last
+    // round's offers (topped up from the pool), and the round's lesson would never see the card it needs. The
+    // freeze lesson stays coherent by re-scripting the kept card into the next round's offers. Clear the freeze
+    // so the fresh scripted roll takes — `refreshTavern` → `rollShop` serves `tutorialShopScript`.
+    s.frozen = false;
+    refreshTavern(s, true);
+  } else if (questOffer.length > 0) {
     s.questOffer = questOffer;
   } else if (s.frozen) {
     topUpTavern(s);

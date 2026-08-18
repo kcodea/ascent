@@ -6145,13 +6145,13 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 55%, #fff),
               var(--rfb-free-color, #47d17c) 58%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 62%, #000));
 }
-/* Can't afford — the coin flushes RED, matching the Tavern stone's "too expensive" cue. Not in combat:
-   the crystal is inert there rather than unaffordable, so the red would state something untrue. */
-.rfbwrap:disabled:not(.combat) .rfb-cost {
+/* Can't afford — the coin flushes RED, matching the Tavern stone's "too expensive" cue. (No combat guard
+   needed: the coin is not rendered at all in combat — see RefreshButton.) */
+.rfbwrap:disabled .rfb-cost {
   background: radial-gradient(circle at 38% 30%, #ff9f8a, #e5533b 58%, #9c2c1a);
   color: #2a0d06;
 }
-.rfbwrap:disabled:not(.combat) .rfb-cost svg { color: #2a0d06; }
+.rfbwrap:disabled .rfb-cost svg { color: #2a0d06; }
 /* …but a FREE roll is never "can't afford" — keep it green even while the button is disabled (mid-animation),
    or a 0-cost coin would flash the red too-expensive cue. Out-specifies the disabled rule. */
 .rfbwrap:disabled .rfb-cost.free {

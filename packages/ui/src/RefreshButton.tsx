@@ -31,8 +31,9 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  *
  * Mounted through BOTH phases (owner ask 2026-08-17), like the Tavern Up stone: in combat it's inert and shown
  * at FULL art strength — the `off` dim is a "you can't afford this roll" cue, and during combat there is no roll
- * to afford, so dimming it would state something false. The cost coin stays (it's the price the next shop will
- * charge), but the disabled coin's red too-expensive flush is suppressed for the same reason.
+ * to afford, so dimming it would state something false. The cost coin comes off in combat for the same reason
+ * (owner ask 2026-08-18) — a price with nothing to buy is just noise — leaving a clean crystal, exactly the
+ * shape the Tavern stone takes there.
  */
 export function RefreshButton({
   cost,
@@ -87,7 +88,7 @@ export function RefreshButton({
       disabled={disabled || combat}
       onClick={click}
       aria-label={combat
-        ? (cost > 0 ? `Refresh costs ${cost} Gold` : 'Refresh is free')
+        ? 'Refresh the shop — unavailable during combat'
         : cost > 0
           ? `Refresh the shop for ${cost} Gold`
           : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
@@ -104,16 +105,21 @@ export function RefreshButton({
       {/* The click SHINE — a one-shot radial flare blooming out of the crystal. Mounts, animates, unmounts,
           so nothing animates at rest. Replaced the press spin + shockwave rings (owner 2026-07-21). */}
       {shining && <span className="rfb-shine" aria-hidden="true" />}
-      {/* Cost coin — ALWAYS shown. A free roll keeps the coin and turns it GREEN with a 0, rather than
-          removing it (owner 2026-07-21): a vanishing badge made the button's shape shift and left the player
-          reading absence, where a green 0 states the free roll outright. */}
-      <span className={`rfb-cost${cost > 0 ? '' : ' free'}`} aria-hidden="true">
-        <Icon name="mana" />
-        <b>{cost}</b>
-        {/* The BANKED count, only past the first: at exactly one free roll the green 0 already says "this one
-            is free", so a `x1` would be noise. From two up, the number is the thing you can't otherwise see. */}
-        {cost === 0 && freeRolls > 1 && <i className="rfb-freen">{`×${freeRolls}`}</i>}
-      </span>
+      {/* Cost coin — always shown IN THE SHOP. A free roll keeps the coin and turns it GREEN with a 0, rather
+          than removing it (owner 2026-07-21): a vanishing badge made the button's shape shift and left the
+          player reading absence, where a green 0 states the free roll outright. That reasoning is about
+          telling one shop state from another, so it doesn't carry into COMBAT — there the crystal is a
+          passive prop with no roll to price, and the coin comes off entirely (owner 2026-08-18), matching the
+          Tavern stone, which drops its cost coin in combat for the same reason. */}
+      {!combat && (
+        <span className={`rfb-cost${cost > 0 ? '' : ' free'}`} aria-hidden="true">
+          <Icon name="mana" />
+          <b>{cost}</b>
+          {/* The BANKED count, only past the first: at exactly one free roll the green 0 already says "this
+              one is free", so a `x1` would be noise. From two up, the number is what you can't otherwise see. */}
+          {cost === 0 && freeRolls > 1 && <i className="rfb-freen">{`×${freeRolls}`}</i>}
+        </span>
+      )}
       <span className="rfb-tip">
         {cost > 0 ? `Refresh — ${cost} Gold` : `Refresh — free${freeRolls > 1 ? ` (${freeRolls} left)` : ''}`}
       </span>

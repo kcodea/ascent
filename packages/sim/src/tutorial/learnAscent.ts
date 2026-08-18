@@ -61,7 +61,10 @@ const round1Steps: TutorialStep[] = [
     focusMode: 'action',
     title: 'Use Your Power',
     body: 'Tap Preparation, then pick Packstrider. Aster gives a friendly minion +1/+1 — free value every turn.',
-    anchors: [{ kind: 'ui', id: 'hero-power' }],
+    // Spotlight BOTH the power button and Packstrider (the target), with a connector between them, so the
+    // "tap here, then pick that" flow reads at a glance.
+    anchors: [{ kind: 'ui', id: 'hero-power' }, { kind: 'card', zone: 'board', alias: ROUND1_BUY }],
+    connector: { from: { kind: 'ui', id: 'hero-power' }, to: { kind: 'card', zone: 'board', alias: ROUND1_BUY }, style: 'drag' },
     gate: 'soft',
     lessonId: 'use_hero_power',
     completion: { kind: 'heroPowerUsed' },

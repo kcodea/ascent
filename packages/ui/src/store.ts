@@ -1042,8 +1042,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const tx = s.presentationTx;
     if (!tx) return;
+    const prev = s.run; // the run BEFORE this commit — for the tutorial bus, same as `dispatch`
     set({ presentationTx: null }); // cleared FIRST, so a re-entrant call can't commit twice
     set((st) => commitResolvedAction(st, tx.action, tx.after, tx.batch, import.meta.env.DEV, set));
+    // Feed the tutorial action bus — the CHOREOGRAPHED commit path (End of Turn → `faceOmen`) goes through
+    // here, NOT `dispatch`, so without this the tutorial never sees End Turn and a coached "end your turn" step
+    // stalls forever. No-op on every non-tutorial run.
+    notifyTutorialActions(tx.action, prev, get().run);
   },
   /**
    * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned

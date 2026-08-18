@@ -91,6 +91,7 @@ import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
+import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
@@ -4281,6 +4282,11 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    // TUTORIAL gate: a guided step can block ending the turn (e.g. before a minion is bought). The choreographed
+    // End-of-Turn path commits through `commitPresentationAction`, NOT `dispatch` (where the gate normally
+    // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
+    const gate = tutorialGateBlocks({ type: 'faceOmen' });
+    if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).

@@ -733,6 +733,9 @@ export function Recruit() {
   // never a sped-up blur (and the coaching's Predict/Confirm beats are timed to normal speed).
   const rawCombatSpeed = useGame((s) => s.combatSpeed);
   const combatSpeed = run.mode === 'tutorial' ? 1 : rawCombatSpeed;
+  const combatRampUp = useGame((s) => s.combatRampUp);
+  // Tutorial always plays at a flat 1× (see above), so it never ramps either.
+  const rampEnabled = run.mode !== 'tutorial' && combatRampUp;
   // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
   // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
   //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
@@ -1528,7 +1531,7 @@ export function Recruit() {
       ),
     [],
   );
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
 
   // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode
   // harness can jump the fight to a moment. NOT a prop and NOT a store field, deliberately:

@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-18 — Combat replay auto-ramps its speed so long fights stop dragging
+
+A toggle-able option (**ON by default**) that lets each combat replay auto-ramp its own playback speed within a
+fight: it holds at the Speed-slider value (the *starting* speed) through an opening grace window, eases **up**
+toward a ceiling for the long middle, then eases back **down** to the starting speed for the finish — so a
+drawn-out fight stops dragging while the opening and finishing blows still read at normal speed. The base Speed
+slider is never mutated; this is a presentation-only layer on top of it.
+
+**UI/presentation only — no engine, sim, or content change.** The combat event log, determinism, and golden
+outputs are untouched; this only changes the *clock* the UI replays them on.
+
+- **Pure ramp module** (`packages/ui/src/combatRampConfig.ts`). `rampSpeed(base, elapsedMs, remainingMs, cfg)`
+  is the **min of two curves** — an up-curve driven by wall-clock elapsed (grace → ramp-up → ceiling) and a
+  down-curve driven by estimated time-remaining (ease back to the starting speed for the tail) — so whichever
+  bound is tighter wins, and a short fight simply never gets far up the up-curve before the down-curve pulls it
+  back. It no-ops when the base speed is already ≥ the ceiling.
+- **O(1) authored-time estimate.** `buildAuthoredTimeline` precomputes a prefix sum of per-beat authored
+  durations so the rAF loop can read "authored time remaining" in constant time each frame instead of summing
+  the tail. It deliberately errs slightly **early** (treats the fight as a touch shorter than it is) — the safe
+  direction, since easing down a hair early protects the finish rather than clipping it.
+- **Effective-speed layer** (`useCombatReplay.ts`). A rAF loop drives an effective-speed ref, the
+  `--combat-speed` CSS var, and the float speed with **zero per-frame React renders**; the ref resets per fight.
+  Off (or in the tutorial, which always plays flat 1×) the whole path is a no-op and playback is byte-identical
+  to today's flat behavior.
+- **Default-ON toggle** `combatRampUp` in the store (persisted), surfaced as a Settings → Combat toggle placed
+  **directly under the Speed slider**, plus a dev **Speed Ramp** tuner exposing every number (grace / ramp-up /
+  ceiling / ease-down tail).
+
+Verified: the pure-math unit tests in `combatRampConfig.test.ts` (ramp profile, the two-curve min, the
+timeline prefix-sum + its early-erring approximation, and the off-path no-op); the full four-gate suite green
+(`typecheck` + `lint` + `test` with **5587** tests + `build:web`); combat determinism / golden suites unchanged.
+**Follow-up:** the live feel pass — settling the grace window, ceiling, and ease-down tail to taste — is
+owner-driven via the Speed Ramp tuner at 1× (the owner's play speed).
+
 ## 2026-08-18 — Ultrawide side margins blend into the board instead of showing tan
 
 The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side

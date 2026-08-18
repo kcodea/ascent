@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Combat replay auto-ramps its speed** — long fights no longer drag: each combat holds at your Speed-slider setting for the opening, eases up to a ceiling through the middle, then eases back down so the finishing blows still read at normal speed. On by default, with a toggle under the Speed slider (and a dev Speed Ramp tuner). Presentation only — the engine and replays are unchanged.
+
 - **Ultrawide side margins blend into the board** — on a monitor wider than 16:9 the board's side margins fade to `#312361` (blending into the art edge) instead of showing the flat tan backdrop. A 🌫️ Board Edge dev tuner picks the colour and blend width live. Self-gating: no effect at 16:9 or narrower.
 
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)

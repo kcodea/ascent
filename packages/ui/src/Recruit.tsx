@@ -4923,23 +4923,23 @@ export function Recruit() {
       {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
           freezing after the clock runs out is a legitimate last action — the shop is still on screen until
           the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
-      {!inCombat && (
-        <FreezeButton
-          frozen={!!run.frozen}
-          disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-          onFreeze={() => dispatch({ type: 'freeze' })}
-        />
-      )}
-      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Recruit
-          phase only (rolling is a shop action); free rolls hide the cost coin so "free" reads at a glance. */}
-      {!inCombat && (
-        <RefreshButton
-          cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
-          freeRolls={run.freeRolls}
-          disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-          onRefresh={() => dispatch({ type: 'roll' })}
-        />
-      )}
+      <FreezeButton
+        frozen={!!run.frozen}
+        disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        combat={inCombat}
+        onFreeze={() => dispatch({ type: 'freeze' })}
+      />
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Rolling is a
+          shop action, so in combat this is inert (see the component) — but it stays MOUNTED through both
+          phases (owner ask 2026-08-17), like the Tavern stone and Freeze, so the board keeps its furniture
+          instead of half of it vanishing at the phase change. */}
+      <RefreshButton
+        cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+        freeRolls={run.freeRolls}
+        disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        combat={inCombat}
+        onRefresh={() => dispatch({ type: 'roll' })}
+      />
       <TavernUpButton
         tier={run.tier}
         maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
@@ -4948,10 +4948,10 @@ export function Recruit() {
         combat={inCombat}
         onUpgrade={() => dispatch({ type: 'upgrade' })}
       />
-      {/* Gold — a standalone glass pill pinned bottom-right of the board (recruit phase only). */}
-      {!inCombat && (
-        <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
-      )}
+      {/* Gold — a standalone glass pill pinned bottom-right of the board. Shown in BOTH phases (owner ask
+          2026-08-17): it's a pure readout with no interaction to gate, and your purse doesn't change during a
+          fight, so keeping it up costs nothing and stops the corner emptying out mid-combat. */}
+      <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}

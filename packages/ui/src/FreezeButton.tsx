@@ -15,14 +15,22 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * `--frz-gem-x/y/s` nudge the overlay onto the baked gem if the art trims shift.
  *
  * Reducer wiring is unchanged (`{type:'freeze'}` — a toggle); `frozen` just adds `.on` for the frozen tint.
+ *
+ * Mounted through BOTH phases (owner ask 2026-08-17), like the Tavern Up stone: in combat it's a passive
+ * FROZEN INDICATOR — inert, art at full strength, and the tip reads the state instead of offering the action.
+ * Leaving it on screen keeps the board's furniture from popping in and out at the phase change, and the frozen
+ * state is worth seeing while the fight plays out, since it's what the next shop will open with.
  */
 export function FreezeButton({
   frozen,
   disabled,
+  combat,
   onFreeze,
 }: {
   frozen: boolean;
   disabled: boolean;
+  /** Combat phase — renders the button inert (a state readout), not a control. */
+  combat?: boolean;
   onFreeze: () => void;
 }) {
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -40,10 +48,12 @@ export function FreezeButton({
   return (
     <button
       ref={wrapRef}
-      className={`frzwrap${frozen ? ' on' : ''}`}
-      disabled={disabled}
+      className={`frzwrap${frozen ? ' on' : ''}${combat ? ' combat' : ''}`}
+      disabled={disabled || combat}
       onClick={click}
-      aria-label={frozen ? 'Unfreeze the tavern' : 'Freeze the tavern'}
+      aria-label={combat
+        ? (frozen ? 'Tavern frozen' : 'Tavern not frozen')
+        : (frozen ? 'Unfreeze the tavern' : 'Freeze the tavern')}
     >
       <img className="frz-base" src={`${F}freeze_base.webp`} alt="" draggable={false} />
       <span className="frz-gembox" aria-hidden="true">
@@ -53,7 +63,10 @@ export function FreezeButton({
       {/* "Freeze" label pill (owner ask 2026-08-14) — same cream/gold plaque as the Tavern Up tier pill,
           seated near the gem; position/size from the ❄️ tuner via --frz-pill-x/y/s. */}
       <span className="frz-pill" aria-hidden="true">Freeze</span>
-      <span className="sbtip frz-tip">{frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
+      <span className="sbtip frz-tip">
+        {combat ? (frozen ? 'Tavern frozen' : 'Tavern not frozen')
+          : frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}
+      </span>
     </button>
   );
 }

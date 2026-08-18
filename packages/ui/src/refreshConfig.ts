@@ -97,9 +97,9 @@ export interface RefreshConfig {
 // `var(--rfb-*, …)` fallbacks.
 const DEFAULTS: RefreshConfig = {
   // Base point is the board's TOP-RIGHT now (see styles.css .rfbwrap); x/y fine-tune from there.
-  x: -73,
-  y: 214,
-  scale: 1.68,
+  x: -123,
+  y: 270,
+  scale: 1.54,
   costX: -66,
   costY: -64,
   costS: 0.72,

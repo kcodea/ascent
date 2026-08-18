@@ -13,6 +13,7 @@ import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
+import { CombatRampTuner } from './CombatRampTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
@@ -147,6 +148,7 @@ const GROUPS: Group[] = [
     title: 'Strikes',
     items: [
       { key: 'lunge', icon: '🗡️', label: 'Lunge', C: LungeTuner, hint: "The attacker's lunge into its target" },
+      { key: 'speedramp', icon: '⏩', label: 'Speed Ramp', C: CombatRampTuner, hint: 'The auto speed-up curve during combat — grace, ramp-up, ceiling, ease-down', alt: 'combat replay pacing auto ramp' },
       { key: 'critfx', icon: '⚡', label: 'Critical Strike', C: CritFxTuner, hint: 'The crimson-gold crit flourish', alt: 'crit fx' },
       { key: 'flurryswing', icon: '🌬️', label: 'Flurry Swing', C: FlurrySwingTuner, hint: "The wind-slash sparkle on a Flurry minion's extra swing", alt: 'windfury' },
       { key: 'cleavefx', icon: '🪓', label: 'Cleave Slash', C: CleaveFxTuner, hint: 'The hit-stop and red gash a Cleave attacker plays' },

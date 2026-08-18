@@ -5984,22 +5984,34 @@ svg { width: 18px; height: 18px; }
 .modecard.wide .mcdesc { max-width: 620px; }
 
 /* PLAY-SCREEN TUNER hooks — each mode card's frame reads its own Scale / Width / Height / X / Y from `--mp-*`
-   custom properties (driven by the dev Play-Screen tuner). The fallbacks ARE the shipped layout, so production
-   (tuner unmounted → vars unset) looks identical. The transform sits on the FRAME (inner), so the card's hover
-   lift (on the outer `.modecard`) composes with it rather than fighting it. `aspect-ratio: auto` lets the
-   explicit Height win over the `.wide` banner ratio. */
+   custom properties (driven by the dev Play-Screen tuner). The fallbacks ARE the shipped layout (owner-tuned
+   2026-08-17), so production (tuner unmounted → vars unset) looks identical. The transform sits on the FRAME
+   (inner), so the card's hover lift (on the outer `.modecard`) composes with it rather than fighting it.
+   `aspect-ratio: auto` lets the explicit Height win over the `.wide` banner ratio. */
 .mcframe[data-mp='play'] {
-  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 283px); aspect-ratio: auto;
-  transform: translate(var(--mp-play-x, 0px), var(--mp-play-y, 0px)) scale(var(--mp-play-s, 1));
+  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px); aspect-ratio: auto;
+  transform: translate(var(--mp-play-x, -169px), var(--mp-play-y, 115px)) scale(var(--mp-play-s, 0.84));
 }
 .mcframe[data-mp='learn'] {
-  width: var(--mp-learn-w, 660px); height: var(--mp-learn-h, 283px); aspect-ratio: auto;
-  transform: translate(var(--mp-learn-x, 0px), var(--mp-learn-y, 0px)) scale(var(--mp-learn-s, 1));
+  width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 102px); aspect-ratio: auto;
+  transform: translate(var(--mp-learn-x, 196px), var(--mp-learn-y, 123px)) scale(var(--mp-learn-s, 1));
 }
 .mcframe[data-mp='practice'] {
-  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 306px); aspect-ratio: auto;
-  transform: translate(var(--mp-practice-x, 0px), var(--mp-practice-y, 0px)) scale(var(--mp-practice-s, 1));
+  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px); aspect-ratio: auto;
+  transform: translate(var(--mp-practice-x, -73px), var(--mp-practice-y, -229px)) scale(var(--mp-practice-s, 0.84));
 }
+
+/* ART CLIP — the card art now lives in an overflow-clipped wrapper so it can be panned / zoomed INSIDE the
+   frame (via the tuner's Art X / Y / Scale) without spilling past the rounded edge. */
+.mcart-clip { position: absolute; inset: 0; border-radius: 25px; overflow: hidden; }
+.mcart-clip .mcframe-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
+.mcframe[data-mp='play'] .mcframe-art { transform: translate(var(--mp-play-artx, 0px), var(--mp-play-arty, 0px)) scale(var(--mp-play-arts, 1)); }
+.mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
+.mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
+
+/* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
+.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, 155px)) scale(var(--mp-title-s, 1)); }
+
 /* The tuner panel floats ABOVE the mode picker (z 400) so its sliders are reachable while the cards show. */
 .mptuner-host .sfxmix { z-index: 520; }
 
@@ -6046,15 +6058,24 @@ svg { width: 18px; height: 18px; }
 }
 .mcframe[data-mode='rift'] .mcname, .mcframe[data-mode='rift'] .mctag { border-color: var(--tier-7); }
 
-/* Description — light on the bare background, fading in on hover like the hero power text. Reserved
-   height so the row never jumps. */
+/* Description — now an IN-CARD bar pinned to the bottom of the frame (owner 2026-08-17), over a FROSTED strip:
+   a backdrop-blur + dark gradient frosts the art behind it so the text stays readable whatever the art shows.
+   Always visible (not hover-gated). `cursor: inherit` guards the card's gauntlet pointer — a bare backdrop-filter
+   drops inherited url() cursors in Chromium. */
 .mcdesc {
-  min-height: 90px; max-width: 338px;
-  font-size: 22px; font-weight: 600; line-height: 1.35; color: #efe6d4;
-  opacity: 0; transition: opacity 0.28s ease;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9);
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 10px 16px 12px; border-radius: 0 0 22px 22px;
+  font-size: 18px; font-weight: 700; line-height: 1.25; color: #fff; text-align: center;
+  background: linear-gradient(to top, rgba(6, 9, 16, 0.82) 0%, rgba(6, 9, 16, 0.55) 55%, rgba(6, 9, 16, 0) 100%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.95);
+  cursor: inherit; pointer-events: none;
+  /* HOVER-ONLY (owner 2026-08-18): the frosted caption + blur appear on mouseover, not at rest. */
+  opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0);
+  transition: opacity 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
 }
-.modecard:hover .mcdesc { opacity: 1; }
+.modecard:hover .mcdesc { opacity: 1; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 
 /* TUTORIAL NUDGE overlay (Title `tutorialPrompt`) — a focused card offering the guided course when a new
    player first hits Play. Reuses the modepick backdrop; its own centered card sits on top. */

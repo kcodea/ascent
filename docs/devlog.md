@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-18 — Mode picker: baked layout, in-card frosted captions, art + title tuning
+
+Owner pass on the MODE picker, building on the Play-Screen tuner:
+
+- **Baked the owner-tuned layout** as the shipped defaults (Play ×0.84 low-left, Learn a wide 880×102 bar with a
+  slight art nudge, Practice ×0.84 upper-right, MODE title dropped 155px) — mirrored into both
+  `modePickConfig.ts` defaults and the `.mcframe[data-mp=…]` / `.mptitle` CSS fallbacks, so production matches
+  with no tuner.
+- **Captions moved INTO the card, on hover.** The description is now an in-frame bar pinned to the card's bottom
+  over a **frosted strip** — on mouseover a `backdrop-filter: blur` + dark gradient (masked to fade upward)
+  frosts the art behind the text so it stays readable; at rest the card art is clean (owner: blur on hover only).
+- **New per-card copy:** Play shows the player's live **Rating** (`profile.rating`); Learn = "Tutorial +
+  techniques."; Practice = "More time and unlimited Health."
+- **Art is now pannable/zoomable inside each card** — the art sits in an overflow-clipped wrapper and reads
+  Art Scale / Art X / Art Y from the tuner (new `--mp-<card>-art{s,x,y}` vars), so you can reframe the crop.
+- **The "MODE" title got Scale + X/Y** in the tuner too (`--mp-title-*`).
+
+The Play-Screen tuner now carries 27 controls (8 per card + 3 title). All dev-gated; production keeps the CSS
+fallbacks. Verified live (DOM): captions in-card with `blur(6px)`, correct copy per card, art + title transforms
+respond to their vars. Gates: typecheck, lint (0 errors), build:web; full suite green.
+
 ## 2026-08-17 — Play-Screen Tuner (dev): dial each MODE card's scale / size / position by hand
 
 The mode-picker card layout was hard to land by guessing, so it now has its own dev tuner (same pattern as the

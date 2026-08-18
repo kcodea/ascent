@@ -62,6 +62,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
+  const rating = useGame((s) => s.profile.rating); // shown on the Play card
 
   // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
@@ -233,18 +234,18 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                     <div className="mcname">Rift</div>
                     <span className="mcemblem mcswirl" aria-hidden="true" />
                     <div className="mctag">{rift.name}</div>
+                    <div className="mcdesc">{rift.blurb}</div>
                   </div>
-                  <div className="mcdesc">{rift.blurb}</div>
                 </button>
               )}
               <button className="modecard wide" onClick={onPlay}>
                 <div className="mcframe wide" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
-                    ? <img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} />
+                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
+                  <div className="mcdesc">Rating {rating}</div>
                 </div>
-                <div className="mcdesc">8 players. Last player standing wins.</div>
               </button>
             </div>
 
@@ -255,20 +256,20 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe wide" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
-                    ? <img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} />
+                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
+                  <div className="mcdesc">Tutorial + techniques.</div>
                 </div>
-                <div className="mcdesc">The tutorial and guided lessons — learn how to play.</div>
               </button>
 
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
                 <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
-                    ? <img className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} />
+                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
+                  <div className="mcdesc">More time and unlimited Health.</div>
                 </div>
-                <div className="mcdesc">Choose any hero with unlimited Health and longer shop timers.</div>
               </button>
             </div>
           </div>
@@ -289,18 +290,18 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn">
                   <div className="mcname">Tutorial</div>
                   {modeArt('learn')
-                    ? <img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} />
+                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
+                  <div className="mcdesc">A coached first game — every mechanic, then graduate.</div>
                 </div>
-                <div className="mcdesc">A coached first game — build a warband, learn every mechanic, and graduate.</div>
               </button>
 
               <button className="modecard mclocked" disabled title="More guided lessons are coming soon">
                 <div className="mcframe" data-mode="soon">
                   <div className="mcname">Advanced</div>
                   <span className="mcemblem"><Icon name="clock" /></span>
+                  <div className="mcdesc">Tribes, synergies, tactics. Coming soon.</div>
                 </div>
-                <div className="mcdesc">Deeper lessons — tribes, synergies, and tactics. Coming soon.</div>
               </button>
             </div>
           </div>

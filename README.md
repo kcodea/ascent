@@ -44,6 +44,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Ring FX can be nudged off their anchor** — the workbench's ring (shockwave) layers get **Offset X / Offset Y** sliders, matching the pair burst effects already had. Placement only: it moves where a ring sits without touching its size, shape or expansion.
+
+- **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way.
+
 - **Ale bubbles + committed FX art now ships** — a new bubble burst plays whenever a Dwarf generates a Dwarven Ale (Brunni, Tapkeeper, Doubletap Brewer, Blade Thrower), in both the shop and combat. Under the hood, committed FX art (`fx/defs/art/*.png`) now reaches players instead of falling back to a procedural shape — which also fixes the coin FX's missing coin art in the shipped game.
 
 - **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way. The Reroll crystal drops its cost coin there, since there is no roll to price.

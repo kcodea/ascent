@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-17 — Ring effects can be nudged off their anchor (Offset X / Y)
+
+**`shockwave` (the ring primitive) gains the `offsetX` / `offsetY` placement pair** that
+`burst` / `emitter` / `smoke` have carried since the emission-shape work. The gap was real and easy to miss:
+those three route placement through `emissionOffset`, which shifts where particles are BORN. A ring has no
+spawns — its placement is its mesh position, written in `setHead` — so it was never given the dials, and a
+ring simply could not be moved off its resolved anchor. Surfaced by the owner authoring `shop-buff-aura`
+(three `shockwave` layers plus one `burst`, all on the `camera` anchor): the burst could be nudged into
+place and the rings could not.
+
+Implementation is deliberately small. Two slider specs in the `Ring` group, then one private `place()` that
+is the single writer of `mesh.position` — `headX + offsetX`, `headY + offsetY`. The instance now REMEMBERS
+the anchor `setHead` delivers instead of only consuming it, which is what lets `setParams` re-place on the
+same frame a slider moves; without that, an offset edit would wait on the next `setHead`, and a workbench
+preview sitting on a stationary head would never pick it up at all. The constructor places too, so a layer
+that is never driven still honours the dials. No new uniforms, so `writeAllUniforms`' "every uniform, every
+acquire" contract is untouched.
+
+Two decisions worth recording:
+- **`axis: 'scale'`**, exactly as burst argues it — this is a LENGTH, so it has to ride the same resize as
+  `radius`, or a scaled-down call keeps a full-size displacement and the ring drifts off its anchor.
+- **Range is ±600, not burst's ±200.** A ring is a much bigger object (`radius` reaches 2000 against burst's
+  emit radius of 400) and is routinely `camera`-anchored, where "put it on the shop row" is a screen-scale
+  distance rather than a card-scale one.
+
+Defaults are `0`, so `place()` is an exact IEEE no-op and every shockwave def authored before this sits
+precisely where it always did — the same argument `emissionOffset` makes for the particle primitives. No
+workbench work was needed: `Inspector` renders `specs[key]` generically and falls back to
+`specs[key].default`, so an existing def with no such key loads clean with both dials at 0. `essential: true`
+matches burst's pair, keeping them visible in essentials-only mode.
+
+Verified: `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (343 files, 5562 passed) +
+`npm run build:web`, all green. New tests cover the spec contract (present, `Ring` group, default 0,
+`axis: 'scale'`) and the wiring the spec test cannot see (`place()` is the sole writer of `mesh.position`,
+and all three call sites route through it). No row needed in `ranges.test.ts` — that table freezes
+PRE-widening bounds for params that already existed, and these are new.
+
 ## 2026-08-18 — The Reroll cost coin comes off in combat
 
 Owner call on the open question from #1082: hide it. The coin was the one place the Reroll crystal still

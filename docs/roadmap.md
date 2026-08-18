@@ -245,6 +245,11 @@ it to a moment kind in `score.ts`. Blocking-ish for a serious run: `fxScale` isn
 primitives (a def is the same pixel size on every screen), `playDef` takes no per-call params, and anchors
 are points rather than rectangles.
 
+- **Ring layers can now be placed** (shipped 2026-08-17, while authoring `shop-buff-aura`): `shockwave` gained
+  the `offsetX`/`offsetY` pair the particle primitives already had, so a ring is no longer pinned to its
+  resolved anchor. `ribbon` is the remaining primitive with no placement dials — add the same pair there if a
+  def ever needs an off-anchor trail.
+
 - **Source-attributed buff FX now exist** (shipped 2026-08-10, first used by Karwind → `flame-ring`): a combat
   `buffed` fan-out plays a def on every unit the source empowered, and shop buff moments are split per source so a
   binding keys to the *buffer*. Reusable for other source-driven buffers (Bathing Matriarch, Den Mother auras, …)

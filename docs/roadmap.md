@@ -1083,11 +1083,15 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
     `TutorialController` runtime driven by an action bus + a read-only combat-presentation bus, and a **Learn**
     button on the Title. Verified live: launch → foundation panels → lobby intro → buy/play/Preparation/End
     Turn/Rally/win → Round 2.
-  - **Phase 1 remaining (follow-ups, not blockers):** the interactive order-demo silhouette drag (a
-    read-and-continue panel stands in today), and rounds 8–12 of authoring. DONE since: hard/soft action gates
-    (now per-card for buy/play AND sell), the first-launch welcome prompt, save/resume mid-course, rounds 5–7,
-    and combat tuning — fixed run seed, R1 forced first-strike (Rally payoff), R3 forced enemy target so T-Rex
-    reliably dies for the Echo payoff, and R7's board-space lesson (sell to open a summon slot).
+  - **Phase 1 — COMPLETE (12 rounds authored, playable end to end).** DONE: all coaching + gating (per-card
+    for buy/play/sell), first-launch welcome, save/resume, R1 keystone through R12 graduation. R8 gilding +
+    Discover (Triple Reward), R9 spells, R10–12 supervised independence, and a `TutorialGraduationScreen`
+    hand-off into the real game. Combat tuning: fixed run seed, R1 forced first-strike, R3 forced enemy target
+    (T-Rex dies for the Echo payoff), R7 board-space lesson.
+  - **Phase 1 follow-ups (polish, not blockers):** the interactive order-demo silhouette drag (a
+    read-and-continue panel stands in today); a dedicated **Runeforge round** (deferred — needs the three Basic
+    Rune IDs approved, see "Blocked design work" below); and true free-pool shops for the independence rounds
+    (they use curated scripted offers today).
   - Phases 2–4 author Turns 1–5, 6–10, and autonomy/graduation (~6–8 wk). **Tribe primers (Phases 5–6) and
     Tactical Trials are DEFERRED** — ship Learn Ascent to private testing first.
   - **Blocked design work:** §6.8's three Basic Rune branches need real Rune IDs approved against current

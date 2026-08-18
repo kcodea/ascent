@@ -5,10 +5,12 @@
  * hero (Aster), the per-round omen boards, the scripted shop offers, and the coaching steps — and never fakes an
  * outcome: combat still runs in `simulate`, damage still flows through the lobby (see `lobby/tutorialSeats.ts`).
  *
- * This is a RUNNABLE SLICE: Round 1 is fully coached (the keystone), Rounds 2–4 carry real omen boards + real
- * shop rolls plus a light lesson each, so the tutorial lobby is playable end to end. The full course grows to 12
- * rounds later. Every card id below is a real Set 2 (or carried-over) card — an unknown id renders an empty shop
- * offer, so the ids are the load-bearing part.
+ * The full 12-round course: R1 is the fully-coached keystone; R2–7 teach the fundamentals one card mechanic at a
+ * time (wider board + tavern-up, Echo, Freeze, Shout, Start of Combat, position-dependent synergy + board space);
+ * R8–9 add the two build-defining systems (gilding/triples + the Triple Reward Discover, then spells); and R10–12
+ * hand the wheel to the player (supervised independence) before graduating into the real game. Every card id
+ * below is a real Set 2 (or carried-over) card — an unknown id renders an empty shop offer, so the ids are the
+ * load-bearing part.
  *
  * Vocabulary note: the hero's life total is **Health** (the Resolve → Health rename shipped 2026-08-17). Never
  * print "Resolve" in course copy.
@@ -113,6 +115,8 @@ const CARD_IDS = {
   butcher: 'dm_butcher', // T2 Demon — "Shout: give minions in the Shop +1/+1" (teaches Shout, visible on play)
   wrangler: 'dm_wrangler', // T1 Demon — "Start of Combat: summon an Imp" (teaches Start of Combat)
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
+  blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +5/+6" (teaches buy + cast a spell)
+  tripleReward: 'discoverspell', // the "Triple Reward" token a golden minion grants on play — a Discover (teaches Discover)
 } as const;
 
 /** "End your turn to send your board into battle." Gated to End Turn only. */
@@ -343,6 +347,134 @@ const round7Steps: TutorialStep[] = [
   combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, positioning, board space — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 8 — GILDING + DISCOVER. The two Packstriders from Rounds 1–2 finally meet a third: three copies merge
+// into one GOLDEN, and playing that golden pays a Triple Reward — a Discover. One round, two core systems, both
+// as the natural payoff of a board the player already built.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round8Steps: TutorialStep[] = [
+  {
+    id: 'r8-buy',
+    phase: 'shop', focusMode: 'action', title: 'Complete a Triple',
+    body: 'You have two Packstriders. Buy a THIRD — three copies of a minion merge into one GOLDEN, with double stats and a stronger effect.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }],
+    gate: 'hard', lessonId: 'gild_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.packstrider },
+  },
+  {
+    id: 'r8-play-golden',
+    phase: 'shop', focusMode: 'action', title: 'Play the Golden',
+    body: 'The Golden Packstrider is in your hand. Play it onto your board — and it pays a Triple Reward straight back to your hand.',
+    why: 'A Gold minion is a triple: it saves board space and hits far harder than three loose copies would.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'gild_minion',
+    completion: { kind: 'played', cardId: CARD_IDS.packstrider },
+  },
+  {
+    id: 'r8-discover',
+    phase: 'shop', focusMode: 'action', title: 'Discover a Minion',
+    body: 'That is your Triple Reward. Play it to Discover — pick ONE of three minions to add to your hand.',
+    why: 'Discover lets you choose, not gamble — take the piece that fits your board.',
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.tripleReward }],
+    gate: 'hard', lessonId: 'keyword_discover',
+    completion: { kind: 'played', cardId: CARD_IDS.tripleReward },
+  },
+  {
+    id: 'r8-end',
+    phase: 'shop', focusMode: 'action', title: 'Play It, Then End',
+    body: 'Play the minion you discovered onto your board, then End Turn.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'soft', allowedActionKinds: ['play', 'faceOmen'],
+    completion: { kind: 'endedTurn' },
+  },
+  combatDebriefStep('r8-debrief', 'Golden & Chosen', 'A triple and a Discover — the two ways a board goes from good to great. Click here to return to the shop.'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 9 — SPELLS. A one-shot effect bought from the shop and cast from hand. Blessing is a clean single-target
+// buff, scripted into the minion row so it buys + casts through the normal drag the player already knows.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round9Steps: TutorialStep[] = [
+  {
+    id: 'r9-buy',
+    phase: 'shop', focusMode: 'action', title: 'Buy a Spell',
+    body: 'Buy Blessing. Spells are one-time effects — you buy them like a minion, but they go to your hand to cast.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.blessing }],
+    gate: 'hard', lessonId: 'buy_spell',
+    completion: { kind: 'bought', cardId: CARD_IDS.blessing },
+  },
+  {
+    id: 'r9-cast',
+    phase: 'shop', focusMode: 'action', title: 'Cast It',
+    body: 'Drag Blessing from your hand onto one of your minions to give it +5/+6. Pick your strongest to make it stronger.',
+    why: 'A spell is spent when cast — time it for the minion that turns the fight.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'cast_spell',
+    completion: { kind: 'played', cardId: CARD_IDS.blessing },
+  },
+  endTurnStep('r9-end', 'A spell can swing a fight. End the turn and see.'),
+  combatDebriefStep('r9-debrief', 'Spells', 'Bought like a minion, cast from hand for a burst of value — spells are the flex in any build. Click here to return to the shop.'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Shared builder for the INDEPENDENCE rounds (R10–12): the coach stops locking single actions and lets the
+// player run the whole shop phase themselves — buy / sell / play / refresh / freeze / upgrade / hero-power are
+// ALL allowed, and the step simply advances when they End Turn. (Omitting `allowedActionKinds` would derive a
+// single verb from the `endedTurn` completion and lock everything else — the opposite of what we want here.)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const FREE_VERBS = ['buy', 'sell', 'play', 'roll', 'freeze', 'upgrade', 'heroPower', 'faceOmen'];
+
+/** One self-directed shop phase: a gentle orienting panel, every verb unlocked, advances on End Turn. */
+function freeBuildStep(id: string, title: string, body: string, why?: string): TutorialStep {
+  return {
+    id, phase: 'shop', focusMode: 'orient', title, body,
+    ...(why ? { why } : {}),
+    anchors: [{ kind: 'ui', id: 'shop' }],
+    gate: 'soft',
+    allowedActionKinds: FREE_VERBS,
+    completion: { kind: 'endedTurn' },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Rounds 10–12 — SUPERVISED INDEPENDENCE → GRADUATION. The training wheels come off: the player drives the
+// shop, the coach only frames the goal and reads the result. R12 ends the course and graduates to the real game.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round10Steps: TutorialStep[] = [
+  freeBuildStep(
+    'r10-free',
+    'Your Turn to Drive',
+    'Now you lead. Spend your Gold to strengthen the board — buy, sell, reposition, upgrade — then End Turn when you are happy.',
+    'The best line is yours to find. There is no single right buy — a stronger board is the only goal.',
+  ),
+  combatDebriefStep('r10-debrief', 'Nicely Played', 'That was all you — no prompts, a real decision every step. Click here to return to the shop.'),
+];
+
+const round11Steps: TutorialStep[] = [
+  freeBuildStep(
+    'r11-free',
+    'Push for Tier',
+    'Keep building. If your board is winning, consider upgrading your Tavern for stronger minions; if it is close, add bodies and synergy instead.',
+    'Upgrading trades a turn of strength now for better options later — a core tension you will weigh every game.',
+  ),
+  combatDebriefStep('r11-debrief', 'Reading the Board', 'Upgrade or reinforce — you are already making the calls that decide real games. One more. Click here to return to the shop.'),
+];
+
+const round12Steps: TutorialStep[] = [
+  freeBuildStep(
+    'r12-free',
+    'The Last Round',
+    'Last round of your first game. Build the strongest board you can and send it in — everything you have learned, one final time.',
+  ),
+  // The graduation beat: a warm confirm, then returning to the shop ends the course (the lobby's round cap is
+  // reached) and the tutorial graduation screen takes over. See `EndScreen` / `TutorialGraduationScreen`.
+  combatDebriefStep('r12-debrief', 'You Are Ready', 'That is the whole game: shop, build, position, fight — round after round. You have got it. Click here to finish the tutorial.'),
+];
+
 const turns: TutorialTurn[] = [
   {
     turn: 1,
@@ -432,11 +564,67 @@ const turns: TutorialTurn[] = [
     ],
     steps: round7Steps,
   },
+  {
+    turn: 8,
+    opponentSeatId: 's8',
+    combatSeed: 'learn-ascent-r8',
+    omenBoard: [{ attack: 5, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
+    // Offers the THIRD Packstrider (completes the triple → Golden). Clean fillers, no Ruby/Consume clutter.
+    shopRolls: [
+      { minions: [CARD_IDS.packstrider, 'dm_hank', 'dm_clerk'] },
+    ],
+    steps: round8Steps,
+  },
+  {
+    turn: 9,
+    opponentSeatId: 's9',
+    combatSeed: 'learn-ascent-r9',
+    omenBoard: [{ attack: 6, health: 6 }, { attack: 5, health: 6 }, { attack: 4, health: 5 }, { attack: 4, health: 4 }],
+    // Offers Blessing in the MINION ROW (a spell offer buys/casts through the normal drag). Clean fillers.
+    shopRolls: [
+      { minions: [CARD_IDS.blessing, 'dm_hank', 'k_chipwick'] },
+    ],
+    steps: round9Steps,
+  },
+  {
+    turn: 10,
+    opponentSeatId: 's10',
+    combatSeed: 'learn-ascent-r10',
+    omenBoard: [{ attack: 6, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 5 }],
+    // INDEPENDENCE: a spread of clean minions + a refresh, so the player has real choices to make on their own.
+    shopRolls: [
+      { minions: ['b2_wolvie', 'dm_butcher', 'dm_hank'] },
+      { minions: ['b2_trex', 'dm_clerk', 'k_geode'] },
+    ],
+    steps: round10Steps,
+  },
+  {
+    turn: 11,
+    opponentSeatId: 's11',
+    combatSeed: 'learn-ascent-r11',
+    omenBoard: [{ attack: 7, health: 7 }, { attack: 6, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }],
+    shopRolls: [
+      { minions: ['dm_wrangler', 'b2_wolvie', 'dm_errand'] },
+      { minions: ['dm_butcher', 'dm_hank', 'k_chipwick'] },
+    ],
+    steps: round11Steps,
+  },
+  {
+    turn: 12,
+    opponentSeatId: 's12',
+    combatSeed: 'learn-ascent-r12',
+    omenBoard: [{ attack: 8, health: 8 }, { attack: 7, health: 7 }, { attack: 7, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }],
+    shopRolls: [
+      { minions: ['b2_trex', 'dm_butcher', 'b2_wolvie'] },
+      { minions: ['dm_wrangler', 'dm_clerk', 'k_geode'] },
+    ],
+    steps: round12Steps,
+  },
 ];
 
 /**
- * LEARN ASCENT — the core FTUE course. Aster-only, pinned to Set 2, 4 authored rounds (a runnable slice of the
- * eventual 12). `contentRevision` pins the card slice a drift test guards.
+ * LEARN ASCENT — the core FTUE course. Aster-only, pinned to Set 2, 12 authored rounds (fundamentals → systems →
+ * supervised independence → graduation). `contentRevision` labels the card slice the course was authored against.
  */
 export const LEARN_ASCENT: TutorialCourse = {
   id: 'learn-ascent',
@@ -446,9 +634,9 @@ export const LEARN_ASCENT: TutorialCourse = {
   setId: 'set2',
   heroId: 'aster',
   title: 'Learn Ascent',
-  summary: 'A coached first game — learn to shop, build, position, and win, then bring a synergy engine together.',
-  rounds: 7,
-  opponentNames: ['Rook', 'Vale', 'Mira', 'Flint', 'Ibis', 'Nox', 'Crown'],
+  summary: 'A coached first game — shop, build, position, and win; bring a synergy engine together; triple, Discover, cast a spell; then graduate.',
+  rounds: 12,
+  opponentNames: ['Rook', 'Vale', 'Mira', 'Flint', 'Ibis', 'Nox', 'Crown', 'Bex', 'Halo', 'Dune', 'Wren', 'Sol'],
   foundation: [
     {
       id: 'climb',

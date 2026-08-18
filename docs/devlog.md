@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE rounds 8–12: systems + graduation (the course is complete)
+
+Extends Learn Ascent from 7 to the full **12 rounds**, adding the two build-defining systems and a graduated
+hand-off into the real game. All coached against real Set-2 cards (engine assumptions verified by a new headless
+test, `tutorialCourseFlow.test.ts`), reusing the existing per-action / per-card gate machinery.
+
+- **R8 — Gilding + Discover.** The two Packstriders from R1–2 finally meet a third: buying it forms a **Golden**
+  triple (2× stats), and playing that golden pays a **Triple Reward** — a Discover token to hand. Playing the
+  token opens a pick-1-of-3. One round teaches both systems as the natural payoff of a board the player already
+  built. (Verified: buy-3rd → golden in hand + 2 board copies consumed; play golden → `discoverspell` granted;
+  play it → `s.discover` opens.)
+- **R9 — Spells.** Buy **Blessing** (`sp_blessing`, +5/+6) and cast it on a minion. The spell is scripted into
+  the *minion row* (not the dedicated spell slot), so it buys and casts through the same drag the player already
+  knows — no new gate/anchor plumbing. (Verified: buys to hand, casts for +5/+6, spent on cast.)
+- **R10–12 — Supervised independence → graduation.** The training wheels come off: a new `freeBuildStep`
+  unlocks **every** shop verb (buy/sell/play/refresh/freeze/upgrade/hero-power) and advances on End Turn, so the
+  player runs the whole shop phase themselves with only a framing nudge. R12 ends the course.
+- **Graduation end screen.** A tutorial run carries a lobby, so it reached the placement-based `LobbyEndScreen`
+  — the wrong frame for a course you just *learned*. Added `TutorialGraduationScreen`: "GRADUATED", the warband
+  you built, and one **Enter Ascent** button back to the Title. Verified live in the browser (renders correctly,
+  golden frame on the tripled Packstrider, button returns to Title).
+
+Also extended the gate's per-card lock to cover **sell** (R7 already needed it) and confirmed the `castSpell`
+and `gilded` completion predicates are inert under the current controller — the course completes on `played`
+(spell cast) and `bought` (the third copy) instead, per the mechanics audit.
+
+**Deferred (one owner-design item):** a dedicated **Runeforge** round. The three Basic Rune branches need real
+Rune IDs approved (roadmap "Blocked design work" §6.8), so the course graduates without teaching runes for now —
+a clean follow-up once the runes are chosen.
+
+Gates: typecheck, lint (0 errors), 5564 tests, `build:web` — all green.
+
 ## 2026-08-17 — FTUE combat tuning: scripted first-strike, guaranteed Echo death, and a board-space lesson
 
 Four tutorial-combat fixes so the R1/R3/R7 lessons land deterministically. All levers are **tutorial-only**

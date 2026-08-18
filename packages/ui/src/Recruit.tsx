@@ -1156,7 +1156,9 @@ export function Recruit() {
     // replaced (that watched its own seq). The board is read through `runRef` instead, so it is not a dep.
     // `veinstormFxSeq` is here because Veinstorm now bumps ONLY it (its gemmed offers were pulled out of
     // `rubyLandedFx`), so without it the shop-gem span would never fire.
-  }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq]);
+    // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
+    // so without it here the shop-wide aura would never fire.
+  }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -4548,6 +4550,28 @@ export function Recruit() {
                 return el ? restingCenterOf(el) : null;
               },
               onLand: () => sfx.gemApply(),
+            },
+          );
+        }
+        // The RUN-WIDE shop buff this beat produced (Soul Defiler, Display Curator) — the shop-wide aura, on
+        // the beat, for the same reason the gems are here: the action-level cue only advances once `faceOmen`
+        // commits, by which time the phase has flipped and the shop is gone. `shopBuffAll` is the
+        // `tavernBuyBonus` delta specifically, so a Moira-re-fired Market Tormentor growing ONE offer keeps
+        // its per-offer float above and does not summon the whole-shop aura.
+        if (bfx.shopBuffAll) {
+          runRecruitMomentCues(
+            {
+              kind: 'shopBuffAll',
+              recipients: runRef.current.shop.map((o) => ({ uid: o.uid, count: 1 })),
+              attack: bfx.shopBuffAll.attack,
+              health: bfx.shopBuffAll.health,
+            },
+            {
+              cardIdOf: () => null, // kind-level binding only — the moment is the shop, not a card
+              measure: (uid) => {
+                const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+                return el ? restingCenterOf(el) : null;
+              },
             },
           );
         }

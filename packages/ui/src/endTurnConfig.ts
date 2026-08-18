@@ -151,18 +151,19 @@ const DEFAULTS: EndTurnConfig = {
   strikeRingRadius: 1.5,
   strikeRingLife: 1.05,
   pressedVariant: 3,
-  // Hover tip — owner-tuned by eye in the 💎 tuner (2026-08-17), seated to the RIGHT of the diamond and
-  // pulled up level with it (`tipX` 108, `tipY` -14) rather than hanging underneath. `tipW` 200 is the
-  // TWO-LINE width the owner asked for: box-sizing is border-box, so 200 less the 26px side padding and 2px
-  // border leaves ~144px of text against a ~222px label — one break, balanced into even halves. Widen toward
-  // ~280+ for one line. (Only meaningful because `.etb-tip` sets `width: max-content`; see styles.css.)
-  tipW: 200,
-  tipX: 108,
-  tipY: -14,
+  // Hover tip — owner-approved final (2026-08-17): a narrow TWO-LINE pill tucked just right of the diamond
+  // and level with it. Measured in the running app, not estimated — at `tipW` 128 with 5px side padding both
+  // labels ("End your turn and start combat" / "End combat and go back to shop", natural width ~193px) lay
+  // out 128×60 with 2 client rects. NOTE the margin is thin: 120 tips the first label to THREE lines, so a
+  // font or copy change wants a re-measure. Widen past ~280 for a single line.
+  // (Only meaningful because `.etb-tip` sets `width: max-content` — see the note in styles.css.)
+  tipW: 128,
+  tipX: 91,
+  tipY: -3,
   tipSize: 13.5,
   tipLine: 1.25,
-  tipPadX: 26,
-  tipPadY: 10,
+  tipPadX: 5,
+  tipPadY: 11,
   tipRadius: 11,
 };
 

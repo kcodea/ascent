@@ -536,11 +536,12 @@ the diamond it hangs under.
   governed and the label stacked ONE WORD PER LINE regardless of the dial (owner screenshot). `max-content`
   makes the width the label's natural width, which `max-width` then caps — the same pattern `.tagtip` and
   `.questbadges` already use in this stylesheet, with the reason written out at the latter.
-- **Shipped values are owner-tuned** (💎 tuner, same day): `tipX 108`, `tipY -14`, `tipPadX 26`, `tipPadY 10`
-  seat the pill to the RIGHT of the diamond and level with it rather than hanging beneath; `tipW 200` is the
-  two-line width. MEASURED in the running app rather than estimated: the live pill lays out 200×58 and
-  `Range.getClientRects()` returns 2 — and both labels ("End your turn and start combat" / "End combat and go
-  back to shop", natural width ~193px) break at every width from 180 to 240, going single-line from ~280.
+- **Shipped values are owner-approved** (💎 tuner, same day): `tipW 128`, `tipX 91`, `tipY -3`, `tipPadX 5`,
+  `tipPadY 11` — a narrow two-line pill tucked just right of the diamond and level with it. MEASURED in the
+  running app rather than estimated: both labels ("End your turn and start combat" / "End combat and go back
+  to shop", natural width ~193px) lay out 128×60 with `Range.getClientRects()` returning 2. The margin is
+  thin — 120 tips the first label to THREE lines — so a font or copy change wants a re-measure; past ~280 it
+  goes single-line.
 - **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
   max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
   corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.

@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-17 — Play-Screen Tuner (dev): dial each MODE card's scale / size / position by hand
+
+The mode-picker card layout was hard to land by guessing, so it now has its own dev tuner (same pattern as the
+Layout Lab). Per card — Play, Learn, Practice — a **Scale, Width, Height, X offset and Y offset**, driving
+`--mp-*` custom properties on `:root`. The offsets are a `translate` on each card's frame, so a card moves
+independently without reflowing the others; the transform sits on the frame (inner) so the card's hover-lift
+(outer) still composes. Values persist to localStorage and apply at boot — all dev-gated, so production keeps the
+shipped CSS fallbacks (Play/Learn 660×283 banners, Practice 306×306).
+
+Files: `modePickConfig.ts` (the var set + persistence, mirrors `layoutConfig.ts`), `ModePickTuner.tsx` (the
+schema-driven `TunerPanel`), `data-mp` hooks + `.mcframe[data-mp=…]` CSS reading the vars, and the tuner mounted
+straight into the picker in dev (floating above it at z-520). Verified live: the panel renders with all 15
+controls and moving a value shifts the right card (Practice X −300 → the tile slid left).
+
+Hand-off: dial it in, hit **Copy values** (copies the config JSON to the clipboard), and those numbers get baked
+into the defaults + `styles.css` fallbacks so players see the tuned layout. UI + dev-tooling only; no engine
+change. Gates: typecheck, lint (0 errors), build:web; full test suite green.
+
 ## 2026-08-17 — Learn moves into the mode picker; Play becomes a 21:9 banner; new-player tutorial nudge
 
 Reworks how a player reaches the tutorial (owner direction):

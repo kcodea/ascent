@@ -5983,6 +5983,26 @@ svg { width: 18px; height: 18px; }
 .mcframe.wide { width: 660px; max-width: 92vw; height: auto; aspect-ratio: 1916 / 821; }
 .modecard.wide .mcdesc { max-width: 620px; }
 
+/* PLAY-SCREEN TUNER hooks — each mode card's frame reads its own Scale / Width / Height / X / Y from `--mp-*`
+   custom properties (driven by the dev Play-Screen tuner). The fallbacks ARE the shipped layout, so production
+   (tuner unmounted → vars unset) looks identical. The transform sits on the FRAME (inner), so the card's hover
+   lift (on the outer `.modecard`) composes with it rather than fighting it. `aspect-ratio: auto` lets the
+   explicit Height win over the `.wide` banner ratio. */
+.mcframe[data-mp='play'] {
+  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 283px); aspect-ratio: auto;
+  transform: translate(var(--mp-play-x, 0px), var(--mp-play-y, 0px)) scale(var(--mp-play-s, 1));
+}
+.mcframe[data-mp='learn'] {
+  width: var(--mp-learn-w, 660px); height: var(--mp-learn-h, 283px); aspect-ratio: auto;
+  transform: translate(var(--mp-learn-x, 0px), var(--mp-learn-y, 0px)) scale(var(--mp-learn-s, 1));
+}
+.mcframe[data-mp='practice'] {
+  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 306px); aspect-ratio: auto;
+  transform: translate(var(--mp-practice-x, 0px), var(--mp-practice-y, 0px)) scale(var(--mp-practice-s, 1));
+}
+/* The tuner panel floats ABOVE the mode picker (z 400) so its sliders are reachable while the cards show. */
+.mptuner-host .sfxmix { z-index: 520; }
+
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */
 .modecard.mclocked { cursor: default; opacity: 0.5; }

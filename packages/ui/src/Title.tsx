@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
+import { ModePickTuner } from './ModePickTuner';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -237,7 +238,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </button>
               )}
               <button className="modecard wide" onClick={onPlay}>
-                <div className="mcframe wide" data-mode="lobby">
+                <div className="mcframe wide" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
                     ? <img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} />
@@ -251,7 +252,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 launch a run directly. */}
             <div className="mprow">
               <button className="modecard wide" onClick={() => { sfx.pulse(); setLearnPick(true); }}>
-                <div className="mcframe wide" data-mode="learn">
+                <div className="mcframe wide" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
                     ? <img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} />
@@ -261,7 +262,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
 
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
-                <div className="mcframe" data-mode="practice">
+                <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
                     ? <img className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} />
@@ -271,6 +272,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
+          {/* DEV-only Play-Screen Tuner — floats over the picker so the cards can be dialled in place. */}
+          {import.meta.env.DEV && <div className="mptuner-host"><ModePickTuner /></div>}
         </div>
       )}
 

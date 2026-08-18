@@ -31,6 +31,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'click-puff': ['Recruit.tsx'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
+  'consume-bands': ['Recruit.tsx'],
   'damage-burst': ['Recruit.tsx', 'useCombatReplay.ts'],
   'death-dissolve': ['useCombatReplay.ts'],
   'freeze-blast': ['FreezeButton.tsx'],

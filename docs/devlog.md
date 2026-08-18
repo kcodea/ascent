@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-16 - Shop consume FX: shake + taffy-stretch + pull ghost, synced to a `consume-bands` def
+
+Replaced the old ghost-Fred swirl that played when a shop minion is eaten with a purpose-built "consumed"
+moment: the eaten minion's ghost **shakes**, **taffy-stretches** along the aim axis toward the eater, and is
+**pulled in** as it collapses and fades, synced to a Pixi source→target `consume-bands` def fired at the same
+instant. One GSAP timeline conducts the whole thing — the config's `durationMs` is the clock (default 800ms,
+matched to the def's duration), and its `onUpdate` reads a cached `from`/`to` (the eater is measured **once**
+per eat, never per frame) through the pure `consumeTransform` helper (shake / stretch / thin / pull, plus a
+`showStats` toggle that renders the eaten minion's stats on the ghost).
+
+Because **`playFodderEat` is the single choke point** for every "a minion got eaten" moment — reached from the
+mid-turn watchers, the end-of-turn beat loop, and (remapped) `shopEaten` — the rewire lands ONCE and covers
+**every shop eater automatically**: Bob Blart, Cinder Clerk, Godfodder, the Consume spell, the tavern auto-eat,
+and any future consumer. A **`🍖 Consume FX`** dev tuner (shake amp/freq, stretch, thin, pull distance,
+duration, and the show-stats toggle) drives it live, wired through the standard tuner schema/persist scaffolding.
+
+Scope: shop phase only. Combat consumption and the two `spellDevour`/`orbitDevour` orphans are deliberately
+**out** — there is no `CN`/consume combat event to hang a synced def on.
+
+How verified: unit tests for the pure `consumeTransform` taffy math and the config getter/persist, the
+`fx/directCalls.test.ts` pin updated for the new `consume-bands` literal call site, and the full gate suite
+(typecheck + lint + test + build:web) green. The live in-shop visual and the real `consume-bands` energy-bands
+look are owner-run in the FX workshop.
+
+Follow-ups: the owner authors the real `consume-bands` def in the workshop (the committed one is a placeholder,
+duration-matched to `durationMs`); `holdFodderGains`' stat-reveal timing (~90ms — the beat where the eater's
+buffed stats commit) may want re-aligning once the final `durationMs` is locked in.
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 
 A broad owner balance pass across Set 1 + Set 2.

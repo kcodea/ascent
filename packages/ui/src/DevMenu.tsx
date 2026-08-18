@@ -20,6 +20,7 @@ import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
+import { ConsumeFxTuner } from './ConsumeFxTuner';
 import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
@@ -162,6 +163,7 @@ const GROUPS: Group[] = [
       { key: 'herobufffx', icon: '🎆', label: 'Hero Buff Flash', C: HeroBuffFxTuner, hint: 'The shard blast and ripple over the hero portrait' },
       { key: 'aurafx', icon: '🌊', label: 'Aura Wave', C: AuraFxTuner, hint: 'The run-wide tribe-aura wave across the board' },
       { key: 'infusefx', icon: '🍖', label: 'Fodder Infusion', C: InfuseFxTuner, hint: 'The tendrils that send Fodder to the shop', alt: 'consume' },
+      { key: 'consumefx', icon: '🍖', label: 'Consume FX', C: ConsumeFxTuner, hint: 'The eaten-minion shake / taffy / pull + bands' },
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
     ],
   },

@@ -68,6 +68,8 @@ import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxCon
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
+import { getConsumeFxConfig } from './consumeFxConfig';
+import { consumeTransform } from './fx/consumeTransform';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
 import { playPlateGild } from './plateGild';
@@ -3496,10 +3498,11 @@ export function Recruit() {
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
   const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
     let raf = 0;
+    let startRaf = 0;
     let tries = 0;
     let t = 0;
-    let crumbleT = 0;
     let wiggleT = 0;
+    const tweens: gsap.core.Tween[] = [];
     const seq = key;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
@@ -3528,40 +3531,59 @@ export function Recruit() {
         return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
-      const CRUMBLE_MS = FODDER_CRUMBLE_MS;
-      const icfg = getInfuseFxConfig();
-      // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
-      // pulse doubling as the card's burst-into-energy.
-      crumbleT = window.setTimeout(() => {
-        for (const g of ghosts) {
+      // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
+      // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
+      // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-
+      // authored `consume-bands` def, fired at the SAME instant each ghost's timeline starts so the bands and
+      // the pull share one clock (`cfg.durationMs`). Every value is read LIVE from the 🍖 consume tuner.
+      const cfg = getConsumeFxConfig();
+      // Who reacts as the pull lands — summed per eater (one Demon can eat several Fodder). The eater's stat
+      // WITHHOLD is deliberately NOT placed here (see `holdFodderGains`): it must ride the commit that raises
+      // the value, and this function can run ~0.65s late off its retry loop.
+      const keyed = fodderGainHolds(events);
+      // Wait one frame so the ghosts are mounted (queryable by `data-gidx`), then fire the def + start the
+      // per-ghost taffy timeline on the SAME frame.
+      startRaf = requestAnimationFrame(() => {
+        ghosts.forEach((g, i) => {
           const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };
           const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
-          pixiFx.buffTendril(from, to, {
-            blend: 'add', curve: icfg.curve * 0.6, wobbleAmp: icfg.wobbleAmp, wobbleFreq: icfg.wobbleFreq,
-            travelMs: icfg.travelMs, retractMs: icfg.retractMs,
-            baseWidth: icfg.baseWidth, tipWidth: icfg.tipWidth, coreAlpha: icfg.coreAlpha,
-            glowWidth: icfg.glowWidth, glowAlpha: icfg.glowAlpha,
-            flashSize: icfg.flashSize, flashMs: icfg.flashMs,
-            moteCount: icfg.moteCount, moteSpeed: icfg.moteSpeed, moteLife: icfg.moteLife,
-            pulseSize: icfg.pulseSize, pulseAlpha: icfg.pulseAlpha, pulseMs: icfg.pulseMs,
-            colorCore: icfg.colorCore, colorGlow: icfg.colorGlow, colorFlash: icfg.colorCore, colorMote: icfg.colorGlow,
+          // The authored bands whip from the ghost into ITS eater — fired at t=0 of the ghost's pull.
+          playDef(
+            'consume-bands',
+            { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+            { uids: { source: g.eaterUid, target: g.eaterUid } },
+          );
+          const el = document.querySelector<HTMLElement>(`.fodderghost[data-gidx="${i}"]`);
+          if (!el) return;
+          // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD — the bottom leads toward the eater while
+          // the top stays put, then the whole card translates in. No rotation: the card never tilts.
+          el.style.transformOrigin = '50% 0%';
+          const shakePhase = 0.28; // first ~28% is the shake, then stretch + pull take over
+          const tw = gsap.to(el, {
+            duration: cfg.durationMs / 1000,
+            ease: 'none',
+            onUpdate: function () {
+              const tp = this.progress();
+              const tf = consumeTransform(from, to, tp, cfg);
+              // Decaying jitter over the shake phase, layered on the deterministic taffy transform.
+              const s = tp < shakePhase ? 1 - tp / shakePhase : 0;
+              const jx = s * cfg.shakeAmp * Math.sin(tp * cfg.shakeFreq * Math.PI * 2);
+              const jy = s * cfg.shakeAmp * Math.cos(tp * cfg.shakeFreq * Math.PI * 2 * 1.3);
+              el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) scale(${tf.scaleX}, ${tf.scaleY})`;
+              el.style.opacity = String(tp < 0.85 ? 1 : (1 - tp) / 0.15);
+            },
+            onComplete: () => { el.style.opacity = '0'; },
           });
-        }
-      }, CRUMBLE_MS);
-      // Who reacts as the tendril lands — summed per eater (one Demon can eat several Fodder).
-      //
-      // The eater's stat WITHHOLD is deliberately not placed here any more. It has to go in the same commit
-      // that raises the value (see `holdFodderGains`); this function is reached from a passive effect and
-      // from the End-of-Turn beat loop, and its retry loop above can run ~0.65s late — by which point the
-      // badge has long since printed the new number and a fresh hold would snap it BACKWARDS to pre-buff.
-      const keyed = fodderGainHolds(events);
+          tweens.push(tw);
+        });
+      });
       wiggleT = window.setTimeout(() => {
         // The `+X/+X` float was CUT (2026-08-04): the badge carries the readout now, scheduled to this same
         // arrival. This was the LAST `+X/+X` float in the game; the combat one went in
         // `choreo/channels/float.ts` and the generic recruit one went with the intrinsic roll.
-        // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
+        // Impact wiggle: the eater physically reacts as the pull lands (owner ask 2026-07-16) — a quick
         // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
         for (const k of keyed) {
           const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
@@ -3574,11 +3596,17 @@ export function Recruit() {
             ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
           } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
         }
-      }, CRUMBLE_MS + icfg.travelMs); // the tendril's arrival
-      t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
+      }, cfg.durationMs); // the pull's arrival
+      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150); // the ghost is gone by here
     };
     tryShow();
-    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(wiggleT); };
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (startRaf) cancelAnimationFrame(startRaf);
+      window.clearTimeout(t);
+      window.clearTimeout(wiggleT);
+      for (const tw of tweens) tw.kill();
+    };
   }, []);
 
   /**
@@ -5430,10 +5458,12 @@ export function Recruit() {
             keywords: def.keywords, text: def.text, tier: def.tier,
             baseAttack: def.attack, baseHealth: def.health, // so a buffed Fred reads its gain in green
           };
+          const showStats = getConsumeFxConfig().showStats;
           return (
             <div
               key={`${fodderAnim.key}-${i}`}
-              className="fodderghost"
+              className={`fodderghost${showStats ? '' : ' nostats'}`}
+              data-gidx={i}
               style={{ left: g.x0, top: g.y0, width: g.w, height: g.h } as CSSProperties}
               aria-hidden="true"
             >

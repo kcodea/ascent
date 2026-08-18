@@ -1265,7 +1265,7 @@ export function Recruit() {
   const [fodderAnim, setFodderAnim] = useState<
     {
       key: number;
-      ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; eaterUid: string }[];
+      ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; eaterUid: string; fromSlot: boolean }[];
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
@@ -1421,6 +1421,22 @@ export function Recruit() {
   // eater's beat so they visibly leave in real time, instead of snapping out only at commit (owner report
   // 2026-08-14). Cleared when the animation completes; the committed state has already removed them by then.
   const [eotConsumedUids, setEotConsumedUids] = useState<ReadonlySet<string>>(new Set());
+  // A consumed SHOP minion's slot is HELD OPEN (an invisible placeholder) until its ghost has flown into the
+  // eater, so the survivors reflow AFTER the card leaves rather than the instant the consume commits (owner ask
+  // 2026-08-17). `heldConsume` is the eaten uids + their pre-removal slot index; `heldConsumeSeq` gates the
+  // derive-during-render that seeds it from `run.shopEaten`. Declared here (not by the shop row below) because
+  // `displayShop` reads it. The paired `shopRectsRef` snapshot (whose `cur` still holds the pre-removal layout
+  // while the slot is held) supplies the index + the ghost's launch rect.
+  const [heldConsume, setHeldConsume] = useState<{ uid: string; index: number }[]>([]);
+  const [heldConsumeSeq, setHeldConsumeSeq] = useState(run.shopEatenSeq);
+  // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
+  // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
+  // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
+  // Layout effects run BEFORE passive effects, so on the consume commit this swaps `cur`→`prev` (capturing the
+  // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads it to find the eaten card's real slot.
+  // While the slot is HELD (flipKey unchanged), this effect does not run, so `cur` still holds the pre-removal
+  // layout — the launch read below falls back to `cur` for exactly that case.
+  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
   // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
   // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
   // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
@@ -1603,6 +1619,7 @@ export function Recruit() {
     setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
     setEotShopStats(null); // shop-buff climb is committed too — the real offers now carry it
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
+    setHeldConsume([]); // and never carry a held (invisible) consumed slot into combat / the next shop
     setCombatStage('closing');
     setEndTurnFlash(true);
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
@@ -3485,6 +3502,8 @@ export function Recruit() {
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
   const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
     let raf = 0;
+    let flyRaf = 0;
+    const flyAnims: Animation[] = [];
     let tries = 0;
     let t = 0;
     let crumbleT = 0;
@@ -3509,16 +3528,44 @@ export function Recruit() {
         // `uid`; a Fodder token has none, and an unmeasured slot (a consume before the shop laid out) also misses:
         // both fall back to the original fanned row-centre, hovering just above the shop line.
         const uid = (ev as { uid?: string }).uid;
-        const snap = uid ? shopRectsRef.current.prev.get(uid) : undefined;
+        // `prev` after a swap (the no-hold path), else `cur` — which still holds the pre-removal layout while
+        // the slot is held (that commit left `flipKey` unchanged, so the snapshot effect never swapped).
+        const snap = uid ? (shopRectsRef.current.prev.get(uid) ?? shopRectsRef.current.cur.get(uid)) : undefined;
         const gw = snap?.w ?? w;
         const gh = snap?.h ?? h;
         const x0 = snap ? snap.cx - gw / 2 : rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72) - w / 2;
         const y0 = snap ? snap.cy - gh / 2 : rr.top - h * 0.62;
-        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid, fromSlot: !!snap };
       });
       setFodderAnim({ key: seq, ghosts });
       const CRUMBLE_MS = FODDER_CRUMBLE_MS;
       const icfg = getInfuseFxConfig();
+      // Part 2b — a consumed SHOP card physically FLIES out of its own slot into the eater (then fades),
+      // instead of the old pop-and-sink in place. Only ghosts launched from a real slot (`fromSlot`) travel;
+      // a Tavern Fodder token keeps its pop. WAAPI transform (composes with the ghost's inline left/top and
+      // isn't clobbered by React re-renders); measured on a rAF so the ghost + eater are laid out. The travel
+      // lands at `CRUMBLE_MS + travelMs` — the same instant the tendril arrives and the eater gulps, and the
+      // instant the held slot is released, so the card's disappearance and the row closing read as one motion.
+      const FLY_MS = CRUMBLE_MS + icfg.travelMs;
+      flyRaf = requestAnimationFrame(() => {
+        for (let gi = 0; gi < ghosts.length; gi++) {
+          const g = ghosts[gi];
+          if (!g.fromSlot) continue;
+          const el = document.querySelector<HTMLElement>(`.fodderghost[data-gk="${seq}-${gi}"]`);
+          if (!el) continue;
+          const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          const er = eaterEl?.getBoundingClientRect();
+          const dx = er ? er.left + er.width / 2 - (g.x0 + g.w / 2) : 0;
+          const dy = er ? er.top + er.height / 2 - (g.y0 + g.h / 2) : 240;
+          try {
+            flyAnims.push(el.animate([
+              { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+              { transform: `translate(${dx * 0.5}px, ${dy * 0.5}px) scale(0.8)`, opacity: 1, offset: 0.55 },
+              { transform: `translate(${dx}px, ${dy}px) scale(0.26)`, opacity: 0 },
+            ], { duration: FLY_MS, easing: 'cubic-bezier(0.4, 0, 0.9, 0.55)', fill: 'forwards' }));
+          } catch { /* WAAPI unsupported: the ghost still clears via the fodderAnim-null timeout below */ }
+        }
+      });
       // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
       // pulse doubling as the card's burst-into-energy.
       crumbleT = window.setTimeout(() => {
@@ -3567,7 +3614,12 @@ export function Recruit() {
       t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
     };
     tryShow();
-    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(wiggleT); };
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (flyRaf) cancelAnimationFrame(flyRaf);
+      for (const a of flyAnims) { try { a.cancel(); } catch { /* already finished */ } }
+      window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(wiggleT);
+    };
   }, []);
 
   /**
@@ -3650,6 +3702,17 @@ export function Recruit() {
     return playFodderEat(events, run.shopEatenSeq);
   }, [run.shopEatenSeq]);
 
+  // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has reached the eater — the same
+  // instant the eater gulps (`FODDER_CRUMBLE_MS + travelMs`, the ghost fly's total). Dropping them here changes
+  // `flipKey`, which fires the committed-move FLIP branch and glides the survivors closed from where they were
+  // holding. Keyed on the array ref: seeding it re-arms the timer, clearing it (to `[]`) re-runs to a no-op.
+  useEffect(() => {
+    if (!heldConsume.length) return;
+    const ms = FODDER_CRUMBLE_MS + getInfuseFxConfig().travelMs;
+    const timer = window.setTimeout(() => setHeldConsume([]), ms);
+    return () => window.clearTimeout(timer);
+  }, [heldConsume]);
+
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
   // and an empty drop-slot opens at the live insertion point while over the warband.
@@ -3691,7 +3754,34 @@ export function Recruit() {
     [displayBoard],
   );
   const draggingShop = !!drag?.active && drag.source === 'shop';
-  const displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
+  // HOLD the consumed slot open (Part 2 of the consume-slide). The sim splices the eaten offer from `run.shop`
+  // in the same commit that bumps `shopEatenSeq`, so a naive `displayShop` loses the slot immediately and FLIP
+  // reflows the survivors AT ONCE. Instead, on the commit that raises the seq we derive the eaten uids + their
+  // pre-removal slot index (read from `shopRectsRef.cur`, still the pre-removal layout at this point in render)
+  // and re-inject an invisible placeholder at that index — so `flipKey` is byte-identical to the pre-consume
+  // frame and nothing reflows. A timer (below) clears `heldConsume` once the ghost has flown into the eater,
+  // and only THEN does the slot drop and the survivors glide closed. Derive-during-render (not an effect) is
+  // required: a passive effect would run AFTER the FLIP layout effect had already animated the reflow.
+  if (run.shopEatenSeq !== heldConsumeSeq) {
+    setHeldConsumeSeq(run.shopEatenSeq);
+    const order = [...shopRectsRef.current.cur.keys()];
+    const fresh = (run.shopEaten ?? [])
+      .map((e) => ({ uid: e.uid, index: order.indexOf(e.uid) }))
+      .filter((h) => h.index >= 0);
+    if (fresh.length) setHeldConsume((prev) => {
+      const seen = new Set(prev.map((h) => h.uid));
+      return [...prev, ...fresh.filter((h) => !seen.has(h.uid))];
+    });
+  }
+  const heldUids = heldConsume.length ? new Set(heldConsume.map((h) => h.uid)) : null;
+  let displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
+  if (heldConsume.length) {
+    const arr = [...displayShop];
+    for (const h of [...heldConsume].sort((a, b) => a.index - b.index)) {
+      if (!arr.some((o) => o.uid === h.uid)) arr.splice(Math.min(h.index, arr.length), 0, { uid: h.uid } as (typeof run.shop)[number]);
+    }
+    displayShop = arr;
+  }
   // SANDBOX ONLY: the pinned opponent board (if any) for the CURRENT wave, and the click handler that opens
   // the unit editor on one of its slots. Mirrors `sbEditing`'s uid+rect pattern, but keyed by index — a
   // `BoardSnapshot`'s minions are a plain array with no uid of their own.
@@ -3786,12 +3876,7 @@ export function Recruit() {
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
     displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
-  // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
-  // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
-  // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
-  // Layout effects run BEFORE passive effects, so on the consume commit this swaps `cur`→`prev` (capturing the
-  // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads `prev` to find the eaten card's real slot.
-  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
+  // Snapshot each shop card's centre + size (declared above, near the consume state that also reads it).
   useLayoutEffect(() => {
     const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
     for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
@@ -5052,6 +5137,12 @@ export function Recruit() {
             <Fragment key={o.uid}>
               {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
                   (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
+              {heldUids?.has(o.uid) ? (
+                // A just-consumed slot, held open (invisible, opacity 0 via `dragsrc`) so the survivors don't
+                // reflow until the ghost has flown into the eater. `.card.compact` gives it the exact slot
+                // width; `data-uid` keeps FLIP counting it, so `flipKey` is unchanged and nothing moves yet.
+                <div className="card compact dragsrc" data-uid={o.uid} aria-hidden="true" />
+              ) : (
               <Card
                 uid={o.uid}
                 slideDir={shopSlide(i)}
@@ -5068,6 +5159,7 @@ export function Recruit() {
                 suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
+              )}
             </Fragment>
           ))}
           {run.spell && (
@@ -5391,7 +5483,8 @@ export function Recruit() {
           return (
             <div
               key={`${fodderAnim.key}-${i}`}
-              className="fodderghost"
+              data-gk={`${fodderAnim.key}-${i}`}
+              className={`fodderghost${g.fromSlot ? ' flyeat' : ''}`}
               style={{ left: g.x0, top: g.y0, width: g.w, height: g.h } as CSSProperties}
               aria-hidden="true"
             >

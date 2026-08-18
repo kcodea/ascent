@@ -44,6 +44,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **A consumed shop card flies into the eater, then the row closes** — when a Set-2 Demon consumes a shop
+  minion, the card now physically flies out of its own slot into the eater and fades (instead of popping in
+  place), and the surviving offers slide to close the gap only *after* it has left, not the instant the
+  consume commits. (Builds on the earlier fix that launched the ghost from the card's real slot.)
+
 - **Ale bubbles + committed FX art now ships** — a new bubble burst plays whenever a Dwarf generates a Dwarven Ale (Brunni, Tapkeeper, Doubletap Brewer, Blade Thrower), in both the shop and combat. Under the hood, committed FX art (`fx/defs/art/*.png`) now reaches players instead of falling back to a procedural shape — which also fixes the coin FX's missing coin art in the shipped game.
 
 - **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way. The Reroll crystal drops its cost coin there, since there is no roll to price.

@@ -2570,6 +2570,10 @@ body.modalup .app { z-index: auto; }
    as the purple energy burst + tendril take over (fired from JS at the 65% mark, CRUMBLE_MS). One-shot,
    transform/opacity only. (The old 2.2s swirl-and-fly + orbiting orbs retired.) */
 .fodderghost { position: fixed; z-index: 120; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderpop 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+/* A consumed SHOP card flies out of its own slot into the eater (Recruit.tsx drives the WAAPI transform), so it
+   must NOT also run the in-place pop-and-sink keyframe — the two would fight over `transform`. It starts fully
+   visible (it was the card sitting there) and the JS animation owns the motion. */
+.fodderghost.flyeat { animation: none; opacity: 1; }
 .fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
 @keyframes fodderpop {
   0% { transform: translateY(-34px) scale(0.3); opacity: 0; }

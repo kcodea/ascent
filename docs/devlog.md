@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-17 — Consume Part 2: the eaten shop card flies into the eater, and the row closes *after* it leaves
+
+Part 2 of the shop-consume slide (Part 1 shipped the ghost's launch point in #1078). Two coupled changes to
+the shop-minion consume (Set 2's Demons eating a shop card):
+
+- **The consumed card now physically flies out of its own slot into the eater**, then fades — instead of the
+  old pop-and-sink-in-place. `playFodderEat` drives a WAAPI transform on the ghost (`.fodderghost.flyeat`,
+  which has the in-place `fodderpop` keyframe switched off so the two don't fight over `transform`) measured on
+  a rAF from the ghost's launch rect to the eater's live centre, scaling to ~0.26 and fading, landing at
+  `FODDER_CRUMBLE_MS + travelMs` — the same instant the infuse tendril arrives and the eater gulps. Only ghosts
+  launched from a real slot (`fromSlot`) travel; a Tavern Fodder token keeps its existing pop.
+- **The survivors now reflow only AFTER the card has left**, not the instant the consume commits. The sim
+  splices the eaten offer from `run.shop` in the same commit that bumps `shopEatenSeq`, so `displayShop` used to
+  lose the slot immediately and GSAP FLIP closed the gap at once. Now, on that commit, a derive-during-render
+  step reads the eaten uid + its pre-removal slot index (from `shopRectsRef.cur`, still the pre-removal layout
+  at that point) and re-injects an **invisible placeholder** (`.card.compact.dragsrc`, `data-uid` intact) at
+  that index — so `flipKey` is byte-identical to the pre-consume frame and *nothing reflows*. A timer clears the
+  hold at `FODDER_CRUMBLE_MS + travelMs` (the fly's landing); only then does the slot drop, `flipKey` change,
+  and the committed-move FLIP branch glide the survivors closed from where they were holding.
+
+Why derive-during-render rather than an effect: a passive effect runs AFTER the FLIP layout effect, so the
+reflow would already have animated before the placeholder could hold the slot. Setting the hold state during
+render (guarded on `shopEatenSeq`) puts the placeholder in the very first committed frame. The Part 1 launch
+read now falls back `prev ?? cur`, because a held commit leaves `flipKey` unchanged so the snapshot effect
+never swaps `cur`→`prev`.
+
+Verified: typecheck (pkgs + web), lint (0 errors), full test suite (5560 pass), and `build:web` all green.
+Live consume feel checked by the owner on the branch dev server.
 ## 2026-08-18 — The Reroll cost coin comes off in combat
 
 Owner call on the open question from #1082: hide it. The coin was the one place the Reroll crystal still

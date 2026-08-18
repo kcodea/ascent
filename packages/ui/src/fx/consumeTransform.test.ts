@@ -47,8 +47,8 @@ describe('consumeTransform — pulled from the bottom', () => {
 });
 
 describe('consumeFxConfig', () => {
-  it('ships with stats on and returns the documented keys', () => {
-    expect(CONSUMEFX_DEFAULTS.showStats).toBe(true);
+  it('ships with stats OFF and returns the documented keys', () => {
+    expect(CONSUMEFX_DEFAULTS.showStats).toBe(false);
     const cfg = getConsumeFxConfig();
     expect(Object.keys(cfg).sort()).toEqual(
       ['durationMs', 'lag', 'pullDist', 'shakeAmp', 'shakeFreq', 'showStats', 'stretch', 'thin'].sort(),

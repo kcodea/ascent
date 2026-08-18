@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-18 — Ultrawide side margins blend into the board instead of showing tan
+
+The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side
+margins on ultrawide monitors (owner report, a friend's 21:9). Resolves the open roadmap item.
+
+`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#342c5b — the ambient
+the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (110px × --scale) so
+the margin colour and the art meet seamlessly rather than at a hard line. The fade's inner stop uses
+`--board-edge-col-0` — the same colour at 0 alpha — instead of the `transparent` keyword, which would
+interpolate through transparent-black and leave a grey fringe.
+
+**Self-gating, so it costs nothing below ultrawide.** The gradient's fade points are pinned to the art's REAL
+left/right edges, computed from a new shared `--_board-w` (the same size formula the art layer now also reads,
+so the seam can't drift from the art). On a ≤16:9 window the board overspills the viewport (board-zoom 1.25), so
+those edges sit off-screen and the entire visible strip computes transparent — no media query needed, and it
+tracks the art automatically if the zoom/fill/aspect ever change. Verified by the edge geometry: at 16:9 the art
+edges land at −333px / 2893px (off-screen, blend transparent); at 21:9 they land at 107px / 3333px (≈107px
+blended margins each side); at 32:9, ≈947px each side.
+
+`--board-edge-col` / `--board-edge-fade` are tunable if the colour or blend softness wants adjusting. Verified:
+`build:web` green; the live `.boardbg` computed background now carries scrim + blend + art + fill with the
+colour present. Final look is the owner's call on their friend's actual ultrawide.
+
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 
 A broad owner balance pass across Set 1 + Set 2.

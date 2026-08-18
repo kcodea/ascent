@@ -21,9 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-- **Decide what the ultrawide side margins show.** The default board is now 16:9, so on a window wider than
-  that the margins fall back to flat `--bg` where the old 21:9 art used to bleed floor into them. Options: a
-  painted extension on the art, a tuned vignette/gradient, or letting the stage letterbox deliberately.
 
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).

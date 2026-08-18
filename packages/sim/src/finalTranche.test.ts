@@ -213,8 +213,11 @@ describe('hero disables (owner 2026-07-28)', () => {
 });
 
 describe('"Shop spells" wording ruling (owner 2026-07-27)', () => {
-  it('a card that grants a random spell says "Shop spell" — Rubies are never in that pool', () => {
-    expect(CARD_INDEX['d2_chronicler']!.text).toMatch(/Shop spell/i);
+  it('a card that grants a random spell names a Tier (owner balance 2026-08-18) — Rubies are never in that pool', () => {
+    // Scalefeather now grants a random TIER-1 spell rather than "a random Shop spell"; the Tier-scoped pool
+    // still excludes Rubies, which is the point of the ruling.
+    expect(CARD_INDEX['d2_chronicler']!.text).toMatch(/Tier 1.*Spell/i);
+    expect(CARD_INDEX['d2_chronicler']!.text).not.toMatch(/Ruby/i);
   });
 
   it('a card that raises spell power says it too', () => {

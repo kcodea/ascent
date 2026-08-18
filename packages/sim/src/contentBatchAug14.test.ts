@@ -33,9 +33,9 @@ describe('Grobbus — Avenge (3) grants a random Demon', () => {
     makeRng(7), CARD_INDEX, combatSide({ tier: 4, tribes: ['demon'] }), combatSide({ tier: 1 }),
   );
 
-  it('the card is a T4 5/5 Demon with no keyword pill', () => {
+  it('the card is a T4 3/6 Demon with no keyword pill', () => {
     const def = CARD_INDEX['dm_grobbus']!;
-    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 5, 5, 'demon']);
+    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 3, 6, 'demon']); // owner balance 2026-08-18
     expect(def.keywords, 'Avenge carries no pill, matching the other Avenge cards').toEqual([]);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_grobbus'), 'buyable in set 2').toBe(true);
   });
@@ -75,21 +75,21 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
     makeRng(5), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
   );
 
-  it('the card is a T4 4/5 Dragon with Ward', () => {
+  it('the card is a T4 3/4 Dragon with Ward', () => {
     const def = CARD_INDEX['d2_transcendence']!;
-    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 4, 5, 'dragon']);
+    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 3, 4, 'dragon']); // owner balance 2026-08-18
     expect(def.keywords, 'Ward + the Start-of-Combat pill').toEqual(['DS', 'SC']);
     expect(poolFor('set2').all.some((c) => c.id === 'd2_transcendence'), 'buyable in set 2').toBe(true);
   });
 
-  it('every Dragon gets +3/+3 — the Beast gets nothing', () => {
+  it('every OTHER Dragon gets +2/+3 — the Beast gets nothing', () => {
     // The sim renumbers minions by board position (m0 = L, m1 = Transcendence, m2 = R, m3 = F); only the
-    // carry-back fields keep the authored `sourceUid`.
+    // carry-back fields keep the authored `sourceUid`. (owner balance 2026-08-18: +3/+3 → +2/+3, excludeSelf)
     const buffs = fight().events.filter((e) => e.type === 'buff') as
       { target: string; source: string; attack: number; health: number }[];
     const from = (uid: string) => buffs.filter((b) => b.source === 'm1' && b.target === uid);
-    expect(from('m0').some((b) => b.attack === 3 && b.health === 3), 'the adjacent Dragon was not buffed').toBe(true);
-    expect(from('m3').some((b) => b.attack === 3 && b.health === 3), 'the far Dragon was not buffed').toBe(true);
+    expect(from('m0').some((b) => b.attack === 2 && b.health === 3), 'the adjacent Dragon was not buffed').toBe(true);
+    expect(from('m3').some((b) => b.attack === 2 && b.health === 3), 'the far Dragon was not buffed').toBe(true);
     expect(from('m2').length, 'the adjacent Beast must not be buffed — Dragons only').toBe(0);
   });
 
@@ -119,8 +119,8 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
       makeRng(6), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
     );
     const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
-    // Both Transcendants buff every Dragon, so `L` keeps +6/+6 — two separate grants, both engraved by the aura.
-    expect(kept.get('L')?.attack, 'the neighbour should keep BOTH Start-of-Combat buffs').toBe(6);
+    // Both Transcendants buff every Dragon, so `L` keeps +4/+6 — two separate grants, both engraved by the aura.
+    expect(kept.get('L')?.attack, 'the neighbour should keep BOTH Start-of-Combat buffs').toBe(4);
     expect(kept.get('L')?.engraved, 'the carry-back entry must be flagged Engraved').toBe(true);
     expect(kept.has('F'), 'F is buffed twice but adjacent to neither — it keeps nothing').toBe(false);
   });
@@ -135,7 +135,7 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
       makeRng(7), CARD_INDEX, combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }),
     );
     const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
-    expect(kept.get('P')?.attack, 'Paragon should keep the +3/+3 like any adjacent Dragon').toBe(3);
+    expect(kept.get('P')?.attack, 'Paragon should keep the +2/+3 like any adjacent Dragon').toBe(2);
     expect(kept.get('P')?.engraved).toBe(true);
   });
 
@@ -147,18 +147,18 @@ describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat bu
       [{ cardId: 'sandbag', attack: 0, health: 40000 }],
       makeRng(8), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }),
     );
-    // Plain: +3/+3 lands as +3/+3. Golden: the grant is +6/+6 AND the neighbour's gains are doubled → +12/+12.
+    // Plain: +2/+3 lands as +2/+3. Golden: the grant is +4/+6 AND the neighbour's gains are doubled → +8 atk.
     const keptOf = (g: boolean) => (layout(g).playerPermaBuffs ?? []).find((p) => p.sourceUid === 'L');
-    expect(keptOf(false)?.attack, 'plain Transcendant grants +3/+3').toBe(3);
-    expect(keptOf(true)?.attack, 'golden: +6/+6 doubled again by the 2x aura').toBe(12);
+    expect(keptOf(false)?.attack, 'plain Transcendant grants +2/+3').toBe(2);
+    expect(keptOf(true)?.attack, 'golden: +4/+6 doubled again by the 2x aura').toBe(8);
   });
 
   it('golden doubles the buff and its neighbours gains, but never widens the Engrave', () => {
     const buffs = fight(true).events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number }[];
-    // The FAR Dragon shows the raw golden grant: +6/+6. The adjacent one is inside the 2x aura, so the same
-    // grant lands on it as +12/+12 — the two upgrades compose exactly as the card text reads.
-    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm3' && b.attack === 6), 'golden should give +6/+6').toBe(true);
-    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 12), 'doubled again for a neighbour').toBe(true);
+    // The FAR Dragon shows the raw golden grant: +4/+6. The adjacent one is inside the 2x aura, so the same
+    // grant lands on it as +8 atk — the two upgrades compose exactly as the card text reads.
+    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm3' && b.attack === 4), 'golden should give +4/+6').toBe(true);
+    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 8), 'doubled again for a neighbour').toBe(true);
     const kept = new Set((fight(true).playerPermaBuffs ?? []).map((p) => p.sourceUid));
     expect(kept.has('F'), 'golden must not widen the Engrave beyond the neighbours').toBe(false);
   });
@@ -180,9 +180,9 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
     (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0' && b.attack === per && b.health === per);
 
-  it('the card is a T4 4/4 Dwarf', () => {
+  it('the card is a T4 5/5 Dwarf', () => {
     const def = CARD_INDEX['dw_oaf']!;
-    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 4, 4, 'dwarf']);
+    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 5, 5, 'dwarf']); // owner balance 2026-08-18
     expect(poolFor('set2').all.some((c) => c.id === 'dw_oaf'), 'buyable in set 2').toBe(true);
   });
 

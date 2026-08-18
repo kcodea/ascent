@@ -115,7 +115,7 @@ const CARD_IDS = {
   butcher: 'dm_butcher', // T2 Demon — "Shout: give minions in the Shop +1/+1" (teaches Shout, visible on play)
   wrangler: 'dm_wrangler', // T1 Demon — "Start of Combat: summon an Imp" (teaches Start of Combat)
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
-  blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +5/+6" (teaches buy + cast a spell)
+  blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +3/+4 twice" (teaches buy + cast a spell)
   tripleReward: 'discoverspell', // the "Triple Reward" token a golden minion grants on play — a Discover (teaches Discover)
 } as const;
 
@@ -408,7 +408,7 @@ const round9Steps: TutorialStep[] = [
   {
     id: 'r9-cast',
     phase: 'shop', focusMode: 'action', title: 'Cast It',
-    body: 'Drag Blessing from your hand onto one of your minions to give it +5/+6. Pick your strongest to make it stronger.',
+    body: 'Drag Blessing from your hand onto one of your minions to give it +3/+4 twice. Pick your strongest to make it stronger.',
     why: 'A spell is spent when cast — time it for the minion that turns the fight.',
     anchors: [{ kind: 'ui', id: 'warband' }],
     gate: 'hard', lessonId: 'cast_spell',
@@ -435,6 +435,7 @@ function freeBuildStep(id: string, title: string, body: string, why?: string): T
     anchors: [{ kind: 'ui', id: 'shop' }],
     gate: 'soft',
     noScrim: true,
+    dismissible: true, // the panel can be closed with "Got it" so it's out of the way while you build
     allowedActionKinds: FREE_VERBS,
     completion: { kind: 'endedTurn' },
   };

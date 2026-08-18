@@ -52,7 +52,7 @@ export const SET2_DRAGONS: CardDef[] = [
     tribe: 'dragon',
     tier: 5, // owner balance 2026-08-11: T4 → T5
     attack: 7,
-    health: 5,
+    health: 3,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
     text: 'After you cast your **second Shop spell** each turn, get a copy of the first.',
@@ -79,8 +79,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Living Grimoire',
     tribe: 'dragon',
     tier: 6,
-    attack: 7,
-    health: 9,
+    attack: 5,
+    health: 10,
     keywords: [],
     effects: [
       { on: 'onPlay', do: 'battlecryArmGrimoire' },
@@ -175,8 +175,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Runic Archivist',
     tribe: 'dragon',
     tier: 5,
-    attack: 5,
-    health: 5,
+    attack: 6,
+    health: 7,
     keywords: [],
     // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
     // tally rides on the card (`soldProgress`) and carries round to round.
@@ -193,9 +193,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
-    text: '**Shout:** get a random Shop spell.',
-    goldenText: '**Shout:** get **2** random Shop spells.',
+    effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1, tier: 1 } }],
+    text: '**Shout:** get a random **Tier 1** Spell.',
+    goldenText: '**Shout:** get **2** random **Tier 1** Spells.',
   },
   {
     // A spell magnet: aim your best spell at it and it resolves twice. Only the FIRST spell each turn, so it
@@ -235,7 +235,7 @@ export const SET2_DRAGONS: CardDef[] = [
     tribe: 'dragon',
     tier: 2,
     attack: 2,
-    health: 4,
+    health: 3,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
     text: 'When **another** friendly **Dragon** attacks, give it **+2/+1**.',
@@ -248,7 +248,7 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Recaller',
     tribe: 'dragon',
     tier: 4,
-    attack: 5,
+    attack: 3,
     health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCopyCastSpell', params: { which: 'last', count: 1 } }],
@@ -291,8 +291,8 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Bathing Matriarch', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
     tribe: 'dragon',
     tier: 4,
-    attack: 2,
-    health: 7,
+    attack: 4,
+    health: 5,
     keywords: [],
     // Owner rework 2026-08-07: the alternating Attack/Health mode is GONE — it now pays a flat +1/+1 on every
     // Shout trigger, the same shape as Karwind one tier up. `onBattlecryBuffTribe` is Karwind's own factory.
@@ -331,12 +331,12 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Vaultkeeper',
     tribe: 'dragon',
     tier: 6,
-    attack: 7,
-    health: 7,
+    attack: 6,
+    health: 10,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 1, per: 4 } }],
-    text: 'Gain **+1/+1** whenever you play a **Dragon**. Improves **+1/+1** for every **4 spells** cast this game.',
-    goldenText: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
+    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 2, per: 4 } }],
+    text: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
+    goldenText: 'Gain **+4/+4** whenever you play a **Dragon**. Improves **+4/+4** for every **4 spells** cast this game.',
   },
   {
     // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of
@@ -350,11 +350,11 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Transcendant',
     tribe: 'dragon',
     tier: 4,
-    attack: 4,
-    health: 5,
+    attack: 3,
+    health: 4,
     keywords: ['DS', 'SC'], // Ward + the Start-of-Combat pill
-    effects: [{ on: 'startOfCombat', do: 'scBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **Dragons +3/+3**.',
-    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved** and gain **2× stats** in combat. **Start of Combat:** give your **Dragons +6/+6**.',
+    effects: [{ on: 'startOfCombat', do: 'scBuffTribe', params: { tribe: 'dragon', attack: 2, health: 3, excludeSelf: true } }],
+    text: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **other Dragons +2/+3**.',
+    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved** and gain **2× stats** in combat. **Start of Combat:** give your **other Dragons +4/+6**.',
   },
 ];

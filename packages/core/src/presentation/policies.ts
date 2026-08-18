@@ -135,7 +135,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnBuffWeakestDragon:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnCopyCastSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnCopyNeighbour:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnEndDemonsConsumeSides:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnFeastConsume:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:consumeShopRightmost:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Bob Blart (2026-08-14)
   'factory:endOfTurnGetRandomSpells:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -184,7 +183,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onGainAttackBuffImproving:onGainAttack': { policy: 'foldedCue', family: 'react' },
   'factory:onGainAttackImproveHpGrant:onGainAttack': { policy: 'foldedCue', family: 'react' },
   'factory:onImpAttackBuffImps:onAttack': { policy: 'ownBeat', family: 'rally' },
-  'factory:onImpAttackSummonCopy:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onKillBuffFodder:onKill': { policy: 'ownBeat', family: 'slaughter' },
   'factory:onKillBuffSpellPower:onKill': { policy: 'ownBeat', family: 'slaughter' },
   'factory:onKillBuffUndeadAttack:onKill': { policy: 'ownBeat', family: 'slaughter' },
@@ -207,6 +205,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSpellCastOnThisRecast:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
   // Reflector (Yirin's token) — same shape as the recast above: a second cast the player should SEE land.
   'factory:onSpellCastOnThisSpreadRandom:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
+  // Reflector also bounces a played Ruby to a random friendly (owner balance 2026-08-18) — same beat as the spell spread.
+  'factory:onRubyPlayedSpreadRandom:onRubyPlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:onSpellCastSecondCopyFirst:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
   'factory:onSummonImpBuff:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onSummonOverflowBuffTribe:summonOverflow': { policy: 'foldedCue', family: 'react' },
@@ -726,7 +726,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:djinn:replayAllEndOfTurn': { policy: 'ownBeat', family: 'heroReplay', flagged: true },
   'hero:drakko:quest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:fi:lesserQuest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
-  'hero:gildmaster:recurringGoldcrafter': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:gildmaster:gildcrafter': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:gorr:fourPeat': { policy: 'foldedCue', family: 'heroReplay', flagged: true },
   'hero:hermithank:cheapMinions': { policy: 'passive', family: 'passive', flagged: true },
   'hero:indy:gild': { policy: 'ownBeat', family: 'heroPower', flagged: true },

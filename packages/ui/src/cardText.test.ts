@@ -253,17 +253,18 @@ describe('cardText helpers', () => {
 
 describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () => {
   it('Soul Defiler prints the buff it will ACTUALLY give, not the printed base', () => {
-    // Its Shop buff climbs every trigger, so "+1/+1" is stale after the first End of Turn.
+    // Owner balance 2026-08-18: a SINGLE-stat buff that climbs every trigger and alternates Attack/Health, so
+    // the printed "+1 Attack" is stale after the first End of Turn.
     expect(shopBuffImproveText('dm_curator', 0), 'unclimbed should keep the printed text').toBeNull();
     const t = shopBuffImproveText('dm_curator', 2, false)!;
-    expect(t).toContain('{{+3/+3}}');        // base 1 + 2 accrued — the value it will actually give
+    expect(t).toContain('{{+3 Attack}}');    // base 1 + 2 accrued, even trigger → Attack — the value it will actually give
     // The card prints TWO magnitudes: the buff, and the "improves by" step. Only the FIRST goes stale, so only
-    // it is replaced — the step is still +1/+1 and must survive.
-    expect(t).toContain('Improves by **+1/+1**');
+    // it is replaced — the step is still "+1" and must survive.
+    expect(t).toContain('Improves **+1**');
   });
 
   it('…and doubles for a gilded copy', () => {
-    expect(shopBuffImproveText('dm_curator', 2, true)!).toContain('{{+6/+6}}');
+    expect(shopBuffImproveText('dm_curator', 2, true)!).toContain('{{+6 Attack}}');
   });
 
   it('Closing-Time Foreman prints the Attack it will give for cards played so far', () => {

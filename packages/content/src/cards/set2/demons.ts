@@ -40,7 +40,7 @@ export const SET2_DEMONS: CardDef[] = [
     tribe: 'demon',
     tier: 2,
     attack: 2,
-    health: 3,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 1, health: 1 } }],
     text: '**Shout:** give minions in the Shop **+1/+1**.',
@@ -88,9 +88,9 @@ export const SET2_DEMONS: CardDef[] = [
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
     // what it actually does, and the gild doubles (the factory already scales on `gold(self)`).
-    effects: [{ on: 'onAttack', do: 'rallyBuffShopPermanent', params: { attack: 2, health: 2 } }],
-    text: '**Rally:** give minions in the Shop **+2/+2**.',
-    goldenText: '**Rally:** give minions in the Shop **+4/+4**.',
+    effects: [{ on: 'onAttack', do: 'rallyBuffShopPermanent', params: { attack: 1, health: 2 } }],
+    text: '**Rally:** give minions in the Shop **+1/+2**.',
+    goldenText: '**Rally:** give minions in the Shop **+2/+4**.',
   },
   {
     // PERMANENT means the buff rides the OFFER into the bought minion (via `offerBuyStats`) rather than
@@ -108,11 +108,11 @@ export const SET2_DEMONS: CardDef[] = [
     // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
     // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14). Owner balance 2026-08-14: +7/+7 → +7/+6.
-    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 7, health: 6 } }],
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 5 } }],
     // Owner retext 2026-08-12: the simpler "minion + permanently" phrasing (matches Right Hand Hank). The
     // MECHANIC is unchanged — it's still the slot accumulator that re-lands on every refresh and stacks.
-    text: '**Shout:** give the **right-most Shop minion +7/+6** permanently.',
-    goldenText: '**Shout:** give the **right-most Shop minion +14/+12** permanently.',
+    text: '**Shout:** give the **right-most Shop minion +4/+5** permanently.',
+    goldenText: '**Shout:** give the **right-most Shop minion +8/+10** permanently.',
   },
   {
     // An escalating shop buff: the longer it lives, the bigger every offer gets.
@@ -120,12 +120,12 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Soul Defiler',
     tribe: 'demon',
     tier: 5,
-    attack: 6,
-    health: 6,
+    attack: 5,
+    health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, health: 1, improve: 1 } }],
-    text: '**End of Turn:** give minions in the Shop **+1/+1**. Improves by **+1/+1** each time this triggers.',
-    goldenText: '**End of Turn:** give minions in the Shop **+2/+2**. Improves by **+2/+2** each time this triggers.',
+    effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, improve: 1, alternate: true } }],
+    text: '**End of Turn:** give minions in the Shop **+1 Attack**. Improves **+1** each time, and swaps between **Attack** and **Health** each round.',
+    goldenText: '**End of Turn:** give minions in the Shop **+2 Attack**. Improves **+2** each time, and swaps between **Attack** and **Health** each round.',
   },
   {
     // A Demon eats every time you play a Demon — the tribe's engine card.
@@ -133,8 +133,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Chipper',
     tribe: 'demon',
     tier: 5, // owner balance 2026-08-14: T4 4/4 → T5 8/7
-    attack: 8,
-    health: 7,
+    attack: 4,
+    health: 5,
     keywords: ['T'], // Taunt
     effects: [{ on: 'onSummon', do: 'onTribePlayedConsumeShop', params: { tribe: 'demon', times: 1, self: true } }],
     text: '**Taunt.** Whenever you play a **Demon**, this Consumes a minion in the Shop.',
@@ -145,8 +145,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Broodwright',
     tribe: 'demon',
     tier: 3,
-    attack: 2,
-    health: 5,
+    attack: 1,
+    health: 6,
     keywords: [],
     effects: [
       { on: 'onSummon', do: 'onSummonImpBuff', params: { attack: 2, health: 2 } },
@@ -164,8 +164,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Bob Blart',
     tribe: 'demon',
     tier: 4, // owner balance 2026-08-11: T4 → T5; 2026-08-14: back to T4
-    attack: 6,
-    health: 5,
+    attack: 5,
+    health: 4,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'consumeShopRightmost', params: { times: 1 } }],
     text: '**End of Turn:** Consume the **right-most** minion in the Shop.',
@@ -192,8 +192,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Legion Shepherd',
     tribe: 'demon',
     tier: 5,
-    attack: 3,
-    health: 3,
+    attack: 6,
+    health: 6,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleImpsOverflowGrant', params: { count: 4, attack: 2, health: 2 } }],
     text: '**Echo:** summon **4 Imps**. Your Imps gain **+2/+2** everywhere for each one that had no room.',
@@ -204,7 +204,7 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Avarice Incarnate',
     tribe: 'demon',
     tier: 5,
-    attack: 6,
+    attack: 4,
     health: 5,
     keywords: [],
     // Flat Gold rather than the eaten minion's tier (owner change 2026-07-25): the tier version paid 1 Gold off
@@ -247,8 +247,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Hellrider',
     tribe: 'demon',
     tier: 6,
-    attack: 8,
-    health: 8,
+    attack: 6,
+    health: 6,
     keywords: [],
     // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
     // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
@@ -267,27 +267,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 10,
     health: 6,
     keywords: [],
-    // Both halves are PRINTED effects gated on `option`, not `chooseOne[].effects`. A Choose One's option
-    // effects fire ONCE at pick time (they're battlecries), which works for Elderhorn's permanent grants but
-    // not for a persistent trigger — Feast has to fire every End of Turn and Legion on every Imp attack. The
-    // pick is recorded per-instance as `chosenOption` and already rides into combat, so each printed effect
-    // simply checks which branch this body became.
-    effects: [
-      { on: 'endOfTurn', do: 'endOfTurnEndDemonsConsumeSides', params: { option: 0 } },
-      { on: 'onAttack', do: 'onImpAttackSummonCopy', params: { count: 1, option: 1 } },
-    ],
-    // No flavour names on the options (owner 2026-07-25) — see the note on Elderhorn. `option: 0` is still Feast
-    // and `option: 1` still Legion in the gates above. Owner rework 2026-08-11: Feast is now "each Demon eats one
-    // Shop minion", golden = double stats gained (not double the count).
-    chooseOne: [
-      { text: '**End of Turn:** each of your **Demons** Consumes a Shop minion.',
-        goldenText: '**End of Turn:** each of your **Demons** Consumes a Shop minion, gaining **double** its stats.',
-        effects: [] },
-      { text: 'When an **Imp** attacks, summon a copy if you have room.',
-        goldenText: 'When an **Imp** attacks, summon **2** copies if you have room.',
-        effects: [] },
-    ],
-    text: '**Choose One:** your Demons Consume the Shop at **End of Turn**, or an attacking **Imp** summons a copy.',
+    // Owner balance 2026-08-18: reworked from the Choose-One (Feast / Legion) into a straight Avenge Imp lord.
+    effects: [{ on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 7, health: 5 } }],
+    text: '**Avenge (3):** give your Imps **+7/+5** wherever they are.',
+    goldenText: '**Avenge (3):** give your Imps **+14/+10** wherever they are.',
   },
   {
     // Owner add 2026-08-12. A glass-cannon 4/1 built to die: its Echo feeds your shop. The buff is a combat→run
@@ -298,7 +281,7 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Right Hand Hank',
     tribe: 'demon',
     tier: 2,
-    attack: 4,
+    attack: 3,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 3, health: 2 } }],
@@ -314,8 +297,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Grobbus',
     tribe: 'demon',
     tier: 4,
-    attack: 5,
-    health: 5,
+    attack: 3,
+    health: 6,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
     text: '**Avenge (3):** get a random **Demon**.',

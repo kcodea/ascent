@@ -29,7 +29,8 @@ export type HeroPowerKind =
   | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
-  | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
+  | 'recurringGoldcrafter' // RETIRED Gildmaster passive (kept for old saves/replays)
+  | 'gildcrafter' // Gildmaster (active, 3 Gold, 3×/game): complete a triple from 2 copies of a minion
   | 'runeforge' // Runesmith (passive): on turn 5 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 8 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
@@ -297,10 +298,12 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 14,
     power: {
-      name: 'Goldcrafter',
-      kind: 'recurringGoldcrafter',
-      passive: true, // resolved at each turn setup (turns 4, 8, 12, …) — conjures a Goldcrafter to hand
-      text: 'Every 4 turns, get a **Goldcrafter**.',
+      name: 'Gildcrafter',
+      kind: 'gildcrafter',
+      cost: 3,
+      maxUses: 3, // three times per game
+      untargeted: true,
+      text: 'When you have **2 copies** of a minion, this grants a third.',
     },
   },
   {

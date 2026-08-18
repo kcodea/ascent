@@ -556,6 +556,7 @@ export interface RunState {
   runeSpellstone?: boolean;
   /** Rune of Investment: Rubies minted per minion sold. */
   runeSellRubies?: number;
+  runeSellRubiesSold?: number; // Rune of Investment: sells counted toward the every-2 payout
   /** Rune of the Open Market: the first Shop-minion Consume each turn buffs the Shop. `used` resets per turn. */
   runeOpenMarket?: { attack: number; health: number; usedThisTurn?: boolean };
   motherlode?: { count: number; tribe?: Tribe };
@@ -976,11 +977,11 @@ export interface RunState {
   runeSellersMarket?: boolean;   // sell → board +4/+3
   runeFreshPages?: boolean;      // Start of Turn: Discover a Shop spell
   runeStrangeCaravan?: boolean;  // Start of Turn: a random minion from an uncontrolled type
-  runeWindowShopping?: boolean;  // first 4 Refreshes each turn are free
+  runeWindowShopping?: boolean;  // first 3 Refreshes each turn are free
   runeOpenEnrollment?: boolean;  // after a Refresh, offer an extra dominant-type minion
   runeShopkeep?: boolean;        // upgrade cost −3, repeated each End of Turn
   runeTradeIn?: boolean;         // first sale each turn → next minion of that type costs 1 less
-  runeRestocking?: boolean;      // first buy each turn refills its slot with a same-Tier 1-Gold minion
+  runeRestocking?: boolean;      // first buy each turn refills its slot with a same-Tier 2-Gold minion
   runeCollector?: boolean;       // 3 types bought in a turn → Discover from one of them (once/turn)
   runeBargainBin?: boolean;      // first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
   /** Window Shopping: refreshes used this turn (the first 4 are free). Reset each turn. */

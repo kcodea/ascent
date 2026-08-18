@@ -225,6 +225,10 @@ export interface TutorialStep {
   /** Drop the dimming scrim + spotlight for this step — the coach panel still shows, but the board stays at
    *  full clarity (used by the independence rounds, where the player is driving and nothing should be dimmed). */
   noScrim?: boolean;
+  /** Give the coach panel a "Got it" button that HIDES it (without advancing) — for free-play steps where the
+   *  panel would otherwise sit over the board with no way to move it aside. The step stays active until its
+   *  real completion (e.g. End Turn). */
+  dismissible?: boolean;
   /** Which action kinds advance/are-allowed under a soft/hard gate (by reducer Action `type`). Omitted =
    *  the predicate alone decides and no action is blocked. */
   allowedActionKinds?: string[];

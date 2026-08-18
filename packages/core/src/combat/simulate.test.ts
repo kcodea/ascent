@@ -1677,8 +1677,8 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
-    // +3/+3 normally, +6/+6 if this trigger's 20% roll came up — either proves Karwind procced.
-    const proc = r.events.some((e) => e.type === 'buff' && ((e.attack === 3 && e.health === 3) || (e.attack === 6 && e.health === 6)));
+    // Flat +4/+4 (owner balance 2026-08-18: the 20% double-trigger clause was removed) — proves Karwind procced.
+    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4);
     expect(proc, 'Karwind never procced').toBe(true);
   });
 
@@ -1699,16 +1699,14 @@ describe('simulate (handoff A.3)', () => {
     // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
     // Karwind procs once per trigger. Since the 2026-08-07 rework the adjacency clause is GONE: every Dragon
-    // takes the same flat +3/+3, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
-    // (Drakko is NEUTRAL and is passed over, as before). A trigger whose 20% roll comes up pays DOUBLE — the
-    // same number of grants, at +6/+6 instead of +3/+3 — so the TOTAL grant count is flat at 8 x 2 whatever
-    // the rolls do. That invariance is the point of the "double the buff, not the trigger" revision.
+    // takes the same flat +4/+4, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
+    // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: the 20% double-trigger clause
+    // was removed, so every grant is a flat +4/+4 and there are no crits — 8 triggers × 2 Dragons = 16 grants.
     const dragons = 2; // Karwind + the Cleric
-    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length;
-    const doubled = r.events.filter((e) => e.type === 'buff' && e.attack === 6 && e.health === 6).length;
+    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length;
     const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
-    expect(plain + doubled).toBe(8 * dragons);
-    expect(doubled).toBe(crits * dragons);
+    expect(plain).toBe(8 * dragons);
+    expect(crits).toBe(0);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the IMP enchant back to the run", () => {
@@ -2877,8 +2875,8 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // Karwind answers a triggered Battlecry with +3/+3 to your Dragons.
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    // Karwind answers a triggered Battlecry with a flat +4/+4 to your Dragons (owner balance 2026-08-18).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
   });
 
   it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {

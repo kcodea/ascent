@@ -50,7 +50,7 @@ describe('R8 — triple → Golden → Triple Reward Discover', () => {
 });
 
 describe('R9 — buy a spell from the minion row, cast it on a minion', () => {
-  it('Blessing buys into hand and casts for +5/+6', () => {
+  it('Blessing buys into hand and casts for +3/+4 twice (net +6/+8)', () => {
     let s: RunState = {
       ...createRun(1, 'aster', 'tutorial'),
       phase: 'recruit', embers: 10, maxEmbers: 10,
@@ -63,8 +63,8 @@ describe('R9 — buy a spell from the minion row, cast it on a minion', () => {
     const before = s.board[0]!;
     s = reduce(s, { type: 'play', uid: spell!.uid, targetUid: 'p1' });
     const after = s.board.find((c) => c.uid === 'p1')!;
-    expect(after.attack - before.attack, '+5 Attack').toBe(5);
-    expect(after.health - before.health, '+6 Health').toBe(6);
+    expect(after.attack - before.attack, '+3/+4 twice = +6 Attack').toBe(6); // owner balance 2026-08-18
+    expect(after.health - before.health, '+8 Health').toBe(8);
     expect(s.hand.some((c) => c.cardId === 'sp_blessing'), 'the spell is spent').toBe(false);
   });
 });

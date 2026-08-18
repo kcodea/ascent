@@ -956,16 +956,30 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand[0]!.cardId).toBe('emberpouch'); // always the Pouch since the 2026-07-21 balance pass
   });
 
-  it('Gildmaster: passively conjures a Goldcrafter to hand every 4th turn (turns 4, 8, …)', () => {
-    const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
-    // Win the combat at `fromWave` → advance opens the next turn's shop (running the turn-setup grant).
-    const advanceTo = (heroId: string, fromWave: number): RunState =>
-      reduce({ ...createRun(1, heroId), wave: fromWave, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
-    const gc = (s: RunState): number => s.hand.filter((c) => c.cardId === 'goldcrafter').length;
-    expect(gc(advanceTo('gildmaster', 3))).toBe(1); // → turn 4: one Goldcrafter
-    expect(gc(advanceTo('gildmaster', 4))).toBe(0); // → turn 5: none
-    expect(gc(advanceTo('gildmaster', 7))).toBe(1); // → turn 8: one
-    expect(gc(advanceTo('soren', 3))).toBe(0); // a non-Gildmaster never gets one
+  it('Gildmaster (active Gildcrafter): completes a triple from 2 copies for 3 Gold; no pair is a no-op', () => {
+    // Owner balance 2026-08-18: the every-4-turns Goldcrafter passive became an ACTIVE power (cost 3, 3×/game)
+    // that grants a 3rd copy of a minion you hold exactly 2 non-golden copies of, which triples into a golden.
+    const two = (uid: string): BoardCard =>
+      ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+    let s: RunState = {
+      ...createRun(1, 'gildmaster'), phase: 'recruit', embers: 5, heroReady: true,
+      board: [two('a'), two('b')], hand: [],
+    };
+    s = reduce(s, { type: 'heroPower' });
+    const alleys = [...s.board, ...s.hand].filter((c) => c.cardId === 'alley');
+    expect(alleys.length, 'the three copies merged into one').toBe(1);
+    expect(alleys[0]!.golden, 'the completed triple is golden').toBe(true);
+    expect(s.heroPowerUses, 'a whole-game charge was spent').toBe(1);
+    expect(s.embers, '3 Gold spent').toBe(2);
+
+    // No pair on the board → activation is a no-op: no charge, no Gold spent.
+    let n: RunState = {
+      ...createRun(1, 'gildmaster'), phase: 'recruit', embers: 5, heroReady: true,
+      board: [two('a')], hand: [],
+    };
+    n = reduce(n, { type: 'heroPower' });
+    expect(n.heroPowerUses ?? 0, 'no pair → no charge spent').toBe(0);
+    expect(n.embers, 'no pair → no Gold spent').toBe(5);
   });
 
   it('Apples: SPELL Choose One — buff this shop +1/+3 OR bank +2/+4 for the next shop', () => {
@@ -1298,8 +1312,8 @@ describe('run loop (@game/sim)', () => {
 
   it('Karwind buffs your Dragons whenever a Battlecry triggers', () => {
     // Play Hoard Cleric (Dragon Battlecry +3/+3 to dragons) with Karwind on board: the Cleric's
-    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons +3/+3 — doubled to
-    // +6/+6 if Karwind's 20% roll comes up, which is why the expectation admits both outcomes.
+    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons a flat +4/+4
+    // (owner balance 2026-08-18: the 20% double-trigger clause was removed).
     let s: RunState = {
       ...createRun(1),
       embers: 0,
@@ -1309,8 +1323,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // 2/12 +3/+3 (Cleric) + 3/3 or 6/6 (Karwind proc, ×2 on a crit)
-    expect([[8, 18], [11, 21]], 'Karwind proc, crit or not').toContainEqual([k.attack, k.health]);
+    // 2/12 + 3/3 (Cleric) + 4/4 (Karwind flat proc) = 9/19
+    expect([k.attack, k.health], 'Karwind flat +4/+4 proc').toEqual([9, 19]);
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -1326,10 +1340,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying +3/+3 or +6/+6 on a crit.
+    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +4/+4.
     // What this test PINS is the proc COUNT (two fires, not one), so assert the gain is 2 procs' worth.
     const gain = k.attack - 2 - 6; // strip the base and the Cleric's own +6
-    expect([6, 9, 12], 'two Karwind procs at 3 or 6 each').toContain(gain);
+    expect(gain, 'two Karwind procs at flat +4 each').toBe(8);
     expect(k.health - 12 - 6).toBe(gain); // symmetric grant
   });
 

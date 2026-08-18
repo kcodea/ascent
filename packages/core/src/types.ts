@@ -190,7 +190,8 @@ export type EffectFactoryId =
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'onSpellCastOnThisSpreadRandom' // Reflector (Yirin): it also casts on one random other friendly minion
-  | 'onRubyPlayedSpreadAdjacent' // Runefire: a RUBY played on it also lands on adjacent Dragons
+  | 'onRubyPlayedSpreadAdjacent'
+  | 'onRubyPlayedSpreadRandom' // Runefire: a RUBY played on it also lands on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions

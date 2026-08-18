@@ -239,7 +239,7 @@ export const DEMONS: CardDef[] = [
     tribe: 'demon',
     tier: 3,
     attack: 3,
-    health: 2,
+    health: 3,
     keywords: [],
     effects: [
       { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } },

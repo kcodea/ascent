@@ -24,7 +24,7 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
   });
 
   it('the two new minions exist with the owner stats/tiers', () => {
-    expect(CARD_INDEX['d2_herzog']).toMatchObject({ name: 'Vaultkeeper', tribe: 'dragon', tier: 6, attack: 7, health: 7 });
+    expect(CARD_INDEX['d2_herzog']).toMatchObject({ name: 'Vaultkeeper', tribe: 'dragon', tier: 6, attack: 6, health: 10 }); // owner balance 2026-08-18
     expect(CARD_INDEX['k_kobabyboldies']).toMatchObject({ tribe: 'kobold', tier: 5, attack: 3, health: 3 });
     expect(RUNE_INDEX['rune_herzog']!.name).toBe('Rune of the Vaultkeeper');
   });
@@ -40,13 +40,13 @@ describe('Vaultkeeper — retroactive per-Dragon scaling', () => {
     s = reduce(s, { type: 'play', uid: 'd' });
     return s;
   };
-  it('grants +1/+1 per Dragon at 0 Shop Spells cast', () => {
+  it('grants +2/+2 per Dragon at 0 Shop Spells cast (owner balance 2026-08-18)', () => {
     const h = playDragon(0).board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([8, 8]);
+    expect([h.attack, h.health]).toEqual([9, 9]); // 7/7 + 2/2
   });
-  it('scales to +4/+4 at 15 Shop Spells cast (1 + floor(15/4))', () => {
+  it('scales to +8/+8 at 15 Shop Spells cast (2 × (1 + floor(15/4)))', () => {
     const h = playDragon(15).board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([11, 11]); // 7/7 + 4/4
+    expect([h.attack, h.health]).toEqual([15, 15]); // 7/7 + 8/8
   });
   it('does NOT trigger on a non-Dragon play', () => {
     let s: RunState = {
@@ -59,17 +59,19 @@ describe('Vaultkeeper — retroactive per-Dragon scaling', () => {
     expect([h.attack, h.health]).toEqual([7, 7]);
   });
 
-  it('Rune of the Vaultkeeper: a played Dragon also gives the same grant to an adjacent minion', () => {
+  it('Rune of the Vaultkeeper: a played Dragon also gives the same grant to an adjacent DRAGON (owner balance 2026-08-18: Dragons-only)', () => {
     let s: RunState = {
       ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast: 0, runeVaultkeeper: true,
-      board: [bc('v', 'd2_herzog', 'dragon', 7, 7), bc('n', 'stray', 'beast', 2, 2)],
+      board: [bc('v', 'd2_herzog', 'dragon', 7, 7), bc('n', 'whelpling', 'dragon', 2, 2), bc('b', 'stray', 'beast', 2, 2)],
       hand: [bc('d', 'whelpling', 'dragon', 1, 1)],
     };
     s = reduce(s, { type: 'play', uid: 'd' });
     const v = s.board.find((c) => c.uid === 'v')!;
     const n = s.board.find((c) => c.uid === 'n')!;
-    expect([v.attack, v.health], 'Vaultkeeper self-buff').toEqual([8, 8]);
-    expect([n.attack, n.health], 'the adjacent minion gets the same +1/+1').toEqual([3, 3]);
+    const b = s.board.find((c) => c.uid === 'b')!;
+    expect([v.attack, v.health], 'Vaultkeeper self-buff').toEqual([9, 9]);
+    expect([n.attack, n.health], 'the adjacent Dragon gets the same +2/+2').toEqual([4, 4]);
+    expect([b.attack, b.health], 'a non-Dragon neighbour gets nothing — Dragons only now').toEqual([2, 2]);
   });
 });
 
@@ -110,13 +112,13 @@ describe('economy runes — reducer behaviour', () => {
     expect([b.attack, b.health]).toEqual([7, 6]); // 3/3 + 4/3
   });
 
-  it('Window Shopping: the first 4 Refreshes each turn are free', () => {
+  it('Window Shopping: the first 3 Refreshes each turn are free (owner balance 2026-08-18)', () => {
     let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 3, runeWindowShopping: true };
-    for (let i = 0; i < 4; i++) s = reduce(s, { type: 'roll' });
-    expect(s.embers, '4 free refreshes cost nothing').toBe(3);
-    expect(s.windowShopRolls).toBe(4);
+    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'roll' });
+    expect(s.embers, '3 free refreshes cost nothing').toBe(3);
+    expect(s.windowShopRolls).toBe(3);
     const before = s.embers;
-    s = reduce(s, { type: 'roll' }); // the 5th costs the normal price
+    s = reduce(s, { type: 'roll' }); // the 4th costs the normal price
     expect(s.embers).toBeLessThan(before);
   });
 

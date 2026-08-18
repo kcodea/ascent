@@ -30,8 +30,8 @@ describe('set 2 — its own neutral minions are wired into the set', () => {
   it('match the roster tier/stats', () => {
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
     expect(spec('n2_spellsword')).toBe('T2 3/4');
-    expect(spec('n2_bellringer')).toBe('T4 4/6');
-    expect(spec('n2_lastlight')).toBe('T3 3/2'); // owner 2026-07-31
+    expect(spec('n2_bellringer')).toBe('T5 4/6'); // owner balance 2026-08-18
+    expect(spec('n2_lastlight')).toBe('T4 3/2'); // owner balance 2026-08-18
   });
 });
 

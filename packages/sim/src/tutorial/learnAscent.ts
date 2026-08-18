@@ -38,7 +38,7 @@ const round1Steps: TutorialStep[] = [
     phase: 'shop',
     focusMode: 'action',
     title: 'Buy a Minion',
-    body: 'Drag Packstrider up to recruit it. Buying moves the minion into your hand.',
+    body: 'Drag Packstrider down to recruit it. Buying moves the minion into your hand.',
     anchors: [{ kind: 'card', zone: 'shop', alias: ROUND1_BUY }],
     gate: 'soft',
     lessonId: 'buy_minion',

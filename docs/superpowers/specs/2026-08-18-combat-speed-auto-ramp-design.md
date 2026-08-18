@@ -24,7 +24,8 @@ performance north star). The slider becomes the *starting* speed; the ramp climb
 - **Basis:** wall-clock time elapsed in the fight, plus estimated wall-clock time remaining (see below).
 - **Shape:** grace period at base speed, then ease up to the ceiling, then — for the tail of the fight —
   ease back down to base.
-- **Default state:** toggle **OFF** by default (preserves today's feel for anyone who doesn't opt in).
+- **Default state:** toggle **ON** by default (auto-ramp is the intended default experience). The off
+  path still exists and is a pure no-op (effective speed = base), so turning it off restores today's feel.
 - **Tunable:** every ramp number lives in a dev tuner, following the existing tuner-registry pattern.
 
 ## Architecture
@@ -107,7 +108,7 @@ demands it.
 
 New store state (in `packages/ui/src/store.ts`, persisted to `localStorage` like `combatSpeed`):
 
-- `combatRampUp: boolean` — the toggle. Default `false`.
+- `combatRampUp: boolean` — the toggle. Default `true`.
 - `setCombatRampUp(on: boolean)` — setter; persists.
 
 Ramp parameters live in a dedicated config module (e.g. `packages/ui/src/combatRampConfig.ts`) with a
@@ -130,8 +131,9 @@ Board-Edge tuners.
 In the Esc / Settings menu (`EscMenu.tsx`), under the existing **Combat** section:
 
 - Keep the Speed slider; update its sublabel to convey that, with auto-ramp on, it's the *starting* speed.
-- Add a toggle button (same `escbtn pressable` style as the Sound-on toggle) — **"Auto-ramp speed"**, with
-  a one-line blurb ("Long fights speed up, then ease back down for the finish").
+- Directly **below the slider**, add a toggle button (same `escbtn pressable` style as the Sound-on
+  toggle, showing its on/off state) — **"Auto-ramp speed"**, with a one-line blurb ("Long fights speed up,
+  then ease back down for the finish"). On by default.
 
 No in-combat HUD control (consistent with the 2026-07-14 decision to keep combat pacing in the menu).
 

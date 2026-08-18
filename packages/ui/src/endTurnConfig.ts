@@ -95,7 +95,8 @@ export interface EndTurnConfig {
   tipW: number;
   /** Hover tip — horizontal nudge (px) from centred under the diamond. Positive = right. */
   tipX: number;
-  /** Hover tip — the gap (px) between the bottom of the diamond and the top of the pill. */
+  /** Hover tip — vertical offset (px) from the bottom of the diamond to the top of the pill. Negative
+   *  pulls the pill UP alongside the diamond instead of hanging it underneath (the shipped look). */
   tipY: number;
   /** Hover tip — label font size (px). */
   tipSize: number;
@@ -150,16 +151,18 @@ const DEFAULTS: EndTurnConfig = {
   strikeRingRadius: 1.5,
   strikeRingLife: 1.05,
   pressedVariant: 3,
-  // Hover tip — the label pill under the diamond. `tipW` is deliberately narrower than the label's natural
-  // single-line width, so "End your turn and start combat" breaks onto TWO balanced lines and the pill sits
-  // square under the gem instead of spilling out either side (owner ask 2026-08-17).
-  tipW: 150,
-  tipX: 0,
-  tipY: 10,
+  // Hover tip — owner-tuned by eye in the 💎 tuner (2026-08-17). The pill is seated to the RIGHT of the
+  // diamond and pulled up level with it (`tipX` 108, `tipY` -14) rather than hanging underneath, and `tipW`
+  // 315 is wide enough that both labels sit on ONE line — box-sizing is border-box, so that width less the
+  // 26px side padding and 2px border leaves ~259px of text. Narrowing `tipW` is what forces the balanced
+  // two-line wrap; the dial is the line-count control.
+  tipW: 315,
+  tipX: 108,
+  tipY: -14,
   tipSize: 13.5,
   tipLine: 1.25,
-  tipPadX: 14,
-  tipPadY: 5,
+  tipPadX: 26,
+  tipPadY: 10,
   tipRadius: 11,
 };
 

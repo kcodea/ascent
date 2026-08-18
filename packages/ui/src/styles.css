@@ -665,29 +665,29 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    (owner note 2026-07-16: slower + slightly larger). Pinned ALWAYS-ON when the turn timer hits 0 in the
    shop (`.urgent` — "hit End Turn") and when the combat replay is done (`.ready` — "back to shop"). */
 .etbwrap .etb-tip {
-  position: absolute; left: 50%; top: calc(100% + var(--etb-tip-y, 10px));
-  transform: translateX(calc(-50% + var(--etb-tip-x, 0px))) translateY(7px);
+  position: absolute; left: 50%; top: calc(100% + var(--etb-tip-y, -14px));
+  transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(7px);
   /* WRAPS (it used to be `nowrap`): the label is capped at `--etb-tip-w` and `text-wrap: balance` splits it
      into EVEN lines, so "End your turn and start combat" reads as a squarer two-line pill seated under the
      diamond rather than a wide bar spilling past both its corners (owner ask 2026-08-17). Set the width dial
      wide enough and it collapses back to one line — the old look is still reachable from the tuner. */
-  max-width: var(--etb-tip-w, 150px); white-space: normal; text-wrap: balance; text-align: center;
+  max-width: var(--etb-tip-w, 315px); white-space: normal; text-wrap: balance; text-align: center;
   line-height: var(--etb-tip-line, 1.25);
   pointer-events: none; opacity: 0; transition: opacity 0.38s ease, transform 0.38s ease;
   font-family: var(--font-ui); font-weight: 700; font-size: var(--etb-tip-size, 13.5px); color: #f4ecdb;
   background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: var(--etb-tip-radius, 11px); padding: var(--etb-tip-pad-y, 5px) var(--etb-tip-pad-x, 14px);
+  border-radius: var(--etb-tip-radius, 11px); padding: var(--etb-tip-pad-y, 10px) var(--etb-tip-pad-x, 26px);
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
-.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 0px))) translateY(0); }
+.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
 /* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
    under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
    rail's own width so the whole label stays readable. Scaled in `--u-base`, like the rail, so the two track
    each other at every window size instead of colliding again at one aspect. */
-.app.lobby .etbwrap .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 0px) - 100 * var(--u-base))) translateY(7px); }
+.app.lobby .etbwrap .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 108px) - 100 * var(--u-base))) translateY(7px); }
 .app.lobby .etbwrap:not(:disabled):hover .etb-tip,
 .app.lobby .etbwrap.urgent .etb-tip,
-.app.lobby .etbwrap.ready .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 0px) - 100 * var(--u-base))) translateY(0); }
+.app.lobby .etbwrap.ready .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 108px) - 100 * var(--u-base))) translateY(0); }
 /* Summary — a small glass pill ABOVE the End Combat diamond (owner note 2026-07-16: shrunk from the big
    white button, dark-glass style, right side). Anchored to the SAME stage point + --etb-x/y offsets as the
    diamond so the tuner moves them together; the one-shot mount animation floats it up as it fades in,

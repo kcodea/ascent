@@ -47,10 +47,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 - **`Auctioneer.png` / `Myra.png` collide** on the `myra` slug — delete or rename the stale `Myra.png`.
 
-- **Dial the End Turn hover tip by eye.** It is tunable as of 2026-08-17 (💎 tuner → "Hover tip") and ships
-  wrapping to two balanced lines at `tipW: 150`, but the default was picked by reasoning, not by looking —
-  the width, drop and padding want a pass in front of the actual button.
-
 - **Missing hero POWER art:** Odelle and Sable (`OdelleHP.png` / `SableHP.png`). Portraits for all five are wired, as are Cia's and Harlan's power art. Drop the files in and re-run `npm run art:wire -- --apply`.
 - **No hero amplifies spells any more** — Yirin's rework retired the last `spellAmplify` holder. Spell power now comes only from Rune of the Crown and `spellAura` cards. Decide whether a hero should carry it again.
 - **Classify the 2026-08-16b hero-power beats.** `investment` / `luckySeat` / `exhibition` / `buyout` / `soulbind` / `allIn` are registered `flagged: true` on a heuristic and need the owner's real ownBeat/foldedCue call.

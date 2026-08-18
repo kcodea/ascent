@@ -528,8 +528,12 @@ sheen, strike, pressed art) reflects to a `--etb-*` var, while the pill's geomet
 the diamond it hangs under.
 
 - **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
-  EVEN lines and reads as a squarer pill seated under the gem. Shipped default `tipW: 150` puts both labels on
-  two lines; sliding the width dial wide enough collapses it back to one line, so the old look stays reachable.
+  EVEN lines rather than breaking wherever it runs out of room. The width dial is therefore the LINE-COUNT
+  dial: narrow it for a squarer multi-line pill, widen it for one line.
+- **Shipped values are owner-tuned** (💎 tuner, same day): `tipW 315`, `tipX 108`, `tipY -14`, `tipPadX 26`,
+  `tipPadY 10`. That seats the pill to the RIGHT of the diamond and level with it rather than hanging beneath,
+  and 315px — less 26px side padding and the 2px border, under the global `box-sizing: border-box` — leaves
+  ~259px of text, enough to keep both labels on one line.
 - **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
   max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
   corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.
@@ -539,8 +543,8 @@ the diamond it hangs under.
 - **Note:** the pill is not only a hover tip — it is pinned always-on by `.urgent` (shop timer at 0) and
   `.ready` (replay finished), so these dials shape a persistent prompt, not just a hover.
 - Transitions remain `opacity`/`transform` only (compositor-safe, per the performance rules).
-- **Verified.** typecheck + lint (0 errors) + 5531 tests + build:web all green. The default width was chosen
-  to break both labels cleanly; it is a slider, so it is meant to be dialled by eye rather than argued about.
+- **Verified.** typecheck + lint (0 errors) + full suite + build:web all green, before and after the tuned
+  values were baked in.
 
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 

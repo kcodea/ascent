@@ -519,6 +519,40 @@ runic rift at wave 6, which lets the pivot rule be observed on its own. Updated,
 asserts the same rule, just through a hero that has only that rule.
 
 Full suite 5518 green, typecheck + lint + build:web clean.
+## 2026-08-17 — End Turn hover tip is tunable, and wraps to two lines
+
+The label pill under the End Turn diamond ("End your turn and start combat" / "End combat and go back to
+shop") was the one part of that button with no tuner coverage — every other dial (position, gem fit, glow,
+sheen, strike, pressed art) reflects to a `--etb-*` var, while the pill's geometry was hardcoded in
+`styles.css`. It also ran wide: `white-space: nowrap` forced one long bar that spilled past both corners of
+the diamond it hangs under.
+
+- **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
+  EVEN lines rather than breaking wherever it runs out of room. The width dial is therefore the LINE-COUNT
+  dial: narrow it for a squarer multi-line pill, widen it for one line.
+- **`width: max-content` is the load-bearing part, and the first cut shipped without it.** `.etb-tip` is
+  absolutely positioned inside the ~160px button; an abs-positioned box with `left` set and `width: auto`
+  shrink-to-fits against the space left of its containing block's edge (~80px here), so `max-width` never
+  governed and the label stacked ONE WORD PER LINE regardless of the dial (owner screenshot). `max-content`
+  makes the width the label's natural width, which `max-width` then caps — the same pattern `.tagtip` and
+  `.questbadges` already use in this stylesheet, with the reason written out at the latter.
+- **Shipped values are owner-approved** (💎 tuner, same day): `tipW 128`, `tipX 91`, `tipY -3`, `tipPadX 5`,
+  `tipPadY 11` — a narrow two-line pill tucked just right of the diamond and level with it. MEASURED in the
+  running app rather than estimated: both labels ("End your turn and start combat" / "End combat and go back
+  to shop", natural width ~193px) lay out 128×60 with `Range.getClientRects()` returning 2. The margin is
+  thin — 120 tips the first label to THREE lines — so a font or copy change wants a re-measure; past ~280 it
+  goes single-line.
+- **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
+  max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
+  corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.
+- **The lobby override was updated in step.** `.app.lobby .etb-tip` sets its own `transform` to dodge the seat
+  rail, so it had to fold in `--etb-tip-x` too — otherwise the new offset dial would silently do nothing in
+  the lobby, which is exactly the kind of drift that override caused once before.
+- **Note:** the pill is not only a hover tip — it is pinned always-on by `.urgent` (shop timer at 0) and
+  `.ready` (replay finished), so these dials shape a persistent prompt, not just a hover.
+- Transitions remain `opacity`/`transform` only (compositor-safe, per the performance rules).
+- **Verified.** typecheck + lint (0 errors) + full suite + build:web all green, before and after the tuned
+  values were baked in.
 
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 

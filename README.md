@@ -48,6 +48,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), pared back to just the name and a one-line blurb. Display only: the mode is still `lobby` everywhere under the hood.
 
+- **End Turn hover tip is tunable** — the label pill by the diamond gets eight dials (width, offset, drop, text size, line spacing, padding, radius) in the End Turn tuner, and wraps to balanced lines when narrowed. Shipped seated to the right of the gem.
+
 - **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
 
 - **Croupier Cia deals four suits** — her reward now cycles at random (never twice running) between **Hearts** (Discover at your tier), **Spades** (2 Shop spells), **Diamonds** (a minion from the tier above) and **Clubs** (3 Gold), with her power button showing the suit that's queued up. Enchanted cards are now red-and-gold. **Underdweller**'s Soulkeeper costs 2.

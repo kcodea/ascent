@@ -1,5 +1,14 @@
 # ASCENT — development log
 
+## 2026-08-18 — Combat auto-ramp: tune the shipped defaults for a gentler curve
+
+Owner feel pass on the auto-ramp curve (the live Speed Ramp tuner). Updated `COMBAT_RAMP_DEFAULTS`
+(`packages/ui/src/combatRampConfig.ts`) from grace 2000 / ramp-up 4000 / tail 5000 to **grace 3600 /
+ramp-up 10000 / tail 10000** (ceiling unchanged at 3×): a longer opening hold, a much gentler climb, and a
+longer ease-down tail so the finish settles back to base well before the last blow. Defaults-only change —
+no logic, no test impact (the math tests use their own fixture, not the defaults). Verified: typecheck +
+build:web green.
+
 ## 2026-08-18 — Combat replay auto-ramps its speed so long fights stop dragging
 
 A toggle-able option (**ON by default**) that lets each combat replay auto-ramp its own playback speed within a

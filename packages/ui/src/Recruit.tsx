@@ -3547,7 +3547,17 @@ export function Recruit() {
       // lands at `CRUMBLE_MS + travelMs` — the same instant the tendril arrives and the eater gulps, and the
       // instant the held slot is released, so the card's disappearance and the row closing read as one motion.
       const FLY_MS = CRUMBLE_MS + icfg.travelMs;
-      flyRaf = requestAnimationFrame(() => {
+      // `setFodderAnim` above only SCHEDULES a React render, so the ghost isn't in the DOM on the next frame —
+      // a single rAF would query nothing and the ghost (its `fodderpop` disabled by `.flyeat`) would sit frozen.
+      // Retry across frames until the ghosts have mounted, then launch every fly at once. Once found, stop.
+      let flyTries = 0;
+      const launchFly = (): void => {
+        const first = ghosts.findIndex((g) => g.fromSlot);
+        if (first < 0) return; // no slot-launched ghost (all Fodder tokens) — nothing to fly
+        if (!document.querySelector(`.fodderghost[data-gk="${seq}-${first}"]`)) {
+          if (flyTries++ < 30) flyRaf = requestAnimationFrame(launchFly);
+          return;
+        }
         for (let gi = 0; gi < ghosts.length; gi++) {
           const g = ghosts[gi];
           if (!g.fromSlot) continue;
@@ -3565,7 +3575,8 @@ export function Recruit() {
             ], { duration: FLY_MS, easing: 'cubic-bezier(0.4, 0, 0.9, 0.55)', fill: 'forwards' }));
           } catch { /* WAAPI unsupported: the ghost still clears via the fodderAnim-null timeout below */ }
         }
-      });
+      };
+      flyRaf = requestAnimationFrame(launchFly);
       // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
       // pulse doubling as the card's burst-into-energy.
       crumbleT = window.setTimeout(() => {

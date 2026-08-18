@@ -76,6 +76,9 @@ export function FocusMask({
   // A stable-enough mask id per mount; the holes are addressed within this SVG only.
   const maskId = 'tut-focus-mask';
   const holes = cutouts.map(padded);
+  // FEATHER: the hole edges are Gaussian-blurred inside the mask, so the scrim FADES into the cutout instead of
+  // ending on a hard square line. ~11px reads as a soft vignette without letting the dim creep over the target.
+  const FEATHER = 11;
 
   return (
     <div
@@ -85,12 +88,21 @@ export function FocusMask({
     >
       <svg className="tut-focus-svg" width="100%" height="100%" preserveAspectRatio="none">
         <defs>
+          {/* Generous region so the blur isn't clipped at the SVG/object bounds. */}
+          <filter id="tut-feather" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation={FEATHER} />
+          </filter>
+          <filter id="tut-feather-ring" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation={3} />
+          </filter>
           <mask id={maskId}>
-            {/* White = visible scrim; black rounded-rects = punched-out holes. */}
+            {/* White = visible scrim; black rounded-rects = punched-out holes, blurred for a soft feathered edge. */}
             <rect x="0" y="0" width="100%" height="100%" fill="#fff" />
-            {holes.map((h, i) => (
-              <rect key={i} x={h.x} y={h.y} width={h.w} height={h.h} rx={h.r} ry={h.r} fill="#000" />
-            ))}
+            <g filter="url(#tut-feather)">
+              {holes.map((h, i) => (
+                <rect key={i} x={h.x} y={h.y} width={h.w} height={h.h} rx={h.r} ry={h.r} fill="#000" />
+              ))}
+            </g>
           </mask>
         </defs>
         {/* The dim scrim, holes cut by the mask. Colour matches the game's warm dark scrim (`.inspect-ov`). */}
@@ -102,19 +114,22 @@ export function FocusMask({
           fill={`rgba(26, 16, 6, ${scrim})`}
           mask={`url(#${maskId})`}
         />
-        {/* A light ring around each hole so focus reads without colour alone. */}
-        {holes.map((h, i) => (
-          <rect
-            key={i}
-            className="tut-focus-ring"
-            x={h.x}
-            y={h.y}
-            width={h.w}
-            height={h.h}
-            rx={h.r}
-            ry={h.r}
-          />
-        ))}
+        {/* A soft ring around each hole — blurred into a gentle halo so focus reads without colour alone but
+            never draws a hard square outline against the feathered scrim. */}
+        <g filter="url(#tut-feather-ring)">
+          {holes.map((h, i) => (
+            <rect
+              key={i}
+              className="tut-focus-ring"
+              x={h.x}
+              y={h.y}
+              width={h.w}
+              height={h.h}
+              rx={h.r}
+              ry={h.r}
+            />
+          ))}
+        </g>
       </svg>
     </div>
   );

@@ -97,6 +97,21 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
+    // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that snowballs one minion
+    // of every type. Same `onRallyBuffOnePerTribe` factory (gild doubles), at +2/+3.
+    id: 'n2_standardbearer',
+    name: 'Standard Bearer',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: ['RL'],
+    universalTribe: true,
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 2, health: 3 } }],
+    text: 'Counts as all tribes. **Rally:** give a minion of **each type** **+2/+3** permanently.',
+    goldenText: 'Counts as all tribes. **Rally:** give a minion of **each type** **+4/+6** permanently.',
+  },
+  {
     // Owner roster addition 2026-07-29. Two branches, deliberately different SHAPES rather than two stat buffs:
     // branch A pays off the spell/Dragon half of set 2 (per-cast, per-type spread), branch B pays off a wide
     // aggressive board (per-attack, board-wide). Which one is live is a real read on your build.

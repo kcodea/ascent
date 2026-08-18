@@ -683,7 +683,8 @@ function commitResolvedAction(
       (next.phase === 'gameover' || next.phase === 'victory') &&
       s.run.phase !== 'gameover' &&
       s.run.phase !== 'victory' &&
-      next.mode !== 'practice'
+      next.mode !== 'practice' &&
+      next.mode !== 'tutorial' // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
     ) {
       // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
       // boards were wrong. See `saveRunBoards`.

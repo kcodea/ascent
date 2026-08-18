@@ -22,7 +22,7 @@ const controls: TunerControl<string>[] = MODEPICK_VARS.map((v) => ({
 
 export const SPEC: TunerSpec<ModePickConfig> = {
   id: 'modepick',            // FROZEN — indexes this panel's dragged position in localStorage
-  title: 'Play Screen',
+  title: 'Play Mode Screen Tuner',
   note: 'dev · card scale + position',
   read: getModePick,
   write: setModePickValue,

@@ -43,6 +43,7 @@ import { SPEC as HeroPowerSpec } from './HeroPowerTuner';
 import { SPEC as InfuseFxSpec } from './InfuseFxTuner';
 import { SPEC as LayoutSpec } from './LayoutTuner';
 import { SPEC as LobbyPanelSpec } from './LobbyPanelTuner';
+import { SPEC as ModePickSpec } from './ModePickTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
 import { SPEC as PlateDissolveSpec } from './PlateDissolveTuner';
@@ -95,6 +96,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   InfuseFxSpec,
   LayoutSpec,
   LobbyPanelSpec,
+  ModePickSpec,
   LungeSpec,
   PlateCoalesceSpec,
   PlateDissolveSpec,

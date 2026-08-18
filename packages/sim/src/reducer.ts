@@ -586,6 +586,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
+  state.aleGranted = []; // per-action scratch: which Dwarf generated an Ale this action (aleGrantSeq stays monotonic)
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
@@ -872,6 +873,8 @@ export function reduce(state: RunState, action: Action): RunState {
   // above, which runs before this). The UI fires the shop-buff replay once per bump; a no-op / non-buffing
   // action leaves `recruitBuffFx` empty and the seq unchanged.
   if (next !== state && next.recruitBuffFx.length > 0) next.recruitFxSeq += 1;
+  // Same per-action contract for the ale-bubbles channel: bump once when a Dwarf generated an Ale this action.
+  if (next !== state && next.aleGranted.length > 0) next.aleGrantSeq += 1;
   // AURA WASH FX: if a run-wide tribe-aura channel ROSE this action — the Undead aura (Lantern of Souls's
   // display-fold `undeadAttackBonus` AND the per-instance Undead-Attack snowball `undeadBuyAtk`:
   // Deathswarmer, Forsaken Mage's spell-cast buff, Forsaken Will), the Imp aura, the Attachment aura

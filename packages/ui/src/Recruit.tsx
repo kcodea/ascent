@@ -900,6 +900,28 @@ export function Recruit() {
     });
     return () => { tween.kill(); };
   }, [run.chaosGrantSeq, run.chaosGrantUid]);
+  // ale-bubbles (Set 2, Dwarves): a Dwarf GENERATED a Dwarven Ale in the SHOP — Brunni (End of Turn), Tapkeeper
+  // (on Gold spent), Doubletap Brewer (Shout). Burst `ale-bubbles` from the generating unit's warband card.
+  // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
+  // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
+  const prevAleSeq = useRef(run.aleGrantSeq);
+  useEffect(() => {
+    const seq = run.aleGrantSeq;
+    if (seq === prevAleSeq.current) return;
+    prevAleSeq.current = seq;
+    if (!canPlayDefs() || run.aleGranted.length === 0) return;
+    const sources = Array.from(new Set(run.aleGranted.map((e) => e.sourceUid))); // one burst per generating unit
+    const raf = requestAnimationFrame(() => {
+      for (const uid of sources) {
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
+        if (!el) continue; // the unit left the board (e.g. sold) before the frame — skip silently
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: uid, target: uid } });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.aleGrantSeq]);
   // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
   // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are

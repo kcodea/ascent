@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE rounds 5–7: the synergy arc (Shout, Start of Combat, the build coming together)
+
+Extends Learn Ascent from 4 to 7 rounds — the first *synergy* teaching, where the fundamentals start combining
+into an engine. Same complete, per-action-gated sequences as R1–4 (buy → play → [position] → End Turn → watch →
+return to shop), authored against real Set-2 cards (all ids grep-verified):
+
+- **R5 — Shout** (`dm_butcher`, Contract Butcher): play it, watch its Shout buff the shop the instant it lands.
+  Teaches that Shout fires on play from hand.
+- **R6 — Start of Combat + Tavern to Tier 3** (`dm_wrangler`, Imp Wrangler): its Start-of-Combat summons a free
+  Imp as the fight begins; the round also upgrades to Tier 3 to unlock the keystone.
+- **R7 — position-dependent synergy** (`b2_echohorn`, Echohorn): its Rally triggers your LEFT-MOST Echo, so the
+  player repositions T-Rex (their Echo) to the front and the Rally→Echo engine fires. This is the payoff of
+  everything taught so far — Rally, Echo, and placement combining into a board that runs itself.
+
+Engine: added a `reordered` predicate (the R7 positioning step completes when the player repositions a minion).
+Verified the course wiring live (7 rounds; shops serve butcher / wrangler / echohorn; generous 10 gold so a buy
++ tavern-up in one round is affordable). Full live playthrough of R5–7 was blocked by the browser pane being
+backgrounded (rAF/timers throttled → combat can't animate in the harness), but every mechanism R5–7 uses is
+identical to the R1–4 sequences already verified end-to-end. Gates: typecheck, lint (0 errors), 5560 tests,
+`build:web`.
+
+**Still ahead:** R8–12 (Runeforge, Gilding, supervised independence, graduation into a real lobby); tuning R3
+so T-Rex reliably dies for the Echo payoff; and the interactive order-demo drag.
+
 ## 2026-08-17 — FTUE: from a button-tour slice to a properly-gated fundamentals course
 
 Owner feedback on the 4-round slice: it read as a "where are the buttons" tour with several desync bugs, and

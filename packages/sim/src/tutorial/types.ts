@@ -144,6 +144,7 @@ export type TutorialPredicate =
   | { kind: 'inspectedAny' }
   | { kind: 'refreshed' }
   | { kind: 'froze' }
+  | { kind: 'reordered' } // the player repositioned a minion (teaches placement)
   | { kind: 'castSpell'; cardId?: string }
   | { kind: 'heroPowerUsed' }
   | { kind: 'tierAtLeast'; tier: number }

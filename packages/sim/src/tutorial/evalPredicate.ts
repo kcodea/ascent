@@ -33,6 +33,8 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return sawEvent(events, (e) => e.type === 'refreshed');
     case 'froze':
       return sawEvent(events, (e) => e.type === 'froze');
+    case 'reordered':
+      return sawEvent(events, (e) => e.type === 'reordered');
     case 'castSpell':
       return sawEvent(events, (e) => e.type === 'castSpell' && (pred.cardId === undefined || e.cardId === pred.cardId));
     case 'heroPowerUsed':

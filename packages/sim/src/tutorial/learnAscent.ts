@@ -110,6 +110,9 @@ const CARD_IDS = {
   trex: 'b2_trex', // T2 Beast, Echo (Deathrattle summon)
   wolvie: 'b2_wolvie', // T2 Beast
   candleback: 'k_candleback', // T1 Kobold, Taunt
+  butcher: 'dm_butcher', // T2 Demon — "Shout: give minions in the Shop +1/+1" (teaches Shout, visible on play)
+  wrangler: 'dm_wrangler', // T1 Demon — "Start of Combat: summon an Imp" (teaches Start of Combat)
+  echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
 } as const;
 
 /** "End your turn to send your board into battle." Gated to End Turn only. */
@@ -233,7 +236,101 @@ const round4Steps: TutorialStep[] = [
     completion: { kind: 'played', cardId: CARD_IDS.wolvie },
   },
   endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
-  combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics now. Click here to return to the shop and keep playing.'),
+  combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics; now let us add some synergy. Click here to return to the shop.'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 5 — SHOUT: a trigger that fires the moment you play a minion from your hand.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round5Steps: TutorialStep[] = [
+  {
+    id: 'r5-buy',
+    phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
+    body: 'Buy Contract Butcher. It has a Shout — an effect that fires the instant you play it from your hand.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.butcher },
+  },
+  {
+    id: 'r5-play',
+    phase: 'shop', focusMode: 'action', title: 'Hear the Shout',
+    body: 'Play it and watch: its Shout fires now, buffing the minions in your shop for later.',
+    why: 'Shout triggers on play from hand — so the order you play minions can matter.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'keyword_shout',
+    completion: { kind: 'played', cardId: CARD_IDS.butcher },
+  },
+  endTurnStep('r5-end', 'A bigger board again. End the turn and fight.'),
+  combatDebriefStep('r5-debrief', 'Shout Recap', 'Shout fires when a minion is played — value before combat even starts. Click here to return to the shop.'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 6 — START OF COMBAT: an effect that fires as the fight begins. Plus a Tavern upgrade to Tier 3.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round6Steps: TutorialStep[] = [
+  {
+    id: 'r6-buy',
+    phase: 'shop', focusMode: 'action', title: 'Start of Combat',
+    body: 'Buy Imp Wrangler. Its Start-of-Combat effect fires as the fight begins — summoning a free Imp to fight for you.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.wrangler }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.wrangler },
+  },
+  {
+    id: 'r6-play',
+    phase: 'shop', focusMode: 'action', title: 'Place It',
+    body: 'Play Imp Wrangler onto your board. Watch for its Imp appearing right as combat starts.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'play_minion',
+    completion: { kind: 'played', cardId: CARD_IDS.wrangler },
+  },
+  {
+    id: 'r6-tavern',
+    phase: 'shop', focusMode: 'action', title: 'Reach Tier 3',
+    body: 'Upgrade your Tavern to Tier 3. It unlocks the strongest minions — including the piece that ties your board together.',
+    anchors: [{ kind: 'ui', id: 'tavern-up' }],
+    gate: 'hard', lessonId: 'tavern_up',
+    completion: { kind: 'tierAtLeast', tier: 3 },
+  },
+  endTurnStep('r6-end', 'End the turn — and watch the Imp appear at the Start of Combat.'),
+  combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks — free value the moment the fight begins. Click here to return to the shop.'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 7 — POSITION-DEPENDENT SYNERGY: the build comes together. Echohorn's Rally triggers your LEFT-MOST Echo,
+// so where you place T-Rex decides whether the engine fires. This is the payoff of everything so far.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const round7Steps: TutorialStep[] = [
+  {
+    id: 'r7-buy',
+    phase: 'shop', focusMode: 'action', title: 'The Keystone',
+    body: 'Buy Echohorn. When it attacks, its Rally triggers your LEFT-MOST Echo minion — free extra bodies mid-fight.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.echohorn },
+  },
+  {
+    id: 'r7-play',
+    phase: 'shop', focusMode: 'action', title: 'Play Echohorn',
+    body: 'Play Echohorn onto your board. Now the placement matters.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'play_minion',
+    completion: { kind: 'played', cardId: CARD_IDS.echohorn },
+  },
+  {
+    id: 'r7-position',
+    phase: 'shop', focusMode: 'action', title: 'Position for Synergy',
+    body: 'Drag T-Rex to the LEFT-most slot. Echohorn triggers your left-most Echo — so put your Echo minion there.',
+    why: 'Position decides which effects fire. Line up your pieces and the board becomes an engine.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'reorder_minion',
+    completion: { kind: 'reordered' },
+  },
+  endTurnStep('r7-end', 'Your engine is set. End the turn and watch it fire.'),
+  combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, Start of Combat — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
 ];
 
 const turns: TutorialTurn[] = [
@@ -284,6 +381,39 @@ const turns: TutorialTurn[] = [
     ],
     steps: round4Steps,
   },
+  {
+    turn: 5,
+    opponentSeatId: 's5',
+    combatSeed: 'learn-ascent-r5',
+    omenBoard: [{ attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 3 }],
+    // Offers Contract Butcher (the Shout minion).
+    shopRolls: [
+      { minions: [CARD_IDS.butcher, 'dm_clerk', 'k_chipwick'] },
+    ],
+    steps: round5Steps,
+  },
+  {
+    turn: 6,
+    opponentSeatId: 's6',
+    combatSeed: 'learn-ascent-r6',
+    omenBoard: [{ attack: 4, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
+    // Offers Imp Wrangler (Start of Combat) — the round also upgrades the Tavern to Tier 3.
+    shopRolls: [
+      { minions: [CARD_IDS.wrangler, 'dm_clerk', 'k_chipwick'] },
+    ],
+    steps: round6Steps,
+  },
+  {
+    turn: 7,
+    opponentSeatId: 's7',
+    combatSeed: 'learn-ascent-r7',
+    omenBoard: [{ attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 2 }],
+    // Offers Echohorn (Tier 3) — the round is at Tier 3 after Round 6's upgrade.
+    shopRolls: [
+      { minions: [CARD_IDS.echohorn, CARD_IDS.wolvie, 'dm_hank'] },
+    ],
+    steps: round7Steps,
+  },
 ];
 
 /**
@@ -298,8 +428,8 @@ export const LEARN_ASCENT: TutorialCourse = {
   setId: 'set2',
   heroId: 'aster',
   title: 'Learn Ascent',
-  summary: 'A coached first game — buy, build, and battle your way through four rounds.',
-  rounds: 4,
+  summary: 'A coached first game — learn to shop, build, position, and win, then bring a synergy engine together.',
+  rounds: 7,
   opponentNames: ['Rook', 'Vale', 'Mira', 'Flint', 'Ibis', 'Nox', 'Crown'],
   foundation: [
     {

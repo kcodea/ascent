@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-18 — Tutorial no longer moves MMR; mode-card hit areas fixed; Play-Mode-Screen tuner moved into the dev menu
+
+Three owner-reported fixes:
+
+- **Tutorial games were moving the player's Rating.** The tutorial carries a lobby (so its coaching can spotlight
+  the seat rail), and the store's run-end handler rated any non-practice lobby finish — so a tutorial's placement
+  fed `resolveLobbyRating` and uploaded a profile/rating. Excluded `mode === 'tutorial'` from that whole block
+  (rating, run-history, leaderboard, uploads), exactly like practice. Forward-looking only — a rating already
+  nudged by an earlier tutorial run is server-side and would need an owner-side reset.
+- **Mode-card hover selected the wrong card / captions misfired.** The per-card position transform sat on the
+  inner `.mcframe`, which moved the ART but left the `.modecard` button (the hit area + `:hover`) at its original
+  flex slot — so hovering the visual Play triggered Learn. Moved Scale/Width/Height/X/Y onto the `.modecard`
+  itself (the frame now fills it), so the clickable box and the hover-dim track the visual exactly. Verified: the
+  Play card's centre now hits Play, the three boxes are cleanly separated, and the caption covers the full card.
+- **The Play-Mode-Screen tuner moved into the Dev tuning menu.** It was an inline "🎛 Tune" pill top-left of the
+  picker; now it's a normal entry (Stage & Layout → "🎛️ Play Mode Screen", panel title "Play Mode Screen Tuner")
+  registered in `DevMenu` + `tunerAll`, so its ✕ works through the standard `DevPanelContext` and it resets with
+  "Reset all". Opens over the picker (panels float at z 600+).
+
+**Follow-up (same branch):** removed the press "jump" — `.modecard:active` applied `translateY(3px) scale(.984)`,
+which REPLACED each tuned card's big translate/scale and snapped it to its flex slot on click. Scoped that press
+transform to `:not([data-mp])` and gave the tuned cards a transform-free brightness press instead (also excluded
+them from the reduced-motion `transform: none` reset). Re-baked the owner's latest values (Play/Practice X −160,
+Learn 880×128 at y187, MODE title y59). Verified live: the `:active` rule no longer touches the tuned cards'
+transform, so there's no jump.
+
+Gates: typecheck, lint (0 errors), build:web; full suite green.
+
 ## 2026-08-18 — Mode picker: hover dims the whole card; Play-Screen tuner hidden by default with a working ✕
 
 Two owner fixes on the mode picker:

@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-18 — Consume slot-hold: the taffy pull now launches from the slot, and the row closes *after* it leaves
+
+Combined two parallel consume efforts onto latest main. Base: the other session's `feat/consume-fx` taffy
+pull + `🍖 Consume FX` tuner + `consume-bands` def (its own entry below), squash-merged onto current main —
+which keeps main's slot-launch ghost (#1078), so the taffy ghost now stretches out of the eaten card's **own
+slot**, not the row centre. On top of that, this adds the **reflow-hold**:
+
+- On the consume commit, a derive-during-render step reads the eaten uid + its pre-removal slot index (from
+  `shopRectsRef.cur`, still the pre-removal layout at that point) and re-injects an **invisible placeholder**
+  (`.card.compact.dragsrc`, `data-uid` intact) at that index — so `flipKey` is byte-identical to the
+  pre-consume frame and the survivors do **not** reflow while the ghost is being pulled in.
+- A timer releases the hold at the taffy's own clock (`getConsumeFxConfig().durationMs`); only then does the
+  slot drop, `flipKey` change, and the committed-move FLIP glide the survivors closed.
+- The taffy ghost's slot-launch read now falls back `prev ?? cur`, because a held commit leaves `flipKey`
+  unchanged so the snapshot effect never swaps `cur`→`prev`.
+
+Why derive-during-render, not an effect: a passive effect runs AFTER the FLIP layout effect, so the reflow
+would already have animated before the placeholder could hold the slot.
+
+Verified: typecheck (pkgs + web), lint (0 errors), full test suite, and `build:web` all green; live consume
+checked by the owner on the branch dev server.
+
 ## 2026-08-16 - Shop consume FX: shake + taffy-stretch + pull ghost, synced to a `consume-bands` def
 
 Replaced the old ghost-Fred swirl that played when a shop minion is eaten with a purpose-built "consumed"

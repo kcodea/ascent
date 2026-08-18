@@ -83,6 +83,7 @@ export type TutorialSemanticEvent =
   | { type: 'endedTurn' }
   | { type: 'combatStarted' }
   | { type: 'combatEnded'; result: 'win' | 'lose' | 'draw' }
+  | { type: 'returnedToShop' } // the player clicked "End combat, back to shop" (resolveCombat)
   // presented:* — the combat presentation adapter observed a semantic effect being SHOWN (never gameplay).
   | { type: 'presented'; kind: TutorialPresentedKind; srcUid?: string; srcCard?: string };
 
@@ -108,6 +109,10 @@ export interface TutorialContext {
   run: TutorialRunView;
   events: TutorialSemanticEvent[];
   sawEver: ReadonlySet<TutorialSemanticEvent['type']>;
+  /** Combat-lifecycle events (started / ended / returned-to-shop / presented) seen since the CURRENT combat
+   *  began — NOT reset per step, so several consecutive combat beats can each key on the same fight's outcome
+   *  (a Rally-watch step and the win-confirm step both read one `combatEnded`). Reset when a new combat starts. */
+  combatEvents: readonly TutorialSemanticEvent[];
 }
 
 /** The read-only slice of RunState a predicate is allowed to see. Kept narrow so a course can't reach into
@@ -146,6 +151,7 @@ export type TutorialPredicate =
   | { kind: 'endedTurn' }
   | { kind: 'combatStarted' }
   | { kind: 'combatEnded'; result?: 'win' | 'lose' | 'draw' }
+  | { kind: 'returnedToShop' } // back in the shop after a fight (drives the "click here to return" step)
   | { kind: 'presented'; presented: TutorialPresentedKind }
   | { kind: 'goldSpentToZero' } // embers reached 0 (the guided economy's usual end-of-turn state)
   | { kind: 'not'; of: TutorialPredicate }

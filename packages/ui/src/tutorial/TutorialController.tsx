@@ -22,8 +22,7 @@ import { useGame } from '../store';
 import { subscribeTutorialActions } from './actionBus';
 import { subscribeTutorialPresented } from './presentationBus';
 import { setTutorialGate, subscribeGateNudge } from './gateBus';
-import type { TutorialPredicate } from '@game/sim';
-import { measureAnchors } from './anchorRegistry';
+import { measureAnchors, resolveAnchorRect } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
 import {
@@ -72,9 +71,42 @@ function mapAction(action: Action, prev: RunState, next: RunState): TutorialSema
     case 'heroPower': return [{ type: 'heroPowerUsed', targetUid: action.uid }];
     case 'reposition': case 'reorderShop': case 'reorderHand': return [{ type: 'reordered' }];
     case 'faceOmen': return [{ type: 'endedTurn' }, { type: 'combatStarted' }];
-    case 'resolveCombat': return [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }];
+    // Combat is SETTLED when the replay finishes (win/loss known) — that's "combat ended". The player then
+    // clicks "End combat, back to shop" (resolveCombat), which is a SEPARATE beat the coach can guide.
+    case 'settleCombat': return [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }];
+    case 'resolveCombat': return [{ type: 'returnedToShop' }];
     default: return [];
   }
+}
+
+/** The player verb(s) a step's completion is teaching — used to lock input to exactly that action. `null` means
+ *  "don't gate a verb" (a combat/observe step: only flow actions apply, and those always pass). */
+function allowedKindsFor(step: TutorialStep): string[] {
+  if (step.allowedActionKinds) return step.allowedActionKinds;
+  const c = step.completion;
+  switch (c.kind) {
+    case 'bought': return ['buy'];
+    case 'played': return ['play'];
+    case 'sold': return ['sell'];
+    case 'refreshed': return ['roll'];
+    case 'froze': return ['freeze'];
+    case 'tierAtLeast': return ['upgrade'];
+    case 'heroPowerUsed': return ['heroPower'];
+    case 'castSpell': return ['play']; // spells are played from hand
+    case 'endedTurn': case 'combatStarted': return ['faceOmen'];
+    case 'gilded': return ['buy']; // a Gild completes on the third buy
+    case 'inspectedAny': return []; // inspect is always allowed anyway
+    // Combat/observe/return steps gate no verb — the player is watching or clicking a flow control.
+    default: return [];
+  }
+}
+
+/** Which run phase a step expects to be shown in, so its spotlight never resolves against a screen that isn't
+ *  there (a combat step must not try to light up shop chrome, and vice-versa). */
+function stepMatchesPhase(step: TutorialStep, phase: string): boolean {
+  if (step.phase === 'combat') return phase === 'combat';
+  // shop / lobby / runeforge / debrief / foundation steps all live in the recruit (shop) phase.
+  return phase === 'recruit';
 }
 
 // ─── Anchor spec (authored, alias-based) → resolved ref (uid-based) ────────────────────────────────────────
@@ -117,16 +149,6 @@ function projectRun(run: RunState): TutorialRunView {
 
 const isLessonKey = (id: string): id is TutorialLessonKey => (TUTORIAL_LESSON_KEYS as readonly string[]).includes(id);
 
-/** Does this step's completion depend on ending the turn / combat? If so, ending the turn is exactly what it
- *  asks for, so End Turn must NOT be gated. Scans the predicate tree. */
-function completionNeedsEndTurn(pred: TutorialPredicate): boolean {
-  switch (pred.kind) {
-    case 'endedTurn': case 'combatStarted': case 'combatEnded': case 'presented': return true;
-    case 'not': return completionNeedsEndTurn(pred.of);
-    case 'all': case 'any': return pred.of.some(completionNeedsEndTurn);
-    default: return false;
-  }
-}
 
 // ─── The controller ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -142,14 +164,18 @@ export function TutorialController(): JSX.Element | null {
   const items = useMemo(() => (course ? flattenCourse(course) : []), [course]);
 
   const [cursor, setCursor] = useState(0);
-  // Events seen SINCE the current step activated (predicate scope), plus the run-lifetime "ever" set.
+  // Events seen SINCE the current step activated (predicate scope), plus the run-lifetime "ever" set, plus the
+  // per-COMBAT log (reset when a new fight starts) so consecutive combat beats each see one fight's outcome.
   const [events, setEvents] = useState<TutorialSemanticEvent[]>([]);
   const sawEverRef = useRef<Set<TutorialSemanticEvent['type']>>(new Set());
+  const combatEventsRef = useRef<TutorialSemanticEvent[]>([]);
   // A transient nudge shown when the player tries a gated action (e.g. End Turn mid-lesson).
   const [nudge, setNudge] = useState<string | null>(null);
 
   const record = useCallback((e: TutorialSemanticEvent) => {
     sawEverRef.current.add(e.type);
+    if (e.type === 'combatStarted') combatEventsRef.current = []; // a new fight — clear the last one's log
+    combatEventsRef.current.push(e);
     setEvents((prev) => [...prev, e]);
   }, []);
 
@@ -173,6 +199,7 @@ export function TutorialController(): JSX.Element | null {
     setCursor(savedIdx >= 0 ? savedIdx : 0);
     setEvents([]);
     sawEverRef.current = new Set();
+    combatEventsRef.current = [];
   }, [isTutorial, course, items, runSeed]);
 
   // Subscribe to the dispatched-action stream while a tutorial is live; translate to semantic events.
@@ -203,13 +230,16 @@ export function TutorialController(): JSX.Element | null {
 
   const current = items[cursor];
 
-  // Gate End Turn while a shop/lobby step is active that isn't itself about ending the turn — so a new player
-  // can't skip the lesson into an empty-board fight. Cleared when the tutorial ends (below) or a combat/end-turn
-  // step is active. NEVER blocks anything but faceOmen (see gateBus), so it can't soft-lock.
+  // LOCK input to the current step's coached action — the player can do only what the coach is pointing at, so
+  // they stay in lock-step and can't desync the course. Flow/positioning/inspect always pass (see gateBus), so
+  // this can't soft-lock. A foundation panel blocks every verb (the player clicks Continue).
   useEffect(() => {
-    if (!isTutorial) { setTutorialGate(null); return; }
-    const blockEndTurn = !!current && current.kind === 'step' && current.step.phase !== 'combat' && !completionNeedsEndTurn(current.step.completion);
-    setTutorialGate({ blockEndTurn });
+    if (!isTutorial || !current) { setTutorialGate(null); return; }
+    if (current.kind === 'panel') {
+      setTutorialGate({ allowedActionKinds: [], reason: 'Read this, then press Continue.' });
+    } else {
+      setTutorialGate({ allowedActionKinds: allowedKindsFor(current.step), reason: 'Follow the highlighted step first — that action comes next.' });
+    }
     return () => setTutorialGate(null);
   }, [isTutorial, current]);
 
@@ -235,7 +265,7 @@ export function TutorialController(): JSX.Element | null {
   useEffect(() => {
     if (!isTutorial || !current || current.kind !== 'step') return;
     if (current.step.completion.kind === 'always') return;
-    const ctx: TutorialContext = { run: projectRun(run), events, sawEver: sawEverRef.current };
+    const ctx: TutorialContext = { run: projectRun(run), events, sawEver: sawEverRef.current, combatEvents: combatEventsRef.current };
     if (evalPredicate(current.step.completion, ctx)) advance(current.step);
   }, [isTutorial, current, events, run, advance]);
 
@@ -243,16 +273,31 @@ export function TutorialController(): JSX.Element | null {
   // (a handful of getBoundingClientRect calls, only while a tutorial is on screen — never a per-frame loop).
   const view = useMemo<TutorialOverlayView | null>(() => {
     if (!isTutorial || !current) return null;
+    // PHASE SAFETY: only resolve spotlights when the game is on the screen the step expects. A combat step must
+    // never try to light up shop chrome (its anchors aren't there) — during a mismatch we still show the panel,
+    // just centered with no cutout, until the phase catches up.
+    const phaseOk = current.kind === 'panel' || stepMatchesPhase(current.step, run.phase);
     const specs = current.kind === 'panel' ? current.focus : current.step.anchors;
-    const refs = specs.map((s) => resolveSpec(s, run)).filter((r): r is TutorialAnchorRef => r !== null);
+    const refs = phaseOk ? specs.map((s) => resolveSpec(s, run)).filter((r): r is TutorialAnchorRef => r !== null) : [];
     const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null);
     const cutouts: FocusCutout[] = rects.map((rect) => ({ rect, shape: 'rect' as const }));
     const primaryRect = rects[0] ?? null;
-    const combat = current.kind === 'step' && current.step.phase === 'combat';
+
+    // Resolve a connector (drag/causal line) when the step declares one and both ends are on screen.
+    let connector: TutorialOverlayView['connector'];
+    if (phaseOk && current.kind === 'step' && current.step.connector) {
+      const c = current.step.connector;
+      const from = resolveSpec(c.from, run);
+      const to = resolveSpec(c.to, run);
+      const fr = from ? resolveAnchorRect(from) : null;
+      const tr = to ? resolveAnchorRect(to) : null;
+      if (fr && tr) connector = { from: fr, to: tr, style: c.style, label: c.label };
+    }
 
     if (current.kind === 'panel') {
       return {
         cutouts,
+        connector,
         combat: false,
         panel: { anchorRect: primaryRect, title: current.title, body: current.body, why: current.why, focusMode: 'orient', onNext: () => advance(), nextLabel: 'Continue', step: cursor + 1, total: items.length },
       };
@@ -260,7 +305,8 @@ export function TutorialController(): JSX.Element | null {
     const step = current.step;
     return {
       cutouts,
-      combat,
+      connector,
+      combat: step.phase === 'combat',
       panel: {
         anchorRect: primaryRect,
         title: step.title,

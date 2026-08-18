@@ -13,7 +13,7 @@ function sawEvent(events: readonly TutorialSemanticEvent[], match: (e: TutorialS
 }
 
 export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): boolean {
-  const { run, events } = ctx;
+  const { run, events, combatEvents } = ctx;
   switch (pred.kind) {
     case 'always':
       return true;
@@ -43,12 +43,15 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return sawEvent(events, (e) => e.type === 'gilded');
     case 'endedTurn':
       return sawEvent(events, (e) => e.type === 'endedTurn');
+    // Combat-lifecycle predicates read the per-COMBAT log so consecutive combat beats can each match one fight.
     case 'combatStarted':
-      return sawEvent(events, (e) => e.type === 'combatStarted');
+      return sawEvent(combatEvents, (e) => e.type === 'combatStarted');
     case 'combatEnded':
-      return sawEvent(events, (e) => e.type === 'combatEnded' && (pred.result === undefined || e.result === pred.result));
+      return sawEvent(combatEvents, (e) => e.type === 'combatEnded' && (pred.result === undefined || e.result === pred.result));
+    case 'returnedToShop':
+      return sawEvent(combatEvents, (e) => e.type === 'returnedToShop');
     case 'presented':
-      return sawEvent(events, (e) => e.type === 'presented' && e.kind === pred.presented);
+      return sawEvent(combatEvents, (e) => e.type === 'presented' && e.kind === pred.presented);
     case 'goldSpentToZero':
       return run.embers <= 0;
     case 'not':

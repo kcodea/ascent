@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE: from a button-tour slice to a properly-gated fundamentals course
+
+Owner feedback on the 4-round slice: it read as a "where are the buttons" tour with several desync bugs, and
+it should instead be ONE continuous course that teaches the fundamentals and card mechanics as the build comes
+together. Every reported bug traced to the same root: rounds 2–4 were missing their intermediate steps (no End
+Turn, no return-to-shop, no per-purchase guidance), so the coach jumped to a combat step while the player was
+still in the shop — and nothing locked input, so they could get ahead. This is the structural fix + re-author.
+
+**Structural (the fixes that make a real tutorial possible):**
+- **Full per-action locking.** The gate went from "block End Turn" to "allow ONLY the coached verb": the
+  controller derives each step's allowed action from its completion (buy → `['buy']`, tavern-up → `['upgrade']`,
+  …) and the store's `dispatch` drops anything else with a nudge. Flow/positioning/inspect always pass, so it
+  still can't soft-lock. This alone keeps the coach and the game in lock-step.
+- **Explicit turn transitions.** Every round now runs shop actions → **End Turn** → watch combat → **return to
+  shop**, each gated to one action. A new `returnedToShop` signal (from `resolveCombat`) drives a post-combat
+  step that spotlights the "End combat" button and tells the player it goes back to the shop — the missing CTA
+  players were stuck on.
+- **Per-combat event scope.** Consecutive combat beats (a Rally-watch step and the win/return debrief) both key
+  on one fight's outcome; per-step events were cleared on advance, so the second stalled. Combat-lifecycle
+  predicates now read a per-COMBAT log that resets only when a new fight starts.
+- **Phase-aware spotlights + connector rendering.** A step only resolves its spotlight when the game is on the
+  screen it expects (a combat step never lights up shop chrome), and the controller now actually renders a
+  step's connector line (the "tap power → pick target" arrow).
+- **Generous tutorial gold** (10/turn) so a buy AND a tavern-up in one round are always affordable — a tutorial
+  is not an economy puzzle, and the gate stops over-spending.
+
+**Re-authored course** (`learnAscent.ts`): every purchase is guided, every round complete. R1 buy/play/power/
+Rally/win; R2 a second body + the first tavern-up (board width); R3 **Refresh + the Echo mechanic** (buy T-Rex,
+watch it leave a body behind); R4 **Freeze + rounding out the build**, ending on "The Full Loop" rather than an
+abrupt "win on your own". Shared `endTurnStep` / `combatDebriefStep` builders keep transitions consistent.
+
+Verified live end-to-end (R1→R2→R3, every mechanism): per-action gating (an illegal upgrade on the buy step is
+blocked), per-purchase guidance, an affordable tavern-up, Refresh serving the authored T-Rex, and clean
+combat → debrief → return-to-shop transitions with no phase desync. Gates: typecheck, lint (0 errors), 5560
+tests, `build:web`.
+
+**Still ahead (the 12-round arc):** this is a complete, gated 4-round fundamentals course; the plan is to extend
+it toward 12 rounds teaching Shout, Discover, Start-of-Combat, adjacency, Gilding and a real Runeforge as the
+build deepens — plus tuning R3 so T-Rex reliably dies for the Echo payoff, and the interactive order-demo drag.
+
 ## 2026-08-17 — FTUE Phase 1: Learn Ascent vertical slice (Round 1 end-to-end, live-verified)
 
 The first-time-player tutorial goes from scope to a **runnable, coached Round 1** (and into Round 2). Built

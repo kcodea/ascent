@@ -116,6 +116,10 @@ export function createTutorialRun(
   run.tutorialCourseId = courseId;
   run.tutorialShopScript = shopScript;
   run.tutorialShopRoll = 0;
+  // GENEROUS GOLD: a tutorial is not an economy puzzle. Give the max (10) every turn so every coached action —
+  // a buy AND a tavern-up in one round — is always affordable; the action gate stops the player over-spending.
+  run.maxEmbers = 10;
+  run.embers = 10;
   rollShop(run);
   // A fixed-round course ends by the round cap (or the player's elimination), so pin `maxRounds` to the course
   // length rather than the lobby default of 60.

@@ -91,103 +91,149 @@ const round1Steps: TutorialStep[] = [
     safeHold: { at: 'beforeAttack', alias: ROUND1_BUY },
     gate: 'observe',
     lessonId: 'keyword_rally',
-    // Packstrider's Rally is a SELF-BUFF ("+1 Attack per Beast"), which the simulator presents as a `buff`
-    // event — the `rally` event type is reserved for a Rally that fires ANOTHER minion's effect. So accept the
-    // buff (the moment the +1 shows), and fall back to the combat resolving, so this step can never hard-stall
-    // if a given board produces neither presented signal.
-    completion: { kind: 'any', of: [
-      { kind: 'presented', presented: 'rally' },
-      { kind: 'presented', presented: 'buff' },
-      { kind: 'combatEnded' },
-    ] },
+    // A "watch this" step: it stays up through the whole fight (the player sees Packstrider's Attack climb as it
+    // swings) and advances when combat resolves. It does NOT key on the mid-combat buff, so the post-combat
+    // debrief never shows while the fight is still animating.
+    completion: { kind: 'combatEnded' },
   },
-  {
-    id: 'r1-win',
-    phase: 'combat',
-    focusMode: 'confirm',
-    title: 'You Won',
-    body: 'Your warband won, so your Health holds. Lose a fight and you would drop Health instead.',
-    anchors: [{ kind: 'ui', id: 'health' }],
-    gate: 'observe',
-    completion: { kind: 'combatEnded', result: 'win' },
-  },
+  combatDebriefStep('r1-debrief', 'You Won', 'Your warband won, so your Health held — a lost fight would have dropped it instead. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Rounds 2–4 — lighter coaching (one or two beats each) over real boards and shop rolls.
+// Shared step builders — every round follows the same shape: shop actions → End Turn → watch combat → return
+// to shop. Keeping the transitions explicit (and gated to exactly one action) is what stops the coach and the
+// game phase from ever drifting apart.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const CARD_IDS = {
+  packstrider: 'b2_packstrider', // T1 Beast 2/2, Rally
+  trex: 'b2_trex', // T2 Beast, Echo (Deathrattle summon)
+  wolvie: 'b2_wolvie', // T2 Beast
+  candleback: 'k_candleback', // T1 Kobold, Taunt
+} as const;
+
+/** "End your turn to send your board into battle." Gated to End Turn only. */
+function endTurnStep(id: string, body: string, lessonId?: string): TutorialStep {
+  return {
+    id, phase: 'shop', focusMode: 'action', title: 'End Your Turn', body,
+    anchors: [{ kind: 'ui', id: 'end-turn' }], gate: 'hard',
+    ...(lessonId ? { lessonId } : {}),
+    completion: { kind: 'endedTurn' },
+  };
+}
+
+/**
+ * The single POST-COMBAT beat: it confirms the outcome / teaches the combat lesson AND spotlights the (now
+ * "End combat") button so the player knows to click it to return to the shop. One step, so the confirm never
+ * auto-flashes past — it waits for the real click (`returnedToShop`). Every round ends on one of these.
+ */
+function combatDebriefStep(id: string, title: string, body: string, lessonId?: string): TutorialStep {
+  return {
+    id, phase: 'combat', focusMode: 'confirm', title, body,
+    anchors: [{ kind: 'ui', id: 'end-turn' }], gate: 'hard',
+    ...(lessonId ? { lessonId } : {}),
+    completion: { kind: 'returnedToShop' },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 2 — build a WIDER board (a second minion) + the first Tavern upgrade. Teaches that more bodies win.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round2Steps: TutorialStep[] = [
   {
-    id: 'r2-tavern',
-    phase: 'shop',
-    focusMode: 'action',
-    title: 'Upgrade Your Tavern',
-    body: 'Raise your Tavern to Tier 2. Higher tiers unlock stronger minions in the shop.',
-    anchors: [{ kind: 'ui', id: 'tavern-up' }],
-    gate: 'soft',
-    lessonId: 'tavern_up',
-    completion: { kind: 'tierAtLeast', tier: 2 },
+    id: 'r2-buy',
+    phase: 'shop', focusMode: 'action', title: 'Add a Body',
+    body: 'Buy this Taunt minion. A wider board means more attacks — one minion rarely wins a fight.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.candleback }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.candleback },
   },
   {
-    id: 'r2-health',
-    phase: 'combat',
-    focusMode: 'confirm',
-    title: 'Guard Your Health',
-    body: 'A lost fight costs Health. Reach zero and you are out — so build a board that wins.',
-    anchors: [{ kind: 'ui', id: 'health' }],
-    gate: 'observe',
-    lessonId: 'read_health_loss',
-    completion: { kind: 'combatEnded' },
+    id: 'r2-play',
+    phase: 'shop', focusMode: 'action', title: 'Place It',
+    body: 'Play it onto your board, next to Packstrider, so both fight this round.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'play_minion',
+    completion: { kind: 'played', cardId: CARD_IDS.candleback },
   },
+  {
+    id: 'r2-tavern',
+    phase: 'shop', focusMode: 'action', title: 'Upgrade Your Tavern',
+    body: 'Now raise your Tavern to Tier 2. Higher tiers unlock stronger minions in the shop.',
+    anchors: [{ kind: 'ui', id: 'tavern-up' }],
+    gate: 'hard', lessonId: 'tavern_up',
+    completion: { kind: 'tierAtLeast', tier: 2 },
+  },
+  endTurnStep('r2-end', 'Your board is bigger now. End the turn and watch the two boards fight.'),
+  combatDebriefStep('r2-debrief', 'Guard Your Health', 'Win and your Health holds; lose and it drops. Reach zero and you are out — so keep building winning boards. Click here to return to the shop.', 'read_health_loss'),
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 3 — the first CARD MECHANIC beyond Rally: Echo. Buy T-Rex, watch it leave a body behind when it dies.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round3Steps: TutorialStep[] = [
   {
     id: 'r3-refresh',
-    phase: 'shop',
-    focusMode: 'action',
-    title: 'Refresh the Shop',
-    body: 'Nothing you like? Spend 1 Gold to refresh the shop for a fresh set of offers.',
+    phase: 'shop', focusMode: 'action', title: 'Refresh the Shop',
+    body: 'Not seeing what you want? Spend 1 Gold to refresh the shop for a new set of offers.',
     anchors: [{ kind: 'ui', id: 'refresh' }],
-    gate: 'soft',
-    lessonId: 'refresh_shop',
+    gate: 'hard', lessonId: 'refresh_shop',
     completion: { kind: 'refreshed' },
   },
   {
-    id: 'r3-end',
-    phase: 'shop',
-    focusMode: 'action',
-    title: 'Send Them In',
-    body: 'Lock in your board and end the turn to fight this round’s rival.',
-    anchors: [{ kind: 'ui', id: 'end-turn' }],
-    gate: 'soft',
-    completion: { kind: 'endedTurn' },
+    id: 'r3-buy-trex',
+    phase: 'shop', focusMode: 'action', title: 'Buy T-Rex',
+    body: 'Buy T-Rex. It has Echo — a keyword that triggers when the minion dies.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.trex }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.trex },
   },
+  {
+    id: 'r3-play-trex',
+    phase: 'shop', focusMode: 'action', title: 'Play T-Rex',
+    body: 'Play T-Rex onto your board. When it dies in combat, its Echo leaves a new minion behind.',
+    why: 'Echo minions trade up: they die, then keep fighting through what they leave behind.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'keyword_echo',
+    completion: { kind: 'played', cardId: CARD_IDS.trex },
+  },
+  endTurnStep('r3-end', 'End the turn. Watch for T-Rex dying — and what its Echo leaves behind.'),
+  combatDebriefStep('r3-debrief', 'Echo Fired', 'When an Echo minion falls, it leaves value behind — so the fight keeps going for you. Click here to return to the shop.'),
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Round 4 — the build comes together: freeze a good offer, round out the board, then graduate.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round4Steps: TutorialStep[] = [
   {
     id: 'r4-freeze',
-    phase: 'shop',
-    focusMode: 'action',
-    title: 'Freeze the Shop',
-    body: 'Freeze the shop to keep these offers next turn — handy when you cannot afford them yet.',
+    phase: 'shop', focusMode: 'action', title: 'Freeze the Shop',
+    body: 'Freeze keeps these offers for next turn — handy to save a strong minion you cannot afford yet.',
     anchors: [{ kind: 'ui', id: 'freeze' }],
-    gate: 'soft',
-    lessonId: 'freeze_shop',
+    gate: 'hard', lessonId: 'freeze_shop',
     completion: { kind: 'froze' },
   },
   {
-    id: 'r4-end',
-    phase: 'shop',
-    focusMode: 'action',
-    title: 'Finish the Round',
-    body: 'End your turn to battle. Keep winning to protect your Health through the game.',
-    anchors: [{ kind: 'ui', id: 'end-turn' }],
-    gate: 'soft',
-    completion: { kind: 'endedTurn' },
+    id: 'r4-buy',
+    phase: 'shop', focusMode: 'action', title: 'Round Out the Board',
+    body: 'Buy one more Beast. A board of minions that support each other beats a pile of loose bodies.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.wolvie }],
+    gate: 'hard', lessonId: 'buy_minion',
+    completion: { kind: 'bought', cardId: CARD_IDS.wolvie },
   },
+  {
+    id: 'r4-play',
+    phase: 'shop', focusMode: 'action', title: 'Place It',
+    body: 'Play it onto your board. That is your warband — Rally out front, Echo behind, a full team.',
+    anchors: [{ kind: 'ui', id: 'warband' }],
+    gate: 'hard', lessonId: 'play_minion',
+    completion: { kind: 'played', cardId: CARD_IDS.wolvie },
+  },
+  endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
+  combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics now. Click here to return to the shop and keep playing.'),
 ];
 
 const turns: TutorialTurn[] = [
@@ -207,9 +253,11 @@ const turns: TutorialTurn[] = [
     turn: 2,
     opponentSeatId: 's2',
     combatSeed: 'learn-ascent-r2',
+    // Beatable by Packstrider + the Taunt body the round has you buy.
     omenBoard: [{ attack: 2, health: 2 }, { attack: 1, health: 3 }],
+    // All Tier 1 (the tavern is still Tier 1 when this shop opens) — the round buys Candleback, then upgrades.
     shopRolls: [
-      { minions: ['k_candleback', 'dm_clerk', 'b2_trex'] },
+      { minions: [CARD_IDS.candleback, 'dm_clerk', 'k_chipwick'] },
     ],
     steps: round2Steps,
   },
@@ -218,8 +266,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's3',
     combatSeed: 'learn-ascent-r3',
     omenBoard: [{ attack: 3, health: 3 }, { attack: 2, health: 3 }],
+    // Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
     shopRolls: [
-      { minions: ['dm_butcher', 'dm_errand', 'b2_wolvie'] },
+      { minions: ['dm_butcher', 'dm_errand', 'k_geode'] },
+      { minions: [CARD_IDS.trex, CARD_IDS.wolvie, 'dm_hank'] },
     ],
     steps: round3Steps,
   },
@@ -228,8 +278,9 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's4',
     combatSeed: 'learn-ascent-r4',
     omenBoard: [{ attack: 3, health: 4 }, { attack: 3, health: 3 }, { attack: 2, health: 2 }],
+    // Offers Wolvie (the round freezes, then buys it).
     shopRolls: [
-      { minions: ['dw_ironlung', 'k_geode', 'dm_hank'] },
+      { minions: [CARD_IDS.wolvie, 'dw_ironlung', 'dm_hank'] },
     ],
     steps: round4Steps,
   },

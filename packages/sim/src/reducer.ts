@@ -3749,13 +3749,15 @@ function advanceCombat(s: RunState): void {
   // The "quest phase" is just "questOffer is set" (no new phase enum); the modal guard locks every action but
   // buyQuest until it resolves. Fi's Errand (bonus Lesser offer on turn 3) and Coran's Pathfinder (turn-11 bucket on
   // turn 7, no turn-5 quest) are folded into `questOfferPlan`.
-  const questPlan = questOfferPlan(s);
+  // TUTORIAL: quests and the Runeforge are DISABLED until the course teaches them (blueprint §6.4) — they must
+  // never pop over a coached step and hijack the turn.
+  const questPlan = s.mode === 'tutorial' ? null : questOfferPlan(s);
   const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
   // Runesmith: the Runeforge opens exactly once, on turn 5 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
   // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
-  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
+  const forge = s.mode !== 'tutorial' && getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -3764,7 +3766,7 @@ function advanceCombat(s: RunState): void {
     s.runeforgeOffer = drawn.offer;
     s.runeforgeDiscounts = drawn.discounts;
     applyHeroForgeDiscount(s, forgeRng);
-  } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
+  } else if (s.mode !== 'tutorial' && (CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
     // slots into the normal start-of-turn modal priority (behind any quest offer, via openNextStartOfTurnModal).

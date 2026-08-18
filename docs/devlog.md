@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-18 — The Reroll cost coin comes off in combat
+
+Owner call on the open question from #1082: hide it. The coin was the one place the Reroll crystal still
+diverged from the Tavern stone in combat, and a price on something you can't buy is noise.
+
+The coin's own rule was that it is ALWAYS shown — a free roll turns it green with a 0 rather than removing it
+(owner 2026-07-21), because a vanishing badge shifted the button's shape and left the player reading absence.
+That reasoning is about telling one SHOP state from another, so it doesn't carry into combat, where the crystal
+is a passive prop with no roll to price. The comment now says that outright, rather than leaving the next
+reader to wonder whether the new `{!combat && …}` gate contradicts the old rule.
+
+Also dropped the price from the combat aria-label (now "Refresh the shop — unavailable during combat"), and
+reverted the two `:not(.combat)` guards added yesterday to the coin's red "too expensive" rules — with the coin
+no longer rendered in combat at all, they guarded a case that can't happen. The Freeze gem's `:not(.combat)`
+guard stays: that gem does still render in combat.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
 ## 2026-08-17 — Freeze, Reroll and Gold stay on the board through combat
 
 Owner ask: the Freeze gem, the Reroll crystal and the Gold pill vanished the moment combat started, and

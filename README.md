@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way.
+- **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way. The Reroll crystal drops its cost coin there, since there is no roll to price.
 
 - **New default arena board** — the full-board art ships as the board, and the whole UI re-seats around it: the global layout (card size, board zoom, shop row, warband, hand, quest nodes, gold pill, charge glyph, drag zones) plus every piece of board furniture (hero panel, End Turn and hero-power diamonds, Tavern Up, Freeze, Reroll, the lobby rail). The two previous 21:9 boards stay selectable in the Esc menu. The new art is 16:9, so on an ultrawide monitor the side margins show the flat backdrop rather than floor art.
 

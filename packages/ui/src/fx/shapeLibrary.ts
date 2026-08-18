@@ -393,12 +393,18 @@ function ensureTexture(shape: ImportedShape): Promise<Texture | null> {
 // ─── committed art (`fx/defs/art/*.png`, resolved by an `art:<slug>` id) ──────────────────────────────
 
 /**
- * slug → bundled URL for every committed PNG. DEV-gated at the glob, and it STAYS that way even though the
- * defs themselves now ship: this folder is where the workbench's art IMPORT writes, so in a normal session it
- * holds whatever the author happened to drop in, and an un-gated glob would pull all of it — PNGs, at PNG
- * sizes — into the shipped bundle. Nothing is committed there today (just a `.gitkeep`), so for players a def
- * referencing `art:<slug>` falls back to a procedural shape; see `docs/fx-workbench-guide.md`. Contrast
- * `fxDefs.ts`, whose glob IS un-gated: those defs are small committed JSON that players are meant to see.
+ * slug → bundled URL for every committed PNG. This glob SHIPS (un-gated 2026-08-17): a committed
+ * `fx/defs/art/<slug>.png` is bundled for players, so a def referencing `art:<slug>` renders the real art
+ * instead of a procedural fallback — the same promise `fxDefs.ts` makes for committed JSON defs. This is what
+ * lets the coin FX (`art:group-14035`), the ruby/shop-buff FX (`art:gemshard`), and `ale-bubbles`
+ * (`art:bubble`) reach the shipped game.
+ *
+ * THE POLICY THAT KEEPS THE BUNDLE HONEST: this folder is also where the workbench's art IMPORT writes, so it
+ * accumulates whatever an author drops in during a session. The glob bundles every PNG on disk at build time —
+ * so **only commit a PNG here that is meant to ship.** Uncommitted scratch imports stay local (CI builds from
+ * committed files only, so they never reach players); a committed PNG is a shipped asset, reviewed in its PR
+ * like card art. `docs/fx-workbench-guide.md` documents this; `prodPlayback.test.ts` pins that committed art
+ * resolves with `DEV` false.
  *
  * `import.meta.glob` is a Vite TRANSFORM, not a runtime function — the call is replaced at transform time,
  * which is why its options must be an inline literal. That also holds under Vitest (it runs source through
@@ -407,7 +413,6 @@ function ensureTexture(shape: ImportedShape): Promise<Texture | null> {
  * i.e. exactly the existing fallback behaviour.
  */
 function artModules(): Record<string, string> {
-  if (!import.meta.env.DEV) return {};
   try {
     return import.meta.glob('./defs/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<
       string,

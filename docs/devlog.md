@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-08-17 — `ale-bubbles` FX on every Dwarf ale-generation; committed FX art now ships to players
+
+**The feature.** A new `ale-bubbles` burst (author's def, `art:bubble` upward puff) fires whenever a **Dwarf
+unit generates a Dwarven Ale**, in BOTH phases. All five generation sites are covered: shop — Brunni (End of
+Turn), Tapkeeper (on Gold spent), Doubletap Brewer (Shout); combat — Doubletap Brewer (Echo/death), Blade
+Thrower (Rally). The Reinforcing-Ale spell (`onthehouse`) also grants ales but is *not* a unit, so it fires
+nothing.
+
+**Engine (sim) — a new determinism-safe FX channel.** The shop grant path (`grantRandomAle` → `conjureToHand`)
+threw away *which* Dwarf generated the ale, so the UI had nothing to originate from. Added `aleGranted:
+{sourceUid,count}[]` + `aleGrantSeq` to `RunState`, mirroring `recruitBuffFx`/`recruitFxSeq` exactly: pushed in
+`grantRandomAle` **only when the source is a live board minion** (excludes the spell, whose `self` is
+undefined), cleared at the top of `reduce`, seq bumped once per action when non-empty. Pure display metadata —
+consumes no RNG, touches no stats, so determinism/golden sims are unaffected. Combat needed **zero** engine
+change: `combatGrantAle` already emits a `toHand` event carrying the generator's uid as `source`.
+
+**UI — both phases.** Shop: a one-shot `aleGrantSeq` watcher in `Recruit.tsx` bursts `ale-bubbles` from each
+generating unit's warband card (deduped per unit). Combat: `choreo/score.ts` scans each `toHand` moment for
+events whose `cardId ∈ ALE_IDS` and fires from `event.source` — keyed on the *granted card being an Ale*, so
+any future combat ale-generator is covered for free; additive to the generic `to-hand` binding. Both literal
+call sites registered in `fx/directCalls.ts`.
+
+*Follow-up (same session): Brunni's End-of-Turn Ale needed a third fire site.* End-of-Turn effects don't reach
+the reactive `aleGrantSeq` watcher — that only bumps at the `faceOmen` commit, by which point the phase has
+flipped and the warband card is gone. Like consume, the End-of-Turn **beat loop** animates a projection while
+the board is still on screen, so the grant fires there: threaded the granting unit through the `cardGranted`
+consequence presenter (`beat.source.uid` when the source is a minion) and made Recruit's beat handler burst
+`ale-bubbles` from that unit when the granted card is an Ale. Rune/quest ale-grants have no unit source and are
+skipped. The reactive watcher still runs at commit but finds no warband card (combat) and no-ops, so no
+double-burst.
+
+**Committed FX art now ships to players (the prerequisite, and a bonus fix).** `fx/shapeLibrary.ts`'s
+committed-art glob was DEV-gated (`if (!import.meta.env.DEV) return {}`), so every `art:<slug>` shape fell back
+to a procedural shape in a production build. Un-gated it: a PNG committed to `fx/defs/art/<slug>.png` now
+bundles for players. This ships `ale-bubbles`' `art:bubble` **and** retroactively fixes the deferred "coin-ale
+coins layer absent in prod" bug (the coin FX use `art:group-14035`) plus the ruby/shop-buff FX (`art:gemshard`).
+Verified in the prod build: `bubble` (4194 B) and `group-14035` (16904 B) emit as hashed asset files, `gemshard`
+(3747 B, under Vite's 4 KB inline limit) ships inlined as a base64 data URL. Policy going forward: the folder is
+also the workbench's import scratchpad, so **only commit a PNG meant to ship** (CI builds from committed files).
+Rewrote the stale `shapeLibrary.ts` header + the `fx-workbench-guide.md` section, and replaced
+`prodPlayback.test.ts`'s "art stays dev-only" note with a real pin that committed slugs resolve with `DEV=false`.
+
+**Verified.** New tests: `aleGrantFx.test.ts` (6 — unit-credited for Brunni/Tapkeeper/Brewer, spell credits
+nothing, transient clear + monotonic seq) and the `prodPlayback` art-ships pin. Full sweep green: typecheck
+(pkgs+web), lint (0 errors), **5567 tests**, `build:web` with art bundled/inlined as above. Follow-up (queued):
+an `art:` texture prewarm so the first cast after load doesn't render a blank frame. Live FX look/tuning is the
+author's (the def is theirs to finalize).
+
 ## 2026-08-17 — Freeze, Reroll and Gold stay on the board through combat
 
 Owner ask: the Freeze gem, the Reroll crystal and the Gold pill vanished the moment combat started, and

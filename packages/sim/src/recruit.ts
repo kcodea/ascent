@@ -1913,7 +1913,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   grantRandomAle: (ctx, self, params) => {
     const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
-    conjureToHand(ctx.state, ales, num(params.count, 1) * gold(self));
+    const count = num(params.count, 1) * gold(self);
+    conjureToHand(ctx.state, ales, count);
+    // ale-bubbles FX: credit the GENERATING board unit (Brunni / Tapkeeper / Doubletap Brewer) so the UI can
+    // burst from it. Only a live board minion qualifies — the Reinforcing-Ale spell also routes here but casts
+    // with `self` undefined (untargeted), and the `on the board` check keeps this a UNIT effect even if a
+    // future targeted ale spell arrives. Pure display metadata; see `aleGranted` in `state.ts`.
+    if (self?.uid && ctx.state.board.some((c) => c.uid === self.uid)) {
+      ctx.state.aleGranted.push({ sourceUid: self.uid, count });
+    }
   },
 
   /** Paymaster Pimm (Shout): Gold on the NEXT turn. `bonusEmbersNextTurn` already exists and is paid out at

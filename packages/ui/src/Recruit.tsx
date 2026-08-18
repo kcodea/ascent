@@ -9,6 +9,7 @@ import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword } from '@game/core';
+import { ALE_IDS } from '@game/core';
 
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
@@ -900,6 +901,28 @@ export function Recruit() {
     });
     return () => { tween.kill(); };
   }, [run.chaosGrantSeq, run.chaosGrantUid]);
+  // ale-bubbles (Set 2, Dwarves): a Dwarf GENERATED a Dwarven Ale in the SHOP — Brunni (End of Turn), Tapkeeper
+  // (on Gold spent), Doubletap Brewer (Shout). Burst `ale-bubbles` from the generating unit's warband card.
+  // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
+  // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
+  const prevAleSeq = useRef(run.aleGrantSeq);
+  useEffect(() => {
+    const seq = run.aleGrantSeq;
+    if (seq === prevAleSeq.current) return;
+    prevAleSeq.current = seq;
+    if (!canPlayDefs() || run.aleGranted.length === 0) return;
+    const sources = Array.from(new Set(run.aleGranted.map((e) => e.sourceUid))); // one burst per generating unit
+    const raf = requestAnimationFrame(() => {
+      for (const uid of sources) {
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
+        if (!el) continue; // the unit left the board (e.g. sold) before the frame — skip silently
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: uid, target: uid } });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.aleGrantSeq]);
   // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
   // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are
@@ -4154,7 +4177,19 @@ export function Recruit() {
         }
         fireSpellBuffOnHandRubies(runRef.current.hand);
       },
-      cardGranted: () => { /* the hand preview is driven by the projection; arrival FX lands with the commit */ },
+      cardGranted: (cardId, _uid, sourceUid) => {
+        // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
+        // must play HERE (while the board is still on screen) is ale-bubbles for a Dwarf's End-of-Turn Ale —
+        // Brunni. The reactive `aleGrantSeq` watcher can't reach it: that only bumps at the `faceOmen` commit,
+        // by which point the phase has flipped and the warband card is gone. Fire from the granting UNIT; a
+        // rune/quest ale grant has no `sourceUid` and is skipped (bubbles are a unit effect).
+        if (!sourceUid || !canPlayDefs() || !ALE_IDS.includes(cardId)) return;
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${sourceUid}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
+      },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
       cardDestroyed: (uid, zone) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion

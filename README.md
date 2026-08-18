@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Ale bubbles + committed FX art now ships** — a new bubble burst plays whenever a Dwarf generates a Dwarven Ale (Brunni, Tapkeeper, Doubletap Brewer, Blade Thrower), in both the shop and combat. Under the hood, committed FX art (`fx/defs/art/*.png`) now reaches players instead of falling back to a procedural shape — which also fixes the coin FX's missing coin art in the shipped game.
+
 - **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way.
 
 - **New default arena board** — the full-board art ships as the board, and the whole UI re-seats around it: the global layout (card size, board zoom, shop row, warband, hand, quest nodes, gold pill, charge glyph, drag zones) plus every piece of board furniture (hero panel, End Turn and hero-power diamonds, Tavern Up, Freeze, Reroll, the lobby rail). The two previous 21:9 boards stay selectable in the Esc menu. The new art is 16:9, so on an ultrawide monitor the side margins show the flat backdrop rather than floor art.

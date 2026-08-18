@@ -820,6 +820,14 @@ export interface RunState {
   recruitBuffFx: BuffFxEvent[];
   /** Monotonic bump when `recruitBuffFx` is non-empty after an action — the UI fires once per change. */
   recruitFxSeq: number;
+  /** Set 2 (Dwarves) — ale-generation FX metadata: which board UNIT generated a Dwarven Ale during the
+   *  CURRENT shop action (Brunni End-of-Turn, Tapkeeper on Gold spent, Doubletap Brewer Shout), so the UI can
+   *  burst `ale-bubbles` from that Dwarf. Pure display (no RNG, no stats — determinism/golden unaffected);
+   *  transient, cleared at the top of `reduce`, seq bumped when non-empty. Mirrors `recruitBuffFx`. The
+   *  Reinforcing-Ale spell also routes through `grantRandomAle` but is NOT a unit, so it records nothing. */
+  aleGranted: { sourceUid: string; count: number }[];
+  /** Monotonic bump when a Dwarf generates one or more Ales in the shop — the UI keys its burst off this. */
+  aleGrantSeq: number;
   /** Dragon uids Karwind just flame-buffed on the most recent Battlecry — the UI flashes flames
    *  on them (on top of the normal buff flash). Transient. */
   karwindFlash?: string[];
@@ -1616,6 +1624,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     shopEatenSeq: 0,
     recruitBuffFx: [],
     recruitFxSeq: 0,
+    aleGranted: [],
+    aleGrantSeq: 0,
     karwindFlashSeq: 0,
     rift: pinnedRift, // pin the live rift so replays keep it after the switch flips off
     setId, // …and the card set (defaults to the live one) — for the same reason (see RunState.setId)

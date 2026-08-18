@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-17 — "August Full" test board
+
+A third option in the arena-board picker (Esc → board): **August Full**, from the owner's
+`Reference Art/AugustFullBoard.png` master. Re-optimized 5504×3072 PNG (16.6 MB) → `augustfullboard.webp` at
+3840×2143, quality 88, **303 KB** — in line with the other board arts (the current August board is 117 KB, the
+Classic stone board 312 KB).
+
+The wrinkle: this art is **16:9 (1.7919)**, where both existing boards are 21:9 (2.3578). `.boardbg` computes
+the art's WIDTH from the stage height × `--board-aspect` × `--board-fill`, so serving a 16:9 art under the old
+aspect would have stretched it ~32% too wide and thrown the frame off the stage. So `BoardOption` grew optional
+`aspect` / `fill` fields, and `apply()` now pushes them onto `--board-aspect` / `--board-fill` next to `--board`
+(and REMOVES them for boards that don't set any, so the stylesheet default keeps winning). August Full carries
+`aspect: 1.7919, fill: 1` — the art then fills the 16:9 stage exactly, height-for-height.
+
+Known trade-off of a 16:9 board, worth an eyeball before promoting it: there is no surplus width to bleed into
+the side margins on a monitor wider than 16:9, so those fall back to `--bg` rather than to floor art. The four
+tuned button offsets are still calibrated against the DEFAULT board's art size, so if the new frame's furniture
+doesn't line up, re-seat with the layout lab (`--board-zoom` / `--board-x` / `--board-y`) rather than moving the
+buttons.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green; the picker is data-driven
+(`EscMenu` maps `BOARDS`), so the new entry needed no UI change.
+
 ## 2026-08-17 — Mode cards 25% larger; new Play art
 
 **Play tile art replaced** with a second master from the owner (`Modes/PlayMode.png`, re-optimized 2480KB →

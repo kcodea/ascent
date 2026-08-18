@@ -1,0 +1,421 @@
+<title>Ascent Quiz #6 — 2026-08-18</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1e2b;
+    --panel-border: #2b2f42;
+    --text: #e7e9f2;
+    --muted: #9aa0b8;
+    --accent: #7c9eff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232739;
+    --choice-hover: #2a2f45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fb;
+      --panel: #ffffff;
+      --panel-border: #dfe2f0;
+      --text: #1b1e2b;
+      --muted: #5c6180;
+      --accent: #3f5fd8;
+      --good: #15803d;
+      --bad: #b91c1c;
+      --good-bg: rgba(21, 128, 61, 0.1);
+      --bad-bg: rgba(185, 28, 28, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e6e8f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fb;
+    --panel: #ffffff;
+    --panel-border: #dfe2f0;
+    --text: #1b1e2b;
+    --muted: #5c6180;
+    --accent: #3f5fd8;
+    --good: #15803d;
+    --bad: #b91c1c;
+    --good-bg: rgba(21, 128, 61, 0.1);
+    --bad-bg: rgba(185, 28, 28, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e6e8f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 32px 16px 64px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.9rem; }
+  .progress {
+    display: flex;
+    gap: 5px;
+    margin: 20px 0 28px;
+    flex-wrap: wrap;
+  }
+  .progress .dot {
+    flex: 1;
+    min-width: 16px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-border);
+    transition: background 0.2s;
+  }
+  .progress .dot.done { background: var(--accent); }
+  .progress .dot.current { background: var(--muted); }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .qnum { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .question { font-size: 1.08rem; line-height: 1.5; margin: 0 0 20px; }
+  .choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    font-size: 0.97rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .choice:hover:not(:disabled) { background: var(--choice-hover); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:disabled { cursor: default; }
+  .choice .label { font-weight: 700; margin-right: 8px; color: var(--muted); }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.incorrect { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.reveal-correct { background: var(--good-bg); border-color: var(--good); }
+  .result-tag { display: inline-block; font-weight: 700; font-size: 0.85rem; margin-top: 2px; }
+  .result-tag.good { color: var(--good); }
+  .result-tag.bad { color: var(--bad); }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    background: var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+  .next-btn {
+    margin-top: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+  .next-btn.show { display: inline-block; }
+  .hidden { display: none; }
+  .summary { text-align: center; }
+  .summary .score { font-size: 2.4rem; font-weight: 800; margin: 12px 0 4px; color: var(--accent); }
+  .summary .line { color: var(--muted); font-size: 0.95rem; margin-bottom: 18px; }
+  .summary .encourage { font-size: 1.05rem; margin: 20px 0; }
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 20px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #6</h1>
+    <p>August 18, 2026 · How the game is coded, not how it plays</p>
+  </header>
+  <div class="progress" id="progress"></div>
+  <div id="quiz-root"></div>
+</div>
+
+<script>
+  const QUESTIONS = [
+    {
+      topic: "what-is-a-function",
+      question: "In packages/core/src/combat/simulate.ts, the function signature includes a parameter written as `playerState: CombatSideState = EMPTY_SIDE`. What does that `= EMPTY_SIDE` part do?",
+      choices: [
+        "It's a default value — if the caller doesn't pass playerState, EMPTY_SIDE is used automatically",
+        "It permanently sets playerState to EMPTY_SIDE, ignoring whatever the caller passes in",
+        "It's a type annotation that requires playerState to always equal EMPTY_SIDE",
+        "It's just a comment for humans with no effect on how the code runs"
+      ],
+      answer: 0,
+      explanation: "A `param = someValue` in a function signature is a <b>default parameter</b> — it only kicks in when the caller omits that argument. The file's own comment confirms this: it says a bare `simulate(player, enemy, rng, cards)` call \"behaves exactly as it always did.\" B is the common misconception that a default always wins; really the caller's value always wins when one is given, and the default is just a fallback."
+    },
+    {
+      topic: "deterministic-sim",
+      question: "Ascent's simulate() must be deterministic — same inputs always produce the same outputs. Which of these, if it snuck into packages/core, would actually break that guarantee?",
+      choices: [
+        "Calling rng.next() to decide which minion a spell targets",
+        "Looping over an array of minions in order with a for loop",
+        "Reading Date.now() to decide whether an effect fires",
+        "Cloning a CardDef into a fresh Minion object before combat starts"
+      ],
+      answer: 2,
+      explanation: "Date.now() returns a different value every time it's called, no matter what seed you passed in — so any logic that reads it can't be reproduced from the same inputs, which is exactly why it's banned from the engine. rng.next() is actually fine for determinism, because it's the SEEDED rng — same seed in, same sequence of \"random\" numbers out, every time. Looping in order and cloning CardDefs are both perfectly deterministic, everyday code."
+    },
+    {
+      topic: "seeded-rng",
+      question: "packages/core/src/rng.ts gives every Rng a state() method, with a comment explaining you can persist it and later resume the exact same stream via makeRng(rng.state()). Why would the engine need to save the RNG's internal state, rather than just remembering the original seed number?",
+      choices: [
+        "Because after many next() calls, the RNG has moved past the original seed — reseeding from that original number would just replay the same sequence from the very beginning again",
+        "Because state() returns a fundamentally different kind of random number than next() does",
+        "Because JavaScript refuses to let the same seed number be used more than once",
+        "Because state() scrambles the seed so nobody can figure out what it was"
+      ],
+      answer: 0,
+      explanation: "A seeded RNG is really just a starting number PLUS a rule for stepping forward. If a reducer wants to pause a run and resume it later at the exact same point in the random sequence, remembering only the original seed would restart the sequence from square one — it needs the CURRENT internal state, which is what state() exposes. That's what lets a plain, serializable RunState carry the RNG's progress across saves."
+    },
+    {
+      topic: "sim-ui-decoupling",
+      question: "packages/ui/src/combatBeats.ts takes the sim's raw event log and groups it into \"beats\" for the replay — for example, a run of consecutive damage/shield/death events collapses into one beat. Per Ascent's sim/UI split, why does this pacing logic live in the UI package instead of inside simulate() itself?",
+      choices: [
+        "Because deciding how something is PACED on screen is a presentation concern — the engine's only job is deciding WHAT happened, not how it's displayed",
+        "Because simulate() isn't allowed to return an array of events at all",
+        "Because the UI needs to re-check the engine's math for mistakes before showing it",
+        "Because grouping events into beats makes the replay non-deterministic"
+      ],
+      answer: 0,
+      explanation: "This is the sim/UI split from CLAUDE.md in miniature: simulate() computes WHAT happened (an ordered event log) and stops there; combatBeats.ts decides HOW to pace that log on screen for a human to watch. Event order itself is never touched by the grouping — only how consecutive events are bundled into one visual beat — which is exactly why this logic is safe to keep purely in the UI layer."
+    },
+    {
+      topic: "monorepo-packages",
+      question: "Besides core, content, sim, and ui, Ascent has a packages/tools package containing scripts like combat-harness.ts, balance.ts, and build-pool.ts. What is packages/tools for?",
+      choices: [
+        "Headless scripts — balance simulations, the combat harness, opponent-pool building — that run OUTSIDE the actual game a player plays, for testing and content generation",
+        "The production build pipeline that turns the game's TypeScript into what ships to players",
+        "Shared React components reused by packages/ui",
+        "The actual card and threat definitions players see in the shop"
+      ],
+      answer: 0,
+      explanation: "packages/tools is developer tooling, not runtime game code: things like `npm run harness` (a headless combat printout) and `npm run pool` (which builds the committed opponent pool) live here. It depends on core/content the same way sim and ui do, but nothing in a real player's session ever imports from it. The card/threat data itself (D) lives in packages/content, and the build pipeline (B) is Vite in apps/web, not this package."
+    },
+    {
+      topic: "pure-functions",
+      question: "simulate() clones every minion into a fresh Minion instance rather than ever touching the original CardDef objects, and it's also a pure function. Combined, why does that make it much easier to write reliable tests for combat?",
+      choices: [
+        "Because a pure function with no shared/mutated state always produces the same output for the same input, so a test can call it repeatedly, in any order, without one run corrupting the next",
+        "Because cloning objects makes the function execute faster",
+        "Because pure functions are automatically checked by the TypeScript compiler, so no test is needed",
+        "Because cloning lets the function skip validating whatever inputs it's given"
+      ],
+      answer: 0,
+      explanation: "If simulate() mutated a shared CardDef, one test's combat could leave that CardDef in a different state for the NEXT test that reuses it — a classic source of flaky, order-dependent tests. Because it's pure (no side effects) and clones its inputs (never mutates shared state), a test can call it as many times as it wants, in whatever order, and always get the same, isolated answer. That predictability is exactly what golden and determinism tests in Vitest rely on."
+    },
+    {
+      topic: "data-vs-code",
+      question: "packages/content/src/schema.ts defines CardDefSchema as a zod object ending in .strict(), with a comment explaining that a typo'd optional key like `goldentext` (instead of `goldenText`) would otherwise \"validate silently and the card would ship without the feature.\" What does .strict() actually do?",
+      choices: [
+        "It makes zod REJECT any object that has extra, unrecognized keys not declared in the schema, instead of silently ignoring them",
+        "It makes every field in the schema required, with no optional fields allowed at all",
+        "It prevents numeric fields like attack and health from ever being negative",
+        "It compiles the schema into faster JavaScript for the production build"
+      ],
+      answer: 0,
+      explanation: "Without .strict(), zod's default behavior is to quietly IGNORE keys it doesn't recognize — so a typo like `goldentext` would pass validation, the card would load, and the golden-text feature would just silently never fire, with no error anywhere. .strict() turns that into a loud validation failure at content-load time, which is the whole point of running card DATA through a schema in the first place: catching mistakes before they ship."
+    },
+    {
+      topic: "event-log-replay",
+      question: "combatBeats.ts pulls certain event types (buff, rally, summon, reveal, improve) that the sim emits between an attack and its damage into the SAME beat as the attack, rather than giving them their own separate beat. Per the file's comment, why?",
+      choices: [
+        "So those \"flash\" effects animate during the attack's wind-up, and the damage still lands right at the moment the attacker connects, instead of appearing a beat later",
+        "Because those event types are actually bugs and need to be hidden from the player",
+        "Because the simulator emits them in the wrong order, and grouping silently fixes that order",
+        "Because the replay UI can only ever render four kinds of events at once"
+      ],
+      answer: 0,
+      explanation: "The comment is explicit: these flash events (a Rally buff, a rally-summoned token, a Stealth reveal) fire BETWEEN the attack and its damage in the raw log, but showing them as their own beat would delay the impact by a beat. Folding them into the wind-up beat lets them animate during the lunge while the damage still connects at the natural moment. Crucially, the file notes event ORDER is never changed — only how events are grouped for display, which keeps state derivation correct."
+    },
+    {
+      topic: "eslint-rules",
+      question: "The Math.random ESLint ban covers packages/core, content, and sim — and ALSO packages/tools, even though tools isn't part of the game a player actually runs. Per the rule's own comment, why include tools in the ban?",
+      choices: [
+        "Because npm run pool (a script in tools) generates the COMMITTED opponent pool file — nondeterminism there would make pool builds unreproducible",
+        "Because packages/tools imports React and so needs the exact same rules as packages/ui",
+        "It's simply a mistake — tools should have been left out of the ban",
+        "Because packages/tools is where combat actually gets simulated for real players"
+      ],
+      answer: 0,
+      explanation: "The rule's comment spells it out: `npm run pool` runs build-pool.ts to synthesize the committed opponent pool. If that script used Math.random instead of the seeded rng, running it twice could produce two different pool files from the same content — an unreproducible build, checked into git as if it were fixed. Bundling tools into the ban keeps that generation step just as deterministic as the runtime engine."
+    },
+    {
+      topic: "performance-memo",
+      question: "docs/performance.md sets Ascent's frame budget at 4.17ms — the time budget for 240Hz — and says to judge any performance change by the WORST frame in the affected window, not the mean. Why does the worst frame matter more than the average here?",
+      choices: [
+        "Because a player FEELS one dropped or slow frame as a hitch — a great average can hide that single bad frame completely",
+        "Because average frame time is technically impossible to measure accurately in a browser",
+        "Because the worst frame is always caused by a real bug, while the average frame time never is",
+        "Because a 240Hz monitor is only physically capable of displaying the worst frame, never the average one"
+      ],
+      answer: 0,
+      explanation: "The doc gives a concrete example: a fix that cut the MEAN frame time by 24% still left the WORST frame in that same window at ~16.7ms — over 4x the 4.17ms budget — which a player would feel as a stutter even though the average looked great. Averages are exactly the kind of measurement that hides a single hitch, which is why the doc's rule is to judge `worst` first, `long`/`jank` counts second, and treat the mean as context rather than a verdict."
+    }
+  ];
+
+  const root = document.getElementById('quiz-root');
+  const progressEl = document.getElementById('progress');
+  let current = 0;
+  let score = 0;
+  const results = [];
+
+  function renderProgress() {
+    progressEl.innerHTML = '';
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      progressEl.appendChild(d);
+    }
+  }
+
+  function renderQuestion(idx) {
+    const q = QUESTIONS[idx];
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const qnum = document.createElement('div');
+    qnum.className = 'qnum';
+    qnum.textContent = `Question ${idx + 1} of ${QUESTIONS.length}`;
+    card.appendChild(qnum);
+
+    const qtext = document.createElement('p');
+    qtext.className = 'question';
+    qtext.textContent = q.question;
+    card.appendChild(qtext);
+
+    const letters = ['A', 'B', 'C', 'D'];
+    const buttons = [];
+    let answered = false;
+
+    q.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.innerHTML = `<span class="label">${letters[i]}</span>${choice}`;
+      btn.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        const correct = i === q.answer;
+        if (correct) score++;
+        results.push(correct);
+        buttons.forEach((b, bi) => {
+          b.disabled = true;
+          if (bi === q.answer) b.classList.add('reveal-correct');
+          if (bi === i && !correct) b.classList.add('incorrect');
+        });
+        const tag = document.createElement('div');
+        tag.className = 'result-tag ' + (correct ? 'good' : 'bad');
+        tag.textContent = correct ? '✓ Correct!' : '✗ Not quite';
+        card.appendChild(tag);
+
+        const exp = document.createElement('div');
+        exp.className = 'explanation show';
+        exp.innerHTML = q.explanation;
+        card.appendChild(exp);
+
+        nextBtn.classList.add('show');
+      });
+      buttons.push(btn);
+      card.appendChild(btn);
+    });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'next-btn';
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? 'See results →' : 'Next question →';
+    nextBtn.addEventListener('click', () => {
+      current++;
+      renderProgress();
+      if (current >= QUESTIONS.length) {
+        renderSummary();
+      } else {
+        root.innerHTML = '';
+        renderQuestion(current);
+      }
+    });
+    card.appendChild(nextBtn);
+
+    root.appendChild(card);
+  }
+
+  function renderSummary() {
+    root.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card summary';
+
+    const label = document.createElement('div');
+    label.className = 'qnum';
+    label.textContent = 'Quiz complete';
+    card.appendChild(label);
+
+    const scoreEl = document.createElement('div');
+    scoreEl.className = 'score';
+    scoreEl.textContent = `${score} / ${QUESTIONS.length}`;
+    card.appendChild(scoreEl);
+
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = `You scored ${score} out of ${QUESTIONS.length} on today's architecture quiz.`;
+    card.appendChild(line);
+
+    const messages = {
+      10: "Perfect score! You're reading Ascent's engine like a pro. 🎉",
+      9: "Excellent — nearly flawless, and a real handle on how this all fits together.",
+      8: "Great work — you've clearly got a solid grip on today's topics.",
+      7: "Strong showing — most of it landed, and the misses are good pointers for tomorrow.",
+      6: "Solid effort — more than half down, and every miss is a lesson for tomorrow.",
+      5: "Halfway there — you're building real intuition for how the code is put together.",
+      4: "Good start — this stuff gets clearer every day you sit with it.",
+      3: "Making progress — reply with your score and we'll circle back to what tripped you up.",
+      2: "You're just getting going — no worries, tomorrow we'll re-ask the tricky ones from a new angle.",
+      1: "Everyone starts somewhere — tell me your score and we'll rebuild from here.",
+      0: "No worries at all — everyone starts at zero. Tell me your score and we'll rebuild from here."
+    };
+    const encourage = document.createElement('div');
+    encourage.className = 'encourage';
+    encourage.textContent = messages[score] ?? messages[0];
+    card.appendChild(encourage);
+
+    const note = document.createElement('div');
+    note.className = 'footer-note';
+    note.textContent = 'Reply in chat with your score (e.g. "7/10, missed the RNG one") so tomorrow adapts.';
+    card.appendChild(note);
+
+    root.appendChild(card);
+  }
+
+  renderProgress();
+  renderQuestion(current);
+</script>

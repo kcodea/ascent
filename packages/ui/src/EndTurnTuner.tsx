@@ -30,6 +30,15 @@ const SPECS: Record<keyof EndTurnConfig, [string, TunerUnit | undefined, string,
   y:                ['Vertical offset', 'px', 'Offset from that base point. Positive moves the button down.', 'Placement'],
   scale:            ['Button size', '×', 'Overall size of the diamond.', 'Placement'],
 
+  tipW:             ['Max width', 'px', 'How wide the label pill may get before it wraps. Narrower gives a taller, squarer pill seated under the diamond; wide enough keeps it on one line.', 'Hover tip'],
+  tipX:             ['Horizontal offset', 'px', 'Nudge the pill left or right of centred under the diamond.', 'Hover tip'],
+  tipY:             ['Drop below gem', 'px', 'Gap between the bottom of the diamond and the top of the pill.', 'Hover tip'],
+  tipSize:          ['Text size', 'px', 'Label font size.', 'Hover tip'],
+  tipLine:          ['Line spacing', '×', 'Space between the label’s lines. Only visible once it wraps.', 'Hover tip'],
+  tipPadX:          ['Padding sides', 'px', 'Horizontal padding inside the pill.', 'Hover tip'],
+  tipPadY:          ['Padding top/bottom', 'px', 'Vertical padding inside the pill.', 'Hover tip'],
+  tipRadius:        ['Corner radius', 'px', 'How rounded the pill’s corners are.', 'Hover tip'],
+
   gemX:             ['Gem nudge X', 'px', 'Slide the gem overlay horizontally onto the baked gem.', 'Gem overlay'],
   gemY:             ['Gem nudge Y', 'px', 'Slide the gem overlay vertically onto the baked gem.', 'Gem overlay'],
   gemS:             ['Gem fit', '×', 'Size the gem overlay to sit exactly on the baked gem.', 'Gem overlay'],
@@ -76,6 +85,7 @@ const SPECS: Record<keyof EndTurnConfig, [string, TunerUnit | undefined, string,
  */
 const ORDER: (keyof EndTurnConfig)[] = [
   'x', 'y', 'scale',
+  'tipW', 'tipX', 'tipY', 'tipSize', 'tipLine', 'tipPadX', 'tipPadY', 'tipRadius',
   'gemX', 'gemY', 'gemS', 'gemHoverBright',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth', 'glowColor',
   'glowX', 'glowY', 'glowW', 'glowH',

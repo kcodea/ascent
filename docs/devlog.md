@@ -48,6 +48,121 @@ nothing, transient clear + monotonic seq) and the `prodPlayback` art-ships pin. 
 an `art:` texture prewarm so the first cast after load doesn't render a blank frame. Live FX look/tuning is the
 author's (the def is theirs to finalize).
 
+## 2026-08-17 — Freeze, Reroll and Gold stay on the board through combat
+
+Owner ask: the Freeze gem, the Reroll crystal and the Gold pill vanished the moment combat started, and
+shouldn't. All three now mount through BOTH phases, following the Tavern Up stone's existing precedent
+(mounted in combat as a passive tier indicator since 2026-07-16) rather than inventing a second pattern.
+
+- **Freeze** and **Reroll** take a `combat` prop: inert (`disabled || combat`) with a `.combat` class, and the
+  tip/aria-label switch from offering the action to reading the state ("Tavern frozen", "Refresh costs 3 Gold").
+- **Gold** needed no prop — it's a pure readout with nothing to gate, and your purse doesn't move during a
+  fight, so it just lost its `!inCombat` wrapper.
+
+The subtlety was the DIM cues, which would have lied in the new phase. Both buttons dim when disabled to mean
+*you can't afford this* — but in combat there's nothing to afford, so a dimmed crystal would state something
+untrue. Three CSS rules got scoped with `:not(.combat)` — the Freeze gem's grayscale, and the Reroll cost
+coin's red "too expensive" flush (plus its icon) — and Reroll no longer takes the `off` class when the only
+reason it's disabled is the phase. So in combat both render at full art strength, exactly like the Tavern
+stone. The Reroll cost coin stays visible (unlike the Tavern stone, which hides its cost in combat): the coin
+is the price the next shop will charge, it's accurate throughout, and the component's own note explains that a
+vanishing badge makes the button's shape shift.
+
+Verified by reading the render path rather than by playing: the three `!inCombat &&` gates are gone, and a
+sweep of the combat-phase CSS confirms `.app.combat` hides only `.buffsframe`, so nothing else was suppressing
+them. `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — Final Layout Lab pass on the full board
+
+Six knobs moved after the furniture bake settled: shop and warband card gaps 22→20, warband Y −157→−144, and
+the tavern-tier pill re-seated and enlarged (scale 1→1.21, X 142→87, Y −87→−141). Both halves again — the
+`def:` in `layoutConfig.ts` and the seven `styles.css` fallback sites — and the cross-check re-run confirms all
+46 layout knobs match the owner's config with all 44 CSS fallback forms in sync.
+
+## 2026-08-17 — Seven tuner bakes: the board furniture re-seats on the full board
+
+Second pass of owner-tuned config for the new default board, this time the individual pieces of furniture
+rather than the global layout. Baked into DEFAULTS, and into the matching `styles.css` fallbacks, for:
+
+- **Hero panel** (`heroPanelConfig`) — the panel jumps right and up (X −33→54, Y −81→−106) and comes down a
+  touch in size (3.3→3.1) on a slightly tighter box (89×90→87×89); portrait 1.18→1.2; hero name Y −11→−9 at
+  0.66→0.6; the Health box centres (X −2→0) and drops 51→53.
+- **End Turn diamond** (`endTurnConfig`) — X 65→10, Y −55→−23, scale 1.25→1.17, a much hotter hover
+  (gem brightness 1.18→1.53), glow blur 0→1, and the hover tip re-seated (X 91→108, Y −3→6). `tipW` stays 128,
+  so the two-line measurement that pill was tuned around still holds.
+- **Tavern Up stone** (`tavernUpConfig`) — X 51→104, Y −373→−318, cost X 37→50, art dim 0.65→0.62.
+- **Hero power diamond** (`heroPowerBtnConfig`) — X −38→15, Y 296→303, scale 0.9→0.87.
+- **Freeze button** (`freezeConfig`) — Y 217→264.
+- **Reroll button** (`refreshConfig`) — X −73→−123, Y 214→270, scale 1.68→1.54.
+- **Lobby rail** (`lobbyPanelConfig`) — all eight knobs: scale 1.58→1.46 on a narrower 172→152 box that stops
+  hanging off the edge (right −64→9), taller and lower (top 9.5→13%, height 83.5→100%), with bigger seat rows
+  (1.63→1.91), smaller text (0.93→0.81) and foe portraits 1.37→1.35.
+
+These seven modules differ from the Layout Lab in a way worth writing down: each runs its `apply*Vars()` at load
+in BOTH dev and prod (`loadCfg` returns DEFAULTS in prod, then apply runs unconditionally), so DEFAULTS alone
+already drives the shipped game. Their `styles.css` fallbacks cover the pre-boot paint, and every one of these
+files states the fallbacks MUST mirror DEFAULTS — so both halves moved together: 45 fallback sites across the
+seven. A verification pass re-parsed each DEFAULTS block and confirmed all 183 knobs equal the owner's payloads.
+
+Two bits of pre-existing drift got closed on the way through, both on knobs already being edited: the Resolve
+shake `@keyframes` carried their own copy of the `--hpn-hp-t` fallback with a Y of 65 where the panel rule said
+51 (now both 53), and the `resolveX: −2` comment describing a 2026-07-16 bake outlived the value it explained.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — The full board is the default, and the UI re-seats around it
+
+Owner verdict on the test board: promote it. `--board` in `styles.css` now points at `augustfullboard.webp`,
+with the 16:9 numbers that belong to it (`--board-aspect: 1.7919`, `--board-fill: 1`). The picker inverts to
+match — `default` is the FULL board (url null, so it reads the stylesheet), and the two 21:9 arts became
+alternates that carry their own `aspect: 2.3578, fill: 1.0132`. The retired `augustfull` id falls through
+`getBoard`'s validity check to `default`, which is the same art it named, so anyone who picked it while it was
+a test keeps exactly what they were looking at.
+
+Then the owner re-tuned the whole board against the new art in the Layout Lab and handed over the config. Baked
+in: card size 0.77→0.75, board zoom 1→1.25 with a +5px drop, shop row Y 27→62, shop controls 1.52→1.6, warband
+Y −163→−157, hand overlap −0.15→−0.11 and Y −117→−107 with hover 1.51→1.47, the quest-node cluster moved right
+and up (X −7→75, Y −434→−415, scale 1.12→1.09) with all three per-node nudges re-seated, gold pill 355→409 in
+from the right and 432→426 up (scale 1.71→1.68), tier pill X 114→142, the charge glyph 1148→1124 wide at X 3→7
+/ Y −111→−83, and the drag zones re-cut (sell edge −188→−136, buy edge 0→79).
+
+**Both halves of each knob moved, which is the part that's easy to get wrong.** `applyLayout` is dev-gated, so
+production never sets these custom properties at all — it renders from the `var(--x, <fallback>)` defaults in
+`styles.css`. A `def:` change in `layoutConfig.ts` alone would move the Lab's Reset and leave the shipped game
+untouched. So the 25 knobs with a CSS presence were updated in both files (44 fallback sites), and a
+cross-check script confirmed all 44 forms now equal their `def`. The two zone knobs (`sellZoneY` / `buyZoneY`)
+have no CSS side — `Recruit` reads them through `getLayout`, which returns the defaults in prod — so those
+ship from `layoutConfig.ts` alone.
+
+Left standing as a known trade-off: the default art is 16:9, so it has no surplus width to bleed into the side
+margins on a monitor wider than 16:9; those fall back to `--bg`. The `.boardbg` caveat comment (which named
+32:9 as the point the band returns) now says so, since that figure only ever described the wide arts.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — "August Full" test board
+
+A third option in the arena-board picker (Esc → board): **August Full**, from the owner's
+`Reference Art/AugustFullBoard.png` master. Re-optimized 5504×3072 PNG (16.6 MB) → `augustfullboard.webp` at
+3840×2143, quality 88, **303 KB** — in line with the other board arts (the current August board is 117 KB, the
+Classic stone board 312 KB).
+
+The wrinkle: this art is **16:9 (1.7919)**, where both existing boards are 21:9 (2.3578). `.boardbg` computes
+the art's WIDTH from the stage height × `--board-aspect` × `--board-fill`, so serving a 16:9 art under the old
+aspect would have stretched it ~32% too wide and thrown the frame off the stage. So `BoardOption` grew optional
+`aspect` / `fill` fields, and `apply()` now pushes them onto `--board-aspect` / `--board-fill` next to `--board`
+(and REMOVES them for boards that don't set any, so the stylesheet default keeps winning). August Full carries
+`aspect: 1.7919, fill: 1` — the art then fills the 16:9 stage exactly, height-for-height.
+
+Known trade-off of a 16:9 board, worth an eyeball before promoting it: there is no surplus width to bleed into
+the side margins on a monitor wider than 16:9, so those fall back to `--bg` rather than to floor art. The four
+tuned button offsets are still calibrated against the DEFAULT board's art size, so if the new frame's furniture
+doesn't line up, re-seat with the layout lab (`--board-zoom` / `--board-x` / `--board-y`) rather than moving the
+buttons.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green; the picker is data-driven
+(`EscMenu` maps `BOARDS`), so the new entry needed no UI change.
+
 ## 2026-08-17 — Mode cards 25% larger; new Play art
 
 **Play tile art replaced** with a second master from the owner (`Modes/PlayMode.png`, re-optimized 2480KB →
@@ -567,6 +682,40 @@ runic rift at wave 6, which lets the pivot rule be observed on its own. Updated,
 asserts the same rule, just through a hero that has only that rule.
 
 Full suite 5518 green, typecheck + lint + build:web clean.
+## 2026-08-17 — End Turn hover tip is tunable, and wraps to two lines
+
+The label pill under the End Turn diamond ("End your turn and start combat" / "End combat and go back to
+shop") was the one part of that button with no tuner coverage — every other dial (position, gem fit, glow,
+sheen, strike, pressed art) reflects to a `--etb-*` var, while the pill's geometry was hardcoded in
+`styles.css`. It also ran wide: `white-space: nowrap` forced one long bar that spilled past both corners of
+the diamond it hangs under.
+
+- **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
+  EVEN lines rather than breaking wherever it runs out of room. The width dial is therefore the LINE-COUNT
+  dial: narrow it for a squarer multi-line pill, widen it for one line.
+- **`width: max-content` is the load-bearing part, and the first cut shipped without it.** `.etb-tip` is
+  absolutely positioned inside the ~160px button; an abs-positioned box with `left` set and `width: auto`
+  shrink-to-fits against the space left of its containing block's edge (~80px here), so `max-width` never
+  governed and the label stacked ONE WORD PER LINE regardless of the dial (owner screenshot). `max-content`
+  makes the width the label's natural width, which `max-width` then caps — the same pattern `.tagtip` and
+  `.questbadges` already use in this stylesheet, with the reason written out at the latter.
+- **Shipped values are owner-approved** (💎 tuner, same day): `tipW 128`, `tipX 91`, `tipY -3`, `tipPadX 5`,
+  `tipPadY 11` — a narrow two-line pill tucked just right of the diamond and level with it. MEASURED in the
+  running app rather than estimated: both labels ("End your turn and start combat" / "End combat and go back
+  to shop", natural width ~193px) lay out 128×60 with `Range.getClientRects()` returning 2. The margin is
+  thin — 120 tips the first label to THREE lines — so a font or copy change wants a re-measure; past ~280 it
+  goes single-line.
+- **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
+  max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
+  corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.
+- **The lobby override was updated in step.** `.app.lobby .etb-tip` sets its own `transform` to dodge the seat
+  rail, so it had to fold in `--etb-tip-x` too — otherwise the new offset dial would silently do nothing in
+  the lobby, which is exactly the kind of drift that override caused once before.
+- **Note:** the pill is not only a hover tip — it is pinned always-on by `.urgent` (shop timer at 0) and
+  `.ready` (replay finished), so these dials shape a persistent prompt, not just a hover.
+- Transitions remain `opacity`/`transform` only (compositor-safe, per the performance rules).
+- **Verified.** typecheck + lint (0 errors) + full suite + build:web all green, before and after the tuned
+  values were baked in.
 
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 

@@ -89,6 +89,25 @@ export interface EndTurnConfig {
   /** Pressed-art variant: 2 = the dim gem (end_button_pressed2), 3 = the cracked gem (end_button_pressed3).
    *  A tuner switch for A/B-ing pressed looks; reflected as `html.etb-p3` so CSS flips the art. */
   pressedVariant: number;
+  /** Hover tip — MAX WIDTH (px) of the label pill. This is the dial that decides how many lines it takes:
+   *  the text wraps inside this box (balanced, so the lines come out even), so a narrower box is a taller,
+   *  squarer pill that seats under the diamond instead of running wide past it. Wide enough = one line. */
+  tipW: number;
+  /** Hover tip — horizontal nudge (px) from centred under the diamond. Positive = right. */
+  tipX: number;
+  /** Hover tip — vertical offset (px) from the bottom of the diamond to the top of the pill. Negative
+   *  pulls the pill UP alongside the diamond instead of hanging it underneath (the shipped look). */
+  tipY: number;
+  /** Hover tip — label font size (px). */
+  tipSize: number;
+  /** Hover tip — line height (×). Only visible once the label takes more than one line. */
+  tipLine: number;
+  /** Hover tip — horizontal padding (px) inside the pill. */
+  tipPadX: number;
+  /** Hover tip — vertical padding (px) inside the pill. */
+  tipPadY: number;
+  /** Hover tip — corner radius (px). */
+  tipRadius: number;
 }
 
 // Owner-tuned by eye in the 💎 tuner and baked as the shipped look (2026-07-16). Notables: ambient
@@ -97,14 +116,14 @@ export interface EndTurnConfig {
 // the CRACKED gem (pressedVariant 3). Mirror position/scale/glow changes into the styles.css
 // `var(--etb-*, …)` fallbacks.
 const DEFAULTS: EndTurnConfig = {
-  x: 65,
-  y: -55,
-  scale: 1.25,
+  x: 10,
+  y: -23,
+  scale: 1.17,
   gemX: -1,
   gemY: -3,
   gemS: 1.03,
-  gemHoverBright: 1.18,
-  glowBlur: 0,
+  gemHoverBright: 1.53,
+  glowBlur: 1,
   glowAlpha: 0.32,
   glowStrength: 6,
   glowPulse: 0.7,
@@ -132,6 +151,20 @@ const DEFAULTS: EndTurnConfig = {
   strikeRingRadius: 1.5,
   strikeRingLife: 1.05,
   pressedVariant: 3,
+  // Hover tip — owner-approved final (2026-08-17): a narrow TWO-LINE pill tucked just right of the diamond
+  // and level with it. Measured in the running app, not estimated — at `tipW` 128 with 5px side padding both
+  // labels ("End your turn and start combat" / "End combat and go back to shop", natural width ~193px) lay
+  // out 128×60 with 2 client rects. NOTE the margin is thin: 120 tips the first label to THREE lines, so a
+  // font or copy change wants a re-measure. Widen past ~280 for a single line.
+  // (Only meaningful because `.etb-tip` sets `width: max-content` — see the note in styles.css.)
+  tipW: 128,
+  tipX: 108,
+  tipY: 6,
+  tipSize: 13.5,
+  tipLine: 1.25,
+  tipPadX: 5,
+  tipPadY: 11,
+  tipRadius: 11,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -169,6 +202,14 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   strikeRingRadius: [0, 4, 0.05],
   strikeRingLife: [0.2, 3, 0.05],
   pressedVariant: [2, 3, 1], // rendered as a switch row in the tuner, not a slider
+  tipW: [70, 460, 1],
+  tipX: [-240, 240, 1],
+  tipY: [-40, 90, 1],
+  tipSize: [8, 26, 0.5],
+  tipLine: [0.9, 2, 0.05],
+  tipPadX: [0, 40, 1],
+  tipPadY: [0, 30, 1],
+  tipRadius: [0, 30, 1],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -208,6 +249,14 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   strikeRingRadius: 'Strike — shockwave radius (×): how far the ripple expands.',
   strikeRingLife: 'Strike — shockwave lifetime (×): slower = a statelier wave.',
   pressedVariant: 'Pressed art: OFF = the dim gem (pressed2), ON = the cracked gem (pressed3).',
+  tipW: 'Hover tip — max width (px). Narrower wraps the label onto more (balanced) lines; wide keeps it on one.',
+  tipX: 'Hover tip — horizontal nudge (px) from centred under the diamond.',
+  tipY: 'Hover tip — gap (px) between the diamond and the top of the pill.',
+  tipSize: 'Hover tip — label font size (px).',
+  tipLine: 'Hover tip — line height (×). Only shows once the label wraps.',
+  tipPadX: 'Hover tip — horizontal padding (px) inside the pill.',
+  tipPadY: 'Hover tip — vertical padding (px) inside the pill.',
+  tipRadius: 'Hover tip — corner radius (px).',
 };
 
 export const ETB_COLOR_KEYS = ['glowColor', 'boltColor'] as const;
@@ -268,6 +317,16 @@ export function applyEndTurnVars(): void {
   const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
   root.setProperty('--etb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
   root.setProperty('--etb-flash-ms', `${Math.max(1, cfg.strikeFlash)}ms`);
+  // Hover tip — plain px, NOT scaled by --u: the pill is UI chrome (like the shop buttons it borrows its
+  // look from), so it should read at a constant size rather than growing with the board.
+  root.setProperty('--etb-tip-w', `${cfg.tipW}px`);
+  root.setProperty('--etb-tip-x', `${cfg.tipX}px`);
+  root.setProperty('--etb-tip-y', `${cfg.tipY}px`);
+  root.setProperty('--etb-tip-size', `${cfg.tipSize}px`);
+  root.setProperty('--etb-tip-line', String(cfg.tipLine));
+  root.setProperty('--etb-tip-pad-x', `${cfg.tipPadX}px`);
+  root.setProperty('--etb-tip-pad-y', `${cfg.tipPadY}px`);
+  root.setProperty('--etb-tip-radius', `${cfg.tipRadius}px`);
   // Pressed-art variant switch — a class, not a var, so plain CSS display rules can flip the art.
   document.documentElement.classList.toggle('etb-p3', cfg.pressedVariant >= 3);
 }

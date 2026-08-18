@@ -34,8 +34,9 @@ export interface PresenterContext {
   impAura: () => void;
   /** Ruby strength rose ("Your Rubies gain +X" — Deepvein Tender, Facetwright): float + glow on held Rubies. */
   rubyAura: (sourceUid: string | undefined, attack: number, health: number) => void;
-  /** A card arrived in hand. */
-  cardGranted: (cardId: string, uid: string) => void;
+  /** A card arrived in hand. `sourceUid` is the board minion that granted it (Brunni's End-of-Turn Ale),
+   *  or undefined when the grant came from a rune/quest/spell rather than a unit. */
+  cardGranted: (cardId: string, uid: string, sourceUid?: string) => void;
   /** A minion was summoned to the board. */
   cardSummoned: (cardId: string, uid: string) => void;
   /** A card left play — Fodder eaten, a shop offer consumed. */
@@ -122,9 +123,11 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     else if (c.aura === 'impAura') ctx.impAura();
     else if (c.aura === 'ruby') ctx.rubyAura(beat.source.uid, c.attack ?? c.amount, c.health ?? 0);
   },
-  cardGranted: ({ consequence: c, ctx }) => {
+  cardGranted: ({ consequence: c, beat, ctx }) => {
     if (c.type !== 'cardGranted') return;
-    ctx.cardGranted(c.cardId, c.target.uid ?? c.id);
+    // Thread the GRANTING unit (a minion beat's source) so a Dwarf's End-of-Turn Ale can burst from it;
+    // rune/quest/spell grants have no unit source and pass undefined.
+    ctx.cardGranted(c.cardId, c.target.uid ?? c.id, beat.source.kind === 'minion' ? beat.source.uid : undefined);
   },
   cardSummoned: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardSummoned') return;

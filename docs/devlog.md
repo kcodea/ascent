@@ -22,6 +22,15 @@ events whose `cardId ∈ ALE_IDS` and fires from `event.source` — keyed on the
 any future combat ale-generator is covered for free; additive to the generic `to-hand` binding. Both literal
 call sites registered in `fx/directCalls.ts`.
 
+*Follow-up (same session): Brunni's End-of-Turn Ale needed a third fire site.* End-of-Turn effects don't reach
+the reactive `aleGrantSeq` watcher — that only bumps at the `faceOmen` commit, by which point the phase has
+flipped and the warband card is gone. Like consume, the End-of-Turn **beat loop** animates a projection while
+the board is still on screen, so the grant fires there: threaded the granting unit through the `cardGranted`
+consequence presenter (`beat.source.uid` when the source is a minion) and made Recruit's beat handler burst
+`ale-bubbles` from that unit when the granted card is an Ale. Rune/quest ale-grants have no unit source and are
+skipped. The reactive watcher still runs at commit but finds no warband card (combat) and no-ops, so no
+double-burst.
+
 **Committed FX art now ships to players (the prerequisite, and a bonus fix).** `fx/shapeLibrary.ts`'s
 committed-art glob was DEV-gated (`if (!import.meta.env.DEV) return {}`), so every `art:<slug>` shape fell back
 to a procedural shape in a production build. Un-gated it: a PNG committed to `fx/defs/art/<slug>.png` now

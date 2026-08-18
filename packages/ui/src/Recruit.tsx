@@ -9,6 +9,7 @@ import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword } from '@game/core';
+import { ALE_IDS } from '@game/core';
 
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
@@ -4176,7 +4177,19 @@ export function Recruit() {
         }
         fireSpellBuffOnHandRubies(runRef.current.hand);
       },
-      cardGranted: () => { /* the hand preview is driven by the projection; arrival FX lands with the commit */ },
+      cardGranted: (cardId, _uid, sourceUid) => {
+        // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
+        // must play HERE (while the board is still on screen) is ale-bubbles for a Dwarf's End-of-Turn Ale —
+        // Brunni. The reactive `aleGrantSeq` watcher can't reach it: that only bumps at the `faceOmen` commit,
+        // by which point the phase has flipped and the warband card is gone. Fire from the granting UNIT; a
+        // rune/quest ale grant has no `sourceUid` and is skipped (bubbles are a unit effect).
+        if (!sourceUid || !canPlayDefs() || !ALE_IDS.includes(cardId)) return;
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${sourceUid}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
+      },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
       cardDestroyed: (uid, zone) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion

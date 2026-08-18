@@ -20,10 +20,10 @@ export interface CombatRampConfig {
 }
 
 export const COMBAT_RAMP_DEFAULTS: CombatRampConfig = {
-  graceMs: 2000,
-  rampUpMs: 4000,
+  graceMs: 3600,
+  rampUpMs: 10000,
   ceiling: 3,
-  tailMs: 5000,
+  tailMs: 10000,
 };
 
 /** Smooth ease-in-out on [0,1]. */

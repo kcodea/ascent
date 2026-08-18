@@ -3802,11 +3802,12 @@ function advanceCombat(s: RunState): void {
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
-  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
-  if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge). Never in a tutorial.
+  if (s.mode !== 'tutorial' && s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
   // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
   // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
-  if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
+  // The tutorial teaches runes in its own scripted way (or defers them), so it never auto-opens the forge.
+  if (s.mode !== 'tutorial' && CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;

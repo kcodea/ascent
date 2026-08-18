@@ -32,6 +32,12 @@ a clean follow-up once the runes are chosen.
 
 Gates: typecheck, lint (0 errors), 5564 tests, `build:web` — all green.
 
+**Follow-up fix (same PR):** the **Epic** Runeforge was popping over R9 (Buy a Spell = wave 9). The earlier
+tutorial guard only covered the *basic* forge (wave 6); the universal epic forge opens at wave 9 (reducer
+`advanceCombat` start-of-turn) and was ungated. Guarded both epic-forge triggers (the wave-9 universal open and
+the `epicForgeWave`-scheduled open) on `mode !== 'tutorial'`, mirroring the basic-forge and quest guards. Normal
+runs are unaffected (rune-effect forge opens require owning a rune, impossible in a tutorial).
+
 ## 2026-08-17 — FTUE combat tuning: scripted first-strike, guaranteed Echo death, and a board-space lesson
 
 Four tutorial-combat fixes so the R1/R3/R7 lessons land deterministically. All levers are **tutorial-only**

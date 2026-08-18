@@ -6014,6 +6014,11 @@ svg { width: 18px; height: 18px; }
 
 /* The tuner panel floats ABOVE the mode picker (z 400) so its sliders are reachable while the cards show. */
 .mptuner-host .sfxmix { z-index: 520; }
+/* DEV-only: a small pill to (re)open the Play-Screen tuner, since it now starts hidden. */
+.mptuner-open { position: fixed; left: 14px; top: 14px; z-index: 521; padding: 7px 12px; border-radius: 10px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #10131a;
+  background: linear-gradient(180deg, #fff, #e7ecf5); border: 2px solid var(--gold); box-shadow: 0 6px 16px -6px rgba(0,0,0,0.6);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */
@@ -6063,19 +6068,19 @@ svg { width: 18px; height: 18px; }
    Always visible (not hover-gated). `cursor: inherit` guards the card's gauntlet pointer — a bare backdrop-filter
    drops inherited url() cursors in Chromium. */
 .mcdesc {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-  padding: 10px 16px 12px; border-radius: 0 0 22px 22px;
-  font-size: 18px; font-weight: 700; line-height: 1.25; color: #fff; text-align: center;
-  background: linear-gradient(to top, rgba(6, 9, 16, 0.82) 0%, rgba(6, 9, 16, 0.55) 55%, rgba(6, 9, 16, 0) 100%);
-  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
-  mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
+  /* FULL-CARD overlay (owner 2026-08-18): on hover the WHOLE card dims + blurs and the caption shows centred —
+     not just a bottom text line. At rest it's fully transparent, so the art reads clean. */
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 14px 20px; border-radius: 24px;
+  font-size: 19px; font-weight: 700; line-height: 1.3; color: #fff;
+  background: rgba(6, 9, 16, 0.6);
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.95);
   cursor: inherit; pointer-events: none;
-  /* HOVER-ONLY (owner 2026-08-18): the frosted caption + blur appear on mouseover, not at rest. */
   opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0);
   transition: opacity 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
 }
-.modecard:hover .mcdesc { opacity: 1; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.modecard:hover .mcdesc { opacity: 1; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
 /* TUTORIAL NUDGE overlay (Title `tutorialPrompt`) — a focused card offering the guided course when a new
    player first hits Play. Reuses the modepick backdrop; its own centered card sits on top. */

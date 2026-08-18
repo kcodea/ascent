@@ -7,6 +7,7 @@ import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { ModePickTuner } from './ModePickTuner';
+import { DevPanelContext } from './useDraggablePanel';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -76,6 +77,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
   const [learnPick, setLearnPick] = useState(false); // LEARN opens the learning hub (Tutorial + future lessons)
   const [tutorialPrompt, setTutorialPrompt] = useState(false); // a new player hitting Play is offered the tutorial first
+  const [tunerOpen, setTunerOpen] = useState(false); // dev-only Play-Screen tuner — hidden until opened
 
   if (!showTitle) return null;
 
@@ -273,8 +275,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-          {/* DEV-only Play-Screen Tuner — floats over the picker so the cards can be dialled in place. */}
-          {import.meta.env.DEV && <div className="mptuner-host"><ModePickTuner /></div>}
+          {/* DEV-only Play-Screen Tuner — hidden by default; a small "Tune" pill opens it, and its ✕ closes it
+              (its own DevPanelContext so the injected close button actually works here). */}
+          {import.meta.env.DEV && !tunerOpen && (
+            <button className="mptuner-open" onClick={() => setTunerOpen(true)}>🎛 Tune</button>
+          )}
+          {import.meta.env.DEV && tunerOpen && (
+            <DevPanelContext.Provider value={{ close: () => setTunerOpen(false) }}>
+              <div className="mptuner-host"><ModePickTuner /></div>
+            </DevPanelContext.Provider>
+          )}
         </div>
       )}
 

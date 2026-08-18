@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-18 — Mode picker: hover dims the whole card; Play-Screen tuner hidden by default with a working ✕
+
+Two owner fixes on the mode picker:
+
+- **Hover now dims the WHOLE card** (not just a bottom text line). The caption is a full-cover overlay
+  (`inset: 0`, flex-centred) that at rest is fully transparent; on mouseover the whole card darkens + blurs and
+  the caption shows centred. The art reads clean until you hover.
+- **The Play-Screen tuner is hidden by default** and its ✕ actually closes it now. The tuner mounts outside the
+  DevMenu, so its injected ✕ (which calls `DevPanelContext.close`) was hitting the default no-op — clicking it
+  did nothing. Now a small dev-only "🎛 Tune" pill opens the panel, and it's wrapped in its own
+  `DevPanelContext.Provider` whose `close` flips the local state, so the ✕ (and the pill) toggle it correctly.
+
+Dev-gated as before (the pill + tuner never render in production). Verified live via DOM: at boot only the pill
+shows (no panel); the pill opens the panel; the ✕ closes it and the pill returns; the caption sits at `inset:0`,
+`opacity:0` at rest. Gates: typecheck, lint (0 errors), build:web; full suite green.
+
 ## 2026-08-18 — Mode picker: baked layout, in-card frosted captions, art + title tuning
 
 Owner pass on the MODE picker, building on the Play-Screen tuner:

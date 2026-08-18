@@ -992,14 +992,13 @@ export const useGame = create<GameStore>((set, get) => ({
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) => {
-    // TUTORIAL gate: a guided shop/lobby step can block End Turn (`faceOmen`) so a new player can't skip the
-    // lesson into an empty-board fight. Inert on every non-tutorial run (no gate set). Never blocks anything
-    // but `faceOmen`, so it cannot soft-lock the game (see gateBus). Dropped actions fire a coach nudge.
-    const gate = gateBlocks(action);
-    if (gate.blocked) { if (gate.reason) notifyGateNudge(gate.reason); return; }
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
     const prev = get().run;
+    // TUTORIAL gate: a guided step locks input to its one coached action (and, for a buy/play, its one card),
+    // so a new player can't get ahead. Inert on every non-tutorial run. Dropped actions fire a coach nudge.
+    const gate = gateBlocks(action, prev);
+    if (gate.blocked) { if (gate.reason) notifyGateNudge(gate.reason); return; }
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
       // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here

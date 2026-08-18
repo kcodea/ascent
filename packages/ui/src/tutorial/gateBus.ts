@@ -14,7 +14,7 @@
  *    steps, so the player unblocks simply by doing the action the coach is pointing at.
  *  - It is inert unless a gate is set, so every non-tutorial run is untouched.
  */
-import type { Action } from '@game/sim';
+import type { Action, RunState } from '@game/sim';
 
 /** Actions that always pass, whatever the gate: combat-flow transitions, harmless positioning, sub-choices,
  *  and inspection. Gating any of these could soft-lock (combat can't resolve) or just annoy (can't look at a
@@ -29,6 +29,9 @@ interface TutorialGate {
   /** The player verbs allowed right now (reducer Action `type`s). `[]` = nothing but the always-allowed flow
    *  actions (an observe/combat step). A verb not in this list is dropped + nudged. */
   allowedActionKinds: string[];
+  /** When set, a `buy`/`play` is restricted to THIS card id — buying/playing any other offered minion is
+   *  dropped. This is what stops a new player buying the wrong shop card on a "buy Packstrider" step. */
+  allowedCardId?: string;
   /** Shown when a disallowed action is bumped. */
   reason: string;
 }
@@ -39,12 +42,21 @@ export function setTutorialGate(next: TutorialGate | null): void {
   gate = next;
 }
 
-/** Whether the store should DROP this action (with an optional player-facing reason). */
-export function gateBlocks(action: Action): { blocked: boolean; reason?: string } {
+/** Whether the store should DROP this action (with an optional player-facing reason). `run` (the state BEFORE
+ *  the action) lets the per-card check map a buy/play uid back to its card id. */
+export function gateBlocks(action: Action, run?: RunState): { blocked: boolean; reason?: string } {
   if (!gate) return { blocked: false };
   if (ALWAYS_ALLOWED.has(action.type)) return { blocked: false };
-  if (gate.allowedActionKinds.includes(action.type)) return { blocked: false };
-  return { blocked: true, reason: gate.reason };
+  if (!gate.allowedActionKinds.includes(action.type)) return { blocked: true, reason: gate.reason };
+  // Per-card restriction: on a "buy X" / "play X" step, only the highlighted card is allowed through.
+  if (gate.allowedCardId && run && (action.type === 'buy' || action.type === 'play') && 'uid' in action) {
+    const zone = action.type === 'buy' ? run.shop : run.hand;
+    const cardId = zone.find((c) => c.uid === action.uid)?.cardId;
+    if (cardId !== gate.allowedCardId) {
+      return { blocked: true, reason: 'That is not the highlighted minion — follow the spotlight.' };
+    }
+  }
+  return { blocked: false };
 }
 
 // A blocked action fires a nudge so the coach can flash the reason. Fire-and-forget; no-op when unsubscribed.

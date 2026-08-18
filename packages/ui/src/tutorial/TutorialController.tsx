@@ -101,6 +101,12 @@ function allowedKindsFor(step: TutorialStep): string[] {
   }
 }
 
+/** The specific card a buy/play step is restricted to (so the player can't buy a different offered minion). */
+function allowedCardFor(step: TutorialStep): string | undefined {
+  const c = step.completion;
+  return c.kind === 'bought' || c.kind === 'played' ? c.cardId : undefined;
+}
+
 /** Which run phase a step expects to be shown in, so its spotlight never resolves against a screen that isn't
  *  there (a combat step must not try to light up shop chrome, and vice-versa). */
 function stepMatchesPhase(step: TutorialStep, phase: string): boolean {
@@ -238,7 +244,7 @@ export function TutorialController(): JSX.Element | null {
     if (current.kind === 'panel') {
       setTutorialGate({ allowedActionKinds: [], reason: 'Read this, then press Continue.' });
     } else {
-      setTutorialGate({ allowedActionKinds: allowedKindsFor(current.step), reason: 'Follow the highlighted step first — that action comes next.' });
+      setTutorialGate({ allowedActionKinds: allowedKindsFor(current.step), allowedCardId: allowedCardFor(current.step), reason: 'Follow the highlighted step first — that action comes next.' });
     }
     return () => setTutorialGate(null);
   }, [isTutorial, current]);
@@ -303,12 +309,18 @@ export function TutorialController(): JSX.Element | null {
       };
     }
     const step = current.step;
+    // WHILE COMBAT IS ANIMATING, don't dim: the player should watch the fight at full clarity (a Rally-watch
+    // step). The scrim + spotlight return for the post-combat debrief once the fight has settled. The coach
+    // panel drops to the bottom of the screen so it never covers the fighting minions it's asking you to watch.
+    const combatAnimating = step.phase === 'combat' && !run.combatSettled;
+    const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
     return {
-      cutouts,
-      connector,
+      cutouts: combatAnimating ? [] : cutouts,
+      connector: combatAnimating ? undefined : connector,
       combat: step.phase === 'combat',
+      dim: combatAnimating ? 0 : undefined,
       panel: {
-        anchorRect: primaryRect,
+        anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
         title: step.title,
         body: step.body,
         why: step.why,

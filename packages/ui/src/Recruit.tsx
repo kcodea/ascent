@@ -728,7 +728,10 @@ export function Recruit() {
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
-  const combatSpeed = useGame((s) => s.combatSpeed);
+  // Tutorial always plays combat at 1× — a first-time player should watch each effect at its authored pace,
+  // never a sped-up blur (and the coaching's Predict/Confirm beats are timed to normal speed).
+  const rawCombatSpeed = useGame((s) => s.combatSpeed);
+  const combatSpeed = run.mode === 'tutorial' ? 1 : rawCombatSpeed;
   // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
   // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
   //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
@@ -4285,7 +4288,7 @@ export function Recruit() {
     // TUTORIAL gate: a guided step can block ending the turn (e.g. before a minion is bought). The choreographed
     // End-of-Turn path commits through `commitPresentationAction`, NOT `dispatch` (where the gate normally
     // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
-    const gate = tutorialGateBlocks({ type: 'faceOmen' });
+    const gate = tutorialGateBlocks({ type: 'faceOmen' }, run);
     if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the

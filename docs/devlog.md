@@ -5,7 +5,7 @@
 The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side
 margins on ultrawide monitors (owner report, a friend's 21:9). Resolves the open roadmap item.
 
-`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#342c5b — the ambient
+`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#372d60 — the ambient
 the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (110px × --scale) so
 the margin colour and the art meet seamlessly rather than at a hard line. The fade's inner stop uses
 `--board-edge-col-0` — the same colour at 0 alpha — instead of the `transparent` keyword, which would
@@ -19,9 +19,18 @@ tracks the art automatically if the zoom/fill/aspect ever change. Verified by th
 edges land at −333px / 2893px (off-screen, blend transparent); at 21:9 they land at 107px / 3333px (≈107px
 blended margins each side); at 32:9, ≈947px each side.
 
-`--board-edge-col` / `--board-edge-fade` are tunable if the colour or blend softness wants adjusting. Verified:
-`build:web` green; the live `.boardbg` computed background now carries scrim + blend + art + fill with the
-colour present. Final look is the owner's call on their friend's actual ultrawide.
+**Live-tunable via a new 🌫️ Board Edge dev tuner** (owner ask — three colour tries in, a picker beats the
+round-trip). `boardEdgeConfig.ts` + `BoardEdgeTuner.tsx` ride the shared `TunerPanel`, exposing the colour and
+the blend reach; it applies its values inline on `:root` at boot (dev: persisted; prod: DEFAULTS) and imports
+for side effect in `Game.tsx` beside `boardConfig`. Same convention as the other tuners: the styles.css `:root`
+values are the pre-JS mirror and must stay in sync with DEFAULTS when a tune is baked. The 0-alpha stop is
+DERIVED from the colour (recomputed on every change) so the picker only ever exposes the one colour. It only
+shows an effect on an ultrawide viewport, by the self-gating above; the panel header says so.
+
+Verified: `typecheck` + `build:web` green; the config applies its vars inline at boot (confirmed live —
+`--board-edge-col` #372d60 with the derived `rgb(55 45 96 / 0)` twin and 110px fade), and the live `.boardbg`
+computed background carries scrim + blend + art + fill. Final look is the owner's call on their friend's
+actual ultrawide.
 
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 

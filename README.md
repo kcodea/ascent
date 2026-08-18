@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **Ultrawide side margins blend into the board** — on a monitor wider than 16:9 the board's side margins fade to `#342C5B` (blending into the art edge) instead of showing the flat tan backdrop. Self-gating: no effect at 16:9 or narrower.
+- **Ultrawide side margins blend into the board** — on a monitor wider than 16:9 the board's side margins fade to `#372D60` (blending into the art edge) instead of showing the flat tan backdrop. A 🌫️ Board Edge dev tuner picks the colour and blend width live. Self-gating: no effect at 16:9 or narrower.
 
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.

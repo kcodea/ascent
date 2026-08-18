@@ -59,9 +59,11 @@
      stop so it doesn't interpolate through transparent-black and leave a grey fringe; keep it in sync with the
      colour. Self-gating: the blend's edges are pinned to the art's real edges, which on a ≤16:9 window sit
      off-screen (the art overspills), so the whole visible strip computes transparent and this costs nothing
-     until the window is actually wider than the art. */
-  --board-edge-col: #342c5b;
-  --board-edge-col-0: rgb(52 44 91 / 0);
+     until the window is actually wider than the art. Live-tunable via the 🌫️ Board Edge dev tuner
+     (`boardEdgeConfig.ts`), which overrides these on `:root` at runtime; keep these values in sync with its
+     DEFAULTS (they are the pre-JS / no-JS paint). */
+  --board-edge-col: #372d60;
+  --board-edge-col-0: rgb(55 45 96 / 0);
   --board-edge-fade: 110px;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything

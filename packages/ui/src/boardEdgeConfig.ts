@@ -25,8 +25,8 @@ export interface BoardEdgeConfig {
 }
 
 const DEFAULTS: BoardEdgeConfig = {
-  col: '#372d60',
-  fade: 110,
+  col: '#312361',
+  fade: 186,
 };
 
 /** `[min, max, step]` for the numeric knobs. */

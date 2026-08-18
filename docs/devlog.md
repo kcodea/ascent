@@ -5,8 +5,8 @@
 The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side
 margins on ultrawide monitors (owner report, a friend's 21:9). Resolves the open roadmap item.
 
-`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#372d60 — the ambient
-the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (110px × --scale) so
+`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#312361 — the ambient
+the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (186px × --scale) so
 the margin colour and the art meet seamlessly rather than at a hard line. The fade's inner stop uses
 `--board-edge-col-0` — the same colour at 0 alpha — instead of the `transparent` keyword, which would
 interpolate through transparent-black and leave a grey fringe.
@@ -28,7 +28,7 @@ DERIVED from the colour (recomputed on every change) so the picker only ever exp
 shows an effect on an ultrawide viewport, by the self-gating above; the panel header says so.
 
 Verified: `typecheck` + `build:web` green; the config applies its vars inline at boot (confirmed live —
-`--board-edge-col` #372d60 with the derived `rgb(55 45 96 / 0)` twin and 110px fade), and the live `.boardbg`
+`--board-edge-col` #312361 with the derived `rgb(49 35 97 / 0)` twin and 186px fade), and the live `.boardbg`
 computed background carries scrim + blend + art + fill. Final look is the owner's call on their friend's
 actual ultrawide.
 

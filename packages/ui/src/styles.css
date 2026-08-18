@@ -5977,7 +5977,7 @@ svg { width: 18px; height: 18px; }
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   transition: transform 0.16s ease;
 }
-.modecard:hover { transform: translateY(-6px); }
+.modecard:not([data-mp]):hover { transform: translateY(-6px); }
 
 /* The framed tile — same box as `.herocard.big .hcframe`. */
 .mcframe {
@@ -5998,27 +5998,25 @@ svg { width: 18px; height: 18px; }
 /* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border
    and eclipsing name pill; only its footprint changes. `mpbox` stacks two `.mprow`s (Play; then Learn+Practice),
    so a wide card sits naturally on its own line beside nothing or beside the square Practice tile. */
-.modecard.wide { width: 660px; max-width: 92vw; }
-.mcframe.wide { width: 660px; max-width: 92vw; height: auto; aspect-ratio: 1916 / 821; }
-.modecard.wide .mcdesc { max-width: 620px; }
-
-/* PLAY-SCREEN TUNER hooks — each mode card's frame reads its own Scale / Width / Height / X / Y from `--mp-*`
-   custom properties (driven by the dev Play-Screen tuner). The fallbacks ARE the shipped layout (owner-tuned
-   2026-08-17), so production (tuner unmounted → vars unset) looks identical. The transform sits on the FRAME
-   (inner), so the card's hover lift (on the outer `.modecard`) composes with it rather than fighting it.
-   `aspect-ratio: auto` lets the explicit Height win over the `.wide` banner ratio. */
-.mcframe[data-mp='play'] {
-  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px); aspect-ratio: auto;
+/* PLAY-SCREEN TUNER hooks — Scale / Width / Height / X / Y live on the `.modecard` (the BUTTON itself), so its
+   HIT AREA and `:hover` move with the visual. (Putting the transform on the inner frame moved the art but left
+   the clickable box behind, so hovering one card selected another.) The frame fills the card; the art pan/zoom
+   stays on the frame's own art layer. Fallbacks = the shipped layout, so production (vars unset) matches. */
+.modecard[data-mp] { width: auto; padding: 0; }
+.modecard[data-mp='play'] {
+  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px);
   transform: translate(var(--mp-play-x, -169px), var(--mp-play-y, 115px)) scale(var(--mp-play-s, 0.84));
 }
-.mcframe[data-mp='learn'] {
-  width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 102px); aspect-ratio: auto;
+.modecard[data-mp='learn'] {
+  width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 102px);
   transform: translate(var(--mp-learn-x, 196px), var(--mp-learn-y, 123px)) scale(var(--mp-learn-s, 1));
 }
-.mcframe[data-mp='practice'] {
-  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px); aspect-ratio: auto;
+.modecard[data-mp='practice'] {
+  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
   transform: translate(var(--mp-practice-x, -73px), var(--mp-practice-y, -229px)) scale(var(--mp-practice-s, 0.84));
 }
+/* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
+.mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
 
 /* ART CLIP — the card art now lives in an overflow-clipped wrapper so it can be panned / zoomed INSIDE the
    frame (via the tuner's Art X / Y / Scale) without spilling past the rounded edge. */
@@ -6031,13 +6029,8 @@ svg { width: 18px; height: 18px; }
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 .mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, 155px)) scale(var(--mp-title-s, 1)); }
 
-/* The tuner panel floats ABOVE the mode picker (z 400) so its sliders are reachable while the cards show. */
-.mptuner-host .sfxmix { z-index: 520; }
-/* DEV-only: a small pill to (re)open the Play-Screen tuner, since it now starts hidden. */
-.mptuner-open { position: fixed; left: 14px; top: 14px; z-index: 521; padding: 7px 12px; border-radius: 10px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #10131a;
-  background: linear-gradient(180deg, #fff, #e7ecf5); border: 2px solid var(--gold); box-shadow: 0 6px 16px -6px rgba(0,0,0,0.6);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* DevMenu-hosted tuners float via useDraggablePanel (z 600+), above the mode picker (z 400) — no extra z hook
+   needed. The Play Mode Screen tuner lives in the Dev tuning menu now, not an inline pill. */
 
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */

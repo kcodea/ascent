@@ -6,8 +6,6 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
-import { ModePickTuner } from './ModePickTuner';
-import { DevPanelContext } from './useDraggablePanel';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -77,7 +75,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
   const [learnPick, setLearnPick] = useState(false); // LEARN opens the learning hub (Tutorial + future lessons)
   const [tutorialPrompt, setTutorialPrompt] = useState(false); // a new player hitting Play is offered the tutorial first
-  const [tunerOpen, setTunerOpen] = useState(false); // dev-only Play-Screen tuner — hidden until opened
 
   if (!showTitle) return null;
 
@@ -240,8 +237,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   </div>
                 </button>
               )}
-              <button className="modecard wide" onClick={onPlay}>
-                <div className="mcframe wide" data-mode="lobby" data-mp="play">
+              <button className="modecard" data-mp="play" onClick={onPlay}>
+                <div className="mcframe" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
                     ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
@@ -254,8 +251,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             {/* LEARN + Practice below. Learn opens the learning hub (Tutorial + future lessons); it does not
                 launch a run directly. */}
             <div className="mprow">
-              <button className="modecard wide" onClick={() => { sfx.pulse(); setLearnPick(true); }}>
-                <div className="mcframe wide" data-mode="learn" data-mp="learn">
+              <button className="modecard" data-mp="learn" onClick={() => { sfx.pulse(); setLearnPick(true); }}>
+                <div className="mcframe" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
                     ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
@@ -264,7 +261,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
 
-              <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
+              <button className="modecard" data-mp="practice" onClick={() => { sfx.pulse(); startPractice(); }}>
                 <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
@@ -275,16 +272,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-          {/* DEV-only Play-Screen Tuner — hidden by default; a small "Tune" pill opens it, and its ✕ closes it
-              (its own DevPanelContext so the injected close button actually works here). */}
-          {import.meta.env.DEV && !tunerOpen && (
-            <button className="mptuner-open" onClick={() => setTunerOpen(true)}>🎛 Tune</button>
-          )}
-          {import.meta.env.DEV && tunerOpen && (
-            <DevPanelContext.Provider value={{ close: () => setTunerOpen(false) }}>
-              <div className="mptuner-host"><ModePickTuner /></div>
-            </DevPanelContext.Provider>
-          )}
         </div>
       )}
 

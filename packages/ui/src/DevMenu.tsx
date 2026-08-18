@@ -33,6 +33,7 @@ import { StepCounterTuner } from './StepCounterTuner';
 import { TitleTextTuner } from './TitleTextTuner';
 import { UiThemeTuner } from './UiThemeTuner';
 import { LayoutTuner } from './LayoutTuner';
+import { ModePickTuner } from './ModePickTuner';
 import { FrameTuner } from './FrameTuner';
 import { BookTuner } from './BookTuner';
 import { RefreshTuner } from './RefreshTuner';
@@ -110,6 +111,7 @@ const GROUPS: Group[] = [
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
+      { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — each card, the art inside it, and the MODE title', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },

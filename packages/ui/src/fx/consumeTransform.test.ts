@@ -7,10 +7,11 @@ const from = { x: 100, y: 100 };
 const to = { x: 100, y: 300 }; // eater straight below → pull is downward, no sideways drift
 
 describe('consumeTransform — pulled from the bottom', () => {
-  it('is at rest at t=0 (no translate, no stretch)', () => {
+  it('is at rest at t=0 (no translate, no stretch, upright)', () => {
     const r = consumeTransform(from, to, 0, CFG);
     expect(r.tx).toBeCloseTo(0); expect(r.ty).toBeCloseTo(0);
     expect(r.scaleX).toBeCloseTo(1); expect(r.scaleY).toBeCloseTo(1);
+    expect(r.rotDeg).toBeCloseTo(0); // no snap-tilt at spawn
   });
   it('the bottom leads: it stretches DOWN (scaleY>1) and thins across (scaleX<1) early', () => {
     const r = consumeTransform(from, to, 0.3, CFG);
@@ -22,11 +23,16 @@ describe('consumeTransform — pulled from the bottom', () => {
     expect(r.scaleY).toBeGreaterThan(1);   // already stretching (bottom leading)
     expect(r.ty).toBeCloseTo(0);           // ... but the top hasn't started to follow
   });
-  it('never tilts — the stretch is vertical even for a diagonal eater, and there is no rotation field', () => {
+  it('tilts to aim its bottom at a diagonal eater (down-right eater → negative CSS rotation)', () => {
     const r = consumeTransform({ x: 0, y: 0 }, { x: 200, y: 200 }, 0.3, CFG);
-    expect(r.scaleY).toBeGreaterThan(1);   // stretches DOWN, not aimed along the diagonal
+    expect(r.scaleY).toBeGreaterThan(1);   // still a bottom-led stretch along the (now-aimed) axis
     expect(r.scaleX).toBeLessThan(1);
-    expect((r as Record<string, unknown>).rotDeg).toBeUndefined(); // the card never rotates
+    // atan2(-dx, dy) with dx=dy=200 → -45°, eased to full by t=0.3; CSS -45° swings the bottom down-right.
+    expect(r.rotDeg).toBeCloseTo(-45);
+  });
+  it('does not tilt when the eater is straight below', () => {
+    const r = consumeTransform(from, to, 0.3, CFG); // to is straight below from
+    expect(r.rotDeg).toBeCloseTo(0);
   });
   it('arrives at the eater and collapses by t=1', () => {
     const r = consumeTransform(from, to, 1, CFG);

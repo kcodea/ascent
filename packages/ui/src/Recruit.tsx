@@ -3598,7 +3598,7 @@ export function Recruit() {
               const s = tp < shakePhase ? 1 - tp / shakePhase : 0;
               const jx = s * cfg.shakeAmp * Math.sin(tp * cfg.shakeFreq * Math.PI * 2);
               const jy = s * cfg.shakeAmp * Math.cos(tp * cfg.shakeFreq * Math.PI * 2 * 1.3);
-              el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) scale(${tf.scaleX}, ${tf.scaleY})`;
+              el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) rotate(${tf.rotDeg}deg) scale(${tf.scaleX}, ${tf.scaleY})`;
               el.style.opacity = String(tp < 0.85 ? 1 : (1 - tp) / 0.15);
             },
             onComplete: () => { el.style.opacity = '0'; },

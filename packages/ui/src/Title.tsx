@@ -5,6 +5,7 @@ import { getTitleText, subscribeTitleText, titleContinueNote } from './titleText
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
+import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -71,8 +72,21 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
   const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
+  const [learnPick, setLearnPick] = useState(false); // LEARN opens the learning hub (Tutorial + future lessons)
+  const [tutorialPrompt, setTutorialPrompt] = useState(false); // a new player hitting Play is offered the tutorial first
 
   if (!showTitle) return null;
+
+  // A player who has never finished (or skipped) the guided course is "new" — hitting Play offers the tutorial
+  // once before the real game, rather than dropping them in cold.
+  const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
+  const isNewPlayer = !learnStatus || learnStatus === 'not_started';
+  // Play from the mode picker: nudge a new player to the tutorial first; everyone else starts the lobby.
+  const onPlay = () => {
+    sfx.pulse();
+    if (isNewPlayer) setTutorialPrompt(true);
+    else startLobby();
+  };
 
   const rift = activeRift(); // the live registry is correct HERE — this is a pre-run choice, not a pinned run
   // A first-time player with no name yet: show the auto-assigned temp handle (the same one on the leaderboard)
@@ -159,12 +173,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">{txt.play}</span>
           </button>
-          {/* Learn Ascent — the guided first-time course. Launches the scripted tutorial run directly (its own
-              hero, Aster; no picker). A brand-new player is nudged here; anyone can replay it. */}
-          <button className="menubtn" onClick={() => { sfx.pulse(); startTutorial(LEARN_ASCENT); }} title="A guided first game — learn how to play">
-            <span className="mbicon"><IconHelm /></span>
-            <span className="mblabel">Learn</span>
-          </button>
+          {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
+              opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
+              tutorial the first time they hit Play. */}
           <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} title="Your match history + per-hero stats">
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">{txt.career}</span>
@@ -211,9 +222,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button className="hsback" onClick={() => { sfx.pulse(); setModePick(false); }}>← Back</button>
           <div className="mpbox">
             <h1 className="disp mptitle">MODE</h1>
+            {/* PLAY is the hero of the screen — a wide 21:9 banner (PlayMode2 art). The mode id stays `lobby`
+                everywhere internally (store, run state, replays); only the LABEL is "Play" (owner 2026-08-17).
+                A new player is offered the tutorial first (see `onPlay`). */}
             <div className="mprow">
-              {/* The scored course ("Ascent") left the picker with the Set 2 launch (owner 2026-07-31) — the
-                  LOBBY is the game now. The mode + its machinery stay for replays and a future return. */}
               {rift && (
                 <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
                   <div className="mcframe" data-mode="rift">
@@ -224,17 +236,28 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   <div className="mcdesc">{rift.blurb}</div>
                 </button>
               )}
-
-              {/* The mode id stays `lobby` everywhere internally (store, run state, replays); only the LABEL is
-                  "Play" (owner 2026-08-17). Art, when present, fills the tile and replaces the emblem glyph. */}
-              <button className="modecard" onClick={() => { sfx.pulse(); startLobby(); }}>
-                <div className="mcframe" data-mode="lobby">
+              <button className="modecard wide" onClick={onPlay}>
+                <div className="mcframe wide" data-mode="lobby">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
                     ? <img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} />
                     : <span className="mcemblem"><IconHelm /></span>}
                 </div>
                 <div className="mcdesc">8 players. Last player standing wins.</div>
+              </button>
+            </div>
+
+            {/* LEARN + Practice below. Learn opens the learning hub (Tutorial + future lessons); it does not
+                launch a run directly. */}
+            <div className="mprow">
+              <button className="modecard wide" onClick={() => { sfx.pulse(); setLearnPick(true); }}>
+                <div className="mcframe wide" data-mode="learn">
+                  <div className="mcname">Learn</div>
+                  {modeArt('learn')
+                    ? <img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} />
+                    : <span className="mcemblem"><IconHelm /></span>}
+                </div>
+                <div className="mcdesc">The tutorial and guided lessons — learn how to play.</div>
               </button>
 
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
@@ -246,6 +269,53 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
                 <div className="mcdesc">Choose any hero with unlimited Health and longer shop timers.</div>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LEARN HUB — opened from the Learn card in the mode picker. Holds the guided Tutorial today; the
+          advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). */}
+      {learnPick && (
+        <div className="modepick" role="dialog" aria-label="Learn">
+          <button className="hsback" onClick={() => { sfx.pulse(); setLearnPick(false); }}>← Back</button>
+          <div className="mpbox">
+            <h1 className="disp mptitle">LEARN</h1>
+            <div className="mprow">
+              <button className="modecard" onClick={() => { sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
+                <div className="mcframe" data-mode="learn">
+                  <div className="mcname">Tutorial</div>
+                  {modeArt('learn')
+                    ? <img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} />
+                    : <span className="mcemblem"><IconHelm /></span>}
+                </div>
+                <div className="mcdesc">A coached first game — build a warband, learn every mechanic, and graduate.</div>
+              </button>
+
+              <button className="modecard mclocked" disabled title="More guided lessons are coming soon">
+                <div className="mcframe" data-mode="soon">
+                  <div className="mcname">Advanced</div>
+                  <span className="mcemblem"><Icon name="clock" /></span>
+                </div>
+                <div className="mcdesc">Deeper lessons — tribes, synergies, and tactics. Coming soon.</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
+          the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
+          skip so it never asks again. */}
+      {tutorialPrompt && (
+        <div className="modepick tutprompt-ov" role="dialog" aria-label="New here?">
+          <div className="tutprompt-card">
+            <div className="eyebrow">First time?</div>
+            <h1 className="disp tutprompt-title">Try the Tutorial</h1>
+            <p className="tutprompt-sub">A quick coached game teaches you everything — shop, build, position, and win. About five minutes.</p>
+            <div className="tutprompt-actions">
+              <button className="endplay pressable" onClick={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}>Start the Tutorial</button>
+              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); startLobby(); }}>Skip — just play</button>
             </div>
           </div>
         </div>

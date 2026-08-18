@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-17 — Learn moves into the mode picker; Play becomes a 21:9 banner; new-player tutorial nudge
+
+Reworks how a player reaches the tutorial (owner direction):
+
+- **Learn left the main menu.** The top-level "Learn" button is gone. Learn is now a card in the **mode picker**
+  that opens a **learning hub** — a Tutorial card (launches Learn Ascent) plus a locked "Advanced — coming soon"
+  slot for the guided lessons we add later. So the flow is Play screen → Learn → hub → Tutorial.
+- **Play is the hero of the screen.** The Play card is now a large **21:9 banner** using the new PlayMode2 art
+  (the Learn card uses the new LearnMode art); Practice stays a square tile. New `.modecard.wide` / `.mcframe.wide`
+  (aspect-ratio 1916/821) drive the banners. Art converted to webp (PlayMode2→`lobby.webp` 271 KB,
+  LearnMode→`learn.webp` 203 KB) via Pillow.
+- **The tutorial nudge moved to the Play click.** The auto first-launch popup is retired; instead, the first time
+  a player who has never finished/skipped the course hits **Play**, a focused "Try the Tutorial" card offers it
+  (Start the Tutorial / Skip — just play). "Skip" records a course skip so it never asks again. Returning players
+  go straight to the lobby.
+
+All verified live in the browser (mode picker, Learn hub, and the new-player Play nudge all render + route
+correctly; the Learn art needed a dev-server restart to enter the eager `import.meta.glob`). UI-only — no engine
+changes. Gates: typecheck, lint (0 errors), build:web; full test suite green.
+
 ## 2026-08-17 — FTUE rounds 8–12: systems + graduation (the course is complete)
 
 Extends Learn Ascent from 7 to the full **12 rounds**, adding the two build-defining systems and a graduated

@@ -10,6 +10,7 @@ import { Rankings } from './Rankings';
 import { RecentGames } from './RecentGames';
 import { Career } from './Career';
 import { AvatarPicker } from './AvatarPicker';
+import { TutorialController } from './tutorial/TutorialController';
 import { AccountPanel } from './AccountPanel';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
@@ -270,6 +271,12 @@ export function Game() {
       <Career />
       <AvatarPicker />
       <AccountPanel />
+      {/* Tutorial coaching overlay — self-gates on a `tutorial`-mode run; renders nothing otherwise. Mounted
+          at the root (a sibling of `.app`) so its focus mask floats above everything without being z-trapped
+          by `.app`'s stacking context. */}
+      <TutorialController />
+      {/* First-launch welcome RETIRED as an auto-popup (owner 2026-08-17): the tutorial nudge now fires when a
+          new player first hits Play (see Title's `onPlay` + tutorial prompt), not on load. */}
     </ErrorBoundary>
   );
 }

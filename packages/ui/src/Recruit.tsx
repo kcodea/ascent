@@ -92,6 +92,7 @@ import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
+import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
@@ -728,7 +729,10 @@ export function Recruit() {
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
-  const combatSpeed = useGame((s) => s.combatSpeed);
+  // Tutorial always plays combat at 1× — a first-time player should watch each effect at its authored pace,
+  // never a sped-up blur (and the coaching's Predict/Confirm beats are timed to normal speed).
+  const rawCombatSpeed = useGame((s) => s.combatSpeed);
+  const combatSpeed = run.mode === 'tutorial' ? 1 : rawCombatSpeed;
   // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
   // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
   //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
@@ -787,7 +791,9 @@ export function Recruit() {
   // 1x being exactly the scored mode's clock. Was a fixed 3x, which is still the default so existing practice
   // runs feel unchanged. Scored modes always run at 1x — the multiplier is never consulted outside practice.
   const practiceTimer = useGame((st) => st.practiceTimer);
-  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1));
+  // Tutorial + sandbox get an effectively-infinite clock: a first-time player should never be rushed while
+  // reading a lesson (blueprint §6.4: "Timer — Disabled"), and the sandbox is a dev rig.
+  const turnSeconds = run.sandbox || run.mode === 'tutorial' ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -4316,6 +4322,11 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    // TUTORIAL gate: a guided step can block ending the turn (e.g. before a minion is bought). The choreographed
+    // End-of-Turn path commits through `commitPresentationAction`, NOT `dispatch` (where the gate normally
+    // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
+    const gate = tutorialGateBlocks({ type: 'faceOmen' }, run);
+    if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
@@ -4915,9 +4926,13 @@ export function Recruit() {
             plaque. Styled tooltips (.sbtip) replace the native title so hover hints match the dark-pill format. */}
         {/* Gold moved to a standalone glass pill bottom-right of the board; Tier moved onto the Tavern Up stone
             (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
-        <div className="statstrip">
-          <ShopTimer practice={run.mode === 'practice'} />
-        </div>
+        {/* The turn timer is hidden entirely in the tutorial — a first-time player is never on the clock
+            (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
+        {run.mode !== 'tutorial' && (
+          <div className="statstrip">
+            <ShopTimer practice={run.mode === 'practice'} />
+          </div>
+        )}
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
             mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}

@@ -2416,6 +2416,16 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `maxGoldBonus` sits above the base 10 that maxEmbers still climbs to on its own, so powering turns 1–4
         // reads 11/12/13/14 across turns 5–8 — the lead persists. Untargeted; falls through to the shared spend.
         s.maxGoldBonus = (s.maxGoldBonus ?? 0) + reps;
+      } else if (power.kind === 'preparation') {
+        // Aster the Guide (tutorial-only): +1/+1 to a friendly board minion. Recharges every OTHER turn — the
+        // `preparationLockUntil` wave is the REAL gate here, mirroring Gambler's Dice lock: `heroReady` resets
+        // on every wave advance and would otherwise re-arm the power next turn, so without this check it would
+        // be usable every turn. No-op (no charge, no lock set) on a still-locked power or a missing target, so
+        // a whiffed activation costs nothing (matching grantWard / fortify above).
+        if (s.wave < (s.preparationLockUntil ?? 0)) return state;
+        if (!card) return state;
+        addBuff(card, 'Preparation', 1, 1);
+        s.preparationLockUntil = s.wave + 2;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -2731,7 +2741,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       });
       // Player-only one-fight rune overrides.
       const config: CombatConfig = {
-        playerAttacksFirst: s.attackFirstNext ?? false, // Forthcoming is a Start-of-Combat strike now, not turn priority
+        playerAttacksFirst:
+          (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
+        forceEnemyFirstTargetCard:
+          s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
         playerRallyDouble: s.rallyDoubleNext ?? false,
       };
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {
@@ -3544,10 +3557,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       s.cassenKills -= 5;
     }
   }
-  // LOBBY: the seat already took this hit (with the lobby's own cap and stall pressure) and the run was synced
-  // to it above, so applying it again here charges the player twice — visible as the HUD reading 2 lower than
-  // the table for the same fight.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby') {
+  // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
+  // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
+  // lower than the table for the same fight. A tutorial carries a lobby too, so it is excluded for the same reason.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -3618,7 +3631,9 @@ function advanceCombat(s: RunState): void {
   // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
   // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.wave >= CONFIG.courseRounds) {
+  // Tutorial is excluded alongside lobby/practice: it carries a lobby and ends by the lobby's round cap (above),
+  // never by the 17-round course clock.
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }
@@ -3634,6 +3649,9 @@ function advanceCombat(s: RunState): void {
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
+  // Tutorial: a scripted shop reads roll 0 (the turn-start offer) each new wave. Reset before the wave's shop
+  // rolls so the first roll of the turn serves the authored initial offer, refreshes then advancing 1, 2, …
+  if (s.tutorialShopScript) s.tutorialShopRoll = 0;
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
   if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);
@@ -3758,13 +3776,15 @@ function advanceCombat(s: RunState): void {
   // The "quest phase" is just "questOffer is set" (no new phase enum); the modal guard locks every action but
   // buyQuest until it resolves. Fi's Errand (bonus Lesser offer on turn 3) and Coran's Pathfinder (turn-11 bucket on
   // turn 7, no turn-5 quest) are folded into `questOfferPlan`.
-  const questPlan = questOfferPlan(s);
+  // TUTORIAL: quests and the Runeforge are DISABLED until the course teaches them (blueprint §6.4) — they must
+  // never pop over a coached step and hijack the turn.
+  const questPlan = s.mode === 'tutorial' ? null : questOfferPlan(s);
   const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
   // Runesmith: the Runeforge opens exactly once, on turn 5 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
   // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
-  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
+  const forge = s.mode !== 'tutorial' && getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -3773,7 +3793,7 @@ function advanceCombat(s: RunState): void {
     s.runeforgeOffer = drawn.offer;
     s.runeforgeDiscounts = drawn.discounts;
     applyHeroForgeDiscount(s, forgeRng);
-  } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
+  } else if (s.mode !== 'tutorial' && (CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
     // slots into the normal start-of-turn modal priority (behind any quest offer, via openNextStartOfTurnModal).
@@ -3781,7 +3801,14 @@ function advanceCombat(s: RunState): void {
     // extra visit, not a replacement.)
     s.pendingBasicForge = { deferred: false };
   }
-  if (questOffer.length > 0) {
+  if (s.mode === 'tutorial' && s.tutorialShopScript) {
+    // The scripted shop ALWAYS wins on a new tutorial turn: a frozen tavern would otherwise carry the last
+    // round's offers (topped up from the pool), and the round's lesson would never see the card it needs. The
+    // freeze lesson stays coherent by re-scripting the kept card into the next round's offers. Clear the freeze
+    // so the fresh scripted roll takes — `refreshTavern` → `rollShop` serves `tutorialShopScript`.
+    s.frozen = false;
+    refreshTavern(s, true);
+  } else if (questOffer.length > 0) {
     s.questOffer = questOffer;
   } else if (s.frozen) {
     topUpTavern(s);
@@ -3799,11 +3826,12 @@ function advanceCombat(s: RunState): void {
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
-  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
-  if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge). Never in a tutorial.
+  if (s.mode !== 'tutorial' && s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
   // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
   // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
-  if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
+  // The tutorial teaches runes in its own scripted way (or defers them), so it never auto-opens the forge.
+  if (s.mode !== 'tutorial' && CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;

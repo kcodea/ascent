@@ -763,6 +763,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:harlan:buyout': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:sable:soulbind': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:keshi:crownTally': { policy: 'passive', family: 'passive' },
+  // Aster the Guide (tutorial-only): an active, targeted +1/+1 — the same shape as Warden's grantWard.
+  'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
 };
 

@@ -1,5 +1,341 @@
 # ASCENT — development log
 
+## 2026-08-18 — Mode picker: hover dims the whole card; Play-Screen tuner hidden by default with a working ✕
+
+Two owner fixes on the mode picker:
+
+- **Hover now dims the WHOLE card** (not just a bottom text line). The caption is a full-cover overlay
+  (`inset: 0`, flex-centred) that at rest is fully transparent; on mouseover the whole card darkens + blurs and
+  the caption shows centred. The art reads clean until you hover.
+- **The Play-Screen tuner is hidden by default** and its ✕ actually closes it now. The tuner mounts outside the
+  DevMenu, so its injected ✕ (which calls `DevPanelContext.close`) was hitting the default no-op — clicking it
+  did nothing. Now a small dev-only "🎛 Tune" pill opens the panel, and it's wrapped in its own
+  `DevPanelContext.Provider` whose `close` flips the local state, so the ✕ (and the pill) toggle it correctly.
+
+Dev-gated as before (the pill + tuner never render in production). Verified live via DOM: at boot only the pill
+shows (no panel); the pill opens the panel; the ✕ closes it and the pill returns; the caption sits at `inset:0`,
+`opacity:0` at rest. Gates: typecheck, lint (0 errors), build:web; full suite green.
+
+## 2026-08-18 — Mode picker: baked layout, in-card frosted captions, art + title tuning
+
+Owner pass on the MODE picker, building on the Play-Screen tuner:
+
+- **Baked the owner-tuned layout** as the shipped defaults (Play ×0.84 low-left, Learn a wide 880×102 bar with a
+  slight art nudge, Practice ×0.84 upper-right, MODE title dropped 155px) — mirrored into both
+  `modePickConfig.ts` defaults and the `.mcframe[data-mp=…]` / `.mptitle` CSS fallbacks, so production matches
+  with no tuner.
+- **Captions moved INTO the card, on hover.** The description is now an in-frame bar pinned to the card's bottom
+  over a **frosted strip** — on mouseover a `backdrop-filter: blur` + dark gradient (masked to fade upward)
+  frosts the art behind the text so it stays readable; at rest the card art is clean (owner: blur on hover only).
+- **New per-card copy:** Play shows the player's live **Rating** (`profile.rating`); Learn = "Tutorial +
+  techniques."; Practice = "More time and unlimited Health."
+- **Art is now pannable/zoomable inside each card** — the art sits in an overflow-clipped wrapper and reads
+  Art Scale / Art X / Art Y from the tuner (new `--mp-<card>-art{s,x,y}` vars), so you can reframe the crop.
+- **The "MODE" title got Scale + X/Y** in the tuner too (`--mp-title-*`).
+
+The Play-Screen tuner now carries 27 controls (8 per card + 3 title). All dev-gated; production keeps the CSS
+fallbacks. Verified live (DOM): captions in-card with `blur(6px)`, correct copy per card, art + title transforms
+respond to their vars. Gates: typecheck, lint (0 errors), build:web; full suite green.
+
+## 2026-08-17 — Play-Screen Tuner (dev): dial each MODE card's scale / size / position by hand
+
+The mode-picker card layout was hard to land by guessing, so it now has its own dev tuner (same pattern as the
+Layout Lab). Per card — Play, Learn, Practice — a **Scale, Width, Height, X offset and Y offset**, driving
+`--mp-*` custom properties on `:root`. The offsets are a `translate` on each card's frame, so a card moves
+independently without reflowing the others; the transform sits on the frame (inner) so the card's hover-lift
+(outer) still composes. Values persist to localStorage and apply at boot — all dev-gated, so production keeps the
+shipped CSS fallbacks (Play/Learn 660×283 banners, Practice 306×306).
+
+Files: `modePickConfig.ts` (the var set + persistence, mirrors `layoutConfig.ts`), `ModePickTuner.tsx` (the
+schema-driven `TunerPanel`), `data-mp` hooks + `.mcframe[data-mp=…]` CSS reading the vars, and the tuner mounted
+straight into the picker in dev (floating above it at z-520). Verified live: the panel renders with all 15
+controls and moving a value shifts the right card (Practice X −300 → the tile slid left).
+
+Hand-off: dial it in, hit **Copy values** (copies the config JSON to the clipboard), and those numbers get baked
+into the defaults + `styles.css` fallbacks so players see the tuned layout. UI + dev-tooling only; no engine
+change. Gates: typecheck, lint (0 errors), build:web; full test suite green.
+
+## 2026-08-17 — Learn moves into the mode picker; Play becomes a 21:9 banner; new-player tutorial nudge
+
+Reworks how a player reaches the tutorial (owner direction):
+
+- **Learn left the main menu.** The top-level "Learn" button is gone. Learn is now a card in the **mode picker**
+  that opens a **learning hub** — a Tutorial card (launches Learn Ascent) plus a locked "Advanced — coming soon"
+  slot for the guided lessons we add later. So the flow is Play screen → Learn → hub → Tutorial.
+- **Play is the hero of the screen.** The Play card is now a large **21:9 banner** using the new PlayMode2 art
+  (the Learn card uses the new LearnMode art); Practice stays a square tile. New `.modecard.wide` / `.mcframe.wide`
+  (aspect-ratio 1916/821) drive the banners. Art converted to webp (PlayMode2→`lobby.webp` 271 KB,
+  LearnMode→`learn.webp` 203 KB) via Pillow.
+- **The tutorial nudge moved to the Play click.** The auto first-launch popup is retired; instead, the first time
+  a player who has never finished/skipped the course hits **Play**, a focused "Try the Tutorial" card offers it
+  (Start the Tutorial / Skip — just play). "Skip" records a course skip so it never asks again. Returning players
+  go straight to the lobby.
+
+All verified live in the browser (mode picker, Learn hub, and the new-player Play nudge all render + route
+correctly; the Learn art needed a dev-server restart to enter the eager `import.meta.glob`). UI-only — no engine
+changes. Gates: typecheck, lint (0 errors), build:web; full test suite green.
+
+## 2026-08-17 — FTUE rounds 8–12: systems + graduation (the course is complete)
+
+Extends Learn Ascent from 7 to the full **12 rounds**, adding the two build-defining systems and a graduated
+hand-off into the real game. All coached against real Set-2 cards (engine assumptions verified by a new headless
+test, `tutorialCourseFlow.test.ts`), reusing the existing per-action / per-card gate machinery.
+
+- **R8 — Gilding + Discover.** The two Packstriders from R1–2 finally meet a third: buying it forms a **Golden**
+  triple (2× stats), and playing that golden pays a **Triple Reward** — a Discover token to hand. Playing the
+  token opens a pick-1-of-3. One round teaches both systems as the natural payoff of a board the player already
+  built. (Verified: buy-3rd → golden in hand + 2 board copies consumed; play golden → `discoverspell` granted;
+  play it → `s.discover` opens.)
+- **R9 — Spells.** Buy **Blessing** (`sp_blessing`, +5/+6) and cast it on a minion. The spell is scripted into
+  the *minion row* (not the dedicated spell slot), so it buys and casts through the same drag the player already
+  knows — no new gate/anchor plumbing. (Verified: buys to hand, casts for +5/+6, spent on cast.)
+- **R10–12 — Supervised independence → graduation.** The training wheels come off: a new `freeBuildStep`
+  unlocks **every** shop verb (buy/sell/play/refresh/freeze/upgrade/hero-power) and advances on End Turn, so the
+  player runs the whole shop phase themselves with only a framing nudge. R12 ends the course.
+- **Graduation end screen.** A tutorial run carries a lobby, so it reached the placement-based `LobbyEndScreen`
+  — the wrong frame for a course you just *learned*. Added `TutorialGraduationScreen`: "GRADUATED", the warband
+  you built, and one **Enter Ascent** button back to the Title. Verified live in the browser (renders correctly,
+  golden frame on the tripled Packstrider, button returns to Title).
+
+Also extended the gate's per-card lock to cover **sell** (R7 already needed it) and confirmed the `castSpell`
+and `gilded` completion predicates are inert under the current controller — the course completes on `played`
+(spell cast) and `bought` (the third copy) instead, per the mechanics audit.
+
+**Deferred (one owner-design item):** a dedicated **Runeforge** round. The three Basic Rune branches need real
+Rune IDs approved (roadmap "Blocked design work" §6.8), so the course graduates without teaching runes for now —
+a clean follow-up once the runes are chosen.
+
+Gates: typecheck, lint (0 errors), 5564 tests, `build:web` — all green.
+
+**Polish pass (owner feedback on R10–12, same PR):**
+- **No scrim on the independence rounds.** Added a `noScrim` step flag: the coach panel still shows but the
+  dimming + spotlight are dropped, so the board stays at full clarity while the player drives (R10, R11's build
+  phase, R12). The scrim returns for the post-combat "end combat" prompt.
+- **R11 forces a Tavern-up.** R11 now opens with a hard-gated upgrade to Tier 4 (affordable — the cost has
+  discounted since the R6 upgrade), then hands back to a free build phase.
+- **Debrief copy de-goofed.** R10/R11 post-combat prompts are now just "Well Played — End combat here and go
+  back to the shop."
+- **Graduation screen stripped.** Removed the eyebrow, the paragraph, and the "warband you built" label; the
+  heading is now **"Tutorial Complete"** (was "GRADUATED"). Just the title, the board, and Enter Ascent.
+  Verified live.
+
+**Follow-up fix (same PR):** the **Epic** Runeforge was popping over R9 (Buy a Spell = wave 9). The earlier
+tutorial guard only covered the *basic* forge (wave 6); the universal epic forge opens at wave 9 (reducer
+`advanceCombat` start-of-turn) and was ungated. Guarded both epic-forge triggers (the wave-9 universal open and
+the `epicForgeWave`-scheduled open) on `mode !== 'tutorial'`, mirroring the basic-forge and quest guards. Normal
+runs are unaffected (rune-effect forge opens require owning a rune, impossible in a tutorial).
+
+## 2026-08-17 — FTUE combat tuning: scripted first-strike, guaranteed Echo death, and a board-space lesson
+
+Four tutorial-combat fixes so the R1/R3/R7 lessons land deterministically. All levers are **tutorial-only**
+(guarded on `mode === 'tutorial'` / driven by per-turn course data), so real runs are untouched.
+
+- **Fixed run seed.** `startTutorial` now seeds every Learn Ascent run with a constant (was `randomSeed()`),
+  so its combats play out identically each time — the scripted lessons can rely on the outcome. Shop is
+  scripted regardless of seed, so pinning it costs nothing.
+- **R1 — force the player to swing first** (`TutorialTurn.playerAttacksFirst` → `RunState.tutorialAttackFirst`
+  → combat `config.playerAttacksFirst`). The lone Packstrider's Rally fires on its own attack, so making the
+  player strike first shows the Rally buff land before the round ends.
+- **R3 — guarantee the T-Rex dies for the Echo payoff** (`TutorialTurn.forceEnemyFirstTargetCard` →
+  `RunState.tutorialForceEnemyTarget` → new `CombatConfig.forceEnemyFirstTargetCard`). Combat targeting is
+  random/position-independent, so a new tutorial-only config steers the enemy's FIRST swing onto the flagged
+  card (T-Rex) wherever the player placed it. The R3 enemy board is re-tuned so both minions hit for 3 (enough
+  to one-shot the 3/3 T-Rex) and survive the player's opening swing, so whichever makes the first attack does
+  the job. T-Rex dies → its Echo summons a Baby into the freed slot.
+- **R7 — teach board space** (owner: a full 7-board can't summon). Playing Echohorn fills the board to 7, so
+  its Rally→Echo re-fire has nowhere to land. New `r7-makeroom` step: sell Imp Wrangler to open a slot (its
+  tooltip explains the full-board rule), *then* the engine fires. Extended the action gate to lock a **sell**
+  to a specific card (previously only buy/play were card-locked).
+
+Copy: removed the inaccurate "the strongest minions" line from R6's "Reach Tier 3" step.
+
+Gates: typecheck, lint (0 errors), 5560 tests, `build:web` — all green.
+
+## 2026-08-17 — FTUE rounds 5–7: the synergy arc (Shout, Start of Combat, the build coming together)
+
+Extends Learn Ascent from 4 to 7 rounds — the first *synergy* teaching, where the fundamentals start combining
+into an engine. Same complete, per-action-gated sequences as R1–4 (buy → play → [position] → End Turn → watch →
+return to shop), authored against real Set-2 cards (all ids grep-verified):
+
+- **R5 — Shout** (`dm_butcher`, Contract Butcher): play it, watch its Shout buff the shop the instant it lands.
+  Teaches that Shout fires on play from hand.
+- **R6 — Start of Combat + Tavern to Tier 3** (`dm_wrangler`, Imp Wrangler): its Start-of-Combat summons a free
+  Imp as the fight begins; the round also upgrades to Tier 3 to unlock the keystone.
+- **R7 — position-dependent synergy** (`b2_echohorn`, Echohorn): its Rally triggers your LEFT-MOST Echo, so the
+  player repositions T-Rex (their Echo) to the front and the Rally→Echo engine fires. This is the payoff of
+  everything taught so far — Rally, Echo, and placement combining into a board that runs itself.
+
+Engine: added a `reordered` predicate (the R7 positioning step completes when the player repositions a minion).
+Verified the course wiring live (7 rounds; shops serve butcher / wrangler / echohorn; generous 10 gold so a buy
++ tavern-up in one round is affordable). Full live playthrough of R5–7 was blocked by the browser pane being
+backgrounded (rAF/timers throttled → combat can't animate in the harness), but every mechanism R5–7 uses is
+identical to the R1–4 sequences already verified end-to-end. Gates: typecheck, lint (0 errors), 5560 tests,
+`build:web`.
+
+**Still ahead:** R8–12 (Runeforge, Gilding, supervised independence, graduation into a real lobby); tuning R3
+so T-Rex reliably dies for the Echo payoff; and the interactive order-demo drag.
+
+## 2026-08-17 — FTUE: from a button-tour slice to a properly-gated fundamentals course
+
+Owner feedback on the 4-round slice: it read as a "where are the buttons" tour with several desync bugs, and
+it should instead be ONE continuous course that teaches the fundamentals and card mechanics as the build comes
+together. Every reported bug traced to the same root: rounds 2–4 were missing their intermediate steps (no End
+Turn, no return-to-shop, no per-purchase guidance), so the coach jumped to a combat step while the player was
+still in the shop — and nothing locked input, so they could get ahead. This is the structural fix + re-author.
+
+**Structural (the fixes that make a real tutorial possible):**
+- **Full per-action locking.** The gate went from "block End Turn" to "allow ONLY the coached verb": the
+  controller derives each step's allowed action from its completion (buy → `['buy']`, tavern-up → `['upgrade']`,
+  …) and the store's `dispatch` drops anything else with a nudge. Flow/positioning/inspect always pass, so it
+  still can't soft-lock. This alone keeps the coach and the game in lock-step.
+- **Explicit turn transitions.** Every round now runs shop actions → **End Turn** → watch combat → **return to
+  shop**, each gated to one action. A new `returnedToShop` signal (from `resolveCombat`) drives a post-combat
+  step that spotlights the "End combat" button and tells the player it goes back to the shop — the missing CTA
+  players were stuck on.
+- **Per-combat event scope.** Consecutive combat beats (a Rally-watch step and the win/return debrief) both key
+  on one fight's outcome; per-step events were cleared on advance, so the second stalled. Combat-lifecycle
+  predicates now read a per-COMBAT log that resets only when a new fight starts.
+- **Phase-aware spotlights + connector rendering.** A step only resolves its spotlight when the game is on the
+  screen it expects (a combat step never lights up shop chrome), and the controller now actually renders a
+  step's connector line (the "tap power → pick target" arrow).
+- **Generous tutorial gold** (10/turn) so a buy AND a tavern-up in one round are always affordable — a tutorial
+  is not an economy puzzle, and the gate stops over-spending.
+
+**Re-authored course** (`learnAscent.ts`): every purchase is guided, every round complete. R1 buy/play/power/
+Rally/win; R2 a second body + the first tavern-up (board width); R3 **Refresh + the Echo mechanic** (buy T-Rex,
+watch it leave a body behind); R4 **Freeze + rounding out the build**, ending on "The Full Loop" rather than an
+abrupt "win on your own". Shared `endTurnStep` / `combatDebriefStep` builders keep transitions consistent.
+
+Verified live end-to-end (R1→R2→R3, every mechanism): per-action gating (an illegal upgrade on the buy step is
+blocked), per-purchase guidance, an affordable tavern-up, Refresh serving the authored T-Rex, and clean
+combat → debrief → return-to-shop transitions with no phase desync. Gates: typecheck, lint (0 errors), 5560
+tests, `build:web`.
+
+**Still ahead (the 12-round arc):** this is a complete, gated 4-round fundamentals course; the plan is to extend
+it toward 12 rounds teaching Shout, Discover, Start-of-Combat, adjacency, Gilding and a real Runeforge as the
+build deepens — plus tuning R3 so T-Rex reliably dies for the Echo payoff, and the interactive order-demo drag.
+
+## 2026-08-17 — FTUE Phase 1: Learn Ascent vertical slice (Round 1 end-to-end, live-verified)
+
+The first-time-player tutorial goes from scope to a **runnable, coached Round 1** (and into Round 2). Built
+against the blueprint as a GUIDE, not gospel (owner direction) — adapted to our real architecture, changing
+**nothing** about how the game plays. Every gate green: typecheck (pkgs + web), lint (0 errors), 5560 tests,
+`build:web`. Verified LIVE in the dev server: launch → 4 foundation panels → order-demo → 3 lobby-intro steps
+→ Round 1 (buy → play → Preparation → End Turn → Rally → win) → Round 2. Parallelised across four recon agents
+and three build agents; the engine spine (hot files) was done solo to avoid collisions.
+
+**New engine (sim/core), all additive:**
+- **`tutorial` RunMode** — a scripted lobby that is deliberately NOT `mode:'lobby'` (that mode rates the player
+  and uploads telemetry; a distinct mode is excluded from every such gate for free). Audited every
+  lobby-family gate in the reducer and excluded `tutorial` where a lobby-carrying run would otherwise
+  double-charge damage (the `settleCombat` ordinary-damage path) or hit the 17-round course-victory. A tutorial
+  takes REAL damage through its lobby seat (so the authored Round-2 loss lands) — it is not invulnerable like
+  Practice.
+- **Authored omen lobby** — a new `authored` seat kind whose driver fields the course's per-round omen board.
+  Every authored seat returns the SAME board for a round, so whichever seat the seeded pairing hands the
+  player, they face the round's authored board — no change to combat, settle, or pairing. `createTutorialRun` /
+  `createTutorialLobby` in `lobby/tutorialSeats.ts`.
+- **Scripted shop** — `rollShop` serves authored offers (per wave, per refresh) for a tutorial run instead of
+  drawing from the pool; frozen offers still survive; nothing touches the shared pool. A `tutorialShopRoll`
+  cursor resets on wave advance.
+- **Aster, the Guide** — a tutorial-only hero (`wip:true`, hidden from every picker/opponent). Power
+  **Preparation**: active, targeted **+1/+1**, recharging every other turn via a `preparationLockUntil` wave
+  (the Dice-lock idiom). Verified live: a 2/2 → 3/3 with lock set to wave+2.
+- **The course as data** — `sim/tutorial/`: a pure, serializable type contract (course/turn/step/predicate/
+  anchor/lesson), a unit-testable predicate evaluator, and `learnAscent.ts` (real Set-2 card ids, verified;
+  `b2_packstrider` carries the Round-1 Rally).
+
+**New UI (presentation), mounted once at the root:**
+- **Focus mask + anchor registry + coach panel** — a DOM-only spotlight (every gameplay element is DOM, not
+  Pixi), rects measured once per step/resize (never per frame, per the perf rule), an SVG-mask dimmer with
+  feathered cutouts, and an anchored coach panel. `TutorialOverlay` is pure/prop-driven.
+- **Tutorial profile** — localStorage-backed, versioned, New→Introduced→Demonstrated lesson flags, mirroring
+  `identity.ts`.
+- **`TutorialController`** — the runtime: reads the course, records semantic events off a new **action bus**
+  (a fire-and-forget tap on the store's single `dispatch` chokepoint — a no-op on every non-tutorial run),
+  evaluates each step's predicate, resolves authored anchors (alias = cardId → live uid → rect), and drives
+  the overlay. A **Learn** button on the Title launches it.
+- **Combat presentation adapter** — a read-only `presentationBus` fed by ONE fire-and-forget line in
+  `useCombatReplay`'s existing per-beat loop, so a Predict/Confirm step advances when its effect is actually
+  shown. No timing/order/FX change; empty-set no-op otherwise.
+
+**Spike correction (recorded in [`ftue-spike-presentation-contract.md`](ftue-spike-presentation-contract.md)):**
+the spike said `livePlayer`'s clean callbacks could serve the contract — but recon found those fire for
+end-of-turn/shop only; combat runs its own clock in `useCombatReplay`. The adapter is therefore a small
+additive seam on that loop, which is what shipped.
+
+**Two mismatches caught by live verification** (the value of running it, not just typechecking): an `always`
+step auto-advanced instantly (fixed — those are read-and-Continue beats); and Packstrider's Rally is a
+SELF-buff (a `buff` event), not the `rally` event type (reserved for Rally-fires-another-effect), so the Rally
+step now accepts the buff with a combat-ended fallback so it can never hard-stall.
+
+**Added in the same PR (continued build):**
+- **First-launch welcome** (`FirstLaunchPanel`) — a fresh profile now sees "First time here? → Learn Ascent /
+  Play Now" over the Title before any account/name/mode/hero choice (blueprint §5.1). Play Now records a SKIP
+  (not a completion), so the course still shows unplayed in the hub. Verified live.
+- **End-Turn gating** — a `gateBus` the store's `dispatch` consults: while a shop/lobby step is active that
+  isn't itself about ending the turn, `faceOmen` (End Turn) is dropped and a coach nudge flashes ("Finish the
+  highlighted step first…"). It can NEVER soft-lock — it blocks *only* `faceOmen`, only on a tutorial run, and
+  releases the instant the end-turn step is reached. Verified live: blocked at the buy step (board stayed
+  empty), released at the end-turn step (combat started).
+- **Coaching no longer paints over the Title / hero picker / end screens** — the controller gates on the
+  tutorial run being the ACTIVE screen (a backgrounded tutorial run used to overlay the Title).
+
+**Also added:**
+- **Cursor fix** — the first-launch overlay's `backdrop-filter` broke the game's inherited `url()` cursor
+  (a Chromium quirk `.inspect-ov` already works around); every tutorial overlay now re-declares the gauntlet
+  cursors explicitly.
+- **Save/resume mid-course** — a player who quits to the Title mid-tutorial and hits Continue resumes at the
+  saved step, not step 1 (`tutorialProfile` already persisted `lastStepId`; the controller now restores the
+  cursor to it, keyed on `run.seed` so a FRESH Learn launch still starts at 0 — `startTutorial` clears the
+  saved step via `beginCourseFresh` so a wave-1 run never desyncs to an old step). Verified live: advance →
+  quit → resume lands on the same step; a fresh relaunch resets to step 1.
+
+**Still deferred (follow-ups, not blockers):** the interactive order-demo silhouette drag (a read-and-continue
+panel stands in); the full 12-round course (4 real rounds authored); and per-step soft gates beyond End Turn.
+
+## 2026-08-17 — FTUE Phase 0: blueprint adopted, and the presentation-contract spike
+
+Owner handed over `ascent-first-time-player-experience-master-blueprint.md` and asked to start. This is Phase 0
+of that document's own rollout — lock the contract — plus the de-risking spike, and **no implementation code**.
+
+**The blueprint is now in-repo** as [`ftue-master-blueprint.md`](ftue-master-blueprint.md), copied verbatim
+with a **repo addendum** at the top rather than edits through the author's prose, so intent stays legible and
+drift is explicit. The addendum records six things, the load-bearing one being **vocabulary**: the document
+teaches "Resolve" throughout, and we renamed that to **Health** earlier the same day — so every player-facing
+string quoted in it must be authored as "Health". (The `data-tutorial-anchor="resolve"` id is correct as
+written; anchor ids are internal, matching the display-only split.) Also recorded: the unbuilt Basic Rune
+branch design that gates Phase 3, the accepted content-pinning coupling, and a distinction §8.4/§13 don't
+draw — Pixi world transforms are near-free to read per frame, DOM rects are not, and CLAUDE.md bans polling
+those.
+
+`tutorial-curriculum-map.md` and `tutorial-and-trials-spec.md` now carry supersession notices (they keep their
+non-FTUE content and their Tactical Trials material). `docs/roadmap.md`'s stale one-line onboarding sketch is
+replaced by the real phased plan.
+
+**The spike is the substance** — [`ftue-spike-presentation-contract.md`](ftue-spike-presentation-contract.md).
+It ran first because §8.1.4/§10.6 are the riskiest requirement in the scope: coaching must wait for semantic
+presentation completion and never advance on a timeout, and every combat lesson depends on it. Read-only
+investigation, no prototype.
+
+**Verdict: the contract is mostly already there.** `livePlayer` exposes `onBeatActivate` / `onBeatComplete` /
+`onConsequence` — the blueprint's `transactionStarted` / `transactionCompleted` under other names — and its
+half-open-window invariant means a background tab or GC pause cannot silently drop a beat the tutorial is
+waiting on, which is the genuinely hard part. Identity is real too: 719 `PRESENTATION_POLICIES` keys, plus
+`key`/`srcCard` stamped onto combat events. Completion can honestly mean "the authored envelope elapsed"
+(`completionOffsetMs`), so Beat Lab stays authoritative and the tutorial never writes timing.
+
+**The gap is coverage, not architecture.** `combatBeatsEnabled()` is OFF by default and `combatKeyedHoldMs`
+returns null for anything that isn't a quest/rune flag or a stamped minion effect; everything else keeps
+legacy pacing with no signal, and `useCombatReplay`'s own nets are TTL fail-open (2000ms / 1200ms) — exactly
+what the blueprint forbids relying on. So Phase 1 builds an ADAPTER over existing signals and widens keyed
+pacing, rather than inventing a system inside the choreographer.
+
+**Risk HIGH → MEDIUM; Phase 1 drops from 4–6 weeks to ~3.5–5.** The residual risk concentrates in widening
+combat pacing, which brushes the owner's hard line ("what i will not do is change order of operations") —
+scoping the widening to `tutorial_lobby` runs keeps normal fights byte-identical and respects it completely.
+
+Docs only; no engine, content, or UI change.
 ## 2026-08-18 — The shop-wide buff aura (`shop-buff-aura`), bound to the run-wide shop channel
 
 **A new owner-authored FX plays whenever a spell or unit buffs the stats of EVERY shop unit** — Staff of

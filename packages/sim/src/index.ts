@@ -20,6 +20,7 @@ export * from './boardFeatures';
 export * from './boardModel';
 export * from './runModel';
 export * from './lobby';
+export * from './tutorial';
 export * from './productionBots';
 export * from './opponents';
 export * from './rating';

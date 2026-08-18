@@ -82,6 +82,28 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   );
 }
 
+/**
+ * TUTORIAL GRADUATION — the Learn Ascent course finishes on a note of "you've got this", not a placement.
+ * A tutorial run carries a lobby (so it reaches the same end phase), but a rank-of-8 is meaningless here and a
+ * "FALLEN" verdict would be actively discouraging — the point was to learn, and the player did. So the course
+ * gets its own end card: a congratulation, the warband they built, and a single button into the real game.
+ */
+function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () => void }): JSX.Element {
+  return (
+    <div className="heroselect endscreen won">
+      <div className="hsbox endbox">
+        <h1 className="disp hstitle">Tutorial Complete</h1>
+        <div className="endboard">
+          {run.board.length === 0
+            ? <span className="endempty">— empty —</span>
+            : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
+        </div>
+        <button className="endplay pressable" onClick={onDone}>Enter Ascent</button>
+      </div>
+    </div>
+  );
+}
+
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const openTitle = useGame((s) => s.openTitle);
@@ -139,6 +161,9 @@ export function EndScreen({ won }: { won: boolean }) {
     failed: `Fell Short ${line.delta}`,
   };
   const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
+  // Tutorial graduates to its own screen (checked before the lobby branch — a tutorial run also carries a
+  // lobby, but a placement/verdict is the wrong frame for a course you just LEARNED).
+  if (run.mode === 'tutorial') return <TutorialGraduationScreen run={run} onDone={openTitle} />;
   if (lobby) return <LobbyEndScreen lobby={lobby} run={run} onPlayAgain={openTitle} />;
   return (
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>

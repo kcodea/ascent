@@ -39,6 +39,7 @@ export const TUNERS_RESET_EVENT = 'ascent:tunersreset';
  */
 export const PANEL_EMBLEMS: Record<string, string> = {
   layout: '📐',
+  modepick: '🎛️',
   frame: '🖼️',
   cardplate: '🂠',
   cardtext: '🔤',

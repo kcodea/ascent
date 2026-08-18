@@ -59,7 +59,9 @@ export function simulate(
   /** Player-only one-fight combat overrides (runes): attack-first + Rally-double. */
   config: CombatConfig = {},
 ): CombatResult {
-  const { playerAttacksFirst = false, playerRallyDouble = false } = config;
+  const { playerAttacksFirst = false, playerRallyDouble = false, forceEnemyFirstTargetCard } = config;
+  // TUTORIAL ONLY: consumed once, on the enemy's opening swing (see the target pick below).
+  let forcedEnemyTargetPending = !!forceEnemyFirstTargetCard;
   // Per-side quest/rune combat modifiers: each side reads its OWN captured mods.
   const modsFor = (side: Side): QuestCombatMods => (side === 'player' ? playerState.questMods : enemyState.questMods);
   // Beast Attack aura, PER SIDE, mutable so The Old Hunt (oldHuntStep) can pump it live as Beasts attack —
@@ -2186,7 +2188,14 @@ export function simulate(
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
       if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
-      const target = chooseTarget(defenderSide);
+      let target = chooseTarget(defenderSide);
+      // TUTORIAL scripted death: on the enemy's FIRST swing, steer it onto the flagged card (if still alive),
+      // regardless of where the player placed it. One-shot; normal random targeting resumes after.
+      if (forcedEnemyTargetPending && attacker.side === 'enemy') {
+        forcedEnemyTargetPending = false;
+        const forced = living(defenderSide).find((m) => m.cardId === forceEnemyFirstTargetCard && !m.keywords.includes('ST'));
+        if (forced) target = forced;
+      }
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
       // Critical Strike (Commander Impala): roll per swing — a hit doubles this swing's OUTGOING damage (main

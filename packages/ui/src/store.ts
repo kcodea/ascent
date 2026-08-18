@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -47,6 +47,9 @@ import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
 import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
+import { notifyTutorialActions } from './tutorial/actionBus';
+import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
+import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -365,6 +368,10 @@ interface GameStore {
   /** Start a RIFT run — the same climb, with the active rift's rules. */
   startRift: () => void;
   startLobby: () => void;
+  /** Title → Learn: launch the scripted tutorial course (Learn Ascent). Bypasses the hero picker entirely
+   *  (the course forces its own hero, Aster) and builds an authored `tutorial`-mode lobby run directly, exactly
+   *  like the Scene Builder skips the picker. The coaching layer keys off `run.mode === 'tutorial'`. */
+  startTutorial: (course: TutorialCourse) => void;
   /** Launch the Scene Builder sandbox (dev) — a fresh run flagged `sandbox`, bypassing the hero picker, with
    *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
    *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
@@ -984,7 +991,14 @@ export const useGame = create<GameStore>((set, get) => ({
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
-  dispatch: (action) =>
+  dispatch: (action) => {
+    // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
+    // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
+    const prev = get().run;
+    // TUTORIAL gate: a guided step locks input to its one coached action (and, for a buy/play, its one card),
+    // so a new player can't get ahead. Inert on every non-tutorial run. Dropped actions fire a coach nudge.
+    const gate = gateBlocks(action, prev);
+    if (gate.blocked) { if (gate.reason) notifyGateNudge(gate.reason); return; }
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
       // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here
@@ -999,7 +1013,11 @@ export const useGame = create<GameStore>((set, get) => ({
       // CHOREOGRAPHER PR 3: resolution and commit are now separate steps sharing ONE commit path, so the
       // prepared End-of-Turn transaction commits identically to an ordinary dispatch.
       return commitResolvedAction(s, action, beat.state, beat.batch, captureBeats, set);
-    }),
+    });
+    // Feed the tutorial action bus AFTER the commit — a no-op (one set-size check) on every non-tutorial run,
+    // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
+    notifyTutorialActions(action, prev, get().run);
+  },
   presentationTx: null,
   /**
    * CHOREOGRAPHER PR 3 (blueprint §5.2–§5.4). Resolve the action NOW, keep `before` on screen, hand the
@@ -1023,8 +1041,13 @@ export const useGame = create<GameStore>((set, get) => ({
     const s = get();
     const tx = s.presentationTx;
     if (!tx) return;
+    const prev = s.run; // the run BEFORE this commit — for the tutorial bus, same as `dispatch`
     set({ presentationTx: null }); // cleared FIRST, so a re-entrant call can't commit twice
     set((st) => commitResolvedAction(st, tx.action, tx.after, tx.batch, import.meta.env.DEV, set));
+    // Feed the tutorial action bus — the CHOREOGRAPHED commit path (End of Turn → `faceOmen`) goes through
+    // here, NOT `dispatch`, so without this the tutorial never sees End Turn and a coached "end your turn" step
+    // stalls forever. No-op on every non-tutorial run.
+    notifyTutorialActions(tx.action, prev, get().run);
   },
   /**
    * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned
@@ -1080,6 +1103,29 @@ export const useGame = create<GameStore>((set, get) => ({
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
   startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startTutorial: (course) => {
+    dropBoardFx();
+    // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear
+    // any saved step from a prior play (Continue resumes the SAME run and does NOT come through here).
+    beginCourseFresh(course.id, course.version);
+    set(() => {
+      // Build the authored `tutorial` run directly — the course forces its own hero (Aster), so there is no
+      // picker to route through (mirrors startSceneBuilder). The omen board table and the scripted shop are
+      // derived from the course's turns; the run stamps the course id so a reload rehydrates the coaching.
+      // A FIXED seed (not `randomSeed()`): the tutorial's combats must play out the SAME way every time so the
+      // scripted lessons hold — e.g. the enemy's first swing must reliably kill the T-Rex to teach Echo. Shop is
+      // scripted regardless of seed, so pinning it costs nothing.
+      const seed = 20260817;
+      const authoredBoards = course.turns.map((t) => t.omenBoard);
+      const shopScript = course.turns.map((t) => t.shopRolls);
+      const attackFirst = course.turns.map((t) => !!t.playerAttacksFirst);
+      const forceEnemyTarget = course.turns.map((t) => t.forceEnemyFirstTargetCard ?? '');
+      const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget);
+      if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
+      writeSave(run, []);
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+    });
+  },
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) => {
     dropBoardFx();
     set(() => {

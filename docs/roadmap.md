@@ -22,6 +22,11 @@ The five buckets below are ordered by when we intend to act, not by size:
 ## Now
 
 
+- **Combat speed auto-ramp — SHIPPED 2026-08-18.** Each combat replay now holds at the Speed-slider value for
+  an opening grace, eases up to a ceiling mid-fight, then eases back down for the finish (default ON, toggle
+  under the Speed slider; presentation-only, engine/determinism untouched — details in the devlog). Follow-up:
+  the live feel pass (settle grace / ceiling / ease-down tail) is owner-driven via the dev **Speed Ramp** tuner.
+
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
 

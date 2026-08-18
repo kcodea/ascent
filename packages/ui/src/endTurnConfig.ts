@@ -151,12 +151,12 @@ const DEFAULTS: EndTurnConfig = {
   strikeRingRadius: 1.5,
   strikeRingLife: 1.05,
   pressedVariant: 3,
-  // Hover tip — owner-tuned by eye in the 💎 tuner (2026-08-17). The pill is seated to the RIGHT of the
-  // diamond and pulled up level with it (`tipX` 108, `tipY` -14) rather than hanging underneath, and `tipW`
-  // 315 is wide enough that both labels sit on ONE line — box-sizing is border-box, so that width less the
-  // 26px side padding and 2px border leaves ~259px of text. Narrowing `tipW` is what forces the balanced
-  // two-line wrap; the dial is the line-count control.
-  tipW: 315,
+  // Hover tip — owner-tuned by eye in the 💎 tuner (2026-08-17), seated to the RIGHT of the diamond and
+  // pulled up level with it (`tipX` 108, `tipY` -14) rather than hanging underneath. `tipW` 200 is the
+  // TWO-LINE width the owner asked for: box-sizing is border-box, so 200 less the 26px side padding and 2px
+  // border leaves ~144px of text against a ~222px label — one break, balanced into even halves. Widen toward
+  // ~280+ for one line. (Only meaningful because `.etb-tip` sets `width: max-content`; see styles.css.)
+  tipW: 200,
   tipX: 108,
   tipY: -14,
   tipSize: 13.5,

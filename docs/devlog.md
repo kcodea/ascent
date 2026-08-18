@@ -530,10 +530,17 @@ the diamond it hangs under.
 - **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
   EVEN lines rather than breaking wherever it runs out of room. The width dial is therefore the LINE-COUNT
   dial: narrow it for a squarer multi-line pill, widen it for one line.
-- **Shipped values are owner-tuned** (💎 tuner, same day): `tipW 315`, `tipX 108`, `tipY -14`, `tipPadX 26`,
-  `tipPadY 10`. That seats the pill to the RIGHT of the diamond and level with it rather than hanging beneath,
-  and 315px — less 26px side padding and the 2px border, under the global `box-sizing: border-box` — leaves
-  ~259px of text, enough to keep both labels on one line.
+- **`width: max-content` is the load-bearing part, and the first cut shipped without it.** `.etb-tip` is
+  absolutely positioned inside the ~160px button; an abs-positioned box with `left` set and `width: auto`
+  shrink-to-fits against the space left of its containing block's edge (~80px here), so `max-width` never
+  governed and the label stacked ONE WORD PER LINE regardless of the dial (owner screenshot). `max-content`
+  makes the width the label's natural width, which `max-width` then caps — the same pattern `.tagtip` and
+  `.questbadges` already use in this stylesheet, with the reason written out at the latter.
+- **Shipped values are owner-tuned** (💎 tuner, same day): `tipX 108`, `tipY -14`, `tipPadX 26`, `tipPadY 10`
+  seat the pill to the RIGHT of the diamond and level with it rather than hanging beneath; `tipW 200` is the
+  two-line width. MEASURED in the running app rather than estimated: the live pill lays out 200×58 and
+  `Range.getClientRects()` returns 2 — and both labels ("End your turn and start combat" / "End combat and go
+  back to shop", natural width ~193px) break at every width from 180 to 240, going single-line from ~280.
 - **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
   max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
   corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.

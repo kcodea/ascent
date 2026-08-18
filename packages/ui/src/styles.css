@@ -668,10 +668,15 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   position: absolute; left: 50%; top: calc(100% + var(--etb-tip-y, -14px));
   transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(7px);
   /* WRAPS (it used to be `nowrap`): the label is capped at `--etb-tip-w` and `text-wrap: balance` splits it
-     into EVEN lines, so "End your turn and start combat" reads as a squarer two-line pill seated under the
-     diamond rather than a wide bar spilling past both its corners (owner ask 2026-08-17). Set the width dial
-     wide enough and it collapses back to one line — the old look is still reachable from the tuner. */
-  max-width: var(--etb-tip-w, 315px); white-space: normal; text-wrap: balance; text-align: center;
+     into EVEN lines, so "End your turn and start combat" reads as a squarer two-line pill rather than a wide
+     bar spilling past the diamond's corners (owner ask 2026-08-17). Widen the dial and it goes back to one line.
+     `width: max-content` IS LOAD-BEARING: this pill is absolutely positioned inside the ~160px button, and an
+     abs-positioned box with `left` set and `width: auto` shrink-to-fits to the space LEFT of its containing
+     block's edge — about 80px here. `max-width` alone therefore never governed, and the label stacked one word
+     per line no matter what the dial said. `max-content` makes the width the label's natural width, which
+     `max-width` then caps — so the dial finally controls the line count. */
+  width: max-content; max-width: var(--etb-tip-w, 200px);
+  white-space: normal; text-wrap: balance; text-align: center;
   line-height: var(--etb-tip-line, 1.25);
   pointer-events: none; opacity: 0; transition: opacity 0.38s ease, transform 0.38s ease;
   font-family: var(--font-ui); font-weight: 700; font-size: var(--etb-tip-size, 13.5px); color: #f4ecdb;

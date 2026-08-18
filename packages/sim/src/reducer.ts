@@ -904,6 +904,27 @@ export function reduce(state: RunState, action: Action): RunState {
       next.auraFxSeq = (next.auraFxSeq ?? 0) + 1;
     }
   }
+  // RUN-WIDE SHOP BUFF: "minions in the Shop get +A/+H" landed on the whole row (Staff of Guel's cast,
+  // Contract Butcher's Shout, a quest's `shopBuff` reward). Diffed off `tavernBuyBonus` rather than wired per
+  // effect, so any future source animates for free — the same argument the aura-wash block above makes.
+  //
+  // The channel IS the "all shop units" test, which is why nothing here inspects the source: Market
+  // Tormentor's single-offer Shout rides the per-offer channel and never moves this, and Veinstorm's shop
+  // gemming was deliberately moved OFF this channel (see `spellBuffShopByRuby`) so its Rubies stay real
+  // per-offer buffs — so the gem effects, which have their own `shopRubied` cue, cannot reach this signal.
+  //
+  // NOT gated on the phase staying `recruit`, unlike the aura wash: End of Turn flips to combat, and Soul
+  // Defiler / Display Curator buff the shop exactly there. The End-of-Turn BEAT path plays this while the
+  // shop is still on screen (see `eotFx`'s `shopBuffAll`); this action-level stamp covers the recruit-phase
+  // casts and shouts.
+  if (next !== state) {
+    const da = (next.tavernBuyBonus?.atk ?? 0) - (state.tavernBuyBonus?.atk ?? 0);
+    const dh = (next.tavernBuyBonus?.hp ?? 0) - (state.tavernBuyBonus?.hp ?? 0);
+    if (da > 0 || dh > 0) {
+      next.shopBuffAllFx = { uids: next.shop.map((o) => o.uid), attack: Math.max(0, da), health: Math.max(0, dh) };
+      next.shopBuffAllFxSeq = (next.shopBuffAllFxSeq ?? 0) + 1;
+    }
+  }
   return next;
 }
 

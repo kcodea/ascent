@@ -1,5 +1,49 @@
 # ASCENT — development log
 
+## 2026-08-18 — The shop-wide buff aura (`shop-buff-aura`), bound to the run-wide shop channel
+
+**A new owner-authored FX plays whenever a spell or unit buffs the stats of EVERY shop unit** — Staff of
+Guel's cast, Contract Butcher's Shout, Soul Defiler / Display Curator at End of Turn, and a quest's
+`shopBuff` reward. Six layers (three rings, three bursts), all `camera`-anchored, so it frames on the
+viewport rather than on any one card — this is an event about the shop, not about a minion.
+
+**The whole design rests on one choice: the signal is diffed off `tavernBuyBonus`, the run-wide channel.**
+That is what makes the moment mean *all* shop units, and it is also what delivers the owner's "nothing to do
+with rubies/gems" requirement for free rather than as a filter that could rot:
+- Market Tormentor grows the RIGHT-MOST offer through the per-offer channel, so it never moves this and
+  correctly keeps its own single-offer float.
+- Veinstorm's shop gemming was deliberately moved OFF this channel back on 2026-08-06 (see
+  `spellBuffShopByRuby`'s header — as `tavernBuyBonus` its stats were invisible to every "the Rubies on this
+  minion" reader, so a Gemheart Carver bought from a +10/+10 offer minted a 1/1). Its Rubies are real
+  per-offer buffs, so the gem path is structurally incapable of reaching this signal, and Veinstorm keeps its
+  own `shopRubied` span with no double-up.
+Both of those are pinned by tests rather than left as "it happens to work".
+
+**Two paths, because the buff happens in two places.** The reducer stamps `shopBuffAllFx` + a seq at the
+action boundary for recruit-phase casts and shouts. That stamp is deliberately NOT gated on the phase staying
+`recruit` (unlike the aura-wash block beside it), but End of Turn flips to combat and the shop is gone by the
+time it commits — so the End-of-Turn BEAT path carries its own `shopBuffAll` (the same `tavernBuyBonus` delta,
+per beat) and fires the cue while the row is still on screen, exactly as the Lapidary's gems already do.
+Owner call: fire in both places.
+
+**Owner call on the double-up:** Contract Butcher keeps its existing `shop-buff-shout` binding AND plays the
+new aura — the shout is the card's "I triggered" beat, the aura is the shop's. Karwind already layers this way.
+
+Plumbing: `shopBuffAll` joins `RecruitMomentKind` with its own producer, `RecruitSeqs` gains a counter, and
+`runShopBuffAllFire` in `recruitCues.ts` plays the bound def once on the next frame. Unlike the gem span it
+does NOT bail when nothing measures — the run-wide channel can rise with an empty or mid-reroll shop and the
+buff still happened, so `source`/`target` fall back to the camera point instead of the screen corner.
+
+Verified: `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (344 files, 5571 passed) +
+`npm run build:web`, all green. New `shopBuffAllFx.test.ts` covers the Staff stamp, the Veinstorm
+non-stamp, a no-op action, and the End-of-Turn beat; `recruitMoments.test.ts` covers the moment layer
+(including an empty shop and a zero-magnitude payload). Three existing invariants caught the wiring as
+designed and were updated: the "every declared kind has an emitter" check, the frozen `bindings.test.ts`
+kind→def table, and `directCalls.ts`'s dynamic-call-site count (4 → 5 in `recruitCues.ts`).
+
+Also in this branch: `shockwave` gained `offsetX`/`offsetY` (see the entry below) — the change that made this
+def authorable in the first place, since all three of its rings sit off-centre.
+
 ## 2026-08-17 — Ring effects can be nudged off their anchor (Offset X / Y)
 
 **`shockwave` (the ring primitive) gains the `offsetX` / `offsetY` placement pair** that

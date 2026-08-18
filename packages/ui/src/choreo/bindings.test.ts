@@ -158,6 +158,10 @@ const BINDINGS: Record<string, { def: string }> = {
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
   rubyLanded: { def: 'ruby-gem-apply' },
   shopRubied: { def: 'ruby-gem-veinstorm' },
+  // The whole shop buffed by the run-wide `tavernBuyBonus` channel — camera-anchored, one play for the row.
+  // Distinct from `shopRubied` on purpose: gems go through their own span, and Veinstorm deliberately never
+  // touches this channel, so the two can never both fire for one event.
+  shopBuffAll: { def: 'shop-buff-aura' },
   // Shop self-buffs (the green-pulse channel) — the recruit twin of combat's buffWave/attackExchange default.
   minionSelfBuffed: { def: 'self-buff-gold' },
   spellProgress: { def: 'spell-progress' },

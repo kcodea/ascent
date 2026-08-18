@@ -51,6 +51,9 @@
     },
     "venomSpent": {
       "def": "venom-spent"
+    },
+    "shopBuffAll": {
+      "def": "shop-buff-aura"
     }
   },
   "cards": {

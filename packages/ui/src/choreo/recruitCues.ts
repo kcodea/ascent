@@ -47,6 +47,9 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   // The shop being gemmed is ONE event across the row, not a per-card cascade — one spanning play, one sound.
   if (moment.kind === 'shopRubied') return runShopRubiedSpan(moment, ctx);
 
+  // The whole shop buffed by a run-wide source — ONE camera-anchored play over the row, never a cascade.
+  if (moment.kind === 'shopBuffAll') return runShopBuffAllFire(moment, ctx);
+
   // A tavern spell cast — ONE fire at the release point, anchored to `cursor`, keyed by the spell's card id.
   // No cascade, no DOM measure: the anchor is the point carried on the moment.
   if (moment.kind === 'spellCast') return runSpellCastFire(moment, ctx);
@@ -139,6 +142,49 @@ function runShopRubiedSpan(moment: RecruitMoment, ctx: RecruitCueContext): () =>
     if (timer !== undefined) clearTimeout(timer);
     cancelAnimationFrame(raf);
   };
+}
+
+/**
+ * The SHOP-WIDE BUFF aura — "minions in the Shop get +A/+H" landing on the whole row (Staff of Guel,
+ * Contract Butcher, Soul Defiler, a quest reward) as ONE camera-anchored play.
+ *
+ * Why it is its own path rather than a cascade or a span:
+ *  - **The event is the SHOP, not a card.** Every offer got the same buff at the same instant, so a per-offer
+ *    cascade would read as N unrelated pops. The authored def (`shop-buff-aura`) is camera-anchored on every
+ *    layer for exactly this reason.
+ *  - **It must not depend on measuring a card.** The run-wide channel can rise with an empty or mid-reroll
+ *    shop, and the buff still happened. `runShopRubiedSpan` bails when nothing measures; this deliberately
+ *    does not — `source`/`target` are best-effort extras for a future re-author, and their absence is fine.
+ *  - **Kind-level binding.** Like the gem span, this is about the shop rather than any one offer, so it
+ *    resolves `(null, kind)` and a per-card override is deliberately not consulted.
+ *
+ * Fires on the next frame for the same reason the cascade does: the offers re-rendered this commit, so the
+ * measure (when there is one) has to wait for layout.
+ */
+function runShopBuffAllFire(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
+  const binding = bindingFor(null, 'shopBuffAll');
+  if (!binding) return () => {};
+  let raf = 0;
+  raf = requestAnimationFrame(() => {
+    let left: { uid: string; x: number; y: number } | null = null;
+    let right: { uid: string; x: number; y: number } | null = null;
+    for (const r of moment.recipients) {
+      const p = ctx.measure(r.uid);
+      if (!p) continue;
+      if (left === null || p.x < left.x) left = { uid: r.uid, x: p.x, y: p.y };
+      if (right === null || p.x > right.x) right = { uid: r.uid, x: p.x, y: p.y };
+    }
+    // `camera` is the viewport centre — the same definition `boardAnchors.ts` gives it and the one the
+    // workbench tunes against, so the authored framing survives verbatim. The span anchors fall back to it
+    // rather than to ORIGIN, which is where an unstaged anchor would otherwise put a layer (the screen corner).
+    const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const source = left ?? camera;
+    const target = right ?? camera;
+    const uids = left !== null && right !== null ? { source: left.uid, target: right.uid } : undefined;
+    playDef(binding.def, { source, target, camera }, { ...(uids ? { uids } : {}), index: 0 });
+    if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+  });
+  return () => { cancelAnimationFrame(raf); };
 }
 
 /** How long the shop-gem span waits on a REFRESH re-stamp before firing, so it lands with the sliding-in

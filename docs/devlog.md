@@ -336,6 +336,266 @@ combat pacing, which brushes the owner's hard line ("what i will not do is chang
 scoping the widening to `tutorial_lobby` runs keeps normal fights byte-identical and respects it completely.
 
 Docs only; no engine, content, or UI change.
+## 2026-08-18 — The shop-wide buff aura (`shop-buff-aura`), bound to the run-wide shop channel
+
+**A new owner-authored FX plays whenever a spell or unit buffs the stats of EVERY shop unit** — Staff of
+Guel's cast, Contract Butcher's Shout, Soul Defiler / Display Curator at End of Turn, and a quest's
+`shopBuff` reward. Six layers (three rings, three bursts), all `camera`-anchored, so it frames on the
+viewport rather than on any one card — this is an event about the shop, not about a minion.
+
+**The whole design rests on one choice: the signal is diffed off `tavernBuyBonus`, the run-wide channel.**
+That is what makes the moment mean *all* shop units, and it is also what delivers the owner's "nothing to do
+with rubies/gems" requirement for free rather than as a filter that could rot:
+- Market Tormentor grows the RIGHT-MOST offer through the per-offer channel, so it never moves this and
+  correctly keeps its own single-offer float.
+- Veinstorm's shop gemming was deliberately moved OFF this channel back on 2026-08-06 (see
+  `spellBuffShopByRuby`'s header — as `tavernBuyBonus` its stats were invisible to every "the Rubies on this
+  minion" reader, so a Gemheart Carver bought from a +10/+10 offer minted a 1/1). Its Rubies are real
+  per-offer buffs, so the gem path is structurally incapable of reaching this signal, and Veinstorm keeps its
+  own `shopRubied` span with no double-up.
+Both of those are pinned by tests rather than left as "it happens to work".
+
+**Two paths, because the buff happens in two places.** The reducer stamps `shopBuffAllFx` + a seq at the
+action boundary for recruit-phase casts and shouts. That stamp is deliberately NOT gated on the phase staying
+`recruit` (unlike the aura-wash block beside it), but End of Turn flips to combat and the shop is gone by the
+time it commits — so the End-of-Turn BEAT path carries its own `shopBuffAll` (the same `tavernBuyBonus` delta,
+per beat) and fires the cue while the row is still on screen, exactly as the Lapidary's gems already do.
+Owner call: fire in both places.
+
+**Owner call on the double-up:** Contract Butcher keeps its existing `shop-buff-shout` binding AND plays the
+new aura — the shout is the card's "I triggered" beat, the aura is the shop's. Karwind already layers this way.
+
+Plumbing: `shopBuffAll` joins `RecruitMomentKind` with its own producer, `RecruitSeqs` gains a counter, and
+`runShopBuffAllFire` in `recruitCues.ts` plays the bound def once on the next frame. Unlike the gem span it
+does NOT bail when nothing measures — the run-wide channel can rise with an empty or mid-reroll shop and the
+buff still happened, so `source`/`target` fall back to the camera point instead of the screen corner.
+
+Verified: `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (344 files, 5571 passed) +
+`npm run build:web`, all green. New `shopBuffAllFx.test.ts` covers the Staff stamp, the Veinstorm
+non-stamp, a no-op action, and the End-of-Turn beat; `recruitMoments.test.ts` covers the moment layer
+(including an empty shop and a zero-magnitude payload). Three existing invariants caught the wiring as
+designed and were updated: the "every declared kind has an emitter" check, the frozen `bindings.test.ts`
+kind→def table, and `directCalls.ts`'s dynamic-call-site count (4 → 5 in `recruitCues.ts`).
+
+Also in this branch: `shockwave` gained `offsetX`/`offsetY` (see the entry below) — the change that made this
+def authorable in the first place, since all three of its rings sit off-centre.
+
+## 2026-08-17 — Ring effects can be nudged off their anchor (Offset X / Y)
+
+**`shockwave` (the ring primitive) gains the `offsetX` / `offsetY` placement pair** that
+`burst` / `emitter` / `smoke` have carried since the emission-shape work. The gap was real and easy to miss:
+those three route placement through `emissionOffset`, which shifts where particles are BORN. A ring has no
+spawns — its placement is its mesh position, written in `setHead` — so it was never given the dials, and a
+ring simply could not be moved off its resolved anchor. Surfaced by the owner authoring `shop-buff-aura`
+(three `shockwave` layers plus one `burst`, all on the `camera` anchor): the burst could be nudged into
+place and the rings could not.
+
+Implementation is deliberately small. Two slider specs in the `Ring` group, then one private `place()` that
+is the single writer of `mesh.position` — `headX + offsetX`, `headY + offsetY`. The instance now REMEMBERS
+the anchor `setHead` delivers instead of only consuming it, which is what lets `setParams` re-place on the
+same frame a slider moves; without that, an offset edit would wait on the next `setHead`, and a workbench
+preview sitting on a stationary head would never pick it up at all. The constructor places too, so a layer
+that is never driven still honours the dials. No new uniforms, so `writeAllUniforms`' "every uniform, every
+acquire" contract is untouched.
+
+Two decisions worth recording:
+- **`axis: 'scale'`**, exactly as burst argues it — this is a LENGTH, so it has to ride the same resize as
+  `radius`, or a scaled-down call keeps a full-size displacement and the ring drifts off its anchor.
+- **Range is ±600, not burst's ±200.** A ring is a much bigger object (`radius` reaches 2000 against burst's
+  emit radius of 400) and is routinely `camera`-anchored, where "put it on the shop row" is a screen-scale
+  distance rather than a card-scale one.
+
+Defaults are `0`, so `place()` is an exact IEEE no-op and every shockwave def authored before this sits
+precisely where it always did — the same argument `emissionOffset` makes for the particle primitives. No
+workbench work was needed: `Inspector` renders `specs[key]` generically and falls back to
+`specs[key].default`, so an existing def with no such key loads clean with both dials at 0. `essential: true`
+matches burst's pair, keeping them visible in essentials-only mode.
+
+Verified: `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (343 files, 5562 passed) +
+`npm run build:web`, all green. New tests cover the spec contract (present, `Ring` group, default 0,
+`axis: 'scale'`) and the wiring the spec test cannot see (`place()` is the sole writer of `mesh.position`,
+and all three call sites route through it). No row needed in `ranges.test.ts` — that table freezes
+PRE-widening bounds for params that already existed, and these are new.
+
+## 2026-08-18 — The Reroll cost coin comes off in combat
+
+Owner call on the open question from #1082: hide it. The coin was the one place the Reroll crystal still
+diverged from the Tavern stone in combat, and a price on something you can't buy is noise.
+
+The coin's own rule was that it is ALWAYS shown — a free roll turns it green with a 0 rather than removing it
+(owner 2026-07-21), because a vanishing badge shifted the button's shape and left the player reading absence.
+That reasoning is about telling one SHOP state from another, so it doesn't carry into combat, where the crystal
+is a passive prop with no roll to price. The comment now says that outright, rather than leaving the next
+reader to wonder whether the new `{!combat && …}` gate contradicts the old rule.
+
+Also dropped the price from the combat aria-label (now "Refresh the shop — unavailable during combat"), and
+reverted the two `:not(.combat)` guards added yesterday to the coin's red "too expensive" rules — with the coin
+no longer rendered in combat at all, they guarded a case that can't happen. The Freeze gem's `:not(.combat)`
+guard stays: that gem does still render in combat.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+## 2026-08-17 — `ale-bubbles` FX on every Dwarf ale-generation; committed FX art now ships to players
+
+**The feature.** A new `ale-bubbles` burst (author's def, `art:bubble` upward puff) fires whenever a **Dwarf
+unit generates a Dwarven Ale**, in BOTH phases. All five generation sites are covered: shop — Brunni (End of
+Turn), Tapkeeper (on Gold spent), Doubletap Brewer (Shout); combat — Doubletap Brewer (Echo/death), Blade
+Thrower (Rally). The Reinforcing-Ale spell (`onthehouse`) also grants ales but is *not* a unit, so it fires
+nothing.
+
+**Engine (sim) — a new determinism-safe FX channel.** The shop grant path (`grantRandomAle` → `conjureToHand`)
+threw away *which* Dwarf generated the ale, so the UI had nothing to originate from. Added `aleGranted:
+{sourceUid,count}[]` + `aleGrantSeq` to `RunState`, mirroring `recruitBuffFx`/`recruitFxSeq` exactly: pushed in
+`grantRandomAle` **only when the source is a live board minion** (excludes the spell, whose `self` is
+undefined), cleared at the top of `reduce`, seq bumped once per action when non-empty. Pure display metadata —
+consumes no RNG, touches no stats, so determinism/golden sims are unaffected. Combat needed **zero** engine
+change: `combatGrantAle` already emits a `toHand` event carrying the generator's uid as `source`.
+
+**UI — both phases.** Shop: a one-shot `aleGrantSeq` watcher in `Recruit.tsx` bursts `ale-bubbles` from each
+generating unit's warband card (deduped per unit). Combat: `choreo/score.ts` scans each `toHand` moment for
+events whose `cardId ∈ ALE_IDS` and fires from `event.source` — keyed on the *granted card being an Ale*, so
+any future combat ale-generator is covered for free; additive to the generic `to-hand` binding. Both literal
+call sites registered in `fx/directCalls.ts`.
+
+*Follow-up (same session): Brunni's End-of-Turn Ale needed a third fire site.* End-of-Turn effects don't reach
+the reactive `aleGrantSeq` watcher — that only bumps at the `faceOmen` commit, by which point the phase has
+flipped and the warband card is gone. Like consume, the End-of-Turn **beat loop** animates a projection while
+the board is still on screen, so the grant fires there: threaded the granting unit through the `cardGranted`
+consequence presenter (`beat.source.uid` when the source is a minion) and made Recruit's beat handler burst
+`ale-bubbles` from that unit when the granted card is an Ale. Rune/quest ale-grants have no unit source and are
+skipped. The reactive watcher still runs at commit but finds no warband card (combat) and no-ops, so no
+double-burst.
+
+**Committed FX art now ships to players (the prerequisite, and a bonus fix).** `fx/shapeLibrary.ts`'s
+committed-art glob was DEV-gated (`if (!import.meta.env.DEV) return {}`), so every `art:<slug>` shape fell back
+to a procedural shape in a production build. Un-gated it: a PNG committed to `fx/defs/art/<slug>.png` now
+bundles for players. This ships `ale-bubbles`' `art:bubble` **and** retroactively fixes the deferred "coin-ale
+coins layer absent in prod" bug (the coin FX use `art:group-14035`) plus the ruby/shop-buff FX (`art:gemshard`).
+Verified in the prod build: `bubble` (4194 B) and `group-14035` (16904 B) emit as hashed asset files, `gemshard`
+(3747 B, under Vite's 4 KB inline limit) ships inlined as a base64 data URL. Policy going forward: the folder is
+also the workbench's import scratchpad, so **only commit a PNG meant to ship** (CI builds from committed files).
+Rewrote the stale `shapeLibrary.ts` header + the `fx-workbench-guide.md` section, and replaced
+`prodPlayback.test.ts`'s "art stays dev-only" note with a real pin that committed slugs resolve with `DEV=false`.
+
+**Verified.** New tests: `aleGrantFx.test.ts` (6 — unit-credited for Brunni/Tapkeeper/Brewer, spell credits
+nothing, transient clear + monotonic seq) and the `prodPlayback` art-ships pin. Full sweep green: typecheck
+(pkgs+web), lint (0 errors), **5567 tests**, `build:web` with art bundled/inlined as above. Follow-up (queued):
+an `art:` texture prewarm so the first cast after load doesn't render a blank frame. Live FX look/tuning is the
+author's (the def is theirs to finalize).
+
+## 2026-08-17 — Freeze, Reroll and Gold stay on the board through combat
+
+Owner ask: the Freeze gem, the Reroll crystal and the Gold pill vanished the moment combat started, and
+shouldn't. All three now mount through BOTH phases, following the Tavern Up stone's existing precedent
+(mounted in combat as a passive tier indicator since 2026-07-16) rather than inventing a second pattern.
+
+- **Freeze** and **Reroll** take a `combat` prop: inert (`disabled || combat`) with a `.combat` class, and the
+  tip/aria-label switch from offering the action to reading the state ("Tavern frozen", "Refresh costs 3 Gold").
+- **Gold** needed no prop — it's a pure readout with nothing to gate, and your purse doesn't move during a
+  fight, so it just lost its `!inCombat` wrapper.
+
+The subtlety was the DIM cues, which would have lied in the new phase. Both buttons dim when disabled to mean
+*you can't afford this* — but in combat there's nothing to afford, so a dimmed crystal would state something
+untrue. Three CSS rules got scoped with `:not(.combat)` — the Freeze gem's grayscale, and the Reroll cost
+coin's red "too expensive" flush (plus its icon) — and Reroll no longer takes the `off` class when the only
+reason it's disabled is the phase. So in combat both render at full art strength, exactly like the Tavern
+stone. The Reroll cost coin stays visible (unlike the Tavern stone, which hides its cost in combat): the coin
+is the price the next shop will charge, it's accurate throughout, and the component's own note explains that a
+vanishing badge makes the button's shape shift.
+
+Verified by reading the render path rather than by playing: the three `!inCombat &&` gates are gone, and a
+sweep of the combat-phase CSS confirms `.app.combat` hides only `.buffsframe`, so nothing else was suppressing
+them. `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — Final Layout Lab pass on the full board
+
+Six knobs moved after the furniture bake settled: shop and warband card gaps 22→20, warband Y −157→−144, and
+the tavern-tier pill re-seated and enlarged (scale 1→1.21, X 142→87, Y −87→−141). Both halves again — the
+`def:` in `layoutConfig.ts` and the seven `styles.css` fallback sites — and the cross-check re-run confirms all
+46 layout knobs match the owner's config with all 44 CSS fallback forms in sync.
+
+## 2026-08-17 — Seven tuner bakes: the board furniture re-seats on the full board
+
+Second pass of owner-tuned config for the new default board, this time the individual pieces of furniture
+rather than the global layout. Baked into DEFAULTS, and into the matching `styles.css` fallbacks, for:
+
+- **Hero panel** (`heroPanelConfig`) — the panel jumps right and up (X −33→54, Y −81→−106) and comes down a
+  touch in size (3.3→3.1) on a slightly tighter box (89×90→87×89); portrait 1.18→1.2; hero name Y −11→−9 at
+  0.66→0.6; the Health box centres (X −2→0) and drops 51→53.
+- **End Turn diamond** (`endTurnConfig`) — X 65→10, Y −55→−23, scale 1.25→1.17, a much hotter hover
+  (gem brightness 1.18→1.53), glow blur 0→1, and the hover tip re-seated (X 91→108, Y −3→6). `tipW` stays 128,
+  so the two-line measurement that pill was tuned around still holds.
+- **Tavern Up stone** (`tavernUpConfig`) — X 51→104, Y −373→−318, cost X 37→50, art dim 0.65→0.62.
+- **Hero power diamond** (`heroPowerBtnConfig`) — X −38→15, Y 296→303, scale 0.9→0.87.
+- **Freeze button** (`freezeConfig`) — Y 217→264.
+- **Reroll button** (`refreshConfig`) — X −73→−123, Y 214→270, scale 1.68→1.54.
+- **Lobby rail** (`lobbyPanelConfig`) — all eight knobs: scale 1.58→1.46 on a narrower 172→152 box that stops
+  hanging off the edge (right −64→9), taller and lower (top 9.5→13%, height 83.5→100%), with bigger seat rows
+  (1.63→1.91), smaller text (0.93→0.81) and foe portraits 1.37→1.35.
+
+These seven modules differ from the Layout Lab in a way worth writing down: each runs its `apply*Vars()` at load
+in BOTH dev and prod (`loadCfg` returns DEFAULTS in prod, then apply runs unconditionally), so DEFAULTS alone
+already drives the shipped game. Their `styles.css` fallbacks cover the pre-boot paint, and every one of these
+files states the fallbacks MUST mirror DEFAULTS — so both halves moved together: 45 fallback sites across the
+seven. A verification pass re-parsed each DEFAULTS block and confirmed all 183 knobs equal the owner's payloads.
+
+Two bits of pre-existing drift got closed on the way through, both on knobs already being edited: the Resolve
+shake `@keyframes` carried their own copy of the `--hpn-hp-t` fallback with a Y of 65 where the panel rule said
+51 (now both 53), and the `resolveX: −2` comment describing a 2026-07-16 bake outlived the value it explained.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — The full board is the default, and the UI re-seats around it
+
+Owner verdict on the test board: promote it. `--board` in `styles.css` now points at `augustfullboard.webp`,
+with the 16:9 numbers that belong to it (`--board-aspect: 1.7919`, `--board-fill: 1`). The picker inverts to
+match — `default` is the FULL board (url null, so it reads the stylesheet), and the two 21:9 arts became
+alternates that carry their own `aspect: 2.3578, fill: 1.0132`. The retired `augustfull` id falls through
+`getBoard`'s validity check to `default`, which is the same art it named, so anyone who picked it while it was
+a test keeps exactly what they were looking at.
+
+Then the owner re-tuned the whole board against the new art in the Layout Lab and handed over the config. Baked
+in: card size 0.77→0.75, board zoom 1→1.25 with a +5px drop, shop row Y 27→62, shop controls 1.52→1.6, warband
+Y −163→−157, hand overlap −0.15→−0.11 and Y −117→−107 with hover 1.51→1.47, the quest-node cluster moved right
+and up (X −7→75, Y −434→−415, scale 1.12→1.09) with all three per-node nudges re-seated, gold pill 355→409 in
+from the right and 432→426 up (scale 1.71→1.68), tier pill X 114→142, the charge glyph 1148→1124 wide at X 3→7
+/ Y −111→−83, and the drag zones re-cut (sell edge −188→−136, buy edge 0→79).
+
+**Both halves of each knob moved, which is the part that's easy to get wrong.** `applyLayout` is dev-gated, so
+production never sets these custom properties at all — it renders from the `var(--x, <fallback>)` defaults in
+`styles.css`. A `def:` change in `layoutConfig.ts` alone would move the Lab's Reset and leave the shipped game
+untouched. So the 25 knobs with a CSS presence were updated in both files (44 fallback sites), and a
+cross-check script confirmed all 44 forms now equal their `def`. The two zone knobs (`sellZoneY` / `buyZoneY`)
+have no CSS side — `Recruit` reads them through `getLayout`, which returns the defaults in prod — so those
+ship from `layoutConfig.ts` alone.
+
+Left standing as a known trade-off: the default art is 16:9, so it has no surplus width to bleed into the side
+margins on a monitor wider than 16:9; those fall back to `--bg`. The `.boardbg` caveat comment (which named
+32:9 as the point the band returns) now says so, since that figure only ever described the wide arts.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — "August Full" test board
+
+A third option in the arena-board picker (Esc → board): **August Full**, from the owner's
+`Reference Art/AugustFullBoard.png` master. Re-optimized 5504×3072 PNG (16.6 MB) → `augustfullboard.webp` at
+3840×2143, quality 88, **303 KB** — in line with the other board arts (the current August board is 117 KB, the
+Classic stone board 312 KB).
+
+The wrinkle: this art is **16:9 (1.7919)**, where both existing boards are 21:9 (2.3578). `.boardbg` computes
+the art's WIDTH from the stage height × `--board-aspect` × `--board-fill`, so serving a 16:9 art under the old
+aspect would have stretched it ~32% too wide and thrown the frame off the stage. So `BoardOption` grew optional
+`aspect` / `fill` fields, and `apply()` now pushes them onto `--board-aspect` / `--board-fill` next to `--board`
+(and REMOVES them for boards that don't set any, so the stylesheet default keeps winning). August Full carries
+`aspect: 1.7919, fill: 1` — the art then fills the 16:9 stage exactly, height-for-height.
+
+Known trade-off of a 16:9 board, worth an eyeball before promoting it: there is no surplus width to bleed into
+the side margins on a monitor wider than 16:9, so those fall back to `--bg` rather than to floor art. The four
+tuned button offsets are still calibrated against the DEFAULT board's art size, so if the new frame's furniture
+doesn't line up, re-seat with the layout lab (`--board-zoom` / `--board-x` / `--board-y`) rather than moving the
+buttons.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green; the picker is data-driven
+(`EscMenu` maps `BOARDS`), so the new entry needed no UI change.
 
 ## 2026-08-17 — Mode cards 25% larger; new Play art
 
@@ -856,6 +1116,40 @@ runic rift at wave 6, which lets the pivot rule be observed on its own. Updated,
 asserts the same rule, just through a hero that has only that rule.
 
 Full suite 5518 green, typecheck + lint + build:web clean.
+## 2026-08-17 — End Turn hover tip is tunable, and wraps to two lines
+
+The label pill under the End Turn diamond ("End your turn and start combat" / "End combat and go back to
+shop") was the one part of that button with no tuner coverage — every other dial (position, gem fit, glow,
+sheen, strike, pressed art) reflects to a `--etb-*` var, while the pill's geometry was hardcoded in
+`styles.css`. It also ran wide: `white-space: nowrap` forced one long bar that spilled past both corners of
+the diamond it hangs under.
+
+- **UI.** `.etb-tip` now wraps — capped at `--etb-tip-w` with `text-wrap: balance`, so the label splits into
+  EVEN lines rather than breaking wherever it runs out of room. The width dial is therefore the LINE-COUNT
+  dial: narrow it for a squarer multi-line pill, widen it for one line.
+- **`width: max-content` is the load-bearing part, and the first cut shipped without it.** `.etb-tip` is
+  absolutely positioned inside the ~160px button; an abs-positioned box with `left` set and `width: auto`
+  shrink-to-fits against the space left of its containing block's edge (~80px here), so `max-width` never
+  governed and the label stacked ONE WORD PER LINE regardless of the dial (owner screenshot). `max-content`
+  makes the width the label's natural width, which `max-width` then caps — the same pattern `.tagtip` and
+  `.questbadges` already use in this stylesheet, with the reason written out at the latter.
+- **Shipped values are owner-approved** (💎 tuner, same day): `tipW 128`, `tipX 91`, `tipY -3`, `tipPadX 5`,
+  `tipPadY 11` — a narrow two-line pill tucked just right of the diamond and level with it. MEASURED in the
+  running app rather than estimated: both labels ("End your turn and start combat" / "End combat and go back
+  to shop", natural width ~193px) lay out 128×60 with `Range.getClientRects()` returning 2. The margin is
+  thin — 120 tips the first label to THREE lines — so a font or copy change wants a re-measure; past ~280 it
+  goes single-line.
+- **Tuner.** Eight new dials in a "Hover tip" group in the 💎 End Turn tuner, sitting right after Placement:
+  max width, horizontal offset, drop below gem, text size, line spacing, padding sides, padding top/bottom,
+  corner radius. They reflect as `--etb-tip-*` and follow the existing config → var → CSS-fallback pattern.
+- **The lobby override was updated in step.** `.app.lobby .etb-tip` sets its own `transform` to dodge the seat
+  rail, so it had to fold in `--etb-tip-x` too — otherwise the new offset dial would silently do nothing in
+  the lobby, which is exactly the kind of drift that override caused once before.
+- **Note:** the pill is not only a hover tip — it is pinned always-on by `.urgent` (shop timer at 0) and
+  `.ready` (replay finished), so these dials shape a persistent prompt, not just a hover.
+- Transitions remain `opacity`/`transform` only (compositor-safe, per the performance rules).
+- **Verified.** typecheck + lint (0 errors) + full suite + build:web all green, before and after the tuned
+  values were baked in.
 
 ## 2026-08-17 - Flash: First/Last Place; Cassen shows a turn counter
 

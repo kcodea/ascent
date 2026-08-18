@@ -45,10 +45,23 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
+- **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
+
+- **Ring FX can be nudged off their anchor** — the workbench's ring (shockwave) layers get **Offset X / Offset Y** sliders, matching the pair burst effects already had. Placement only: it moves where a ring sits without touching its size, shape or expansion.
+
+- **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way.
+
+- **Ale bubbles + committed FX art now ships** — a new bubble burst plays whenever a Dwarf generates a Dwarven Ale (Brunni, Tapkeeper, Doubletap Brewer, Blade Thrower), in both the shop and combat. Under the hood, committed FX art (`fx/defs/art/*.png`) now reaches players instead of falling back to a procedural shape — which also fixes the coin FX's missing coin art in the shipped game.
+
+- **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way. The Reroll crystal drops its cost coin there, since there is no roll to price.
+
+- **New default arena board** — the full-board art ships as the board, and the whole UI re-seats around it: the global layout (card size, board zoom, shop row, warband, hand, quest nodes, gold pill, charge glyph, drag zones) plus every piece of board furniture (hero panel, End Turn and hero-power diamonds, Tavern Up, Freeze, Reroll, the lobby rail). The two previous 21:9 boards stay selectable in the Esc menu. The new art is 16:9, so on an ultrawide monitor the side margins show the flat backdrop rather than floor art.
 
 - **Resolve is now Health** — the hero's life total is called **Health** everywhere it's shown, and **Oath is off the Career profile card** (the course modes it belonged to are no longer reachable). Display only; saves and replays are unaffected.
 
 - **The mode picker gets art, and Lobby is now "Play"** — illustrated tiles for Play and Practice (the frames were a flat gradient before), pared back to just the name and a one-line blurb. Display only: the mode is still `lobby` everywhere under the hood.
+
+- **End Turn hover tip is tunable** — the label pill by the diamond gets eight dials (width, offset, drop, text size, line spacing, padding, radius) in the End Turn tuner, and wraps to balanced lines when narrowed. Shipped seated to the right of the gem.
 
 - **Keshi the Protector** — new hero. Keshi's Crown banks the tavern tier of every card you buy and hands you a Triple Reward every 25.
 
@@ -335,7 +348,6 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Audited the dead-code purge, and cleared the CSS half.** The roadmap's list was wrong in four places — two
   of them traps (`.disc-gem` and `.ob` are live; deleting them would have caused visible regressions) — and the
   dead effect-id count was 69, not "~17". Verified inventory now in `docs/dead-effect-ids.md`.
-
 
 - **Fixed hand cards growing and overlapping** - the hand "make room" glide was baking the hover
   zoom into card width; it is reverted until it can be done transform-safely.

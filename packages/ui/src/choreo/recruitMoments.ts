@@ -51,6 +51,17 @@ export type RecruitMomentKind =
    * lands its gems with the offers rather than while they slide in.
    */
   | 'shopRubied'
+  /**
+   * The whole SHOP was buffed by a run-wide source — "minions in the Shop get +A/+H" (Staff of Guel's cast,
+   * Contract Butcher's Shout, Soul Defiler at End of Turn, a quest's `shopBuff` reward). One moment for the
+   * row, not a per-offer cascade, and camera-anchored: this is a shop-wide event, so the bound def frames on
+   * the viewport rather than on any one card.
+   *
+   * Driven by the sim's `tavernBuyBonus` diff, which is what makes it mean ALL shop units. Market Tormentor
+   * growing the right-most offer rides the per-offer channel and never produces this; Veinstorm's gemming was
+   * deliberately kept off that channel, so it stays on its own `shopRubied` span and never doubles up here.
+   */
+  | 'shopBuffAll'
   /** A board minion gained stats from a shop-phase source — a Shout, a spell, an End of Turn. */
   | 'minionBuffed'
   /**
@@ -73,7 +84,7 @@ export type RecruitMomentKind =
   /** A tavern spell was cast; anchored at the release `point`, keyed by the spell's card id. */
   | 'spellCast';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -137,6 +148,10 @@ export interface RecruitMoment {
   onRefresh?: boolean;
   /** spellCast only: the release point (page coords) the effect fires from — the `cursor` anchor. */
   point?: { x: number; y: number };
+  /** `shopBuffAll` only: how much the run-wide shop channel rose. Carried for a future def that wants to
+   *  scale with the size of the buff (and for the cue's own logging); the shipped aura is a fixed play. */
+  attack?: number;
+  health?: number;
 }
 
 /**
@@ -147,12 +162,13 @@ export interface RecruitSeqs {
   rubyLanded?: number;
   recruitFx?: number;
   veinstorm?: number;
+  shopBuffAll?: number;
 }
 
 /** The counters as they stand right now. For creating a caller's initial ref — steady-state updates should
  *  go through {@link captureRecruitSeqs}, which writes in place. */
-export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq'>): RecruitSeqs {
-  return { rubyLanded: run.rubyLandedFxSeq, recruitFx: run.recruitFxSeq, veinstorm: run.veinstormFxSeq };
+export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq' | 'shopBuffAllFxSeq'>): RecruitSeqs {
+  return { rubyLanded: run.rubyLandedFxSeq, recruitFx: run.recruitFxSeq, veinstorm: run.veinstormFxSeq, shopBuffAll: run.shopBuffAllFxSeq };
 }
 
 /**
@@ -163,12 +179,13 @@ export function recruitSeqsOf(run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFx
  * `emissionOffset`/`spawnVelocity`.
  */
 export function captureRecruitSeqs(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'recruitFxSeq' | 'veinstormFxSeq' | 'shopBuffAllFxSeq'>,
   into: RecruitSeqs,
 ): void {
   into.rubyLanded = run.rubyLandedFxSeq;
   into.recruitFx = run.recruitFxSeq;
   into.veinstorm = run.veinstormFxSeq;
+  into.shopBuffAll = run.shopBuffAllFxSeq;
 }
 
 /**
@@ -181,7 +198,7 @@ export function captureRecruitSeqs(
  * always play in the same order, rather than in whatever order the fields happen to be read.
  */
 export function recruitMomentsSince(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid' | 'veinstormFxSeq' | 'veinstormFx'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid' | 'veinstormFxSeq' | 'veinstormFx' | 'shopBuffAllFxSeq' | 'shopBuffAllFx'>,
   prev: RecruitSeqs,
 ): RecruitMoment[] {
   const out: RecruitMoment[] = [];
@@ -203,6 +220,17 @@ export function recruitMomentsSince(
     const uids = run.veinstormFx?.uids ?? [];
     if (uids.length > 0) {
       out.push({ kind: 'shopRubied', recipients: uids.map((uid) => ({ uid, count: 1 })), onRefresh: !!run.veinstormFx?.onRefresh });
+    }
+  }
+
+  // The whole SHOP was buffed by the run-wide channel — one camera-anchored moment for the row. The
+  // recipients are the offers on screen, carried so a re-authored def could span them; the shipped aura is
+  // camera-anchored and ignores them. Emitted even when the shop is EMPTY (a buff bought with no offers up
+  // still happened), so the cue never depends on measuring a card.
+  if (run.shopBuffAllFxSeq !== undefined && run.shopBuffAllFxSeq !== prev.shopBuffAll) {
+    const f = run.shopBuffAllFx;
+    if (f !== undefined && (f.attack > 0 || f.health > 0)) {
+      out.push({ kind: 'shopBuffAll', recipients: f.uids.map((uid) => ({ uid, count: 1 })), attack: f.attack, health: f.health });
     }
   }
 

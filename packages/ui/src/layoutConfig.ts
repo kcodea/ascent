@@ -31,43 +31,43 @@ export interface LayoutVarDef {
 
 /** The full set of tunable knobs, in panel order. */
 export const LAYOUT_VARS: LayoutVarDef[] = [
-  { key: 'cardScale', cssVar: '--card-scale', label: 'Card size', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.77, fmt: 'mul' },
+  { key: 'cardScale', cssVar: '--card-scale', label: 'Card size', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.75, fmt: 'mul' },
   { key: 'uiScale', cssVar: '--ui-scale', label: 'UI chrome', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.96, fmt: 'mul' },
   // Fine-scale the board backdrop art (its height on `.boardbg`) so the painted frame lines up with the (fixed
   // 16:9) UI when you swap in new board art — 1 = art scaled to the stage height.
-  { key: 'boardZoom', cssVar: '--board-zoom', label: 'Board zoom', group: 'Global', min: 0.6, max: 1.8, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'boardZoom', cssVar: '--board-zoom', label: 'Board zoom', group: 'Global', min: 0.6, max: 1.8, step: 0.01, def: 1.25, fmt: 'mul' },
   // Shift the board backdrop art (its position on `.boardbg`). The art is WIDER than the 16:9 stage, so ~17% of
   // it spills past each side; a 16:9 fullscreen crops that spill while a wider browser window shows it. These
   // nudge the art so a feature sitting in the spill (e.g. the hero-portrait paw) can be pulled into the stage.
   { key: 'boardX', cssVar: '--board-x', label: 'Board X offset', group: 'Global', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
-  { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
+  { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
+  { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 20, fmt: 'px' },
   // Offsets the shop CARDS only (the tavern zone) — not the shop buttons (a separate `.shopbar`). The enemy
   // warband renders in this same tavern zone during combat, so these also place the opponent's board.
   { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 9, fmt: 'px' },
-  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 27, fmt: 'px' },
+  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 62, fmt: 'px' },
 
   // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
-  { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1.52, fmt: 'mul' },
+  { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1.6, fmt: 'mul' },
   { key: 'shopUiX', cssVar: '--z-shopui-x', label: 'X offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 5, fmt: 'px' },
   { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: -45, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
+  { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 20, fmt: 'px' },
   { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 9, fmt: 'px' },
-  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -163, fmt: 'px' },
+  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -144, fmt: 'px' },
 
   { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   // Hand cards fan + overlap via a NEGATIVE margin that's a fraction of the (compact) card width, so it stays
   // proportional to card size — hence 'mul' (of --ccw), not px: -0.44 = the shipped overlap, 0 = edges touch,
   // >0 = a real gap between fanned cards.
-  { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.15, fmt: 'mul' },
+  { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.11, fmt: 'mul' },
   { key: 'handX', cssVar: '--z-hand-x', label: 'X offset', group: 'Hand', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -117, fmt: 'px' },
+  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -107, fmt: 'px' },
   // How large a hand card grows when moused over (the hover pop). 1 = no growth.
-  { key: 'handHoverS', cssVar: '--z-hand-hover-s', label: 'Hover size', group: 'Hand', min: 1, max: 1.9, step: 0.01, def: 1.51, fmt: 'mul' },
+  { key: 'handHoverS', cssVar: '--z-hand-hover-s', label: 'Hover size', group: 'Hand', min: 1, max: 1.9, step: 0.01, def: 1.47, fmt: 'mul' },
 
   // The hover/inspect card PREVIEW (the enlarged card + buff breakdown that floats up when you mouse a card).
   // Multiplies the device base (`--inspect-zoom`: 1 desktop, 1.3 mobile), so this is a size dial on top of it.
@@ -81,45 +81,45 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   //  💠 Hero Power Button tuner / heroPowerBtnConfig.ts, mirroring the End Turn diamond's setup.)
 
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
-  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.12, fmt: 'mul' },
-  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -7, fmt: 'px' },
-  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -434, fmt: 'px' },
+  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.09, fmt: 'mul' },
+  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 75, fmt: 'px' },
+  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -415, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 11, fmt: 'mul' },
   // Per-node placement — the first three badges (quest/rune 1·2·3 in display order) each take an individual
   // X/Y nudge off their row slot, so all three can be positioned freely instead of only as a row. 0 = the row.
-  { key: 'qb1X', cssVar: '--qb1-x', label: 'Node 1 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -4, fmt: 'px' },
-  { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 60, fmt: 'px' },
-  { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 17, fmt: 'px' },
-  { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 10, fmt: 'px' },
-  { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 43, fmt: 'px' },
-  { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 26, fmt: 'px' },
+  { key: 'qb1X', cssVar: '--qb1-x', label: 'Node 1 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -11, fmt: 'px' },
+  { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 57, fmt: 'px' },
+  { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 8, fmt: 'px' },
+  { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 8, fmt: 'px' },
+  { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 30, fmt: 'px' },
+  { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 23, fmt: 'px' },
 
   // Gold pill (bottom-right circle). X/Y are INSETS from the board's right / bottom edge (bigger = further in);
   // Scale sizes the whole circle. Match the styles.css `.goldpill` fallbacks.
-  { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1.71, fmt: 'mul' },
-  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 355, fmt: 'px' },
-  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 432, fmt: 'px' },
+  { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1.68, fmt: 'mul' },
+  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 409, fmt: 'px' },
+  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 426, fmt: 'px' },
 
   // Tavern-tier text pill (on the Tavern Up stone). X/Y nudge it off the stone's bottom-centre; Scale sizes it.
-  { key: 'tierS', cssVar: '--tierpill-s', label: 'Scale', group: 'Tavern tier', min: 0.4, max: 2.5, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'tierX', cssVar: '--tierpill-x', label: 'X offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: 114, fmt: 'px' },
-  { key: 'tierY', cssVar: '--tierpill-y', label: 'Y offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: -87, fmt: 'px' },
+  { key: 'tierS', cssVar: '--tierpill-s', label: 'Scale', group: 'Tavern tier', min: 0.4, max: 2.5, step: 0.01, def: 1.21, fmt: 'mul' },
+  { key: 'tierX', cssVar: '--tierpill-x', label: 'X offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: 87, fmt: 'px' },
+  { key: 'tierY', cssVar: '--tierpill-y', label: 'Y offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: -141, fmt: 'px' },
 
   // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board
   // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),
   // X/Y nudge it off the midline. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in
   // sync so production (no tuner) matches a Reset. (Look — colours/glow/timing — is tuned in fx/turn-glyph-preview.html.)
-  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1148, fmt: 'px' },
-  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: 3, fmt: 'px' },
-  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -111, fmt: 'px' },
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1124, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: 7, fmt: 'px' },
+  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -83, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
   // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the
   // gradient overlay AND the actual drop hit-test. These px offsets nudge that boundary (read via getLayout() in
   // Recruit): +Sell edge lowers the sell line (bigger sell region); −Buy edge raises the buy line (bigger buy
   // region). Default 0 = no-op, so production (tuner unmounted, getLayout → defaults) is unchanged.
-  { key: 'sellZoneY', cssVar: '--z-sellzone-y', label: 'Sell edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: -188, fmt: 'px' },
-  { key: 'buyZoneY', cssVar: '--z-buyzone-y', label: 'Buy edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'sellZoneY', cssVar: '--z-sellzone-y', label: 'Sell edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: -136, fmt: 'px' },
+  { key: 'buyZoneY', cssVar: '--z-buyzone-y', label: 'Buy edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 79, fmt: 'px' },
 ];
 
 export type LayoutConfig = Record<string, number>;

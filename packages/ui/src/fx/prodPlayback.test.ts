@@ -129,6 +129,25 @@ describe('the primitives ship (gates 2 and 3: ensureDefsReady + its caller)', ()
   });
 });
 
+describe('committed FX art ships (gate 4: the shapeLibrary art glob)', () => {
+  it('resolves committed art slugs even when DEV is false', async () => {
+    vi.stubEnv('DEV', false);
+    vi.resetModules();
+    expect(import.meta.env.DEV).toBe(false);
+
+    const { listCommittedArt } = await import('./shapeLibrary');
+    const slugs = listCommittedArt();
+
+    // `artModules()` used to `return {}` outside DEV, so committed PNGs never bundled and every def
+    // referencing `art:<slug>` fell back to a procedural shape for players (the "coin-ale coins layer
+    // absent in prod" report). These are committed AND referenced by shipped defs: `group-14035` drives
+    // the coin FX, `gemshard` the ruby/shop-buff FX, `bubble` the ale-bubbles burst.
+    expect(slugs).toContain('group-14035');
+    expect(slugs).toContain('gemshard');
+    expect(slugs).toContain('bubble');
+  });
+});
+
 describe('authoring stays fenced (the half that must NOT ship)', () => {
   it('saveDef refuses outside DEV, with a readable reason instead of a network error', async () => {
     vi.stubEnv('DEV', false);
@@ -151,9 +170,4 @@ describe('authoring stays fenced (the half that must NOT ship)', () => {
     await expect(saveBindings('{}')).resolves.toMatchObject({ ok: false });
     await expect(saveArt('test-art', `${ART_DATA_URL_PREFIX}AAAA`)).resolves.toMatchObject({ ok: false });
   });
-
-  // NOT tested here: `shapeLibrary.ts`'s imported-art glob. It is still DEV-gated (deliberately — see its
-  // header), but `defs/art/` currently holds only a `.gitkeep`, so `listCommittedArt()` is `[]` with the gate
-  // AND without it. A test asserting `[]` outside DEV would pass either way and be worse than none. When art
-  // is first committed there, pin it the same way the two cases above are pinned.
 });

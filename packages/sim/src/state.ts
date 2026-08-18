@@ -369,6 +369,16 @@ export interface RubyLandedFx { uid: string; count: number; }
  *  which is only the average, and so is off on an offer that already carried a Ruby before Veinstorm hit it. */
 export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: number; health: number; }
 
+/** A RUN-WIDE shop buff — "minions in the Shop get +A/+H" landing on every offer at once (Staff of Guel,
+ *  Contract Butcher, Soul Defiler, a quest's `shopBuff` reward). `uids` are the offers on screen when it
+ *  landed, so a cue can span the row; the aura itself is camera-anchored and does not need them.
+ *
+ *  Deliberately measured off `tavernBuyBonus`, the run-wide channel, which is what makes this mean ALL shop
+ *  units rather than one: Market Tormentor's single-offer Shout rides the per-offer channel and is invisible
+ *  here, and Veinstorm's shop gemming was explicitly moved OFF this channel (see `spellBuffShopByRuby`) so
+ *  Ruby readers could see its stats — which keeps the gem effects out of this signal for free. */
+export interface ShopBuffAllFx { uids: string[]; attack: number; health: number; }
+
 /** Croupier Cia's four rewards. Ordered as the classic suit ranking; the order is not load-bearing (the pick
  *  is random) but keeps the reward table, the art slugs and the UI reading the same way. */
 export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
@@ -846,6 +856,14 @@ export interface RunState {
   recruitBuffFx: BuffFxEvent[];
   /** Monotonic bump when `recruitBuffFx` is non-empty after an action — the UI fires once per change. */
   recruitFxSeq: number;
+  /** Set 2 (Dwarves) — ale-generation FX metadata: which board UNIT generated a Dwarven Ale during the
+   *  CURRENT shop action (Brunni End-of-Turn, Tapkeeper on Gold spent, Doubletap Brewer Shout), so the UI can
+   *  burst `ale-bubbles` from that Dwarf. Pure display (no RNG, no stats — determinism/golden unaffected);
+   *  transient, cleared at the top of `reduce`, seq bumped when non-empty. Mirrors `recruitBuffFx`. The
+   *  Reinforcing-Ale spell also routes through `grantRandomAle` but is NOT a unit, so it records nothing. */
+  aleGranted: { sourceUid: string; count: number }[];
+  /** Monotonic bump when a Dwarf generates one or more Ales in the shop — the UI keys its burst off this. */
+  aleGrantSeq: number;
   /** Dragon uids Karwind just flame-buffed on the most recent Battlecry — the UI flashes flames
    *  on them (on top of the normal buff flash). Transient. */
   karwindFlash?: string[];
@@ -1183,6 +1201,11 @@ export interface RunState {
    *  payloads so the UI fires once per action even if the payload repeats. */
   veinstormFx?: VeinstormFx;
   veinstormFxSeq?: number;
+  /** The RUN-WIDE shop-buff signal — every offer gained +A/+H from `tavernBuyBonus`. Seq-gated like the other
+   *  FX payloads so the UI fires once per action even if the payload repeats. Set in the post-action FX block
+   *  by diffing the channel, so any future card or quest that raises it animates with no extra wiring. */
+  shopBuffAllFx?: ShopBuffAllFx;
+  shopBuffAllFxSeq?: number;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too
@@ -1642,6 +1665,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     shopEatenSeq: 0,
     recruitBuffFx: [],
     recruitFxSeq: 0,
+    aleGranted: [],
+    aleGrantSeq: 0,
     karwindFlashSeq: 0,
     rift: pinnedRift, // pin the live rift so replays keep it after the switch flips off
     setId, // …and the card set (defaults to the live one) — for the same reason (see RunState.setId)

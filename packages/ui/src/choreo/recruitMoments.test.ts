@@ -11,6 +11,7 @@ const run = (o: Partial<Src> = {}): Src => ({
   rubyLandedFxSeq: undefined, rubyLandedFx: undefined,
   recruitFxSeq: undefined, recruitBuffFx: [],
   veinstormFxSeq: undefined, veinstormFx: undefined,
+  shopBuffAllFxSeq: undefined, shopBuffAllFx: undefined,
   ...o,
 } as Src);
 
@@ -153,11 +154,13 @@ describe('recruitMomentsSince', () => {
    *  kind still fails this test until its emitter is listed here. */
   it('every declared kind is actually produced by some emitter', () => {
     const produced = new Set<string>([
-      // A per-card Ruby ('a'), a Veinstorm gemming ('s1' via veinstormFx), and a buff wave — so `rubyLanded`,
-      // `shopRubied` and `minionBuffed` all appear from `recruitMomentsSince`.
+      // A per-card Ruby ('a'), a Veinstorm gemming ('s1' via veinstormFx), a run-wide shop buff, and a buff
+      // wave — so `rubyLanded`, `shopRubied`, `shopBuffAll` and `minionBuffed` all appear from
+      // `recruitMomentsSince`.
       ...recruitMomentsSince(run({
         rubyLandedFxSeq: 1, rubyLandedFx: [{ uid: 'a', count: 1 }],
         veinstormFxSeq: 1, veinstormFx: vfx(['s1'], false),
+        shopBuffAllFxSeq: 1, shopBuffAllFx: { uids: ['s1'], attack: 2, health: 2 },
         recruitFxSeq: 1, recruitBuffFx: [buff('b')],
       }), NONE).map((m) => m.kind),
       shoutMoment('a', 'dw_pimm').kind,
@@ -165,6 +168,45 @@ describe('recruitMomentsSince', () => {
       spellCastMoment('wo_mine', { x: 0, y: 0 }).kind,
     ]);
     expect([...produced].sort()).toEqual([...RECRUIT_MOMENT_KINDS].sort());
+  });
+
+  describe('shopBuffAll — the whole shop buffed by a run-wide source', () => {
+    it('fires once for the row, carrying the offers and the size of the buff', () => {
+      const r = run({ shopBuffAllFxSeq: 1, shopBuffAllFx: { uids: ['s1', 's2', 's3'], attack: 2, health: 2 } });
+      const m = recruitMomentsSince(r, NONE);
+      expect(m).toHaveLength(1);
+      expect(m[0]!.kind).toBe('shopBuffAll');
+      expect(m[0]!.recipients.map((x) => x.uid)).toEqual(['s1', 's2', 's3']);
+      expect(m[0]!.attack).toBe(2);
+      expect(m[0]!.health).toBe(2);
+    });
+
+    it('still fires with an EMPTY shop — the run-wide buff happened even with no offers to show it on', () => {
+      // The cue is camera-anchored and never measures a card, so this must not be filtered out here either
+      // (a buff bought mid-reroll is the reachable case).
+      const m = recruitMomentsSince(run({ shopBuffAllFxSeq: 1, shopBuffAllFx: { uids: [], attack: 1, health: 1 } }), NONE);
+      expect(m.map((x) => x.kind)).toEqual(['shopBuffAll']);
+    });
+
+    it('does not fire when the seq is unchanged, so one buff plays once', () => {
+      const r = run({ shopBuffAllFxSeq: 3, shopBuffAllFx: { uids: ['s1'], attack: 1, health: 1 } });
+      expect(recruitMomentsSince(r, { shopBuffAll: 3 })).toEqual([]);
+    });
+
+    it('ignores a zero-magnitude payload — a bumped seq that bought no stats is not a moment', () => {
+      const r = run({ shopBuffAllFxSeq: 1, shopBuffAllFx: { uids: ['s1'], attack: 0, health: 0 } });
+      expect(recruitMomentsSince(r, NONE)).toEqual([]);
+    });
+
+    it('is independent of the Veinstorm gem span — neither implies the other', () => {
+      // The two channels are disjoint by construction (`spellBuffShopByRuby` deliberately avoids
+      // `tavernBuyBonus`), and this pins that the moment layer keeps them apart too: a gemming alone must
+      // never produce the aura, or Veinstorm would fire both the gem span and the shop-buff aura.
+      const gems = recruitMomentsSince(run({ veinstormFxSeq: 1, veinstormFx: vfx(['s1'], false) }), NONE);
+      expect(gems.map((m) => m.kind)).toEqual(['shopRubied']);
+      const buff = recruitMomentsSince(run({ shopBuffAllFxSeq: 1, shopBuffAllFx: { uids: ['s1'], attack: 1, health: 1 } }), NONE);
+      expect(buff.map((m) => m.kind)).toEqual(['shopBuffAll']);
+    });
   });
 
   it('a shout names its own card as the source, so each minion resolves its own binding', () => {

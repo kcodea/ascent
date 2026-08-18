@@ -27,6 +27,7 @@
 
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
+  'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
   'click-puff': ['Recruit.tsx'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
@@ -57,10 +58,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
  */
 export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'choreo/score.ts': 5,
-  // The shop's binding path, the recruit-phase twin of score.ts's. Four `playDef(binding.def, …)`: the
-  // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), and
-  // the `spellCast` cast-FX resolver `runSpellCastFire`'s point-only fire plus its per-target fire.
-  'choreo/recruitCues.ts': 4,
+  // The shop's binding path, the recruit-phase twin of score.ts's. Five `playDef(binding.def, …)`: the
+  // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
+  // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), and the `spellCast` cast-FX
+  // resolver `runSpellCastFire`'s point-only fire plus its per-target fire.
+  'choreo/recruitCues.ts': 5,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

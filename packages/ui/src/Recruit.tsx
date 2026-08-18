@@ -9,6 +9,7 @@ import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword } from '@game/core';
+import { ALE_IDS } from '@game/core';
 
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
@@ -906,6 +907,28 @@ export function Recruit() {
     });
     return () => { tween.kill(); };
   }, [run.chaosGrantSeq, run.chaosGrantUid]);
+  // ale-bubbles (Set 2, Dwarves): a Dwarf GENERATED a Dwarven Ale in the SHOP — Brunni (End of Turn), Tapkeeper
+  // (on Gold spent), Doubletap Brewer (Shout). Burst `ale-bubbles` from the generating unit's warband card.
+  // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
+  // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
+  const prevAleSeq = useRef(run.aleGrantSeq);
+  useEffect(() => {
+    const seq = run.aleGrantSeq;
+    if (seq === prevAleSeq.current) return;
+    prevAleSeq.current = seq;
+    if (!canPlayDefs() || run.aleGranted.length === 0) return;
+    const sources = Array.from(new Set(run.aleGranted.map((e) => e.sourceUid))); // one burst per generating unit
+    const raf = requestAnimationFrame(() => {
+      for (const uid of sources) {
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
+        if (!el) continue; // the unit left the board (e.g. sold) before the frame — skip silently
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: uid, target: uid } });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.aleGrantSeq]);
   // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
   // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are
@@ -1139,7 +1162,9 @@ export function Recruit() {
     // replaced (that watched its own seq). The board is read through `runRef` instead, so it is not a dep.
     // `veinstormFxSeq` is here because Veinstorm now bumps ONLY it (its gemmed offers were pulled out of
     // `rubyLandedFx`), so without it the shop-gem span would never fire.
-  }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq]);
+    // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
+    // so without it here the shop-wide aura would never fire.
+  }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -4160,7 +4185,19 @@ export function Recruit() {
         }
         fireSpellBuffOnHandRubies(runRef.current.hand);
       },
-      cardGranted: () => { /* the hand preview is driven by the projection; arrival FX lands with the commit */ },
+      cardGranted: (cardId, _uid, sourceUid) => {
+        // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
+        // must play HERE (while the board is still on screen) is ale-bubbles for a Dwarf's End-of-Turn Ale —
+        // Brunni. The reactive `aleGrantSeq` watcher can't reach it: that only bumps at the `faceOmen` commit,
+        // by which point the phase has flipped and the warband card is gone. Fire from the granting UNIT; a
+        // rune/quest ale grant has no `sourceUid` and is skipped (bubbles are a unit effect).
+        if (!sourceUid || !canPlayDefs() || !ALE_IDS.includes(cardId)) return;
+        const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${sourceUid}"]`);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
+      },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
       cardDestroyed: (uid, zone) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion
@@ -4524,6 +4561,28 @@ export function Recruit() {
                 return el ? restingCenterOf(el) : null;
               },
               onLand: () => sfx.gemApply(),
+            },
+          );
+        }
+        // The RUN-WIDE shop buff this beat produced (Soul Defiler, Display Curator) — the shop-wide aura, on
+        // the beat, for the same reason the gems are here: the action-level cue only advances once `faceOmen`
+        // commits, by which time the phase has flipped and the shop is gone. `shopBuffAll` is the
+        // `tavernBuyBonus` delta specifically, so a Moira-re-fired Market Tormentor growing ONE offer keeps
+        // its per-offer float above and does not summon the whole-shop aura.
+        if (bfx.shopBuffAll) {
+          runRecruitMomentCues(
+            {
+              kind: 'shopBuffAll',
+              recipients: runRef.current.shop.map((o) => ({ uid: o.uid, count: 1 })),
+              attack: bfx.shopBuffAll.attack,
+              health: bfx.shopBuffAll.health,
+            },
+            {
+              cardIdOf: () => null, // kind-level binding only — the moment is the shop, not a card
+              measure: (uid) => {
+                const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+                return el ? restingCenterOf(el) : null;
+              },
             },
           );
         }
@@ -4938,23 +4997,23 @@ export function Recruit() {
       {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
           freezing after the clock runs out is a legitimate last action — the shop is still on screen until
           the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
-      {!inCombat && (
-        <FreezeButton
-          frozen={!!run.frozen}
-          disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-          onFreeze={() => dispatch({ type: 'freeze' })}
-        />
-      )}
-      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Recruit
-          phase only (rolling is a shop action); free rolls hide the cost coin so "free" reads at a glance. */}
-      {!inCombat && (
-        <RefreshButton
-          cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
-          freeRolls={run.freeRolls}
-          disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-          onRefresh={() => dispatch({ type: 'roll' })}
-        />
-      )}
+      <FreezeButton
+        frozen={!!run.frozen}
+        disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        combat={inCombat}
+        onFreeze={() => dispatch({ type: 'freeze' })}
+      />
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Rolling is a
+          shop action, so in combat this is inert (see the component) — but it stays MOUNTED through both
+          phases (owner ask 2026-08-17), like the Tavern stone and Freeze, so the board keeps its furniture
+          instead of half of it vanishing at the phase change. */}
+      <RefreshButton
+        cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+        freeRolls={run.freeRolls}
+        disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        combat={inCombat}
+        onRefresh={() => dispatch({ type: 'roll' })}
+      />
       <TavernUpButton
         tier={run.tier}
         maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
@@ -4963,10 +5022,10 @@ export function Recruit() {
         combat={inCombat}
         onUpgrade={() => dispatch({ type: 'upgrade' })}
       />
-      {/* Gold — a standalone glass pill pinned bottom-right of the board (recruit phase only). */}
-      {!inCombat && (
-        <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
-      )}
+      {/* Gold — a standalone glass pill pinned bottom-right of the board. Shown in BOTH phases (owner ask
+          2026-08-17): it's a pure readout with no interaction to gate, and your purse doesn't change during a
+          fight, so keeping it up costs nothing and stops the corner emptying out mid-combat. */}
+      <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}

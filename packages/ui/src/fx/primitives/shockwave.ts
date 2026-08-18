@@ -273,6 +273,21 @@ const SPECS = {
     kind: 'slider', label: 'Squash', group: 'Ring', min: 0.2, max: 1, step: 0.01, default: 1,
     help: 'Vertical squash — 1 is a true circle, lower reads as a ring lying on the ground.',
   },
+  offsetX: {
+    kind: 'slider', label: 'Offset X', group: 'Ring', min: -600, max: 600, step: 1, default: 0, axis: 'scale', essential: true,
+    // The same pair `burst`/`emitter`/`smoke` carry, and for the same reason — but applied to the MESH
+    // rather than to spawn positions, because a ring has no spawns: `setHead` is its entire placement.
+    // `axis: 'scale'` for `burst`'s argument verbatim — this is a length, so it must ride the same resize as
+    // `radius`, or a scaled-down ring keeps a full-size displacement and drifts off its anchor.
+    // Range is 3x burst's ±200 because a ring is a 3x bigger object (radius reaches 2000 against burst's
+    // emit radius of 400) and is routinely anchored to `camera`, where "move it to the shop row" is a
+    // screen-scale distance, not a card-scale one.
+    help: 'Shifts the ring sideways from its anchor, in px. Placement only — it moves where the ring sits without changing its size, shape or expansion.',
+  },
+  offsetY: {
+    kind: 'slider', label: 'Offset Y', group: 'Ring', min: -600, max: 600, step: 1, default: 0, axis: 'scale', essential: true,
+    help: 'Shifts the ring up or down from its anchor, in px. Negative is up. Placement only — it moves where the ring sits without changing its size, shape or expansion.',
+  },
   ringDelay: {
     kind: 'slider', label: 'Ring delay', group: 'Ring', min: 0, max: 1, step: 0.01, default: 0,
     // The stagger is `- float(k) * uRingDelay`, so with a single ring (k is always 0) it is an exact no-op
@@ -512,6 +527,10 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   private readonly positions: Float32Array;
   private params: ShockwaveParams;
   private clockSec = 0;
+  /** Last anchor `setHead` delivered, so an offset edit can re-place without waiting for the next frame.
+   *  Starts at the container origin — the position the mesh would have held anyway before this existed. */
+  private headX = 0;
+  private headY = 0;
   // Fixed at spawn: a given instance is either a one-shot Fire or a continuous-loop preview, never both.
   private readonly oneShot: boolean;
 
@@ -533,6 +552,9 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     );
     this.mesh = new Mesh({ geometry: this.geometry, shader: this.shader });
     this.mesh.blendMode = params.blendMode;
+    // Placed up front rather than waiting on the first `setHead`: the head defaults to the container
+    // origin, and a layer that is never driven would otherwise ignore the offset dials entirely.
+    this.place();
     ctx.container.addChild(this.mesh);
   }
 
@@ -547,9 +569,21 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
 
   /** Anchor hook (see `FxInstance.setHead`): position the mesh at the caller's anchor each frame, in
    *  whatever coordinate space `ctx.container` itself lives in — this instance applies no transform of
-   *  its own, so the ring tracks the anchor as it moves along a travel path. */
+   *  its own beyond the `offsetX`/`offsetY` nudge, so the ring tracks the anchor as it moves along a
+   *  travel path, carrying its offset with it. The anchor is REMEMBERED rather than only consumed, so
+   *  `setParams` can re-place against it the instant an offset slider moves. */
   setHead(x: number, y: number): void {
-    this.mesh.position.set(x, y);
+    this.headX = x;
+    this.headY = y;
+    this.place();
+  }
+
+  /** The one place the mesh's position is written: the remembered anchor plus the placement offsets.
+   *  At the (0, 0) defaults this is an exact IEEE no-op, so every def authored before the pair existed
+   *  sits precisely where it always did (the same argument `emissionOffset` makes for the particle
+   *  primitives, and `uSquash`'s divide-by-1 for this shader). */
+  private place(): void {
+    this.mesh.position.set(this.headX + this.params.offsetX, this.headY + this.params.offsetY);
   }
 
   update(dtMs: number): void {
@@ -599,6 +633,10 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     u.uRadLut = radLutFloats(next.radiusCurve);
     u.uRevRing = next.reverse ? 1 : 0;
     this.mesh.blendMode = next.blendMode;
+    // Re-placed here and not left to the next `setHead`: dragging an offset slider must move the ring on
+    // the same frame the value changes, or the dial reads as laggy — and a preview whose head is never
+    // driven would never pick the edit up at all.
+    this.place();
     if (radiusChanged) {
       this.writeQuad(next.radius);
       this.geometry.getBuffer('aPosition').update();

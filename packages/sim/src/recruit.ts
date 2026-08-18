@@ -1913,7 +1913,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   grantRandomAle: (ctx, self, params) => {
     const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
-    conjureToHand(ctx.state, ales, num(params.count, 1) * gold(self));
+    const count = num(params.count, 1) * gold(self);
+    conjureToHand(ctx.state, ales, count);
+    // ale-bubbles FX: credit the GENERATING board unit (Brunni / Tapkeeper / Doubletap Brewer) so the UI can
+    // burst from it. Only a live board minion qualifies — the Reinforcing-Ale spell also routes here but casts
+    // with `self` undefined (untargeted), and the `on the board` check keeps this a UNIT effect even if a
+    // future targeted ale spell arrives. Pure display metadata; see `aleGranted` in `state.ts`.
+    if (self?.uid && ctx.state.board.some((c) => c.uid === self.uid)) {
+      ctx.state.aleGranted.push({ sourceUid: self.uid, count });
+    }
   },
 
   /** Paymaster Pimm (Shout): Gold on the NEXT turn. `bonusEmbersNextTurn` already exists and is paid out at
@@ -7467,6 +7475,11 @@ export interface EotStepFx {
    *  offer uid from `offerBuyStats`, which folds BOTH per-offer buffs (Tormentor) and the run-wide buy bonus
    *  (Soul Defiler / `tavernBuyBonus`), so every shop-buff source animates without per-effect wiring. */
   shopBuff?: { uid: string; attack: number; health: number }[];
+  /** The RUN-WIDE part of that shop growth — `tavernBuyBonus`'s delta for this beat (Soul Defiler, Display
+   *  Curator, a quest `shopBuff` reward). Present only when EVERY offer grew from the run-wide channel, which
+   *  is what separates the shop-wide aura from a Moira-re-fired Market Tormentor growing one offer. Mirrors
+   *  the reducer's action-level `shopBuffAllFx` so the recruit-phase and End-of-Turn paths agree. */
+  shopBuffAll?: { attack: number; health: number };
   /** RUBIES this beat played onto board minions (Rune of the Lapidary — owner report 2026-08-12: they applied
    *  silently after the phase flipped). Same `{uid, count}` shape as the reducer boundary's `rubyLandedFx`, so
    *  the End-of-Turn beat can fire the SAME gem cascade the shop plays. Diffed from the 'Ruby' buff counts, so
@@ -7518,6 +7531,10 @@ export function projectEndOfTurnSteps(state: RunState): {
     const impBefore = { a: clone.impBuff?.attack ?? 0, h: clone.impBuff?.health ?? 0 };
     // Shop-offer effective buy stats before the beat (folds tavernBuyBonus + per-offer + golden), keyed by uid.
     const shopBefore = new Map(clone.shop.map((o) => [o.uid, offerBuyStats(clone, o)]));
+    // The RUN-WIDE shop channel on its own, so "every offer got +A/+H" (Soul Defiler, Display Curator) can be
+    // told apart from "one offer grew" (a Moira-re-fired Market Tormentor). Both land in `shopBuff` above as
+    // per-uid deltas; only this one is the shop-wide aura moment.
+    const tavernBefore = { a: clone.tavernBuyBonus?.atk ?? 0, h: clone.tavernBuyBonus?.hp ?? 0 };
     // Per-minion 'Ruby' buff counts before the beat — the same read the reducer's action boundary uses for
     // `rubyLandedFx`, so an End-of-Turn Ruby (the Lapidary) fires the same gem cascade the shop plays.
     const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
@@ -7553,6 +7570,12 @@ export function projectEndOfTurnSteps(state: RunState): {
       const da = now.attack - before.attack, dh = now.health - before.health;
       if (da > 0 || dh > 0) shopBuff.push({ uid: o.uid, attack: da, health: dh });
     }
+    // The run-wide shop buff this beat produced — the `tavernBuyBonus` delta, matching the reducer's
+    // action-level stamp so both paths mean exactly the same thing by "the whole shop was buffed".
+    const shopAllDelta = {
+      attack: (clone.tavernBuyBonus?.atk ?? 0) - tavernBefore.a,
+      health: (clone.tavernBuyBonus?.hp ?? 0) - tavernBefore.h,
+    };
     // Rubies this beat played onto board minions (the Lapidary) — the delta, not the total, like the reducer.
     const ruby: { uid: string; count: number }[] = [];
     for (const c of clone.board) {
@@ -7568,6 +7591,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       ...(spDelta.attack > 0 || spDelta.health > 0 ? { spellPower: spDelta } : {}),
       ...(impDelta.attack > 0 || impDelta.health > 0 ? { impAura: impDelta } : {}),
       ...(shopBuff.length ? { shopBuff } : {}),
+      ...(shopAllDelta.attack > 0 || shopAllDelta.health > 0 ? { shopBuffAll: shopAllDelta } : {}),
       ...(ruby.length ? { ruby } : {}),
     });
   };

@@ -586,6 +586,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
+  state.aleGranted = []; // per-action scratch: which Dwarf generated an Ale this action (aleGrantSeq stays monotonic)
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
@@ -872,6 +873,8 @@ export function reduce(state: RunState, action: Action): RunState {
   // above, which runs before this). The UI fires the shop-buff replay once per bump; a no-op / non-buffing
   // action leaves `recruitBuffFx` empty and the seq unchanged.
   if (next !== state && next.recruitBuffFx.length > 0) next.recruitFxSeq += 1;
+  // Same per-action contract for the ale-bubbles channel: bump once when a Dwarf generated an Ale this action.
+  if (next !== state && next.aleGranted.length > 0) next.aleGrantSeq += 1;
   // AURA WASH FX: if a run-wide tribe-aura channel ROSE this action — the Undead aura (Lantern of Souls's
   // display-fold `undeadAttackBonus` AND the per-instance Undead-Attack snowball `undeadBuyAtk`:
   // Deathswarmer, Forsaken Mage's spell-cast buff, Forsaken Will), the Imp aura, the Attachment aura
@@ -899,6 +902,27 @@ export function reduce(state: RunState, action: Action): RunState {
     if (risen.length > 0) {
       next.auraFx = risen;
       next.auraFxSeq = (next.auraFxSeq ?? 0) + 1;
+    }
+  }
+  // RUN-WIDE SHOP BUFF: "minions in the Shop get +A/+H" landed on the whole row (Staff of Guel's cast,
+  // Contract Butcher's Shout, a quest's `shopBuff` reward). Diffed off `tavernBuyBonus` rather than wired per
+  // effect, so any future source animates for free — the same argument the aura-wash block above makes.
+  //
+  // The channel IS the "all shop units" test, which is why nothing here inspects the source: Market
+  // Tormentor's single-offer Shout rides the per-offer channel and never moves this, and Veinstorm's shop
+  // gemming was deliberately moved OFF this channel (see `spellBuffShopByRuby`) so its Rubies stay real
+  // per-offer buffs — so the gem effects, which have their own `shopRubied` cue, cannot reach this signal.
+  //
+  // NOT gated on the phase staying `recruit`, unlike the aura wash: End of Turn flips to combat, and Soul
+  // Defiler / Display Curator buff the shop exactly there. The End-of-Turn BEAT path plays this while the
+  // shop is still on screen (see `eotFx`'s `shopBuffAll`); this action-level stamp covers the recruit-phase
+  // casts and shouts.
+  if (next !== state) {
+    const da = (next.tavernBuyBonus?.atk ?? 0) - (state.tavernBuyBonus?.atk ?? 0);
+    const dh = (next.tavernBuyBonus?.hp ?? 0) - (state.tavernBuyBonus?.hp ?? 0);
+    if (da > 0 || dh > 0) {
+      next.shopBuffAllFx = { uids: next.shop.map((o) => o.uid), attack: Math.max(0, da), health: Math.max(0, dh) };
+      next.shopBuffAllFxSeq = (next.shopBuffAllFxSeq ?? 0) + 1;
     }
   }
   return next;

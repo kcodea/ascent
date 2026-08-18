@@ -1,4 +1,5 @@
 import type { CombatEvent } from '@game/core';
+import { ALE_IDS } from '@game/core';
 import type { Moment } from './compile';
 import type { MomentKind } from './kinds';
 import { playMomentSfx } from './channels/sfx';
@@ -535,6 +536,28 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // added for this feature. Combat state knows the answer without any of that.
       const { source, target } = momentUnits(moment.primary);
       const cardId = ctx.cardIds?.get(source ?? '') ?? null;
+      // ale-bubbles (Set 2, Dwarves): a Dwarf that GENERATES a Dwarven Ale in combat — Doubletap Brewer's Echo,
+      // Blade Thrower's Rally — emits a `toHand` event whose cardId is an Ale, carrying the generator's uid as
+      // `source`. Burst from that unit. Keyed on the GRANTED card being an Ale (not on the generator's id), so
+      // any future combat ale-generator is covered for free. Additive to and independent of the generic
+      // `to-hand` binding below; one fxDef cue per toHand moment, so the scan can't double-fire.
+      if (moment.kind === 'toHand') {
+        const aleSources = new Set<string>();
+        for (let i = moment.start; i < moment.end; i++) {
+          const e = ctx.events[i];
+          if (e?.type === 'toHand' && e.side === 'player' && typeof e.source === 'string' && ALE_IDS.includes(e.cardId)) {
+            aleSources.add(e.source);
+          }
+        }
+        if (aleSources.size > 0) {
+          at(cue, () => {
+            for (const src of aleSources) {
+              const aleAnchors = anchorsForUnits(src, src);
+              if (aleAnchors) playDef('ale-bubbles', aleAnchors, { uids: { source: src, target: src } });
+            }
+          });
+        }
+      }
       // Resolved ONCE, here, rather than separately for the claim and again inside the deferred callback —
       // two lookups of the same key are two chances to disagree.
       const binding = bindingFor(cardId, moment.kind);

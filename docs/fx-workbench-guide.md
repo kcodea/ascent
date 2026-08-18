@@ -14,11 +14,16 @@ workbench's own **Browse all**.
 > the main chunk grows only +17,829 B / +4,868 B gzipped (the defs); the primitives and their GLSL are the
 > other 133,773 B (29,338 B gzipped), in their own chunk fetched lazily on mount, so first paint is unaffected.
 >
-> What stays dev-only is **authoring**: the workbench UI and everything under the Dev menu, saving a def or a
-> binding (they POST to a dev-server endpoint that doesn't exist in a build), and the imported-art glob. The
-> practical consequence of that last one: an imported-art shape is bundled only in DEV, so a def referencing
-> `art:<slug>` **falls back to a procedural shape for players**. Don't build a bound def around imported art
-> until that glob is un-gated too (`fx/shapeLibrary.ts` — its header explains what has to change first).
+> What stays dev-only is **authoring**: the workbench UI and everything under the Dev menu, and saving a def, a
+> binding, or an art import (they POST to a dev-server endpoint that doesn't exist in a build).
+>
+> **Committed art now SHIPS (un-gated 2026-08-17).** A PNG committed to `fx/defs/art/<slug>.png` is bundled for
+> players, so a def referencing `art:<slug>` renders the real art instead of a procedural fallback (this is what
+> lets `ale-bubbles`, the coin FX, and the ruby/shop-buff FX show their authored art in the shipped game). The
+> policy that keeps the bundle honest: this folder is also the workbench's art-import scratchpad, and the glob
+> bundles **every** PNG on disk — so only **commit** a PNG here that is meant to ship (an uncommitted scratch
+> import stays local; CI builds from committed files only). Treat committing art like committing card art.
+> `fx/shapeLibrary.ts`'s header and `fx/prodPlayback.test.ts` pin this.
 >
 > The three gates that used to hold all of this back, for anyone archaeology-ing a comment: the
 > `import.meta.glob` in `fx/fxDefs.ts`, the dynamic `import('./primitives')` in `fx/playDef.ts`, and the

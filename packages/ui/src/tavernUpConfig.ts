@@ -97,8 +97,8 @@ export interface TavernUpConfig {
 // 220ms flash with a thick double-ring shockwave, and artDim 1 (the gem only desaturates when locked, no
 // darkening). Mirror position/scale/glow changes into the styles.css `var(--tvb-*, …)` fallbacks.
 const DEFAULTS: TavernUpConfig = {
-  x: 51,
-  y: -373,
+  x: 104,
+  y: -318,
   scale: 1.24,
   gemX: 0,
   gemY: 3.5,
@@ -108,7 +108,7 @@ const DEFAULTS: TavernUpConfig = {
   pipS: 1,
   pip1X: -44, pip1Y: 21, pip1S: 1, pip2X: -37.5, pip2Y: 7, pip2S: 1, pip3X: -27, pip3Y: 0, pip3S: 1,
   pip4X: -15.5, pip4Y: 0, pip4S: 1, pip5X: -5.5, pip5Y: 0, pip5S: 1, pip6X: 0, pip6Y: 0, pip6S: 1,
-  costX: 37,
+  costX: 50,
   costY: 36,
   costS: 0.84,
   glowBlur: 12,
@@ -130,7 +130,7 @@ const DEFAULTS: TavernUpConfig = {
   rings: 1,
   ringRadius: 3.65,
   ringLife: 2.35,
-  artDim: 0.65,
+  artDim: 0.62,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */

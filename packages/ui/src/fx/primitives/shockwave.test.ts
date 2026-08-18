@@ -32,6 +32,37 @@ describe('shockwave param specs', () => {
     expect(d.ease).toBe(1);
   });
 
+  it('carries the offsetX/offsetY placement pair, defaulting to an exact no-op', () => {
+    // The gap this closed: `burst`/`emitter`/`smoke` all shipped an offset pair, but a ring's placement is
+    // its mesh position rather than a spawn position, so it was never given one — you could not nudge a
+    // ring off its anchor at all. Defaults MUST be 0: `place()` adds them unconditionally, so anything
+    // else would shift every saved shockwave def off the spot it was authored on.
+    const specs: FxParamSpecs = shockwavePrimitive.params;
+    const d = defaultsOf(shockwavePrimitive.params);
+    // `as const` so the keys stay literals — `defaultsOf` returns a precisely-typed object, not an
+    // index-signature bag like `FxParamSpecs`, so a widened `string` cannot index it.
+    for (const key of ['offsetX', 'offsetY'] as const) {
+      const spec: FxParamSpec | undefined = specs[key];
+      expect(spec, `missing placement param '${key}'`).toBeDefined();
+      expect(spec?.group).toBe('Ring');
+      expect(d[key]).toBe(0);
+      // A length, so it must ride the resize axis with `radius` — otherwise a scaled-down call keeps a
+      // full-size displacement and the ring drifts off its anchor. Same argument as burst's pair.
+      expect(spec?.kind === 'slider' && spec.axis).toBe('scale');
+    }
+  });
+
+  it('places the ring through the offsets, from a remembered anchor', () => {
+    // Guards the wiring the spec test above cannot see: the pair is only real if the mesh position is
+    // actually written from it, and only live-tunable if `setParams` re-places instead of waiting on the
+    // next `setHead` (a workbench preview can sit on a head that never moves).
+    expect(SHOCKWAVE_SRC).toContain('this.headX + this.params.offsetX');
+    expect(SHOCKWAVE_SRC).toContain('this.headY + this.params.offsetY');
+    // `place()` is the single writer — setHead, setParams and the constructor all route through it.
+    expect(SHOCKWAVE_SRC.match(/this\.mesh\.position\.set\(/g)).toHaveLength(1);
+    expect(SHOCKWAVE_SRC.match(/this\.place\(\);/g)?.length ?? 0).toBe(3);
+  });
+
   it('carries the ribbon material knobs, in the Noise group', () => {
     const specs: FxParamSpecs = shockwavePrimitive.params;
     for (const key of ['plateau', 'noiseAlong', 'noiseAcross', 'warp', 'scroll', 'erode', 'gain']) {

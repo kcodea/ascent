@@ -188,10 +188,13 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 10,
     health: 6,
     keywords: [],
-    // Owner balance 2026-08-18: reworked from the Choose-One (Feast / Legion) into a straight Avenge Imp lord.
-    effects: [{ on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 7, health: 5 } }],
-    text: '**Avenge (3):** give your Imps **+7/+5** wherever they are.',
-    goldenText: '**Avenge (3):** give your Imps **+14/+10** wherever they are.',
+    // Owner rework 2026-08-18: a Shout+Echo shop juicer.
+    effects: [
+      { on: 'onPlay', do: 'buffShopPermanent', params: { attack: 8, health: 8 } },
+      { on: 'onDeath', do: 'deathrattleBuffShopPermanent', params: { attack: 8, health: 8 } },
+    ],
+    text: '**Shout and Echo:** give minions in the Shop **+8/+8**.',
+    goldenText: '**Shout and Echo:** give minions in the Shop **+16/+16**.',
   },
   {
     // Owner add 2026-08-12. A glass-cannon 4/1 built to die: its Echo feeds your shop. The buff is a combat→run
@@ -235,9 +238,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 7,
     health: 8,
     keywords: [],
-    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 5, health: 5, impAttack: 3, impHealth: 3 } }],
-    text: 'When a friendly **Demon** deals damage, gain **+5/+5** and give your **Imps +3/+3** this game.',
-    goldenText: 'When a friendly **Demon** deals damage, gain **+10/+10** and give your **Imps +6/+6** this game.',
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 4, health: 4, impAttack: 2, impHealth: 2 } }],
+    text: 'When a friendly **Demon** deals damage, gain **+4/+4** permanently and give your **Imps +2/+2** this game.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+8/+8** permanently and give your **Imps +4/+4** this game.',
   },
   {
     // Set 2 — Knocked (owner add 2026-08-18): a cheap Echo Imp-maker. Golden summons 2.
@@ -291,8 +294,8 @@ export const SET2_DEMONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 1, health: 0 } }],
-    text: 'When a friendly **Demon** deals damage, gain **+1 Attack**.',
-    goldenText: 'When a friendly **Demon** deals damage, gain **+2 Attack**.',
+    text: 'When a friendly **Demon** deals damage, gain **+1 Attack** permanently.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+2 Attack** permanently.',
   },
   {
     // Set 2 — Fel Spikes (owner add 2026-08-18): a Taunt whose Echo sprays the board — friendly Demons are
@@ -318,7 +321,7 @@ export const SET2_DEMONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 3 } }],
-    text: 'When a friendly **Demon** deals damage, gain **+3/+3**.',
-    goldenText: 'When a friendly **Demon** deals damage, gain **+6/+6**.',
+    text: 'When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
   },
 ];

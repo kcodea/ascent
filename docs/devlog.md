@@ -7,13 +7,21 @@ Part B — the new cards and the engine they needed (Part A was the changes + ar
 **New minions (15):**
 - Kobolds: **Gem Portsmith** (T5, Avenge(3): improve Rubies +1/+1 + a random Kobold), **Kobe** (T4, SoC: 2
   permanent Rubies on this + adjacent Kobolds), **Boulderdash** (T5, Rally: 3 permanent Rubies on itself),
-  **Beggy** (T1, sell it → 2 Rubies), **Blazer** (T4, Flurry, Rally: a Ruby on your minions).
+  **Beggy** (T1, sell it → 2 Rubies), **Blazer** (T4, Flurry, Rally: a Ruby on your minions — not permanent).
 - Dwarves: **Billings** (T5, spend 5 Gold → 2 random Dwarves +5/+5), **Gangplank** (T3, a card added to hand →
   a Dwarf +1/+2).
-- Demons: **Impossible Todd** (T6, friendly Demon deals damage → +5/+5 and Imps +3/+3), **Knocked** (T1, Echo:
-  Imp), **Grevlin & Co.** (T6, sell 3 → a Demon eats the right-most Shop minion), **Jumbo** (T5, consume → Shop
-  +2/+1), **Leech** (T1, friendly Demon deals damage → +1 Attack), **Fel Spikes** (T3, Taunt, Echo: 1 dmg to all
-  but your Demons), **Chosen Fiend** (T4, friendly Demon deals damage → +3/+3).
+- Demons: **Impossible Todd** (T6, friendly Demon deals damage → +4/+4 permanently and Imps +2/+2 this game),
+  **Knocked** (T1, Echo: Imp), **Grevlin & Co.** (T6, sell 3 → a Demon eats the right-most Shop minion),
+  **Jumbo** (T5, consume → Shop +2/+1), **Leech** (T1, friendly Demon deals damage → +1 Attack permanently),
+  **Fel Spikes** (T3, Taunt, Echo: 1 dmg to all but your Demons), **Chosen Fiend** (T4, friendly Demon deals
+  damage → +3/+3 permanently).
+
+**Owner tuning (same PR):** the three Demon-damage reactors (Leech, Chosen Fiend, Impossible Todd) now stack
+their self-buff **permanently** (accrued into `permaGain`, so it carries back to the run board); Todd retuned
+to +4/+4 & Imps +2/+2. **Malphas** reworked from the Avenge Imp lord into "**Shout and Echo:** give minions in
+the Shop **+8/+8**" — the Shout is the recruit `buffShopPermanent`, the Echo a new combat twin
+`deathrattleBuffShopPermanent` routing through `gainTavernBuy` (a recruit factory would never fire on a combat
+death). Blazer's Rally Ruby is no longer permanent.
 
 **Reworks:** Mountainbond → T5, spend 8 Gold plays a Ruby on ALL your minions · Gemline Martyr → Start of Turn:
 a Veinstorm + improve Rubies +1/+1 · Legion Shepherd → Echo: Imps +5/+5 this game + summon an Imp.

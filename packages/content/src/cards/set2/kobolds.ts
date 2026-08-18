@@ -316,8 +316,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 8,
     keywords: ['W', 'RL'],
-    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1, permanent: true } }],
-    text: '**Flurry.** **Rally:** play a **permanent Ruby** on your minions.',
-    goldenText: '**Flurry.** **Rally:** play **2 permanent Rubies** on your minions.',
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
+    text: '**Flurry.** **Rally:** play a **Ruby** on your minions.',
+    goldenText: '**Flurry.** **Rally:** play **2 Rubies** on your minions.',
   },
 ];

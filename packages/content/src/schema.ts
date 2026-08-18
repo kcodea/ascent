@@ -149,6 +149,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scGrantRightmostEcho',
   'endOfTurnSelfAndNeighboursConsume',
   'rallyBuffShopPermanent',
+  'deathrattleBuffShopPermanent',
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',

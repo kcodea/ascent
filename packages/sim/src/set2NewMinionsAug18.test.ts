@@ -60,16 +60,16 @@ describe('set 2 — the Demon-damage trigger (combat)', () => {
   });
 
   it('Impossible Todd grants the run-wide Imp buff on each Demon-damage instance (carried back)', () => {
-    // Every instance swells Todd +5/+5 AND showers Imps +3/+3. The Imp grant is the run carry-back channel
-    // (`playerImpBuffGain`), so a combat-only buff would leave it unset — and it must equal +3/+3 per proc.
+    // Every instance swells Todd +4/+4 (permanently) AND showers Imps +2/+2. The Imp grant is the run carry-back
+    // channel (`playerImpBuffGain`), so a combat-only buff would leave it unset — and it must equal +2/+2 per proc.
     const r = simulate(
       [bm('dm_todd', 'TD', 0, 400), bm('dm_clerk', 'AT', 5, 400)],
       [bm('dm_clerk', 'BAG', 0, 99999)],
       makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const td = buffsFrom(r.events, 'm0');
     expect(td.length, 'Todd self-buffs on each instance').toBeGreaterThan(1);
-    expect(td.every((b) => b.attack === 5 && b.health === 5), 'each self-buff is +5/+5').toBe(true);
-    expect(r.playerImpBuffGain, 'the Imp buff carried back at +3/+3 per instance').toEqual({ attack: 3 * td.length, health: 3 * td.length });
+    expect(td.every((b) => b.attack === 4 && b.health === 4), 'each self-buff is +4/+4').toBe(true);
+    expect(r.playerImpBuffGain, 'the Imp buff carried back at +2/+2 per instance').toEqual({ attack: 2 * td.length, health: 2 * td.length });
   });
 });
 

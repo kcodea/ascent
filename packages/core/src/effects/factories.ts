@@ -3442,6 +3442,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
   },
 
+  /** Set 2 — Malphas (Echo half): when THIS minion dies, permanently buff every minion in the Shop. The Shout
+   *  half is the recruit `buffShopPermanent`; this is its combat twin, carried back through `gainTavernBuy`
+   *  exactly like Demon Horse's Rally — a recruit factory would never fire on a combat death. Golden doubles. */
+  deathrattleBuffShopPermanent: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (minion !== self) return; // own Echo only — the bus broadcasts every death
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
+  },
+
   /** Ashen Broodlord (owner rework 2026-07-31) — Rally: CAST A STAFF OF GUEL. A real spell cast, so it
    *  follows the Taragosa pattern exactly: the run's spell power folds into the grant (`spellPowerFor`, so an
    *  enemy Broodlord scales with the OPPONENT's), and `ctx.castSpell` fires the cast so per-spell payoffs
@@ -3477,7 +3486,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!minion || minion.side !== self.side) return;
     const a = num(params.attack, 0) * mul(self);
     const h = num(params.health, 0) * mul(self);
-    if (a || h) ctx.buff(self, a, h, self.uid);
+    if (a || h) {
+      ctx.buff(self, a, h, self.uid);
+      // PERMANENT: carry the gain back to the run board like an Engraved minion (owner 2026-08-18: these gains
+      // are permanent). `ctx.buff` only auto-accrues permaGain for EG/Transcendant bodies, so add it here for
+      // the rest. Carry-back only reads PLAYER minions with a sourceUid, so an enemy copy is harmless.
+      if (!self.keywords.includes('EG')) {
+        self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: (self.permaGain?.health ?? 0) + h };
+      }
+    }
     const ia = num(params.impAttack, 0) * mul(self);
     const ih = num(params.impHealth, 0) * mul(self);
     if (ia || ih) ctx.grantImpBuff(ia, ih, self.side);

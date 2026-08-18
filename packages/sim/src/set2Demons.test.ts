@@ -397,14 +397,17 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(imps.length, 'gilded summons 2 per threshold').toBe(2);
   });
 
-  it('Malphas is an Avenge Imp lord (owner rework 2026-08-18)', () => {
-    // Reworked from the old Choose-One (Feast / Legion) into a straight Avenge Imp lord.
+  it('Malphas is a Shout+Echo Shop juicer (owner rework 2026-08-18)', () => {
+    // Reworked into "Shout and Echo: give minions in the Shop +8/+8" — a recruit Shout twinned with a combat
+    // Echo, both routing to the tavern-buy carry-back.
     const malphas = CARD_INDEX['dm_malphas']!;
     expect(malphas.chooseOne, 'the Choose-One is gone').toBeFalsy();
-    const eff = malphas.effects.find((e) => e.do === 'avengeBuffImps')!;
-    expect(eff, 'it now carries the avenge Imp-buff effect').toBeTruthy();
-    expect(eff.on).toBe('avenge');
-    expect(eff.params).toMatchObject({ count: 3, attack: 7, health: 5 });
+    const shout = malphas.effects.find((e) => e.on === 'onPlay')!;
+    expect(shout?.do, 'Shout half is the recruit shop buff').toBe('buffShopPermanent');
+    expect(shout.params).toMatchObject({ attack: 8, health: 8 });
+    const echo = malphas.effects.find((e) => e.on === 'onDeath')!;
+    expect(echo?.do, 'Echo half is the combat shop buff').toBe('deathrattleBuffShopPermanent');
+    expect(echo.params).toMatchObject({ attack: 8, health: 8 });
   });
 
   it('no set-2 Choose One carries a flavour NAME — in its options OR its card text', () => {
@@ -427,18 +430,14 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     }
   });
 
-  it('Malphas Avenge(3) buffs your Imps +7/+5, carried back to the run (owner rework 2026-08-18)', () => {
-    // Malphas (fat immortal) + three disposable Taunt fodder that die to a modest killer → exactly one Avenge(3)
-    // payout. The Imp buff is the run carry-back channel (`playerImpBuffGain`), so a combat-only buff would leave
-    // it unset. Three deaths → one proc → +7/+5.
+  it('Malphas Echo buffs the Shop +8/+8 on death, carried back to the run (owner rework 2026-08-18)', () => {
+    // Malphas dies to a big enemy → its Echo fires once. The shop buff is the tavern-buy carry-back channel
+    // (`playerTavernBuyGain`), so a combat-only buff would leave it unset. One death → one proc → +8/+8.
     const r = simulate(
-      [{ cardId: 'dm_malphas', attack: 0, health: 9999, sourceUid: 'M', keywords: [] },
-       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'a', keywords: ['T'] as BoardMinion['keywords'] },
-       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'b', keywords: ['T'] as BoardMinion['keywords'] },
-       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'c', keywords: ['T'] as BoardMinion['keywords'] }],
+      [{ cardId: 'dm_malphas', attack: 0, health: 1, sourceUid: 'M', keywords: [] }],
       [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 7 }), combatSide({ tier: 1 }));
-    expect(r.playerImpBuffGain, 'the Avenge Imp buff never carried back').toEqual({ attack: 7, health: 5 });
+    expect(r.playerTavernBuyGain, 'the Echo Shop buff carried back').toEqual({ attack: 8, health: 8 });
   });
 });
 

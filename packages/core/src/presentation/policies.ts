@@ -92,6 +92,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleBuffAllByImpAura:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffAllHealth:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffCardTypeRunWide:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleBuffShopPermanent:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffCelestials:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffImps:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffNextSummon:onDeath': { policy: 'ownBeat', family: 'echo' },

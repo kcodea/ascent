@@ -147,7 +147,8 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Taunt.** **Echo:** get **2 Staves of Guel**.',
   },
   {
-    // The pay-off scales with the room you LEFT — a lone Shepherd fills six slots and buffs six times.
+    // Owner rework 2026-08-18: a straight run-wide Imp lord — its Echo buffs every Imp this game and leaves a
+    // fresh Imp behind. Both halves are onDeath; `deathrattleBuffImps` carries the +5/+5 back to RunState.impBuff.
     id: 'dm_shepherd',
     name: 'Legion Shepherd',
     tribe: 'demon',
@@ -155,9 +156,12 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleImpsOverflowGrant', params: { count: 4, attack: 2, health: 2 } }],
-    text: '**Echo:** summon **4 Imps**. Your Imps gain **+2/+2** everywhere for each one that had no room.',
-    goldenText: '**Echo:** summon **4 Imps**. Your Imps gain **+4/+4** everywhere for each one that had no room.',
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 5, health: 5 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+    ],
+    text: '**Echo:** your Imps gain **+5/+5** this game. Summon an **Imp**.',
+    goldenText: '**Echo:** your Imps gain **+10/+10** this game. Summon **2 Imps**.',
   },
   {
     id: 'dm_maw',
@@ -220,5 +224,101 @@ export const SET2_DEMONS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
     text: '**Avenge (3):** get a random **Demon**.',
     goldenText: '**Avenge (3):** get **2 random Demons**.',
+  },
+  {
+    // Set 2 — Impossible Todd (owner add 2026-08-18): the demon-damage capstone. Every time a friendly Demon
+    // deals combat damage he swells AND showers your Imps. Reacts even to his own hits. Golden doubles.
+    id: 'dm_todd',
+    name: 'Impossible Todd',
+    tribe: 'demon',
+    tier: 6,
+    attack: 7,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 5, health: 5, impAttack: 3, impHealth: 3 } }],
+    text: 'When a friendly **Demon** deals damage, gain **+5/+5** and give your **Imps +3/+3** this game.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+10/+10** and give your **Imps +6/+6** this game.',
+  },
+  {
+    // Set 2 — Knocked (owner add 2026-08-18): a cheap Echo Imp-maker. Golden summons 2.
+    id: 'dm_knocked',
+    name: 'Knocked',
+    tribe: 'demon',
+    tier: 1,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } }],
+    text: '**Echo:** summon an **Imp**.',
+    goldenText: '**Echo:** summon **2 Imps**.',
+  },
+  {
+    // Set 2 — Grevlin & Co. (owner add 2026-08-18): a sell-fed eater. Every 3 minions sold, it consumes the
+    // right-most Shop minion (golden: the 2 right-most). The sell tally is per-instance and carries round to round.
+    id: 'dm_grevlin',
+    name: 'Grevlin & Co.',
+    tribe: 'demon',
+    tier: 6,
+    attack: 8,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'minionSold', do: 'minionSoldConsumeRightmost', params: { count: 3 } }],
+    text: 'When you **sell 3 minions**, a **Demon** consumes the right-most minion in the **Shop**.',
+    goldenText: 'When you **sell 3 minions**, a **Demon** consumes the **2 right-most** minions in the **Shop**.',
+  },
+  {
+    // Set 2 — Jumbo (owner add 2026-08-18): every meal fattens the whole Shop. Guarded to THIS body's consume,
+    // like Ashen Broodlord. Golden doubles the permanent Shop buff.
+    id: 'dm_jumbo',
+    name: 'Jumbo',
+    tribe: 'demon',
+    tier: 5,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 2, health: 1 } }],
+    text: 'When you **consume** a minion, give minions in the **Shop +2/+1** permanently.',
+    goldenText: 'When you **consume** a minion, give minions in the **Shop +4/+2** permanently.',
+  },
+  {
+    // Set 2 — Leech (owner add 2026-08-18): a cheap demon-damage body that just grows Attack off your Demons'
+    // hits. Golden doubles.
+    id: 'dm_leech',
+    name: 'Leech',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 1, health: 0 } }],
+    text: 'When a friendly **Demon** deals damage, gain **+1 Attack**.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+2 Attack**.',
+  },
+  {
+    // Set 2 — Fel Spikes (owner add 2026-08-18): a Taunt whose Echo sprays the board — friendly Demons are
+    // spared, but enemy Demons are NOT (the exclusion is friendly-only, see `deathrattleDamageAllExceptTribe`).
+    id: 'dm_felspikes',
+    name: 'Fel Spikes',
+    tribe: 'demon',
+    tier: 3,
+    attack: 4,
+    health: 2,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleDamageAllExceptTribe', params: { amount: 1, exceptTribe: 'demon' } }],
+    text: '**Taunt.** **Echo:** deal **1 damage** to all minions except friendly **Demons**.',
+    goldenText: '**Taunt.** **Echo:** deal **2 damage** to all minions except friendly **Demons**.',
+  },
+  {
+    // Set 2 — Chosen Fiend (owner add 2026-08-18): the mid-tier demon-damage body. Golden doubles.
+    id: 'dm_chosenfiend',
+    name: 'Chosen Fiend',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 3 } }],
+    text: 'When a friendly **Demon** deals damage, gain **+3/+3**.',
+    goldenText: 'When a friendly **Demon** deals damage, gain **+6/+6**.',
   },
 ];

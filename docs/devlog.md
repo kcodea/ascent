@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 content: 15 new minions + new engine primitives (PR B of 2)
+
+Part B — the new cards and the engine they needed (Part A was the changes + archives).
+
+**New minions (15):**
+- Kobolds: **Gem Portsmith** (T5, Avenge(3): improve Rubies +1/+1 + a random Kobold), **Kobe** (T4, SoC: 2
+  permanent Rubies on this + adjacent Kobolds), **Boulderdash** (T5, Rally: 3 permanent Rubies on itself),
+  **Beggy** (T1, sell it → 2 Rubies), **Blazer** (T4, Flurry, Rally: a Ruby on your minions).
+- Dwarves: **Billings** (T5, spend 5 Gold → 2 random Dwarves +5/+5), **Gangplank** (T3, a card added to hand →
+  a Dwarf +1/+2).
+- Demons: **Impossible Todd** (T6, friendly Demon deals damage → +5/+5 and Imps +3/+3), **Knocked** (T1, Echo:
+  Imp), **Grevlin & Co.** (T6, sell 3 → a Demon eats the right-most Shop minion), **Jumbo** (T5, consume → Shop
+  +2/+1), **Leech** (T1, friendly Demon deals damage → +1 Attack), **Fel Spikes** (T3, Taunt, Echo: 1 dmg to all
+  but your Demons), **Chosen Fiend** (T4, friendly Demon deals damage → +3/+3).
+
+**Reworks:** Mountainbond → T5, spend 8 Gold plays a Ruby on ALL your minions · Gemline Martyr → Start of Turn:
+a Veinstorm + improve Rubies +1/+1 · Legion Shepherd → Echo: Imps +5/+5 this game + summon an Imp.
+
+**New engine:**
+- A `friendlyDemonDealtDamage` combat event, emitted in `simulate.ts applyDamage` only for a landed hit by a
+  Demon (Ward/Immune/0-damage all return first, so a Ward-absorbed hit never counts) — fires on attack,
+  retaliation, or incidental damage. Watcher factory `onFriendlyDemonDamageBuffSelf`.
+- `startOfTurn` and `onGainCard` recruit events (`applyStartOfTurn`; `fireOnGainCard` hooked into conjure/mint
+  AND the buy path so buying a card triggers Gangplank).
+- Recruit/combat factories: ruby-on-self / self+adjacent (with a `permanent` carry-back so combat Rubies persist
+  to the run board), sell→rubies, goldSpent buff-random-tribe, onGainCard buff-tribe, sell-threshold→consume,
+  onConsume→shop-buff, and a deathrattle AoE that spares your own tribe.
+
+Art wired for the 13 new minions with masters (Impossible Todd included; Jumbo has none → fallback). Verified by
+13 new behavioral tests (demon-trigger co-fire + Ward-skip + imp carry-back, Fel Spikes friendly/enemy split,
+permanent-Ruby carry-back, and every recruit factory driven through the reducer) — no bugs found. Gates:
+typecheck, lint (0 errors), 5582 tests, build:web.
+
 ## 2026-08-18 — Set 2 content: minion changes + 13 archives (PR A of 2)
 
 Part A of a two-part Set-2 content batch (the 15 new minions + their new engine primitives land in Part B).

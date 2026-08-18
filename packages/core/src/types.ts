@@ -111,6 +111,7 @@ export type GameEvent =
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
+  | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Chosen Fiend. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
@@ -127,7 +128,9 @@ export type GameEvent =
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
-  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
+  | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
+  | 'onGainCard' // recruit phase: a card was added to your hand via the conjure/grant path (Gangplank)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'rubyPlayedAnywhere' // Candle Conduit: a Ruby was played on ANY friendly minion (passive marker — the ruby paths scan for it; never dispatched through the bus)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
@@ -279,6 +282,17 @@ export type EffectFactoryId =
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
+  | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Chosen Fiend: buff self (and maybe Imps) when a friendly Demon deals damage
+  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (Start of Combat): play N permanent Rubies on self + adjacent same-tribe
+  | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
+  | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
+  | 'onSellGetRubies' // Set 2 — Beggy (onSell): get N Rubies when this is sold
+  | 'startOfTurnGetSpellImproveRubies' // Set 2 — Gemline Martyr (Start of Turn): get a Veinstorm + improve your Rubies
+  | 'goldSpentBuffRandomTribe' // Set 2 — Billings (goldSpent): give N random friendly tribe minions +atk/+hp
+  | 'onGainCardBuffTribe' // Set 2 — Gangplank (onGainCard): a card added to hand buffs a friendly tribe minion
+  | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
+  | 'onConsumeBuffShop' // Set 2 — Jumbo (onConsume): when this consumes a minion, buff Shop minions permanently
+  | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
   | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion

@@ -325,39 +325,37 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(grants.length).toBeGreaterThan(0);
   });
 
-  it('Legion Shepherd (owner rework 2026-07-27): Echo summons 4 Imps, and only OVERFLOW pays', () => {
-    // On an empty line all 4 fit, so there is no overflow and no buff. This is the control: without it, a test
-    // that only checks "a buff happened" on a full board can't tell the overflow gate from an unconditional one.
+  it('Legion Shepherd (owner rework 2026-08-18): Echo buffs your Imps +5/+5 (carried back) and summons an Imp', () => {
+    // The old "summon 4 Imps, only OVERFLOW pays" design is gone. Now both halves are onDeath: a flat +5/+5 Imp
+    // aura (via `deathrattleBuffImps`, carried back to RunState.impBuff through `playerImpBuffGain`) and a single
+    // Imp token summoned. The buff is UNCONDITIONAL — board occupancy no longer gates it.
     const r = simulate([bm('dm_shepherd', 'S', 3, 1)], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length).toBe(4);
-    expect(r.events.filter((e) => (e as { type: string; source?: string }).type === 'buff'
-      && (e as { source?: string }).source === 'm0'), 'nothing overflowed, so nothing should be granted').toEqual([]);
+    expect(imps.length, 'exactly one Imp summoned').toBe(1);
+    expect(r.playerImpBuffGain, 'the +5/+5 must reach the permanent Imp-buff carry-back channel').toEqual({ attack: 5, health: 5 });
   });
 
-  it('…and a FULL board converts the bodies it can’t fit into a permanent Imp-wide buff', () => {
-    // Six filler bodies + the Shepherd = a full line, so every one of the 4 Imps overflows. The payout goes
-    // through the Imp Aura channel, which is what makes it stick "everywhere" — assert the carry-back, since a
-    // combat-only buff (the old `deathrattleSummonOverflowBuff` shape) would leave `playerImpBuffGain` unset.
-    const filler = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'].map((u) => bm('impscrap', u, 1, 200));
-    const r = simulate([bm('dm_shepherd', 'S', 3, 1), ...filler], [{ cardId: 'sandbag', attack: 50, health: 9999 }],
+  it('…and a GILDED Shepherd doubles both halves: +10/+10 and 2 Imps', () => {
+    const r = simulate([{ ...bm('dm_shepherd', 'S', 6, 1), golden: true }], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
-    expect(r.playerImpBuffGain, 'the grant never reached the permanent Imp-buff channel').toBeTruthy();
-    expect(r.playerImpBuffGain!.attack).toBeGreaterThan(0);
-    expect(r.playerImpBuffGain!.attack).toBe(r.playerImpBuffGain!.health); // +2/+2 per overflow, symmetric
+    const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
+    expect(imps.length, 'gilded summons 2 Imps').toBe(2);
+    expect(r.playerImpBuffGain, 'gilded buffs Imps +10/+10').toEqual({ attack: 10, health: 10 });
   });
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 14 roster cards are in the set', () => {
+  it('all 21 roster cards are in the set', () => {
     // 20: Pit Drillmaster went 2026-07-26, the Captain 2026-07-27, Riot Caller 2026-07-29 (all owner cuts).
     // 20 → 19 on 2026-08-04: Rouge Rogue (dm_chancellor) moved to the MINION ARCHIVE (cards/archive.ts) —
     // still in CARD_INDEX for saved runs, in no set.
     // 19 → 20 on 2026-08-14: Grobbus (`dm_grobbus`) joined the roster.
     // 20 → 14 on 2026-08-18: dm_clerk, dm_wrangler, dm_broodwright, dm_avarice, dm_vhal, dm_overseer
     // archived to ARCHIVED_CARDS (still in CARD_INDEX for saved runs, in no set).
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(14);
+    // 14 → 21 on 2026-08-18: seven new demons joined — dm_todd, dm_knocked, dm_grevlin, dm_jumbo, dm_leech,
+    // dm_felspikes, dm_chosenfiend.
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(21);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });

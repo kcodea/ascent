@@ -57,11 +57,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    // `battlecryGrantSpell` isn't Shout-specific — the recruit factories are event-agnostic, so the same
-    // grant works off End of Turn without a near-duplicate factory.
-    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
-    text: '**End of Turn:** get a **Veinstorm**.',
-    goldenText: '**End of Turn:** get **2 Veinstorms**.',
+    // Owner rework 2026-08-18: End of Turn → Start of Turn, and it now ALSO improves your Rubies. The combined
+    // grant-spell + rubyStatGain lives in one Start-of-Turn factory; golden doubles both halves.
+    effects: [{ on: 'startOfTurn', do: 'startOfTurnGetSpellImproveRubies', params: { spellId: 'veinstorm', count: 1, attack: 1, health: 1 } }],
+    text: '**Start of Turn:** get a **Veinstorm** and improve your Rubies **+1/+1**.',
+    goldenText: '**Start of Turn:** get **2 Veinstorms** and improve your Rubies **+2/+2**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -249,5 +249,75 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
     text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
     goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
+  },
+  {
+    // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the
+    // run's buyable pool. `avengeRubyStatGain` + `avengeGrantRandomTribeMinion` both already exist.
+    id: 'k_portsmith',
+    name: 'Gem Portsmith',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    effects: [
+      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
+      { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 1 } },
+    ],
+    text: '**Avenge (3):** improve your Rubies **+1/+1** and get a random **Kobold**.',
+    goldenText: '**Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
+  },
+  {
+    // Start of Combat: play PERMANENT Rubies on this and its living same-tribe neighbours (carry back to the
+    // run board). Golden doubles the count.
+    id: 'k_kobe',
+    name: 'Kobe',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 5,
+    health: 6,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 2, permanent: true } }],
+    text: '**Start of Combat:** play **2 permanent Rubies** on this and adjacent **Kobolds**.',
+    goldenText: '**Start of Combat:** play **4 permanent Rubies** on this and adjacent **Kobolds**.',
+  },
+  {
+    // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
+    id: 'k_boulderdash',
+    name: 'Boulderdash',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 3, permanent: true } }],
+    text: '**Rally:** play **3 permanent Rubies** on this.',
+    goldenText: '**Rally:** play **6 permanent Rubies** on this.',
+  },
+  {
+    // A cheap Ruby payout on sale — get Rubies when this leaves the board for Gold. Golden doubles.
+    id: 'k_beggy',
+    name: 'Beggy',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 2 } }],
+    text: 'When you **sell** this, get **2 Rubies**.',
+    goldenText: 'When you **sell** this, get **4 Rubies**.',
+  },
+  {
+    // Flurry + Rally: every attack (twice, with Flurry) plays a PERMANENT Ruby on your whole board.
+    id: 'k_blazer',
+    name: 'Blazer',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 3,
+    health: 8,
+    keywords: ['W', 'RL'],
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1, permanent: true } }],
+    text: '**Flurry.** **Rally:** play a **permanent Ruby** on your minions.',
+    goldenText: '**Flurry.** **Rally:** play **2 permanent Rubies** on your minions.',
   },
 ];

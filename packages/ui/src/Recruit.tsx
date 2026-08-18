@@ -3560,9 +3560,17 @@ export function Recruit() {
       // WITHHOLD is deliberately NOT placed here (see `holdFodderGains`): it must ride the commit that raises
       // the value, and this function can run ~0.65s late off its retry loop.
       const keyed = fodderGainHolds(events);
-      // Wait one frame so the ghosts are mounted (queryable by `data-gidx`), then fire the def + start the
-      // per-ghost taffy timeline on the SAME frame.
-      startRaf = requestAnimationFrame(() => {
+      // Wait until the ghosts are actually mounted (queryable by `data-gidx`), then fire the def + start the
+      // per-ghost taffy timeline. A SINGLE rAF races React's commit — `setFodderAnim` above only schedules a
+      // render, so on the consume frame the ghost isn't in the DOM yet and the query returns null; with no CSS
+      // fallback animation (fodderpop was removed) that left the ghost frozen. Retry across frames until it
+      // mounts, then run the launch once.
+      let startTries = 0;
+      const startConsume = (): void => {
+        if (!document.querySelector('.fodderghost[data-gidx="0"]')) {
+          if (startTries++ < 30) startRaf = requestAnimationFrame(startConsume);
+          return;
+        }
         ghosts.forEach((g, i) => {
           const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };
           const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
@@ -3597,7 +3605,8 @@ export function Recruit() {
           });
           tweens.push(tw);
         });
-      });
+      };
+      startRaf = requestAnimationFrame(startConsume);
       wiggleT = window.setTimeout(() => {
         // The `+X/+X` float was CUT (2026-08-04): the badge carries the readout now, scheduled to this same
         // arrival. This was the LAST `+X/+X` float in the game; the combat one went in

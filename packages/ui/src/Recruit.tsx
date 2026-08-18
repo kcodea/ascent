@@ -3572,7 +3572,7 @@ export function Recruit() {
           return;
         }
         ghosts.forEach((g, i) => {
-          const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };
+          const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };  // ghost centre — the bands' source point
           const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
@@ -3584,22 +3584,26 @@ export function Recruit() {
           );
           const el = document.querySelector<HTMLElement>(`.fodderghost[data-gidx="${i}"]`);
           if (!el) return;
-          // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD — the bottom leads toward the eater while
-          // the top stays put, then the whole card translates in. No rotation: the card never tilts.
+          // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD (bottom leads) and the collapse shrinks it
+          // toward the eater. The tilt + pull are measured from this TOP-CENTRE PIVOT to the eater's CENTRE, so
+          // the card's centreline aims at the eater's card centre (owner ask 2026-08-18) — not off its top,
+          // which is what a centre-referenced aim did against a top pivot.
           el.style.transformOrigin = '50% 0%';
-          const shakePhase = 0.28; // first ~28% is the shake, then stretch + pull take over
+          const pivot = { x: g.x0 + g.w / 2, y: g.y0 };
+          const shakePhase = Math.max(1e-6, cfg.shakePhase); // shake length — independent of the pull (`lag`)
+          const fadeDenom = Math.max(1e-6, 1 - cfg.fadeStart);
           const tw = gsap.to(el, {
             duration: cfg.durationMs / 1000,
             ease: 'none',
             onUpdate: function () {
               const tp = this.progress();
-              const tf = consumeTransform(from, to, tp, cfg);
+              const tf = consumeTransform(pivot, to, tp, cfg);
               // Decaying jitter over the shake phase, layered on the deterministic taffy transform.
               const s = tp < shakePhase ? 1 - tp / shakePhase : 0;
               const jx = s * cfg.shakeAmp * Math.sin(tp * cfg.shakeFreq * Math.PI * 2);
               const jy = s * cfg.shakeAmp * Math.cos(tp * cfg.shakeFreq * Math.PI * 2 * 1.3);
               el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) rotate(${tf.rotDeg}deg) scale(${tf.scaleX}, ${tf.scaleY})`;
-              el.style.opacity = String(tp < 0.85 ? 1 : (1 - tp) / 0.15);
+              el.style.opacity = String(tp < cfg.fadeStart ? 1 : (1 - tp) / fadeDenom);
             },
             onComplete: () => { el.style.opacity = '0'; },
           });

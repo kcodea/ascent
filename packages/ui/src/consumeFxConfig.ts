@@ -1,22 +1,27 @@
 export interface ConsumeFxConfig {
   durationMs: number;   // D — the whole eat; matches the authored def's duration
+  shakePhase: number;   // fraction of the eat spent on the initial shake (independent of the pull below)
   shakeAmp: number;     // px of jitter at the shake peak
   shakeFreq: number;    // shake oscillations/sec
   stretch: number;      // taffy elongation DOWNWARD, bottom-led (0..2)
   thin: number;         // thinning across (horizontal) while it stretches (0..1)
   lag: number;          // how long the top waits before it follows the bottom (0..~0.9 of the eat)
   pullDist: number;     // fraction of the ghost→eater vector travelled (0..1)
+  collapseStart: number; // fraction of the eat at which the ghost starts to SHRINK toward the eater (0..1)
+  fadeStart: number;    // fraction of the eat at which the ghost starts to FADE OUT (0..1)
   showStats: boolean;   // render the eaten minion's stats on the ghost
 }
 
 const DEFAULTS: ConsumeFxConfig = {
-  durationMs: 490, shakeAmp: 20, shakeFreq: 9, stretch: 0.4, thin: 0.8, lag: 0.38, pullDist: 0.94, showStats: false,
+  durationMs: 490, shakePhase: 0.28, shakeAmp: 20, shakeFreq: 9, stretch: 0.4, thin: 0.8, lag: 0.38,
+  pullDist: 0.94, collapseStart: 0.75, fadeStart: 0.85, showStats: false,
 };
 
 // [min, max, step] for the tuner sliders (booleans handled as a toggle, not here).
 export const CONSUMEFX_RANGES: Partial<Record<keyof ConsumeFxConfig, [number, number, number]>> = {
-  durationMs: [200, 2000, 10], shakeAmp: [0, 20, 0.5], shakeFreq: [0, 60, 1],
+  durationMs: [200, 2000, 10], shakePhase: [0, 0.9, 0.02], shakeAmp: [0, 20, 0.5], shakeFreq: [0, 60, 1],
   stretch: [0, 2.5, 0.05], thin: [0, 1, 0.02], lag: [0, 0.9, 0.02], pullDist: [0, 1.2, 0.02],
+  collapseStart: [0, 1, 0.02], fadeStart: [0, 1, 0.02],
 };
 
 const KEY = 'ascent.consumeFx';

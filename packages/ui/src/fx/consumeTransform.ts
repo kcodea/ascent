@@ -6,8 +6,10 @@ function stretch01(t: number): number {
   const c = Math.max(0, Math.min(1, t / 0.7));
   return Math.sin(Math.PI * c);
 }
-/** Collapse: full size until ~0.75, then shrink to ~0 by t=1 (the ghost vanishes into the eater). */
-function collapse(t: number): number { return t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25; }
+/** Collapse: full size until `start`, then shrink to ~0 by t=1 (the ghost vanishes into the eater). */
+function collapse(t: number, start: number): number {
+  return t < start ? 1 : 1 - (t - start) / Math.max(1e-6, 1 - start);
+}
 /** Smoothstep ease for the trailing pull. */
 function smooth(x: number): number { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); }
 
@@ -30,11 +32,11 @@ function smooth(x: number): number { const c = Math.max(0, Math.min(1, x)); retu
  */
 export function consumeTransform(
   from: Pt, to: Pt, t: number,
-  cfg: { stretch: number; thin: number; pullDist: number; lag: number },
+  cfg: { stretch: number; thin: number; pullDist: number; lag: number; collapseStart: number },
 ): { tx: number; ty: number; rotDeg: number; scaleX: number; scaleY: number } {
   const dx = to.x - from.x, dy = to.y - from.y;
   const s = stretch01(t);
-  const col = collapse(t);
+  const col = collapse(t, cfg.collapseStart);
   // The trailing edge (top / whole card) only starts moving after `lag`, so the bottom leads it in.
   const denom = Math.max(1e-6, 1 - cfg.lag);
   const pull = smooth((t - cfg.lag) / denom);

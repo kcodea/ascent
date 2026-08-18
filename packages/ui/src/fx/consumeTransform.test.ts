@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { consumeTransform } from './consumeTransform';
 import { CONSUMEFX_DEFAULTS, getConsumeFxConfig, resetConsumeFxConfig, setConsumeFxValue } from '../consumeFxConfig';
 
-const CFG = { durationMs: 800, shakeAmp: 4, shakeFreq: 22, stretch: 0.8, thin: 0.35, pullDist: 1, lag: 0.35, showStats: true } as const;
+const CFG = { durationMs: 800, shakePhase: 0.28, shakeAmp: 4, shakeFreq: 22, stretch: 0.8, thin: 0.35, pullDist: 1, lag: 0.35, collapseStart: 0.75, fadeStart: 0.85, showStats: true } as const;
 const from = { x: 100, y: 100 };
 const to = { x: 100, y: 300 }; // eater straight below → pull is downward, no sideways drift
 
@@ -51,7 +51,7 @@ describe('consumeFxConfig', () => {
     expect(CONSUMEFX_DEFAULTS.showStats).toBe(false);
     const cfg = getConsumeFxConfig();
     expect(Object.keys(cfg).sort()).toEqual(
-      ['durationMs', 'lag', 'pullDist', 'shakeAmp', 'shakeFreq', 'showStats', 'stretch', 'thin'].sort(),
+      ['collapseStart', 'durationMs', 'fadeStart', 'lag', 'pullDist', 'shakeAmp', 'shakeFreq', 'shakePhase', 'showStats', 'stretch', 'thin'].sort(),
     );
   });
   it('stores showStats as a real boolean even when the toggle writes a numeric 1/0', () => {

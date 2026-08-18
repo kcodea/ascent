@@ -16,6 +16,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 const SPECS: Record<keyof ConsumeFxConfig, [string, TunerUnit | undefined, string, string]> = {
   durationMs: ['Duration', 'ms', 'How long the whole eat takes, start to vanish.', 'Timing'],
 
+  shakePhase: ['Shake length', undefined, 'How much of the eat is the initial shake — independent of the pull below (Top lag). 0 = no shake.', 'Shake'],
   shakeAmp:   ['Shake amount', 'px', 'How far the ghost jitters at the shake peak.', 'Shake'],
   shakeFreq:  ['Shake speed', undefined, 'How many shake oscillations per second.', 'Shake'],
 
@@ -25,15 +26,19 @@ const SPECS: Record<keyof ConsumeFxConfig, [string, TunerUnit | undefined, strin
 
   pullDist:   ['Pull distance', undefined, 'Fraction of the ghost→eater path the ghost travels. 1 reaches the eater.', 'Pull'],
 
+  collapseStart: ['Collapse start', undefined, 'When the ghost starts to SHRINK toward the eater (fraction of the eat). Lower = shrinks sooner.', 'Collapse & fade'],
+  fadeStart:  ['Fade start', undefined, 'When the ghost starts to FADE OUT as it approaches the eater (fraction of the eat). Lower = fades sooner.', 'Collapse & fade'],
+
   showStats:  ['Show stats', undefined, 'Whether the eaten minion’s attack/health still show on the ghost as it goes.', 'Stats'],
 };
 
 /** Declaration order IS render order; controls sharing a group render together under its heading. */
 const ORDER: (keyof ConsumeFxConfig)[] = [
   'durationMs',
-  'shakeAmp', 'shakeFreq',
+  'shakePhase', 'shakeAmp', 'shakeFreq',
   'stretch', 'thin', 'lag',
   'pullDist',
+  'collapseStart', 'fadeStart',
   'showStats',
 ];
 

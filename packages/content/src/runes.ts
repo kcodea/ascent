@@ -806,15 +806,6 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    id: 'rune_wrangler',
-    name: 'Rune of the Wrangler',
-    cost: 3,
-    text: 'Get an **Imp Wrangler**. Imps summoned by your **Imp Wranglers** have **Ward** and **Taunt**.',
-    previewCards: ['dm_wrangler'],
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_wrangler'] }, { kind: 'combatFlag', flag: 'runeWrangler' }] },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_living_geode',
     name: 'Rune of the Living Geode',
     cost: 4,
@@ -1809,17 +1800,6 @@ export const EPIC_RUNES: RuneDef[] = [
   },
 
   {
-    id: 'rune_broodmaster',
-    name: 'Rune of the Broodmaster',
-    cost: 5,
-    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
-    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
-    epic: true,
-    reward: { kind: 'runeBroodmaster' },
-    sets: ['set2'],
-  },
-
-  {
     id: 'rune_moonhowl',
     name: 'Rune of Moonhowl',
     cost: 5,
@@ -1838,16 +1818,6 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['d2_mirrorwing'],
     epic: true,
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_mirrorwing'] }, { kind: 'runeSharedReflection' }] },
-    sets: ['set2'],
-  },
-  {
-    id: 'rune_battle_refraction',
-    name: 'Rune of Battle Refraction',
-    cost: 6,
-    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
-    previewCards: ['k_prismcaster'],
-    epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
     sets: ['set2'],
   },
   {
@@ -1991,6 +1961,39 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Imp Wrangler (dm_wrangler).
+    id: 'rune_wrangler',
+    name: 'Rune of the Wrangler',
+    cost: 3,
+    text: 'Get an **Imp Wrangler**. Imps summoned by your **Imp Wranglers** have **Ward** and **Taunt**.',
+    previewCards: ['dm_wrangler'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_wrangler'] }, { kind: 'combatFlag', flag: 'runeWrangler' }] },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Broodwright (dm_broodwright).
+    id: 'rune_broodmaster',
+    name: 'Rune of the Broodmaster',
+    cost: 5,
+    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
+    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
+    epic: true,
+    reward: { kind: 'runeBroodmaster' },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Prismcaster (k_prismcaster).
+    id: 'rune_battle_refraction',
+    name: 'Rune of Battle Refraction',
+    cost: 6,
+    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
+    previewCards: ['k_prismcaster'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
+    sets: ['set2'],
+  },
   // ── 2026-08-12 owner archive batch (each retired alongside its subject minion, except Spellhide) ─────────
   {
     // Archived 2026-08-12 (owner) alongside Groveweaver.

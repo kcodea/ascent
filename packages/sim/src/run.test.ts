@@ -1100,7 +1100,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 });
   });
 
-  it('Imp Overseer Battlecry gives your Imps +2/+2 run-wide (board Imps + the impBuff carry for future ones)', () => {
+  it('Imp Overseer Battlecry gives your Imps +2/+1 run-wide (board Imps + the impBuff carry for future ones)', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'recruit',
@@ -1109,8 +1109,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'o' });
     const imp = s.board.find((c) => c.uid === 'i1')!;
-    expect([imp.attack, imp.health]).toEqual([3, 3]); // 1/1 Imp + 2/2
-    expect(s.impBuff).toEqual({ attack: 2, health: 2 }); // run-wide, so Imps made later inherit it
+    expect([imp.attack, imp.health]).toEqual([3, 2]); // 1/1 Imp + 2/1 (2026-08-18: imp buff is now +2/+1)
+    expect(s.impBuff).toEqual({ attack: 2, health: 1 }); // run-wide, so Imps made later inherit it
   });
 
   it('Rope Wrangler — End of Turn casts Lasso, stealing a tavern minion into hand', () => {

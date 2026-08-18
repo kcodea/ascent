@@ -380,7 +380,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_banquet_hall:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_bargain_bin:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_bartering:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_battle_refraction:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_beastial_swarm:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_blart:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_blood_and_coin:combat': { policy: 'ownBeat', family: 'avenge' },
@@ -388,7 +387,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_brew:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_brisbane:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_brood:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_broodmaster:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_broodpit:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_bucky:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_burrow:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -576,7 +574,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_wildscript:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_wrangler:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_yazzus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_zoo:combat': { policy: 'foldedCue', family: 'combatModifier' },
 

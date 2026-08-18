@@ -19,9 +19,9 @@ const shop = (...ids: string[]) => ids.map((cardId, i) => ({ uid: `s${i}`, cardI
 describe('set 2 — the Demon tribe is wired into the set', () => {
   it('demon is a playable set-2 tribe and its cards are in the pool', () => {
     const s2 = poolFor('set2');
-    expect(s2.all.some((c) => c.id === 'dm_clerk')).toBe(true);
+    expect(s2.all.some((c) => c.id === 'dm_hungerling')).toBe(true);
     const demons = s2.buyable.filter((c) => c.id.startsWith('dm_'));
-    expect(demons.length).toBeGreaterThan(15);
+    expect(demons.length).toBeGreaterThan(10);
     expect(demons.every((c) => c.tribe === 'demon')).toBe(true);
     // …and none of them leaked into set 1.
     const s1 = new Set(poolFor('set1').all.map((c) => c.id));
@@ -197,15 +197,15 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   it('an eaten minion RETURNS to the shared pool', () => {
     // It's destroyed, not owned — same as an unbought offer on a reroll. Without this, eight eating Demons drain
     // the run's pool permanently.
-    // `dm_wrangler` (a set-2 BUYABLE) rather than the set-1 sandbag: with set 2 live, `returnToPool` only
+    // `dm_hungerling` (a set-2 BUYABLE) rather than the set-1 sandbag: with set 2 live, `returnToPool` only
     // credits cards the run's pinned pool actually contains — and tokens (stray) are never pooled.
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('dm_wrangler'),
+      board: [], hand: [minion('cc', 'dm_clerk', 1, 1)], shop: shop('dm_hungerling'),
     };
-    const before = s.pool['dm_wrangler'] ?? 0;
+    const before = s.pool['dm_hungerling'] ?? 0;
     s = reduce(s, { type: 'play', uid: 'cc' });
-    expect(s.pool['dm_wrangler'] ?? 0).toBe(before + 1);
+    expect(s.pool['dm_hungerling'] ?? 0).toBe(before + 1);
   });
 
   it('does NOT feed the FODDER tallies — a Shop minion is not Fodder', () => {
@@ -350,12 +350,14 @@ describe('set 2 — the Imp line (combat)', () => {
 });
 
 describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
-  it('all 20 roster cards are in the set', () => {
+  it('all 14 roster cards are in the set', () => {
     // 20: Pit Drillmaster went 2026-07-26, the Captain 2026-07-27, Riot Caller 2026-07-29 (all owner cuts).
     // 20 → 19 on 2026-08-04: Rouge Rogue (dm_chancellor) moved to the MINION ARCHIVE (cards/archive.ts) —
     // still in CARD_INDEX for saved runs, in no set.
     // 19 → 20 on 2026-08-14: Grobbus (`dm_grobbus`) joined the roster.
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(20);
+    // 20 → 14 on 2026-08-18: dm_clerk, dm_wrangler, dm_broodwright, dm_avarice, dm_vhal, dm_overseer
+    // archived to ARCHIVED_CARDS (still in CARD_INDEX for saved runs, in no set).
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(14);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });

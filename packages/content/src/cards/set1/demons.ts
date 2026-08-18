@@ -237,16 +237,16 @@ export const DEMONS: CardDef[] = [
     id: 'impoverseer',
     name: 'Imp Overseer',
     tribe: 'demon',
-    tier: 3,
-    attack: 3,
-    health: 3,
+    tier: 2,
+    attack: 1,
+    health: 2,
     keywords: [],
     effects: [
-      { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } },
+      { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 1 } },
       { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
     ],
-    text: '**Battlecry:** Your Imps have **+2/+2** wherever they are. **Echo:** summon an Imp.',
-    goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are. **Echo:** summon 2 Imps.',
+    text: '**Shout:** Your Imps gain **+2/+1** this game. **Echo:** summon an Imp.',
+    goldenText: '**Shout:** Your Imps gain **+4/+2** this game. **Echo:** summon 2 Imps.',
   },
   {
     // Bleed engine: at Start of Combat it MARKS 2 enemies (golden marks 4); every 4 attacks in the fight (either

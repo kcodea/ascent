@@ -60,8 +60,8 @@ export const SET2_DWARVES: CardDef[] = [
     name: 'Wardkeeper',
     tribe: 'dwarf',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 6,
+    health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpellPowerRun', params: { attack: 1, health: 0 } }],
     text: '**Shout:** your **Shop spells** gain **+1 Attack**.',
@@ -93,21 +93,6 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Cleave**.',
   },
   {
-    // Rides the existing "on spell cast, buff N random of a tribe" channel — the Dwarves' reward for the
-    // Dragon/spell half of set 2.
-    id: 'dw_runekeg',
-    name: 'Runekeg',
-    tribe: 'dwarf',
-    tier: 3,
-    attack: 2,
-    health: 4,
-    keywords: [],
-    // `excludeSelf` (owner 2026-07-31): "Other Dwarves" — the keg fuels the crew, never itself.
-    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'dwarf', count: 2, attack: 2, health: 1, excludeSelf: true } }], // owner balance 2026-08-04: +2/+2 → +2/+1
-    text: 'When you cast a **Shop spell**, give **2 random other** friendly **Dwarves +2/+1**.',
-    goldenText: 'When you cast a **Shop spell**, give **2 random** friendly **Dwarves +4/+2**.',
-  },
-  {
     // Targeted Shout: the target arrives on the payload via `applyBattlecryTarget`. Its magnitude is live, so
     // shopping BEFORE playing it is the play — and the printed number has to fold that in (see `cardText`).
     id: 'dw_dorrin',
@@ -135,20 +120,6 @@ export const SET2_DWARVES: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
     text: '**End of Turn:** give your **left-most Dwarf +1/+2** per card played this turn.',
     goldenText: '**End of Turn:** give your **left-most Dwarf +2/+4** per card played this turn.',
-  },
-  {
-    // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
-    // "carries over through combat" true without extra wiring.
-    id: 'dw_chirurgeon',
-    name: 'Ayves', // renamed from Chirurgeon (owner 2026-07-31); the id stays — saved runs store ids
-    tribe: 'dwarf',
-    tier: 5,
-    attack: 5,
-    health: 5,
-    keywords: [],
-    effects: [{ on: 'cardsBought', do: 'cardsBoughtGrantRandomSpell', params: { every: 3, count: 1 } }],
-    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
-    goldenText: 'Every **3 cards** you buy, get **2** random **Shop spells**.',
   },
   {
     // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.

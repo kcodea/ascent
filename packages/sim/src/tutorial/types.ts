@@ -255,6 +255,12 @@ export interface TutorialTurn {
   omenBoard: TutorialOmenMinion[];
   /** Shop offers: index 0 is the initial roll, 1+ are successive refreshes. */
   shopRolls: TutorialShopRoll[];
+  /** Force the PLAYER to strike first this round (so, e.g., a Rally minion visibly buffs before it swings).
+   *  Omitted = the normal rule (more minions goes first; a tie is a seeded coin flip). */
+  playerAttacksFirst?: boolean;
+  /** Force the enemy's FIRST swing onto the player minion holding this card id (if alive), wherever it's
+   *  placed — so a scripted death lesson (T-Rex dies → its Echo fires) always lands. Tutorial only. */
+  forceEnemyFirstTargetCard?: string;
   steps: TutorialStep[];
 }
 

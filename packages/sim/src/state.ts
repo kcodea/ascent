@@ -722,6 +722,12 @@ export interface RunState {
   /** Which roll of the current wave the scripted shop is on — 0 at turn start, +1 per refresh; reset on wave
    *  advance. Reads `tutorialShopScript[wave-1][tutorialShopRoll]`. Absent = 0. */
   tutorialShopRoll?: number;
+  /** Tutorial only: per-wave flag forcing the PLAYER to strike first (index = wave − 1), so a Rally minion
+   *  visibly buffs before it swings. Read into the combat config at `faceOmen`. Absent = the normal rule. */
+  tutorialAttackFirst?: boolean[];
+  /** Tutorial only: per-wave card id to force the enemy's FIRST swing onto (index = wave − 1); '' or absent =
+   *  normal random targeting. Read into the combat config at `faceOmen`. */
+  tutorialForceEnemyTarget?: string[];
   /** Gambler (Dice): the face most recently rolled, and the wave it was rolled on. Display-only — the panel
    *  keeps showing the number for the REST OF THAT TURN (owner ruling 2026-08-16) instead of snapping back the
    *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */

@@ -2011,6 +2011,10 @@ export interface CombatConfig {
   playerAttacksFirst?: boolean;
   /** Rallying Offensive: the player's Rally triggers fire twice this fight. */
   playerRallyDouble?: boolean;
+  /** TUTORIAL ONLY: force the enemy's FIRST attack to target the player minion with this card id, if one is
+   *  alive — so a scripted lesson (e.g. "the enemy kills your T-Rex, watch its Echo fire") lands no matter
+   *  where the player placed it. Ignored in every real run; targeting is otherwise random. */
+  forceEnemyFirstTargetCard?: string;
 }
 
 export interface CombatResult {

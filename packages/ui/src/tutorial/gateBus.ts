@@ -48,11 +48,13 @@ export function gateBlocks(action: Action, run?: RunState): { blocked: boolean; 
   if (!gate) return { blocked: false };
   if (ALWAYS_ALLOWED.has(action.type)) return { blocked: false };
   if (!gate.allowedActionKinds.includes(action.type)) return { blocked: true, reason: gate.reason };
-  // Per-card restriction: on a "buy X" / "play X" step, only the highlighted card is allowed through.
-  if (gate.allowedCardId && run && (action.type === 'buy' || action.type === 'play') && 'uid' in action) {
-    const zone = action.type === 'buy' ? run.shop : run.hand;
+  // Per-card restriction: on a "buy X" / "play X" / "sell X" step, only the highlighted card is allowed through.
+  if (gate.allowedCardId && run && (action.type === 'buy' || action.type === 'play' || action.type === 'sell') && 'uid' in action) {
+    const zone = action.type === 'buy' ? run.shop : action.type === 'sell' ? run.board : run.hand;
     const cardId = zone.find((c) => c.uid === action.uid)?.cardId;
-    if (cardId !== gate.allowedCardId) {
+    // A sell can target a board OR hand minion; fall back to hand if not found on the board.
+    const resolved = cardId ?? run.hand.find((c) => c.uid === (action as { uid: string }).uid)?.cardId;
+    if (resolved !== gate.allowedCardId) {
       return { blocked: true, reason: 'That is not the highlighted minion — follow the spotlight.' };
     }
   }

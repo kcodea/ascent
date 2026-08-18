@@ -104,7 +104,7 @@ function allowedKindsFor(step: TutorialStep): string[] {
 /** The specific card a buy/play step is restricted to (so the player can't buy a different offered minion). */
 function allowedCardFor(step: TutorialStep): string | undefined {
   const c = step.completion;
-  return c.kind === 'bought' || c.kind === 'played' ? c.cardId : undefined;
+  return c.kind === 'bought' || c.kind === 'played' || c.kind === 'sold' ? c.cardId : undefined;
 }
 
 /** Which run phase a step expects to be shown in, so its spotlight never resolves against a screen that isn't

@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-17 — FTUE combat tuning: scripted first-strike, guaranteed Echo death, and a board-space lesson
+
+Four tutorial-combat fixes so the R1/R3/R7 lessons land deterministically. All levers are **tutorial-only**
+(guarded on `mode === 'tutorial'` / driven by per-turn course data), so real runs are untouched.
+
+- **Fixed run seed.** `startTutorial` now seeds every Learn Ascent run with a constant (was `randomSeed()`),
+  so its combats play out identically each time — the scripted lessons can rely on the outcome. Shop is
+  scripted regardless of seed, so pinning it costs nothing.
+- **R1 — force the player to swing first** (`TutorialTurn.playerAttacksFirst` → `RunState.tutorialAttackFirst`
+  → combat `config.playerAttacksFirst`). The lone Packstrider's Rally fires on its own attack, so making the
+  player strike first shows the Rally buff land before the round ends.
+- **R3 — guarantee the T-Rex dies for the Echo payoff** (`TutorialTurn.forceEnemyFirstTargetCard` →
+  `RunState.tutorialForceEnemyTarget` → new `CombatConfig.forceEnemyFirstTargetCard`). Combat targeting is
+  random/position-independent, so a new tutorial-only config steers the enemy's FIRST swing onto the flagged
+  card (T-Rex) wherever the player placed it. The R3 enemy board is re-tuned so both minions hit for 3 (enough
+  to one-shot the 3/3 T-Rex) and survive the player's opening swing, so whichever makes the first attack does
+  the job. T-Rex dies → its Echo summons a Baby into the freed slot.
+- **R7 — teach board space** (owner: a full 7-board can't summon). Playing Echohorn fills the board to 7, so
+  its Rally→Echo re-fire has nowhere to land. New `r7-makeroom` step: sell Imp Wrangler to open a slot (its
+  tooltip explains the full-board rule), *then* the engine fires. Extended the action gate to lock a **sell**
+  to a specific card (previously only buy/play were card-locked).
+
+Copy: removed the inaccurate "the strongest minions" line from R6's "Reach Tier 3" step.
+
+Gates: typecheck, lint (0 errors), 5560 tests, `build:web` — all green.
+
 ## 2026-08-17 — FTUE rounds 5–7: the synergy arc (Shout, Start of Combat, the build coming together)
 
 Extends Learn Ascent from 4 to 7 rounds — the first *synergy* teaching, where the fundamentals start combining

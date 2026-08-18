@@ -290,7 +290,7 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-tavern',
     phase: 'shop', focusMode: 'action', title: 'Reach Tier 3',
-    body: 'Upgrade your Tavern to Tier 3. It unlocks the strongest minions — including the piece that ties your board together.',
+    body: 'Upgrade your Tavern to Tier 3 — it unlocks the piece that ties your board together.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 3 },
@@ -308,7 +308,7 @@ const round7Steps: TutorialStep[] = [
   {
     id: 'r7-buy',
     phase: 'shop', focusMode: 'action', title: 'The Keystone',
-    body: 'Buy Echohorn. When it attacks, its Rally triggers your LEFT-MOST Echo minion — free extra bodies mid-fight.',
+    body: 'Buy Echohorn. When it attacks, its Rally re-fires your LEFT-MOST Echo minion — a free extra body mid-fight.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }],
     gate: 'hard', lessonId: 'buy_minion',
     completion: { kind: 'bought', cardId: CARD_IDS.echohorn },
@@ -316,22 +316,31 @@ const round7Steps: TutorialStep[] = [
   {
     id: 'r7-play',
     phase: 'shop', focusMode: 'action', title: 'Play Echohorn',
-    body: 'Play Echohorn onto your board. Now the placement matters.',
+    body: 'Play Echohorn onto your board. That fills all seven slots — your board is now full.',
     anchors: [{ kind: 'ui', id: 'warband' }],
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.echohorn },
   },
   {
+    id: 'r7-makeroom',
+    phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
+    body: 'A full board of 7 has no open slot — so summons have nowhere to land. Echohorn re-fires T-Rex’s Echo to summon a Baby, but with 7 minions it fizzles. Sell Imp Wrangler to open a slot.',
+    why: 'Board space is a resource: leave room when your plan relies on summoning new minions.',
+    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.wrangler }],
+    gate: 'hard', lessonId: 'replace_on_full_board',
+    completion: { kind: 'sold', cardId: CARD_IDS.wrangler },
+  },
+  {
     id: 'r7-position',
     phase: 'shop', focusMode: 'action', title: 'Position for Synergy',
-    body: 'Drag T-Rex to the LEFT-most slot. Echohorn triggers your left-most Echo — so put your Echo minion there.',
+    body: 'Drag T-Rex to the LEFT-most slot. Echohorn re-fires your left-most Echo — so put your Echo minion there.',
     why: 'Position decides which effects fire. Line up your pieces and the board becomes an engine.',
     anchors: [{ kind: 'ui', id: 'warband' }],
     gate: 'hard', lessonId: 'reorder_minion',
     completion: { kind: 'reordered' },
   },
-  endTurnStep('r7-end', 'Your engine is set. End the turn and watch it fire.'),
-  combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, Start of Combat — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
+  endTurnStep('r7-end', 'Your engine is set, with a slot free to summon into. End the turn and watch it fire.'),
+  combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, positioning, board space — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
 ];
 
 const turns: TutorialTurn[] = [
@@ -341,6 +350,9 @@ const turns: TutorialTurn[] = [
     combatSeed: 'learn-ascent-r1',
     // A deliberately weak board so the coached first fight is a clean win.
     omenBoard: [{ attack: 1, health: 3 }],
+    // Force the PLAYER to swing first so the Packstrider's Rally visibly fires (it buffs on its own attack)
+    // before the round is over — the whole point of Round 1's lesson.
+    playerAttacksFirst: true,
     shopRolls: [
       // All Tier 1, so a Tier-1 shop offers them: Packstrider (the buy), plus two honest bodies.
       { minions: [ROUND1_BUY, 'k_chipwick', 'dm_wrangler'] },
@@ -363,7 +375,11 @@ const turns: TutorialTurn[] = [
     turn: 3,
     opponentSeatId: 's3',
     combatSeed: 'learn-ascent-r3',
-    omenBoard: [{ attack: 3, health: 3 }, { attack: 2, health: 3 }],
+    // Both enemies hit for 3 (enough to one-shot the 3/3 T-Rex) and are tanky enough to survive the player's
+    // opening swing, so whichever one makes the enemy's first attack does the job. `forceEnemyFirstTargetCard`
+    // then steers that swing onto the T-Rex wherever the player placed it — the Echo lesson always lands.
+    omenBoard: [{ attack: 3, health: 8 }, { attack: 3, health: 5 }],
+    forceEnemyFirstTargetCard: CARD_IDS.trex,
     // Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
     shopRolls: [
       { minions: ['dm_butcher', 'dm_errand', 'k_geode'] },

@@ -1112,10 +1112,15 @@ export const useGame = create<GameStore>((set, get) => ({
       // Build the authored `tutorial` run directly — the course forces its own hero (Aster), so there is no
       // picker to route through (mirrors startSceneBuilder). The omen board table and the scripted shop are
       // derived from the course's turns; the run stamps the course id so a reload rehydrates the coaching.
-      const seed = randomSeed();
+      // A FIXED seed (not `randomSeed()`): the tutorial's combats must play out the SAME way every time so the
+      // scripted lessons hold — e.g. the enemy's first swing must reliably kill the T-Rex to teach Echo. Shop is
+      // scripted regardless of seed, so pinning it costs nothing.
+      const seed = 20260817;
       const authoredBoards = course.turns.map((t) => t.omenBoard);
       const shopScript = course.turns.map((t) => t.shopRolls);
-      const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript);
+      const attackFirst = course.turns.map((t) => !!t.playerAttacksFirst);
+      const forceEnemyTarget = course.turns.map((t) => t.forceEnemyFirstTargetCard ?? '');
+      const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget);
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };

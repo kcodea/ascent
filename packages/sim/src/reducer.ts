@@ -2717,7 +2717,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       });
       // Player-only one-fight rune overrides.
       const config: CombatConfig = {
-        playerAttacksFirst: s.attackFirstNext ?? false, // Forthcoming is a Start-of-Combat strike now, not turn priority
+        playerAttacksFirst:
+          (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
+        forceEnemyFirstTargetCard:
+          s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
         playerRallyDouble: s.rallyDoubleNext ?? false,
       };
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {

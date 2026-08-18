@@ -1084,9 +1084,10 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
     button on the Title. Verified live: launch → foundation panels → lobby intro → buy/play/Preparation/End
     Turn/Rally/win → Round 2.
   - **Phase 1 remaining (follow-ups, not blockers):** the interactive order-demo silhouette drag (a
-    read-and-continue panel stands in today), hard/soft action GATES (steps observe + advance but don't block a
-    wrong action yet), the first-launch welcome prompt (Learn button is the entry today), save/resume
-    mid-course, and rounds 5–12 of authoring.
+    read-and-continue panel stands in today), and rounds 8–12 of authoring. DONE since: hard/soft action gates
+    (now per-card for buy/play AND sell), the first-launch welcome prompt, save/resume mid-course, rounds 5–7,
+    and combat tuning — fixed run seed, R1 forced first-strike (Rally payoff), R3 forced enemy target so T-Rex
+    reliably dies for the Echo payoff, and R7's board-space lesson (sell to open a summon slot).
   - Phases 2–4 author Turns 1–5, 6–10, and autonomy/graduation (~6–8 wk). **Tribe primers (Phases 5–6) and
     Tactical Trials are DEFERRED** — ship Learn Ascent to private testing first.
   - **Blocked design work:** §6.8's three Basic Rune branches need real Rune IDs approved against current

@@ -108,6 +108,8 @@ export function createTutorialRun(
   opponentNames: string[],
   rounds: number,
   shopScript: { minions: string[]; spell?: string }[][],
+  attackFirst?: boolean[],
+  forceEnemyTarget?: string[],
 ): RunState {
   const run = createRun(seed, heroId, 'tutorial');
   // `createRun` already rolled a POOL shop. Attach the scripted shop and re-roll so the turn-1 offer is the
@@ -116,6 +118,8 @@ export function createTutorialRun(
   run.tutorialCourseId = courseId;
   run.tutorialShopScript = shopScript;
   run.tutorialShopRoll = 0;
+  if (attackFirst) run.tutorialAttackFirst = attackFirst;
+  if (forceEnemyTarget) run.tutorialForceEnemyTarget = forceEnemyTarget;
   // GENEROUS GOLD: a tutorial is not an economy puzzle. Give the max (10) every turn so every coached action —
   // a buy AND a tavern-up in one round — is always affordable; the action gate stops the player over-spending.
   run.maxEmbers = 10;

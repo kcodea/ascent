@@ -1,5 +1,6 @@
 import './styles.css';
 import './boardConfig'; // side-effect: apply the saved arena-board pick to --board before first paint
+import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { EndScreen } from './EndScreen';

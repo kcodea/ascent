@@ -51,6 +51,20 @@
      1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
      button offsets were tuned against. */
   --board-fill: 1;
+  /* Ultrawide side-blend (owner ask 2026-08-18). The 16:9 default board can't fill a window WIDER than 16:9, so
+     the bare `--bg` (#8c857a tan) shows in the side margins there — see `.boardbg`, which lays a `--board-edge-col`
+     gradient over those margins that fades INTO the art edges so the two meet seamlessly. `--board-edge-col` is
+     the ambient the art's edges sit in; `--board-edge-fade` is how far (design px, × --scale) the blend reaches
+     into the art from each edge. `--board-edge-col-0` is that SAME colour at 0 alpha — used for the fade's inner
+     stop so it doesn't interpolate through transparent-black and leave a grey fringe; keep it in sync with the
+     colour. Self-gating: the blend's edges are pinned to the art's real edges, which on a ≤16:9 window sit
+     off-screen (the art overspills), so the whole visible strip computes transparent and this costs nothing
+     until the window is actually wider than the art. Live-tunable via the 🌫️ Board Edge dev tuner
+     (`boardEdgeConfig.ts`), which overrides these on `:root` at runtime; keep these values in sync with its
+     DEFAULTS (they are the pre-JS / no-JS paint). */
+  --board-edge-col: #312361;
+  --board-edge-col-0: rgb(49 35 97 / 0);
+  --board-edge-fade: 186px;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -166,9 +180,25 @@ canvas.spr { image-rendering: pixelated; display: block; }
      shows the band again — bump `--board-fill`, and re-check the four button offsets, which are tuned against
      that exact art size. The 16:9 DEFAULT board has no such surplus: anything wider than 16:9 shows the side
      margins, by design (see `--board` above). */
+  /* The art's on-screen WIDTH, and its left/right edge X (centred, plus the same `--board-x` nudge the art
+     layer uses). Shared so the side-blend's fade points can't drift from the art edges — change the size
+     formula here and both move together. */
+  --_board-w: calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132));
+  --_board-l: calc(50% - var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
+  --_board-r: calc(50% + var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
+  --_board-fade: calc(var(--board-edge-fade) * var(--scale));
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
+    /* Side-blend: solid `--board-edge-col` across each margin, fading into the art by `--_board-fade`. On a
+       ≤16:9 window `--_board-l`/`--_board-r` are off-screen, so the visible strip is entirely transparent. */
+    linear-gradient(to right,
+      var(--board-edge-col) 0,
+      var(--board-edge-col) var(--_board-l),
+      var(--board-edge-col-0) calc(var(--_board-l) + var(--_board-fade)),
+      var(--board-edge-col-0) calc(var(--_board-r) - var(--_board-fade)),
+      var(--board-edge-col) var(--_board-r),
+      var(--board-edge-col) 100%),
+    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the

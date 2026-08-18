@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { buildAuthoredTimeline, rampSpeed, type CombatRampConfig } from './combatRampConfig';
+import { loadCombatRampUp } from './store';
 
 const CFG: CombatRampConfig = { graceMs: 2000, rampUpMs: 4000, ceiling: 3, tailMs: 5000 };
 const FAR = 1_000_000; // "lots of time left" — keeps the down-curve pinned at ceiling
@@ -72,5 +73,25 @@ describe('buildAuthoredTimeline', () => {
     const t = buildAuthoredTimeline<number>([], () => 0, 100);
     expect(t.totalMs).toBe(100);
     expect(t.remainingAt(0)).toBe(100);
+  });
+});
+
+describe('loadCombatRampUp', () => {
+  const realLS = globalThis.localStorage;
+  afterEach(() => { (globalThis as { localStorage?: unknown }).localStorage = realLS; });
+
+  it('defaults to true when nothing is stored', () => {
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => null } as unknown as Storage;
+    expect(loadCombatRampUp()).toBe(true);
+  });
+
+  it('reads a stored "false"', () => {
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => 'false' } as unknown as Storage;
+    expect(loadCombatRampUp()).toBe(false);
+  });
+
+  it('reads a stored "true"', () => {
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => 'true' } as unknown as Storage;
+    expect(loadCombatRampUp()).toBe(true);
   });
 });

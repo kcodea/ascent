@@ -139,8 +139,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_chorus',
     name: 'Rune of the Chorus',
     cost: 3,
-    text: 'When you trigger **3 Shouts**, get a random **Shop spell**.',
-    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantSpell: 1 },
+    text: 'When you trigger **4 Shouts**, get a random **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 4, grantSpell: 1 },
   },
   {
     id: 'rune_overtime',
@@ -205,7 +205,7 @@ export const RUNES: RuneDef[] = [
     // the first 2 Rubies immediately (the recurringEndOfTurn Ruby effects fire once on purchase).
     id: 'rune_resonance',
     name: 'Rune of Resonance',
-    cost: 1,
+    cost: 3,
     text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn', firstN: 2 }, { kind: 'recurringEndOfTurn', effect: 'grantRuby2' }] },
@@ -215,7 +215,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_investment',
     name: 'Rune of Investment',
     cost: 3, // owner balance 2026-08-04
-    text: 'Get **2 Rubies** when you **sell** a minion.',
+    text: 'Get **2 Rubies** when you **sell 2 minions**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2'], // Rubies
@@ -332,7 +332,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_pair',
     name: 'Rune of the Pair',
-    cost: 3,
+    cost: 5,
     text: 'Get **2 random Tier 4 minions**.',
     reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
   },
@@ -375,9 +375,9 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Gemcutting',
     cost: 1, // 4 → 1 (owner 2026-08-02)
     // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
-    text: 'Get **7 Rubies** that give **+3/+3**.',
+    text: 'Get **5 Rubies** that give **+3/+3**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'mintRubies', count: 7, attack: 3, health: 3 },
+    reward: { kind: 'mintRubies', count: 5, attack: 3, health: 3 },
     sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
@@ -850,7 +850,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_restocking',
     name: 'Rune of Restocking',
     cost: 3,
-    text: 'The first minion you **buy** each turn refills its Shop slot with a minion of the same **Tier** that costs **1 Gold**.',
+    text: 'The first minion you **buy** each turn refills its Shop slot with a minion of the same **Tier** that costs **2 Gold**.',
     reward: { kind: 'runeRestocking' },
   },
   {
@@ -864,7 +864,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_window_shopping',
     name: 'Rune of Window Shopping',
     cost: 3,
-    text: 'Your first **4 Refreshes** each turn are **free**.',
+    text: 'Your first **3 Refreshes** each turn are **free**.',
     reward: { kind: 'runeWindowShopping' },
   },
   {
@@ -1555,7 +1555,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // and spends the Grimoire charge, so reusing that function would double-fire every "every 3 casts" card.
     id: 'rune_spellstone',
     name: 'Rune of the Spellstone',
-    cost: 6,
+    cost: 3,
     epic: true,
     // Owner ask 2026-08-14: "counts as a Shop spell" now means it too — a Ruby picks up your Shop-spell buffs
     // on top of your Ruby buffs, and everything downstream of a Ruby's stats inherits that (combat-played
@@ -1906,7 +1906,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Vaultkeeper',
     cost: 5,
     epic: true,
-    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** also give their stats to an adjacent minion.',
+    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** also give their stats to an adjacent **Dragon**.',
     previewCards: ['d2_herzog'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_herzog'] }, { kind: 'runeVaultkeeper' }] },
     sets: ['set2'],

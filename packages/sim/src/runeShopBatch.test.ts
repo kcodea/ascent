@@ -18,11 +18,14 @@ describe('Rune of Investment — selling mints Rubies', () => {
   const pack = CARD_INDEX['pack']!;
   const onBoard = (): BoardCard => ({ uid: 'x', cardId: 'pack', tribe: pack.tribe, attack: pack.attack, health: pack.health, keywords: [], golden: false });
 
-  it("mints at the run's live Ruby strength, not a base copy", () => {
-    const s: RunState = { ...set2(), runeSellRubies: 2, rubyBonus: { attack: 5, health: 5 }, board: [onBoard()], hand: [] };
-    const next = reduce(s, { type: 'sell', uid: 'x' });
-    expect(rubies(next), 'selling did not mint the Rubies').toBe(2);
-    expect(next.hand.find((c) => c.cardId === RUBY_ID)!.attack, 'minted at base instead of live strength')
+  it("mints every 2 minions sold, at the run's live Ruby strength (owner balance 2026-08-18)", () => {
+    const s: RunState = { ...set2(), runeSellRubies: 2, rubyBonus: { attack: 5, health: 5 },
+      board: [onBoard(), { ...onBoard(), uid: 'y' }], hand: [] };
+    const after1 = reduce(s, { type: 'sell', uid: 'x' });
+    expect(rubies(after1), 'the first sell alone must not mint').toBe(0);
+    const after2 = reduce(after1, { type: 'sell', uid: 'y' });
+    expect(rubies(after2), 'the second sell mints the payout').toBe(2);
+    expect(after2.hand.find((c) => c.cardId === RUBY_ID)!.attack, 'minted at base instead of live strength')
       .toBe(CARD_INDEX[RUBY_ID]!.attack + 5);
   });
 
@@ -104,7 +107,7 @@ describe('Rune of Resonance — both halves', () => {
 describe('the five runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Resonance', 1, false], ['Rune of Investment', 3, false], // Investment 1 → 3 (owner balance 2026-08-04)
+      ['Rune of Resonance', 3, false], ['Rune of Investment', 3, false], // Resonance 1 → 3 (owner balance 2026-08-18); Investment 1 → 3 (owner balance 2026-08-04)
       ['Rune of the Open Market', 2, true], ['Rune of Runic Exchange', 2, true],
       // Rune of the Brokerage moved to the RUNE ARCHIVE 2026-08-04 (with Ruby Broker) — asserted below.
     ];

@@ -122,9 +122,17 @@ export function shopBuffImproveText(cardId: string, summonBonus: number, golden 
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'buffShopPermanent' && (e.params as { improve?: number } | undefined)?.improve);
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const params = eff.params as { attack?: number; alternate?: boolean };
+  const base = Number(params?.attack ?? 1);
   const m = (base + summonBonus) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
+  // Soul Defiler (owner balance 2026-08-18): a SINGLE-stat buff that alternates Attack (even triggers) /
+  // Health (odd) each round, printed as "**+N Attack**". Fold in the live magnitude AND the stat it will hit
+  // next, so the printed value never goes stale (the hard live-text rule).
+  if (params?.alternate) {
+    const stat = summonBonus % 2 === 0 ? 'Attack' : 'Health';
+    return src.replace(/\*\*\+\d+ (?:Attack|Health)\*\*/, `{{+${m} ${stat}}}`);
+  }
   // Replace only the FIRST magnitude — the second is the "improves by" step, which does not change.
   return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
 }

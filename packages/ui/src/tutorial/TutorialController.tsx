@@ -177,6 +177,10 @@ export function TutorialController(): JSX.Element | null {
   const combatEventsRef = useRef<TutorialSemanticEvent[]>([]);
   // A transient nudge shown when the player tries a gated action (e.g. End Turn mid-lesson).
   const [nudge, setNudge] = useState<string | null>(null);
+  // A `dismissible` step's panel can be hidden with "Got it" (the free-play rounds) — cleared whenever the step
+  // changes so the next step's panel always shows.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => { setDismissed(false); }, [cursor]);
 
   const record = useCallback((e: TutorialSemanticEvent) => {
     sawEverRef.current.add(e.type);
@@ -318,27 +322,31 @@ export function TutorialController(): JSX.Element | null {
     const noScrim = !combatAnimating && !!step.noScrim;
     const clearScreen = combatAnimating || noScrim;
     const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
+    // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
+    // else (no scrim, gate still open) so they can play until they End Turn.
+    const panelDismissed = !!step.dismissible && dismissed;
     return {
       cutouts: clearScreen ? [] : cutouts,
       connector: combatAnimating ? undefined : connector,
       combat: step.phase === 'combat',
       dim: clearScreen ? 0 : undefined,
-      panel: {
+      panel: panelDismissed ? undefined : {
         anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
         title: step.title,
         body: step.body,
         why: step.why,
         focusMode: step.focusMode,
-        // Observe-only steps with an `always` completion get a Next button; gated steps advance on their action.
-        onNext: step.completion.kind === 'always' ? () => advance(step) : undefined,
-        nextLabel: 'Continue',
+        // Dismissible steps get a "Got it" that HIDES the panel (no advance); observe-only `always` steps get a
+        // Continue that advances; gated steps advance on their action (no button).
+        onNext: step.dismissible ? () => setDismissed(true) : (step.completion.kind === 'always' ? () => advance(step) : undefined),
+        nextLabel: step.dismissible ? 'Got it' : 'Continue',
         step: cursor + 1,
         total: items.length,
       },
     };
     // `events`/`inspect` intentionally excluded from deps — re-measuring is driven by run/step/window, not by
     // every recorded event (which would thrash layout reads during combat).
-  }, [isTutorial, current, run, cursor, items.length, advance]);
+  }, [isTutorial, current, run, cursor, items.length, advance, dismissed]);
 
   if (!isTutorial) return null;
   return (

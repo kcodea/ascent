@@ -74,11 +74,11 @@ describe('Vaultkeeper — scales with SPELLS (Shop Spells + Rubies)', () => {
       ...over,
     } as RunState);
 
-    // 0 casts → base +1/+1. 4 RUBIES alone → step 1 → +2/+2.
+    // 0 casts → base +2/+2. 4 RUBIES alone → step 1 → +4/+4. (owner balance 2026-08-18: base 1 → 2)
     const noneAfter = reduce(mk({ spellsCast: 0, rubyCasts: 0 }), { type: 'play', uid: 'd', toIndex: 1 });
     const rubyAfter = reduce(mk({ spellsCast: 0, rubyCasts: 4 }), { type: 'play', uid: 'd', toIndex: 1 });
     const gain = (s: RunState): number => s.board.find((c) => c.uid === 'v')!.attack - 7;
-    expect(gain(noneAfter), 'no casts → base grant').toBe(1);
-    expect(gain(rubyAfter), '4 Rubies advance a step, exactly like 4 Shop Spells').toBe(2);
+    expect(gain(noneAfter), 'no casts → base grant').toBe(2);
+    expect(gain(rubyAfter), '4 Rubies advance a step, exactly like 4 Shop Spells').toBe(4);
   });
 });

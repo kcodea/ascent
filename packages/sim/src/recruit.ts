@@ -3005,12 +3005,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!played || played.uid === self.uid || !isTribe(played, tribe as never)) return;
     const casts = (ctx.state.spellsCast ?? 0) + (ctx.state.rubyCasts ?? 0);
     const step = Math.floor(casts / Math.max(1, num(params.per, 4)));
-    const grant = (num(params.base, 1) + step) * gold(self);
+    const grant = num(params.base, 1) * (1 + step) * gold(self); // step scales with base (base 1 = old +1/step; base 2 = +2/step)
     addBuff(self, nameOf(self), grant, grant);
     // Rune of the Vaultkeeper: ALSO give the same grant to an adjacent minion (a seeded pick when both exist).
     if (ctx.state.runeVaultkeeper) {
       const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
-      const neighbours = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+      const neighbours = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]
+        .filter((c): c is BoardCard => !!c && isTribe(c, 'dragon' as never)); // owner 2026-08-18: adjacent DRAGONS only
       if (neighbours.length > 0) {
         const rng = makeRng(ctx.state.rngCursor);
         const target = neighbours[rng.int(neighbours.length)]!;
@@ -3113,13 +3114,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  accrual, so it survives combats and shows in the inspect breakdown. Golden starts doubled AND improves
    *  doubled, which is why the step is multiplied too. */
   buffShopPermanent: (ctx, self, params) => {
-    const a = (num(params.attack, 1) + (self.summonBonus ?? 0)) * gold(self);
-    const h = (num(params.health, 1) + (self.summonBonus ?? 0)) * gold(self);
+    const bonus = self.summonBonus ?? 0;
+    let a: number; let h: number;
+    if (params.alternate) {
+      // Soul Defiler: pump ONE stat, alternating Attack (even triggers) / Health (odd) each round, the amount
+      // growing with `summonBonus`. `attack` seeds the starting magnitude for both stats.
+      const amt = (num(params.attack, 1) + bonus) * gold(self);
+      const toAttack = bonus % 2 === 0;
+      a = toAttack ? amt : 0;
+      h = toAttack ? 0 : amt;
+    } else {
+      a = (num(params.attack, 1) + bonus) * gold(self);
+      h = (num(params.health, 1) + bonus) * gold(self);
+    }
     ctx.state.tavernBuyBonus.atk += a;
     ctx.state.tavernBuyBonus.hp += h;
     buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
     const step = num(params.improve, 0);
-    if (step > 0) self.summonBonus = (self.summonBonus ?? 0) + step;
+    if (step > 0) self.summonBonus = bonus + step;
   },
 
   /** Set 2 — Market Tormentor (Shout, owner spec 2026-07-31): the right-most Shop SLOT gets +4/+4 for the rest
@@ -3991,7 +4003,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Hoard Chronicler (Shout): add `count` random Tavern spells to hand (golden doubles). The Shout
    *  twin of `deathrattleGrantRandomSpell`; same pool + hand-cap handling via `conjureToHand`. */
   battlecryGrantRandomSpell: (ctx, self, params) => {
-    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+    // `tier` pins an EXACT tier (Scalefeather → a Tier-1 spell); without it, any spell up to the tavern tier.
+    const exact = params.tier != null ? num(params.tier, 1) : null;
+    const pool = poolOf(ctx.state).spells.filter((c) => (exact != null ? c.tier === exact : c.tier <= ctx.state.tier));
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
   /** Set 2 — Mushy (Echo), recruit half: Ryme (or another re-trigger) can fire this in the shop.
@@ -4124,7 +4139,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the same reason — the spread re-enters `castSpell`, and only the pre-bumped counter stops the recursion.
    *  Never re-casts on ITSELF (that would double-dip the original cast), so it no-ops on a lone board. */
   onSpellCastOnThisSpreadRandom: (ctx, self, params, payload) => {
-    if (self.spellsOnThisTurn !== 1) return;
+    if (((self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0)) !== 1) return; // once/turn — spell OR Ruby, whichever lands first
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
     const others = ctx.state.board.filter((c) => c.uid !== self.uid);
@@ -4164,6 +4179,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the same permanent stat buff the Ruby just gave — the Ruby's own resolution, repeated on the neighbour,
    *  including that neighbour's own `onRubyPlayed` watchers (Ruby Broker's Gold), because a spread Ruby is a
    *  Ruby landing on it. */
+  /** Reflector: a RUBY played on this ALSO plays on a random other friendly (owner 2026-08-18 — the card says
+   *  "Spells", and a Ruby is a spell-like cast that never routed through `castSpell`, so it needed its own hook).
+   *  Shares the once-per-turn budget with the spell bounce via the combined spells+rubies count. */
+  onRubyPlayedSpreadRandom: (ctx, self, params, payload) => {
+    if (((self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0)) !== 1) return;
+    const a = num(payload.rubyAttack, 0);
+    const h = num(payload.rubyHealth, 0);
+    if (a <= 0 && h <= 0) return;
+    const others = ctx.state.board.filter((c) => c.uid !== self.uid);
+    if (others.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const pick = others[rng.int(others.length)]!;
+    ctx.state.rngCursor = rng.state();
+    for (let r = 0; r < num(params.count, 1) * gold(self); r++) {
+      addBuff(pick, 'Ruby', a, h);
+      fireOnRubyPlayed(ctx.state, pick, a, h);
+    }
+  },
+
   onRubyPlayedSpreadAdjacent: (ctx, self, params, payload) => {
     const landed = (self.spellsOnThisTurn ?? 0) + (self.rubiesOnThisTurn ?? 0);
     if (landed !== 1) return; // only the first spell-or-Ruby on this body each turn

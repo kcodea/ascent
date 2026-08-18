@@ -183,11 +183,11 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
   });
 
   it('several consumes in ONE action all animate', () => {
-    // The other half: clearing per action must not clear WITHIN one. Malphas' Feast makes EACH of your Demons
-    // Consume a Shop minion, so one End of Turn produces several consumes — they must all be recorded.
+    // The other half: clearing per action must not clear WITHIN one. Two End-of-Turn eaters (Bob Blarts) each
+    // Consume a Shop minion, so one applyEndOfTurn produces several consumes — they must all be recorded.
     const s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [minion('L', 'dm_clerk', 1, 1), { ...minion('M', 'dm_malphas', 10, 6), chosenOption: 0 }, minion('R', 'dm_butcher', 2, 3)],
+      board: [minion('L', 'dm_gourmand', 5, 4), minion('R', 'dm_gourmand', 5, 4)],
       hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
     };
     applyEndOfTurn(s);
@@ -266,12 +266,12 @@ describe('set 2 — Contract Butcher / Soul Defiler buff the shop', () => {
       board: [minion('c', 'dm_curator', 5, 3)], hand: [], shop: shop('sandbag'),
     };
     applyEndOfTurn(s);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 1]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 0]); // trigger 1: +1 Attack (even trigger)
     applyEndOfTurn(s);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([3, 3]); // +1 then +2 — it escalated
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 2]); // trigger 2: +2 Health (odd trigger) — it escalated and swapped
     // A brand-new shop still carries it, which the per-offer version could not do.
     s.shop = shop('alley');
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([3, 3]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 2]);
   });
 });
 
@@ -397,14 +397,14 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(imps.length, 'gilded summons 2 per threshold').toBe(2);
   });
 
-  it('Malphas offers a Choose One with both halves', () => {
-    // Asserted on the MECHANIC, not the flavour name: the options used to read "Feast:" / "Legion:" and the
-    // owner had those stripped (2026-07-25) because the label read as an extra rule to decode. Matching on the
-    // mechanic keeps this test meaningful across wording changes — and option ORDER is what the gates key on.
+  it('Malphas is an Avenge Imp lord (owner rework 2026-08-18)', () => {
+    // Reworked from the old Choose-One (Feast / Legion) into a straight Avenge Imp lord.
     const malphas = CARD_INDEX['dm_malphas']!;
-    expect(malphas.chooseOne?.length).toBe(2);
-    expect(malphas.chooseOne![0]!.text).toMatch(/Consume/);   // option 0 = the shop-eating half
-    expect(malphas.chooseOne![1]!.text).toMatch(/Imp/);       // option 1 = the Imp-copy half
+    expect(malphas.chooseOne, 'the Choose-One is gone').toBeFalsy();
+    const eff = malphas.effects.find((e) => e.do === 'avengeBuffImps')!;
+    expect(eff, 'it now carries the avenge Imp-buff effect').toBeTruthy();
+    expect(eff.on).toBe('avenge');
+    expect(eff.params).toMatchObject({ count: 3, attack: 7, health: 5 });
   });
 
   it('no set-2 Choose One carries a flavour NAME — in its options OR its card text', () => {
@@ -427,51 +427,18 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     }
   });
 
-  it('Malphas FEAST fires every turn, and only when Feast was the pick', () => {
-    // Malphas must be ON the board and be the only End-of-Turn eater — an earlier version of this test used a
-    // Demon Horse as filler, which ate the shop by itself and made the assertion pass vacuously.
-    const build = (pick: number | undefined): RunState => {
-      const st: RunState = {
-        ...createRun(1), phase: 'recruit',
-        board: [minion('L', 'dm_clerk', 1, 1), minion('M', 'dm_malphas', 10, 6), minion('R', 'dm_butcher', 2, 3)],
-        hand: [], shop: shop('sandbag', 'alley', 'stray', 'pup'),
-      };
-      st.board[1]!.chosenOption = pick;
-      return st;
-    };
-    // CONTROL: no pick recorded → nothing eats, proving the shrink below is Malphas and not something else.
-    const none = build(undefined);
-    applyEndOfTurn(none);
-    expect(none.shop.length).toBe(4);
-
-    const feast = build(0);
-    applyEndOfTurn(feast);
-    expect(feast.shop.length).toBeLessThan(4); // the end Demons ate their sides
-    // …and it PERSISTS. Refill first: Feast eats 2 per end, which cleared the whole 4-card row, and a real turn
-    // rolls a fresh shop anyway. Without a refill this asserts nothing — there'd be nothing left to eat.
-    feast.shop = shop('sandbag', 'alley', 'stray', 'pup');
-    applyEndOfTurn(feast);
-    expect(feast.shop.length).toBeLessThan(4); // ate AGAIN on the second End of Turn
-  });
-
-  it('Malphas LEGION does not fire when Feast was the pick', () => {
-    // The other half of the gate: picking Feast must not also grant Legion.
+  it('Malphas Avenge(3) buffs your Imps +7/+5, carried back to the run (owner rework 2026-08-18)', () => {
+    // Malphas (fat immortal) + three disposable Taunt fodder that die to a modest killer → exactly one Avenge(3)
+    // payout. The Imp buff is the run carry-back channel (`playerImpBuffGain`), so a combat-only buff would leave
+    // it unset. Three deaths → one proc → +7/+5.
     const r = simulate(
-      [{ cardId: 'dm_malphas', attack: 10, health: 40, sourceUid: 'M', keywords: [], chosenOption: 0 },
-       { cardId: 'impscrap', attack: 1, health: 20, sourceUid: 'I' }],
-      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), CARD_INDEX,
+      [{ cardId: 'dm_malphas', attack: 0, health: 9999, sourceUid: 'M', keywords: [] },
+       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'a', keywords: ['T'] as BoardMinion['keywords'] },
+       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'b', keywords: ['T'] as BoardMinion['keywords'] },
+       { cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'c', keywords: ['T'] as BoardMinion['keywords'] }],
+      [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 7 }), combatSide({ tier: 1 }));
-    expect(r.events.filter((e) => e.type === 'summon')).toEqual([]); // no copies — Legion wasn't chosen
-  });
-
-  it('Malphas LEGION summons a copy when an Imp attacks', () => {
-    const r = simulate(
-      [{ cardId: 'dm_malphas', attack: 10, health: 40, sourceUid: 'M', keywords: [], chosenOption: 1 },
-       { cardId: 'impscrap', attack: 1, health: 20, sourceUid: 'I' }],
-      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), CARD_INDEX,
-      combatSide({ tier: 7 }), combatSide({ tier: 1 }));
-    const copies = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(copies.length).toBeGreaterThan(0);
+    expect(r.playerImpBuffGain, 'the Avenge Imp buff never carried back').toEqual({ attack: 7, health: 5 });
   });
 });
 
@@ -560,7 +527,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   it('the Shout buffs the CURRENT shop immediately', () => {
     let s = base();
     s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s)).toBe(13); // +7/+6 (owner balance 2026-08-14: was +7/+7)
+    expect(rightmostBuff(s)).toBe(9); // +4/+5 (owner balance 2026-08-18: was +7/+6)
   });
 
   it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
@@ -569,19 +536,19 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
     for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(13); // +7/+6
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(9); // +4/+5
     }
   });
 
-  it("STACKS to the owner's worked example shape: two normals + a gilded = +28/+24", () => {
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +16/+20", () => {
     let s: RunState = { ...base(), hand: [
       minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
       { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
     ] };
     for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
-    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(52); // +28/+24: 7+7+14 atk, 6+6+12 hp
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(36); // +16/+20: 4+4+8 atk, 5+5+10 hp
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(52);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(36);
   });
 
   it('the buff rides the offer into the minion you BUY', () => {
@@ -592,8 +559,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const offer = s.shop[i]!;
     const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
-    expect(bought.attack - def.attack!).toBe(7);
-    expect(bought.health - def.health!).toBe(6);
+    expect(bought.attack - def.attack!).toBe(4);
+    expect(bought.health - def.health!).toBe(5);
   });
 
   it('a Hellrider copying the right-most reads the BUFFED body (buff-before-payout ordering)', () => {
@@ -614,8 +581,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     expect(rider.attack - 4, "Hellrider did not gain the right-most offer's Attack").toBe(copied.attack);
     expect(rider.health - 6, "Hellrider did not gain the right-most offer's Health").toBe(copied.health);
     const def = CARD_INDEX[s.shop[i]!.cardId]!;
-    expect(copied.attack - def.attack!, 'the copied body was not buffed before the payout').toBe(7);
-    expect(copied.health - def.health!, 'the copied body was not buffed before the payout').toBe(6);
+    expect(copied.attack - def.attack!, 'the copied body was not buffed before the payout').toBe(4);
+    expect(copied.health - def.health!, 'the copied body was not buffed before the payout').toBe(5);
     expect(s.shop.length, 'nothing may be eaten — Hellrider only copies now').toBe(shopUids.length);
   });
 });

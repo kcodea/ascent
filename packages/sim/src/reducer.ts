@@ -1098,7 +1098,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) s.tradeInTribe = undefined; // spent
       // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
-      // priced at 1 Gold (a bargain re-stock). Injected at the same index so the shop keeps its shape.
+      // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape.
       if (s.runeRestocking && !s.restockUsedThisTurn) {
         const boughtTier = CARD_INDEX[offer.cardId]?.tier;
         const pool = boughtTier ? poolOf(s).buyable.filter((c) => c.tier === boughtTier && !c.spell && !c.ruby) : [];
@@ -1106,7 +1106,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           const rng = makeRng(s.rngCursor);
           const pick = pool[rng.int(pool.length)]!;
           s.rngCursor = rng.state();
-          s.shop.splice(i, 0, { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 1 });
+          s.shop.splice(i, 0, { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 2 });
           s.restockUsedThisTurn = true;
         }
       }
@@ -1811,8 +1811,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
           if (target && (sold.attack > 0 || sold.health > 0)) addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health);
         }
-        // Rune of Investment: selling mints Rubies at the run's live strength (mintRubies, not a pool copy).
-        if (s.runeSellRubies) mintRubies(s, s.runeSellRubies);
+        // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
+        if (s.runeSellRubies) {
+          s.runeSellRubiesSold = (s.runeSellRubiesSold ?? 0) + 1;
+          if (s.runeSellRubiesSold >= 2) { mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
+        }
         // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
       // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
       if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
@@ -1862,7 +1865,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'roll': {
       // Rune of Window Shopping: your first 4 Refreshes each turn are free (counted before charging).
-      const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 4;
+      const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3;
       if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
       // Refreshing Texts bank free rerolls — spend one before charging Mana.
       if (s.freeRolls > 0) {
@@ -2426,6 +2429,26 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!card) return state;
         addBuff(card, 'Preparation', 1, 1);
         s.preparationLockUntil = s.wave + 2;
+      } else if (power.kind === 'gildcrafter') {
+        // Gildmaster (active): complete a triple - grant a THIRD copy of a minion you already hold exactly 2
+        // non-golden copies of (board + hand); `checkTriples` below merges the three into the golden. No valid
+        // pair -> no-op (no charge/spend), like Preparation above.
+        const counts = new Map<string, number>();
+        for (const c of [...s.board, ...s.hand]) {
+          if (c.golden) continue;
+          const gd = CARD_INDEX[c.cardId];
+          if (!gd || gd.spell || gd.ruby || gd.noTriple) continue;
+          counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+        }
+        let pick: string | undefined; let pickTier = -1;
+        for (const [cid, n] of counts) {
+          if (n !== 2) continue;
+          const tier = CARD_INDEX[cid]?.tier ?? 0;
+          if (tier > pickTier) { pickTier = tier; pick = cid; }
+        }
+        if (!pick) return state; // no pair to complete -> activation is a no-op
+        const gdef = CARD_INDEX[pick]!;
+        s.hand.push({ uid: `b${s.uidSeq++}`, cardId: pick, tribe: gdef.tribe, attack: gdef.attack, health: gdef.health, keywords: [...gdef.keywords], golden: false });
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -4697,10 +4720,10 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeSellersMarket': s.runeSellersMarket = true; break; // sell → board +4/+3
     case 'runeFreshPages': s.runeFreshPages = true; break;       // Start of Turn: Discover a Shop spell
     case 'runeStrangeCaravan': s.runeStrangeCaravan = true; break; // Start of Turn: uncontrolled-type minion
-    case 'runeWindowShopping': s.runeWindowShopping = true; break; // first 4 Refreshes each turn are free
+    case 'runeWindowShopping': s.runeWindowShopping = true; break; // first 3 Refreshes each turn are free
     case 'runeOpenEnrollment': s.runeOpenEnrollment = true; break; // Refresh offers an extra dominant-type minion
     case 'runeTradeIn': s.runeTradeIn = true; break;             // first sale → next minion of that type −1 Gold
-    case 'runeRestocking': s.runeRestocking = true; break;       // first buy refills its slot with a 1-Gold minion
+    case 'runeRestocking': s.runeRestocking = true; break;       // first buy refills its slot with a 2-Gold minion
     case 'runeCollector': s.runeCollector = true; break;         // 3 types bought → Discover one of them
     case 'runeBargainBin': s.runeBargainBin = true; break;       // first Refresh fills the Shop with 1-Gold minions
     case 'runeShopkeep':

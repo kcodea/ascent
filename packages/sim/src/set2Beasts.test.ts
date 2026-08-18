@@ -540,7 +540,7 @@ describe('set 2 — Scavvers (owner rework 2026-08-07: Echo triggers an adjacent
 describe('set 2 — Menagerie Mammoth (owner rework 2026-08-12: Echo, summon 3 random other Beasts)', () => {
   it('wiring: T5 6/6, Echo summons random Beasts (the hand-caster is gone)', () => {
     const d = CARD_INDEX['b2_mammoth']!;
-    expect([d.tier, d.attack, d.health]).toEqual([5, 6, 6]);
+    expect([d.tier, d.attack, d.health]).toEqual([5, 7, 4]); // owner balance 2026-08-18
     const e = d.effects.find((x) => x.do === 'deathrattleSummonRandomTribe');
     expect(e, 'no random-Beast Echo wired').toBeDefined();
     expect(e!.on).toBe('onDeath');

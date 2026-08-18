@@ -248,8 +248,11 @@ export const SET2_SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 5, health: 6 } }],
-    text: 'Give a minion **+5/+6**.',
+    effects: [
+      { on: 'cast', do: 'spellBuffTarget', params: { attack: 3, health: 4 } },
+      { on: 'cast', do: 'spellBuffTarget', params: { attack: 3, health: 4 } },
+    ],
+    text: 'Give a minion **+3/+4** twice.',
   },
   {
     // Owner add 2026-08-15. Rewards a tight board: the chosen minion AND both neighbours, so a centre pick

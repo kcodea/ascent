@@ -8,11 +8,14 @@ import { createRun, reduce, type RunState } from './index';
 const minion = (uid: string, cardId = 'stray'): never =>
   ({ uid, cardId, tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }) as never;
 
-describe('Blessing — +5/+6 to a minion', () => {
-  it('is a T4 2-Gold targeted spell granting 5/6', () => {
+describe('Blessing — +3/+4 twice to a minion', () => {
+  it('is a T4 2-Gold targeted spell granting +3/+4 twice', () => {
     const def = CARD_INDEX['sp_blessing']!;
     expect([def.tier, def.cost, def.spell, def.target]).toEqual([4, 2, true, 'any']);
-    expect(def.effects[0]!.params).toMatchObject({ attack: 5, health: 6 });
+    // Owner balance 2026-08-18: two spellBuffTarget entries of +3/+4 (net +6/+8 before spell power).
+    expect(def.effects).toHaveLength(2);
+    expect(def.effects[0]!.params).toMatchObject({ attack: 3, health: 4 });
+    expect(def.effects[1]!.params).toMatchObject({ attack: 3, health: 4 });
   });
 
   it('lands the grant on the chosen minion', () => {
@@ -22,7 +25,7 @@ describe('Blessing — +5/+6 to a minion', () => {
     } as RunState;
     const after = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' } as never);
     const m = after.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack - 2, m.health - 2], 'at least the printed +5/+6 (spell power may add)').toEqual([5, 6]);
+    expect([m.attack - 2, m.health - 2], 'at least the printed +3/+4 twice = +6/+8 (spell power may add)').toEqual([6, 8]);
   });
 });
 

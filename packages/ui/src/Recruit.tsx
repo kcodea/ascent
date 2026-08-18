@@ -1869,7 +1869,10 @@ export function Recruit() {
            render's uid set and never shows up as "gone". Three cards became two, and the right-hand flyer
            was missing (owner report 2026-07-23). */
         const dest = el.getBoundingClientRect();
-        if (dest.width > 0) playPlateGild(dest, el, run.runeTwinGilding ? 2 : 3);
+        // Two-copy gilds (Twin-Gilding rune OR Midas) fly 2 copies, not 3 — mirror the sim's `need` rule at
+        // reducer.ts (`runeTwinGilding || midasTouch`), or Midas showed a phantom third flyer.
+        const twoCopyGild = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch';
+        if (dest.width > 0) playPlateGild(dest, el, twoCopyGild ? 2 : 3);
       }
     }
 

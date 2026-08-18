@@ -410,15 +410,15 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     expect(grantedIds(rune!)).toContain(cardId);
   });
 
-  it('Rune of Gemcutting mints 7 Rubies at a FIXED 3/3 (owner sheet 2026-07-31)', () => {
+  it('Rune of Gemcutting mints 5 Rubies at a FIXED 3/3 (owner balance 2026-08-18)', () => {
     const rune = all.find((r) => r.name === 'Rune of Gemcutting')!;
-    expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 7, attack: 3, health: 3 });
-    // And through the reducer: seven 3/3 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
+    expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 5, attack: 3, health: 3 });
+    // And through the reducer: five 3/3 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
     let st: RunState = { ...createRun(3), phase: 'recruit', hand: [], rubyBonus: { attack: 0, health: 0 } };
     st = { ...st, embers: 99, runeforgeOffer: [rune.id], runeforgeEpic: undefined };
     st = reduce(st, { type: 'buyRune', index: 0 });
     const rubies = st.hand.filter((c) => c.cardId === 'ruby');
-    expect(rubies).toHaveLength(7);
+    expect(rubies).toHaveLength(5);
     expect(rubies.every((c) => c.attack === 3 && c.health === 3), 'a minted Ruby was not 3/3').toBe(true);
   });
 

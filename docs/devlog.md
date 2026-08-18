@@ -1,5 +1,45 @@
 # ASCENT — development log
 
+## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
+
+A broad owner balance pass across Set 1 + Set 2.
+
+**Stats/tiers (~48 minions)** — data-only. Notable: Echohorn 4/3 → Tier 4, Lastlight → T4, Bellringer Voss → T5;
+big swings on chipper (8/7→4/5), legion shepherd (3/3→6/6), Lieutenant Thane (5/6→9/5), gemstorm instigator
+(6/6→5/10), living grimoire (7/9→5/10).
+
+**Effect reworks** (mostly param tweaks to existing factories; a few new primitives):
+- Demon Horse Rally shop-buff +1/+2; Market Tormentor right-most shop +4/+5; Karwind flat +4/+4 (dropped the
+  20%-crit clause); Vaultkeeper +2/+2 per Dragon, improving +2/+2 per 4 spells (base 2 + a formula tweak so the
+  improve step scales with base).
+- **Scalefeather** — `battlecryGrantRandomSpell` gained a `tier` param → a random **Tier-1** spell.
+- **Transcendant** — `scBuffTribe` gained `excludeSelf` → buffs your **other** Dragons +2/+3.
+- **Soul Defiler** — `buffShopPermanent` gained an `alternate` mode: each End of Turn pumps ONE shop stat,
+  alternating Attack/Health per round, the amount growing +1 each trigger.
+- **Malphas** — reworked from the Feast/Legion Choose-One into a straight `Avenge(3): Imps +7/+5 everywhere`.
+- **Reflector** — Rubies now bounce too (new `onRubyPlayedSpreadRandom` hook; the once-per-turn budget is shared
+  between spells and rubies).
+- **Blessing** — +3/+4 twice (two `spellBuffTarget` casts) instead of +5/+6 once.
+
+**Heroes:**
+- **Gildmaster** — retired the passive Goldcrafter-every-4-turns for an active **Gildcrafter** (3 Gold, 3×/game):
+  grant a third copy of a minion you already hold two of, completing a triple. No pair → no-op.
+- **Midas** — the triple-reward gild animation now flies **2** copies (not 3) for his 2-copy gild (and the
+  Twin-Gilding rune), mirroring the sim's `need` rule.
+
+**Runes:** Gemcutting 5 Rubies (was 7); Resonance 3 Gold; Window Shopping 3 free refreshes; Restocking's minion
+costs 2 Gold; the Pair 5 Gold; the Chorus every 4 Shouts; Investment mints every 2 sells; the Vaultkeeper's
+adjacency spread is Dragons-only; Spellstone 3 Gold (was 6).
+
+Also in this patch: **Soul Defiler's live card text** now folds in its current magnitude + which stat is next
+(the `cardText.ts` helper was extended for the new single-stat alternating format — the CLAUDE.md live-text
+rule). Presentation-policy tripwires updated to mirror the new effects (Reflector's Ruby bounce, Gildmaster's
+new power, Malphas losing its Choose-One factories). A small tutorial-UX extra: the independence-round free-play
+panels got a **"Got it"** button that hides the panel (without advancing) so it's out of the way while you build.
+
+Verified: typecheck + lint + `build:web` green; full test suite green (5575 passing; an obsolete Karwind-crit
+test file was removed, and the Malphas Choose-One tests were replaced with avenge-Imp coverage).
+
 ## 2026-08-18 — Mode picker: hover dims the whole card; Play-Screen tuner hidden by default with a working ✕
 
 Two owner fixes on the mode picker:

@@ -1022,7 +1022,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const h = num(params.health, 3) * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} engraves the flight (+${a}/+${h})` });
-    for (const m of ctx.living(self.side)) if (isTribe(m)) ctx.buff(m, a, h, self.uid);
+    const skipSelf = !!params.excludeSelf; // Transcendant buffs your OTHER Dragons
+    for (const m of ctx.living(self.side)) if (isTribe(m) && !(skipSelf && m.uid === self.uid)) ctx.buff(m, a, h, self.uid);
   },
 
   /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its

@@ -28,11 +28,17 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  *
  * The click dust + sprite blast come from Pixi helpers, read from `cfg` at click time (no CSS vars needed):
  * `impactDust` is the Tavern stone's billow, `refreshBlast` is this button's own jittered shard burst.
+ *
+ * Mounted through BOTH phases (owner ask 2026-08-17), like the Tavern Up stone: in combat it's inert and shown
+ * at FULL art strength — the `off` dim is a "you can't afford this roll" cue, and during combat there is no roll
+ * to afford, so dimming it would state something false. The cost coin stays (it's the price the next shop will
+ * charge), but the disabled coin's red too-expensive flush is suppressed for the same reason.
  */
 export function RefreshButton({
   cost,
   freeRolls = 0,
   disabled,
+  combat,
   onRefresh,
 }: {
   /** Live roll cost (`refreshCostOf(run)` — free rolls make this 0), shown on the coin badge. */
@@ -41,6 +47,8 @@ export function RefreshButton({
    *  are left rather than only that the next one is free (owner ask 2026-08-02). */
   freeRolls?: number;
   disabled: boolean;
+  /** Combat phase — renders the crystal inert but undimmed (a passive readout), not a control. */
+  combat?: boolean;
   onRefresh: () => void;
 }) {
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -75,12 +83,14 @@ export function RefreshButton({
   return (
     <button
       ref={wrapRef}
-      className={`rfbwrap${disabled ? ' off' : ''}`}
-      disabled={disabled}
+      className={`rfbwrap${disabled && !combat ? ' off' : ''}${combat ? ' combat' : ''}`}
+      disabled={disabled || combat}
       onClick={click}
-      aria-label={cost > 0
-        ? `Refresh the shop for ${cost} Gold`
-        : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
+      aria-label={combat
+        ? (cost > 0 ? `Refresh costs ${cost} Gold` : 'Refresh is free')
+        : cost > 0
+          ? `Refresh the shop for ${cost} Gold`
+          : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
     >
       {/* Hover halo — BEHIND the art so the button reads clean. */}
       <span className="rfb-glow" aria-hidden="true" />

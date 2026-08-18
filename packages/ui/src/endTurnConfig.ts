@@ -116,14 +116,14 @@ export interface EndTurnConfig {
 // the CRACKED gem (pressedVariant 3). Mirror position/scale/glow changes into the styles.css
 // `var(--etb-*, …)` fallbacks.
 const DEFAULTS: EndTurnConfig = {
-  x: 65,
-  y: -55,
-  scale: 1.25,
+  x: 10,
+  y: -23,
+  scale: 1.17,
   gemX: -1,
   gemY: -3,
   gemS: 1.03,
-  gemHoverBright: 1.18,
-  glowBlur: 0,
+  gemHoverBright: 1.53,
+  glowBlur: 1,
   glowAlpha: 0.32,
   glowStrength: 6,
   glowPulse: 0.7,
@@ -158,8 +158,8 @@ const DEFAULTS: EndTurnConfig = {
   // font or copy change wants a re-measure. Widen past ~280 for a single line.
   // (Only meaningful because `.etb-tip` sets `width: max-content` — see the note in styles.css.)
   tipW: 128,
-  tipX: 91,
-  tipY: -3,
+  tipX: 108,
+  tipY: 6,
   tipSize: 13.5,
   tipLine: 1.25,
   tipPadX: 5,

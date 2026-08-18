@@ -1,5 +1,67 @@
 # ASCENT — development log
 
+## 2026-08-17 — Freeze, Reroll and Gold stay on the board through combat
+
+Owner ask: the Freeze gem, the Reroll crystal and the Gold pill vanished the moment combat started, and
+shouldn't. All three now mount through BOTH phases, following the Tavern Up stone's existing precedent
+(mounted in combat as a passive tier indicator since 2026-07-16) rather than inventing a second pattern.
+
+- **Freeze** and **Reroll** take a `combat` prop: inert (`disabled || combat`) with a `.combat` class, and the
+  tip/aria-label switch from offering the action to reading the state ("Tavern frozen", "Refresh costs 3 Gold").
+- **Gold** needed no prop — it's a pure readout with nothing to gate, and your purse doesn't move during a
+  fight, so it just lost its `!inCombat` wrapper.
+
+The subtlety was the DIM cues, which would have lied in the new phase. Both buttons dim when disabled to mean
+*you can't afford this* — but in combat there's nothing to afford, so a dimmed crystal would state something
+untrue. Three CSS rules got scoped with `:not(.combat)` — the Freeze gem's grayscale, and the Reroll cost
+coin's red "too expensive" flush (plus its icon) — and Reroll no longer takes the `off` class when the only
+reason it's disabled is the phase. So in combat both render at full art strength, exactly like the Tavern
+stone. The Reroll cost coin stays visible (unlike the Tavern stone, which hides its cost in combat): the coin
+is the price the next shop will charge, it's accurate throughout, and the component's own note explains that a
+vanishing badge makes the button's shape shift.
+
+Verified by reading the render path rather than by playing: the three `!inCombat &&` gates are gone, and a
+sweep of the combat-phase CSS confirms `.app.combat` hides only `.buffsframe`, so nothing else was suppressing
+them. `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
+## 2026-08-17 — Final Layout Lab pass on the full board
+
+Six knobs moved after the furniture bake settled: shop and warband card gaps 22→20, warband Y −157→−144, and
+the tavern-tier pill re-seated and enlarged (scale 1→1.21, X 142→87, Y −87→−141). Both halves again — the
+`def:` in `layoutConfig.ts` and the seven `styles.css` fallback sites — and the cross-check re-run confirms all
+46 layout knobs match the owner's config with all 44 CSS fallback forms in sync.
+
+## 2026-08-17 — Seven tuner bakes: the board furniture re-seats on the full board
+
+Second pass of owner-tuned config for the new default board, this time the individual pieces of furniture
+rather than the global layout. Baked into DEFAULTS, and into the matching `styles.css` fallbacks, for:
+
+- **Hero panel** (`heroPanelConfig`) — the panel jumps right and up (X −33→54, Y −81→−106) and comes down a
+  touch in size (3.3→3.1) on a slightly tighter box (89×90→87×89); portrait 1.18→1.2; hero name Y −11→−9 at
+  0.66→0.6; the Health box centres (X −2→0) and drops 51→53.
+- **End Turn diamond** (`endTurnConfig`) — X 65→10, Y −55→−23, scale 1.25→1.17, a much hotter hover
+  (gem brightness 1.18→1.53), glow blur 0→1, and the hover tip re-seated (X 91→108, Y −3→6). `tipW` stays 128,
+  so the two-line measurement that pill was tuned around still holds.
+- **Tavern Up stone** (`tavernUpConfig`) — X 51→104, Y −373→−318, cost X 37→50, art dim 0.65→0.62.
+- **Hero power diamond** (`heroPowerBtnConfig`) — X −38→15, Y 296→303, scale 0.9→0.87.
+- **Freeze button** (`freezeConfig`) — Y 217→264.
+- **Reroll button** (`refreshConfig`) — X −73→−123, Y 214→270, scale 1.68→1.54.
+- **Lobby rail** (`lobbyPanelConfig`) — all eight knobs: scale 1.58→1.46 on a narrower 172→152 box that stops
+  hanging off the edge (right −64→9), taller and lower (top 9.5→13%, height 83.5→100%), with bigger seat rows
+  (1.63→1.91), smaller text (0.93→0.81) and foe portraits 1.37→1.35.
+
+These seven modules differ from the Layout Lab in a way worth writing down: each runs its `apply*Vars()` at load
+in BOTH dev and prod (`loadCfg` returns DEFAULTS in prod, then apply runs unconditionally), so DEFAULTS alone
+already drives the shipped game. Their `styles.css` fallbacks cover the pre-boot paint, and every one of these
+files states the fallbacks MUST mirror DEFAULTS — so both halves moved together: 45 fallback sites across the
+seven. A verification pass re-parsed each DEFAULTS block and confirmed all 183 knobs equal the owner's payloads.
+
+Two bits of pre-existing drift got closed on the way through, both on knobs already being edited: the Resolve
+shake `@keyframes` carried their own copy of the `--hpn-hp-t` fallback with a Y of 65 where the panel rule said
+51 (now both 53), and the `resolveX: −2` comment describing a 2026-07-16 bake outlived the value it explained.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
 ## 2026-08-17 — The full board is the default, and the UI re-seats around it
 
 Owner verdict on the test board: promote it. `--board` in `styles.css` now points at `augustfullboard.webp`,

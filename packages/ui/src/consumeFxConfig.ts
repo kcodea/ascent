@@ -13,8 +13,8 @@ export interface ConsumeFxConfig {
 }
 
 const DEFAULTS: ConsumeFxConfig = {
-  durationMs: 490, shakePhase: 0.28, shakeAmp: 20, shakeFreq: 9, stretch: 0.4, thin: 0.8, lag: 0.38,
-  pullDist: 0.94, collapseStart: 0.75, fadeStart: 0.85, showStats: false,
+  durationMs: 700, shakePhase: 0.5, shakeAmp: 16.5, shakeFreq: 30, stretch: 0.7, thin: 0.68, lag: 0.36,
+  pullDist: 0.92, collapseStart: 0.78, fadeStart: 0.16, showStats: false,
 };
 
 // [min, max, step] for the tuner sliders (booleans handled as a toggle, not here).

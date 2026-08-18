@@ -1,19 +1,20 @@
 /**
- * Board picker (owner ask 2026-08-11) — swap the in-game arena backdrop. The AUGUST board is the default now;
- * the Classic (original stone) board is a togglable alternate. It's a display-only preference: the choice
- * overrides the `--board` CSS
- * var on the root (`.boardbg` + the hero-select preview read it), persists to localStorage, and applies once
- * at boot as a side-effect import so the pick survives a reload with no flash of the wrong art.
+ * Board picker (owner ask 2026-08-11) — swap the in-game arena backdrop. The FULL board is the default now
+ * (owner promoted it 2026-08-17); the previous wide August board and the original Classic stone board are
+ * togglable alternates. It's a display-only preference: the choice overrides the `--board` CSS var on the root
+ * (`.boardbg` + the hero-select preview read it), persists to localStorage, and applies once at boot as a
+ * side-effect import so the pick survives a reload with no flash of the wrong art.
  *
- * The two ORIGINAL arts share the SAME aspect (2.3578) and canvas size, so nothing else in the board layout
- * changes for them. A board whose art has a different aspect (e.g. the 16:9 `augustfull` test board) carries its
- * own `aspect` / `fill` here, and `apply()` pushes those onto `--board-aspect` / `--board-fill` alongside the
- * art — otherwise `.boardbg` would size the new art off the old art's proportions and stretch the frame off the
- * stage. The tuned button offsets are still calibrated against the DEFAULT board's art size, so a
- * different-aspect board may need the layout lab (`--board-zoom` / `--board-x` / `--board-y`) to re-seat.
+ * The arts no longer share one aspect: the default is 16:9 (1.7919) while both alternates are 21:9 (2.3578).
+ * `.boardbg` computes the art's WIDTH from the stage height × `--board-aspect` × `--board-fill`, so an art
+ * served under the wrong aspect gets stretched and throws the frame off the stage. Hence the optional
+ * `aspect` / `fill` per option, which `apply()` pushes onto those two vars alongside `--board` — and REMOVES
+ * for any option that sets neither, so the stylesheet default keeps winning. The tuned button offsets are
+ * calibrated against the DEFAULT board, so an alternate may need the layout lab (`--board-zoom` / `--board-x` /
+ * `--board-y`) to re-seat.
  */
 
-export type BoardId = 'default' | 'classic' | 'augustfull';
+export type BoardId = 'default' | 'august' | 'classic';
 
 interface BoardOption {
   id: BoardId;
@@ -27,15 +28,17 @@ interface BoardOption {
   fill?: number;
 }
 
+// The two wide boards share one canvas shape, so they share these numbers — see the stylesheet's `--board-fill`
+// comment for where 1.0132 comes from.
+const WIDE_ASPECT = 2.3578;
+const WIDE_FILL = 1.0132;
+
 export const BOARDS: BoardOption[] = [
-  // `default` is the AUGUST board now (owner promoted it 2026-08-11) — url null means it reads the stylesheet
-  // `--board`, which points at newboardaugust.webp. `classic` overrides back to the original stone board.
-  { id: 'default', label: 'August', blurb: 'The arena board', url: null },
-  { id: 'classic', label: 'Classic', blurb: 'The original stone board', url: "url('/ascentboardnostuff.webp')" },
-  // Test board (owner ask 2026-08-17): AugustFullBoard, a 16:9 art (3840x2143) rather than the 21:9 the other
-  // two use — so it fills the stage exactly at fill 1.0 and there is no wide art left over to bleed into the
-  // side margins on a monitor wider than 16:9 (those fall back to `--bg`).
-  { id: 'augustfull', label: 'August Full', blurb: 'Full-board art (16:9)', url: "url('/augustfullboard.webp')", aspect: 1.7919, fill: 1 },
+  // `default` is the FULL board now — url null means it reads the stylesheet `--board` (augustfullboard.webp),
+  // along with the 16:9 aspect/fill that ships with it.
+  { id: 'default', label: 'Full Board', blurb: 'The arena board', url: null },
+  { id: 'august', label: 'August Wide', blurb: 'The previous 21:9 board', url: "url('/newboardaugust.webp')", aspect: WIDE_ASPECT, fill: WIDE_FILL },
+  { id: 'classic', label: 'Classic', blurb: 'The original stone board', url: "url('/ascentboardnostuff.webp')", aspect: WIDE_ASPECT, fill: WIDE_FILL },
 ];
 
 const KEY = 'ascent.board';
@@ -45,6 +48,8 @@ export function getBoard(): BoardId {
     const v = localStorage.getItem(KEY);
     if (v && BOARDS.some((b) => b.id === v)) return v as BoardId;
   } catch { /* private mode / no storage — fall through to default */ }
+  // Also the landing spot for a retired id (the short-lived `augustfull` test pick), which resolves to the
+  // default — now the same art it named.
   return 'default';
 }
 

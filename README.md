@@ -44,7 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
-- **"August Full" test board** — a third arena board in the Esc-menu picker, built from the new full-board master. It's 16:9 where the other two are 21:9, so the picker now carries each board's own aspect; on an ultrawide monitor its side margins fall back to the flat backdrop instead of floor art.
+- **New default arena board** — the full-board art ships as the board, and the whole UI re-seats around it (card size, board zoom, shop row, warband, hand, quest nodes, gold pill, charge glyph, drag zones). The two previous 21:9 boards stay selectable in the Esc menu. The new art is 16:9, so on an ultrawide monitor the side margins show the flat backdrop rather than floor art.
 
 - **Resolve is now Health** — the hero's life total is called **Health** everywhere it's shown, and **Oath is off the Career profile card** (the course modes it belonged to are no longer reachable). Display only; saves and replays are unaffected.
 

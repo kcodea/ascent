@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-17 — The full board is the default, and the UI re-seats around it
+
+Owner verdict on the test board: promote it. `--board` in `styles.css` now points at `augustfullboard.webp`,
+with the 16:9 numbers that belong to it (`--board-aspect: 1.7919`, `--board-fill: 1`). The picker inverts to
+match — `default` is the FULL board (url null, so it reads the stylesheet), and the two 21:9 arts became
+alternates that carry their own `aspect: 2.3578, fill: 1.0132`. The retired `augustfull` id falls through
+`getBoard`'s validity check to `default`, which is the same art it named, so anyone who picked it while it was
+a test keeps exactly what they were looking at.
+
+Then the owner re-tuned the whole board against the new art in the Layout Lab and handed over the config. Baked
+in: card size 0.77→0.75, board zoom 1→1.25 with a +5px drop, shop row Y 27→62, shop controls 1.52→1.6, warband
+Y −163→−157, hand overlap −0.15→−0.11 and Y −117→−107 with hover 1.51→1.47, the quest-node cluster moved right
+and up (X −7→75, Y −434→−415, scale 1.12→1.09) with all three per-node nudges re-seated, gold pill 355→409 in
+from the right and 432→426 up (scale 1.71→1.68), tier pill X 114→142, the charge glyph 1148→1124 wide at X 3→7
+/ Y −111→−83, and the drag zones re-cut (sell edge −188→−136, buy edge 0→79).
+
+**Both halves of each knob moved, which is the part that's easy to get wrong.** `applyLayout` is dev-gated, so
+production never sets these custom properties at all — it renders from the `var(--x, <fallback>)` defaults in
+`styles.css`. A `def:` change in `layoutConfig.ts` alone would move the Lab's Reset and leave the shipped game
+untouched. So the 25 knobs with a CSS presence were updated in both files (44 fallback sites), and a
+cross-check script confirmed all 44 forms now equal their `def`. The two zone knobs (`sellZoneY` / `buyZoneY`)
+have no CSS side — `Recruit` reads them through `getLayout`, which returns the defaults in prod — so those
+ship from `layoutConfig.ts` alone.
+
+Left standing as a known trade-off: the default art is 16:9, so it has no surplus width to bleed into the side
+margins on a monitor wider than 16:9; those fall back to `--bg`. The `.boardbg` caveat comment (which named
+32:9 as the point the band returns) now says so, since that figure only ever described the wide arts.
+
+Verified: `typecheck` + `test` (343 files, 5560 passing) + `build:web` green.
+
 ## 2026-08-17 — "August Full" test board
 
 A third option in the arena-board picker (Esc → board): **August Full**, from the owner's

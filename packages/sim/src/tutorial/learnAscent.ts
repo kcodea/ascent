@@ -434,6 +434,7 @@ function freeBuildStep(id: string, title: string, body: string, why?: string): T
     ...(why ? { why } : {}),
     anchors: [{ kind: 'ui', id: 'shop' }],
     gate: 'soft',
+    noScrim: true,
     allowedActionKinds: FREE_VERBS,
     completion: { kind: 'endedTurn' },
   };
@@ -451,17 +452,25 @@ const round10Steps: TutorialStep[] = [
     'Now you lead. Spend your Gold to strengthen the board — buy, sell, reposition, upgrade — then End Turn when you are happy.',
     'The best line is yours to find. There is no single right buy — a stronger board is the only goal.',
   ),
-  combatDebriefStep('r10-debrief', 'Nicely Played', 'That was all you — no prompts, a real decision every step. Click here to return to the shop.'),
+  combatDebriefStep('r10-debrief', 'Well Played', 'End combat here and go back to the shop.'),
 ];
 
 const round11Steps: TutorialStep[] = [
+  {
+    id: 'r11-tavern',
+    phase: 'shop', focusMode: 'action', title: 'Push for Tier',
+    body: 'Start by raising your Tavern to Tier 4 — it unlocks stronger minions. Do it first, while your Gold is full.',
+    why: 'Upgrading trades a little strength now for better options later — a core tension you weigh every game.',
+    anchors: [{ kind: 'ui', id: 'tavern-up' }],
+    gate: 'hard', noScrim: true, lessonId: 'tavern_up',
+    completion: { kind: 'tierAtLeast', tier: 4 },
+  },
   freeBuildStep(
     'r11-free',
-    'Push for Tier',
-    'Keep building. If your board is winning, consider upgrading your Tavern for stronger minions; if it is close, add bodies and synergy instead.',
-    'Upgrading trades a turn of strength now for better options later — a core tension you will weigh every game.',
+    'Now Build',
+    'Tier 4 is open. Spend the rest of your Gold to round out the board, then End Turn.',
   ),
-  combatDebriefStep('r11-debrief', 'Reading the Board', 'Upgrade or reinforce — you are already making the calls that decide real games. One more. Click here to return to the shop.'),
+  combatDebriefStep('r11-debrief', 'Well Played', 'End combat here and go back to the shop.'),
 ];
 
 const round12Steps: TutorialStep[] = [

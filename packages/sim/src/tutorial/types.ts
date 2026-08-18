@@ -222,6 +222,9 @@ export interface TutorialStep {
   resultAnchors?: TutorialAnchorSpec[];
   /** How input is constrained. */
   gate: TutorialGate;
+  /** Drop the dimming scrim + spotlight for this step — the coach panel still shows, but the board stays at
+   *  full clarity (used by the independence rounds, where the player is driving and nothing should be dimmed). */
+  noScrim?: boolean;
   /** Which action kinds advance/are-allowed under a soft/hard gate (by reducer Action `type`). Omitted =
    *  the predicate alone decides and no action is blocked. */
   allowedActionKinds?: string[];

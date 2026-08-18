@@ -92,13 +92,7 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
   return (
     <div className="heroselect endscreen won">
       <div className="hsbox endbox">
-        <div className="eyebrow">Tutorial complete</div>
-        <h1 className="disp hstitle">GRADUATED</h1>
-        <div className="endsub">
-          You've learned the loop — shop, build, position, and let the board fight. That's the whole game. The
-          real Ascent awaits: your own hero, a live table, and a Rating on the line.
-        </div>
-        <div className="endboardlabel">The warband you built</div>
+        <h1 className="disp hstitle">Tutorial Complete</h1>
         <div className="endboard">
           {run.board.length === 0
             ? <span className="endempty">— empty —</span>

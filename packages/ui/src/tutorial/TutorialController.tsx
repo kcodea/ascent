@@ -313,12 +313,16 @@ export function TutorialController(): JSX.Element | null {
     // step). The scrim + spotlight return for the post-combat debrief once the fight has settled. The coach
     // panel drops to the bottom of the screen so it never covers the fighting minions it's asking you to watch.
     const combatAnimating = step.phase === 'combat' && !run.combatSettled;
+    // NO-SCRIM steps (the independence rounds): the player is driving, so drop the dim + spotlight entirely —
+    // the coach panel still shows, but the whole board stays at full clarity (same treatment as combat-watch).
+    const noScrim = !combatAnimating && !!step.noScrim;
+    const clearScreen = combatAnimating || noScrim;
     const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
     return {
-      cutouts: combatAnimating ? [] : cutouts,
+      cutouts: clearScreen ? [] : cutouts,
       connector: combatAnimating ? undefined : connector,
       combat: step.phase === 'combat',
-      dim: combatAnimating ? 0 : undefined,
+      dim: clearScreen ? 0 : undefined,
       panel: {
         anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
         title: step.title,

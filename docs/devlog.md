@@ -32,6 +32,18 @@ a clean follow-up once the runes are chosen.
 
 Gates: typecheck, lint (0 errors), 5564 tests, `build:web` — all green.
 
+**Polish pass (owner feedback on R10–12, same PR):**
+- **No scrim on the independence rounds.** Added a `noScrim` step flag: the coach panel still shows but the
+  dimming + spotlight are dropped, so the board stays at full clarity while the player drives (R10, R11's build
+  phase, R12). The scrim returns for the post-combat "end combat" prompt.
+- **R11 forces a Tavern-up.** R11 now opens with a hard-gated upgrade to Tier 4 (affordable — the cost has
+  discounted since the R6 upgrade), then hands back to a free build phase.
+- **Debrief copy de-goofed.** R10/R11 post-combat prompts are now just "Well Played — End combat here and go
+  back to the shop."
+- **Graduation screen stripped.** Removed the eyebrow, the paragraph, and the "warband you built" label; the
+  heading is now **"Tutorial Complete"** (was "GRADUATED"). Just the title, the board, and Enter Ascent.
+  Verified live.
+
 **Follow-up fix (same PR):** the **Epic** Runeforge was popping over R9 (Buy a Spell = wave 9). The earlier
 tutorial guard only covered the *basic* forge (wave 6); the universal epic forge opens at wave 9 (reducer
 `advanceCombat` start-of-turn) and was ungated. Guarded both epic-forge triggers (the wave-9 universal open and

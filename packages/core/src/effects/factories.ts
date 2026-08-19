@@ -407,6 +407,22 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }
 
+/** Trigger a minion's Echo (Deathrattle) WITHOUT it dying — the shared body for Echohorn Stag / Hawkus / Spots.
+ *  The Echo fires as many times as a real death would (every Echo multiplier the side has — Sylus, Uron,
+ *  Funeral Engine…), then `self`'s gild DOUBLES that whole count. Logs a `rally` cue per proc (the "trigger
+ *  this Deathrattle" visual). ANY `onDeath` effect counts, not just ids that start with "deathrattle". */
+export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): void {
+  const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
+  for (let r = 0; r < procs; r++) {
+    ctx.log({ type: 'rally', source: self.uid, target: target.uid });
+    ctx.countDeathrattle?.(target.side);
+    for (const effect of target.effects) {
+      if (effect.on !== 'onDeath') continue;
+      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+    }
+  }
+}
+
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
  *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
  *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
@@ -3315,22 +3331,29 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       (m) => m !== self && m.effects.some((e) => e.on === 'onDeath'),
     );
     if (!target) return;
-    // The proc'd Echo fires as many times as a REAL death would — every Echo multiplier the side has (Sylus,
-    // Uron, Elderhorn's Ritual, Funeral Engine, Grave Contract) — and the Stag's own gild then DOUBLES that
-    // whole count, multiplicatively, the same shape `deathrattleReplayAdjacentBattlecry` uses for Drakko.
-    //
-    // This loop used to be `mul(self)` alone: it consulted NO multiplier, so Sylus contributed exactly ZERO
-    // through the Stag (owner report 2026-08-06 — the Echohorn → Dawnclaw → Drakko → Sylus chain came out at
-    // half its stated value, and every count was byte-identical with 0, 1, 2 or gilded Sylus on board).
-    const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
-    for (let r = 0; r < procs; r++) {
-      ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-      ctx.countDeathrattle?.(target.side);
-      for (const effect of target.effects) {
-        if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-      }
-    }
+    triggerEcho(ctx, self, target); // fires the Echo as many times as a real death would; gild doubles it
+  },
+
+  /** Set 2 — Hawkus (T5 Beast): whenever a Rally is triggered — i.e. any friendly minion with the Rally keyword
+   *  attacks — trigger your LEFT-MOST friendly Echo (it stays alive), reusing the Echohorn Stag machinery. The
+   *  attacker having `RL` is what makes it a Rally (an ordinary swing is not), the same guard Mineral Master uses.
+   *  Golden triggers the Echo twice per Rally. */
+  onRallyProcLeftmostEcho: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return; // an ally swing is not a Rally
+    const target = ctx.living(self.side).find((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'));
+    if (target) triggerEcho(ctx, self, target);
+  },
+
+  /** Set 2 — Spots (T6 Beast, Start of Combat): trigger your `count` (2) LEFT-MOST friendly Echoes, board order.
+   *  Each stays alive. Golden doubles each trigger (via `triggerEcho`'s `mul(self)`). */
+  scTriggerLeftmostEchoes: (ctx, self, params) => {
+    if (self.dead) return;
+    const targets = ctx.living(self.side)
+      .filter((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'))
+      .slice(0, num(params.count, 2));
+    for (const t of targets) triggerEcho(ctx, self, t);
   },
 
   /** Set 2 — Imp Wrangler (Start of Combat) / Errand Fiend (Rally): summon `count` Imps. `keyword` optionally
@@ -3797,8 +3820,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
+    // Owner fix 2026-08-18: cap at the summoner's current tier — a low-tier Menagerie Mammoth must not roll a
+    // Tier-6 Beast.
+    const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && (!params.excludeSelf || c.id !== self.cardId)
+      (c) => !c.token && !c.spell && c.tier <= maxTier && (!params.excludeSelf || c.id !== self.cardId)
         && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
@@ -3813,8 +3839,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribeSetStats: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
+    // Owner fix 2026-08-18: cap at the summoner's current tier (Bullseye must not roll a Tier-6 body).
+    const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+      (c) => !c.token && !c.spell && c.tier <= maxTier && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * mul(self);

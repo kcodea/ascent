@@ -208,6 +208,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onRallyProcLeftmostEcho:onAttack': { policy: 'ownBeat', family: 'rally' }, // Hawkus
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
   'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
@@ -283,6 +284,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scCastLeftmostHandSpell:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scTriggerLeftmostEchoes:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Spots
   'factory:scEngraveNeighbor:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainFodderStats:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainKeyword:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -591,7 +593,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_wheel:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_white_wolf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_wildscript:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_yazzus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_zoo:combat': { policy: 'foldedCue', family: 'combatModifier' },

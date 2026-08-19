@@ -43,9 +43,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 10,
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
-    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
-    text: '**Avenge (2):** Play **2 Rubies** on your minions.',
-    goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+    // Owner balance 2026-08-18: now Kobolds-only.
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2, tribe: 'kobold' } }],
+    text: '**Avenge (2):** Play **2 Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Play **4 Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -246,9 +247,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 7,
     health: 9,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
-    text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
-    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
+    // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
+    text: 'When you trigger a **Rally**, play **2 Rubies** on your **minions**.',
+    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your **minions**.',
   },
   {
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the

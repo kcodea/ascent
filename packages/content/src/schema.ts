@@ -157,6 +157,8 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyTriggerTribeShouts',
   'spellBuffRandomPerTribe',
   'spellBuffHealthGrantFlurryDragon',
+  'onRallyProcLeftmostEcho',
+  'scTriggerLeftmostEchoes',
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',

@@ -575,6 +575,7 @@ export function simulate(
       spellEscalationGain[side].attack += attack;
       spellEscalationGain[side].health += health;
     },
+    tierFor: (side) => (side === 'player' ? playerState : enemyState).tier,
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),

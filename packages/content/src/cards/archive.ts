@@ -635,33 +635,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
     goldenText: 'Whenever a **Shout** triggers, give your Dragons **+1/+1** twice.',
   },
   {
-    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/neutral.ts (SET2_NEUTRAL).
-    // Owner roster addition 2026-07-29. Two branches, deliberately different SHAPES rather than two stat buffs:
-    // branch A pays off the spell/Dragon half of set 2 (per-cast, per-type spread), branch B pays off a wide
-    // aggressive board (per-attack, board-wide). Which one is live is a real read on your build.
-    id: 'n2_fatecarver',
-    name: 'Fatecarver',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 8,
-    health: 9,
-    keywords: [],
-    // Both branches are PERSISTENT, so they are printed effects gated on `option` rather than
-    // `chooseOne[].effects` — the latter fires once at pick time and never again (see Malphas).
-    effects: [
-      { on: 'spellCast', do: 'onSpellCastBuffOnePerTribe', params: { option: 0, attack: 2, health: 2 } },
-      // `spellId` is required by the content validator — it is what makes the cast a REAL Growth cast (Guel and the
-      // spell counters see it), not just a buff wearing Growth's name.
-      { on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { option: 1, attack: 1, health: 1, spellId: 'growth' } },
-    ],
-    chooseOne: [
-      { text: 'When you cast a **Shop spell**, give **1 minion of each type +2/+2**.', goldenText: 'When you cast a **Shop spell**, give **1 minion of each type +4/+4**.', effects: [] },
-      { text: 'When a friendly minion attacks, cast **Growth**.', goldenText: 'When a friendly minion attacks, cast **Growth twice**.', effects: [] },
-    ],
-    text: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +2/+2**, or cast **Growth** when a friendly minion attacks.',
-    goldenText: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +4/+4**, or cast **Growth twice** when a friendly minion attacks.',
-  },
-  {
     // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Errand Fiend.
     // Owner rework 2026-08-04: Echo → RALLY. (Owner 2026-08-11: Flurry removed — the Rally now fires once per
     // attack rather than twice.)

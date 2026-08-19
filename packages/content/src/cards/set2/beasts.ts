@@ -299,4 +299,34 @@ export const SET2_BEASTS: CardDef[] = [
     text: '**Echo:** summon a **Void Panther**.',
     goldenText: '**Echo:** summon **2 Void Panthers**.',
   },
+
+  // ── Owner add 2026-08-18: the Echo-trigger pair ──────────────────────────────────────────────────────────
+  {
+    // Reacts to EVERY Rally you trigger (any friendly minion with the Rally keyword swinging) by re-firing your
+    // left-most Echo — a Rally board becomes an Echo engine. Golden triggers the Echo twice per Rally.
+    id: 'b2_hawkus',
+    name: 'Hawkus',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onRallyProcLeftmostEcho', params: {} }],
+    text: 'When a **Rally** is triggered, trigger your **left-most Echo**.',
+    goldenText: 'When a **Rally** is triggered, trigger your **left-most Echo** **twice**.',
+  },
+  {
+    // A one-shot burst of the same idea: fire your two left-most Echoes as the fight opens. Golden triggers each
+    // twice.
+    id: 'b2_spots',
+    name: 'Spots',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scTriggerLeftmostEchoes', params: { count: 2 } }],
+    text: '**Start of Combat:** trigger your **2 left-most Echoes**.',
+    goldenText: '**Start of Combat:** trigger your **2 left-most Echoes** **twice** each.',
+  },
 ];

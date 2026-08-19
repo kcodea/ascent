@@ -262,6 +262,8 @@ export type EffectFactoryId =
   | 'rallyTriggerTribeShouts' // Set 2 — Embercrest: Rally re-triggers your Dragon Shouts
   | 'spellBuffRandomPerTribe' // Set 2 — Dragonflame: buff a friendly, repeat per Dragon (random)
   | 'spellBuffHealthGrantFlurryDragon' // Set 2 — Flutter: +Health; a Dragon also gains Flurry
+  | 'onRallyProcLeftmostEcho' // Set 2 — Hawkus: any friendly Rally triggers your left-most Echo
+  | 'scTriggerLeftmostEchoes' // Set 2 — Spots: Start of Combat triggers your N left-most Echoes
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
@@ -2285,6 +2287,8 @@ export interface CombatContext {
    *  1/1 (the run's `rubyBonus`). Player-authoritative today; the enemy side is zero. */
   rubyBonusFor(side: Side): { attack: number; health: number };
   /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
+  /** This side's live tavern tier — used to cap random-minion generation (e.g. Bullseye / Menagerie Mammoth). */
+  tierFor(side: Side): number;
   spellsThisTurnFor(side: Side): number;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */

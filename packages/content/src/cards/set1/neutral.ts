@@ -246,7 +246,7 @@ export const NEUTRAL: CardDef[] = [
     id: 'blackbelt',
     name: 'Black Belt Brian',
     tribe: 'neutral',
-    tier: 6, // owner balance 2026-08-18: T5 → T6
+    tier: 5,
     attack: 3,
     health: 4,
     keywords: [],
@@ -336,7 +336,7 @@ export const NEUTRAL: CardDef[] = [
     id: 'nimbus',
     name: 'Nimbus',
     tribe: 'neutral',
-    tier: 6, // owner balance 2026-08-18: T5 → T6
+    tier: 5,
     attack: 4,
     health: 3,
     keywords: [],

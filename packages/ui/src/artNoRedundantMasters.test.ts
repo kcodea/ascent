@@ -38,6 +38,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // here catches the trend long before a package is built and rejected. Raise it deliberately if the card
     // pool genuinely grows — but a jump of a hundred usually means un-optimized masters crept back in.
     const total = artDirs().reduce((n, d) => n + readdirSync(join(ART, d)).length, 0);
-    expect(total, `art files: ${total} — itch's whole-zip cap is 1000`).toBeLessThan(900);
+    // Budget raised 900 → 960 on 2026-08-18 as the Set 2 pool grew (Dragon batch + Hawkus/Spots art). Still a
+    // ~40-file margin under itch's 1000 cap — a redundant-master regression would blow well past it.
+    expect(total, `art files: ${total} — itch's whole-zip cap is 1000`).toBeLessThan(960);
   });
 });

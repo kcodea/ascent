@@ -1,5 +1,31 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 follow-up: Hawkus/Spots, Echo-trigger primitives, summon-tier cap + tuning (PR C cont.)
+
+Added to the same PR (#1097).
+
+**New minions (2 Beasts):** **Hawkus** (T5 6/9 — when a Rally is triggered, i.e. any friendly Rally minion
+attacks, trigger your left-most Echo) and **Spots** (T6 6/10 — Start of Combat: trigger your 2 left-most Echoes).
+Both reuse the Echohorn Stag machinery via a shared `triggerEcho` helper; new factories
+`onRallyProcLeftmostEcho` (Hawkus) and `scTriggerLeftmostEchoes` (Spots).
+
+**Changes:** Black Belt Brian and Nimbus reverted to **T5**. **Gemstorm Instigator** → Avenge (2): Play 2 Rubies
+on your **Kobolds** (was all minions). **Mineral Master** → Rally: 2 Rubies on your **minions** (was Kobolds).
+**Fatecarver** un-archived and dropped to **T5**. **Rune of the Wildscript** archived (Quil itself stays).
+
+**Bug fix:** Bullseye and Menagerie Mammoth now summon random Beasts only **up to your current tier** — a new
+`ctx.tierFor(side)` accessor caps the pool in `deathrattleSummonRandomTribe` / `…SetStats` (a low-tier Mammoth
+could previously roll a Tier-6 body).
+
+**Art:** wired art for 17 minions (Axeman, Enigma, Impossible Todd, Vaultkeeper, Mushy, Billings, Gemheart Golem,
+Broodfire, Cinderchef, Embercrest, Flamebeat Drake, Flutterdrake, River Drake, Roarcollector, Warflame, Hawkus,
+Spots) and included the owner's card-art tuner adjustments (Gangplank, Leech, Kobe). Removed a stray unused
+`d2_scalefeather2.webp`.
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage in `set2EchoTriggerAug18.test.ts`
+(Hawkus fires on Rally / not on a plain swing, Spots triggers exactly the 2 left-most Echoes, and the
+summon-tier cap holds at Tier 2/3).
+
 ## 2026-08-18 — Set 2 Dragon batch: 8 new Dragons, 2 spells, 8 archives, rebalances + Fel Spikes fix (PR C)
 
 Stacked on the Part-B branch. A Dragon-focused content pass plus a combat bug fix.

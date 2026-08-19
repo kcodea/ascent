@@ -1198,6 +1198,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Transcription: the next N bought minions each come with a free extra copy — counts DOWN and
       // retires at 0. Stacks with the first-buy dupe (they are separate purchases of the same idea).
       if ((s.runeTranscription ?? 0) > 0 && s.hand.length < handCap(s)) {
+        procRune(s, 'runeTranscription');
         s.runeTranscription = (s.runeTranscription ?? 0) - 1;
         if (s.runeTranscription <= 0) s.runeTranscription = undefined;
         conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
@@ -1555,6 +1556,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
           if (s.attachmentsThisTurn === 1) {
             if (s.runeTempering && !target.keywords.includes('DS')) {
+              procRune(s, 'runeTempering');
               target.keywords = [...target.keywords, 'DS'];
             }
             if (s.runeReplication) {
@@ -1638,6 +1640,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const returns = rrng.int(100) < 25;
             s.rngCursor = rrng.state();
             if (returns && s.hand.length < handCap(s)) {
+              procRune(s, 'runeRefrain'); // the 25% roll actually HIT — a miss is not the rune firing
               const idx = s.board.findIndex((c) => c.uid === card.uid);
               if (idx >= 0) {
                 const [ret] = s.board.splice(idx, 1);
@@ -1940,6 +1943,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.tier += 1;
       // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
       if (s.runeVault && s.tier >= 5) {
+        procRune(s, 'runeVault');
         s.runeVault = undefined;
         gainGold(s, 10);
       }
@@ -2040,6 +2044,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
       // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
       if (s.runeDuplication && s.runeforgeEpic) {
+        procRune(s, 'runeDuplication');
         s.runeDuplication = undefined;
         applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
         (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
@@ -3629,11 +3634,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
   // no once-per-combat cap. The armed flag just needs to be truthy.
   if (s.questFlags?.runeAshenPayroll) {
+    procRune(s, 'runeAshenPayroll');
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + (result.playerImpsSummoned ?? 0);
   }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     while (s.runeSlayingKills >= 6) {
+      procRune(s, 'runeSlaying'); // one per payout — 12 kills is two fires, and banking below 6 is none
       s.runeSlayingKills -= 6;
       grantTopTypeMinion(s);
     }
@@ -3857,6 +3864,7 @@ function advanceCombat(s: RunState): void {
   if (s.runeTreasureMap) {
     const tm = { ...s.runeTreasureMap, turns: s.runeTreasureMap.turns - 1 };
     if (tm.turns <= 0) {
+      procRune(s, 'runeTreasureMap'); // the countdown REACHED zero — ticking down is not a fire
       gainGold(s, tm.gold);
       s.runeTreasureMap = undefined;
     } else {
@@ -4046,13 +4054,15 @@ function advanceCombat(s: RunState): void {
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    if (s.runeSummitTick % 3 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); // every 3rd shop (owner sheet 2026-07-31)
+    // Only the 3rd shop pays; the two in between are the countdown, not the rune firing.
+    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
   applyStartOfTurn(s);
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) {
+    procRune(s, 'runeStrangeCaravan');
     const un = uncontrolledTribes(s);
     if (un.length > 0) {
       const rng = makeRng(s.rngCursor);
@@ -4495,7 +4505,15 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
   // Every rune reward records which rune installed it, so a trigger site can attribute itself back to the
   // badge. Harmless for quests (they key their own pulse off `completionCount`) and cheap — one write per
   // purchase, never on a hot path.
-  s.runeIdByKind = { ...(s.runeIdByKind ?? {}), [r.kind]: def.id };
+  //
+  // A `combatFlag` reward is keyed by its FLAG, not by the kind: 29 runes share that one kind, so keying by
+  // kind would credit every combat proc to whichever was bought last. Flags are `runeXxx` and reward kinds
+  // are distinct names, so the two never collide in this map. (`runeThreshold` — the other shared kind —
+  // needs no entry here: those are stored as a list, each carrying its own `sourceId`; see `procRuneId`.)
+  const attrKey = r.kind === 'combatFlag' && typeof (r as { flag?: string }).flag === 'string'
+    ? (r as { flag: string }).flag
+    : r.kind;
+  s.runeIdByKind = { ...(s.runeIdByKind ?? {}), [attrKey]: def.id };
   switch (r.kind) {
     case 'buffBoard':
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);

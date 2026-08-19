@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-19 — Every rune with a real trigger now bursts (category 3 cleared)
+
+Follow-up to the entry below: the remaining unstamped rune triggers are wired, in both phases. Two of them
+turned out to be attribution BUGS waiting to happen rather than missing one-liners.
+
+**`runeThreshold` is one reward kind shared by EIGHT runes** (Chorus, Overtime, Infernal Ink, Cindergem,
+Showcase, Merchant's Chorus, Empty Plate, Gem Dividend), and a player can own several at once. `runeIdByKind`
+holds one id per kind, so routing those through `procRune` would have credited every threshold payout to
+whichever was bought LAST. They are stored as a list, each entry carrying its own `sourceId` — so `procRuneId`
+takes the id directly and ONE stamp at `payRuneThreshold` (the shared payout chokepoint) covers all eight,
+each correctly attributed.
+
+**`combatFlag` is worse: 29 runes share it.** Fixed at the source — a `combatFlag` reward is now keyed in
+`runeIdByKind` by its FLAG rather than by the kind. Flags are `runeXxx` and reward kinds are distinct names,
+so both live in one map without colliding. Both collisions are now pinned by tests.
+
+Newly firing — shop: Transcription, Refrain (on the 25% roll HITTING, not on the roll), Vault, Duplication,
+Treasure Map (when the countdown reaches zero, not while it ticks), Summit (every 3rd shop, not the two
+between), Strange Caravan, Tempering, Summoning, Golden Splinter, plus all eight threshold runes. Combat:
+Slaying (one per 6-kill payout, so 12 kills is two fires), Ashen Payroll, Reinvestment, and Flooded Vault.
+
+Flooded Vault is worth a note: it fires from `effects/factories.ts`, which has no trigger emitter on its
+context. Rather than widen `EffectContext` (a shared-boundary type) for one rune, it emits through `ctx.log`
+— a `questTrigger` IS a `CombatEvent`, so it lands on the same channel every other rune trigger uses and the
+badge treats it identically.
+
+The stamps sit past every gate, so banking is never a fire: below a threshold, a missed Refrain roll, and a
+Summit tick that is not the third all stay silent.
+
+Still deliberately silent: the continuous modifiers (Fury, Hatchery, Packcraft, Bartering, Distillation, and
+the "your X also does Y" runes) have no moment to burst on, and the one-shot purchase rewards fire once at buy
+and never again. Owner review of that group is the next step.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5614 passed) + `build:web` green.
+
 ## 2026-08-19 — Rune triggers burst on their badge; `spell-sparks` is the default spell cast
 
 **Three owner-authored defs land, and one long-standing dead binding is documented.**

@@ -3527,6 +3527,7 @@ export function simulate(
   // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip.
   const reinvest = modsFor('player').runeReinvestment ?? 0;
   if (reinvest > 0 && playerSummonCount > 0) {
+    fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
     tavernBuyGain.attack += reinvest * playerSummonCount;
     tavernBuyGain.health += reinvest * playerSummonCount;
   }

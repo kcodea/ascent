@@ -400,6 +400,23 @@ export interface Commission { kind: CommissionKind; dueWave: number; }
  */
 export function procRune(s: RunState, kind: string, times = 1): void {
   const id = s.runeIdByKind?.[kind];
+  if (!id) return;
+  procRuneId(s, id, times);
+}
+
+/**
+ * The same mark, by rune ID directly — for sites that already know which rune they are.
+ *
+ * `runeThreshold` is why this exists and is not a nicety: EIGHT different runes share that one reward kind
+ * (Chorus, Overtime, Infernal Ink, Cindergem, Showcase, Merchant's Chorus, Empty Plate, Gem Dividend), and a
+ * player can own several at once. `runeIdByKind` holds one id per kind, so routing them through `procRune`
+ * would credit every threshold payout to whichever of them was bought LAST. They are stored as a list, each
+ * entry carrying its own `sourceId`, so the id is right there — one stamp at the payout chokepoint covers all
+ * eight, correctly attributed.
+ */
+export function procRuneId(s: RunState, id: string | undefined, times = 1): void {
+  // `id` is optional because a threshold entry restored from an older save may predate `sourceId`; an
+  // unattributable proc is simply not stamped rather than crashing the shop.
   if (!id || times <= 0) return;
   s.runeProcs = { ...(s.runeProcs ?? {}) };
   s.runeProcs[id] = (s.runeProcs[id] ?? 0) + times;

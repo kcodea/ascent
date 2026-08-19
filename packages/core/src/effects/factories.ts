@@ -1604,6 +1604,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (ctx.floodedVaultFor?.(self.side)) {
       const def = ctx.getCard(id);
       if (def?.spell && combatCastable(def)) {
+        // Pulse the rune's badge. Emitted through `ctx.log` rather than through a new context hook: a
+        // `questTrigger` IS a `CombatEvent`, so this needs no widening of the effect context — and it lands
+        // on the same channel every other rune trigger uses, so the badge treats it identically.
+        ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
           const pool = ctx.living(self.side);
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;

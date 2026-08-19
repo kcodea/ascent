@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -1164,6 +1164,10 @@ export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCas
 }
 
 function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
+  // The rune fired — one stamp here covers all eight threshold runes, each credited by its own `sourceId`
+  // rather than by the shared `runeThreshold` reward kind (see `procRuneId`). Called only from the
+  // `t.tick >= t.per` branch, so banking below the line is correctly not a fire.
+  procRuneId(state, t.sourceId);
   const pool = poolOf(state);
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
@@ -1303,6 +1307,7 @@ export function gainGold(state: RunState, amount: number): void {
   // the rune is spent (cleared), so it can never pay twice.
   const gs = state.runeGoldenSplinter;
   if (gs && state.embers >= gs.at) {
+    procRune(state, 'runeGoldenSplinter');
     state.runeGoldenSplinter = undefined;
     const pool = poolOf(state).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === gs.tier);
     if (pool.length > 0 && state.hand.length < handCap(state)) {
@@ -7403,6 +7408,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
   // "improve your Imps" applies twice under Rune of Mastery).
   if (state.runeSummoning) {
+    procRune(state, 'runeSummoning');
     const sr = improveReps(state);
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }

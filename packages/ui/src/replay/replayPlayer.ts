@@ -12,8 +12,8 @@
  */
 import type { CombatResult } from '@game/core';
 import {
-  expandFrames, roundMarks,
-  type CombatFrame, type ReplayV2, type RoundMark, type ShopFrame, type ShopView,
+  expandFrames, rollupRounds, roundMarks,
+  type CombatFrame, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
 import { useGame } from '../store';
 import { synthRunFromShopView } from './synthRun';
@@ -79,6 +79,13 @@ let snapshot: Snapshot | null = null;
 /** The round rail's index — derived once per `startReplay` (one pass over the frames). Empty when idle. */
 export function replayRoundMarks(): RoundMark[] {
   return marks;
+}
+
+/** The metrics drawer's per-round fold (§7.4) — `rollupRounds` over the expanded frames, computed ONCE per
+ *  `startReplay` and cached here (never per render). Empty when idle. */
+let stats: RoundStat[] = [];
+export function replayRoundStats(): RoundStat[] {
+  return stats;
 }
 
 /** Each frame's `tMs`, cached once per `startReplay` — the transport bar maps frame index ⇄ timeline
@@ -215,6 +222,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   snapshot = snap as unknown as Snapshot;
   frames = expanded;
   marks = roundMarks(expanded);
+  stats = rollupRounds(expanded);
   frameTimes = expanded.map((f) => f.tMs);
   idx = 0;
   speed = 1;
@@ -300,6 +308,7 @@ export function endReplay(): void {
   snapshot = null;
   frames = [];
   marks = [];
+  stats = [];
   frameTimes = [];
   playing = false;
   useGame.setState({

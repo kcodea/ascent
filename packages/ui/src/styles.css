@@ -5434,7 +5434,7 @@ svg { width: 18px; height: 18px; }
    background"). At rgba(0,0,0,.3) the homescreen's daylit castle read straight through it, so the columns
    that aren't accent-coloured — Games, the hero name, the header labels — washed out against clouds and
    towers. Opaque-enough navy fixes every one of them at once and needs no per-column colour tuning. */
-.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px 104px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
 /* A leaderboard row is a BUTTON now (it opens that player's career). Reset the button chrome so it still
    reads as a table row, and keep the grid from the base rule — a button defaults to inline-block and would
    otherwise collapse the columns. */
@@ -5456,6 +5456,14 @@ svg { width: 18px; height: 18px; }
 .rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
 .rankrow > .rankrank { justify-content: center; }
 .rankrow.me { border-color: var(--acc); background: linear-gradient(rgba(255, 140, 40, 0.16), rgba(255, 140, 40, 0.16)), rgba(8, 13, 26, 0.82); }
+
+/* REPLAY V2 (Phase C) — the per-row Watch pill: spectate that player's latest recorded run. Sits in the
+   .rankrow grid's trailing 104px column; the click is stopped from bubbling to the row (which opens the
+   Career). Salvaged verbatim from the killed v1 branch (PR #956) — only the data behind it changed. */
+.rankwatch { align-self: center; justify-self: end; margin-left: 14px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 12px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; border-radius: 8px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rankwatch:hover:not(:disabled) { filter: brightness(1.08); }
+.rankwatch:disabled { opacity: 0.55; cursor: default; }
+.rankrow.rankhead > .rankwatchhead { color: rgba(255, 255, 255, 0.78); font-size: 11px; }
 .rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.82); }
 .rankrank.r1 { color: #ffcf4a; }
 .rankrank.r2 { color: #d6dde6; }
@@ -5595,6 +5603,16 @@ svg { width: 18px; height: 18px; }
 .matchrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .rgchev { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: rgba(255, 255, 255, 0.4); }
 .matchrow-btn:hover .rgchev { color: var(--acc); }
+
+/* REPLAY V2 (Phase C) — a Recent Games row whose telemetry carries a v2 replay grows a trailing ▶ Watch
+   button, so each template gains one auto column (.haswatch is applied per-row only when the button renders,
+   keeping watchless rows on the base templates). The clickable row is a div[role=button] (a button can't nest
+   a button), so .matchrow-btn's plate/hover chrome applies unchanged. */
+.matchrow.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; }
+.matchrow-btn.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto auto; }
+.matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.matchwatch:hover:not(:disabled) { filter: brightness(1.08); }
+.matchwatch:disabled { opacity: 0.55; cursor: default; }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 /* The run a Recent-Games click focused — a static accent ring (no animation). */
 .carmatch-focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
@@ -8081,8 +8099,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .replayspeed { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--gl-value, #e6b45a); }
 .replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
 /* Round rail — the left-hand per-round index (click a row → seek to that round's shop opening). Styled to
-   match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey). */
-.roundrail { position: fixed; left: 14px; top: 50%; transform: translateY(-50%); z-index: 555;
+   match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey).
+   The FIXED positioning lives on `.roundrail-wrap` so the metrics drawer can sit as an absolutely-positioned
+   SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll). */
+.roundrail-wrap { position: fixed; left: 14px; top: 50%; transform: translateY(-50%); z-index: 555; }
+.roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   font-family: var(--font-ui); }
@@ -8097,3 +8118,24 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-verdict.loss { color: #e88a7a; }
 .roundrail-verdict.draw { color: rgba(255, 255, 255, 0.55); }
 .roundrail-loss { font-size: 11px; color: #e88a7a; opacity: 0.85; }
+/* Metrics drawer (§7.4 of docs/replay-v2-handoff.md) — slides out of the rail to the RIGHT for the
+   hovered/pinned round: exactly three numbers (Gold spent / Actions / Shop tier at start). Same backing
+   plate as the rail. Absolutely positioned off the rail's right edge so opening it never shifts the rail
+   (and it can never cover the rows); the slide is a ONE-SHOT transform/opacity transition — compositor-only,
+   per the no-looping-paint-animation rule. */
+.rounddrawer { position: absolute; left: calc(100% + 10px); top: 50%; min-width: 180px; padding: 10px 12px;
+  border-radius: 10px; background: #14111c;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  font-family: var(--font-ui); white-space: nowrap;
+  transform: translateY(-50%) translateX(-10px); opacity: 0; pointer-events: none;
+  transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.rounddrawer.open { transform: translateY(-50%) translateX(0); opacity: 1; pointer-events: auto; }
+.rounddrawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.rounddrawer-title { font-weight: 800; font-size: 13px; color: #fff; letter-spacing: 0.03em; }
+.rounddrawer-close { border: none; background: transparent; padding: 0 2px; font: inherit; font-weight: 800;
+  font-size: 14px; line-height: 1; color: rgba(255, 255, 255, 0.55);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rounddrawer-close:hover { color: #fff; }
+.rounddrawer-line { display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding: 2px 0; font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.78); }
+.rounddrawer-val { color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }

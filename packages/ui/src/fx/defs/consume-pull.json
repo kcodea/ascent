@@ -1,0 +1,678 @@
+{
+  "version": 1,
+  "id": "consume-pull",
+  "duration": 600,
+  "layers": [
+    {
+      "primitive": "smoke",
+      "anchor": "target",
+      "at": 0,
+      "life": 560,
+      "muted": true,
+      "params": {
+        "rate": 185,
+        "life": 260,
+        "spread": 1,
+        "speed": 25,
+        "speedVar": 0.5,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "gravity": 150,
+        "spin": 12,
+        "spinVar": 0.7,
+        "orientToVelocity": false,
+        "turbulence": 25,
+        "turbScale": 0.03,
+        "emitShape": "disc",
+        "emitRadius": 26,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0,
+        "shape": "circle",
+        "size": 16,
+        "sizeVar": 0.45,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.55
+          ],
+          [
+            1,
+            1.35
+          ]
+        ],
+        "coreBias": 0.28,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.35
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bands": 3,
+        "plateau": 0.3,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "fadeIn": 0.22,
+        "palette": [
+          2763314,
+          5592415,
+          8947866,
+          12105928
+        ],
+        "blendMode": "normal",
+        "glow": 0,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.35,
+        "gain": 1
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 120,
+      "params": {
+        "count": 162,
+        "interval": 100,
+        "spread": 0.93,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 445,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.855,
+        "gravity": 2000,
+        "pointGravity": 3880,
+        "life": 1190,
+        "orientToVelocity": false,
+        "turbulence": 955,
+        "turbScale": 0.084,
+        "emitShape": "point",
+        "emitRadius": 62,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0.71,
+        "shape": "circle",
+        "size": 141,
+        "sizeVar": 0.35,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1.172800732887573
+          ],
+          [
+            0.15943364184554185,
+            1.1155747957681654
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.39,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.005722636515993917
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4141609659087291
+          ],
+          [
+            0.46483875369477423,
+            0.11793089350687169
+          ],
+          [
+            0.6818367031014332,
+            0.001234717155268683
+          ],
+          [
+            0.998,
+            0
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "fade": 1.5,
+        "bands": 3,
+        "plateau": 0.21,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          8001469,
+          13186799,
+          15769855,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 3.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.43,
+        "gain": 0.3
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 100,
+      "params": {
+        "count": 210,
+        "interval": 100,
+        "spread": 1,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 245,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.925,
+        "gravity": 1500,
+        "pointGravity": 3690,
+        "life": 1210,
+        "orientToVelocity": false,
+        "turbulence": 955,
+        "turbScale": 0.084,
+        "emitShape": "point",
+        "emitRadius": 62,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0.71,
+        "shape": "circle",
+        "size": 63,
+        "sizeVar": 0.35,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.07428162300093932
+          ],
+          [
+            0.15943364184554185,
+            1.1155747957681654
+          ],
+          [
+            0.7943544081602116,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "coreBias": 0.39,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.005722636515993917
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4141609659087291
+          ],
+          [
+            0.46483875369477423,
+            0.11793089350687169
+          ],
+          [
+            0.6818367031014332,
+            0.001234717155268683
+          ],
+          [
+            0.998,
+            0
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "fade": 1.5,
+        "bands": 3,
+        "plateau": 0.21,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          8001469,
+          13186799,
+          15769855,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 3.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.43,
+        "gain": 0.3
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 70,
+      "params": {
+        "count": 85,
+        "interval": 100,
+        "spread": 1,
+        "aimMode": "fixed",
+        "angle": -90,
+        "speed": 535,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.905,
+        "gravity": 1160,
+        "pointGravity": 3910,
+        "life": 1190,
+        "orientToVelocity": false,
+        "turbulence": 955,
+        "turbScale": 0.084,
+        "emitShape": "point",
+        "emitRadius": 62,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0.71,
+        "shape": "circle",
+        "size": 165,
+        "sizeVar": 0.35,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.07428162300093932
+          ],
+          [
+            0.15943364184554185,
+            1.1155747957681654
+          ],
+          [
+            0.7943544081602116,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "coreBias": 0.39,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.005722636515993917
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4141609659087291
+          ],
+          [
+            0.46483875369477423,
+            0.11793089350687169
+          ],
+          [
+            0.6818367031014332,
+            0.001234717155268683
+          ],
+          [
+            0.998,
+            0
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "fade": 1.5,
+        "bands": 3,
+        "plateau": 0.21,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          13269759,
+          15440383,
+          16508415,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 3.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.43,
+        "gain": 0.3
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 30,
+      "params": {
+        "count": 151,
+        "interval": 100,
+        "spread": 1,
+        "aimMode": "fixed",
+        "angle": -90,
+        "speed": 535,
+        "speedVar": 1,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.905,
+        "gravity": 1160,
+        "pointGravity": 3940,
+        "life": 1190,
+        "orientToVelocity": false,
+        "turbulence": 955,
+        "turbScale": 0.084,
+        "emitShape": "point",
+        "emitRadius": 62,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0.71,
+        "shape": "circle",
+        "size": 63,
+        "sizeVar": 0.35,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            0.07428162300093932
+          ],
+          [
+            0.15943364184554185,
+            1.1155747957681654
+          ],
+          [
+            0.7943544081602116,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "coreBias": 0.39,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.005722636515993917
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4141609659087291
+          ],
+          [
+            0.46483875369477423,
+            0.11793089350687169
+          ],
+          [
+            0.6818367031014332,
+            0.001234717155268683
+          ],
+          [
+            0.998,
+            0
+          ],
+          [
+            0.999,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "fade": 1.5,
+        "bands": 3,
+        "plateau": 0.21,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          13269759,
+          15440383,
+          16508415,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0,
+        "noiseScale": 3.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.43,
+        "gain": 0.3
+      }
+    },
+    {
+      "primitive": "burst",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "count": 207,
+        "interval": 600,
+        "spread": 1,
+        "aimMode": "travel",
+        "angle": -90,
+        "speed": 1550,
+        "speedVar": 0.5,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "drag": 0.9,
+        "gravity": 0,
+        "pointGravity": 0,
+        "life": 450,
+        "orientToVelocity": false,
+        "turbulence": 0,
+        "turbScale": 0.02,
+        "emitShape": "point",
+        "emitRadius": 0,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 1,
+        "squashY": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0,
+        "shape": "shard",
+        "size": 9,
+        "sizeVar": 0.5,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.5,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fade": 2,
+        "bands": 3,
+        "plateau": 0.3,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "palette": [
+          8001469,
+          13186799,
+          15769855,
+          16777215
+        ],
+        "blendMode": "add",
+        "glow": 0.25,
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.35,
+        "gain": 1.4
+      }
+    }
+  ]
+}

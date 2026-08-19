@@ -1,5 +1,65 @@
 # ASCENT — development log
 
+## 2026-08-18 — `consume-pull` particles replace the placeholder `consume-bands`
+
+The consume's particle layer is now the owner's workshop-authored **`consume-pull`** def: smoke gathers at the
+eater while three `burst` rings are sucked in by **point-gravity** (the black-hole pull param, #1076) — the
+"real energy-bands look" the earlier entry flagged as a follow-up. `playFodderEat` fires `consume-pull`
+(source = ghost, target = eater) in place of `consume-bands`, at t=0 of each ghost's taffy pull; the taffy card
+ghost, slot-launch, tilt, and reflow-hold are unchanged. The old placeholder `consume-bands.json` is deleted
+(nothing else referenced it), and the direct-call snapshot + its golden swap `consume-bands` → `consume-pull`.
+
+Verified: the fx def-registry gate loads + validates the new def (1372 fx tests green), typecheck + build green.
+
+## 2026-08-18 — Consume slot-hold: the taffy pull now launches from the slot, and the row closes *after* it leaves
+
+Combined two parallel consume efforts onto latest main. Base: the other session's `feat/consume-fx` taffy
+pull + `🍖 Consume FX` tuner + `consume-bands` def (its own entry below), squash-merged onto current main —
+which keeps main's slot-launch ghost (#1078), so the taffy ghost now stretches out of the eaten card's **own
+slot**, not the row centre. On top of that, this adds the **reflow-hold**:
+
+- On the consume commit, a derive-during-render step reads the eaten uid + its pre-removal slot index (from
+  `shopRectsRef.cur`, still the pre-removal layout at that point) and re-injects an **invisible placeholder**
+  (`.card.compact.dragsrc`, `data-uid` intact) at that index — so `flipKey` is byte-identical to the
+  pre-consume frame and the survivors do **not** reflow while the ghost is being pulled in.
+- A timer releases the hold at the taffy's own clock (`getConsumeFxConfig().durationMs`); only then does the
+  slot drop, `flipKey` change, and the committed-move FLIP glide the survivors closed.
+- The taffy ghost's slot-launch read now falls back `prev ?? cur`, because a held commit leaves `flipKey`
+  unchanged so the snapshot effect never swaps `cur`→`prev`.
+
+Why derive-during-render, not an effect: a passive effect runs AFTER the FLIP layout effect, so the reflow
+would already have animated before the placeholder could hold the slot.
+
+Verified: typecheck (pkgs + web), lint (0 errors), full test suite, and `build:web` all green; live consume
+checked by the owner on the branch dev server.
+
+## 2026-08-16 - Shop consume FX: shake + taffy-stretch + pull ghost, synced to a `consume-bands` def
+
+Replaced the old ghost-Fred swirl that played when a shop minion is eaten with a purpose-built "consumed"
+moment: the eaten minion's ghost **shakes**, **taffy-stretches** along the aim axis toward the eater, and is
+**pulled in** as it collapses and fades, synced to a Pixi source→target `consume-bands` def fired at the same
+instant. One GSAP timeline conducts the whole thing — the config's `durationMs` is the clock (default 800ms,
+matched to the def's duration), and its `onUpdate` reads a cached `from`/`to` (the eater is measured **once**
+per eat, never per frame) through the pure `consumeTransform` helper (shake / stretch / thin / pull, plus a
+`showStats` toggle that renders the eaten minion's stats on the ghost).
+
+Because **`playFodderEat` is the single choke point** for every "a minion got eaten" moment — reached from the
+mid-turn watchers, the end-of-turn beat loop, and (remapped) `shopEaten` — the rewire lands ONCE and covers
+**every shop eater automatically**: Bob Blart, Cinder Clerk, Godfodder, the Consume spell, the tavern auto-eat,
+and any future consumer. A **`🍖 Consume FX`** dev tuner (shake amp/freq, stretch, thin, pull distance,
+duration, and the show-stats toggle) drives it live, wired through the standard tuner schema/persist scaffolding.
+
+Scope: shop phase only. Combat consumption and the two `spellDevour`/`orbitDevour` orphans are deliberately
+**out** — there is no `CN`/consume combat event to hang a synced def on.
+
+How verified: unit tests for the pure `consumeTransform` taffy math and the config getter/persist, the
+`fx/directCalls.test.ts` pin updated for the new `consume-bands` literal call site, and the full gate suite
+(typecheck + lint + test + build:web) green. The live in-shop visual and the real `consume-bands` energy-bands
+look are owner-run in the FX workshop.
+
+Follow-ups: the owner authors the real `consume-bands` def in the workshop (the committed one is a placeholder,
+duration-matched to `durationMs`); `holdFodderGains`' stat-reveal timing (~90ms — the beat where the eater's
+buffed stats commit) may want re-aligning once the final `durationMs` is locked in.
 ## 2026-08-18 — Combat auto-ramp: tune the shipped defaults for a gentler curve
 
 Owner feel pass on the auto-ramp curve (the live Speed Ramp tuner). Updated `COMBAT_RAMP_DEFAULTS`

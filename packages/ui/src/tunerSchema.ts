@@ -72,6 +72,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   herobufffx: '🎆',
   aurafx: '🌊',
   infusefx: '🍖',
+  consumefx: '🍖',
   weldfx: '🔩',
   stepprocfx: '🧮',
   stepcounter: '📈',

@@ -68,6 +68,8 @@ import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxCon
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
+import { getConsumeFxConfig } from './consumeFxConfig';
+import { consumeTransform } from './fx/consumeTransform';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
 import { playPlateGild } from './plateGild';
@@ -1432,6 +1434,22 @@ export function Recruit() {
   // eater's beat so they visibly leave in real time, instead of snapping out only at commit (owner report
   // 2026-08-14). Cleared when the animation completes; the committed state has already removed them by then.
   const [eotConsumedUids, setEotConsumedUids] = useState<ReadonlySet<string>>(new Set());
+  // A consumed SHOP minion's slot is HELD OPEN (an invisible placeholder) until its ghost has been pulled into
+  // the eater, so the survivors reflow AFTER the card leaves rather than the instant the consume commits (owner
+  // ask 2026-08-17). `heldConsume` is the eaten uids + their pre-removal slot index; `heldConsumeSeq` gates the
+  // derive-during-render that seeds it from `run.shopEaten`. Declared here (not by the shop row below) because
+  // `displayShop` reads it. The paired `shopRectsRef` snapshot (whose `cur` still holds the pre-removal layout
+  // while the slot is held) supplies the index + the ghost's launch rect.
+  const [heldConsume, setHeldConsume] = useState<{ uid: string; index: number }[]>([]);
+  const [heldConsumeSeq, setHeldConsumeSeq] = useState(run.shopEatenSeq);
+  // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
+  // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
+  // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
+  // Layout effects run BEFORE passive effects, so on the consume commit this swaps `cur`→`prev` (capturing the
+  // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads it to find the eaten card's real slot.
+  // While the slot is HELD (flipKey unchanged), this effect does not run, so `cur` still holds the pre-removal
+  // layout — the launch read below falls back to `cur` for exactly that case.
+  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
   // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
   // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
   // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
@@ -1614,6 +1632,7 @@ export function Recruit() {
     setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
     setEotShopStats(null); // shop-buff climb is committed too — the real offers now carry it
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
+    setHeldConsume([]); // and never carry a held (invisible) consumed slot into combat / the next shop
     setCombatStage('closing');
     setEndTurnFlash(true);
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
@@ -3499,10 +3518,11 @@ export function Recruit() {
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
   const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
     let raf = 0;
+    let startRaf = 0;
     let tries = 0;
     let t = 0;
-    let crumbleT = 0;
     let wiggleT = 0;
+    const tweens: gsap.core.Tween[] = [];
     const seq = key;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
@@ -3523,7 +3543,9 @@ export function Recruit() {
         // `uid`; a Fodder token has none, and an unmeasured slot (a consume before the shop laid out) also misses:
         // both fall back to the original fanned row-centre, hovering just above the shop line.
         const uid = (ev as { uid?: string }).uid;
-        const snap = uid ? shopRectsRef.current.prev.get(uid) : undefined;
+        // `prev` after a swap (the no-hold path), else `cur` — which still holds the pre-removal layout while
+        // the slot is held (that commit left `flipKey` unchanged, so the snapshot effect never swapped).
+        const snap = uid ? (shopRectsRef.current.prev.get(uid) ?? shopRectsRef.current.cur.get(uid)) : undefined;
         const gw = snap?.w ?? w;
         const gh = snap?.h ?? h;
         const x0 = snap ? snap.cx - gw / 2 : rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72) - w / 2;
@@ -3531,40 +3553,73 @@ export function Recruit() {
         return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
-      const CRUMBLE_MS = FODDER_CRUMBLE_MS;
-      const icfg = getInfuseFxConfig();
-      // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
-      // pulse doubling as the card's burst-into-energy.
-      crumbleT = window.setTimeout(() => {
-        for (const g of ghosts) {
-          const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };
+      // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
+      // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
+      // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-
+      // authored `consume-pull` particle def (smoke at the eater + three point-gravity burst rings sucked in),
+      // fired at the SAME instant each ghost's timeline starts. Every value is read LIVE from the 🍖 tuner.
+      const cfg = getConsumeFxConfig();
+      // Who reacts as the pull lands — summed per eater (one Demon can eat several Fodder). The eater's stat
+      // WITHHOLD is deliberately NOT placed here (see `holdFodderGains`): it must ride the commit that raises
+      // the value, and this function can run ~0.65s late off its retry loop.
+      const keyed = fodderGainHolds(events);
+      // Wait until the ghosts are actually mounted (queryable by `data-gidx`), then fire the def + start the
+      // per-ghost taffy timeline. A SINGLE rAF races React's commit — `setFodderAnim` above only schedules a
+      // render, so on the consume frame the ghost isn't in the DOM yet and the query returns null; with no CSS
+      // fallback animation (fodderpop was removed) that left the ghost frozen. Retry across frames until it
+      // mounts, then run the launch once.
+      let startTries = 0;
+      const startConsume = (): void => {
+        if (!document.querySelector('.fodderghost[data-gidx="0"]')) {
+          if (startTries++ < 30) startRaf = requestAnimationFrame(startConsume);
+          return;
+        }
+        ghosts.forEach((g, i) => {
+          const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };  // ghost centre — the bands' source point
           const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
-          pixiFx.buffTendril(from, to, {
-            blend: 'add', curve: icfg.curve * 0.6, wobbleAmp: icfg.wobbleAmp, wobbleFreq: icfg.wobbleFreq,
-            travelMs: icfg.travelMs, retractMs: icfg.retractMs,
-            baseWidth: icfg.baseWidth, tipWidth: icfg.tipWidth, coreAlpha: icfg.coreAlpha,
-            glowWidth: icfg.glowWidth, glowAlpha: icfg.glowAlpha,
-            flashSize: icfg.flashSize, flashMs: icfg.flashMs,
-            moteCount: icfg.moteCount, moteSpeed: icfg.moteSpeed, moteLife: icfg.moteLife,
-            pulseSize: icfg.pulseSize, pulseAlpha: icfg.pulseAlpha, pulseMs: icfg.pulseMs,
-            colorCore: icfg.colorCore, colorGlow: icfg.colorGlow, colorFlash: icfg.colorCore, colorMote: icfg.colorGlow,
+          // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
+          // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
+          playDef(
+            'consume-pull',
+            { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+            { uids: { source: g.eaterUid, target: g.eaterUid } },
+          );
+          const el = document.querySelector<HTMLElement>(`.fodderghost[data-gidx="${i}"]`);
+          if (!el) return;
+          // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD (bottom leads) and the collapse shrinks it
+          // toward the eater. The tilt + pull are measured from this TOP-CENTRE PIVOT to the eater's CENTRE, so
+          // the card's centreline aims at the eater's card centre (owner ask 2026-08-18) — not off its top,
+          // which is what a centre-referenced aim did against a top pivot.
+          el.style.transformOrigin = '50% 0%';
+          const pivot = { x: g.x0 + g.w / 2, y: g.y0 };
+          const shakePhase = Math.max(1e-6, cfg.shakePhase); // shake length — independent of the pull (`lag`)
+          const fadeDenom = Math.max(1e-6, 1 - cfg.fadeStart);
+          const tw = gsap.to(el, {
+            duration: cfg.durationMs / 1000,
+            ease: 'none',
+            onUpdate: function () {
+              const tp = this.progress();
+              const tf = consumeTransform(pivot, to, tp, cfg);
+              // Decaying jitter over the shake phase, layered on the deterministic taffy transform.
+              const s = tp < shakePhase ? 1 - tp / shakePhase : 0;
+              const jx = s * cfg.shakeAmp * Math.sin(tp * cfg.shakeFreq * Math.PI * 2);
+              const jy = s * cfg.shakeAmp * Math.cos(tp * cfg.shakeFreq * Math.PI * 2 * 1.3);
+              el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) rotate(${tf.rotDeg}deg) scale(${tf.scaleX}, ${tf.scaleY})`;
+              el.style.opacity = String(tp < cfg.fadeStart ? 1 : (1 - tp) / fadeDenom);
+            },
+            onComplete: () => { el.style.opacity = '0'; },
           });
-        }
-      }, CRUMBLE_MS);
-      // Who reacts as the tendril lands — summed per eater (one Demon can eat several Fodder).
-      //
-      // The eater's stat WITHHOLD is deliberately not placed here any more. It has to go in the same commit
-      // that raises the value (see `holdFodderGains`); this function is reached from a passive effect and
-      // from the End-of-Turn beat loop, and its retry loop above can run ~0.65s late — by which point the
-      // badge has long since printed the new number and a fresh hold would snap it BACKWARDS to pre-buff.
-      const keyed = fodderGainHolds(events);
+          tweens.push(tw);
+        });
+      };
+      startRaf = requestAnimationFrame(startConsume);
       wiggleT = window.setTimeout(() => {
         // The `+X/+X` float was CUT (2026-08-04): the badge carries the readout now, scheduled to this same
         // arrival. This was the LAST `+X/+X` float in the game; the combat one went in
         // `choreo/channels/float.ts` and the generic recruit one went with the intrinsic roll.
-        // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
+        // Impact wiggle: the eater physically reacts as the pull lands (owner ask 2026-07-16) — a quick
         // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
         for (const k of keyed) {
           const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
@@ -3577,11 +3632,17 @@ export function Recruit() {
             ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
           } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
         }
-      }, CRUMBLE_MS + icfg.travelMs); // the tendril's arrival
-      t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
+      }, cfg.durationMs); // the pull's arrival
+      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150); // the ghost is gone by here
     };
     tryShow();
-    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(wiggleT); };
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (startRaf) cancelAnimationFrame(startRaf);
+      window.clearTimeout(t);
+      window.clearTimeout(wiggleT);
+      for (const tw of tweens) tw.kill();
+    };
   }, []);
 
   /**
@@ -3664,6 +3725,16 @@ export function Recruit() {
     return playFodderEat(events, run.shopEatenSeq);
   }, [run.shopEatenSeq]);
 
+  // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
+  // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes
+  // `flipKey`, which fires the committed-move FLIP branch and glides the survivors closed from where they were
+  // holding. Keyed on the array ref: seeding it re-arms the timer, clearing it (to `[]`) re-runs to a no-op.
+  useEffect(() => {
+    if (!heldConsume.length) return;
+    const timer = window.setTimeout(() => setHeldConsume([]), getConsumeFxConfig().durationMs);
+    return () => window.clearTimeout(timer);
+  }, [heldConsume]);
+
   // --- Live warband drag: a dragged board minion is *lifted out* of the row entirely
   // (the floating copy IS the card) for the whole drag; the rest physically close up,
   // and an empty drop-slot opens at the live insertion point while over the warband.
@@ -3705,7 +3776,35 @@ export function Recruit() {
     [displayBoard],
   );
   const draggingShop = !!drag?.active && drag.source === 'shop';
-  const displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
+  // HOLD the consumed slot open (Part 2 of the consume-slide). The sim splices the eaten offer from `run.shop`
+  // in the same commit that bumps `shopEatenSeq`, so a naive `displayShop` loses the slot immediately and FLIP
+  // reflows the survivors AT ONCE. Instead, on the commit that raises the seq we derive the eaten uids + their
+  // pre-removal slot index (read from `shopRectsRef.cur`, still the pre-removal layout at this point in render)
+  // and re-inject an invisible placeholder at that index — so `flipKey` is byte-identical to the pre-consume
+  // frame and nothing reflows. A timer (below) clears `heldConsume` once the ghost has been pulled into the
+  // eater (the taffy's `durationMs`), and only THEN does the slot drop and the survivors glide closed. Derive-
+  // during-render (not an effect) is required: a passive effect would run AFTER the FLIP layout effect had
+  // already animated the reflow.
+  if (run.shopEatenSeq !== heldConsumeSeq) {
+    setHeldConsumeSeq(run.shopEatenSeq);
+    const order = [...shopRectsRef.current.cur.keys()];
+    const fresh = (run.shopEaten ?? [])
+      .map((e) => ({ uid: e.uid, index: order.indexOf(e.uid) }))
+      .filter((h) => h.index >= 0);
+    if (fresh.length) setHeldConsume((prev) => {
+      const seen = new Set(prev.map((h) => h.uid));
+      return [...prev, ...fresh.filter((h) => !seen.has(h.uid))];
+    });
+  }
+  const heldUids = heldConsume.length ? new Set(heldConsume.map((h) => h.uid)) : null;
+  let displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
+  if (heldConsume.length) {
+    const arr = [...displayShop];
+    for (const h of [...heldConsume].sort((a, b) => a.index - b.index)) {
+      if (!arr.some((o) => o.uid === h.uid)) arr.splice(Math.min(h.index, arr.length), 0, { uid: h.uid } as (typeof run.shop)[number]);
+    }
+    displayShop = arr;
+  }
   // SANDBOX ONLY: the pinned opponent board (if any) for the CURRENT wave, and the click handler that opens
   // the unit editor on one of its slots. Mirrors `sbEditing`'s uid+rect pattern, but keyed by index — a
   // `BoardSnapshot`'s minions are a plain array with no uid of their own.
@@ -3800,12 +3899,7 @@ export function Recruit() {
   const flipKey =
     displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
     displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
-  // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
-  // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
-  // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
-  // Layout effects run BEFORE passive effects, so on the consume commit this swaps `cur`→`prev` (capturing the
-  // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads `prev` to find the eaten card's real slot.
-  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
+  // Snapshot each shop card's centre + size (declared above, near the consume state that also reads it).
   useLayoutEffect(() => {
     const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
     for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
@@ -5097,6 +5191,12 @@ export function Recruit() {
             <Fragment key={o.uid}>
               {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
                   (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
+              {heldUids?.has(o.uid) ? (
+                // A just-consumed slot, held open (invisible, opacity 0 via `dragsrc`) so the survivors don't
+                // reflow until the ghost has been pulled into the eater. `.card.compact` gives it the exact slot
+                // width; `data-uid` keeps FLIP counting it, so `flipKey` is unchanged and nothing moves yet.
+                <div className="card compact dragsrc" data-uid={o.uid} aria-hidden="true" />
+              ) : (
               <Card
                 uid={o.uid}
                 slideDir={shopSlide(i)}
@@ -5113,6 +5213,7 @@ export function Recruit() {
                 suppressPop={returningFromCombat}
                 onPointerDown={heroArmed ? undefined : onCardPointerDown}
               />
+              )}
             </Fragment>
           ))}
           {run.spell && (
@@ -5433,10 +5534,12 @@ export function Recruit() {
             keywords: def.keywords, text: def.text, tier: def.tier,
             baseAttack: def.attack, baseHealth: def.health, // so a buffed Fred reads its gain in green
           };
+          const showStats = getConsumeFxConfig().showStats;
           return (
             <div
               key={`${fodderAnim.key}-${i}`}
-              className="fodderghost"
+              className={`fodderghost${showStats ? '' : ' nostats'}`}
+              data-gidx={i}
               style={{ left: g.x0, top: g.y0, width: g.w, height: g.h } as CSSProperties}
               aria-hidden="true"
             >

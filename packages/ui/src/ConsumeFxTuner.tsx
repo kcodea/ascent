@@ -29,6 +29,10 @@ const SPECS: Record<keyof ConsumeFxConfig, [string, TunerUnit | undefined, strin
   collapseStart: ['Collapse start', undefined, 'When the ghost starts to SHRINK toward the eater (fraction of the eat). Lower = shrinks sooner.', 'Collapse & fade'],
   fadeStart:  ['Fade start', undefined, 'When the ghost starts to FADE OUT as it approaches the eater (fraction of the eat). Lower = fades sooner.', 'Collapse & fade'],
 
+  eaterGrowAmount: ['Grow amount', '×', 'How much bigger the CONSUMING minion swells at its peak (0 = none).', 'Eater swell'],
+  eaterGrowLength: ['Grow length', undefined, 'How long the swell takes to peak, as a fraction of the eat (1 = grows the whole time). The recoil bounce always plays as a short tail AFTER the peak, so it stays visible even at 1.', 'Eater swell'],
+  eaterRecoil: ['Recoil', undefined, 'The overshoot as the eater snaps back to true size — the little settle bounce (0 = a clean stop).', 'Eater swell'],
+
   showStats:  ['Show stats', undefined, 'Whether the eaten minion’s attack/health still show on the ghost as it goes.', 'Stats'],
 };
 
@@ -39,6 +43,7 @@ const ORDER: (keyof ConsumeFxConfig)[] = [
   'stretch', 'thin', 'lag',
   'pullDist',
   'collapseStart', 'fadeStart',
+  'eaterGrowAmount', 'eaterGrowLength', 'eaterRecoil',
   'showStats',
 ];
 

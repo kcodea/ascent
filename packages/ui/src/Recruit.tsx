@@ -143,13 +143,6 @@ const RUBY_DELIVER_OFFSET_MS = 120;
  *  later than the board's 120ms so the numbers move just as the gems arrive. Owner-set 2026-08-11. */
 const SHOP_RUBY_DELIVER_MS = 200;
 
-/** When the Fodder ghost stops hovering and breaks into energy — the moment the tendril launches from it.
- *  Module-scope because the eater's NUMBER is now scheduled off it from a different place than the
- *  choreography that uses it (the hold goes in at the commit that raises the stat; the crumble is a timer
- *  inside `playFodderEat`), and two copies of this number would drift the number off the tendril.
- *  Syncs the `fodderpop` CSS keyframe's 65% mark. */
-const FODDER_CRUMBLE_MS = 620;
-
 /** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
 const SPELLCAST_EDWARD_ECHO_MS = 80;
 
@@ -3521,8 +3514,8 @@ export function Recruit() {
     let startRaf = 0;
     let tries = 0;
     let t = 0;
-    let wiggleT = 0;
     const tweens: gsap.core.Tween[] = [];
+    const eaterAnims: Animation[] = [];
     const seq = key;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
@@ -3616,26 +3609,37 @@ export function Recruit() {
           });
           tweens.push(tw);
         });
+        // The CONSUMING minion SWELLS across the whole eat, then SNAPS back to true size with a little recoil
+        // bounce as the ghost is pulled in (owner ask 2026-08-18) — replacing the old end-of-pull gulp-pop.
+        // Scale-only, `composite: 'add'` so it stacks on the card's own transforms; fires once, synced to the
+        // pull start (this runs on the frame the ghosts mount). Every value is read LIVE from the 🍖 tuner.
+        if (cfg.eaterGrowAmount > 0) {
+          // The swell takes `growLength` of the eat to peak; the recoil bounce ALWAYS gets its own fixed tail
+          // AFTER that — so it stays visible even at growLength = 1 (grow the whole eat, then bounce), instead
+          // of being crushed into the leftover sliver (owner report 2026-08-18). Total runs a touch past the
+          // eat by that tail, which reads as "swallowed, then settles".
+          const growMs = cfg.durationMs * Math.max(0.02, Math.min(1, cfg.eaterGrowLength));
+          const recoilMs = Math.max(180, cfg.durationMs * 0.3); // guaranteed window for the bounce
+          const total = growMs + recoilMs;
+          const g0 = growMs / total;                 // offset where the swell peaks
+          const u1 = g0 + (1 - g0) * 0.45;            // undershoot below true size (the recoil)
+          const u2 = g0 + (1 - g0) * 0.75;            // small overshoot back up
+          for (const k of keyed) {
+            const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
+            if (!el) continue;
+            try {
+              eaterAnims.push(el.animate([
+                { transform: 'scale(1)', offset: 0, easing: 'cubic-bezier(0.35, 0, 0.45, 1)' },        // slow swell
+                { transform: `scale(${1 + cfg.eaterGrowAmount})`, offset: g0, easing: 'cubic-bezier(0.7, 0, 0.25, 1)' }, // snap down
+                { transform: `scale(${1 - cfg.eaterRecoil})`, offset: u1, easing: 'ease-out' },        // undershoot (recoil)
+                { transform: `scale(${1 + cfg.eaterRecoil * 0.4})`, offset: u2, easing: 'ease-in-out' }, // tiny overshoot
+                { transform: 'scale(1)', offset: 1 },                                                   // settle to true size
+              ], { duration: total, composite: 'add' }));
+            } catch { /* WAAPI composite unsupported: skip the swell rather than clobber the card transform */ }
+          }
+        }
       };
       startRaf = requestAnimationFrame(startConsume);
-      wiggleT = window.setTimeout(() => {
-        // The `+X/+X` float was CUT (2026-08-04): the badge carries the readout now, scheduled to this same
-        // arrival. This was the LAST `+X/+X` float in the game; the combat one went in
-        // `choreo/channels/float.ts` and the generic recruit one went with the intrinsic roll.
-        // Impact wiggle: the eater physically reacts as the pull lands (owner ask 2026-07-16) — a quick
-        // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
-        for (const k of keyed) {
-          const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
-          try {
-            el?.animate([
-              { transform: 'translateY(0) scale(1) rotate(0deg)' },
-              { transform: 'translateY(-4px) scale(1.06) rotate(-2deg)', offset: 0.25 },
-              { transform: 'translateY(1px) scale(0.99) rotate(1.4deg)', offset: 0.55 },
-              { transform: 'translateY(0) scale(1) rotate(0deg)' },
-            ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
-          } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
-        }
-      }, cfg.durationMs); // the pull's arrival
       t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150); // the ghost is gone by here
     };
     tryShow();
@@ -3643,8 +3647,8 @@ export function Recruit() {
       if (raf) cancelAnimationFrame(raf);
       if (startRaf) cancelAnimationFrame(startRaf);
       window.clearTimeout(t);
-      window.clearTimeout(wiggleT);
       for (const tw of tweens) tw.kill();
+      for (const a of eaterAnims) { try { a.cancel(); } catch { /* already finished */ } }
     };
   }, []);
 
@@ -3667,7 +3671,11 @@ export function Recruit() {
    * acceptable half of that trade — printing a wrong number is not.
    */
   const holdFodderGains = useCallback((gains: readonly FodderGain[]): void => {
-    const startAt = FODDER_CRUMBLE_MS + getInfuseFxConfig().travelMs; // the tendril's arrival
+    // Release each eater's gain PART-WAY through the consume pull. The old timing was the infuse-tendril's
+    // arrival (~0.9s) — decoupled from the shorter taffy eat, so the badge lagged well behind the animation
+    // (owner report 2026-08-18). At 0.8 of the consume's `durationMs` the number climbs into place as the ghost
+    // is drawn in and the eater gulps, instead of popping after it's all over.
+    const startAt = getConsumeFxConfig().durationMs * 0.8;
     for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt });
   }, []);
 

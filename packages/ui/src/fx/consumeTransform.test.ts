@@ -51,7 +51,7 @@ describe('consumeFxConfig', () => {
     expect(CONSUMEFX_DEFAULTS.showStats).toBe(true);
     const cfg = getConsumeFxConfig();
     expect(Object.keys(cfg).sort()).toEqual(
-      ['collapseStart', 'durationMs', 'fadeStart', 'lag', 'pullDist', 'shakeAmp', 'shakeFreq', 'shakePhase', 'showStats', 'stretch', 'thin'].sort(),
+      ['collapseStart', 'durationMs', 'eaterGrowAmount', 'eaterGrowLength', 'eaterRecoil', 'fadeStart', 'lag', 'pullDist', 'shakeAmp', 'shakeFreq', 'shakePhase', 'showStats', 'stretch', 'thin'].sort(),
     );
   });
   it('stores showStats as a real boolean even when the toggle writes a numeric 1/0', () => {

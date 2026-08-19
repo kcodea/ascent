@@ -30,6 +30,8 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe']);
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
+/** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
+const RUNE_RUINS_BUFF = 2;
 const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another); one queue item per token — a deferred summon strikes inline in the same drain step
 
 /**
@@ -588,6 +590,8 @@ export function simulate(
       spellEscalationGain[side].health += health;
     },
     tierFor: (side) => (side === 'player' ? playerState : enemyState).tier,
+    rubiesPermanentFor: (side) => !!modsFor(side).runeEngravingGems, // Rune of Engraving Gems
+
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -2125,6 +2129,12 @@ export function simulate(
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
     if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {
       bus.emit('friendlyDemonDealtDamage', { minion: poisoner, side: poisoner.side });
+      // RUNE OF RUINS: the same landed hit pumps that side's whole board. Run-wide (no minion source), so it
+      // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
+      // body that is Engraved, which is the standing rule for every combat stat gain.
+      if (modsFor(poisoner.side).runeRuins) {
+        for (const m of living(poisoner.side)) ctx.buff(m, RUNE_RUINS_BUFF, RUNE_RUINS_BUFF, 'Rune of Ruins');
+      }
     }
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was

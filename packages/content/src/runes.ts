@@ -154,8 +154,23 @@ export const RUNES: RuneDef[] = [
     id: 'rune_infernal_ink',
     name: 'Rune of Infernal Ink',
     cost: 3, // owner balance 2026-08-07
-    text: 'Every **3 Shop spells** you cast, give minions in the **Shop +3/+3**.',
-    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 3, buff: { target: 'shop', attack: 3, health: 3 } },
+    // Owner rework 2026-08-19: EVERY cast (`per: 1`) rather than every third, at +1/+1. The `shop` buff target
+    // writes `tavernBuyBonus`, which is the run-wide "minions in the Shop everywhere" the owner asked for —
+    // every future roll inherits it, not just the row on screen.
+    text: 'Whenever you cast a **Shop Spell**, give minions in the **Shop +1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
+  },
+  {
+    // MOVED to the basic pool 2026-08-19 (owner): `epic` is presentation (the card's kicker); ARRAY membership
+    // is what `runeforgePool` reads, so demoting a rune means moving the def, not just dropping the flag.
+    id: 'rune_blart',
+    name: 'Rune of Blart',
+    cost: 4, // owner balance 2026-08-19: 6 → 4, and demoted from Epic to a basic rune
+    // Retext 2026-08-14 with Blart's rework: he EATS now, so the rune's second offer is eaten too, not copied.
+    text: 'Get a **Bob Blart**. Your **Bob Blarts** Consume both the **left and right-most** Shop minions.',
+    previewCards: ['dm_gourmand'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
+    sets: ['set2'],
   },
   {
     id: 'rune_cindergem',
@@ -180,10 +195,12 @@ export const RUNES: RuneDef[] = [
     id: 'rune_merchants_chorus',
     name: "Rune of the Merchant's Chorus",
     cost: 3,
-    // Owner 2026-08-11: every 2 Shouts (cumulative, no once-per-turn cap) grants the Shop a small PERMANENT
-    // +1/+1 — the `shop` target writes into tavernBuyBonus, which every future shop inherits.
-    text: 'After you trigger **2 Shouts**, give minions in the **Shop +1/+1** permanently.',
-    reward: { kind: 'runeThreshold', meter: 'shout', per: 2, buff: { target: 'shop', attack: 1, health: 1 } },
+    // Owner rework 2026-08-19: EVERY Shout (`per: 1`) grants +3/+3, and the grant is scoped to THIS TURN —
+    // the `shopTurn` target banks it in `tavernBuyBonusTurn`, which accumulates across every roll you make this
+    // turn (so a Shout-heavy turn really does spike the row) and is wiped at the rollover. Deliberately NOT the
+    // `shop` target: that one is permanent, which is what the rune used to be.
+    text: 'When you trigger a **Shout**, give minions in the **Shop +3/+3** for this turn.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 1, buff: { target: 'shopTurn', attack: 3, health: 3 } },
   },
   {
     // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
@@ -326,7 +343,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_kindling',
     name: 'Rune of Kindling',
     cost: 4, // owner balance 2026-08-07
-    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +2/+2**.', // owner 2026-08-11
+    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +4/+6**.', // owner balance 2026-08-19
     reward: { kind: 'runeKindling' },
   },
   {
@@ -878,6 +895,119 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'The first friendly **Beast** with **Echo** that dies each combat is **resummoned** without Echo.',
     reward: { kind: 'combatFlag', flag: 'runeBurrow' },
+  },
+
+  // ── 2026-08-19 owner rune batch: BASIC ────────────────────────────────────────────────────────────────
+  {
+    id: 'rune_refraction',
+    name: 'Rune of Refraction',
+    cost: 4,
+    text: 'Get a **Reflector**.',
+    previewCards: ['n2_reflector'],
+    reward: { kind: 'grant', cards: ['n2_reflector'] },
+    sets: ['set2'],
+  },
+  {
+    // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
+    // ONLY way to obtain one. Deliberate, and the exception to the archive rule in `cards/archive.ts` that a
+    // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
+    // `CARD_INDEX`, so the grant works.
+    id: 'rune_ruby_resonance',
+    name: 'Rune of Ruby Resonance',
+    cost: 3,
+    text: 'Get a **Resonance Idol**.',
+    previewCards: ['k_resonance'],
+    reward: { kind: 'grant', cards: ['k_resonance'] },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_dwarf',
+    name: 'Rune of Basic Dwarves',
+    cost: 3,
+    text: 'Get a **Dwarve**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_dragon',
+    name: 'Rune of Basic Dragons',
+    cost: 3,
+    text: 'Get a **Dragon**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dragon', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_beast',
+    name: 'Rune of Basic Beasts',
+    cost: 3,
+    text: 'Get a **Beast**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'beast', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_demon',
+    name: 'Rune of Basic Demons',
+    cost: 3,
+    text: 'Get a **Demon**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'demon', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_kobold',
+    name: 'Rune of Basic Kobolds',
+    cost: 3,
+    text: 'Get a **Kobold**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    // The multicast rides `runeSpellDouble`, which `spellCasts` reads — so the card's x N badge shows the
+    // doubled count while the rune is armed, rather than the rune being invisible until you cast.
+    id: 'rune_hoardflame',
+    name: 'Rune of Hoardflame',
+    cost: 2,
+    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    previewCards: ['hoardflame'],
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
+  },
+  {
+    id: 'rune_glider',
+    name: 'Rune of the Glider',
+    cost: 1,
+    text: 'Whenever you play a card, give a **Dragon +4/+4**.',
+    reward: { kind: 'runeGlider', attack: 4, health: 4 },
+  },
+  {
+    // `shoutEdgeBuff` already existed in the engine with no rune using it — this is its first consumer.
+    id: 'rune_drake_skull',
+    name: 'Rune of the Drake Skull',
+    cost: 3,
+    text: 'Whenever you trigger a **Shout**, give your **left and right-most minions +5/+5**.',
+    reward: { kind: 'shoutEdgeBuff', attack: 5, health: 5 },
+  },
+  {
+    id: 'rune_catacomb',
+    name: 'Rune of the Catacomb',
+    cost: 3,
+    text: 'Discover an **Echo** minion. Your first **Echo** triggered in combat triggers **twice**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'discover', filter: 'deathrattle' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }] },
+  },
+  {
+    id: 'rune_pendant',
+    name: 'Rune of the Pendant',
+    cost: 3,
+    text: '**Start of Turn:** make a random friendly minion **Tier 4 or below Gilded**.',
+    reward: { kind: 'runePendant', maxTier: 4 },
+  },
+  {
+    // `scheduleRuneforge` carries the Gold, so this is one reward rather than a `multi`. `onWave` is resolved
+    // at acquire time as "next turn" — see the reducer branch — which is what MOVES the Epic forge earlier
+    // rather than adding a second one.
+    id: 'rune_ornate_clock',
+    name: 'Rune of the Ornate Clock',
+    cost: 2,
+    text: 'Gain **2 Gold**. Visit the **Epic Runeforge** next turn instead of turn 9.',
+    reward: { kind: 'scheduleRuneforge', forge: 'epic', gold: 2 },
   },
 ];
 
@@ -1822,17 +1952,6 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    id: 'rune_blart',
-    name: 'Rune of Blart',
-    cost: 6,
-    epic: true,
-    // Retext 2026-08-14 with Blart's rework: he EATS now, so the rune's second offer is eaten too, not copied.
-    text: 'Get a **Bob Blart**. Your **Bob Blarts** Consume both the **left and right-most** Shop minions.',
-    previewCards: ['dm_gourmand'],
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_sylus',
     name: 'Rune of Sylus',
     cost: 5,
@@ -1931,6 +2050,97 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['b2_beardsley'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['b2_beardsley'] }, { kind: 'combatFlag', flag: 'runeZoo' }] },
     sets: ['set2'],
+  },
+
+  // ── 2026-08-19 owner rune batch: EPIC ─────────────────────────────────────────────────────────────────
+  // The Epic tribe faucets are the Basic ones at DOUBLE rate (owner correction 2026-08-19 — the two lists
+  // reading identically was a typo). Same cost, twice the bodies.
+  {
+    id: 'rune_epic_dwarf',
+    name: 'Rune of Epic Dwarves',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Dwarves**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_dragon',
+    name: 'Rune of Epic Dragons',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Dragons**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dragon', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_beast',
+    name: 'Rune of Epic Beasts',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Beasts**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'beast', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_demon',
+    name: 'Rune of Epic Demons',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Demons**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'demon', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_kobold',
+    name: 'Rune of Epic Kobolds',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Kobolds**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_dragon_breath',
+    name: 'Rune of Dragon Breath',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['sp_dragonflame'] }, { kind: 'runeSpellDouble', spellId: 'sp_dragonflame' }] },
+    sets: ['set2'],
+  },
+  {
+    // Rides the `friendlyDemonDealtDamage` emit, so it counts exactly what the Demon-damage minions count: a
+    // LANDED hit (a Ward-absorbed one never reaches the emit). Combat-only — the gains carry back only for a
+    // body that is Engraved, the standing rule for every combat stat gain.
+    id: 'rune_ruins',
+    name: 'Rune of Ruins',
+    cost: 6,
+    epic: true,
+    text: 'When a friendly **Demon** deals damage, give your minions **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeRuins' },
+    sets: ['set2'], // Demons + the Demon-damage trigger
+  },
+  {
+    id: 'rune_engraving_gems',
+    name: 'Rune of Engraving Gems',
+    cost: 4,
+    epic: true,
+    text: 'Your **Rubies** applied in combat are **permanent**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
+    // is +2 triggers rather than a new flag. Rune of the Choir is the +1 version at a lower cost.
+    id: 'rune_blasting_voices',
+    name: 'Rune of Blasting Voices',
+    cost: 6,
+    epic: true,
+    text: 'Your **Shouts** trigger **2 extra times** in combat.',
+    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
   },
 ];
 

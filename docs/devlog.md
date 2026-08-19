@@ -1,5 +1,51 @@
 # ASCENT — development log
 
+## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
+
+**Reworks.** **Rune of Blart** → basic at 4 Gold. Demoting a rune means MOVING the def between arrays, not
+just dropping `epic: true` — `runeforgePool` reads `s.runeforgeEpic ? EPIC_RUNES : RUNES`, so the flag is
+presentation (the card's kicker) and membership is the pool. **Rune of Kindling** → +4/+6 (its magnitude was
+hardcoded behind a boolean flag). **Rune of Infernal Ink** → every Shop Spell (`per: 1`) for +1/+1; the `shop`
+buff target already writes `tavernBuyBonus`, which is the run-wide "minions in the Shop everywhere" the owner
+asked for. **Rune of the Merchant's Chorus** → every Shout, +3/+3 **for this turn**.
+
+That last one needed a genuinely new layer. The existing `shop` target is PERMANENT, so "for this turn" got its
+own `shopTurn` target writing `tavernBuyBonusTurn` — read by `offerBuyStats` beside the permanent bonus (same
+Fodder exclusion, for the same reason), accumulating across every roll within the turn, and cleared at the
+rollover alongside the other per-turn tallies.
+
+**22 new runes.** Basic: Refraction, Ruby Resonance, five tribe faucets, Hoardflame, Glider, Drake Skull,
+Catacomb, Pendant, Ornate Clock. Epic: five tribe faucets, Dragon Breath, Ruins, Engraving Gems, Blasting
+Voices.
+
+Most of the value came from primitives that already existed: **`shoutEdgeBuff`** was implemented with no rune
+using it (Drake Skull is its first consumer), `echoRepeat: firstEachCombat` and `discoverFilter('deathrattle')`
+gave Catacomb, `scheduleRuneforge` already carried its own Gold for the Ornate Clock, and `shoutRepeat` stacks
+by design — so Blasting Voices is two stacked grants rather than a new flag.
+
+New engine: `runeTribeDrip` (the `runeDeep` turn-setup faucet, tribe-filtered and tavern-tier capped; an ARRAY
+so several tribe runes stack), `runeSpellDouble` (a CARD-scoped multicast — and because `spellCasts` is what the
+UI's ×N badge previews, the multicast modifier shows automatically while it is armed, which is what the owner
+asked for), `runeGlider`, `runePendant`, and three combat flags: `runeRuins` (rides the `friendlyDemonDealtDamage`
+emit — so it counts a LANDED hit exactly as the Demon-damage minions do), `runeEngravingGems` (forced at the
+single `playRubyOn` chokepoint, so EVERY combat Ruby source becomes permanent together rather than per-caller
+opt-in), and a reserved `runeGolems`.
+
+**Two owner calls during the build.** The Basic/Epic tribe runes were written identically — confirmed a typo,
+so the Epic ones grant **2**. And **Resonance Idol is archived**: the owner chose to keep it archived and let
+the rune be its only source, which is a deliberate exception to the archive rule that a reward must not name an
+archived id (noted at the rune).
+
+**Rune of the Golems was NOT added** — `Rune of the Gem Golem` already exists (Epic, 4 Gold, "When a friendly
+Kobold dies in combat, summon a token with stats equal to its Ruby bonuses"), which is the same effect. Flagged
+rather than shipping a duplicate.
+
+**Verified:** typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green. New coverage in
+`runeBatchAug19.test.ts` pins what data alone can't: Blart's ARRAY move, Infernal Ink paying on the first cast,
+the Chorus buff stacking across rolls but never touching the permanent bonus and vanishing at the rollover, the
+1-vs-2 tribe drip, the card-scoped multicast (named spell doubles, others untouched), the Glider's no-op with no
+Dragon out, and Blasting Voices resolving to +2 triggers through the real buy path.
+
 ## 2026-08-19 — Hawkus gets a beat: the watcher pulse every other reaction card uses
 
 Owner report: Hawkus "triggers silently" — and pointedly, *"this seems to work pretty well with dawnclaw

@@ -882,6 +882,18 @@ export type QuestReward =
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
   | { kind: 'recurringGrant'; cards: string[] }
+  // ── 2026-08-19 owner rune batch ────────────────────────────────────────────────────────────────────────
+  /** Rune of Basic/Epic <tribe>: every turn setup, conjure `count` random minions of `tribe` (the `runeDeep`
+   *  shape, tribe-filtered instead of tier-filtered). Basic grants 1, Epic 2. */
+  | { kind: 'runeTribeDrip'; tribe: Tribe; count: number }
+  /** Rune of Hoardflame / Dragon Breath: THIS spell id casts an extra time. Card-scoped rather than global
+   *  (the Ancient Runes / Spell Thesis shape), so only the granted spell multiplies — and because `spellCasts`
+   *  is what the UI's ×N badge reads, the multicast modifier shows automatically while it is armed. */
+  | { kind: 'runeSpellDouble'; spellId: string }
+  /** Rune of the Glider: whenever you play a card, give a Dragon +atk/+hp. */
+  | { kind: 'runeGlider'; attack: number; health: number }
+  /** Rune of the Pendant: each turn setup, gild a random friendly minion of `maxTier` or below. */
+  | { kind: 'runePendant'; maxTier: number }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -932,7 +944,7 @@ export type QuestReward =
    */
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn'; attack: number; health: number };
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
@@ -1125,7 +1137,7 @@ export type QuestReward =
   | { kind: 'gainMaxGold'; amount: number }
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
-  | { kind: 'discover'; tier?: number }
+  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle' }
   // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
   | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
@@ -1167,6 +1179,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal'
   // Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back).
   | 'runeSoulTaxes'
+  // 2026-08-19 rune batch: Ruins = a friendly Demon dealing damage buffs your minions (combat-only unless the
+  // body is Engraved); Golems = a dying friendly Kobold summons a Gemheart Golem carrying its Rubies;
+  // EngravingGems = Rubies applied in combat carry back to the run board.
+  | 'runeRuins' | 'runeGolems' | 'runeEngravingGems'
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
   | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
@@ -1503,6 +1519,10 @@ export interface QuestCombatMods {
   beastialSwarmLevel?: number;
   /** Rune of the Zoo — your Beardsleys' summon buff scales with the running combat-summon count. */
   runeZoo?: boolean;
+  // 2026-08-19 rune batch.
+  runeRuins?: boolean;
+  runeGolems?: boolean;
+  runeEngravingGems?: boolean;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;
@@ -2462,6 +2482,8 @@ export interface CombatContext {
   floodedVaultFor?(side: Side): boolean;
   /** Rune of Battle Refraction — extra combat-Ruby repeats this side's living Prismcasters grant. */
   battleRefractionRepsFor?(side: Side): number;
+  /** Rune of Engraving Gems: this side's combat Rubies carry back to the run board (see `playRubyOn`). */
+  rubiesPermanentFor?(side: Side): boolean;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */

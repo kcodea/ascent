@@ -1033,6 +1033,10 @@ export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
+  // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
+  // real count — which is what makes the multicast modifier show while the rune is armed.
+  for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
@@ -1175,6 +1179,12 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (!b) return;
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
+  // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
+  // across every roll this turn and is gone at the rollover. Not `applyRunShopBuff`, which is permanent.
+  else if (b.target === 'shopTurn') {
+    const cur = (state.tavernBuyBonusTurn ??= { atk: 0, hp: 0 });
+    state.tavernBuyBonusTurn = { atk: cur.atk + b.attack, hp: cur.hp + b.health };
+  }
   else {
     // `shopRightmost` (Rune of the Showcase) is now PERMANENT across refreshes (owner 2026-08-11): accumulate
     // into state.rightmostSlotBuff — the same running total Market Tormentor uses — and land the increment on
@@ -5683,6 +5693,20 @@ export function applyCardsPlayed(state: RunState, count: number): void {
   if (count <= 0) return;
   state.cardsPlayedTotal = (state.cardsPlayedTotal ?? 0) + count;
   advanceRuneThresholds(state, 'cardsPlayed', count); // Rune of Mountain Trade: every 6 cards played, Ruby the board
+  // Rune of the Glider: every card you play pumps a Dragon. Random among your Dragons (seeded off the run
+  // cursor like every other random pick) and wrapped for FX so the gain descends onto the body rather than the
+  // number jumping. A no-op with no Dragon out — the rune simply waits for one.
+  const glider = state.runeGlider;
+  if (glider) {
+    for (let i = 0; i < count; i++) {
+      const dragons = state.board.filter((c) => isTribe(c, 'dragon'));
+      if (dragons.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const pick = dragons[rng.int(dragons.length)]!;
+      state.rngCursor = rng.state();
+      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Glider', glider.attack, glider.health));
+    }
+  }
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -6917,8 +6941,11 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   if (!def) return { attack: 0, health: 0 };
   const cb = cardBuff(state, def.id);
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
-  const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
-  const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
+  // The PERMANENT run-wide shop bonus, plus the Merchant's Chorus THIS-TURN layer. Same Fodder exclusion for
+  // both, for the same reason: Fodder carries the enchant through its own run-wide channel, so adding it here
+  // would pay it twice.
+  const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0) + (state.tavernBuyBonusTurn?.atk ?? 0);
+  const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0) + (state.tavernBuyBonusTurn?.hp ?? 0);
   // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
   // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
   // Veinstorm's Rubies need no line here: they are REAL per-offer buffs, already inside `offer.atk/hp`.
@@ -7296,14 +7323,15 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const sr = improveReps(state);
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }
-  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +2/+2 (owner 2026-08-11; was
-  // left-most only, +3/+3). Wrapped for FX so the gain descends onto the minion instead of the number jumping.
-  // On a one-minion board the two ends are the same body, so buff it once (not twice).
+  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance
+  // 2026-08-19; was +2/+2, and before that left-most only at +3/+3). Wrapped for FX so the gain descends onto
+  // the minion instead of the number jumping. On a one-minion board the two ends are the same body, so buff it
+  // once (not twice).
   if (state.runeKindling && state.board.length > 0) {
     const ends = state.board.length === 1
       ? [state.board[0]!]
       : [state.board[0]!, state.board[state.board.length - 1]!];
-    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 2, 2); });
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4, 6); });
   }
   // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
   // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.

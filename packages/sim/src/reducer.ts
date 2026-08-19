@@ -3710,6 +3710,7 @@ function advanceCombat(s: RunState): void {
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
+  s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover
   // Batch-4 per-turn gates (Shared Pour / Aftermarket / Hoardcalling all read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -3936,6 +3937,25 @@ function advanceCombat(s: RunState): void {
   if (s.runeDeep) {
     const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
     if (pool.length > 0) conjureToHand(s, pool, 1, true);
+  }
+  // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier and
+  // capped at the tavern tier (a rune must not hand you a card the shop couldn't). `overflow` so an earned
+  // grant is never dropped to a full hand, matching every other rune grant.
+  for (const drip of s.runeTribeDrip ?? []) {
+    const pool = poolOf(s).all.filter((c) =>
+      !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
+    if (pool.length > 0) conjureToHand(s, pool, drip.count, true);
+  }
+  // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
+  // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
+  if (s.runePendant) {
+    const eligible = s.board.filter((c) => !c.golden && (CARD_INDEX[c.cardId]?.tier ?? 99) <= s.runePendant!);
+    if (eligible.length > 0) {
+      const rng = makeRng(s.rngCursor);
+      const pick = eligible[rng.int(eligible.length)]!;
+      s.rngCursor = rng.state();
+      gildMinion(pick);
+    }
   }
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
@@ -4407,6 +4427,24 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'recurringGrant':
       // Feed the Alpha: conjure these cards to hand at the end of every turn for the rest of the run.
       (s.questRecurringGrants ??= []).push(...r.cards);
+      break;
+    // ── 2026-08-19 owner rune batch ──────────────────────────────────────────────────────────────────────
+    case 'runeTribeDrip':
+      // Rune of Basic/Epic <tribe>: a per-turn tribe faucet. PUSHED (not assigned) so two tribe runes both pay.
+      (s.runeTribeDrip ??= []).push({ tribe: r.tribe, count: r.count });
+      break;
+    case 'runeSpellDouble':
+      // Rune of Hoardflame / Dragon Breath: this spell id casts an extra time. Pushed so a duplicated rune
+      // stacks (`spellCasts` multiplies once per entry), matching how the other multicast sources behave.
+      (s.runeSpellDouble ??= []).push(r.spellId);
+      break;
+    case 'runeGlider':
+      // Rune of the Glider: stacks additively, so two Gliders give the Dragon both grants on a play.
+      s.runeGlider = { attack: (s.runeGlider?.attack ?? 0) + r.attack, health: (s.runeGlider?.health ?? 0) + r.health };
+      break;
+    case 'runePendant':
+      // Rune of the Pendant: a duplicate can only ever RAISE the ceiling it gilds within, never lower it.
+      s.runePendant = Math.max(s.runePendant ?? 0, r.maxTier);
       break;
     case 'impAura':
       // Imp Census: permanently improve your Imps +A/+H run-wide (bumps `impBuff`; also buffs current board/hand
@@ -5124,6 +5162,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
     runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
+    runeRuins: f?.runeRuins,                 // Rune of Ruins: a friendly Demon's landed hit buffs that board
+    runeGolems: f?.runeGolems,               // Rune of the Golems (reserved — see the Gem Golem note in runes.ts)
+    runeEngravingGems: f?.runeEngravingGems, // Rune of Engraving Gems: combat Rubies carry back
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6

@@ -43,6 +43,7 @@ const NOT_A_METER: Record<string, string> = {
   q_the_old_hunt: 'fires on every Beast attack — no threshold to be part-way toward',
   q_feeding_line: 'fires on every Beast Slaughter',
   q_motherlode: 'the 2 is how many Kobolds a Ruby copies onto',
+  rune_glider: 'fires on EVERY card played; the digits are the +4/+4 grant, not a count-up',
   rune_scales: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_profit_sharing: 'fires on EVERY Gold gain; the digits are the +3/+3 grant',
   rune_sellers_market: 'fires on EVERY sell; the digits are the +4/+3 grant, not a count-up',

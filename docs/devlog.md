@@ -1,5 +1,42 @@
 # ASCENT — development log
 
+## 2026-08-18 — Demon Horse's shop-buff fires during the lunge, not after the swing
+
+Owner report: Demon Horse (`dm_hungerling`, Rally: buff the Shop on attack) played its `+1/+2 Shop` number
+*after* its whole attack resolved, reading as a detached, post-swing event; it should land in the lunge, with
+the trigger pulse.
+
+Cause: the buff is a `gainTavernBuy` that emits a plain **`sc` narration** event (`+1/+2 Shop`) — not a
+combat `buff`, since its target is the Shop, not a unit. `sc` isn't in `absorbIntoWindup`
+(`choreo/compile.ts`), so the compiler left it as its own beat *after* the attack (which advances at contact),
+and the per-beat number + medallion pulse only fired there.
+
+Fix: a **predicate** absorb — a shop-buff flash (`sc`, non-cast, text `/ Shop$/`) is folded into the
+attacker's wind-up moment, exactly like the `buff`/`rally` on-attack flashes already are. So its number +
+trigger pulse now fire at the top of the wind-up = during the lunge, together with the pulse. Deliberately
+predicate-based (not adding `'sc'` to the type set) so ordinary and spell-cast `sc` events are untouched.
+Covers every shop-buff-on-attack minion, not just Demon Horse (same family). Added a compile test pinning
+both halves (shop-buff sc absorbed; an ordinary `+2 Spell Power` sc stays its own beat).
+
+Verified: choreo suite (406) + full test suite green; typecheck + lint + build green.
+
+Follow-up: the `+X/+Y Shop` NUMBER moved into the lunge (above), but the `shop-buff-aura` PIXI still played only
+later — over the shop row on return to recruit (the reducer's `tavernBuyBonus` diff → `shopBuffAllFxSeq` cue), a
+different surface entirely from the mid-combat telegraph. So there was no on-attack bloom. Fixed by firing the
+authored `shop-buff-aura` def from the same combat `sc`-telegraph block in `useCombatReplay.ts` that fires the
+number — one camera-anchored play per beat (deduped over several shop-buffers, anchored at the last buffer for
+any source/target layers). Because the `sc` is now absorbed into the wind-up, this runs at the attack beat's
+presentation, so the aura blooms in the lunge alongside the number + pulse. The shop-row confirmation on return
+still fires (different surface). Registered the new literal `playDef('shop-buff-aura', …)` in `directCalls.ts` +
+its golden.
+
+Then de-duplicated: with the combat bloom in place, the shop-row aura on return played the effect a SECOND time
+(owner report). That post-combat replay is stamped by the reducer's generic post-action `tavernBuyBonus` diff
+(`shopBuffAllFx`/`Seq`), which also fires at `resolveCombat`/`settleCombat`. Gated that stamp to SKIP the
+combat-transition actions — a Shop buff earned in combat already bloomed in the lunge, so it must not stamp the
+shop-row aura again. The buff itself still applies (offers carry it); only the duplicate FX is skipped.
+Recruit-phase casts/shouts and the End-of-Turn beat path are untouched. Added a sim test pinning it.
+
 ## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
 
 The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it

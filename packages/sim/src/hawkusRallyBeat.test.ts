@@ -11,10 +11,13 @@ import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
  * rallier CARD and skips unbound ralliers, and `b2_hawkus` had no row in `bindings.json` — so the proc played
  * no cue at all.
  *
- * The FX binding is asserted in `choreo/bindings.test.ts`. What THIS pins is the half the binding depends on:
- * the simulator really does emit a `rally` event sourced at HAWKUS (the uid the binding is looked up by) when
- * an ally rallies — with no Dawnclaw or other re-trigger card present, which is the exact case the owner saw
- * fail.
+ * The fix (owner call 2026-08-19, after trying an authored gust and not liking it) is the WATCHER PULSE the
+ * other reaction cards already use — `rally` now counts as "acting" in `choreo/channels/watcherPulse.ts`, so
+ * Hawkus lights up light-blue on the beat it answers, with no bespoke FX at all.
+ *
+ * What THIS pins is the half that pulse depends on: the simulator really does emit a `rally` event sourced at
+ * HAWKUS (the uid the pulse scan reads) when an ally rallies — with no Dawnclaw or other re-trigger card
+ * present, which is the exact case the owner saw fail.
  */
 const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords: keywords as BoardMinion['keywords'] });

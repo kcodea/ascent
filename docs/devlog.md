@@ -1,46 +1,37 @@
 # ASCENT — development log
 
-## 2026-08-19 — Hawkus gets a beat: an upward wind gust when its Echo trigger fires
+## 2026-08-19 — Hawkus gets a beat: the watcher pulse every other reaction card uses
 
-Owner report: Hawkus "triggers silently" — and notably, *"this seems to work pretty well with dawnclaw
-already, but without dawnclaw it triggers silently"*.
+Owner report: Hawkus "triggers silently" — and pointedly, *"this seems to work pretty well with dawnclaw
+already, but without dawnclaw it triggers silently."*
 
 **Cause.** Hawkus reacts to ANY friendly Rally, so — unlike Echohorn Stag, which procs off its OWN attack —
-its `rally` event is emitted while a DIFFERENT minion is the attacker. The moment compiler absorbs a `rally`
-into that attacker's wind-up (`WINDUP_ABSORB`), which is fine: the `rallyFx` channel exists precisely to play
-inside an absorbed wind-up. But that channel resolves a binding **per rallier CARD** and **drops unbound
-ralliers** — and `b2_hawkus` had no row in `bindings.json`. So the proc played nothing at all. With a Dawnclaw
-on board the surrounding death/Shout moments supplied their own beats, which is why it only *looked* fine there.
+its `rally` event is emitted while a DIFFERENT minion is the attacker, and the moment compiler absorbs it into
+that attacker's wind-up. Nothing on the presentation side then claimed it: `rallyFx` (choreo/score.ts) only
+plays for a rallier with an FX def BOUND, and the watcher-pulse scan did not count `rally` as "acting". So the
+proc left no cue whatsoever — the Echo it fired animated, but the card that caused it never lit up. With a
+Dawnclaw on board the surrounding death/Shout moments supplied their own beats, which is why it only *looked*
+fine there.
 
-**Fix.** A new authored def, **`hawkus-updraft`**, bound as `cards.b2_hawkus.rally`:
-- a `burst` layer of upward-oriented shards (`aimMode: fixed`, `angle: -90`, low gravity so they rise and drift
-  rather than falling back as a fountain), emitted from a wide `box` so the gust leaves the card's whole width;
-- a `smoke` layer of slow rising air (slight NEGATIVE gravity, squashed wide) for the body of the gust.
+**Fix.** `rally` now counts as acting in `choreo/channels/watcherPulse.ts`, so Hawkus earns the same
+light-blue medallion + card-frame bloom that every other reaction card already gets (Crypt Drake, Mineral
+Master, Traveling Skald, Raptor). No bespoke FX, no new timing — it joins the treatment that already exists.
 
-Both layers anchor to **`source`** — the owner asked for the gust to come *from the card*, where Echohorn's
-sparkle deliberately anchors to its `target` instead. The channel already supplies the per-proc medallion pulse
-and the `rallyLeadMs` sequencing, so binding it is what turns the trigger into a readable beat: pulse, then gust.
+The scan's ATTACKER GUARD does the interesting work here: Echohorn procs off its own swing, so it IS the
+attacker and keeps its existing attacker pulse rather than gaining a second, differently-coloured one. The
+same event earns a pulse for the card that answers a swing and not for the card that made it.
 
-**Verified live** (dev server, throwaway run): `hawkus-updraft` loads into the FX registry and plays as a pale
-upward plume rising off the card. Sim side pinned by `hawkusRallyBeat.test.ts` — Hawkus really does emit a
-`rally` sourced at ITSELF off an ALLY's Rally with **no Dawnclaw present** (the exact failing case), aimed at
-the left-most Echo, and stays silent when no ally has Rally. The binding itself is pinned in the
-`bindings.test.ts` golden copy, and `fx/defs.test.ts` validates the def's params against the primitive registry.
+**Route not taken.** An authored gust def (`hawkus-updraft`) plus a live dev tuner for it were built first and
+**removed on the owner's call** — they didn't like the effect. The tuner went with it, since it existed only
+to dial that def's params. What survives is the beat, which is what the report was actually about.
 
-**Tuner (owner ask, same day):** the gust is now a live DEV panel — **Dev menu → 🪶 Hawkus gust** — with
-GRAVITY, SPEEDS and EASE on both layers (plus life/spread/count and the air's rate): 10 sliders in two groups.
+**Tests:** `watcherPulse.test.ts` covers the three cases that matter — a rally source earns a pulse, a rally
+by the ATTACKER does not (Echohorn keeps its own), and a multi-proc rally dedupes to ONE pulse rather than
+stuttering. `hawkusRallyBeat.test.ts` pins the half that depends on: the simulator emits a `rally` sourced at
+HAWKUS off an ALLY's Rally **with no Dawnclaw present** (the exact failing case), aimed at the left-most Echo,
+and silent when no ally has Rally.
 
-It exists ALONGSIDE the FX workbench because they solve different halves. The workbench edits a DRAFT and its
-changes only reach the game once SAVED to the committed JSON; this panel overrides the def's params **at play
-time** (`playDef`), so the gust can be dialled while watching Hawkus actually trigger in a fight instead of
-previewing it in isolation. `applyHawkusFxTuning` is pure, DEV-gated, and returns the def **by reference** when
-nothing has been dialled — so the shipped path stays byte-identical for players and every other def pays one
-string compare. When a value reads right, Copy values → the JSON → Reset.
-
-Gravity sliders deliberately cross ZERO: negative is what keeps the gust climbing (wind) rather than arcing
-back down (fountain), which is the whole read of the effect.
-
-Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (355 files / 5649 tests).
+Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (355 files / 5652 tests).
 
 ## 2026-08-19 — Live Imp stats: the summoned-Imp (X/Y) no longer goes stale
 

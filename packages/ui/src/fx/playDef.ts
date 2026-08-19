@@ -4,7 +4,6 @@ import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
-import { applyHawkusFxTuning } from '../hawkusFxConfig';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
 import { fxPoolSize } from './fxRuntime';
@@ -316,8 +315,8 @@ function staggerLayers<T extends { layers: readonly { at: number; stagger?: numb
 }
 
 export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
-  const storedRaw = getDef(id);
-  if (!storedRaw) {
+  const stored = getDef(id);
+  if (!stored) {
     // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry
     // ships now, so this can fire in prod, but a player can't fix a dangling binding and the console noise
     // would repeat for every moment that hit it. `bindings.test.ts` is what catches this before it ships.
@@ -331,11 +330,6 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   // canvas parked inside `.app` beneath the cards). Both the renderer the layers are built against and the
   // stage they mount on must come from the SAME app, or the effect builds its GPU resources in one GL
   // context and is drawn by another.
-  // DEV: the Hawkus gust tuner overlays its live values on the committed def, so the effect can be dialled
-  // while watching it fire in a REAL fight (the workbench previews a draft in isolation and only reaches the
-  // game once saved). Total + pure: returns `stored` untouched for every other def and whenever nothing has
-  // been dialled, so the shipped path is byte-identical. Stripped in prod by the `import.meta.env.DEV` gate.
-  const stored = import.meta.env.DEV ? applyHawkusFxTuning(storedRaw) : storedRaw;
   const slot = stored.slot ?? 'over';
   const renderer = pixiFx.rendererFor(slot);
   if (!renderer) {

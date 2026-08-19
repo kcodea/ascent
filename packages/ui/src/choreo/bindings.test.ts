@@ -176,10 +176,6 @@ const BINDINGS: Record<string, { def: string }> = {
  */
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
-  // Hawkus reacts to ANY friendly Rally, so its proc is absorbed into that attacker's wind-up and the
-  // `rallyFx` channel DROPS an unbound rallier — i.e. no binding meant the trigger played nothing at all
-  // (owner report 2026-08-19: "without dawnclaw it triggers silently"). The def gusts from the SOURCE card.
-  b2_hawkus: { rally: { def: 'hawkus-updraft' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.

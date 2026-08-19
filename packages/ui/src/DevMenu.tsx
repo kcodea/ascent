@@ -23,7 +23,6 @@ import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
 import { ConsumeFxTuner } from './ConsumeFxTuner';
-import { HawkusFxTuner } from './HawkusFxTuner';
 import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
@@ -169,7 +168,6 @@ const GROUPS: Group[] = [
       { key: 'aurafx', icon: '🌊', label: 'Aura Wave', C: AuraFxTuner, hint: 'The run-wide tribe-aura wave across the board' },
       { key: 'infusefx', icon: '🍖', label: 'Fodder Infusion', C: InfuseFxTuner, hint: 'The tendrils that send Fodder to the shop', alt: 'consume' },
       { key: 'consumefx', icon: '🍖', label: 'Consume FX', C: ConsumeFxTuner, hint: 'The eaten-minion shake / taffy / pull + bands' },
-      { key: 'hawkusfx', icon: '🪶', label: 'Hawkus gust', C: HawkusFxTuner, hint: 'Hawkus’s updraft — gravity / speeds / ease on both layers' },
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
     ],
   },

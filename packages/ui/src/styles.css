@@ -5748,21 +5748,18 @@ svg { width: 18px; height: 18px; }
      breathing room. */
   margin-block: calc(-1 * var(--plate-top, -37px)) calc(var(--ccw) * 0.34);
 }
-/* The GROUNDING SHADOW (`.cshadow`, see that block above) is a black blurred copy of the OVAL/SQUARE/heater
-   frame, meant to ground an UN-plated card on the dark board. On a plated card the STONE PLATE is the card's
-   body and its own grounding — and the frame subtree lives in `.archbox` (position:relative; z-index:1), so it
-   paints ABOVE the z0 plate, dropping that dark oval (offset down 5px, opacity 0.8) as a smudge onto the lit
-   stone. In the Compendium's large, static gallery that reads as a shadow sitting in the wrong place ("shadows
-   overlaying the cards are misplaced", owner report 2026-08-18). The plate grounds the card here, so drop the
-   frame's contact shadow in the grid. Scoped to `.book-grid` so the hand's drag-lift shadow is untouched. */
-.book-grid .card.plated .cframe.cshadow,
-.book-grid .card.plated .tframe.cshadow { display: none; }
 /* The Compendium is a BROWSING grid, so the text drawer must sit IN FLOW here: rows then size to the real
    panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
    fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely
    positioned on purpose — in centered contexts (Discover, inspect, rows) in-flow growth moved the frame
-   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo. */
-.book-grid .card.compact.showtext .drawer { position: static; margin-top: calc(var(--ccw) * 0.15); }
+   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo.
+   Use `relative` (still in flow, so row-sizing is unchanged) rather than `static`, and `inset: auto` to drop
+   the absolute-mode offsets: the drawer must stay a POSITIONING CONTEXT because its `.descbox` (the dark
+   desc-backbox panel) is `position:absolute; top:-184px` anchored to it. Under `static` the descbox escaped to
+   a higher ancestor and floated ~184px ABOVE the card (owner report 2026-08-18: "the dark [panel]… is way above,
+   lower it… seated perfectly in the live game"); as a relative context it re-seats on the card exactly as it
+   does in the hand. Scoped to `.book-grid`, so the hand is untouched. */
+.book-grid .card.compact.showtext .drawer { position: relative; inset: auto; margin-top: calc(var(--ccw) * 0.15); }
 /* With the drawer in flow the cell owns its full height, so the hover scale needs a transform origin that
    doesn't push a tall card under its neighbour. */
 .book-grid .book-cell { display: flex; justify-content: center; width: 100%; }

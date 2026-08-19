@@ -531,6 +531,7 @@ export type EffectFactoryId =
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
+  | 'endOfTurnCastSpellOnSelf' // Arnold: EoT casts a named spell aimed at this minion (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
   | 'battlecryGrantMinion' // Attachment Mechanic: Battlecry adds a specific minion (Money Bot) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
@@ -900,6 +901,7 @@ export type QuestReward =
   /** Rune of the Baller: each minion sold buffs your board, the magnitude climbing +`step` per sale and
    *  ALTERNATING Attack / Health (sale 1 = +1 Atk, sale 2 = +2 Health, sale 3 = +3 Atk, …). */
   | { kind: 'runeBaller'; step: number }
+  | { kind: 'runeEmbers' }
   /** Rune of the Wishbone: your Hero Power triggers twice (gated to the powers that can express it). */
   | { kind: 'runeWishbone' }
   /** Rune of Might: every Shop spell you cast also casts Might of Aeon. */

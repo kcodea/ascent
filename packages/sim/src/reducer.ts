@@ -4547,6 +4547,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Stacks: two Drums make the turn's charged Shout trigger that many more times.
       s.runeWarDrum = (s.runeWarDrum ?? 0) + r.extra;
       break;
+    case 'runeEmbers':
+      s.runeEmbers = true;
+      break;
     case 'runeBaller':
       // `sales` starts at 0 — the FIRST sale after taking it is the +1 Attack step.
       s.runeBaller = { step: r.step, sales: s.runeBaller?.sales ?? 0 };

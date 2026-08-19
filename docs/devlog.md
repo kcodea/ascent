@@ -2,6 +2,27 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Sixth wave (same PR): Gemline Martyr, Arnold, Rune of the Embers.**
+
+- **Gemline Martyr** → back to **End of Turn: get a Veinstorm**, with the Ruby-improvement half dropped. It is a
+  plain spell faucet again, so it rides the trigger-agnostic `battlecryGrantSpell` rather than needing its own
+  End-of-Turn factory; the now-unused `startOfTurnGetSpellImproveRubies` policy entry came out with it (the
+  registry's ghost tripwire catches a stale key as readily as a missing one).
+- **Arnold** — new T6 Dwarf 9/10: End of Turn, cast **Beefy** on itself; gilded casts twice. New factory
+  `endOfTurnCastSpellOnSelf`, deliberately NOT the escalating sibling: the count is flat and the target is
+  always self, where `endOfTurnCastSpellEscalating` climbs and aims at the biggest OTHER friend. Because Beefy
+  is target-and-neighbours, a centre Arnold pays three ways off one cast.
+- **Rune of the Embers** (Epic, 4) — every refresh **doubles the right-most Shop minion's Health**. Applied as
+  an offer buff equal to the body's current Health rather than a stat rewrite, so the shop card shows where the
+  number came from and the buy bakes it in through the same path every other slot enchant uses. It runs AFTER
+  Market Tormentor's slot buff on purpose — the doubling should include that turn's enchant, the same "the
+  right-most must be the BUFFED body" ordering the Hellrider ruling established — and it compounds across
+  refreshes.
+
+**Rune of Time was NOT built — it already exists.** `Rune of the Conductor` (Epic, 4) is the same card word for
+word: "Your **End of Turn** effects trigger **2 more times**", riding the `endOfTurnExtra` counter. Flagged
+rather than shipped as a duplicate.
+
 **Fifth wave (same PR): the Baller pill, 3 reworks, 1 new spell, and 24 rune arts wired.**
 
 - **Rune of the Baller** now shows its NEXT payout as its pill — `+2 Atk`, `+3 Hp` — instead of nothing. It has

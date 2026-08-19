@@ -5,7 +5,7 @@ const bm = (cardId: string, uid: string, attack: number, health: number): BoardM
   ({ cardId, attack, health, sourceUid: uid, keywords: [] });
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, applyCastEffects, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
+import { applyCardsPlayed, applyCastEffects, applyEndOfTurn, applyShopRefreshed, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
 import { runeTally } from '../../ui/src/runeTally';
 
 /**
@@ -418,5 +418,107 @@ describe('Summoning Bulwark — the first 2 summons gain Taunt', () => {
       makeRng(6), CARD_INDEX, combatSide({ tier: 6, tribes: ['demon'] }), combatSide({ tier: 1 }),
     );
     expect(r.events.filter((e) => e.type === 'keyword' && (e as { keyword: string }).keyword === 'T').length).toBe(0);
+  });
+});
+
+// ── WAVE 6 — Gemline Martyr, Arnold, Rune of the Embers ──────────────────────────────────────────────────────
+describe('Gemline Martyr — back to a plain End-of-Turn Veinstorm (owner rework 2026-08-19)', () => {
+  it('the trigger moved and the Ruby half is gone', () => {
+    const def = CARD_INDEX['k_gemline']!;
+    expect(def.effects.map((e) => e.on), 'End of Turn, not Start of Turn').toEqual(['endOfTurn']);
+    expect(def.text).toContain('End of Turn');
+    expect(def.text, 'the Ruby-improvement clause must be gone').not.toContain('Rubies');
+  });
+
+  it('an End of Turn actually hands over a Veinstorm', () => {
+    const s: RunState = {
+      ...createRun(4), phase: 'recruit', hand: [],
+      board: [{ uid: 'g', cardId: 'k_gemline', tribe: 'kobold', attack: 3, health: 5, keywords: [], golden: false }],
+    } as RunState;
+    applyEndOfTurn(s);
+    expect(s.hand.map((c) => c.cardId), 'exactly one Veinstorm').toEqual(['veinstorm']);
+  });
+});
+
+describe('Arnold — End of Turn: cast Beefy on THIS', () => {
+  const board = (golden = false): RunState => ({
+    ...createRun(4), phase: 'recruit', hand: [],
+    board: [
+      { uid: 'a', cardId: 'dw_arnold', tribe: 'dwarf', attack: 9, health: 10, keywords: [], golden },
+      { uid: 'n', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+    ],
+  } as RunState);
+
+  it('the card is a T6 9/10 Dwarf that names the spell it casts', () => {
+    const def = CARD_INDEX['dw_arnold']!;
+    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([6, 9, 10, 'dwarf']);
+    expect(def.text).toContain('Beefy');
+    expect(poolFor('set2').all.some((c) => c.id === 'dw_arnold'), 'buyable in set 2').toBe(true);
+  });
+
+  it('it aims at ITSELF — Beefy lands on Arnold, and spills to the neighbour', () => {
+    // Beefy is target-and-neighbours, so aiming at Arnold pays Arnold AND whoever stands beside him. The
+    // distinction that matters is that the TARGET is self: the escalating sibling factory aims at the biggest
+    // OTHER friend, which would leave Arnold untouched.
+    const s = board();
+    applyEndOfTurn(s);
+    const arnold = s.board.find((c) => c.uid === 'a')!;
+    expect(arnold.attack, 'Arnold grew — he was the target').toBeGreaterThan(9);
+    expect(s.board.find((c) => c.uid === 'n')!.attack, 'the neighbour caught the spill').toBeGreaterThan(1);
+  });
+
+  it('GOLDEN casts twice — exactly double the plain gain', () => {
+    const plain = board(); applyEndOfTurn(plain);
+    const gold = board(true); applyEndOfTurn(gold);
+    const gain = (s: RunState) => s.board.find((c) => c.uid === 'a')!.attack - 9;
+    expect(gain(gold), 'golden is two casts of the same spell').toBe(gain(plain) * 2);
+  });
+});
+
+describe('Rune of the Embers', () => {
+  const armed = (on: boolean): RunState => ({
+    ...createRun(4), phase: 'recruit', runeEmbers: on || undefined,
+    shop: [{ uid: 's0', cardId: 'alley' }, { uid: 's1', cardId: 'stray' }],
+  } as RunState);
+
+  it('a refresh doubles the RIGHT-most minion\u2019s Health, and nothing else', () => {
+    const s = armed(true);
+    const before = offerBuyStats(s, s.shop[1]!);
+    const leftBefore = offerBuyStats(s, s.shop[0]!);
+    applyShopRefreshed(s);
+    expect(offerBuyStats(s, s.shop[1]!).health, 'the right-most doubled').toBe(before.health * 2);
+    expect(offerBuyStats(s, s.shop[1]!).attack, 'Attack is untouched').toBe(before.attack);
+    expect(offerBuyStats(s, s.shop[0]!), 'the left offer is untouched').toEqual(leftBefore);
+  });
+
+  it('it COMPOUNDS across refreshes — each doubling includes the last', () => {
+    const s = armed(true);
+    const base = offerBuyStats(s, s.shop[1]!).health;
+    applyShopRefreshed(s); applyShopRefreshed(s);
+    expect(offerBuyStats(s, s.shop[1]!).health, 'two doublings').toBe(base * 4);
+  });
+
+  it('unarmed, a refresh changes nothing', () => {
+    const s = armed(false);
+    const before = offerBuyStats(s, s.shop[1]!);
+    applyShopRefreshed(s);
+    expect(offerBuyStats(s, s.shop[1]!)).toEqual(before);
+  });
+
+  it('a SPELL in the right slot is skipped — the rune names a minion', () => {
+    const s: RunState = {
+      ...createRun(4), phase: 'recruit', runeEmbers: true,
+      shop: [{ uid: 's0', cardId: 'alley' }, { uid: 's1', cardId: 'mightofaeon' }],
+    } as RunState;
+    const spell = offerBuyStats(s, s.shop[1]!);
+    applyShopRefreshed(s);
+    expect(offerBuyStats(s, s.shop[1]!), 'the spell offer is untouched').toEqual(spell);
+    expect(offerBuyStats(s, s.shop[0]!).health, 'the right-most MINION took the doubling instead')
+      .toBeGreaterThan(CARD_INDEX['alley']!.health);
+  });
+
+  it('it is a live Epic', () => {
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_embers')).toBe(true);
+    expect(RUNE_INDEX['rune_embers']!.cost).toBe(4);
   });
 });

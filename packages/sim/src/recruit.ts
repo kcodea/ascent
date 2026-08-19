@@ -5518,6 +5518,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
    *  Turn this minion has seen (escalating). Per-instance `eotTick` counts turns on board (like Frontdrake);
    *  a Chronos replay rides the same tick without advancing it. Golden doubles the number of casts. */
+  /** Arnold — End of Turn: cast a named spell ON THIS MINION. Golden casts twice. Deliberately NOT the
+   *  escalating sibling below: the count is flat, and the target is ALWAYS self (the escalating one aims at the
+   *  biggest other friend), which is what makes a self-Beefy a Dwarf capstone rather than a board pump. */
+  endOfTurnCastSpellOnSelf: (ctx, self, params) => {
+    const spellDef = CARD_INDEX[str(params.spellId)];
+    if (!spellDef || spellDef.singleCast) return;
+    const times = num(params.times, 1) * gold(self);
+    for (let i = 0; i < times; i++) {
+      applyCastEffects(ctx, spellDef, self);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
+  },
+
   endOfTurnCastSpellEscalating: (ctx, self, params, payload) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return;
@@ -6883,6 +6897,18 @@ export function applyShopRefreshed(state: RunState): void {
   if (slot) {
     const i = rightmostShopMinion(state);
     if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
+  }
+  // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
+  // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
+  // number came from and the buy bakes it in through the same path every other slot enchant uses. It runs
+  // AFTER Market Tormentor's slot buff, deliberately: the doubling should include that turn's enchant, which
+  // is the same "the right-most must be the BUFFED body" ordering the Hellrider ruling established.
+  if (state.runeEmbers) {
+    const i = rightmostShopMinion(state);
+    if (i >= 0) {
+      const cur = offerBuyStats(state, state.shop[i]!).health;
+      if (cur > 0) addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur);
+    }
   }
   // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
   const lslot = state.leftmostSlotBuff;

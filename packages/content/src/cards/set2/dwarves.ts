@@ -432,4 +432,19 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     text: '**Shout:** get a **Deep Delve Writ**.',
     goldenText: '**Shout:** get **2 Deep Delve Writs**.',
   },
+  {
+    // Owner add 2026-08-19. A Dwarf capstone that grows ITSELF rather than the board: Beefy hits the target and
+    // both neighbours, so a centre Arnold pays three ways off one cast. Distinct from `endOfTurnCastSpellEscalating`
+    // (which climbs and picks the biggest OTHER friend) — this one is a flat once-per-turn cast, aimed at self.
+    id: 'dw_arnold',
+    name: 'Arnold',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 9,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellOnSelf', params: { spellId: 'sp_beefy' } }],
+    text: '**End of Turn:** cast **Beefy** on this.',
+    goldenText: '**End of Turn:** cast **Beefy** on this **twice**.',
+  },
 ];

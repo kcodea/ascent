@@ -58,11 +58,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    // Owner rework 2026-08-18: End of Turn → Start of Turn, and it now ALSO improves your Rubies. The combined
-    // grant-spell + rubyStatGain lives in one Start-of-Turn factory; golden doubles both halves.
-    effects: [{ on: 'startOfTurn', do: 'startOfTurnGetSpellImproveRubies', params: { spellId: 'veinstorm', count: 1, attack: 1, health: 1 } }],
-    text: '**Start of Turn:** get a **Veinstorm** and improve your Rubies **+1/+1**.',
-    goldenText: '**Start of Turn:** get **2 Veinstorms** and improve your Rubies **+2/+2**.',
+    // Owner rework 2026-08-19: back to End of Turn, and the Ruby-improvement half is dropped — it is a plain
+    // spell faucet again. `battlecryGrantSpell` is trigger-agnostic, so no End-of-Turn-specific factory is
+    // needed; golden hands over two.
+    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**End of Turn:** get a **Veinstorm**.',
+    goldenText: '**End of Turn:** get **2 Veinstorms**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,

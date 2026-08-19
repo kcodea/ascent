@@ -68,6 +68,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
   'factory:battlecryGrantShoutExtra:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemline Martyr -> Veinstorm
+  'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -199,7 +201,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
   'factory:onSellGetRubies:onSell': { policy: 'ownBeat', family: 'economy' }, // Beggy
-  'factory:startOfTurnGetSpellImproveRubies:startOfTurn': { policy: 'ownBeat', family: 'startOfTurn' }, // Gemline Martyr
   'factory:goldSpentBuffRandomTribe:goldSpent': { policy: 'foldedCue', family: 'economyReact' }, // Billings
   'factory:onGainCardBuffTribe:onGainCard': { policy: 'foldedCue', family: 'economyReact' }, // Gangplank
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
@@ -617,6 +618,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_unbroken_vein:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_underdog:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_stoked_menagerie:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_embers:recruit': { policy: 'foldedCue', family: 'shopEconomy' },
   'rune:rune_undertow:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vanguard:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vault:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

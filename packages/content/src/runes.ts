@@ -1765,6 +1765,16 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
+    // Owner add 2026-08-19. A refresh-paced Health faucet on the slot the Shop's eaters and copiers already
+    // fight over (Hellrider, Bob Blart, Market Tormentor), so it compounds with them rather than sitting apart.
+    id: 'rune_embers',
+    name: 'Rune of the Embers',
+    cost: 4,
+    epic: true,
+    text: 'When you **refresh**, **double** the Health of the **right-most** minion in the Shop.',
+    reward: { kind: 'runeEmbers' },
+  },
+  {
     // Owner rework 2026-08-19: was a BASIC 6-Gold rune for 3 Gold / +3 max. Promoted to Epic at 0 Gold for
     // 4 / +4 — a free Epic that pays for itself the turn you take it. Promoting a rune is an ARRAY move
     // (`RUNES` -> `EPIC_RUNES`), not a flag flip: `runeforgePool` reads membership, and `epic` is the kicker.

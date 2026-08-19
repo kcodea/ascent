@@ -27,7 +27,18 @@ upward plume rising off the card. Sim side pinned by `hawkusRallyBeat.test.ts` �
 the left-most Echo, and stays silent when no ally has Rally. The binding itself is pinned in the
 `bindings.test.ts` golden copy, and `fx/defs.test.ts` validates the def's params against the primitive registry.
 
-Tuning the gust further is a workbench job — the def is data, so its look can be dialled without code.
+**Tuner (owner ask, same day):** the gust is now a live DEV panel — **Dev menu → 🪶 Hawkus gust** — with
+GRAVITY, SPEEDS and EASE on both layers (plus life/spread/count and the air's rate): 10 sliders in two groups.
+
+It exists ALONGSIDE the FX workbench because they solve different halves. The workbench edits a DRAFT and its
+changes only reach the game once SAVED to the committed JSON; this panel overrides the def's params **at play
+time** (`playDef`), so the gust can be dialled while watching Hawkus actually trigger in a fight instead of
+previewing it in isolation. `applyHawkusFxTuning` is pure, DEV-gated, and returns the def **by reference** when
+nothing has been dialled — so the shipped path stays byte-identical for players and every other def pays one
+string compare. When a value reads right, Copy values → the JSON → Reset.
+
+Gravity sliders deliberately cross ZERO: negative is what keeps the gust climbing (wind) rather than arcing
+back down (fountain), which is the whole read of the effect.
 
 Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (355 files / 5649 tests).
 

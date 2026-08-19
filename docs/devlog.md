@@ -30,6 +30,13 @@ presentation, so the aura blooms in the lunge alongside the number + pulse. The 
 still fires (different surface). Registered the new literal `playDef('shop-buff-aura', …)` in `directCalls.ts` +
 its golden.
 
+Then de-duplicated: with the combat bloom in place, the shop-row aura on return played the effect a SECOND time
+(owner report). That post-combat replay is stamped by the reducer's generic post-action `tavernBuyBonus` diff
+(`shopBuffAllFx`/`Seq`), which also fires at `resolveCombat`/`settleCombat`. Gated that stamp to SKIP the
+combat-transition actions — a Shop buff earned in combat already bloomed in the lunge, so it must not stamp the
+shop-row aura again. The buff itself still applies (offers carry it); only the duplicate FX is skipped.
+Recruit-phase casts/shouts and the End-of-Turn beat path are untouched. Added a sim test pinning it.
+
 ## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
 
 The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it

@@ -1,5 +1,40 @@
 # ASCENT — development log
 
+## 2026-08-19 — Category 2: the continuous-modifier runes burst too (owner ruling)
+
+Walked the eleven runes that have no trigger of their own — they modify what something ELSE does — and the
+owner's call was **yes on all eleven, on every occurrence**. So each now bursts at the moment it actually
+changes an outcome:
+
+| Rune | Bursts on |
+|---|---|
+| Hatchery / Packcraft | each combat summon they buff (owning both pops both badges — both really acted) |
+| Fury | each Avenge it doubles, beside that Avenge rune's own burst |
+| Bartering | each Shout minion sold |
+| Distillation | each spell it duplicates onto the left-most minion |
+| Display Case | each extra left-most Shop enchant |
+| Full Measure | each Attack grant it adds |
+| Open Appetite | each off-type target it enables |
+| Unbroken Vein | each doubled Choose One |
+| Living Geode / Wrangler | each Golem / Imp they grant keywords to |
+
+**Two of these could not be stamped where the flag is read.** `sellValueOf` (Bartering) and
+`effectiveTargetTribe` (Open Appetite) are pure QUERIES — the sell float, the aim UI, the can-target probe and
+the auto-pick pool all call them, so a stamp there would fire on hover and on every re-render rather than on
+the action. Bartering is stamped at the real sale in the reducer, re-testing the rune's own
+`hasBattlecry` condition; Open Appetite is stamped where the Agent's feed resolves, and only when the eaten
+target is off-type for the card's declared `targetTribe` — which is precisely "the rune enabled this pick".
+
+Living Geode and Wrangler share a single guard in `simulate.ts`; the stamp picks the badge by which of the two
+actually granted, so the right rune bursts.
+
+Every stamp sits past the gate: Full Measure stays silent on a zero grant, Distillation on a cast that took no
+lead minion, Bartering on a non-Shout sale.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (357 files, 5668 passed) + `build:web` green. This
+closes the rune-FX sweep — every rune that can be said to "trigger" now bursts on its badge, in both phases.
+Only the one-shot purchase rewards (Scout, Small Fortune, the Pair, …) stay silent, having no repeat moment.
+
 ## 2026-08-19 — Every rune with a real trigger now bursts (category 3 cleared)
 
 Follow-up to the entry below: the remaining unstamped rune triggers are wired, in both phases. Two of them

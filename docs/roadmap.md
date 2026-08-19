@@ -255,13 +255,11 @@ are points rather than rectangles.
   and the End-of-Turn beat. Any future card or quest that raises the run-wide shop channel animates with no
   extra wiring.
 
-- **Rune-trigger FX: the passive/one-shot group** (owner review, 2026-08-19). Every rune with a discrete
-  trigger now bursts. What remains is a design call, not wiring: the CONTINUOUS MODIFIERS (Fury, Hatchery,
-  Packcraft, Bartering, Distillation, Wrangler, Display Case, Full Measure, Open Appetite, Unbroken Vein,
-  Living Geode) have no moment — bursting them means bursting on the effect they modify, so Packcraft would
-  flash on every combat summon. And the ONE-SHOT purchase rewards (Scout, Small Fortune, the Pair, Spare
-  Parts, Gemcutting, Top Hat, Menagerie, Altar, Evolution) fire once at buy; the only hook is the purchase
-  itself.
+- **Rune-trigger FX — DONE** (2026-08-19). Every rune with any notion of triggering now bursts on its badge in
+  both phases, including the eleven continuous modifiers (owner ruling: burst on each occurrence). The only
+  runes still silent are the one-shot purchase rewards (Scout, Small Fortune, the Pair, Spare Parts,
+  Gemcutting, Top Hat, Menagerie, Altar, Evolution), which fire once at buy and have no repeat moment — the
+  only hook there would be the purchase itself, if it is ever wanted.
 
 - **Ring layers can now be placed** (shipped 2026-08-17, while authoring `shop-buff-aura`): `shockwave` gained
   the `offsetX`/`offsetY` pair the particle primitives already had, so a ring is no longer pinned to its

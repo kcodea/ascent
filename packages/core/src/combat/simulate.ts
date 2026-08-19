@@ -1135,6 +1135,7 @@ export function simulate(
     // grants Ward on the same "summoned in combat" scope).
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
+      fireTrigger('runeHatchery', side); // owner call 2026-08-19: a continuous modifier bursts on each body it buffs
       minion.attack += hatch.attack;
       minion.health += hatch.health;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
@@ -1149,6 +1150,7 @@ export function simulate(
     // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
     // already on the board and already snapshotted, and the old version was tribe-gated besides.
     if (modsFor(side).runePackcraft) {
+      fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
       minion.attack += 6;
       minion.health += 6;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
@@ -1208,6 +1210,8 @@ export function simulate(
       const wardOnly = card.id === 'gemheart-shard' && summoner?.cardId === 'k_geode';
       const wardTaunt = card.id === 'impscrap' && summoner?.cardId === 'dm_wrangler';
       if (wardOnly || wardTaunt) {
+        // Two runes share this guard; attribute by which one actually granted, so the right badge bursts.
+        fireTrigger(wardTaunt ? 'runeWrangler' : 'runeLivingGeode', side);
         minion.divineShield = true;
         if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
         if (wardTaunt && !minion.keywords.includes('T')) minion.keywords.push('T');
@@ -1564,6 +1568,9 @@ export function simulate(
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
+        // Fury modifies OTHER runes' Avenges, so its badge pops beside theirs — it genuinely caused the
+        // second trigger, and without this the extra fire has no attribution at all.
+        fireTrigger('runeFury', minion.side);
         fn(ctx, minion, effect.params ?? {}, payload);
       }
       // The Sealed Vault: the FIRST Avenge each combat triggers twice — tracked per side, so a served enemy

@@ -1350,6 +1350,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // minion also casts on your left-most minion: a real Ruby landing (stat buff + the target's own
           // on-Ruby watchers), mirroring the spell path's Distillation echo below.
           const lead = s.runeDistillation ? s.board[0] : undefined;
+          if (lead) procRune(s, 'runeDistillation');
           if (lead) for (let n = 0; n < casts; n++) {
             addBuff(lead, 'Ruby', card.attack, card.health);
             fireOnRubyPlayed(s, lead, card.attack, card.health);
@@ -1468,6 +1469,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // Rune of Distillation: a spell that landed on a SHOP minion also casts on your left-most board
             // minion. A real second cast (same `castSpell` path), so the target's own on-spell watchers see it.
             const lead = s.runeDistillation ? s.board[0] : undefined;
+            if (lead) procRune(s, 'runeDistillation');
             if (lead) for (let n = 0; n < casts; n++) castSpell(s, def, lead);
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
@@ -1656,6 +1658,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // already on the board here, so both halves resolve through the same `applyChooseOne` path a picked
         // option uses — each keeps its own golden scaling and buff-FX attribution, in printed order.
         if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') {
+          procRune(s, 'runeUnbrokenVein');
           for (const opt of CARD_INDEX[card.cardId]!.chooseOne!) applyChooseOne(s, card, opt.effects);
         } else {
           s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -1836,6 +1839,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (sold) {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
+        // Rune of Bartering earns its 2 Gold only on a Shout minion — the same condition `sellValueOf`
+        // applies. Stamped HERE and not in that helper: it is a pure display query the sell float also calls,
+        // so a stamp there would fire on every render rather than on the sale.
+        if (s.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(s, 'runeBartering');
         gainGold(s, sellValueWithBonus(sold, s));
         // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
         // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty

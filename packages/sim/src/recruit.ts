@@ -2167,6 +2167,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived
     // from `h` rather than recomputed, so the two halves can never drift apart.
     const a = ctx.state.runeFullMeasure ? h : 0;
+    if (a > 0) procRune(ctx.state, 'runeFullMeasure'); // the rune paid Attack; a 0 grant is not a fire
     if (h > 0 || a > 0) addBuff(target, nameOf(self), a, h);
   },
 
@@ -3263,6 +3264,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       }
     }
     target = target ?? self;
+    // Rune of Open Appetite bursts only when it actually ENABLED this pick — i.e. the eater is off-type for
+    // the card's declared `targetTribe`. Deliberately not stamped inside `effectiveTargetTribe`: that helper
+    // is a pure query the aim UI, the can-target probe and the auto-pick pool all call, so a stamp there
+    // would fire on hover and on every re-render rather than on the feed.
+    const declared = CARD_INDEX[self.cardId]?.targetTribe;
+    if (ctx.state.runeOpenAppetite && declared && !isTribe(target, declared)) procRune(ctx.state, 'runeOpenAppetite');
     for (let n = 0; n < num(params.count, 1) * gold(self); n++) {
       const i = rightmostShopMinion(ctx.state);
       if (i < 0) return;
@@ -3323,6 +3330,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Rune of the Display Case: your Market Tormentors ALSO enchant the LEFT-most Shop slot, permanently —
     // its own accumulator, re-landed on every fresh roll by applyShopRefreshed (mirrors the rightmost channel).
     if (st.runeDisplayCase) {
+      procRune(st, 'runeDisplayCase');
       st.leftmostSlotBuff = {
         attack: (st.leftmostSlotBuff?.attack ?? 0) + a,
         health: (st.leftmostSlotBuff?.health ?? 0) + h,

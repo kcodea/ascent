@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type ReplayFrame, type ReplayV2, type ShopView, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -273,6 +273,14 @@ interface GameStore {
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
+  /** REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md): the run's recorded frames. One deep-cloned
+   *  ShopFrame per state-changing recruit action (plus a `turnStart` frame at each shop opening), one
+   *  CombatFrame per fight. Reset on every new run; NOT persisted in the autosave (far too large for
+   *  localStorage — a resumed run uploads its v2 marked `partial`). Uploaded inside `replay` jsonb at run end. */
+  replayFrames: ReplayFrame[];
+  /** True when the live run was RESUMED from a save: its pre-reload frames are gone, so the v2 replay it
+   *  uploads is marked `partial`. Cleared by every run-creation path. */
+  replayPartial: boolean;
   /** REPLAY VIEWER — per-action wall-clock deltas (ms since the previous recorded action), parallel to
    *  `replayActions`. UI metadata only (never fed to the sim), so a viewer can play back the real cadence. */
   /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
@@ -552,6 +560,34 @@ function clearSave(): void {
 }
 const BOOT_SAVE = loadSave();
 
+// ── REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md §5) ──────────────────────────────────────
+// The frame clock: `tMs` is cumulative ms from run start, accumulated as clamped deltas between committed
+// actions (so a backgrounded tab or a paused dev session can't produce a negative step). Module-level, like
+// the FX registries — wall-clock bookkeeping, not React state.
+let replayLastFrameAt: number | null = null;
+let replayElapsedMs = 0;
+// The previous shop frame's full view — what the next per-action DELTA frame diffs against (every wave's
+// `turnStart` is a full keyframe; the actions within the wave record only the top-level keys that changed).
+let replayLastShopView: ShopView | null = null;
+const replayNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0);
+function replayClockTick(): number {
+  const now = replayNow();
+  if (replayLastFrameAt != null) replayElapsedMs += Math.max(0, now - replayLastFrameAt);
+  replayLastFrameAt = now;
+  return replayElapsedMs;
+}
+/** Reset the clock and seed a run's FIRST frame: the opening shop as a `turnStart` keyframe at tMs 0. Called
+ *  by every run-creation path (and at boot for a restored save, whose earlier frames are gone → `partial`). */
+function seedReplayFrames(run: RunState): ReplayFrame[] {
+  replayLastFrameAt = replayNow();
+  replayElapsedMs = 0;
+  replayLastShopView = null;
+  if (run.phase !== 'recruit') return [];
+  const first = shopFrameOf(run, 'turnStart', 0);
+  replayLastShopView = first.view;
+  return [first];
+}
+
 /**
  * Build the lobby's opponent drivers during the OPENING SHOP PHASE, one seat per idle slice.
  *
@@ -683,6 +719,52 @@ function commitResolvedAction(
     // returns the same object, exactly like the log above — this runs per dispatched action (a click),
     // never per frame, so its cost is a handful of object touches at human cadence.
     const deriveState = observeAction(s.deriveState, s.run, action, next);
+    // REPLAY V2 (Phase A — capture). One frame per state-changing action, all DEEP-CLONED at capture
+    // (`projectShopView` / `combatFrameOf` structuredClone internally): the reducer shares `lastCombat` /
+    // `servedBoards` by reference and mutates boards in place, so a shallow capture would let later turns
+    // corrupt earlier frames. The no-change path (`next === s.run`) stays zero-cost.
+    let replayFrames = s.replayFrames;
+    if (next !== s.run) {
+      const tMs = replayClockTick();
+      // The fight's cost settles on `settleCombat`/`resolveCombat` (lobby: via the seat sync), NOT at
+      // `faceOmen` — so the fight's frame is patched here with what it actually cost. Armor absorbs first,
+      // so the loss is the TOTAL health delta (armor + Resolve), the same number the table's −X floats show.
+      const healthLost = s.run.phase === 'combat'
+        ? Math.max(0, (s.run.resolve + s.run.armor) - (next.resolve + next.armor))
+        : 0;
+      if (healthLost > 0) {
+        for (let i = replayFrames.length - 1; i >= 0; i--) {
+          const f = replayFrames[i];
+          if (f?.kind === 'combat') {
+            replayFrames = [...replayFrames];
+            replayFrames[i] = { ...f, resolveLost: f.resolveLost + healthLost }; // accumulate: a fight's cost may land across two settle steps
+            break;
+          }
+        }
+      }
+      if (action.type === 'faceOmen' && next.lastCombat) {
+        // A fight resolved: record it verbatim (the full CombatResult, minus oddsInput), stamped with the
+        // pairing the pre-action state used.
+        replayFrames = [...replayFrames, combatFrameOf(s.run, next, tMs)];
+      } else if (next.phase === 'recruit' && s.run.phase !== 'recruit') {
+        // Combat → recruit flip: the new shop opening is its own `turnStart` KEYFRAME (a full view).
+        const frame = shopFrameOf(next, 'turnStart', tMs);
+        replayLastShopView = frame.view;
+        replayFrames = [...replayFrames, frame];
+      } else if (next.phase === 'recruit' && s.run.phase === 'recruit') {
+        // An ordinary recruit action: a DELTA against the previous frame's view (§8 — measured: full views
+        // are ~7 KB and a human run takes ~250 actions; deltas keep the payload in the hundreds of KB).
+        if (replayLastShopView) {
+          const d = deltaShopFrameOf(replayLastShopView, next, action.type, tMs);
+          replayLastShopView = d.view;
+          replayFrames = [...replayFrames, d.frame];
+        } else {
+          const frame = shopFrameOf(next, action.type, tMs); // no baseline (shouldn't happen) → keyframe
+          replayLastShopView = frame.view;
+          replayFrames = [...replayFrames, frame];
+        }
+      }
+    }
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
       ? [...s.capturedBoards, snapshotBoard(next)]
       : s.capturedBoards;
@@ -809,8 +891,26 @@ function commitResolvedAction(
             const derived = finishDerive(deriveState, next, {
               heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
             });
+            // REPLAY V2 (state replay): the recorded frames + the recorded outcome, riding INSIDE the same
+            // `replay` jsonb as the v1 action log (which balance re-derivation still reads — both stay).
+            // Viewers gate on `replay.v2?.version === 2`.
+            const v2: ReplayV2 = {
+              version: 2,
+              seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
+              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+              createdAtMs: Date.now(),
+              // A resumed run lost its pre-reload frames (frames aren't autosaved — see `replayFrames`).
+              ...(s.replayPartial ? { partial: true as const } : {}),
+              frames: replayFrames,
+              result: {
+                placement: lobbyPlacement ?? 0,
+                record: runRecord(next),
+                ...(change ? { ratingDelta: change.ratingDelta } : {}),
+                finalBoard,
+              },
+            };
             void uploadRunTelemetry(telemetry, {
-              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay,
+              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay: { ...replay, v2 },
             });
           } catch { /* best-effort — telemetry must never disrupt the end screen */ }
         }
@@ -871,6 +971,7 @@ function commitResolvedAction(
       // telemetry (deterministic for the balance report; NOT a faithful spectator replay — see
       // docs/replay-v2-handoff.md).
       replayActions,
+      replayFrames,
       capturedBoards,
       telemetryLog,
       deriveState,
@@ -917,7 +1018,7 @@ export const useGame = create<GameStore>((set, get) => ({
     clearSave();
     dropBoardFx();
     const fresh = createRun(randomSeed());
-    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
+    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
   },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
@@ -997,6 +1098,10 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatRampUp: on });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
+  // REPLAY V2: a restored save lost its pre-reload frames (they're never persisted — see `replayFrames`),
+  // so its recording restarts at the resume point and its uploaded v2 is marked partial.
+  replayFrames: BOOT_SAVE ? seedReplayFrames(BOOT_SAVE.run) : [], // no save → the dormant throwaway run, never uploaded
+  replayPartial: BOOT_SAVE != null,
   latestBatch: null,
   beatRevision: 0,
   latestCombatTimeline: null,
@@ -1100,7 +1205,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
     });
   },
   newRun: (seed, heroId) => {
@@ -1108,7 +1213,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
     });
   },
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
@@ -1140,7 +1245,7 @@ export const useGame = create<GameStore>((set, get) => ({
       const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget);
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [] };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
     });
   },
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) => {
@@ -1152,7 +1257,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], sandboxReplay: false };
+      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false, sandboxReplay: false };
     });
   },
   sbEditMode: false,

@@ -771,12 +771,13 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // (skipped when the eater IS the leftmost — its own Consume already banked them).
   if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
     const left = state.board[0];
-    if (left && left.uid !== eater.uid) addBuff(left, 'Rune of Transfusion', fa, fh);
+    if (left && left.uid !== eater.uid) { procRuneId(state, 'rune_transfusion'); addBuff(left, 'Rune of Transfusion', fa, fh); }
   }
   // Rune of Endless Appetite: the FIRST Consume each turn fans out — every OTHER friendly Demon Consumes a
   // copy of the same Fodder (a full Consume each: its own Voracious multiplier, onConsume triggers, and the
   // tallies/rune hooks via the recursive note call).
   if (first && state.runeEndlessAppetite && eater) {
+    procRuneId(state, 'rune_endless_appetite');
     const ctx = makeContext(state);
     for (const d of state.board.filter((c) => c.uid !== eater.uid && isTribe(c, 'demon'))) {
       const mult = fodderMultiplier(d);
@@ -1106,6 +1107,7 @@ export function applyRunShopBuff(state: RunState, attack: number, health: number
 export function applyShopRefreshQuestBuff(state: RunState): void {
   const q = state.shopBuffOnRefresh;
   if (!q) return;
+  if (state.ownedRunes?.includes('rune_wheel')) procRuneId(state, 'rune_wheel');
   applyRunShopBuff(state, q.attack + q.grown, q.health + q.grown, 'Endless Inventory');
   q.tick += 1;
   while (q.tick >= q.per) { q.tick -= q.per; q.grown += q.step; }
@@ -1319,6 +1321,7 @@ export function gainGold(state: RunState, amount: number): void {
   }
   const ps = state.runeProfitSharing;
   if (ps) {
+    procRuneId(state, 'rune_profit_sharing');
     // Buffs the tribe wherever it is (board + hand), like every other "+X/+X to your <tribe>" run effect.
     for (const c of [...state.board, ...state.hand]) {
       if (isTribe(c, ps.tribe)) addBuff(c, 'Rune of Profit Sharing', ps.attack, ps.health);
@@ -1627,6 +1630,7 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
 function fireOnRubyGained(state: RunState): void {
   const ml = state.motherlode;
   if (ml) {
+    procRuneId(state, 'rune_motherlode');
     // A Ruby is base 1/1 plus the run's live `rubyBonus` — the same value every other Ruby source mints at, so
     // a late-run Motherlode pays full strength rather than 1/1.
     const bonus = rubyStatBonus(state);
@@ -2260,6 +2264,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Consume or a sell). The COMBAT Echo's grants tick at settle instead (see the reducer), off the fight's
     // `toHand` events — so every Growth Mushy creates counts, whichever phase it was created in.
     if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && str(params.cardId) === 'growth') {
+      procRuneId(ctx.state, 'rune_living_growth');
       ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self);
     }
     ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
@@ -2415,7 +2420,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const mag = (base + (self.summonBonus ?? 0)) * gold(self);
     addBuff(minion, nameOf(self), mag, mag);
     // Rune of the Den Mother: she also buffs HERSELF by the same amount when she buffs another Beast.
-    if (ctx.state.runeDenMother) addBuff(self, nameOf(self), mag, mag);
+    if (ctx.state.runeDenMother) { procRuneId(ctx.state, 'rune_den_mother'); addBuff(self, nameOf(self), mag, mag); }
     self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
@@ -3184,6 +3189,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const neighbours = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]
         .filter((c): c is BoardCard => !!c && isTribe(c, 'dragon' as never)); // owner 2026-08-18: adjacent DRAGONS only
       if (neighbours.length > 0) {
+        procRuneId(ctx.state, 'rune_herzog');
         const rng = makeRng(ctx.state.rngCursor);
         const target = neighbours[rng.int(neighbours.length)]!;
         ctx.state.rngCursor = rng.state();
@@ -3239,6 +3245,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const meal = ctx.state.runeBlart ? offerBuyStats(ctx.state, ctx.state.shop[i]!) : null;
     consumeShopMinion(ctx.state, self, i, times);
     if (!meal) return;
+    procRuneId(ctx.state, 'rune_blart');
     const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
     for (const nb of [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]) {
       if (nb) addBuff(nb, 'Rune of Blart', meal.attack * times, meal.health * times);
@@ -3750,6 +3757,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Rune of Living Growth: every Growth MUSHY creates improves the spell run-wide, one tick per Growth —
     // a golden Mushy hands over two and ticks twice.
     if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && def.id === 'growth') {
+      procRuneId(ctx.state, 'rune_living_growth');
       ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + count;
     }
     for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
@@ -5747,6 +5755,7 @@ export function applyCardsPlayed(state: RunState, count: number): void {
       const rng = makeRng(state.rngCursor);
       const pick = dragons[rng.int(dragons.length)]!;
       state.rngCursor = rng.state();
+      procRuneId(state, 'rune_glider');
       captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Glider', glider.attack, glider.health));
     }
   }
@@ -6346,7 +6355,7 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   // RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired at the same play chokepoint as the
   // Chipper Sticker, and BEFORE its early return, so the two Demon-play runes are independent — holding one
   // must not silently gate the other.
-  if (state.runeRefreshments && isTribe(minion, 'demon')) state.freeRolls += 1;
+  if (state.runeRefreshments && isTribe(minion, 'demon')) { procRuneId(state, 'rune_refreshments'); state.freeRolls += 1; }
   if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
   const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
   if (eaters.length === 0) return;
@@ -6359,6 +6368,7 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   const pick = edible[rng.int(edible.length)]!;
   state.rngCursor = rng.state();
   consumeShopMinion(state, eater, pick);
+  procRuneId(state, 'rune_chipper_sticker');
 }
 
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
@@ -6370,6 +6380,7 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   // board, which is the whole point of a sell payoff.
   const baller = state.runeBaller;
   if (baller) {
+    procRuneId(state, 'rune_baller');
     baller.sales += 1;
     const amount = baller.step * Math.ceil(baller.sales / 2);
     const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
@@ -6456,6 +6467,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
     addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
+    if (b === 0 && state.runeConduit) procRuneId(state, 'rune_conduit');
   }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
@@ -6515,7 +6527,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
     for (const nb of [state.board[at - 1], state.board[at + 1]]) {
       if (!nb || nb === card) continue;
       const nd = CARD_INDEX[nb.cardId];
-      if (nd?.tribe === 'dragon' || nd?.tribe2 === 'dragon') castSpell(state, spellDef, nb);
+      if (nd?.tribe === 'dragon' || nd?.tribe2 === 'dragon') { procRuneId(state, 'rune_shared_reflection'); castSpell(state, spellDef, nb); }
     }
   }
   const def = CARD_INDEX[card.cardId];
@@ -6602,6 +6614,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
   const isShout = def.effects.some((e) => e.on === 'onPlay');
   if (isShout) {
     n += state.shoutExtraAlways ?? 0; // Hoardwake / The Hoard Wakes — permanent extra triggers (stacks)
+    if (state.shoutExtraAlways) procRuneId(state, 'rune_choir');
     // Warm Embers — the FIRST Shout you play each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;
@@ -6614,6 +6627,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
     if (state.runeWarDrum && !state.runeWarDrumUsedThisTurn) {
       state.runeWarDrumUsedThisTurn = true;
       n += state.runeWarDrum;
+      procRuneId(state, 'rune_war_drum');
     }
   }
   // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
@@ -6655,6 +6669,7 @@ function fireBattlecryTriggered(state: RunState): void {
   // board minion is both edges → buffed once (deduped), not twice.
   const edge = state.shoutEdgeBuff;
   if (edge && state.board.length > 0) {
+    procRuneId(state, 'rune_drake_skull');
     const left = state.board[0]!;
     const right = state.board[state.board.length - 1]!;
     addBuff(left, 'Twin Sun Oath', edge.attack, edge.health);
@@ -6888,7 +6903,7 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
  */
 export function applySpellBought(state: RunState, spellId: string): void {
   // Rune of the White Wolf: the rune teaches on its own, sharing the per-turn ceiling with any Mentor on board.
-  if (state.runeWhiteWolf) teachMagePup(state, spellId);
+  if (state.runeWhiteWolf) { procRuneId(state, 'rune_white_wolf'); teachMagePup(state, spellId); }
   // A dedicated loop rather than the generic `fire`, which is typed to a minion-only payload — this event's
   // subject is the SPELL, and the board minion is just the watcher. Mirrors `fireOnRubyGained`.
   for (const card of [...state.board]) {
@@ -6929,7 +6944,7 @@ export function applyShopRefreshed(state: RunState): void {
     const i = rightmostShopMinion(state);
     if (i >= 0) {
       const cur = offerBuyStats(state, state.shop[i]!).health;
-      if (cur > 0) addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur);
+      if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
     }
   }
   // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
@@ -6984,6 +6999,7 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
     const bonusH = bought.health - (base ? base.health * g : bought.health);
     if (bonusA > 0 || bonusH > 0) {
       state.banquetUsedThisTurn = true;
+      procRuneId(state, 'rune_banquet_hall');
       const covered = new Set<string>();
       const recipients: BoardCard[] = [];
       for (const c of [...state.board]) {
@@ -7133,6 +7149,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   const om = state.runeOpenMarket;
   if (om && !om.usedThisTurn && state.shop[offerIndex]) {
     om.usedThisTurn = true;
+    procRuneId(state, 'rune_open_market');
     applyRunShopBuff(state, om.attack, om.health, 'Rune of the Open Market');
   }
   if (state.consumeDoubleFirstEachTurn && !state.consumeDoubleUsedThisTurn && CARD_INDEX[state.shop[offerIndex]?.cardId ?? '']) {
@@ -7364,11 +7381,13 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
   // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
   if (ALE_IDS.includes(spellDef.id)) {
+    if (state.aleExtraCasts) procRuneId(state, 'rune_bottomless_cask');
     state.alesCastThisTurn = (state.alesCastThisTurn ?? 0) + 1;
     // Rune of the Shared Table: every Ale cast buffs ONE friendly minion of each type. Same "one per tribe"
     // spread Fatecarver uses, so a dual-tribe body fills both its slots rather than being counted twice.
     const st = state.runeSharedTable;
     if (st) {
+      procRuneId(state, 'rune_shared_table');
       const seen = new Set<string>();
       for (const c of state.board) {
         const def = CARD_INDEX[c.cardId];
@@ -7428,6 +7447,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // so it picks up spell power and the spell counters see it — but guarded against recursion, since the cast it
   // triggers would otherwise re-enter this same hook forever.
   if (state.runeMight && !state.runeMightCasting) {
+    procRune(state, 'runeMight');
     const might = CARD_INDEX['mightofaeon'];
     if (might) {
       state.runeMightCasting = true;
@@ -7460,6 +7480,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand) — descends onto each affected board Dragon.
   if (state.runeScales) {
     captureBuffFx(state, undefined, 'spell', () => {
+      procRuneId(state, 'rune_scales');
       for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4, 5); // owner 2026-08-11 (was +2/+2)
     });
   }
@@ -7685,6 +7706,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
   } else if (effect === 'runeLapidary') {
+    procRuneId(state, 'rune_lapidary');
     // Rune of the Lapidary (owner rework 2026-08-11): play a Ruby on a random minion for EACH card played this
     // turn — the cursor re-rolls per Ruby so they spread independently. One `step` per Ruby, so the projection
     // replays them as a sequential cascade (the owner's 2026-08-12 "End-of-Turn ruby animation" ask). Routed
@@ -7709,9 +7731,9 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // `fireRecruitDeathrattles` = the shop-side Echo path Gravetwin uses). Two steps, so the projection plays
     // the Shout and the Echo as their own waves.
     const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (shout) step(() => replayBattlecry(state, shout));
+    if (shout) { procRuneId(state, 'rune_crucible_choir'); step(() => replayBattlecry(state, shout)); }
     const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (echo) { const choirCtx = makeContext(state); step(() => fireRecruitDeathrattles(choirCtx, echo)); }
+    if (echo) { procRuneId(state, 'rune_crucible_choir'); const choirCtx = makeContext(state); step(() => fireRecruitDeathrattles(choirCtx, echo)); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
@@ -7744,6 +7766,11 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const spells = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
     if (spells.length > 0) step(() => conjureToHand(state, spells, 2));
   } else if (effect === 'grantAles' || effect === 'grantAles3') {
+    // Double Fisting pours 3 (grantAles3); First Round pours 2 (grantAles). Each bursts only if owned — the
+    // Open Tab quest also uses grantAles but has its own badge, so stamping the rune here is a harmless no-op
+    // for a run that only holds the quest.
+    if (effect === 'grantAles3') procRuneId(state, 'rune_double_fisting');
+    else procRuneId(state, 'rune_first_round');
     // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
     // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.
     const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
@@ -7763,13 +7790,14 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of Facetwright: a Facetwright's Choice every turn. Drawn from the run's pool like every other grant,
     // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
     const fw = poolOf(state).spells.find((c) => c.id === 'facetwright');
-    if (fw) step(() => conjureToHand(state, [fw], 1, true));
+    if (fw) { procRuneId(state, 'rune_facetwright'); step(() => conjureToHand(state, [fw], 1, true)); }
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
     step(() => mintRubies(state, 1));
   } else if (effect === 'grantRuby2') {
     // Rune of Resonance (rework 2026-08-06): 2 Rubies per turn. Its own effect id — the recurring effects
     // are string ids by design, so a count param has nowhere to ride.
+    procRuneId(state, 'rune_resonance');
     step(() => mintRubies(state, 2));
   } else if (effect === 'copyFirstSpell') {
     // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of

@@ -509,7 +509,7 @@ export function simulate(
     // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
     // rather than at each Rally site so it counts exactly what the `rally` quest objective counts — every
     // fire, doubler re-fires included — instead of drifting from the game's own definition of "a Rally".
-    if (modsFor('player').runeHerdingHorn) ctx.grantFreeRolls(n, 'player');
+    if (modsFor('player').runeHerdingHorn) { fireTrigger('runeHerdingHorn', 'player'); ctx.grantFreeRolls(n, 'player'); }
     checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
@@ -1185,11 +1185,13 @@ export function simulate(
     // TAKE a Ward: a summon that already had one costs nothing from the allowance.
     const undertow = modsFor(side).runeUndertow;
     if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
+      fireTrigger('runeUndertow', side);
       undertowUsed[side] += 1;
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
     }
     if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
+      fireTrigger('runeLivingTreasure', side);
       // Rune of Living Treasure grafts the EXACT-COPY Echo (Exgalloper's), not Rise. It shipped as Rise on the
       // theory that "Rise IS summon an exact copy" — but Rise resummons the PRINTED body, so a 7/3 shard came
       // back a 1/1 (owner report 2026-07-31); the Echo copies current stats. Being a real `onDeath` effect
@@ -1419,7 +1421,7 @@ export function simulate(
       // RUNE OF THE BURROW (owner rework 2026-08-19): triggering a BEAST's Echo banks a free Shop refresh.
       // It rides the echo chokepoint rather than the death site, so an Echo fired by Hawkus / Spots / the
       // Reliquary — no death involved — pays exactly like one that came from dying.
-      if (source && modsFor(side).runeBurrow && isBeast(source)) ctx.grantFreeRolls(1, side);
+      if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -1676,7 +1678,7 @@ export function simulate(
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
-    if (first > 0 && !firstEchoDone[minion.side]) { bonus += first; firstEchoDone[minion.side] = true; }
+    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); bonus += first; firstEchoDone[minion.side] = true; }
     return bonus;
   }
 
@@ -1693,8 +1695,9 @@ export function simulate(
     if (mods.tribeRallySlaughterExtra && isTribeOf(attacker, mods.tribeRallySlaughterExtra, cards)) extra += 1;
     if (attacker.side === 'player' && playerRallyDouble) extra += 1; // Rallying Offensive is a player-only one-fight override
     extra += mods.rallyExtraAlways ?? 0;
+    if (mods.rallyExtraAlways) fireTrigger('runeAdventuring', attacker.side);
     const first = mods.rallyFirstEachCombat ?? 0;
-    if (first > 0 && !firstRallyDone[attacker.side]) { extra += first; firstRallyDone[attacker.side] = true; }
+    if (first > 0 && !firstRallyDone[attacker.side]) { fireTrigger('runeStampede', attacker.side); extra += first; firstRallyDone[attacker.side] = true; }
     return extra;
   }
 
@@ -1814,6 +1817,7 @@ export function simulate(
         if (!minion.keywords.includes('R')) minion.keywords.push('R');
         minion.rebornAvailable = true;
         emit({ type: 'keyword', target: minion.uid, keyword: 'R' });
+        fireTrigger('runeDeathtouchedApple', minion.side);
       }
       // Granted blessings shed with the granted keywords: a golden-Taurus ×2 (`gainMult`) doesn't survive
       // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
@@ -2087,6 +2091,7 @@ export function simulate(
     const finalImps = modsFor(side).runeFinality ?? 0;
     if (finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
       finalityDone[side] = true;
+      fireTrigger('runeFinality', side);
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < finalImps; i++) summonMinion(side, imp, undefined, ['DS']); }
     }
@@ -2168,6 +2173,7 @@ export function simulate(
       // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
       // body that is Engraved, which is the standing rule for every combat stat gain.
       if (modsFor(poisoner.side).runeRuins) {
+        fireTrigger('runeRuins', poisoner.side);
         for (const m of living(poisoner.side)) ctx.buff(m, RUNE_RUINS_BUFF, RUNE_RUINS_BUFF, 'Rune of Ruins');
       }
     }
@@ -2392,6 +2398,7 @@ export function simulate(
       if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
         ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
+        fireTrigger('runeWildHunt', attacker.side);
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
@@ -3315,7 +3322,7 @@ export function simulate(
       const idx = boards[side].indexOf(minion);
       if (idx < 0 || boards[side].slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
-      if (right) ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance');
+      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance'); }
     });
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a

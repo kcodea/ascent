@@ -1,5 +1,44 @@
 # ASCENT — development log
 
+## 2026-08-19 — Comprehensive rune-trigger FX: ~60 more runes now burst on their badge
+
+Swept the ENTIRE rune roster (six parallel research agents over 104 uncovered runes) and wired the burst on
+every rune that has a real trigger moment, in both phases. This closes the long tail the earlier passes only
+sampled.
+
+**Attribution rules, hardened against the multi-rune collision the earlier bugs came from:**
+- COMBAT runes emit `fireTrigger('<flag>', side)` (or `ctx.log({type:'questTrigger'})` from `factories.ts`,
+  which has no `fireTrigger` closure). `combatFlag`-kind runes map to their badge automatically; the
+  rally/echo-kind combat runes (Stampede, Adventuring, Catacomb) carry no `combatFlag`, so `questFlags.ts`
+  gained an explicit `EXTRA_COMBAT_FLAG_TO_ID` supplement.
+- SHOP runes stamp `procRuneId(state, '<literal_rune_id>')` — NEVER `procRune(state, '<kind>')` for a shared
+  kind. The literal id is unambiguous, sidestepping the `multi`/`tribeDrip` collision that no-op'd four stamps
+  earlier today.
+- The load-bearing safety property: **a badge only renders (and so only bursts) for a rune the player owns.**
+  So a stamp on a state field shared with a quest or another rune is harmless when that rune isn't held —
+  which is why shared-field runes (Motherlode, Choir, Wheel, the whole `runeThreshold`/`tribeDrip` families,
+  the `grantAles` cluster) can be stamped safely without per-source disambiguation.
+
+**Shared sites collapsed to one stamp each:** the ten tribe-drip runes share one Start-of-Turn grant loop
+(the id derived from the `{tribe, count}` entry — `rune_${count>=2?'epic':'basic'}_${tribe}`); the eight
+threshold runes were already covered via `payRuneThreshold`; `grantAles`/`grantAles3` distinguishes First
+Round from Double Fisting.
+
+Every End-of-Turn stamp was verified to sit in a branch that `projectEndOfTurnSteps` runs on a
+`structuredClone` — so the preview bumps a throwaway `runeProcs` and only the real commit bursts.
+
+Correctly LEFT silent (no discrete moment): pure passive value/rule modifiers (Thrift, Twin Gilding, Crown,
+Mastery, Conductor, Zoo, Pillaging, Blasting Voices, Rising Echoes) and one-shot purchase grants (Menagerie,
+Top Hat, Tip Jar, Second Path, Champion, Evolution, Held Strength, the various "Get an X" runes).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (360 files, **5805 passed** — determinism and golden
+combat green, confirming zero logic change: `procRuneId` only touches the cosmetic `runeProcs`, `fireTrigger`
+emits a cosmetic event) + `build:web`.
+
+Follow-up noted: a handful of NON-unit-targeting `recurringEndOfTurn` runes (Recollection/copyFirstSpell,
+Quick Study, Hunger) aren't covered by the quest-tendril path either and want the same treatment; First Round
+and Double Fisting were done here as part of the `grantAles` cluster.
+
 ## 2026-08-19 — Enchantment bursts, 4 broken multi-rune stamps fixed, stale-render guard proven
 
 Owner report: Rune of Enchantment did not burst on a Shop-spell cast. It had NO stamp — a miss in the earlier

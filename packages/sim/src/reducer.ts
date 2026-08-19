@@ -45,6 +45,7 @@ function spendGold(s: RunState, amount: number): void {
     s.spellDripTick = (s.spellDripTick ?? 0) + amount;
     while (s.spellDripTick >= s.spellDripPer) {
       s.spellDripTick -= s.spellDripPer;
+      procRuneId(s, 'rune_spellslinging');
       conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
     }
   }
@@ -825,6 +826,7 @@ export function reduce(state: RunState, action: Action): RunState {
         next.typesBoughtThisTurn = [...set];
         if (set.size >= 3) {
           next.collectorUsedThisTurn = true;
+          procRuneId(next, 'rune_collector');
           queueDiscover(next, { kind: 'minion', tier: next.tier, tribes: [...set] });
         }
       }
@@ -853,7 +855,7 @@ export function reduce(state: RunState, action: Action): RunState {
       if (pdef?.keywords.includes('M')) {
         advanceQuests(next, (o) => o.event === 'playAttachment');
         // Rune of Structure: each Attachment you play from hand also conjures a random spell.
-        if (next.runeStructure) conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1);
+        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
@@ -1041,7 +1043,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
-        if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
+        if (s.cadenceSpellOff) procRuneId(s, 'rune_cadence');
+      if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
         s.hand.push({
           uid: `b${s.uidSeq++}`,
           cardId: spellDef.id,
@@ -1120,7 +1123,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
+      if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
+      if (tradeInOff) procRuneId(s, 'rune_trade_in');
       if (tradeInOff) s.tradeInTribe = undefined; // spent
       // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
       // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape.
@@ -1303,6 +1308,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         return s;
       }
@@ -1335,6 +1341,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // silent stat copy. Guarded against a one-minion board, where left-most IS right-most.
           const tail = s.board[s.board.length - 1];
           if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
+            procRuneId(s, 'rune_redirection');
             for (let n = 0; n < casts; n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               fireOnRubyPlayed(s, tail, card.attack, card.health);
@@ -1371,6 +1378,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         // Rune of Gemscript: the FIRST Ruby cast each turn raises the run's SPELL power +1/+1.
         if (s.runeGemscript && !s.gemscriptRubyUsed) {
+          procRuneId(s, 'rune_gemscript');
           s.gemscriptRubyUsed = true;
           s.spellBonus = { attack: (s.spellBonus?.attack ?? 0) + 1, health: (s.spellBonus?.health ?? 0) + 1 };
         }
@@ -1388,7 +1396,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
         // spend and before the umbrella fire below, and via a narrow counter rather than `noteSpellCast` —
         // that would re-fire the umbrella this path already fires.
-        if (s.runeSpellstone && def) countRubyAsShopSpell(s, def, casts);
+        if (s.runeSpellstone && def) { procRuneId(s, 'rune_spellstone'); countRubyAsShopSpell(s, def, casts); }
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -1481,6 +1489,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
@@ -1493,6 +1502,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Rune of Gemscript: the FIRST Shop spell cast each turn raises RUBY power +1/+1 (run bonus + held Rubies,
         // the same shape the Veinbreaker burst uses).
         if (s.runeGemscript && !s.gemscriptSpellUsed) {
+          procRuneId(s, 'rune_gemscript');
           s.gemscriptSpellUsed = true;
           const b = s.rubyBonus ?? { attack: 0, health: 0 };
           s.rubyBonus = { attack: b.attack + 1, health: b.health + 1 };
@@ -1563,7 +1573,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             }
             if (s.runeReplication) {
               const leftMech = s.board.find((c) => isTribe(c, 'mech'));
-              if (leftMech) weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0);
+              if (leftMech) { procRuneId(s, 'rune_replication'); weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0); }
             }
           }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
@@ -1609,6 +1619,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const sDef = CARD_INDEX[card.cardId];
             const leftMech = s.board.find((c) => c.uid !== card.uid && isTribe(c, 'mech'));
             if (sDef && leftMech) {
+              procRuneId(s, 'rune_replication');
               weldMagnetic(s, leftMech, {
                 source: `${sDef.name} (Replication)`,
                 attack: card.attack,
@@ -1725,6 +1736,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
@@ -1849,7 +1861,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // tavern) → nothing to give.
         if (s.runeLiquidation) {
           const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          if (target && (sold.attack > 0 || sold.health > 0)) addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health);
+          if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(s, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health); }
         }
         // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
         if (s.runeSellRubies) {
@@ -1877,7 +1889,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (fd.sold >= fd.per) {
             fd.sold -= fd.per;
             const dragons = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon'));
-            if (dragons.length > 0) conjureToHand(s, dragons, 1, true);
+            if (dragons.length > 0) { procRuneId(s, 'rune_foundry'); conjureToHand(s, dragons, 1, true); }
           }
           s.runeFoundry = fd;
         }
@@ -1892,7 +1904,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fireOnMinionSold(s, sold);
       }
       // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-      if (sold && s.runeSellersMarket) for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3);
+      if (sold && s.runeSellersMarket) { procRuneId(s, 'rune_sellers_market'); for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3); }
       // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
       if (sold && s.runeTradeIn && s.soldThisTurn?.length === 1) {
         const t = CARD_INDEX[sold.cardId]?.tribe;
@@ -1914,6 +1926,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.freeRolls > 0) {
         s.freeRolls -= 1;
       } else if (wsFree) {
+        procRuneId(s, 'rune_window_shopping');
         // free — Window Shopping covers it
       } else {
         const rc = refreshCostOf(s); // Tradesman pays 2
@@ -1923,7 +1936,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.frozen = false;
       refreshTavern(s);
       // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0.
-      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; fillBargainBin(s); }
+      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
@@ -2148,6 +2161,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
       // only read by those four branches.
       const reps = (s.runeEmpowerment || s.runeWishbone) ? 2 : 1;
+      if (s.runeWishbone) procRuneId(s, 'rune_wishbone');
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -3000,6 +3014,7 @@ function grantGoldenDiscover(s: RunState): void {
   // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
   // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
   if (s.runeCorruptedTome) {
+    procRuneId(s, 'rune_corrupted_tome');
     s.runeCorruptedTome = undefined;
     try { grantGoldenDiscover(s); } finally { s.runeCorruptedTome = true; }
   }
@@ -3636,7 +3651,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const grown = result.events.filter((e) =>
       e.type === 'toHand' && e.side === 'player' && e.cardId === 'growth'
       && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
-    if (grown > 0) s.growthBonus = (s.growthBonus ?? 0) + grown;
+    if (grown > 0) { procRuneId(s, 'rune_living_growth'); s.growthBonus = (s.growthBonus ?? 0) + grown; }
   }
   // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
   // no once-per-combat cap. The armed flag just needs to be truthy.
@@ -3965,7 +3980,7 @@ function advanceCombat(s: RunState): void {
   // Rune of the Long Shift (owner 2026-08-11): Discover 2 Shop spells at the start of each turn. Queued AFTER
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
-  if (s.runeLongShift) { queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -4018,13 +4033,17 @@ function advanceCombat(s: RunState): void {
   // Feed the Alpha: the recurring end-of-turn grant — conjure each armed card to hand every turn setup for the
   // rest of the run (one Feed the Alpha spell per turn). Hand-cap-safe (conjureToHand no-ops on a full hand).
   if (s.questRecurringGrants?.length) {
-    for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+    for (const id of s.questRecurringGrants) {
+      conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+      if (id === 'hoardflame') procRuneId(s, 'rune_hoardflame');
+      if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
+    }
   }
   // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier. `overflow` so an earned
   // reward is never dropped to a full hand, matching the quest/rune grant rule.
   if (s.runeDeep) {
     const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
-    if (pool.length > 0) conjureToHand(s, pool, 1, true);
+    if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, 1, true); }
   }
   // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier and
   // capped at the tavern tier (a rune must not hand you a card the shop couldn't). `overflow` so an earned
@@ -4032,7 +4051,10 @@ function advanceCombat(s: RunState): void {
   for (const drip of s.runeTribeDrip ?? []) {
     const pool = poolOf(s).all.filter((c) =>
       !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
-    if (pool.length > 0) conjureToHand(s, pool, drip.count, true);
+    if (pool.length > 0) {
+      conjureToHand(s, pool, drip.count, true);
+      procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
+    }
   }
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
@@ -4043,11 +4065,13 @@ function advanceCombat(s: RunState): void {
       const pick = eligible[rng.int(eligible.length)]!;
       s.rngCursor = rng.state();
       gildMinion(pick);
+      procRuneId(s, 'rune_pendant');
     }
   }
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
+  if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');
   if (s.runeCopies) copyRandomBoardMinion(s);
   // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
   // EoT minions + quest/rune recurring rewards, exactly like a real End of Turn (Chronos repeats included).
@@ -5409,6 +5433,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // Rune of the Muster: the armed free refresh is stocked with PLAIN copies of your board instead of a draw.
   // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
   if (s.runeMuster && s.board.length > 0) {
+    procRuneId(s, 'rune_muster');
     s.runeMuster = undefined;
     for (const offer of s.shop) returnToPool(s, offer.cardId);
     s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
@@ -5419,6 +5444,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // reads the lock off the state, so the allowance is spent AFTER the draw — decrementing first made the
   // second refresh see left=0 and go unrestricted (off-by-one, caught by its own test).
   const gc = s.runeGuidingCandle;
+  if (gc && gc.left > 0) procRuneId(s, 'rune_guiding_candle');
   rollShop(s);
   if (gc && gc.left > 0) s.runeGuidingCandle = { ...gc, left: gc.left - 1 };
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.

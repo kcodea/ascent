@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type ReplayV2, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -572,6 +572,48 @@ export interface RecentGameRow {
   wins: number;
   placement: number | null;
   createdAt: string | null;
+  /** The `run_telemetry` PK — the handle `fetchReplayPayload` fetches the full replay by. Null only on a
+   *  pre-`id`-select fallback read (then `hasReplay` is false too, so nothing offers a Watch). */
+  rowId: number | null;
+  /** True when the row's telemetry carries a WATCHABLE v2 state replay (`replay->v2->version === 2`), read
+   *  as a light JSON-path column so the list never pulls the ~100–450 KB payloads (replay-v2-handoff §9). */
+  hasReplay: boolean;
+}
+
+// ── Replay v2 (spectate — docs/replay-v2-handoff.md Phase C) ───────────────────────────────────────────────
+// The v2 state replay rides INSIDE the `replay` jsonb as `replay.v2` (the upload keeps the dormant v1 fields
+// alongside — see uploadRunTelemetry). Watchability is gated on `version === 2`, which also hides every
+// pre-v2 row; the v1 `isFaithful` predicate is gone with the rest of action replay (§9).
+
+/** Light structural gate over a network jsonb value: a v2 replay we can hand to `startReplay`. Version +
+ *  a non-empty frame list — full validation is playback's job; this only keeps malformed rows un-offered. */
+export function isReplayV2(v: unknown): v is ReplayV2 {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as { version?: unknown; frames?: unknown };
+  return r.version === 2 && Array.isArray(r.frames) && r.frames.length > 0;
+}
+
+/** The watchable v2 replay inside a `run_telemetry.replay` column value, or null (v1-only / absent / malformed). */
+export function v2ReplayOf(replayColumn: unknown): ReplayV2 | null {
+  if (!replayColumn || typeof replayColumn !== 'object') return null;
+  const v2 = (replayColumn as { v2?: unknown }).v2;
+  return isReplayV2(v2) ? v2 : null;
+}
+
+/** Map one raw `run_telemetry` list row → a `RecentGameRow`. Exported pure for the Phase C listing tests. */
+export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
+  return {
+    userId: (r.user_id as string | null) ?? null,
+    author: (r.author as string | null) ?? null,
+    heroId: String(r.hero_id ?? ''),
+    wins: Number(r.wins ?? 0),
+    placement: r.placement != null ? Number(r.placement) : null,
+    createdAt: (r.created_at as string | null) ?? null,
+    rowId: typeof r.id === 'number' ? r.id : null,
+    // The aliased JSON-path column `replay_v2_version` (`replay->v2->version`) — 2 on a v2 row, null/absent
+    // on v1-only rows, rows with no replay, and the pre-migration fallback select.
+    hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
+  };
 }
 
 /** The last N finished games across ALL players (public read on `run_telemetry`) — newest first. Best-effort +
@@ -581,24 +623,74 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
   if (!c) return [];
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const query = (select: string) => Promise.resolve(
+      c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
+    );
+    // `replay_v2_version:replay->v2->version` is the LIGHT watchability probe: the server extracts one JSON
+    // scalar per row, so the list never downloads the replay payloads themselves (they're 100–450 KB each —
+    // the whole point of the two-step fetch; `fetchReplayPayload` pulls ONE on Watch click).
+    let result = await Promise.race([
+      query('id, user_id, author, hero_id, wins, placement, created_at, replay_v2_version:replay->v2->version'),
+      timeout,
+    ]);
+    // Pre-migration DB (no `replay` column yet) errors the JSON-path select — fall back to the plain list,
+    // which simply offers no Watch buttons (`hasReplay` stays false).
+    if (result && result.error) {
+      result = await Promise.race([query('id, user_id, author, hero_id, wins, placement, created_at'), timeout]);
+    }
+    if (!result || result.error || !result.data) return [];
+    // Runtime-built select list → supabase-js can't infer the row type; read the columns by hand.
+    return (result.data as unknown as Array<Record<string, unknown>>).map(asRecentGameRow);
+  } catch {
+    return [];
+  }
+}
+
+/** Fetch ONE row's full v2 replay by its `run_telemetry` PK — the heavy half of the two-step spectate fetch
+ *  (the list read only probed `replay->v2->version`). Selects `replay->v2` alone, so the dormant v1 fields
+ *  riding alongside in the jsonb never cross the wire. Best-effort + time-boxed; null on any failure /
+ *  malformed payload — the caller shows "no replay" rather than a broken viewer. */
+export async function fetchReplayPayload(rowId: number): Promise<ReplayV2 | null> {
+  const c = client();
+  if (!c || !Number.isFinite(rowId)) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('run_telemetry').select('v2:replay->v2').eq('id', rowId).limit(1)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    const v2 = (result.data[0] as unknown as { v2: unknown }).v2;
+    return isReplayV2(v2) ? v2 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A specific player's most recent v2 replay — the leaderboard row's Watch. Filters server-side to rows that
+ *  actually carry a v2 payload (`replay->v2->version = 2`), so v1-only history never crosses the wire; scans
+ *  the couple of newest qualifying rows in case the very latest payload is malformed. Null when the player
+ *  has no watchable run yet — the caller shows "No run", never a broken viewer. */
+export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2 | null> {
+  const c = client();
+  if (!c || !userId) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
       Promise.resolve(
-        c.from('run_telemetry').select('user_id, author, hero_id, wins, placement, created_at')
-          .order('created_at', { ascending: false }).limit(limit),
+        c.from('run_telemetry').select('v2:replay->v2').eq('user_id', userId)
+          .eq('replay->v2->>version', '2') // ->> filters as text — robust across PostgREST versions
+          .order('created_at', { ascending: false }).limit(2),
       ),
       timeout,
     ]);
-    if (!result || result.error || !result.data) return [];
-    return (result.data as Array<Record<string, unknown>>).map((r) => ({
-      userId: (r.user_id as string | null) ?? null,
-      author: (r.author as string | null) ?? null,
-      heroId: String(r.hero_id ?? ''),
-      wins: Number(r.wins ?? 0),
-      placement: r.placement != null ? Number(r.placement) : null,
-      createdAt: (r.created_at as string | null) ?? null,
-    }));
+    if (!result || result.error || !result.data?.length) return null;
+    for (const row of result.data as unknown as Array<{ v2: unknown }>) {
+      if (isReplayV2(row.v2)) return row.v2;
+    }
+    return null;
   } catch {
-    return [];
+    return null;
   }
 }
 

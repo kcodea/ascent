@@ -255,6 +255,13 @@ are points rather than rectangles.
   and the End-of-Turn beat. Any future card or quest that raises the run-wide shop channel animates with no
   extra wiring.
 
+- **Rune-trigger FX: the remaining sites** (2026-08-19). `procRune`/`runeProcs` is the general channel and 18
+  shop triggers use it; still unstamped: ~12 shop runes (Distillation, Duplication, Evolution, Golden
+  Splinter, Strange Caravan, Summit, Bartering, Collector, Altar, Refrain, Structure, Spellslinging) and 4
+  combat ones (Slaying, Reinvestment, Ashen Payroll, Flooded Vault). Fury / Hatchery / Packcraft are
+  continuous modifiers with no discrete moment — owner call needed on whether they should burst on the effect
+  they modify. Each remaining site is a one-line `procRune(s, '<kind>')` or `fireTrigger('<flag>', side)`.
+
 - **Ring layers can now be placed** (shipped 2026-08-17, while authoring `shop-buff-aura`): `shockwave` gained
   the `offsetX`/`offsetY` pair the particle primitives already had, so a ring is no longer pinned to its
   resolved anchor. `ribbon` is the remaining primitive with no placement dials — add the same pair there if a

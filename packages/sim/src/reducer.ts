@@ -13,7 +13,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
+import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -72,6 +72,9 @@ function spendGold(s: RunState, amount: number): void {
       while (s.runeScale.tick >= s.runeScale.per) { s.runeScale.tick -= s.runeScale.per; payouts += 1; }
       if (payouts === 0) return;
     }
+    // The rune ITSELF fired — its badge bursts on this. AFTER the `payouts === 0` return above, so banking
+    // Gold below the threshold is correctly not a fire; `payouts`, not 1, so 10 Gold at 5-per reads as two.
+    procRune(s, 'runeScale', payouts);
     const rng = makeRng(s.rngCursor);
     const pool = [...s.board];
     // Wrapped for FX so each picked ally gets a descend (sourceless — the rune has no board anchor) rather than
@@ -1122,6 +1125,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
       // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape.
       if (s.runeRestocking && !s.restockUsedThisTurn) {
+        procRune(s, 'runeRestocking');
         const boughtTier = CARD_INDEX[offer.cardId]?.tier;
         const pool = boughtTier ? poolOf(s).buyable.filter((c) => c.tier === boughtTier && !c.spell && !c.ruby) : [];
         if (pool.length > 0) {
@@ -1358,6 +1362,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
         // Rune of Contraband: the FIRST Ruby cast each turn smuggles back a random Dwarven Ale.
         if (s.runeContraband && !s.contrabandRubyUsed) {
+          procRune(s, 'runeContraband');
           s.contrabandRubyUsed = true;
           const ales = poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id));
           if (ales.length > 0) conjureToHand(s, ales, 1);
@@ -1478,6 +1483,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
         if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
+          procRune(s, 'runeContraband');
           s.contrabandAleUsed = true;
           mintRubies(s, 1);
         }
@@ -1622,6 +1628,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Rune of Hoardcalling: the first DRAGON Shout each turn hands over a random Shop spell. Gated on
           // the played card being a Dragon, so a turn of Beast Shouts never spends the freebie.
           if (s.runeHoardcalling && !s.hoardcallingUsedThisTurn && isTribe(card, 'dragon')) {
+            procRune(s, 'runeHoardcalling');
             s.hoardcallingUsedThisTurn = true;
             const spells = poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
             if (spells.length > 0) conjureToHand(s, spells, 1, true);
@@ -1837,11 +1844,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
         if (s.runeSellRubies) {
           s.runeSellRubiesSold = (s.runeSellRubiesSold ?? 0) + 1;
-          if (s.runeSellRubiesSold >= 2) { mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
+          // The badge bursts on the MINT, not on every sale — the first sale of a pair banks toward the
+          // threshold and is not the rune firing (same contract as Bulk Order's `per`).
+          if (s.runeSellRubiesSold >= 2) { procRune(s, 'runeSellRubies'); mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
         }
         // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
       // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
       if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
+        procRune(s, 'runeAftermarket');
         const soldDef = CARD_INDEX[sold.cardId];
         if (soldDef && !soldDef.spell && !soldDef.ruby) {
           s.aftermarketUsedThisTurn = true;
@@ -1908,7 +1918,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
-      if (s.runeOpenEnrollment) appendDominantTypeOffer(s);
+      if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); appendDominantTypeOffer(s); }
       // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
       if (getHero(s.heroId).power.kind === 'contraband') {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
@@ -4052,7 +4062,7 @@ function advanceCombat(s: RunState): void {
     }
   }
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
-  if (s.runeFreshPages) queueDiscover(s, { kind: 'spell' });
+  if (s.runeFreshPages) { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -4482,6 +4492,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sour
 
 function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
+  // Every rune reward records which rune installed it, so a trigger site can attribute itself back to the
+  // badge. Harmless for quests (they key their own pulse off `completionCount`) and cheap — one write per
+  // purchase, never on a hot path.
+  s.runeIdByKind = { ...(s.runeIdByKind ?? {}), [r.kind]: def.id };
   switch (r.kind) {
     case 'buffBoard':
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);

@@ -12,6 +12,7 @@ import {
   resetBindings,
   setBinding,
   unbindJson,
+  HUD_BINDING_KINDS,
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
@@ -162,6 +163,12 @@ const BINDINGS: Record<string, { def: string }> = {
   // Distinct from `shopRubied` on purpose: gems go through their own span, and Veinstorm deliberately never
   // touches this channel, so the two can never both fire for one event.
   shopBuffAll: { def: 'shop-buff-aura' },
+  // A rune's own effect firing, on its HUD badge. Deliberately not `questTrigger`: that kind is anchored by
+  // the combat score, which can only reach board units, so it has never played (see `runeTriggerFx.ts`).
+  runeTriggered: { def: 'rune-burst' },
+  // The DEFAULT tavern-spell cast — every spell with no card binding of its own. Fires ONCE at the cursor
+  // (no `fanOut`), which is what makes it safe as a default; the ales opt into the per-minion volley.
+  spellCast: { def: 'spell-sparks' },
   // Shop self-buffs (the green-pulse channel) — the recruit twin of combat's buffWave/attackExchange default.
   minionSelfBuffed: { def: 'self-buff-gold' },
   spellProgress: { def: 'spell-progress' },
@@ -187,11 +194,11 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
   // Golden Ale — the proof-of-path binding for the shop spell-cast site (Task 2): a placeholder def so the
   // release-point emission + generic-spark suppression can be verified end-to-end before an authored def exists.
-  wo_attack: { spellCast: { def: 'bloody-ale' } },
-  wo_champion: { spellCast: { def: 'champions-ale' } },
-  wo_health: { spellCast: { def: 'defensive-ale' } },
-  wo_mine: { spellCast: { def: 'coin-ale' } },
-  wo_reinforcement: { spellCast: { def: 'reinforcing-ale' } },
+  wo_attack: { spellCast: { def: 'bloody-ale', fanOut: 'buffed' } },
+  wo_champion: { spellCast: { def: 'champions-ale', fanOut: 'buffed' } },
+  wo_health: { spellCast: { def: 'defensive-ale', fanOut: 'buffed' } },
+  wo_mine: { spellCast: { def: 'coin-ale', fanOut: 'buffed' } },
+  wo_reinforcement: { spellCast: { def: 'reinforcing-ale', fanOut: 'buffed' } },
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a
@@ -267,8 +274,10 @@ describe('binding integrity', () => {
   });
 
   it('every key is a real moment kind and a real card id', () => {
-    // Both phases: combat kinds come from the score table, shop kinds from the recruit vocabulary.
-    const kinds = new Set<string>([...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS]);
+    // Both phases plus the HUD: combat kinds come from the score table, shop kinds from the recruit
+    // vocabulary, and HUD kinds (a rune badge firing) from their own list — they have neither a combat cue
+    // row nor a recruit emitter, by design (see `HudBindingKind`).
+    const kinds = new Set<string>([...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS]);
     const t = effectiveTables();
     const bad: string[] = [];
     for (const kind of Object.keys(t.kinds)) if (!kinds.has(kind)) bad.push(`kinds.${kind}`);

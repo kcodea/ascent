@@ -1426,6 +1426,7 @@ export function simulate(
       // bake +4/+4 into Echo-summoned bodies instead). Fires after the Echo resolves, so a body it summoned is
       // already on the board and shares the grant. Per side; a nested Echo is its own trigger.
       if (modsFor(side).runeAftershocks) {
+        fireTrigger('runeAftershocks', side); // pulse the rune's badge when its Echo grant fires
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 4, 'Rune of Aftershocks');
       }
     }
@@ -2565,6 +2566,7 @@ export function simulate(
               // of the first minion you kill each combat"). Player-only (a served enemy has no run to receive it).
               // Conjured fresh from the card def at settle, so the copy is plain — none of the victim's buffs.
               if (kmods.runeTrophy && slaughterCopyId === undefined) {
+                fireTrigger('runeTrophy', 'player'); // the first kill claims the copy — pulse the badge on it
                 slaughterCopyId = m.cardId;
                 // Fly the copy to hand as a live VISUAL only, on the kill beat — the real plain copy is still
                 // conjured at settle from `slaughterCopyId` (a bare `toHand` is presentation, NOT a
@@ -3325,6 +3327,7 @@ export function simulate(
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
   if (playerState.questMods.runeSalvage) {
+    fireTrigger('runeSalvage', 'player'); // pulse the badge when the Attachment is actually banked
     const magnetics = ctx.poolCards('player').filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {

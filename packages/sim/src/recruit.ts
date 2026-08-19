@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -754,6 +754,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // aura by +1 Attack OR +1 Health, chosen at RANDOM (was a flat +2/+1). One coin flip per improve, so Rune of
   // Mastery's extra rep is its own independent flip. Seeded off the run cursor — deterministic for replays.
   if (state.runeConsume) {
+    procRune(state, 'runeConsume');
     const reps = improveReps(state);
     const rng = makeRng(state.rngCursor);
     for (let i = 0; i < reps; i++) {
@@ -1522,6 +1523,7 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // shared conjure chokepoint, so it pays for a Steward copy, a Recaller copy and a rune grant alike. Gated on
   // the pool being spells: `conjureToHand` also hands over minions, which the rune says nothing about.
   if (state.runeRunicHoard && pool.every((c) => c.spell)) {
+    procRune(state, 'runeRunicHoard');
     for (let i = 0; i < reps; i++) {
       for (const c of state.board) {
         const d = CARD_INDEX[c.cardId];
@@ -5679,6 +5681,7 @@ export function applyGoldSpent(state: RunState, amount: number): void {
   advanceRuneThresholds(state, 'gold', amount);
   // Rune of the Brew: every SPEND (however large) pours one +4/+3 onto a seeded-random friendly Dwarf.
   if (state.runeBrew) {
+    procRune(state, 'runeBrew');
     const dwarves = state.board.filter((c) => isTribe(c, 'dwarf'));
     if (dwarves.length > 0) {
       const rng = makeRng(state.rngCursor);
@@ -6463,6 +6466,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
     const def = CARD_INDEX[sold.cardId];
     const isDragon = def?.tribe === 'dragon' || def?.tribe2 === 'dragon';
     if (state.runeLastWord && !state.lastWordUsedThisTurn && isDragon && def && hasBattlecry(def)) {
+      procRune(state, 'runeLastWord');
       state.lastWordUsedThisTurn = true;
       replayBattlecry(state, sold);
     }
@@ -7286,6 +7290,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       // to the RIGHT-MOST Shop offer. The DELTA is what moves, so a spell that scales with run state feeds the
       // Shop exactly what it just granted rather than its printed number.
       if (state.runeSpellmarket && !state.spellmarketUsedThisTurn && state.shop.length > 0) {
+        procRune(state, 'runeSpellmarket');
         state.spellmarketUsedThisTurn = true;
         addOfferBuff(state.shop[state.shop.length - 1]!, 'Rune of the Spellmarket', dAtk, dHp);
       }
@@ -7298,6 +7303,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // Rune of Lorekeeping: a Shop spell cast ON a minion gives that minion an extra +4/+4 — any targeted spell,
   // not just stat ones (the sheet says "on a minion", so a targeted Gild or Runefire counts too).
   if (target && state.runeLorekeeping && state.board.includes(target) && !spellDef.ruby) {
+    procRune(state, 'runeLorekeeping');
     captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', 4, 4));
   }
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
@@ -7416,6 +7422,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     }
   }
   if (state.runeKindling && state.board.length > 0) {
+    procRune(state, 'runeKindling');
     const ends = state.board.length === 1
       ? [state.board[0]!]
       : [state.board[0]!, state.board[state.board.length - 1]!];
@@ -7430,6 +7437,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   }
   // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
   if (state.runeFlagship) {
+    procRune(state, 'runeFlagship');
     captureBuffFx(state, undefined, 'spell', () => {
       for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2, 2);
     });
@@ -7510,6 +7518,7 @@ export function applyEndOfTurn(state: RunState): void {
   // that reads maxEmbers this tick already sees the raise. BEAT SYSTEM (PR 5): these two economy runes changed
   // HUD numbers silently (handoff-doc gap §9.1) — now each emits an own-beat resourceChanged consequence.
   if (state.runeCoffers) {
+    procRune(state, 'runeCoffers');
     state.maxEmbers += 1;
     if (collector.enabled) collector.withTrigger(
       { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_coffers:endOfTurn') },
@@ -7519,6 +7528,7 @@ export function applyEndOfTurn(state: RunState): void {
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
   // applied the first −3). Floored so it can't go negative.
   if (state.runeShopkeep) {
+    procRune(state, 'runeShopkeep');
     const beforeCost = state.upgradeCost;
     state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
     const delta = state.upgradeCost - beforeCost;

@@ -2,7 +2,28 @@ import type { MomentKind } from './kinds';
 import type { RecruitMomentKind } from './recruitMoments';
 
 /**
- * Every key a binding can hang off — a COMBAT moment kind or a SHOP one.
+ * A binding key that belongs to the HUD rather than to the board — an event on a chrome element (a rune
+ * badge, and whatever joins it) that no board-anchored moment can reach.
+ *
+ * `runeTriggered` exists BECAUSE `questTrigger` cannot do this job. That combat kind is bound in
+ * `bindings.json` and has never played a particle: its events name a `flag`/`questId` and a side, never a
+ * unit, so the score's `anchorsForUnits(null, null)` returns null and the def is skipped (see the note above
+ * `questTrigger` in `score.ts`). The score anchors to board units by design; a rune lives in the status bar.
+ * So the anchor comes from the badge's own DOM instead — see `runeTriggerFx.ts`.
+ *
+ * Kept as its own union for the same reason `RecruitMomentKind` is: these kinds have no combat cue list and
+ * never should, and no emitter in `recruitMoments.ts` either — folding them into either union would break
+ * that module's "every declared kind has a source" invariant with a kind it can never emit.
+ */
+export type HudBindingKind = 'runeTriggered';
+
+/** The HUD kinds at runtime. Exists so `bindings.test.ts` can validate a binding key against them the way it
+ *  already does against `SCORE_DEFAULTS` and `RECRUIT_MOMENT_KINDS` — without it a HUD key reads as naming
+ *  nothing real, and the "no binding for a kind that does not exist" guard would have to be weakened. */
+export const HUD_BINDING_KINDS: readonly HudBindingKind[] = ['runeTriggered'];
+
+/**
+ * Every key a binding can hang off — a COMBAT moment kind, a SHOP one, or a HUD one.
  *
  * One table across both phases is the point: "which def plays when X happens" should be one question with
  * one answer, and the shop half used to have no way to ask it at all (see `recruitMoments.ts`). Kept as a
@@ -11,7 +32,7 @@ import type { RecruitMomentKind } from './recruitMoments';
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind;
 import rawBindings from './bindings.json';
 
 /**

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getHero, type RunState } from '@game/sim';
@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
+import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
 import { useGame, type CombatQuestDelta } from './store';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
@@ -116,6 +117,23 @@ export function QuestBadges() {
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
+  // The rune-trigger flourish fires off the SAME counters the badge bounces on, so the burst and the bounce
+  // can never disagree about when a rune went off. Per SLOT, because Rune of Duplication puts one id in
+  // `ownedRunes` twice (see `runeTriggerFx.ts`). Built unconditionally — hooks cannot sit behind the early
+  // return below — and `useMemo`'d so the effect's dep is stable across the row's frequent re-renders.
+  const runeSlots = useMemo<RuneSlotPulse[]>(() => runes.map((id, slot) => {
+    const r = RUNE_INDEX[id]!.reward;
+    // A recurring End-of-Turn reward proc'ing THIS action, stamped with the per-action seq so a re-proc of
+    // the same effect still reads as a change. Mirrors the quest nodes' `procced` fold below.
+    const procced = r?.kind === 'recurringEndOfTurn'
+      && (run.questTendrilFx ?? []).some((t) => t.effect === r.effect)
+      ? (run.questTendrilSeq ?? 0) : 0;
+    // `runeProcs` is the SHOP-phase half: a threshold rune paying out mid-shop (Bulk Order every 5 Gold) is
+    // neither a combat trigger nor an End-of-Turn tendril, so without this its badge never burst at all
+    // (owner report 2026-08-19).
+    return { slot, id, pulse: (triggered[id] ?? 0) + procced + (run.runeProcs?.[id] ?? 0) };
+  }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs]);
+  useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
   // The badge row renders for the chains alone, even with no quests and no runes yet.
   const showChains = !chainsBroken;

@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-08-19 — Rune triggers burst on their badge; `spell-sparks` is the default spell cast
+
+**Three owner-authored defs land, and one long-standing dead binding is documented.**
+
+**`rune-burst` — a rune's own flourish, on its badge.** Deliberately NOT hung on `questTrigger`: that kind
+has been bound to `quest-trigger` in `bindings.json` for ages and has never played a particle. The combat
+score anchors to board UNITS, and a `questTrigger` event names a `flag`/`questId` and a side — so
+`anchorsForUnits(null, null)` returns null and the def is skipped silently (the note above `questTrigger` in
+`score.ts` says exactly this). A rune is a HUD badge, so it is unreachable from the score by construction.
+The anchor comes from the badge's own DOM instead (`runeTriggerFx.ts`), hung on the SAME counters
+`QuestBadges` already bounces on, so the burst and the bounce can never disagree. `HudBindingKind` is a third
+binding namespace beside combat and recruit kinds, for keys that have neither a combat cue row nor a recruit
+emitter.
+
+**Owner report: Rune of Bulk Order never burst — and it was one of ~30.** Its payout is a shop-phase
+threshold ("every 5 Gold you spend"), which is neither a combat trigger nor an End-of-Turn recurring proc —
+the only two signals the badge knew about. Rather than fix that rune, this adds the general channel:
+`runeProcs` (cumulative count per rune id) plus `procRune(state, kind)`. Sites name a REWARD KIND, not a rune
+id, because a kind is what a trigger site actually knows — it has just read a boolean like `s.runeBrew`, which
+does not remember which rune set it; `runeIdByKind`, recorded at purchase, closes that gap and makes each site
+one line. **18 shop-phase rune triggers now stamp it.**
+
+**A correction worth recording.** The first audit of "which combat runes never fire a trigger" said 14, by
+scanning for literal `fireTrigger('…')` calls. That missed `runeAvenge`, which fires with the flag as a
+VARIABLE (`simulate.ts:3117`) — so every Avenge rune (Last Call, Hunting Bell, Engraving, Carrion Coin, …) was
+already working. The real count was 10, of which three (Fury, Hatchery, Packcraft) are continuous modifiers
+with no moment to burst on. Three discrete ones are now wired (Aftershocks, Trophy, Salvage); Slaying,
+Reinvestment, Ashen Payroll and Flooded Vault remain.
+
+**`spell-sparks` — the default tavern-spell cast.** `kinds.spellCast` had no default, so every spell without
+a card binding fell through to CSS. Setting one exposed that the cue FANNED OUT implicitly whenever a cast
+carried recipients — fine while the five ales were the only bound casts, wrong for a default (a 122-particle
+burst per buffed minion, landing on the minions rather than where the player cast). Fan-out is now opt-in via
+the binding's own `fanOut: 'buffed'`; the ales declare it and are unchanged, and the default fires ONCE at the
+cursor, with `target` pointed at the cursor too so the def's `target`-anchored layers land at the cast point
+(owner call).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5591 passed) + `build:web` green. New tests cover the
+proc edge-detection (first paint never detonates; a duplicated rune is two independent badges; a counter RESET
+still reads as a fire) and the threshold semantics (counts on the crossing, not the banking; 10 Gold at 5-per
+counts twice). Four existing invariants caught the wiring and were updated — the binding-key validator, the
+frozen kind→def table, the dynamic call-site census, and `playDefUids`, whose two halves derived a call's def
+id two different ways so a dynamic call could pass one and look stale to the other; they now share one
+derivation.
+
+
+
+
 ## 2026-08-19 — spell-power audit: two stat spells silently fizzled in combat (Beefy, Lantern Light)
 
 **Owner report:** "Beefy is not getting spell power buffs."

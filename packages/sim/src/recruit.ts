@@ -3220,20 +3220,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Bob Blart (2026-08-14): consume the RIGHT-most Shop minion. Golden doubles the stats gained
    *  ("and gain double its stats"), not the number eaten.
    *
-   *  Rune of Blart rides HERE now. It used to live in `endOfTurnGainRightmostShopStats`, which is where Blart's
-   *  effect was before the 2026-08-14 rework — leaving it there would have turned a 6-cost epic into "get a Bob
-   *  Blart" and nothing else, since no card points at that factory any more. It follows the card: the rune's
-   *  clause is a second EAT (the left-most offer) rather than a second stat-copy, and the rune's text says so. */
+   *  Rune of Blart rides HERE (it follows the card, not the factory Blart's effect used to live on). Owner
+   *  rework 2026-08-19: the clause is no longer a second EAT — the meal's stats are SHARED SIDEWAYS to the
+   *  eater's neighbours. Read the offer BEFORE the eat (the row shifts, and the offer is gone afterwards),
+   *  and read adjacency at eat time so re-seating between meals re-aims it. */
   consumeShopRightmost: (ctx, self, params) => {
     const times = num(params.times, 1) * (self.golden ? 2 : 1);
     const i = rightmostShopMinion(ctx.state);
     if (i < 0) return;
+    const meal = ctx.state.runeBlart ? offerBuyStats(ctx.state, ctx.state.shop[i]!) : null;
     consumeShopMinion(ctx.state, self, i, times);
-    if (!ctx.state.runeBlart) return;
-    // Re-find the left-most AFTER the right-most is eaten: the row just shifted, and on a one-minion shop the
-    // two indices were the same offer — which would double-eat a corpse.
-    const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (l >= 0) consumeShopMinion(ctx.state, self, l, times);
+    if (!meal) return;
+    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    for (const nb of [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]) {
+      if (nb) addBuff(nb, 'Rune of Blart', meal.attack * times, meal.health * times);
+    }
   },
 
   /** Set 2 — Appetite Agent (targeted Shout): the TARGET minion consumes `count` Shop minions — not this one.
@@ -3350,14 +3351,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const { attack, health } = offerBuyStats(ctx.state, ctx.state.shop[i]!);
     const times = num(params.times, 1) * gold(self);
     addBuff(self, nameOf(self), attack * times, health * times);
-    // Rune of Blart: also gain the LEFT-most Shop minion's stats (a different offer than the right-most).
-    if (ctx.state.runeBlart) {
-      const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-      if (l >= 0 && l !== i) {
-        const ls = offerBuyStats(ctx.state, ctx.state.shop[l]!);
-        addBuff(self, nameOf(self), ls.attack * times, ls.health * times);
-      }
-    }
+    // NB: Rune of Blart no longer rides this factory (owner rework 2026-08-19). Its text names Bob Blarts, and
+    // this is Hellrider's copy-don't-eat path — the rune touching it was the clause outliving the 2026-08-14
+    // card rework that moved Blart off here.
   },
 
   /** Set 2 — Hellrider (owner rework 2026-08-14): every `every` refreshes, gain the RIGHT-most Shop minion's
@@ -6307,6 +6303,21 @@ function applyDenMarker(state: RunState, minion: BoardCard): void {
  */
 export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   fire(makeContext(state), 'onSummon', { minion });
+  // RUNE OF THE CHIPPER STICKER: playing a Demon makes ANOTHER friendly Demon eat a Shop minion — Chipper's
+  // own shape as a run-wide rune. "Another" is load-bearing: the eater is picked from the OTHER Demons, so the
+  // minion you just played never feeds itself (that is Chipper's `self: true`, a different card).
+  if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
+  const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
+  if (eaters.length === 0) return;
+  const edible = state.shop
+    .map((_, i) => i)
+    .filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+  if (edible.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const eater = eaters[rng.int(eaters.length)]!;
+  const pick = edible[rng.int(edible.length)]!;
+  state.rngCursor = rng.state();
+  consumeShopMinion(state, eater, pick);
 }
 
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
@@ -7355,6 +7366,17 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // 2026-08-19; was +2/+2, and before that left-most only at +3/+3). Wrapped for FX so the gain descends onto
   // the minion instead of the number jumping. On a one-minion board the two ends are the same body, so buff it
   // once (not twice).
+  // RUNE OF MIGHT: every Shop spell you cast ALSO casts Might of Aeon. A real cast through `applyCastEffects`,
+  // so it picks up spell power and the spell counters see it — but guarded against recursion, since the cast it
+  // triggers would otherwise re-enter this same hook forever.
+  if (state.runeMight && !state.runeMightCasting) {
+    const might = CARD_INDEX['mightofaeon'];
+    if (might) {
+      state.runeMightCasting = true;
+      try { applyCastEffects(makeContext(state), might, undefined); }
+      finally { state.runeMightCasting = false; }
+    }
+  }
   if (state.runeKindling && state.board.length > 0) {
     const ends = state.board.length === 1
       ? [state.board[0]!]
@@ -7664,9 +7686,10 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length > 0) step(() => conjureToHand(state, ales, effect === 'grantAles3' ? 3 : 2)); // Double Fisting pours 3
   } else if (effect === 'triggerLeftmostEcho') {
-    // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
-    const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+    // Rune of the Reliquary: fire your TWO left-most Echoes (Deathrattles) out of combat (owner 2026-08-19;
+    // was one). Board order, so seating decides which two — deterministic, and no RNG consumed.
+    const echoes = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath')).slice(0, 2);
+    for (const echo of echoes) { stampQuestTendril(state, effect, echo.uid); fireRecruitDeathrattles(makeContext(state), echo); }
   } else if (effect === 'demonEatsRightmostShop') {
     // Rune of Hunger: your LEFT-most Demon eats the right-most Shop minion. Reuses `rightmostShopMinion` +
     // `consumeShopMinion`, so the eater gains exactly what a card-driven Consume would give it.

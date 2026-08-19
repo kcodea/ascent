@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { wishboneReps } from './reducer';
+import { wishboneReps, DOUBLEABLE_POWERS } from './reducer';
 
 /**
  * RUNE OF THE WISHBONE — "your Hero Power triggers twice".
@@ -56,14 +56,17 @@ describe('the doubling actually happens (not just the gate)', () => {
   });
 });
 
-describe('the gate refuses a hero it cannot help', () => {
-  it('Flash is excluded — arming a MARK twice is the same mark', () => {
-    // The honest exclusion: there is no reading of "triggers twice" for a mark that isn't a design change.
-    // Asserted so a later widening of the gate has to make a deliberate decision about it.
+describe('Flash — the mark pays out TWICE (owner ruling 2026-08-19)', () => {
+  it('the mark itself is still set once; the DOUBLING lives in the combat mod', () => {
+    // "Triggers twice" can't mean two marks — it means the marked kill/first-swing grants 2 copies. So the
+    // recruit action is unchanged and the doubling rides `questMods.flashCopies`, which `simulate` loops on.
     const s = armed('flash');
-    const before = s.flashPick;
     const after = reduce(s, { type: 'heroPower', flashPick: 'first' } as never);
     expect(after.flashPick, 'the mark is set, once').toBe('first');
-    expect(before).toBeUndefined();
+    expect(wishboneReps(after), 'the rune is what the combat mod reads').toBe(2);
+  });
+
+  it('Flash is IN the gate — the rune is offerable to him', () => {
+    expect(DOUBLEABLE_POWERS.has('firstOrLast'), 'Flash must be offered the rune he now benefits from').toBe(true);
   });
 });

@@ -901,6 +901,13 @@ export type QuestReward =
   | { kind: 'runeBaller'; step: number }
   /** Rune of the Wishbone: your Hero Power triggers twice (gated to the powers that can express it). */
   | { kind: 'runeWishbone' }
+  /** Rune of Might: every Shop spell you cast also casts Might of Aeon. */
+  | { kind: 'runeMight' }
+  /** Rune of Held Strength: your left- and right-most minions gain the stats of your left-most hand card. */
+  | { kind: 'runeHeldStrength' }
+  /** Rune of the Chipper Sticker: playing a Demon makes ANOTHER friendly Demon eat a Shop minion. A RECRUIT
+   *  effect (the play happens in the shop), so it is its own reward rather than a `combatFlag`. */
+  | { kind: 'runeChipperSticker' }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -1146,7 +1153,7 @@ export type QuestReward =
   | { kind: 'gainMaxGold'; amount: number }
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
-  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle' }
+  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
   // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
   | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
@@ -1193,6 +1200,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // EngravingGems = Rubies applied in combat carry back to the run board.
   | 'runeRuins' | 'runeGolems' | 'runeEngravingGems'
   | 'runeHerdingHorn' // every Rally triggered banks a free Shop refresh
+  | 'runeDeathtouchedApple' // a minion that Rises gets Rise back (2 per combat)
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
   | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
@@ -1282,6 +1290,8 @@ export interface QuestCombatMods {
    *  materialising at resolution. `first` grants on the opening kill; `last` can only be known once the fight
    *  ends, so it grants at the final step — still within the replay, so it animates like any other grant. */
   flashPick?: 'first' | 'last';
+  /** Rune of the Wishbone on Flash: how many copies the claim grants (2 while armed, else 1). */
+  flashCopies?: number;
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
@@ -1534,6 +1544,7 @@ export interface QuestCombatMods {
   runeGolems?: boolean;
   runeEngravingGems?: boolean;
   runeHerdingHorn?: boolean;
+  runeDeathtouchedApple?: boolean;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;

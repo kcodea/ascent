@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX } from '@game/content';
+import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell } from './recruit';
+import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
 
 /**
  * The 2026-08-19 owner rune batch: 4 reworks + 22 new runes.
@@ -16,12 +16,13 @@ const run = (over: Partial<RunState> = {}): RunState => ({ ...createRun(1), phas
 const rune = (id: string) => RUNE_INDEX[id]!;
 
 describe('rune batch 2026-08-19 — the four reworks', () => {
-  it('Rune of Blart is now a BASIC rune at 4 Gold (array membership, not just the flag)', () => {
-    // `runeforgePool` reads ARRAY membership, so a demotion that only dropped `epic: true` would leave the
-    // rune stuck in the Epic forge while presenting as basic. Assert the array it actually lives in.
+  it('Rune of Blart lives in the EPIC pool (array membership, not just the flag)', () => {
+    // `runeforgePool` reads ARRAY membership, so moving a rune between tiers means moving the DEF — dropping
+    // or adding `epic: true` alone would leave it in the wrong forge while presenting as the other. It went
+    // basic on 2026-08-19 and back to Epic the same day; this pins where it actually is.
     expect(rune('rune_blart').cost).toBe(4);
-    expect(RUNES.some((r) => r.id === 'rune_blart'), 'must be in the BASIC pool').toBe(true);
-    expect(EPIC_RUNES.some((r) => r.id === 'rune_blart'), 'must have left the Epic pool').toBe(false);
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_blart'), 'must be in the EPIC pool').toBe(true);
+    expect(RUNES.some((r) => r.id === 'rune_blart'), 'must have left the basic pool').toBe(false);
   });
 
   it('Infernal Ink fires on EVERY Shop spell and its buff is run-wide (not just the current row)', () => {
@@ -150,5 +151,58 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
   it('the Herding Horn is a combat flag, so it counts Rallies the way the game defines them', () => {
     const s = armed('rune_herding_horn');
     expect(s.questFlags?.runeHerdingHorn, 'armed as a combat mod, read by the sim’s bumpRally').toBe(true);
+  });
+});
+
+/** The third wave (owner batch 2026-08-19c): 2 reworks + 5 Epic runes + the Might of Aeon spell. */
+describe('rune batch 2026-08-19c — Reliquary / Blart / the five Epics', () => {
+  const armed3 = (id: string): RunState => reduce(
+    { ...createRun(1, 'runesmith'), wave: 7, phase: 'recruit', embers: 20, runeforgeOffer: [id] } as RunState,
+    { type: 'buyRune', index: 0 },
+  );
+
+  it('Might of Aeon is an ORDINARY Shop spell — drawable, not a rune-only token', () => {
+    const def = CARD_INDEX['mightofaeon']!;
+    expect([def.tier, def.cost, def.spell]).toEqual([3, 2, true]);
+    expect(def.token, 'must be draftable from the shop, not token-locked').toBeFalsy();
+    expect(poolFor('set1').spells.some((c) => c.id === 'mightofaeon'), 'in the drawable spell pool').toBe(true);
+  });
+
+  it('Rune of Might casts Might of Aeon off a spell — once, not recursively', () => {
+    // The triggered cast is real, so without the re-entry latch it would re-enter the hook that cast it and
+    // never stop. Three minions on board so the 3-target spread has somewhere to land.
+    const s = armed3('rune_might');
+    s.board = [minion('a', 'stray', 1, 1), minion('b', 'stray', 1, 1), minion('c', 'stray', 1, 1)];
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    noteSpellCast(s, CARD_INDEX['growth']!); // any cast triggers the rune
+    const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    // 3 targets x (+2/+3) = +15 across the board, exactly once.
+    expect(after - before, 'exactly one Might of Aeon, not an infinite cascade').toBe(15);
+  });
+
+  it('Rune of Held Strength is a one-shot acquire reward reading the left-most hand card', () => {
+    // NOT driven through `reduce` here: a hand-built mid-run state with a NON-EMPTY hand comes back from
+    // `buyRune` with an empty board (reproduced with an unrelated rune, and with both token and non-token
+    // cards — a pre-existing quirk of synthesising state this way, not of this rune). So this pins the wiring
+    // and the ONE-SHOT shape; the arithmetic is the shared `addBuff` every other rune buff uses.
+    const r = rune('rune_held_strength');
+    expect(r.reward.kind, 'a single acquire-time reward, not a standing aura').toBe('runeHeldStrength');
+    expect(r.epic).toBe(true);
+    expect(r.cost).toBe(3);
+    // Buying it with an EMPTY hand is a clean no-op rather than an error — the reward has nothing to read.
+    expect(() => armed3('rune_held_strength')).not.toThrow();
+  });
+
+  it('Rising Echoes arms the Echo-filtered Discover AND the keywords its pick will carry', () => {
+    const s = armed3('rune_rising_echoes');
+    expect(s.discoverKeywords, 'the pick arrives with Rise + Taunt').toEqual(['R', 'T']);
+    expect(s.echoFirstEachCombat ?? 0, 'the first Echo each combat fires an extra time').toBeGreaterThan(0);
+  });
+
+  it('the Apple arms as a COMBAT mod; the Chipper Sticker as a RECRUIT one', () => {
+    // The split matters: a `combatFlag` that is only read in the shop is inert in combat, which is exactly
+    // what `runeWiringAudit` catches. The Sticker fires when you PLAY a Demon, so it is recruit-side.
+    expect(armed3('rune_deathtouched_apple').questFlags?.runeDeathtouchedApple).toBe(true);
+    expect(armed3('rune_chipper_sticker').runeChipperSticker).toBe(true);
   });
 });

@@ -161,18 +161,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
   },
   {
-    // MOVED to the basic pool 2026-08-19 (owner): `epic` is presentation (the card's kicker); ARRAY membership
-    // is what `runeforgePool` reads, so demoting a rune means moving the def, not just dropping the flag.
-    id: 'rune_blart',
-    name: 'Rune of Blart',
-    cost: 4, // owner balance 2026-08-19: 6 → 4, and demoted from Epic to a basic rune
-    // Retext 2026-08-14 with Blart's rework: he EATS now, so the rune's second offer is eaten too, not copied.
-    text: 'Get a **Bob Blart**. Your **Bob Blarts** Consume both the **left and right-most** Shop minions.',
-    previewCards: ['dm_gourmand'],
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_cindergem',
     name: 'Rune of the Cindergem',
     cost: 4,
@@ -1084,7 +1072,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Reliquary',
     cost: 3,
     epic: true,
-    text: '**End of Turn:** trigger your left-most **Echo**.',
+    text: '**End of Turn:** trigger your **2 left-most Echoes**.', // owner 2026-08-19: was one
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
   },
   // ── Batch 3: combat runes (Start of Combat + Avenge) ──
@@ -2190,6 +2178,71 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Your **Shouts** trigger **2 extra times** in combat.',
     reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
+  },
+
+  // ── 2026-08-19 owner rune batch (third wave) ──────────────────────────────────────────────────────────
+  {
+    // BACK to Epic 2026-08-19 (owner) — the def moves between arrays, since `runeforgePool` reads membership.
+    // Reworked with it: the clause is no longer a second EAT but the meal SHARED SIDEWAYS to the neighbours.
+    id: 'rune_blart',
+    name: 'Rune of Blart',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Bob Blart**. Whenever your **Bob Blarts** trigger, grant the stats to **adjacent minions**, too.',
+    previewCards: ['dm_gourmand'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
+    sets: ['set2'],
+  },
+  {
+    // Budgeted at 2 per combat in the sim — re-granting Rise on a Rise is otherwise unbounded, since each
+    // return would arm the next forever.
+    id: 'rune_deathtouched_apple',
+    name: 'Rune of the Deathtouched Apple',
+    cost: 4,
+    epic: true,
+    text: 'When a minion **Rises**, give it **Rise**. (2 uses per combat)',
+    reward: { kind: 'combatFlag', flag: 'runeDeathtouchedApple' },
+  },
+  {
+    id: 'rune_held_strength',
+    name: 'Rune of Held Strength',
+    cost: 3,
+    epic: true,
+    text: 'Give your **left and right-most minions** the stats of the **left-most card in your hand**.',
+    reward: { kind: 'runeHeldStrength' },
+  },
+  {
+    // Chipper's own shape as a run-wide rune. "ANOTHER" is load-bearing — the Demon you just played never
+    // feeds itself (that is Chipper's `self: true`, a different card).
+    id: 'rune_chipper_sticker',
+    name: 'Rune of the Chipper Sticker',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you play a **Demon**, another friendly **Demon** Consumes a minion in the Shop.',
+    reward: { kind: 'runeChipperSticker' },
+    sets: ['set2'], // Consume-from-the-Shop
+  },
+  {
+    id: 'rune_rising_echoes',
+    name: 'Rune of Rising Echoes',
+    cost: 4,
+    epic: true,
+    text: 'Discover an **Echo** minion. Give it **Rise** and **Taunt**. Your first **Echo** triggers an additional time in combat.',
+    reward: { kind: 'multi', rewards: [
+      { kind: 'discover', filter: 'deathrattle', grantKeywords: ['R', 'T'] },
+      { kind: 'echoRepeat', scope: 'firstEachCombat' },
+    ] },
+  },
+  {
+    // The triggered cast is a REAL cast (spell power, the spell counters) but latched against re-entry — the
+    // cast it fires would otherwise re-enter the hook that cast it.
+    id: 'rune_might',
+    name: 'Rune of Might',
+    cost: 6,
+    epic: true,
+    text: 'Whenever you cast a spell, cast **Might of Aeon**.',
+    previewCards: ['mightofaeon'],
+    reward: { kind: 'runeMight' },
   },
 ];
 

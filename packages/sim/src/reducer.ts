@@ -436,6 +436,9 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
     // transform a triple applies, so the stats/keywords stay consistent with every other golden.
     if (s.discoverGolden) gildMinion(taken);
+    // Rune of Rising Echoes: the pick arrives carrying granted keywords (Rise + Taunt). Applied after the gild
+    // so a gilded pick keeps them, and de-duped against what the card already has.
+    for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
   }
@@ -2543,6 +2546,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.discoverBorrowed = undefined;
       s.discoverGolden = undefined;
       s.discoverSetStats = undefined;
+      s.discoverKeywords = undefined;
       s.discoverIntoShopUid = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
@@ -4211,7 +4215,7 @@ const RUNEFORGE_OFFER = 4;
  * absent until that lands: a rune offered to a hero it silently does nothing for is worse than one that is
  * offered less often. Add each here as its passive learns to repeat.
  */
-const DOUBLEABLE_POWERS = new Set([
+export const DOUBLEABLE_POWERS = new Set([
   // ACTIVE — their branch in the power-activation switch runs `reps` times.
   'empowerment',      // Albus — the Discover steps TWO tiers (the pick replaces the offer, so a second
                       //         Discover would have nothing to land on)
@@ -4235,9 +4239,8 @@ const DOUBLEABLE_POWERS = new Set([
   'crownTally',       // Keshi — the purchase banks its tier twice
   'exhibition',       // Odelle — the Exhibition trio is paid twice
   'secondHand',       // Re-Pete — 2 copies (stacks with a Chronos replay, which re-enters the same beat)
-  // NOT included: Flash (`firstOrLast`). Its power ARMS A MARK — which end of next combat's kills to claim —
-  // and a mark set twice is the same mark. There is no honest reading of "triggers twice" for it that isn't a
-  // design change (claim BOTH ends), so it stays out rather than being offered a rune that does nothing.
+  'firstOrLast',      // Flash — the CLAIM grants 2 copies (owner ruling 2026-08-19). The mark itself can't
+                      //         double — arming it twice is the same mark — so the payout is what doubles.
 ]);
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
@@ -4550,6 +4553,23 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeWishbone':
       s.runeWishbone = true;
       break;
+    case 'runeMight':
+      s.runeMight = true;
+      break;
+    case 'runeChipperSticker':
+      s.runeChipperSticker = true;
+      break;
+    case 'runeHeldStrength': {
+      // A ONE-SHOT on acquire: the ends take the stats of whatever is left-most in hand right now. Read once
+      // rather than as an ongoing aura — the text is an instruction, not a standing rule.
+      const held = s.hand[0];
+      const hd = held ? CARD_INDEX[held.cardId] : undefined;
+      if (held && hd && !hd.spell && !hd.ruby && s.board.length > 0) {
+        const ends = s.board.length === 1 ? [s.board[0]!] : [s.board[0]!, s.board[s.board.length - 1]!];
+        for (const t of ends) addBuff(t, 'Rune of Held Strength', held.attack, held.health);
+      }
+      break;
+    }
     case 'runePendant':
       // Rune of the Pendant: a duplicate can only ever RAISE the ceiling it gilds within, never lower it.
       s.runePendant = Math.max(s.runePendant ?? 0, r.maxTier);
@@ -4776,7 +4796,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       const t = r.tier ?? Math.min(s.tier, maxTierFor(s.rift));
       // queueDiscover, NOT openDiscover: a quest can complete on the same turn the Runeforge opens, and two
       // quests can pay out together — a direct open would draw this offer on top of the other modal.
-      queueDiscover(s, { kind: 'minion', tier: t, exactTier: t });
+      // `filter` (Catacomb / Rising Echoes → an Echo minion) narrows the offer; `grantKeywords` (Rising Echoes
+      // → Rise + Taunt) rides on the RUN rather than the spec, because it is consumed when the PICK is taken,
+      // not when the offer opens. Note it drops `exactTier` when filtered: pinning the exact tier as well as
+      // the trigger usually empties the pool, and an empty Discover is a reward that silently never arrives.
+      if (r.filter) queueDiscover(s, { kind: 'minion', tier: t, filter: r.filter });
+      else queueDiscover(s, { kind: 'minion', tier: t, exactTier: t });
+      if (r.grantKeywords?.length) s.discoverKeywords = [...r.grantKeywords];
       break;
     }
     case 'discoverGreaterQuest':
@@ -5196,6 +5222,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     flashPick: getHero(s.heroId).power.kind === 'firstOrLast' ? s.flashPick : undefined,
+    flashCopies: getHero(s.heroId).power.kind === 'firstOrLast' ? wishboneReps(s) : undefined, // Wishbone: 2 copies
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
@@ -5274,6 +5301,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGolems: f?.runeGolems,               // Rune of the Golems (reserved — see the Gem Golem note in runes.ts)
     runeEngravingGems: f?.runeEngravingGems, // Rune of Engraving Gems: combat Rubies carry back
     runeHerdingHorn: f?.runeHerdingHorn,     // Rune of the Herding Horn: each Rally banks a free refresh
+    runeDeathtouchedApple: f?.runeDeathtouchedApple, // Rune of the Deathtouched Apple: Rise re-arms (2/combat)
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6

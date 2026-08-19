@@ -44,6 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Big rune batch — 6 reworks + 27 new runes.** Basic and Epic faucets for every tribe, plus Refraction, Ruby Resonance, Hoardflame, Glider, Drake Skull, Catacomb, Pendant, Ornate Clock, Herding Horn, Bubble Crown, War Drum, Baller, Wishbone (your Hero Power triggers twice — now doubling all 20 heroes on the roster, including Flash's mark paying out 2 copies), Deathtouched Apple, Held Strength, Chipper Sticker, Rising Echoes and Might. Reworks: Blart, Kindling, Infernal Ink, Merchant's Chorus, Reliquary. Also adds the **Might of Aeon** Shop Spell.
 - **Set 2 Dragon batch.** Eight new Dragons (a Shout-retrigger line — Embercrest, Broodfire, Roarcollector — and a spell-cast line — Flamebeat, Warflame — plus Cinderchef, River Drake, Flutterdrake) and two new spells (**Dragonflame**, **Flutter**), alongside eight archives and a round of rebalances (Karwind, Fel Spikes, Earthbreaker, Transcendant→Ward+Engrave, and more). Fixed a bug so **Fel Spikes**' echo correctly counts as its Demon dealing damage (proccing the demon-damage payoffs on every landed hit).
 - **Shop-buff-on-attack fires in the lunge** — a minion that buffs the Shop when it attacks (Demon Horse) now pops its `+X/+Y` number during the attack lunge, with the trigger pulse, instead of as a detached beat after the swing.
 

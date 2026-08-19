@@ -1117,6 +1117,22 @@ export const SPELLS: CardDef[] = [
     text: "**Start of Combat:** set a random enemy's Health to **1**.",
   },
   {
+    // Owner add 2026-08-19. A plain spread buff — the Ale shape (`spellBuffRandomFriendlies`) at a higher
+    // magnitude and its own tier. An ordinary Shop spell: drawn, bought and cast like any other, and ALSO what
+    // Rune of Might casts off every spell you play.
+    id: 'mightofaeon',
+    name: 'Might of Aeon',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 2, health: 3 } }],
+    text: 'Give **3 random** friendly minions **+2/+3**.',
+  },
+  {
     // Distinct from the RUNE of Quick Study (which recurs a Gold Font + spells) — this is the spell-power spell.
     id: 'quickstudy',
     name: 'Quick Study',

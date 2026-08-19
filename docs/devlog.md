@@ -2,6 +2,28 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Third wave (same PR): 2 reworks, 5 Epic runes, 1 Shop Spell.**
+
+- **Rune of the Reliquary** → End of Turn, trigger your **2 left-most Echoes** (was one).
+- **Rune of Blart** → back to **Epic**, and the clause changed shape: it no longer eats a second offer. Blart's
+  one Consume now also **grants the meal's stats to his adjacent minions**. Demoting/promoting a rune is still
+  an array move (`EPIC_RUNES` ↔ `RUNES`), not a flag flip.
+- **Rune of the Deathtouched Apple** (4) — when a minion Rises, give it Rise, twice per combat. The budget is
+  per-combat and re-arms Rise on the risen body, so it is a bounded chain, not an infinite one.
+- **Rune of Held Strength** (3) — your left- and right-most minions take the stats of the left-most card in hand.
+- **Rune of the Chipper Sticker** (5) — playing a Demon makes ANOTHER friendly Demon consume a Shop minion. It
+  was first registered as a combat flag; the wiring audit caught it immediately ("granted but nothing reads it")
+  because it is consumed in RECRUIT — it now has its own reward kind + `RunState` flag, bucketed `:recruit`.
+- **Rune of Rising Echoes** (4) — Discover an Echo minion with Rise and Taunt; your first Echo triggers an extra
+  time in combat. The grant half needed new `discover.grantKeywords` support alongside the existing `filter`.
+- **Rune of Might** (6) — every spell you cast also casts **Might of Aeon**, behind a re-entry latch so the
+  rune's own cast can't recurse.
+- **Might of Aeon** — a new T3 2-Gold Shop Spell (3 random friendly minions +2/+3), offered normally.
+
+A seed shift from adding the spell to the pool exposed a **pre-existing bot softlock**: the scout overlay counts
+as `modalOpen`, which refuses `faceOmen` too, and `DEFAULT_BOT` never dispatched `closeScout` — lobby seed 5
+stalled in `recruit` forever. The bot now dismisses it like the other modals.
+
 **Second wave (same PR): 5 more basic runes.** Herding Horn (2 — every Rally banks a free refresh), Bubble
 Crown (1 — at 12 spells, spell power +6/+6, ONCE), War Drum (2 — one Shout triggers 2 extra times per turn),
 Baller (4 — each sale buffs the board, climbing and alternating Attack/Health), Wishbone (2 — Hero Power
@@ -39,10 +61,10 @@ Quillen's overflow rule forced a real fix: the bucket used to CLEAR the whole ta
 would have thrown its 4th count away. It now consumes exactly three and keeps the remainder — identical for
 an undoubled Quillen, which can never bank more than three.
 
-**Flash (`firstOrLast`) is deliberately excluded.** His power ARMS A MARK — which end of next combat's kills
-to claim — and a mark set twice is the same mark. There is no honest reading of "triggers twice" for it that
-isn't a design change (claim BOTH ends), so he stays out rather than being offered a rune that does nothing.
-Pinned by a test, so a later widening has to decide deliberately.
+**Flash (`firstOrLast`) is IN, by owner ruling** (2026-08-19; the first pass had excluded him). His power arms
+a MARK, and a mark set twice is the same mark — so the doubling can't live on the recruit action. It rides the
+payout instead: the marked claim grants **2 copies** for either choice, via a `questMods.flashCopies` combat
+mod that `simulate` loops on at both claim sites (first-swing and last-kill).
 
 
 **Reworks.** **Rune of Blart** → basic at 4 Gold. Demoting a rune means MOVING the def between arrays, not

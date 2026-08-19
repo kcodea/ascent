@@ -393,7 +393,18 @@ export function simulate(
   // enemy-death sites so a Rise's real death counts exactly like an ordinary one.
   let firstKill: string | undefined;
   let lastKill: string | undefined;
+  // Rune of the Deathtouched Apple: 2 re-arms per COMBAT per side. A budget rather than a flag because
+  // re-granting Rise on a Rise is otherwise unbounded — each return would arm the next forever.
+  const appleBudget: Record<Side, { left: number } | null> = {
+    player: modsFor('player').runeDeathtouchedApple ? { left: 2 } : null,
+    enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 } : null,
+  };
+  const appleUsesFor = (side: Side): { left: number } | null => appleBudget[side];
   const flashPick = playerState.questMods?.flashPick;
+  // Rune of the Wishbone on Flash: the claim grants TWO copies (owner ruling 2026-08-19 — "2 copies of the
+  // minion for either choice"). The mark itself is unchanged; what doubles is the payout, which is the only
+  // thing about this power that CAN double — arming a mark twice is the same mark.
+  const flashCopies = Math.max(1, playerState.questMods?.flashCopies ?? 1);
   let flashDone = false;
   const noteKill = (cardId: string, uid: string): void => {
     firstKill ??= cardId;
@@ -403,7 +414,7 @@ export function simulate(
     if (flashPick === 'first' && !flashDone) {
       flashDone = true;
       const def = cards[cardId];
-      if (def && !def.spell && !def.ruby) ctx.grantToHand(cardId, 'player', uid);
+      if (def && !def.spell && !def.ruby) for (let i = 0; i < flashCopies; i++) ctx.grantToHand(cardId, 'player', uid);
     }
   };
 
@@ -1771,6 +1782,16 @@ export function simulate(
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
         minion.maxHealth = 1;
+      }
+      // RUNE OF THE DEATHTOUCHED APPLE: a minion that Rises gets Rise BACK, so it can go again. Budgeted per
+      // combat (2 uses) — without a budget this is an infinite loop, since each Rise would re-arm the next.
+      // Re-armed AFTER the strip above, which is what clears `R` in both branches.
+      const apple = appleUsesFor(minion.side);
+      if (apple && apple.left > 0) {
+        apple.left -= 1;
+        if (!minion.keywords.includes('R')) minion.keywords.push('R');
+        minion.rebornAvailable = true;
+        emit({ type: 'keyword', target: minion.uid, keyword: 'R' });
       }
       // Granted blessings shed with the granted keywords: a golden-Taurus ×2 (`gainMult`) doesn't survive
       // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
@@ -3489,7 +3510,8 @@ export function simulate(
     const lastDef = cards[lastKill];
     if (lastDef && !lastDef.spell && !lastDef.ruby) {
       flashDone = true;
-      ctx.grantToHand(lastKill, 'player', boards.player.find((m) => !m.dead)?.uid);
+      const holder = boards.player.find((m) => !m.dead)?.uid;
+      for (let i = 0; i < flashCopies; i++) ctx.grantToHand(lastKill, 'player', holder);
     }
   }
 

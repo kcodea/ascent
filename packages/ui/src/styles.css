@@ -2306,6 +2306,11 @@ body.modalup .app { z-index: auto; }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent);
   animation: kwglow 2s ease-in-out infinite; will-change: opacity;
 }
+/* A PLATED Choose One / Discover option (owner ask 2026-08-19) is wider than its frame — the carved plate
+   overhangs — and that overhang is invisible to the flex row, so two plates would eat through the gap and
+   overlap. Reserve the overhang as margin, exactly as `.cardref` and `.book-grid` do, so the flex gap stays
+   real separation. */
+.disc-slot .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 /* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
    slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),

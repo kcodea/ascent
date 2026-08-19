@@ -55,8 +55,9 @@ describe('the tribe itself', () => {
   });
 
   it('every tranche-A Dwarf is in the set 2 pool', () => {
+    // dw_runekeg + dw_chirurgeon (Ayves) archived 2026-08-18 (ARCHIVED_CARDS) — no longer in the pool.
     const ids = ['dw_orin', 'dw_ironlung', 'dw_brunni', 'dw_wardkeeper', 'dw_coinfire', 'dw_brakka',
-      'dw_runekeg', 'dw_dorrin', 'dw_foreman', 'dw_chirurgeon', 'dw_brewer', 'dw_tapkeeper', 'dw_runemaster'];
+      'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper', 'dw_runemaster'];
     const pool = new Set(poolFor('set2').all.map((c) => c.id));
     for (const id of ids) expect(pool.has(id), `${id} is missing from set 2`).toBe(true);
   });
@@ -364,14 +365,15 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
-  it('the whole Dwarf roster is in set 2 — 22 minions + 2 tokens + 5 rune minions', () => {
+  it('the whole Dwarf roster is in set 2', () => {
     // 24 → 25 on 2026-08-03: Baal (`dw_baal`) joined the FORGE-ONLY rune minions (Rune of Baal). Like Brill
     // and Mykel it is `token: true`, so it rides in the set's pool for resolution but can never be drawn.
     // 24 → 26 on 2026-08-04: Chicken Brawl (`dw_chickenbrawl`) + its Charging Soldier token (`dw_soldier`).
     const dwarfIds = poolFor('set2').all.filter((c) => c.id.startsWith('dw_')).map((c) => c.id);
     // 26 → 27 on 2026-08-07: Bucky (`dw_bucky`) joined the forge-only rune minions (Rune of Bucky).
     // 27 → 28 on 2026-08-14: Drunken Oaf (`dw_oaf`) joined the buyable roster.
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(28);
+    // 28 → 26 on 2026-08-18: dw_runekeg + dw_chirurgeon (Ayves) archived to ARCHIVED_CARDS.
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(26);
     expect(dwarfIds).toContain('dw_chickenbrawl');
     expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');

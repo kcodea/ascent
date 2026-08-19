@@ -141,7 +141,6 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_scalefeather',
     name: 'Mushy',
     tribe: 'dragon',
-    tribe2: 'beast',
     tier: 4,
     attack: 4,
     health: 6,

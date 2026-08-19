@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 content: minion changes + 13 archives (PR A of 2)
+
+Part A of a two-part Set-2 content batch (the 15 new minions + their new engine primitives land in Part B).
+
+**Minion changes:**
+- Deepvein Tender → T2 1/2 · Chipwick Prospector → 3/1 · Wardkeeper → 6/4 · Contract Butcher → T3 4/3 ·
+  Dunkey → T4 · Armadiyo → T3.
+- **Imp Overseer** → T2 1/2, imp buff now +2/+1 ("Shout: Your Imps gain +2/+1 this game. Echo: summon an Imp"
+  — the retext is a wording simplification, the aura mechanic is unchanged).
+- **Mushy** is now a pure **Dragon** (dropped its Beast second tribe) — new art.
+
+**Archived (moved to `ARCHIVED_CARDS`; they stay resolvable via `CARD_INDEX` for saves/replays/the tutorial's
+scripted offers, just out of the draw pool):** Candle Conduit, Resonance Idol, Prismcaster, Candleback Bulwark,
+Frenzied Excavator (Kobolds); Ayves, Runekeg (Dwarves); Cinder Clerk, Imp Wrangler, Broodwright, Avarice
+Incarnate, Feastmaster Vhal, Endless Overseer (Demons). Their dead themed runes were archived too — Rune of the
+Wrangler, Rune of the Broodmaster, Rune of Battle Refraction. A stale `candleback` constant was removed from the
+tutorial's CARD_IDS (unused). The tutorial's Imp Wrangler / Cinder Clerk lessons still work — the scripted shop
+serves by id from `CARD_INDEX`, which archived cards remain in.
+
+Gates: typecheck, lint, `build:web`; full test suite updated for the archives + stat changes and green.
 ## 2026-08-18 — Demon Horse's shop-buff fires during the lunge, not after the swing
 
 Owner report: Demon Horse (`dm_hungerling`, Rally: buff the Shop on attack) played its `+1/+2 Shop` number

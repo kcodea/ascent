@@ -329,4 +329,201 @@ export const ARCHIVED_CARDS: CardDef[] = [
     text: 'End of Turn — **Dawn:** gain **2 Gold** next turn. **Dusk:** get a **random spell**.',
     goldenText: 'End of Turn — **Dawn:** gain **4 Gold** next turn. **Dusk:** get **2 random spells**.',
   },
+
+  // ── 2026-08-18 owner archive batch (Set 2 Kobold / Dwarf / Demon cull) ───────────────────────────────────
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
+    // Owner rework 2026-08-11: from a Ruby-bounce passive to a ruby-gain reactor. `rubyGainedCast` (no tribe
+    // filter) casts a Ruby on ONE random friendly minion each time you get a Ruby; golden casts 2.
+    id: 'k_candleconduit',
+    name: 'Candle Conduit',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
+    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
+    // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework
+    // 2026-07-27: Ward, and random targets instead of the two neighbours (so position no longer gates it).
+    id: 'k_resonance',
+    name: 'Resonance Idol',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: ['DS'], // Ward
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2, random: 2 } }],
+    text: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions.',
+    goldenText: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions **twice**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
+    // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby
+    // branch reading `rubyExtraCast`). No `effects` — it's a board aura like Money Bot's mana.
+    id: 'k_prismcaster',
+    name: 'Prismcaster',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 5,
+    health: 7,
+    keywords: [],
+    effects: [],
+    rubyExtraCast: 1,
+    text: 'Rubies played from hand cast an extra time.',
+    goldenText: 'Rubies played from hand cast 2 extra times.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
+    // Taunt + onDamaged (combat) → get a Ruby, capped 2×/fight (per-instance rubyRecvTick on the combat minion).
+    id: 'k_candleback',
+    name: 'Candleback Bulwark',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }],
+    text: 'Taunt. Get a Ruby when this takes damage. (2 times per turn)',
+    goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** play a Ruby on all of your minions.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/dwarves.ts (SET2_DWARVES). Name: Ayves.
+    // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
+    // "carries over through combat" true without extra wiring.
+    id: 'dw_chirurgeon',
+    name: 'Ayves', // renamed from Chirurgeon (owner 2026-07-31); the id stays — saved runs store ids
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'cardsBought', do: 'cardsBoughtGrantRandomSpell', params: { every: 3, count: 1 } }],
+    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
+    goldenText: 'Every **3 cards** you buy, get **2** random **Shop spells**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/dwarves.ts (SET2_DWARVES).
+    // Rides the existing "on spell cast, buff N random of a tribe" channel — the Dwarves' reward for the
+    // Dragon/spell half of set 2.
+    id: 'dw_runekeg',
+    name: 'Runekeg',
+    tribe: 'dwarf',
+    tier: 3,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    // `excludeSelf` (owner 2026-07-31): "Other Dwarves" — the keg fuels the crew, never itself.
+    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'dwarf', count: 2, attack: 2, health: 1, excludeSelf: true } }], // owner balance 2026-08-04: +2/+2 → +2/+1
+    text: 'When you cast a **Shop spell**, give **2 random other** friendly **Dwarves +2/+1**.',
+    goldenText: 'When you cast a **Shop spell**, give **2 random** friendly **Dwarves +4/+2**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Cinder Clerk.
+    // The tribe's Tier-1 statement of intent: a 1/1 that turns a tavern minion into stats.
+    id: 'dm_clerk',
+    name: 'Cinder Clerk',
+    tribe: 'demon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryConsumeShopRandom', params: { times: 1 } }],
+    text: '**Shout:** Consume a minion in the Shop.',
+    goldenText: '**Shout:** Consume a minion in the Shop and gain **double** its stats.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Imp Wrangler.
+    id: 'dm_wrangler',
+    name: 'Imp Wrangler',
+    tribe: 'demon',
+    tier: 1,
+    attack: 2,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'summonImps', params: { count: 1 } }],
+    text: '**Start of Combat:** summon an **Imp**.',
+    goldenText: '**Start of Combat:** summon **2 Imps**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Broodwright.
+    id: 'dm_broodwright',
+    name: 'Broodwright',
+    tribe: 'demon',
+    tier: 3,
+    attack: 1,
+    health: 6,
+    keywords: [],
+    effects: [
+      { on: 'onSummon', do: 'onSummonImpBuff', params: { attack: 2, health: 2 } },
+      { on: 'avenge', do: 'avengeImproveSummonBuff', params: { count: 3, step: 1 } },
+    ],
+    text: 'Whenever you summon an **Imp**, give it **+2/+2**. **Avenge (3):** improve this by **+1/+1**.',
+    goldenText: 'Whenever you summon an **Imp**, give it **+4/+4**. **Avenge (3):** improve this by **+2/+2**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Avarice Incarnate.
+    id: 'dm_avarice',
+    name: 'Avarice Incarnate',
+    tribe: 'demon',
+    tier: 5,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    // Flat Gold rather than the eaten minion's tier (owner change 2026-07-25): the tier version paid 1 Gold off
+    // a Tier-1 offer, which is negligible on a Tier-6 card and swingy depending on what the shop showed.
+    effects: [{ on: 'onConsume', do: 'onOtherDemonConsumeEcho', params: { gold: 3 } }],
+    text: 'The **first time** another friendly **Demon** Consumes a Shop minion each turn, this gains **the same stats** and grants **3 Gold**.',
+    goldenText: 'The **first 2 times** another friendly **Demon** Consumes a Shop minion each turn, this gains **the same stats** and grants **3 Gold**.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Feastmaster Vhal.
+    // Owner rework 2026-08-12: a Gold-sink payoff. Every 10 Gold spent, permanently buff the right-most Shop
+    // minion — the `every` threshold is metered per-instance by `applyGoldSpent`; the buff reuses Market
+    // Tormentor's `rightmostSlotBuff` accumulator. Golden gives +16/+16.
+    id: 'dm_vhal',
+    name: 'Feastmaster Vhal',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRightmostSlot', params: { every: 10, attack: 8, health: 8 } }],
+    text: 'When you spend **10 Gold**, give the **right-most Shop minion +8/+8** permanently.',
+    goldenText: 'When you spend **10 Gold**, give the **right-most Shop minion +16/+16** permanently.',
+  },
+  {
+    // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Endless Overseer.
+    // Owner rework 2026-08-12: an Avenge summoner — every 4 friendly deaths, summon an Imp with Taunt and Ward
+    // (`avengeSummonImps`). No keyword pill, matching the other Avenge cards; golden summons 2.
+    id: 'dm_overseer',
+    name: 'Endless Overseer',
+    tribe: 'demon',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeSummonImps', params: { count: 4, summon: 1 } }],
+    text: '**Avenge (4):** summon an **Imp** with **Taunt** and **Ward**.',
+    goldenText: '**Avenge (4):** summon **2 Imps** with **Taunt** and **Ward**.',
+  },
 ];

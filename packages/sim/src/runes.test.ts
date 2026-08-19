@@ -97,7 +97,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(106); // 105 after the 08-12 archive; +1 Rune of the Burrow (Basic)
+    expect(RUNES.length).toBe(105); // 106 → 105 on 2026-08-18: one Basic rune archived (ARCHIVED_RUNES)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 

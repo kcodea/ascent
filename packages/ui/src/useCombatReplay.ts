@@ -11,6 +11,8 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
+import { applyFloatSpeed } from './floatConfig';
+import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
 import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import type { Moment } from './choreo/compile';
@@ -759,9 +761,9 @@ function pulledHomeAttackerHold(
  */
 export function useCombatReplay(
   combat: CombatResult | null | undefined,
-  opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number; paused?: boolean },
+  opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number; paused?: boolean; rampEnabled?: boolean },
 ): CombatReplay {
-  const { active, findEl, paused = false } = opts;
+  const { active, findEl, paused = false, rampEnabled = false } = opts;
   /**
    * LAST-KNOWN slot rect per unit uid, refreshed every beat.
    *
@@ -807,6 +809,17 @@ export function useCombatReplay(
   // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
   const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
+  // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
+  const beatIdxRef = useRef(0);
+  beatIdxRef.current = beatIdx;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+  // Authored (base-speed) duration table for "time remaining" — O(1) per frame. Rebuilt only when the fight
+  // (its beats) changes. `holdMs(next, prev, 1)` is the base-speed hold before each beat shows.
+  const authored = useMemo(
+    () => buildAuthoredTimeline(beats, (next, prev) => holdMs(next, prev, 1), getChoreoConfig().finalHold),
+    [beats],
+  );
   // Bumped by every seek. `beatIdx` alone cannot express "replay the beat you are already on": React bails
   // out of an identical setState, so no cue effect re-runs and the board just clears. Re-watching one moment
   // while tuning is the harness's whole workflow, so the nonce gives those effects something that always
@@ -986,7 +999,43 @@ export function useCombatReplay(
   // Latest combat speed, read by the cue effect's float-expiry timers WITHOUT being a dep (so a mid-beat speed
   // toggle doesn't re-run the effect and re-fire that beat's sfx/shake — sfx is only per-call deduped).
   const combatSpeedRef = useRef(combatSpeed);
-  combatSpeedRef.current = combatSpeed;
+  // When NOT ramping, the ref tracks the base slider every render (today's behavior). While the ramp loop is
+  // live it owns this ref; a stray render can only clobber it for a single frame before the loop reasserts.
+  if (!(rampEnabled && active)) combatSpeedRef.current = combatSpeed;
+
+  // AUTO-RAMP (owner ask 2026-08-18): while a fight plays with the toggle on, ease the effective speed up from
+  // the base slider to the ceiling after a grace hold, then back down to base as the fight's estimated time
+  // runs out. Drives a ref + CSS var + float speed only — NO per-frame React render. Off-path costs nothing.
+  useEffect(() => {
+    const root = typeof document !== 'undefined' ? document.documentElement.style : null;
+    if (!active || !rampEnabled) return; // off / not fighting → base drives everything (see the gated ref write)
+    let raf = 0;
+    let elapsed = 0;
+    let last = performance.now();
+    const tick = (now: number): void => {
+      const dt = now - last;
+      last = now;
+      if (!pausedRef.current) elapsed += dt;
+      const cfg = getCombatRampConfig();
+      const ceiling = Math.min(cfg.ceiling, 5); // never exceed the store's 5× cap
+      const remaining = authored.remainingAt(beatIdxRef.current);
+      const spd = rampSpeed(combatSpeed, elapsed, remaining, { ...cfg, ceiling });
+      combatSpeedRef.current = spd;
+      root?.setProperty('--combat-speed', String(spd > 0 ? spd : 1));
+      applyFloatSpeed(spd);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Restore base on teardown so the post-combat UI + the next fight start from the slider value.
+      combatSpeedRef.current = combatSpeed;
+      root?.setProperty('--combat-speed', String(combatSpeed > 0 ? combatSpeed : 1));
+      applyFloatSpeed(combatSpeed);
+    };
+    // combat in deps → new fight rebuilds `authored` and resets `elapsed`. `paused`/`beatIdx` intentionally
+    // excluded (read via refs) so they never re-arm the loop.
+  }, [active, rampEnabled, combat, combatSpeed, authored]);
   // Mirror of the per-beat `frame` (declared far below via useMemo) so the cue effect can look up a target's
   // live stats WITHOUT depending on `frame` directly (which would reorder/re-trigger the effect). Assigned
   // right after the `frame` useMemo.
@@ -1198,7 +1247,7 @@ export function useCombatReplay(
     const shown = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     if (shown?.kind === 'attackExchange' && engineAdvancingRef.current) return;
     const next = beats[beatIdx]!;
-    let d = holdMs(next, shown, combatSpeed);
+    let d = holdMs(next, shown, combatSpeedRef.current);
     // A Deathrattle summon (skull) or a Rise return (body fade) waits for the death to read — and an attacker
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
     // reads, not on top of it.
@@ -1206,7 +1255,7 @@ export function useCombatReplay(
     // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
     // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
     const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events, cardIds));
-    if (lead) d += lead / combatSpeed;
+    if (lead) d += lead / combatSpeedRef.current;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
     // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever
@@ -1666,7 +1715,7 @@ export function useCombatReplay(
           // in flight. As a fallback for the FX below it must be the unit's SLOT — the pull-home is heading
           // there, and a mid-flight fallback would drop the skull/burst over empty board.
           const capRect = layoutRectOf(el);
-          runRiseReturn(el, combatSpeed, () => {
+          runRiseReturn(el, combatSpeedRef.current, () => {
             const rEl = findEl(impactAtk);
             const rect = rEl ? layoutRectOf(rEl) : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
@@ -1717,7 +1766,7 @@ export function useCombatReplay(
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
-          combatSpeed, advance: () => setBeatIdx((k) => k + 1),
+          combatSpeed: combatSpeedRef.current, advance: () => setBeatIdx((k) => k + 1),
           onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).

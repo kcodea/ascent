@@ -46,6 +46,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   cardpills: '🏷️',
   heropanel: '🧍',
   lobbypanel: '🪑',
+  boardedge: '🌫️',
   buffdrawer: '🧪',
   book: '📖',
   refreshbtn: '🔄',

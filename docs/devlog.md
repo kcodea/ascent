@@ -60,6 +60,81 @@ look are owner-run in the FX workshop.
 Follow-ups: the owner authors the real `consume-bands` def in the workshop (the committed one is a placeholder,
 duration-matched to `durationMs`); `holdFodderGains`' stat-reveal timing (~90ms — the beat where the eater's
 buffed stats commit) may want re-aligning once the final `durationMs` is locked in.
+## 2026-08-18 — Combat auto-ramp: tune the shipped defaults for a gentler curve
+
+Owner feel pass on the auto-ramp curve (the live Speed Ramp tuner). Updated `COMBAT_RAMP_DEFAULTS`
+(`packages/ui/src/combatRampConfig.ts`) from grace 2000 / ramp-up 4000 / tail 5000 to **grace 3600 /
+ramp-up 10000 / tail 10000** (ceiling unchanged at 3×): a longer opening hold, a much gentler climb, and a
+longer ease-down tail so the finish settles back to base well before the last blow. Defaults-only change —
+no logic, no test impact (the math tests use their own fixture, not the defaults). Verified: typecheck +
+build:web green.
+
+## 2026-08-18 — Combat replay auto-ramps its speed so long fights stop dragging
+
+A toggle-able option (**ON by default**) that lets each combat replay auto-ramp its own playback speed within a
+fight: it holds at the Speed-slider value (the *starting* speed) through an opening grace window, eases **up**
+toward a ceiling for the long middle, then eases back **down** to the starting speed for the finish — so a
+drawn-out fight stops dragging while the opening and finishing blows still read at normal speed. The base Speed
+slider is never mutated; this is a presentation-only layer on top of it.
+
+**UI/presentation only — no engine, sim, or content change.** The combat event log, determinism, and golden
+outputs are untouched; this only changes the *clock* the UI replays them on.
+
+- **Pure ramp module** (`packages/ui/src/combatRampConfig.ts`). `rampSpeed(base, elapsedMs, remainingMs, cfg)`
+  is the **min of two curves** — an up-curve driven by wall-clock elapsed (grace → ramp-up → ceiling) and a
+  down-curve driven by estimated time-remaining (ease back to the starting speed for the tail) — so whichever
+  bound is tighter wins, and a short fight simply never gets far up the up-curve before the down-curve pulls it
+  back. It no-ops when the base speed is already ≥ the ceiling.
+- **O(1) authored-time estimate.** `buildAuthoredTimeline` precomputes a prefix sum of per-beat authored
+  durations so the rAF loop can read "authored time remaining" in constant time each frame instead of summing
+  the tail. It deliberately errs slightly **early** (treats the fight as a touch shorter than it is) — the safe
+  direction, since easing down a hair early protects the finish rather than clipping it.
+- **Effective-speed layer** (`useCombatReplay.ts`). A rAF loop drives an effective-speed ref, the
+  `--combat-speed` CSS var, and the float speed with **zero per-frame React renders**; the ref resets per fight.
+  Off (or in the tutorial, which always plays flat 1×) the whole path is a no-op and playback is byte-identical
+  to today's flat behavior.
+- **Default-ON toggle** `combatRampUp` in the store (persisted), surfaced as a Settings → Combat toggle placed
+  **directly under the Speed slider**, plus a dev **Speed Ramp** tuner exposing every number (grace / ramp-up /
+  ceiling / ease-down tail).
+
+Verified: the pure-math unit tests in `combatRampConfig.test.ts` (ramp profile, the two-curve min, the
+timeline prefix-sum + its early-erring approximation, and the off-path no-op); the full four-gate suite green
+(`typecheck` + `lint` + `test` with **5587** tests + `build:web`); combat determinism / golden suites unchanged.
+**Follow-up:** the live feel pass — settling the grace window, ceiling, and ease-down tail to taste — is
+owner-driven via the Speed Ramp tuner at 1× (the owner's play speed).
+
+## 2026-08-18 — Ultrawide side margins blend into the board instead of showing tan
+
+The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side
+margins on ultrawide monitors (owner report, a friend's 21:9). Resolves the open roadmap item.
+
+`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#312361 — the ambient
+the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (186px × --scale) so
+the margin colour and the art meet seamlessly rather than at a hard line. The fade's inner stop uses
+`--board-edge-col-0` — the same colour at 0 alpha — instead of the `transparent` keyword, which would
+interpolate through transparent-black and leave a grey fringe.
+
+**Self-gating, so it costs nothing below ultrawide.** The gradient's fade points are pinned to the art's REAL
+left/right edges, computed from a new shared `--_board-w` (the same size formula the art layer now also reads,
+so the seam can't drift from the art). On a ≤16:9 window the board overspills the viewport (board-zoom 1.25), so
+those edges sit off-screen and the entire visible strip computes transparent — no media query needed, and it
+tracks the art automatically if the zoom/fill/aspect ever change. Verified by the edge geometry: at 16:9 the art
+edges land at −333px / 2893px (off-screen, blend transparent); at 21:9 they land at 107px / 3333px (≈107px
+blended margins each side); at 32:9, ≈947px each side.
+
+**Live-tunable via a new 🌫️ Board Edge dev tuner** (owner ask — three colour tries in, a picker beats the
+round-trip). `boardEdgeConfig.ts` + `BoardEdgeTuner.tsx` ride the shared `TunerPanel`, exposing the colour and
+the blend reach; it applies its values inline on `:root` at boot (dev: persisted; prod: DEFAULTS) and imports
+for side effect in `Game.tsx` beside `boardConfig`. Same convention as the other tuners: the styles.css `:root`
+values are the pre-JS mirror and must stay in sync with DEFAULTS when a tune is baked. The 0-alpha stop is
+DERIVED from the colour (recomputed on every change) so the picker only ever exposes the one colour. It only
+shows an effect on an ultrawide viewport, by the self-gating above; the panel header says so.
+
+Verified: `typecheck` + `build:web` green; the config applies its vars inline at boot (confirmed live —
+`--board-edge-col` #312361 with the derived `rgb(49 35 97 / 0)` twin and 186px fade), and the live `.boardbg`
+computed background carries scrim + blend + art + fill. Final look is the owner's call on their friend's
+actual ultrawide.
+
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 
 A broad owner balance pass across Set 1 + Set 2.

@@ -492,6 +492,29 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
         if (t) { ctx.buff(t, a + sp.attack, h + sp.health, self.uid); did = true; }
         break;
       }
+      // Dragonflame — buff `base` + (# friendly `tribe`) random living friendlies (with replacement, so more
+      // buffs than bodies simply stacks). The per-buff value is the spell's flat +4/+4 + spell power.
+      case 'spellBuffRandomPerTribe': {
+        const tribe = str(eff.params?.tribe);
+        const count = alive().filter((m) =>
+          !tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe).length;
+        const reps = num(eff.params?.base, 1) + count;
+        for (let i = 0; i < reps; i++) {
+          const pool = alive();
+          if (pool.length === 0) break;
+          ctx.buff(pool[ctx.rng.int(pool.length)]!, a + sp.attack, h + sp.health, self.uid);
+        }
+        did = true; break;
+      }
+      // Flutter — the chosen minion gains +Health (+ spell power); a Dragon also gets Flurry.
+      case 'spellBuffHealthGrantFlurryDragon': {
+        for (const t of chosen()) {
+          ctx.buff(t, sp.attack, num(eff.params?.health, 10) + sp.health, self.uid);
+          const isDragon = t.tribe === 'dragon' || t.tribe2 === 'dragon' || !!ctx.getCard(t.cardId)?.universalTribe;
+          if (isDragon && !t.keywords.includes('W')) t.keywords.push('W');
+        }
+        did = true; break;
+      }
       case 'spellBuffTargetEscalating': {
         // Attack and Health escalate INDEPENDENTLY, each stat's step compounding its own spell power — the
         // same arithmetic the shop half runs. The stats are temporary; the IMPROVEMENT is permanent and
@@ -546,7 +569,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
-  'spellGainRandomMinion', 'spellGrantTopTypeMinion',
+  'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
@@ -555,6 +578,23 @@ export function combatCastable(def: CardDef): boolean {
   if (!def.spell) return false;
   if (def.discoverOnPlay) return true;
   return def.effects.some((e) => e.on === 'cast' && COMBAT_CASTABLE_SPELL_DOS.has(e.do));
+}
+
+/** Shared "this minion casts a NAMED spell mid-combat" path (Flamebeat's Rally, Warflame's on-Dragon-attack).
+ *  A real cast via `castInCombat` + `resolveCombatSpellCast` — counts, fires spell watchers, golden = two casts.
+ *  A targeted spell picks a seeded random living friendly; an untargeted one resolves its own targeting. A spell
+ *  with no combat implementation (or nothing to aim at) fizzles without counting. */
+export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId: string): void {
+  const def = spellId ? ctx.getCard(spellId) : undefined;
+  if (!def?.spell || self.dead || !combatCastable(def)) return;
+  castInCombat(ctx, self, () => {
+    const friends = ctx.living(self.side);
+    const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
+    if (def.target && (!targets || targets.length === 0)) return;
+    if (resolveCombatSpellCast(ctx, self, def, targets)) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+    }
+  });
 }
 
 /** Scavvers ↔ Echohorn recursion guard — see `deathrattleTriggerAdjacentRally`. */
@@ -759,6 +799,63 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);
     });
+  },
+
+  /** Set 2 — Cinderchef (Rally): on its OWN attack, gain +atk/+hp. Golden doubles. */
+  rallyBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Set 2 — Flamebeat Drake (Rally): on its OWN attack, cast a NAMED spell (Dragonflame) in combat. A genuine
+   *  cast through `castInCombat` + `resolveCombatSpellCast`, so it counts and fires spell watchers; golden = two
+   *  casts. Untargeted spells resolve their own random targeting inside the resolver. */
+  rallyCastNamedSpell: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    castNamedSpellInCombat(ctx, self, str(params.spellId));
+  },
+
+  /** Set 2 — Warflame (combat): whenever a friendly minion of `tribe` attacks, cast a NAMED spell (Dragonflame).
+   *  Any qualifying ally's swing fires it (Windfury → per swing); the caster's own swing counts too. */
+  onTribeAttackCastNamedSpell: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const tribe = str(params.tribe);
+    if (tribe && !(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    castNamedSpellInCombat(ctx, self, str(params.spellId));
+  },
+
+  /** Set 2 — Roarcollector (Rally): on its OWN attack, add a random SHOUT minion (one with a real `onPlay`) to
+   *  your hand, tier-capped by the run pool — carried back after combat like every combat hand-grant. Golden = 2. */
+  rallyGrantRandomShoutMinion: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.grantRandomMinion(mul(self), undefined, self.side, undefined, self.uid, undefined, true);
+  },
+
+  /** Set 2 — Embercrest (Rally): on its OWN attack, re-trigger the Shouts of your other `tribe` (Dragon) minions.
+   *  Routed through the SAME machinery every Shout re-trigger uses (`replayCombatBattlecry` for the effect, then
+   *  the `battlecryTriggered` emit so Karwind / Bane / Embermouth watchers proc) — see
+   *  `deathrattleReplayAdjacentBattlecry`. Economy-only Shouts defer to settle. Embercrest's own trigger is an
+   *  attack, not an `onPlay`, so it can never recurse. */
+  rallyTriggerTribeShouts: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe);
+    const reps = mul(self); // golden re-triggers each Shout twice
+    for (const m of [...ctx.living(self.side)]) {
+      if (m === self) continue;
+      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      if (!m.effects.some((e) => e.on === 'onPlay')) continue;
+      for (let r = 0; r < reps; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${m.name}'s Shout` });
+        replayCombatBattlecry(ctx, m);
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      }
+    }
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
@@ -3544,7 +3641,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const sideKey of ['player', 'enemy'] as Side[]) {
       for (const m of [...ctx.living(sideKey)]) {
         if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
-        ctx.damage(m, amount);
+        // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
+        // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
+        // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
+        ctx.damage(m, amount, false, false, self);
       }
     }
   },

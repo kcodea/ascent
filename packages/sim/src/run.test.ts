@@ -1312,8 +1312,8 @@ describe('run loop (@game/sim)', () => {
 
   it('Karwind buffs your Dragons whenever a Battlecry triggers', () => {
     // Play Hoard Cleric (Dragon Battlecry +3/+3 to dragons) with Karwind on board: the Cleric's
-    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons a flat +4/+4
-    // (owner balance 2026-08-18: the 20% double-trigger clause was removed).
+    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons a flat +3/+3
+    // (owner balance 2026-08-18: Karwind → Tier 5, proc dropped +4/+4 → +3/+3).
     let s: RunState = {
       ...createRun(1),
       embers: 0,
@@ -1323,8 +1323,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // 2/12 + 3/3 (Cleric) + 4/4 (Karwind flat proc) = 9/19
-    expect([k.attack, k.health], 'Karwind flat +4/+4 proc').toEqual([9, 19]);
+    // 2/12 + 3/3 (Cleric) + 3/3 (Karwind flat proc) = 8/18
+    expect([k.attack, k.health], 'Karwind flat +3/+3 proc').toEqual([8, 18]);
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -1340,10 +1340,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +4/+4.
+    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +3/+3.
     // What this test PINS is the proc COUNT (two fires, not one), so assert the gain is 2 procs' worth.
     const gain = k.attack - 2 - 6; // strip the base and the Cleric's own +6
-    expect(gain, 'two Karwind procs at flat +4 each').toBe(8);
+    expect(gain, 'two Karwind procs at flat +3 each').toBe(6);
     expect(k.health - 12 - 6).toBe(gain); // symmetric grant
   });
 

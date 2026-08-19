@@ -255,6 +255,13 @@ export type EffectFactoryId =
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'deathrattleBuffShopPermanent' // Set 2 — Malphas Echo: death buffs Shop minions permanently
+  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp
+  | 'rallyCastNamedSpell' // Set 2 — Flamebeat Drake: Rally casts a named spell (Dragonflame)
+  | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
+  | 'rallyGrantRandomShoutMinion' // Set 2 — Roarcollector: Rally adds a random Shout minion to hand
+  | 'rallyTriggerTribeShouts' // Set 2 — Embercrest: Rally re-triggers your Dragon Shouts
+  | 'spellBuffRandomPerTribe' // Set 2 — Dragonflame: buff a friendly, repeat per Dragon (random)
+  | 'spellBuffHealthGrantFlurryDragon' // Set 2 — Flutter: +Health; a Dragon also gains Flurry
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
@@ -2414,7 +2421,7 @@ export interface CombatContext {
    *  Battlecry re-fired in combat (Ryme → Sea Urchin). Player-only. Picks the actual minion(s) now from the
    *  buyable pool (≤ tavern tier, active tribes, tribe-filtered, excluding `exclude`) and routes each through
    *  `grantToHand`, so the real card animates in. `sourceUid` is the granting minion. */
-  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number): void;
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number, shoutOnly?: boolean): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
@@ -2501,8 +2508,10 @@ export interface CombatContext {
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;
-  /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
-  damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
+  /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). `source` credits the
+   *  damaging minion — pass it so effects keyed on "a friendly Demon dealt damage" (and kill attribution) see
+   *  it (e.g. Fel Spikes' Echo attributing each hit to itself). */
+  damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean, source?: Minion): void;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
    *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
    *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */

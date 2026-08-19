@@ -248,13 +248,13 @@ describe('set 2 — Contract Butcher / Soul Defiler buff the shop', () => {
     s = reduce(s, { type: 'play', uid: 'b' });
     s = reduce(s, { type: 'buy', uid: 's0' });
     const bought = s.hand.find((c) => c.cardId === 'sandbag')!;
-    expect([bought.attack, bought.health]).toEqual([1, 5]); // 0/4 + 1/1
+    expect([bought.attack, bought.health]).toEqual([2, 5]); // 0/4 + 2/1 (owner balance 2026-08-18)
     // …and a minion from a LATER shop gets it too — the permanent channel, not this roll's offers.
     s = { ...s, shop: shop('alley') };
     s = reduce(s, { type: 'buy', uid: 's0' });
     const later = s.hand.find((c) => c.cardId === 'alley')!;
     const base = CARD_INDEX['alley']!;
-    expect([later.attack, later.health]).toEqual([base.attack + 1, base.health + 1]);
+    expect([later.attack, later.health]).toEqual([base.attack + 2, base.health + 1]);
   });
 
   it('Curator escalates, and the buff SURVIVES a refresh (it is permanent)', () => {
@@ -355,7 +355,8 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     // archived to ARCHIVED_CARDS (still in CARD_INDEX for saved runs, in no set).
     // 14 → 21 on 2026-08-18: seven new demons joined — dm_todd, dm_knocked, dm_grevlin, dm_jumbo, dm_leech,
     // dm_felspikes, dm_chosenfiend.
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(21);
+    // 21 → 20 on 2026-08-18: Errand Fiend (dm_errand) archived to ARCHIVED_CARDS (still in CARD_INDEX, in no set).
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(20);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });

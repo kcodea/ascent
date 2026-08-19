@@ -777,15 +777,6 @@ export const RUNES: RuneDef[] = [
   },
 
   {
-    id: 'rune_flooded_vault',
-    name: 'Rune of the Flooded Vault',
-    cost: 5,
-    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
-    previewCards: ['d2_curator'],
-    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_unbroken_vein',
     name: 'Rune of the Unbroken Vein',
     cost: 5,
@@ -1962,6 +1953,16 @@ export const EPIC_RUNES: RuneDef[] = [
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
   // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
+  {
+    // ARCHIVED 2026-08-18 (owner) — Water Dragon archived
+    id: 'rune_flooded_vault',
+    name: 'Rune of the Flooded Vault',
+    cost: 5,
+    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
+    previewCards: ['d2_curator'],
+    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
+    sets: ['set2'],
+  },
   {
     // ARCHIVED 2026-08-18 (owner) alongside Imp Wrangler (dm_wrangler).
     id: 'rune_wrangler',

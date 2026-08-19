@@ -17,23 +17,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 1, health: 1 } }],
-    text: '**Shout:** give minions in the Shop **+1/+1**.',
-    goldenText: '**Shout:** give minions in the Shop **+2/+2**.',
-  },
-  {
-    // Owner rework 2026-08-04: Echo → RALLY. (Owner 2026-08-11: Flurry removed — the Rally now fires once per
-    // attack rather than twice.)
-    id: 'dm_errand',
-    name: 'Errand Fiend',
-    tribe: 'demon',
-    tier: 2,
-    attack: 1,
-    health: 3,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallySummonImpBuffImps', params: { amount: 1 } }],
-    text: '**Rally:** summon an **Imp** and give your **Imps +1/+1**.',
-    goldenText: '**Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
+    // Owner balance 2026-08-18: +1/+1 → +2/+1.
+    effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 2, health: 1 } }],
+    text: '**Shout:** give minions in the Shop **+2/+1**.',
+    goldenText: '**Shout:** give minions in the Shop **+4/+2**.',
   },
   {
     // The eater is the TARGET, not this card — so it can feed whichever Demon you want to grow.
@@ -123,9 +110,9 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_gourmand',
     name: 'Bob Blart',
     tribe: 'demon',
-    tier: 4, // owner balance 2026-08-11: T4 → T5; 2026-08-14: back to T4
-    attack: 5,
-    health: 4,
+    tier: 3, // owner balance 2026-08-11: T4 → T5; 2026-08-14: back to T4; 2026-08-18: T4 → T3
+    attack: 3,
+    health: 3,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'consumeShopRightmost', params: { times: 1 } }],
     text: '**End of Turn:** Consume the **right-most** minion in the Shop.',
@@ -303,13 +290,13 @@ export const SET2_DEMONS: CardDef[] = [
     id: 'dm_felspikes',
     name: 'Fel Spikes',
     tribe: 'demon',
-    tier: 3,
+    tier: 5, // owner balance 2026-08-18: T3 → T5 (the damage jumped 1 → 4)
     attack: 4,
     health: 2,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleDamageAllExceptTribe', params: { amount: 1, exceptTribe: 'demon' } }],
-    text: '**Taunt.** **Echo:** deal **1 damage** to all minions except friendly **Demons**.',
-    goldenText: '**Taunt.** **Echo:** deal **2 damage** to all minions except friendly **Demons**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleDamageAllExceptTribe', params: { amount: 4, exceptTribe: 'demon' } }],
+    text: '**Taunt.** **Echo:** deal **4 damage** to all minions except friendly **Demons**.',
+    goldenText: '**Taunt.** **Echo:** deal **8 damage** to all minions except friendly **Demons**.',
   },
   {
     // Set 2 — Axeman (owner add 2026-08-18): the mid-tier demon-damage body. Golden doubles.

@@ -78,13 +78,13 @@ describe('set 2 — Fel Spikes Echo (combat)', () => {
   it('deals 1 to all minions except the controller’s OWN Demons — enemy Demons ARE hit', () => {
     // Board: m0 Fel Spikes (Taunt, 1 HP — dies), m1 a FRIENDLY Demon (spared), m2 a FRIENDLY non-Demon (hit).
     // Enemy m3 is a Demon (hit — the exclusion is friendly-only). Both bystanders are 0-attack walls so the only
-    // 1-damage in the whole fight is the Echo.
+    // 4-damage in the whole fight is the Echo (owner balance 2026-08-18: Tier 5, echo amount 1 → 4).
     const r = simulate(
       [bm('dm_felspikes', 'FS', 4, 1, ['T']), bm('dm_clerk', 'FD', 0, 40), bm('sandbag', 'FN', 0, 40)],
       [bm('dm_clerk', 'ED', 10, 40)],
       makeRng(3), CARD_INDEX, combatSide({ tier: 3 }), combatSide({ tier: 1 }));
     const oneDmgTargets = new Set(
-      r.events.filter((e) => e.type === 'dmg' && (e as { amount: number }).amount === 1)
+      r.events.filter((e) => e.type === 'dmg' && (e as { amount: number }).amount === 4)
         .map((e) => (e as { target: string }).target));
     expect(oneDmgTargets.has('m2'), 'the friendly NON-Demon takes 1').toBe(true);
     expect(oneDmgTargets.has('m3'), 'the ENEMY Demon takes 1 — exclusion is friendly-only').toBe(true);

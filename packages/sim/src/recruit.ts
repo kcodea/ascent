@@ -5375,6 +5375,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of picks) addBuff(t, 'Ale', attack, health);
   },
 
+  /** Set 2 — Dragonflame (shop cast): buff `base` + (# friendly `tribe`, Dragons) random friendlies by +atk/+hp,
+   *  WITH replacement — more buffs than bodies simply stacks. Spell power folds in like every stat spell. */
+  spellBuffRandomPerTribe: (ctx, _self, params) => {
+    const board = ctx.state.board;
+    if (board.length === 0) return;
+    const tribe = str(params.tribe) as Tribe;
+    const dragons = tribe ? board.filter((c) => isTribe(c, tribe)).length : 0;
+    const reps = num(params.base, 1) + dragons;
+    let attack = num(params.attack, 4);
+    let health = num(params.health, 4);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < reps; i++) addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health);
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Set 2 — Flutter (shop cast): the targeted minion (`self`) gains +Health; a Dragon also gains Flurry. */
+  spellBuffHealthGrantFlurryDragon: (ctx, self, params) => {
+    let attack = 0;
+    let health = num(params.health, 10);
+    if (health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    addBuff(self, nameOf(self), attack, health);
+    if (isTribe(self, 'dragon') && !self.keywords.includes('W')) self.keywords.push('W');
+  },
+
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
    *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
    *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
@@ -6085,6 +6116,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
     if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
     return def.text;
+  }
+  // Dragonflame: its per-buff "+A/+B" folds spell power (the repeat count is relational, not greened).
+  const dragonflame = def.effects.find((e) => e.do === 'spellBuffRandomPerTribe');
+  if (dragonflame) {
+    const pa = Number((dragonflame.params as { attack?: number } | undefined)?.attack ?? 4);
+    const ph = Number((dragonflame.params as { health?: number } | undefined)?.health ?? 4);
+    return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+  }
+  // Flutter: its "+N Health" becomes the full live "+A/+H" pair once spell power is up (like the Ales above).
+  const flutter = def.effects.find((e) => e.do === 'spellBuffHealthGrantFlurryDragon');
+  if (flutter) {
+    const ph = Number((flutter.params as { health?: number } | undefined)?.health ?? 10);
+    return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
   }
   // Beefy: its "+A/+B" lands on the target AND both neighbours, and every grant picks up spell power — so the
   // printed number must too (the live-text rule; the spell-power audit test pins it).

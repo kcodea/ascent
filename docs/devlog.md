@@ -1,5 +1,50 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 Dragon batch: 8 new Dragons, 2 spells, 8 archives, rebalances + Fel Spikes fix (PR C)
+
+Stacked on the Part-B branch. A Dragon-focused content pass plus a combat bug fix.
+
+**Archives (8 cards + 1 rune):** `d2_ashscribe`, `d2_curator` (Water Dragon), `d2_archivist`, `d2_spellvault`,
+`d2_sovereign` (Thunderous Sovereign), `d2_matriarch` (Bathing Matriarch), `n2_fatecarver`, `dm_errand`
+(Errand Fiend) → `ARCHIVED_CARDS`; `rune_flooded_vault` (keyed entirely to Water Dragon) → `ARCHIVED_RUNES`.
+Set-count / pool-membership / rune tests updated by exactly the moved cards.
+
+**Rebalances:** Karwind → T5, buff +4/+4 → **+3/+3** (set-1 def, so it changes there too). Mushy → T5.
+Black Belt Brian → T6. Nimbus → T6. Contract Butcher → **+2/+1**. Bob Blart → **T3 3/3**. Fel Spikes → **T5**,
+echo damage 1 → **4**. Earthbreaker → **T4**, its Shop-spell buff is now Dragon-scoped **+2/+3** (via a new
+`tribe` filter on `spellCastBuffAll`). **Transcendant** reworked to "**Ward.** Adjacent Dragons are Engraved."
+— its Start-of-Combat buff (and the `SC` pill) removed; the Engrave adjacency aura is unchanged, so it is now a
+pure warded Engrave anchor.
+
+**New spells:** **Dragonflame** (T5, 3g, `spellBuffRandomPerTribe`) — buff a random friendly +4/+4, repeat for
+every Dragon you control (with replacement); resolves in both phases so minions can cast it. **Flutter** (T4,
+2g, `spellBuffHealthGrantFlurryDragon`) — +10 Health, and Flurry if the target is a Dragon.
+
+**New Dragons (8):** Embercrest (T6, Rally: trigger your Dragon Shouts — `rallyTriggerTribeShouts`, routed
+through `replayCombatBattlecry` + the `battlecryTriggered` emit), Broodfire (T2, Shout: Dragons +2/+2),
+Cinderchef (T1, Rally: +1/+1 — `rallyBuffSelf`), Roarcollector (T4, Rally: a random Shout minion — a `shoutOnly`
+filter on the combat `grantRandomMinion` carry-back), Flamebeat Drake (T5, Rally: cast Dragonflame —
+`rallyCastNamedSpell`), River Drake (T3, sell → a random Spell), Warflame (T6, a friendly Dragon attacks → cast
+Dragonflame — `onTribeAttackCastNamedSpell`), Flutterdrake (T5, Shout: get a Flutter).
+
+**Bug fix — Fel Spikes + the demon-damage mechanic:** `ctx.damage()` now threads an optional `source`.
+Fel Spikes' echo passes itself, so every LANDED hit — enemies AND your own non-Demons — registers as a friendly
+Demon dealing damage and procs Leech / Axeman / Impossible Todd once each. Previously the AoE had no poisoner and
+the reactors never saw it.
+
+**New engine:** factories `rallyBuffSelf`, `rallyCastNamedSpell`, `onTribeAttackCastNamedSpell`,
+`rallyGrantRandomShoutMinion`, `rallyTriggerTribeShouts`, `spellBuffRandomPerTribe`,
+`spellBuffHealthGrantFlurryDragon` (+ the shared `castNamedSpellInCombat` helper and the combat spell-resolver
+cases); `spellCastBuffAll` gained a `tribe` filter; `grantRandomMinion` a `shoutOnly` filter; `ctx.damage` a
+`source` param. All registered across the type union, zod schema, presentation-policy registry, `CARD_REF_EFFECTS`
+(the two named-spell casters preview Dragonflame on hover), and `spellDisplayText` (Dragonflame/Flutter green
+their values under spell power). The dead `scBuffTribe:startOfCombat` policy (Transcendant's old effect) removed.
+
+**Verified:** typecheck (pkgs + web), lint, `build:web`, full Vitest suite all green; new behavioural coverage in
+`set2DragonBatchAug18.test.ts` (Fel Spikes attribution, Dragonflame per-Dragon repeat, Flutter's conditional
+Flurry, and several of the new minions) plus updated Karwind / Earthbreaker / Butcher / Fel Spikes / Transcendant
+tests. No art wired (the art overhaul is a separate pass) — new cards use fallback art.
+
 ## 2026-08-18 — Set 2 content: 15 new minions + new engine primitives (PR B of 2)
 
 Part B — the new cards and the engine they needed (Part A was the changes + archives).

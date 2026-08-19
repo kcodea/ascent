@@ -44,6 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Set 2 Dragon batch.** Eight new Dragons (a Shout-retrigger line — Embercrest, Broodfire, Roarcollector — and a spell-cast line — Flamebeat, Warflame — plus Cinderchef, River Drake, Flutterdrake) and two new spells (**Dragonflame**, **Flutter**), alongside eight archives and a round of rebalances (Karwind, Fel Spikes, Earthbreaker, Transcendant→Ward+Engrave, and more). Fixed a bug so **Fel Spikes**' echo correctly counts as its Demon dealing damage (proccing the demon-damage payoffs on every landed hit).
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
 

@@ -31,9 +31,9 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(run).toBeTruthy();
   });
 
-  it('Karwind carries into set 2 and keeps its re-spec (Tier 6, 4/12)', () => {
+  it('Karwind carries into set 2 and keeps its re-spec (Tier 5, 4/12)', () => {
     const k = CARD_INDEX['karwind']!;
-    expect([k.tier, k.attack, k.health]).toEqual([6, 4, 12]);
+    expect([k.tier, k.attack, k.health]).toEqual([5, 4, 12]);
   });
 });
 
@@ -466,20 +466,20 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
 
 });
 
-describe('set 2 — Scalechanter (owner rework 2026-07-25)', () => {
-  it('every Shop spell cast gives your WHOLE board +1 Attack', () => {
-    // "your minions" is the whole board, not just Dragons — a Beast on the board must gain it too.
+describe('set 2 — Earthbreaker/Scalechanter (owner rework 2026-08-18)', () => {
+  it('every Shop spell cast gives your Dragons +2/+3 (Dragons only, and Health too)', () => {
+    // Owner rework 2026-08-18: Tier 4, and the buff is now Dragons-only +2/+3 (was whole-board +1 Attack).
+    // A non-Dragon on the board gains NOTHING.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 60,
       board: [minion('sc', 'd2_scalechanter', 'dragon', 4, 3), minion('b', 'alley', 'beast', 2, 2)],
-      hand: [spellInHand('sp', 'emberpouch')], // a Gold spell: no stat effect of its own to confound the +1
+      hand: [spellInHand('sp', 'emberpouch')], // a Gold spell: no stat effect of its own to confound the buff
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
     const sc = s.board.find((c) => c.uid === 'sc')!;
     const beast = s.board.find((c) => c.uid === 'b')!;
-    expect(sc.attack, 'it buffs itself too').toBe(5);
-    expect(beast.attack, 'and a non-Dragon friend').toBe(3);
-    expect([sc.health, beast.health], 'Attack only — no Health').toEqual([3, 2]);
+    expect([sc.attack, sc.health], 'the Dragon (incl. itself) gains +2/+3').toEqual([6, 6]);
+    expect([beast.attack, beast.health], 'the non-Dragon gains nothing').toEqual([2, 2]);
   });
 
   it('a RUBY is not a Shop spell, so it does not trigger it', () => {

@@ -32,20 +32,6 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'After you trigger a **Shout**, gain **+2/+2**.',
   },
   {
-    // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
-    // even when you have no other Dragon out. Permanent growth (owner ruling 2026-07-24).
-    id: 'd2_ashscribe',
-    name: 'Ashscribe',
-    tribe: 'dragon',
-    tier: 1,
-    attack: 1,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffSelf', params: { attack: 2, health: 2 } }],
-    text: 'The first time you cast a **Shop spell** each turn, gain **+2/+2**.',
-    goldenText: 'The first time you cast a **Shop spell** each turn, gain **+4/+4**.',
-  },
-  {
     // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
     id: 'd2_spellkeeper',
     name: 'Spell Warden',
@@ -94,54 +80,12 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'The first spell you cast each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
   },
   {
-    // The tribe's combat headline: one Start of Combat that fires the whole board's Shouts. Pairs with
-    // Karwind (also a Dragon) — every trigger procs it, so the two together are the tribe's payoff turn.
-    id: 'd2_sovereign',
-    name: 'Thunderous Sovereign',
-    tribe: 'dragon',
-    tier: 6,
-    attack: 8,
-    health: 8,
-    keywords: ['SC'],
-    // The improvement is PER-INSTANCE and non-retroactive: it counts only spells cast while THIS body has
-    // been on the board (`onSpellCastImproveSummon` ticks `summonBonus`), so a Sovereign bought late doesn't
-    // inherit the turn's history. `scBeastAura` spends that accrual as the Start-of-Combat grant — the same
-    // pairing Kennelmaster uses, tribe-swapped to Dragons.
-    effects: [
-      // Owner balance 2026-08-07: the per-cast improvement is +2/+2 (golden +4/+4 — `scBeastAura` applies the
-      // golden multiplier to the WHOLE grant, base and accrual alike, so the step doubles for free).
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 2, stepHealth: 2 } },
-      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
-    ],
-    // TWO "+N/+N" groups: the GRANT (slot 0, which `summonBuffText` rewrites live as the accrual builds) and
-    // the per-cast STEP (slot 1, static — the helper only ever replaces the first). The step is printed rather
-    // than left as a bare "Improves" so the card states the number it is actually paying, per the text rule.
-    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves by **+2/+2** with every Shop spell you cast.',
-    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves by **+4/+4** with every Shop spell you cast.',
-  },
-  {
-    // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
-    // snapshot taken at combat start (Vault Curator copies the left-most spell you took INTO the fight).
-    id: 'd2_curator',
-    name: 'Water Dragon',
-    tribe: 'dragon',
-    tier: 4,
-    attack: 4,
-    health: 6,
-    keywords: [],
-    // Owner balance 2026-08-04: back to the Vault-Curator copy shape (the factory survived), at Avenge (3) —
-    // it copies the LEFT-MOST spell in the hand snapshot taken at combat start; no spell held = clean no-op.
-    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 3 } }],
-    text: '**Avenge (3):** get a copy of the **left-most Spell** in your hand.',
-    goldenText: '**Avenge (3):** get **2** copies of the **left-most Spell** in your hand.',
-  },
-  {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
     // NEXT turn's opening spell — so it pays off after the fight rather than before, unlike the recall line.
     id: 'd2_scalefeather',
     name: 'Mushy',
     tribe: 'dragon',
-    tier: 4,
+    tier: 5, // owner balance 2026-08-18: T4 → T5
     attack: 4,
     health: 6,
     keywords: [],
@@ -168,20 +112,6 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'minionSold', do: 'onMinionSoldCopyFirstOfTribe', params: { tribe: 'dragon', count: 1 } }],
     text: 'Get a **plain copy** of the first Dragon you sell each turn.',
     goldenText: 'Get **2 plain copies** of the first Dragon you sell each turn.',
-  },
-  {
-    id: 'd2_archivist',
-    name: 'Runic Archivist',
-    tribe: 'dragon',
-    tier: 5,
-    attack: 6,
-    health: 7,
-    keywords: [],
-    // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
-    // tally rides on the card (`soldProgress`) and carries round to round.
-    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 5 } }],
-    text: 'After you sell **5 minions**, get a **Shop spell**.',
-    goldenText: 'After you sell **5 minions**, get **2 Shop spells**.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
@@ -216,15 +146,17 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_scalechanter',
     name: 'Earthbreaker',
     tribe: 'dragon',
-    tier: 3,
+    tier: 4, // owner balance 2026-08-18: T3 → T4
     attack: 4,
     health: 3,
     keywords: [],
+    // Owner rework 2026-08-18: the buff is now Dragon-scoped and grants Health too (+2/+3), via the `tribe`
+    // filter on `spellCastBuffAll`.
     effects: [
-      { on: 'spellCast', do: 'spellCastBuffAll', params: { attack: 1, health: 0 } },
+      { on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dragon', attack: 2, health: 3 } },
     ],
-    text: 'Whenever you cast a **Shop spell**, give your minions **+1 Attack**.',
-    goldenText: 'Whenever you cast a **Shop spell**, give your minions **+2 Attack**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+3**.',
+    goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+6**.',
   },
   {
     // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
@@ -255,20 +187,6 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** get **2** copies of the last **Shop spell** you cast this turn.',
   },
   {
-    // The End-of-Turn half of the same idea — it pays out AFTER the turn's casting is done, so it rewards
-    // opening with your best spell rather than saving it.
-    id: 'd2_spellvault',
-    name: 'Spellvault Drake',
-    tribe: 'dragon',
-    tier: 5,
-    attack: 6,
-    health: 7,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyCastSpell', params: { which: 'first', count: 1 } }],
-    text: '**End of Turn:** get a copy of the first **Shop spell** you cast this turn.',
-    goldenText: '**End of Turn:** get **2** copies of the first **Shop spell** you cast this turn.',
-  },
-  {
     // A Shout that FETCHES another Shout — the tribe's engine piece for a Shout-heavy build. "Shout Dragon"
     // means a Dragon with an `onPlay`, which deliberately excludes payoff cards like Karwind that only WATCH
     // Shouts without having one (owner ruling 2026-07-25). Tier-capped by the shop like every other random get.
@@ -282,24 +200,6 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryGrantMinion', params: { cardId: 'd2_broodwhelp', count: 1 } }],
     text: '**Shout:** get a **Brood Whelp**.',
     goldenText: '**Shout:** get **2 Brood Whelps**.',
-  },
-  {
-    // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a
-    // Shout payoff that isn't a full Karwind. Same `battlecryTriggered` channel.
-    id: 'd2_matriarch',
-    name: 'Bathing Matriarch', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
-    tribe: 'dragon',
-    tier: 4,
-    attack: 4,
-    health: 5,
-    keywords: [],
-    // Owner rework 2026-08-07: the alternating Attack/Health mode is GONE — it now pays a flat +1/+1 on every
-    // Shout trigger, the same shape as Karwind one tier up. `onBattlecryBuffTribe` is Karwind's own factory.
-    effects: [
-      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 1 } },
-    ],
-    text: 'Whenever a **Shout** triggers, give your Dragons **+1/+1**.',
-    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+1/+1** twice.',
   },
   {
     // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus
@@ -351,9 +251,124 @@ export const SET2_DRAGONS: CardDef[] = [
     tier: 4,
     attack: 3,
     health: 4,
-    keywords: ['DS', 'SC'], // Ward + the Start-of-Combat pill
-    effects: [{ on: 'startOfCombat', do: 'scBuffTribe', params: { tribe: 'dragon', attack: 2, health: 3, excludeSelf: true } }],
-    text: '**Ward.** Adjacent **Dragons** are **Engraved**. **Start of Combat:** give your **other Dragons +2/+3**.',
-    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved** and gain **2× stats** in combat. **Start of Combat:** give your **other Dragons +4/+6**.',
+    // Owner rework 2026-08-18: the Start-of-Combat buff (and the `SC` pill) are GONE — it is now purely a warded
+    // Engrave anchor. The aura is a LIVE ADJACENCY read in `ctx.buff` (`nb.cardId === 'd2_transcendence'` in
+    // simulate.ts), independent of any effect or the `SC` keyword, so removing the effect leaves the Engrave intact.
+    keywords: ['DS'], // Ward
+    effects: [],
+    text: '**Ward.** Adjacent **Dragons** are **Engraved**.',
+    goldenText: '**Ward.** Adjacent **Dragons** are **Engraved** and gain **2× stats** in combat.',
+  },
+
+  // ── Owner add 2026-08-18: eight new Dragons (Shout-trigger + spell-cast lines) ────────────────────────────
+  {
+    // The Shout-tribe capstone on a Rally: every swing re-fires your OTHER Dragons' Shouts through the shared
+    // combat re-trigger (so every "after you trigger a Shout" watcher — Karwind, Bane, Embermouth — procs).
+    // Golden re-triggers each Shout twice.
+    id: 'd2_embercrest',
+    name: 'Embercrest',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 9,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyTriggerTribeShouts', params: { tribe: 'dragon' } }],
+    text: '**Rally:** trigger your **Dragon** Shouts.',
+    goldenText: '**Rally:** trigger your **Dragon** Shouts **twice**.',
+  },
+  {
+    // A cheap early Shout that pushes the flight — includes itself (owner default for "your Dragons").
+    id: 'd2_broodfire',
+    name: 'Broodfire',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
+    text: '**Shout:** give your **Dragons +2/+2**.',
+    goldenText: '**Shout:** give your **Dragons +4/+4**.',
+  },
+  {
+    // Tier-1 Rally tempo: grows itself every swing. Golden doubles the step.
+    id: 'd2_cinderchef',
+    name: 'Cinderchef',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyBuffSelf', params: { attack: 1, health: 1 } }],
+    text: '**Rally:** gain **+1/+1**.',
+    goldenText: '**Rally:** gain **+2/+2**.',
+  },
+  {
+    // A Shout-fetcher on a Rally: each swing hands you a random SHOUT minion (a minion with a real Shout),
+    // tier-capped by the pool. Golden gets two.
+    id: 'd2_roarcollector',
+    name: 'Roarcollector',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGrantRandomShoutMinion', params: {} }],
+    text: '**Rally:** get a random **Shout** minion.',
+    goldenText: '**Rally:** get **2** random **Shout** minions.',
+  },
+  {
+    // Casts a REAL Dragonflame on each swing (in-combat, fires spell watchers). Golden casts it twice. Names
+    // the spell and lets its hover-preview show the live value (sanctioned exception, owner ruling 2026-07-15).
+    id: 'd2_flamebeat',
+    name: 'Flamebeat Drake',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 6,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyCastNamedSpell', params: { spellId: 'sp_dragonflame' } }],
+    text: '**Rally:** cast **Dragonflame**.',
+    goldenText: '**Rally:** cast **Dragonflame** twice.',
+  },
+  {
+    // Turns a sale into a spell for the recursion line. Uses the same random-spell grant as Scalefeather, on the
+    // self-sell trigger. Golden gets two.
+    id: 'd2_riverdrake',
+    name: 'River Drake',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
+    text: 'When you **sell** this, get a **random Spell**.',
+    goldenText: 'When you **sell** this, get **2 random Spells**.',
+  },
+  {
+    // A board-wide Dragonflame engine: every Dragon's swing (its own included) casts Dragonflame. Golden casts
+    // twice per attack.
+    id: 'd2_warflame',
+    name: 'Warflame',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onTribeAttackCastNamedSpell', params: { tribe: 'dragon', spellId: 'sp_dragonflame' } }],
+    text: 'When a friendly **Dragon** attacks, cast **Dragonflame**.',
+    goldenText: 'When a friendly **Dragon** attacks, cast **Dragonflame** twice.',
+  },
+  {
+    // Seeds the Flutter combo — hand a Flutter to pump a Dragon into a Flurry threat. Golden gets two.
+    id: 'd2_flutterdrake',
+    name: 'Flutterdrake',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'sp_flutter', count: 1 } }],
+    text: '**Shout:** get a **Flutter**.',
+    goldenText: '**Shout:** get **2 Flutters**.',
   },
 ];

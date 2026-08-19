@@ -97,6 +97,8 @@ describe('card sets — set 2 carries set 1 spells', () => {
       'sp_blessing', 'sp_beefy', 'sp_gamble',
       // Tranche 2 (2026-08-15): the five next-combat spells.
       'sp_partingcry', 'sp_solidground', 'sp_closedcasket', 'sp_stoleninitiative', 'sp_containmentrune',
+      // Owner add 2026-08-18: the two Dragon spells.
+      'sp_dragonflame', 'sp_flutter',
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });
@@ -123,7 +125,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     // stats" decision, since a later edit here would silently rebalance set 1.
     const spec = (id: string): string => { const c = CARD_INDEX[id]!; return `T${c.tier} ${c.attack}/${c.health}`; };
     expect(spec('buddy')).toBe('T2 2/1'); // owner balance 2026-08-18
-    expect(spec('nimbus')).toBe('T5 4/3');
+    expect(spec('nimbus')).toBe('T6 4/3'); // owner balance 2026-08-18: T5 → T6
     expect(spec('ropewrangler')).toBe('T4 6/5'); // owner balance 2026-08-18
     expect(spec('yazzus')).toBe('T7 5/7'); // owner move 2026-07-31 — the tier half of the sheet's "T7 9/9"
     expect(spec('lazarus')).toBe('T4 5/4');

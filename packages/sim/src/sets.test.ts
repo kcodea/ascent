@@ -107,7 +107,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     // Owner roster 2026-07-25, opted in UNCHANGED (owner decision): the table listed different tier/stats for
     // seven of them, but these are shared definitions and re-speccing would have rebalanced set 1 too.
     const ROSTER = [
-      'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+      'buddy', 'venom', 'arenaheckler', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
       'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',
     ];
@@ -151,7 +151,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     const OPTED_IN = new Set([
       'karwind',
       'seaurchin', 'manasaber', 'kennel', 'beetle', 'grim', // grim opted in 2026-08-12
-      'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+      'buddy', 'venom', 'arenaheckler', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
       'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',
       'impoverseer', // the one set-1 DEMON opted in (owner 2026-07-27) — it fits set 2's Imp line

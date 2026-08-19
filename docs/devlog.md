@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 tuning: Hoardflame spell-power scaling, Fel Spikes gilded, Blaster archive (PR C cont.)
+
+Added to the same PR (#1097).
+
+**Hoardflame:** the per-Dragon term is now **+2/+1** (was +1/+1) and, reversing the 2026-07-26 once-only ruling,
+**spell power now folds into the per-Dragon increment too** — each Dragon adds (2+spellAtk)/(1+spellHealth). The
+base still takes spell power once (so 0 Dragons = base + spell power, e.g. +4/+4 → +5/+4 at +1/+0). `spellBuffPerDragonPlayed`
+gained `perAttack`/`perHealth`, and `spellDisplayText` now greens BOTH the base total and the live per-Dragon rate.
+
+**Fel Spikes:** gilded now fires the spray **twice as separate triggers** ("deal 4 damage … twice") instead of one
+double-damage pass — so each pass shows independently (like an Echo multiplier firing the Deathrattle again) and
+procs the demon-damage reactors on its own. `deathrattleDamageAllExceptTribe` loops `mul(self)` full passes.
+
+**Archived Blaster** (`blaster`, set-1 neutral carried into set 2) → `ARCHIVED_CARDS`; removed from the set-2
+neutral carry list. Made the Crypt Broker test seed-agnostic (it had pinned on conjuring Blaster).
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage for the Fel Spikes gilded-twice pass and
+updated Hoardflame value/text tests.
+
 ## 2026-08-18 — Set 2 tuning: Rope Wrangler multicast, Beardsley escalation, Vaultkeeper text + Dragonflame badge (PR C cont.)
 
 Added to the same PR (#1097).

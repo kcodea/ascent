@@ -512,15 +512,15 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
     expect(idol.buffs?.map((b) => b.source)).toEqual(['Ruby']);
   });
 
-  it('Hoardflame: +4/+4 plus +1/+1 per Dragon played this turn', () => {
+  it('Hoardflame: +4/+4 plus +2/+1 per Dragon played this turn', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 1, 1)], hand: [mkSpell('sp', 'hoardflame')], playedThisTurn: ['emissary', 'cinder'] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
     const m = s.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1
+    expect([m.attack, m.health]).toEqual([1 + 8, 1 + 6]); // +4/+4 base + 2 dragons × +2/+1 = +8/+6
   });
 
   it('Hoardflame live text folds in dragons played this turn', () => {
-    expect(spellDisplayText('hoardflame', 0, 0, 0, 0, 0, 0, { playedThisTurn: ['emissary', 'cinder'] })).toContain('{{+6/+6}}');
+    expect(spellDisplayText('hoardflame', 0, 0, 0, 0, 0, 0, { playedThisTurn: ['emissary', 'cinder'] })).toContain('{{+8/+6}}');
     expect(spellDisplayText('hoardflame', 0)).toBe(CARD_INDEX['hoardflame']!.text); // no dragons → base
   });
 });

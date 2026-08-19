@@ -209,18 +209,6 @@ export const NEUTRAL: CardDef[] = [
     text: '',
   },
   {
-    id: 'blaster',
-    name: 'Blaster',
-    tribe: 'neutral',
-    tier: 4,
-    attack: 5,
-    health: 3,
-    keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
-    text: '**Deathrattle:** deal **3** damage to ALL minions.',
-    goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
-  },
-  {
     // Anti-defensive tech — its attacks disarm what they hit: the struck enemy loses Taunt (so your board can
     // pick past it next swing) and Rise (so a lethal blow keeps it dead). Ward walls one hit; Flurry means it
     // disarms TWO enemies a turn. The strip resolves in combat via `onAttackStripKeywords` (core), which fires

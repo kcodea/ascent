@@ -12,6 +12,19 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set1/neutral.ts — belonged to set 1 (+ carried into set 2).
+    id: 'blaster',
+    name: 'Blaster',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
+    text: '**Deathrattle:** deal **3** damage to ALL minions.',
+    goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
+  },
   // ── 2026-08-12 owner archive batch ─────────────────────────────────────────────────────────────────────
   {
     // ARCHIVED 2026-08-12 (owner). Moved verbatim from set2/demons.ts — belongs to no set now.

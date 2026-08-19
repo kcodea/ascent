@@ -296,7 +296,7 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleDamageAllExceptTribe', params: { amount: 4, exceptTribe: 'demon' } }],
     text: '**Taunt.** **Echo:** deal **4 damage** to all minions except friendly **Demons**.',
-    goldenText: '**Taunt.** **Echo:** deal **8 damage** to all minions except friendly **Demons**.',
+    goldenText: '**Taunt.** **Echo:** deal **4 damage** to all minions except friendly **Demons**, **twice**.',
   },
   {
     // Set 2 — Axeman (owner add 2026-08-18): the mid-tier demon-damage body. Golden doubles.

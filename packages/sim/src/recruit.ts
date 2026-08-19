@@ -4941,13 +4941,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    // Spell power applies ONCE to the grant, exactly like every other stat-granting spell (`spellBuffTarget`).
-    // It was missing entirely (owner report 2026-07-26): a Spellbinder's +0/+1 did nothing here, and the
-    // printed text matched the broken behaviour. Deliberately not multiplied by the Dragon count — no other
-    // spell scales spell power by anything, and doing so here would make Hoardflame silently the best
-    // spell-power payoff in the game.
-    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + per * dragons;
-    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + per * dragons;
+    // Owner 2026-08-18: spell power now scales the PER-DRAGON increment as well (reversing the once-only
+    // 2026-07-26 ruling), and the per-Dragon rate is asymmetric (`perAttack`/`perHealth`, default `per`). The
+    // base still takes spell power once, so with 0 Dragons the grant is base + spell power (e.g. 4/4 + 1/0 = 5/4).
+    void per;
+    const perA = num(params.perAttack, num(params.per, 1)) + spellAttackBonus(ctx.state);
+    const perH = num(params.perHealth, num(params.per, 1)) + spellHealthBonus(ctx.state);
+    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + perA * dragons;
+    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + perH * dragons;
     addBuff(self, str(params._source) || 'Hoardflame', a, h);
   },
 
@@ -6063,13 +6064,22 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
   if (def.id === 'hoardflame') {
+    const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
+    const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number; per?: number } | undefined;
+    const baseA = Number(p?.attack ?? 4), baseH = Number(p?.health ?? 4);
+    const perAttack = Number(p?.perAttack ?? p?.per ?? 1), perHealth = Number(p?.perHealth ?? p?.per ?? 1);
     const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    const a = 4 + bonusA + dragons;
-    const h = 4 + bonusH + dragons;
-    return a > 4 || h > 4 ? def.text.replace('+4/+4', `{{+${a}/+${h}}}`) : def.text;
+    // Spell power folds into BOTH the base and the per-Dragon rate (owner 2026-08-18). Green the base total AND
+    // the live per-Dragon rate so the card always states what it will grant right now.
+    const perA = perAttack + bonusA, perH = perHealth + bonusH;
+    const a = baseA + bonusA + perA * dragons, h = baseH + bonusH + perH * dragons;
+    let t = def.text;
+    if (a > baseA || h > baseH) t = t.replace(`+${baseA}/+${baseH}`, `{{+${a}/+${h}}}`);
+    if (bonusA > 0 || bonusH > 0) t = t.replace(`+${perAttack}/+${perHealth}`, `{{+${perA}/+${perH}}}`);
+    return t;
   }
   // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
   // the same value the cast actually grants (see the gainEmbers override above). Handled before the

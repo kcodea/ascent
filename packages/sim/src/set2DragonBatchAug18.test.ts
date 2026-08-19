@@ -48,6 +48,20 @@ describe('set 2 — Fel Spikes echo attributes damage to a friendly Demon (the s
     expect(oneWall.every((b) => b.attack === 3 && b.health === 3), 'each Axeman proc is +3/+3').toBe(true);
     expect(twoWalls.length, 'an extra friendly non-Demon target adds a proc').toBeGreaterThan(oneWall.length);
   });
+
+  it('gilded fires the spray TWICE as separate triggers (4 damage twice, not 8 once)', () => {
+    // A 0-attack Fel Spikes (so the only 4-damage the enemy takes is the echo) dies to a big enemy; count the
+    // 4-damage echo hits on the enemy wall. Plain → one pass; gilded → two independent passes.
+    const echoHits = (golden: boolean): number => {
+      const fs: BoardMinion = { cardId: 'dm_felspikes', attack: 0, health: 1, sourceUid: 'FS', keywords: ['T'], golden };
+      const r = simulate([fs], [bm('sandbag', 'W', 10, 40000)],
+        makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
+      return r.events.filter((e) => e.type === 'dmg' && (e as { target: string }).target === 'm1'
+        && (e as { amount: number }).amount === 4).length;
+    };
+    expect(echoHits(false), 'plain: one 4-damage pass').toBe(1);
+    expect(echoHits(true), 'gilded: two separate 4-damage passes (not one 8)').toBe(2);
+  });
 });
 
 // ── Dragonflame (sp_dragonflame): 1 + (#Dragons) buffs of +4/+4 ──────────────────────────────────────────────

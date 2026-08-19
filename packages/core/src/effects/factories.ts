@@ -3655,19 +3655,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Fel Spikes (Echo): deal `amount` to EVERY minion on BOTH sides EXCEPT friendly minions of
    *  `exceptTribe` (Demons). The exclusion is FRIENDLY-only — an ENEMY Demon is still hit — which is why this
-   *  can't route through the tribe-agnostic `deathrattleDamageAll`. Golden doubles the damage. */
+   *  can't route through the tribe-agnostic `deathrattleDamageAll`.
+   *
+   *  Golden fires the whole spray `mul(self)` times as SEPARATE triggers (owner 2026-08-18: "deal 4 twice", not
+   *  "deal 8 once") — so each pass shows independently and procs the demon-damage reactors on its own, exactly
+   *  like an Echo multiplier (Sylus) firing the Deathrattle again. */
   deathrattleDamageAllExceptTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const amount = num(params.amount, 1) * mul(self);
+    const amount = num(params.amount, 1);
     if (amount <= 0) return;
     const exc = str(params.exceptTribe);
-    for (const sideKey of ['player', 'enemy'] as Side[]) {
-      for (const m of [...ctx.living(sideKey)]) {
-        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
-        // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
-        // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
-        // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
-        ctx.damage(m, amount, false, false, self);
+    for (let pass = 0; pass < mul(self); pass++) {
+      for (const sideKey of ['player', 'enemy'] as Side[]) {
+        for (const m of [...ctx.living(sideKey)]) {
+          if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+          // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
+          // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
+          // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
+          ctx.damage(m, amount, false, false, self);
+        }
       }
     }
   },

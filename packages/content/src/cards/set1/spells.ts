@@ -1007,8 +1007,8 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, per: 1 } }],
-    text: 'Give a minion **+4/+4**, plus **+1/+1** for each **Dragon** you played this turn.',
+    effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, perAttack: 2, perHealth: 1 } }],
+    text: 'Give a minion **+4/+4**, plus **+2/+1** for each **Dragon** you played this turn.',
   },
 
   // --- New spells (2026-07-23 batch, tranche C — Discover-based; set-agnostic). ---

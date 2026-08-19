@@ -20,6 +20,16 @@ both halves (shop-buff sc absorbed; an ordinary `+2 Spell Power` sc stays its ow
 
 Verified: choreo suite (406) + full test suite green; typecheck + lint + build green.
 
+Follow-up: the `+X/+Y Shop` NUMBER moved into the lunge (above), but the `shop-buff-aura` PIXI still played only
+later — over the shop row on return to recruit (the reducer's `tavernBuyBonus` diff → `shopBuffAllFxSeq` cue), a
+different surface entirely from the mid-combat telegraph. So there was no on-attack bloom. Fixed by firing the
+authored `shop-buff-aura` def from the same combat `sc`-telegraph block in `useCombatReplay.ts` that fires the
+number — one camera-anchored play per beat (deduped over several shop-buffers, anchored at the last buffer for
+any source/target layers). Because the `sc` is now absorbed into the wind-up, this runs at the attack beat's
+presentation, so the aura blooms in the lunge alongside the number + pulse. The shop-row confirmation on return
+still fires (different surface). Registered the new literal `playDef('shop-buff-aura', …)` in `directCalls.ts` +
+its golden.
+
 ## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
 
 The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it

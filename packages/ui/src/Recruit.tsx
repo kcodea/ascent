@@ -1652,6 +1652,15 @@ export function Recruit() {
     if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
 
+  // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
+  // a spectated fight has finished playing and it's safe to advance to the next frame. During playback the
+  // live `dispatch` is swallowed (the player owns state), so the combat→shop step can't ride the normal
+  // auto-settle path above — this is how the player learns.
+  const spectating = useGame((st) => st.replaying);
+  useEffect(() => {
+    if (spectating) useGame.setState({ combatReplayDone: replay.done });
+  }, [spectating, replay.done]);
+
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
   // snap. `resolveCombat` is deferred to the end of the fade-out so the swap happens under cover of opacity 0.

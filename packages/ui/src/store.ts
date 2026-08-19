@@ -190,6 +190,25 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
   if (countGolden(next) > countGolden(prev)) sfx.triple();
 }
 
+/** Live transport state of a running replay — read by the replay overlay + round rail, driven by
+ *  `replay/replayPlayer.ts` (Phase B of docs/replay-v2-handoff.md; the v1 shape with frame semantics). */
+export interface ReplaySession {
+  /** Index of the frame currently rendered (0 … total−1; snapped to `total` when `ended`). */
+  index: number;
+  /** Total frames in the replay (after `expandFrames`). */
+  total: number;
+  /** Playing vs paused. */
+  playing: boolean;
+  /** Playback speed multiplier (0.5–10×). */
+  speed: number;
+  /** The run round (`wave`) currently shown — for the progress label + the round rail's highlight. */
+  round: number;
+  /** WHOSE run this is — the spectated player's display name (StatusBar shows it in place of your own). */
+  authorName?: string;
+  /** Playback has reached the final frame — the transport bar reads "Final" and stops advancing. */
+  ended?: boolean;
+}
+
 interface GameStore {
   run: RunState;
   /** UI flag: Hero Power is armed and waiting for a target minion. */
@@ -281,6 +300,23 @@ interface GameStore {
   /** True when the live run was RESUMED from a save: its pre-reload frames are gone, so the v2 replay it
    *  uploads is marked `partial`. Cleared by every run-creation path. */
   replayPartial: boolean;
+  /** REPLAY VIEWER (Phase B — playback) — true while a recorded run is playing back. The `run` on the store is
+   *  a SYNTHETIC render target driven by `replay/replayPlayer.ts` (state replay: no reduce, no simulate), and
+   *  the dispatch/prepare/flushSave guards read this to keep live input + persistence fully inert. */
+  replaying: boolean;
+  /** Bridge from the combat arena's replay clock: true once the current fight's animation has finished, so the
+   *  replay player knows when it's safe to advance past a combat frame. Meaningless outside `replaying`. */
+  combatReplayDone: boolean;
+  /** The live transport state of the running replay (frame index / count, playing, speed, current round) —
+   *  read by the replay overlay + round rail; driven by `replay/replayPlayer.ts`. Null when not replaying. */
+  replaySession: ReplaySession | null;
+  /** The last FINISHED run's v2 state replay, stashed at run end so "Rewatch last game" has something to play. */
+  lastReplay: ReplayV2 | null;
+  /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
+   *  tree — every FX hook's `useRef(seq)` re-inits to the target frame's counters and a jump across 30 frames
+   *  can't fire 30 stale sequence-diff effects. Ordinary frame-to-frame stepping keeps its FX (a feature:
+   *  buys/welds visibly replay). 0 outside a replay. */
+  replaySeekEpoch: number;
   /** REPLAY VIEWER — per-action wall-clock deltas (ms since the previous recorded action), parallel to
    *  `replayActions`. UI metadata only (never fed to the sim), so a viewer can play back the real cadence. */
   /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
@@ -850,6 +886,25 @@ function commitResolvedAction(
         } else {
           set({ lastRating: null });
         }
+        // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
+        // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
+        // it back locally; the lobby telemetry upload below rides the same object.
+        const v2: ReplayV2 = {
+          version: 2,
+          seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
+          author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+          createdAtMs: Date.now(),
+          // A resumed run lost its pre-reload frames (frames aren't autosaved — see `replayFrames`).
+          ...(s.replayPartial ? { partial: true as const } : {}),
+          frames: replayFrames,
+          result: {
+            placement: lobbyPlacement ?? 0,
+            record: runRecord(next),
+            ...(change ? { ratingDelta: change.ratingDelta } : {}),
+            finalBoard,
+          },
+        };
+        set({ lastReplay: v2 });
         // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
         // a career follows the PLAYER instead of the browser.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
@@ -891,24 +946,9 @@ function commitResolvedAction(
             const derived = finishDerive(deriveState, next, {
               heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
             });
-            // REPLAY V2 (state replay): the recorded frames + the recorded outcome, riding INSIDE the same
-            // `replay` jsonb as the v1 action log (which balance re-derivation still reads — both stay).
-            // Viewers gate on `replay.v2?.version === 2`.
-            const v2: ReplayV2 = {
-              version: 2,
-              seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
-              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              createdAtMs: Date.now(),
-              // A resumed run lost its pre-reload frames (frames aren't autosaved — see `replayFrames`).
-              ...(s.replayPartial ? { partial: true as const } : {}),
-              frames: replayFrames,
-              result: {
-                placement: lobbyPlacement ?? 0,
-                record: runRecord(next),
-                ...(change ? { ratingDelta: change.ratingDelta } : {}),
-                finalBoard,
-              },
-            };
+            // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
+            // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
+            // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
             void uploadRunTelemetry(telemetry, {
               author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay: { ...replay, v2 },
             });
@@ -1024,6 +1064,9 @@ export const useGame = create<GameStore>((set, get) => ({
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
   flushSave: () => {
     const s = get();
+    // REPLAY VIEWER: while a replay runs, `s.run` is the SPECTATED run's synthetic render state — persisting
+    // it (tab hide, quit-to-title) would overwrite the player's real in-progress save with someone else's game.
+    if (s.replaying) return;
     if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
     if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
     writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog);
@@ -1102,6 +1145,11 @@ export const useGame = create<GameStore>((set, get) => ({
   // so its recording restarts at the resume point and its uploaded v2 is marked partial.
   replayFrames: BOOT_SAVE ? seedReplayFrames(BOOT_SAVE.run) : [], // no save → the dormant throwaway run, never uploaded
   replayPartial: BOOT_SAVE != null,
+  replaying: false,
+  combatReplayDone: false,
+  replaySession: null,
+  lastReplay: null,
+  replaySeekEpoch: 0,
   latestBatch: null,
   beatRevision: 0,
   latestCombatTimeline: null,
@@ -1114,6 +1162,11 @@ export const useGame = create<GameStore>((set, get) => ({
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) => {
+    // REPLAY VIEWER: while a recorded run is playing back, the replay player owns the store's `run` (a pure
+    // render target — state replay never reduces). Swallow every live dispatch here so nothing — the arena's
+    // auto-settle/end-combat effects, or a stray click — fires a side effect (upload / autosave / rating /
+    // telemetry) or fights the player. The combat ARENA still animates (it reacts to `run`, not to dispatch).
+    if (get().replaying) return;
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
     const prev = get().run;
@@ -1148,6 +1201,9 @@ export const useGame = create<GameStore>((set, get) => ({
    */
   preparePresentationAction: (action) => {
     const s = get();
+    // REPLAY VIEWER: End of Turn resolves through here (NOT dispatch), so it needs the same inertness guard —
+    // a viewer clicking the End Turn gem during playback must never resolve gameplay against the synthetic run.
+    if (s.replaying) return null;
     if (s.presentationTx) return s.presentationTx; // already prepared — never resolve twice
     const prepared = prepareActionWithPresentation(s.run, action);
     set({ presentationTx: prepared });
@@ -1161,6 +1217,7 @@ export const useGame = create<GameStore>((set, get) => ({
    */
   commitPresentationAction: () => {
     const s = get();
+    if (s.replaying) return; // REPLAY VIEWER: same guard as prepare — nothing commits against a synthetic run
     const tx = s.presentationTx;
     if (!tx) return;
     const prev = s.run; // the run BEFORE this commit — for the tutorial bus, same as `dispatch`

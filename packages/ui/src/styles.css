@@ -8104,17 +8104,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
 /* Round rail — the left-hand per-round index (click a row → seek to that round's shop opening). Styled to
    match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey).
-   The FIXED positioning lives on `.roundrail-wrap` so the metrics drawer can sit as an absolutely-positioned
-   SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll). */
-.roundrail-wrap { position: fixed; left: 14px; top: 50%; transform: translateY(-50%); z-index: 555; }
+   The FIXED positioning lives on `.roundrail-wrap` so the metrics dock can sit as an absolutely-positioned
+   SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll).
+   Position + size are owner-tunable via the 🎞 Replay Rail dev tuner — the `--rrl-*` vars; these fallbacks
+   MUST mirror the replayRailConfig DEFAULTS. */
+.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 14) * 1px); top: calc(50% + var(--rrl-y, 0) * 1px);
+  transform: translateY(-50%) scale(var(--rrl-s, 1)); transform-origin: left center; z-index: 555; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
-  font-family: var(--font-ui); }
+  font-family: var(--font-ui); position: relative; z-index: 1; }
 .roundrail-row { display: grid; grid-template-columns: 34px 16px auto; align-items: center; gap: 6px; padding: 4px 8px;
   border: none; border-radius: 7px; background: transparent; color: rgba(255, 255, 255, 0.78); font: inherit;
-  font-weight: 700; font-size: 12px; text-align: left; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.roundrail-row:hover, .roundrail-row.selected { background: rgba(255, 255, 255, 0.08); color: #fff; }
+  font-weight: 700; font-size: 12px; line-height: 16px; text-align: left; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.roundrail-row:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .roundrail-row.active { background: rgba(196, 160, 92, 0.2); color: #fff; box-shadow: inset 0 0 0 1px var(--acc); }
 .roundrail-num { letter-spacing: 0.03em; }
 .roundrail-verdict { font-weight: 800; text-align: center; }
@@ -8122,24 +8125,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-verdict.loss { color: #e88a7a; }
 .roundrail-verdict.draw { color: rgba(255, 255, 255, 0.55); }
 .roundrail-loss { font-size: 11px; color: #e88a7a; opacity: 0.85; }
-/* Metrics drawer (§7.4 of docs/replay-v2-handoff.md) — slides out of the rail to the RIGHT for the
-   hovered/pinned round: exactly three numbers (Gold spent / Actions / Shop tier at start). Same backing
-   plate as the rail. Absolutely positioned off the rail's right edge so opening it never shifts the rail
-   (and it can never cover the rows); the slide is a ONE-SHOT transform/opacity transition — compositor-only,
-   per the no-looping-paint-animation rule. */
-.rounddrawer { position: absolute; left: calc(100% + 10px); top: 50%; min-width: 180px; padding: 10px 12px;
-  border-radius: 10px; background: #14111c;
+/* Metrics DOCK (owner rework 2026-08-19 — replaced the per-round hover drawer): slides out of the rail to
+   the RIGHT and EXTENDS it, one row per round aligned with the rail's rows (same 24px row rhythm: 16px line
+   + 4px×2 padding, 3px gap), showing Gold spent / Actions / Shop tier at start for ALL rounds at once. The
+   tiny icon header hangs ABOVE the plate so data row 1 stays level with rail row R1. Absolutely positioned
+   off the rail's right edge (opening never shifts the rail); the slide is a ONE-SHOT transform/opacity
+   transition — compositor-only, per the no-looping-paint-animation rule. */
+.rounddock { position: absolute; left: calc(100% - 4px); top: 0; bottom: 0; width: var(--rrl-dock-w, 128px); overflow: hidden;
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 8px 14px;
+  border-radius: 0 10px 10px 0; background: #14111c;
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   font-family: var(--font-ui); white-space: nowrap;
-  transform: translateY(-50%) translateX(-10px); opacity: 0; pointer-events: none;
-  transition: transform 160ms ease-out, opacity 160ms ease-out; }
-.rounddrawer.open { transform: translateY(-50%) translateX(0); opacity: 1; pointer-events: auto; }
-.rounddrawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.rounddrawer-title { font-weight: 800; font-size: 13px; color: #fff; letter-spacing: 0.03em; }
-.rounddrawer-close { border: none; background: transparent; padding: 0 2px; font: inherit; font-weight: 800;
-  font-size: 14px; line-height: 1; color: rgba(255, 255, 255, 0.55);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.rounddrawer-close:hover { color: #fff; }
-.rounddrawer-line { display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
-  padding: 2px 0; font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.78); }
-.rounddrawer-val { color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
+  transform: translateX(-14px); opacity: 0; pointer-events: none;
+  transition: transform 180ms ease-out, opacity 180ms ease-out; }
+.rounddock.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.rounddock-head { position: absolute; top: -20px; left: 14px; right: 10px; display: grid;
+  grid-template-columns: repeat(3, 30px); gap: 8px; justify-items: center; font-size: 11px;
+  filter: saturate(0.4); opacity: 0.8; }
+.rounddock-row { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; align-items: center;
+  padding: 4px 0; border-radius: 7px; font-weight: 700; font-size: 12px; line-height: 16px;
+  color: rgba(255, 255, 255, 0.78); }
+.rounddock-row.active { background: rgba(196, 160, 92, 0.14); color: #fff; }
+.rounddock-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
+.rounddock-handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 16px; height: 44px; border: none; border-radius: 0 8px 8px 0; background: #14111c;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.7); font-weight: 800; font-size: 13px; line-height: 1;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: left 180ms ease-out; }
+.rounddock-handle.open { left: calc(100% - 4px + var(--rrl-dock-w, 128px)); border-radius: 0 8px 8px 0; }
+.rounddock-handle:hover { color: #fff; }

@@ -2,6 +2,24 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Third follow-up (same day): the metrics DOCK + the rail in the dev tuner.**
+
+- **The per-round hover drawer is gone; the metrics live in a DOCK** (owner rework: "a dock that slides
+  out/extends the rail to the right that houses the gold spent etc info for all rounds at once"). It extends
+  the rail as a second grid — one row per round, aligned to the rail's exact row rhythm so the two read as one
+  table — with three columns (🪙 Gold spent / ⚡ Actions / ⛰ Shop tier at start) and a chevron handle on the
+  edge that collapses/expands it (the handle travels with the dock edge). Open by default; slide is a one-shot
+  transform/opacity transition. The current playback round highlights in BOTH grids.
+- **The "Jump to round N" native tooltip is removed** (it was covering the metrics).
+- **🎞️ Replay Rail dev tuner** — Horizontal / Vertical / Size dials (whole assembly, rail + dock scale
+  together) plus Dock width, on the standard `--rrl-*` CSS-var + localStorage pattern (`replayRailConfig.ts`,
+  DEV-persisted, prod renders DEFAULTS; styles.css fallbacks mirror them).
+
+Live-verified: a captured run replayed with the dock open showing all 12 rounds' numbers; handle collapse/
+expand works and the handle tracks the dock edge (122→246 px); tooltip attribute gone from rail rows; the
+`--rrl-*` vars move (x 14→80) and scale (1→1.4×) the assembly live. Gates: typecheck ✅ lint 0 errors ✅ 5843
+tests / 362 files ✅ build:web ✅.
+
 **Second follow-up (same day): fully literal + hover-inspect + Career Watch + auto-close.**
 
 - **Zero idle condensing** (owner: "i dont want any idle gap condensing at all") — the 8 s idle cap from the

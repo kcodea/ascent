@@ -43,6 +43,7 @@ import { RefreshTuner } from './RefreshTuner';
 import { FreezeTuner } from './FreezeTuner';
 import { HeroFxTuner } from './HeroFxTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
+import { ReplayRailTuner } from './ReplayRailTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneSheenTuner } from './RuneSheenTuner';
@@ -117,6 +118,7 @@ const GROUPS: Group[] = [
       { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — each card, the art inside it, and the MODE title', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
+      { key: 'replayrail', icon: '🎞️', label: 'Replay Rail', C: ReplayRailTuner, hint: 'The replay round rail + metrics dock' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runesheen', icon: '💠', label: 'Rune Sheen', C: RuneSheenTuner, hint: 'The glossy overlay on the owned-rune nodes' },

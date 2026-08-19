@@ -262,6 +262,10 @@ interface GameStore {
   /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
   combatSpeed: number;
   setCombatSpeed: (speed: number) => void;
+  /** Auto-ramp: within a fight the replay eases up from the Speed slider (its starting speed) to a ceiling,
+   *  then back down for the finish. On by default. See combatRampConfig.ts. */
+  combatRampUp: boolean;
+  setCombatRampUp: (on: boolean) => void;
   /** PRACTICE-only shop-timer multiplier (1–4×), chosen from the dropdown beside the clock. 1× is the scored
    *  mode's clock exactly; 3× is the default (what practice was fixed at before). Persisted. */
   practiceTimer: number;
@@ -488,6 +492,13 @@ function loadCombatSpeed(): number {
     const v = Number(localStorage.getItem('ascent.combatspeed'));
     return v >= 0.5 && v <= 5 ? v : 1;
   } catch { return 1; }
+}
+
+/** Persisted auto-ramp toggle. Defaults to ON (true) on anything missing/malformed. Best-effort. */
+export function loadCombatRampUp(): boolean {
+  try {
+    return localStorage.getItem('ascent.combatrampup') !== 'false';
+  } catch { return true; }
 }
 
 // Save & continue (A3): the in-progress run is persisted to localStorage on every state change, so the
@@ -979,6 +990,11 @@ export const useGame = create<GameStore>((set, get) => ({
     const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
     try { localStorage.setItem('ascent.combatspeed', String(combatSpeed)); } catch { /* ignore */ }
     set({ combatSpeed });
+  },
+  combatRampUp: loadCombatRampUp(),
+  setCombatRampUp: (on) => {
+    try { localStorage.setItem('ascent.combatrampup', String(on)); } catch { /* ignore */ }
+    set({ combatRampUp: on });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
   latestBatch: null,

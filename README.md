@@ -44,6 +44,19 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Shop-buff-on-attack fires in the lunge** — a minion that buffs the Shop when it attacks (Demon Horse) now pops its `+X/+Y` number during the attack lunge, with the trigger pulse, instead of as a detached beat after the swing.
+
+- **The consuming minion swells + recoils** — the eater now grows as it draws the ghost in, then snaps back to true size with a little recoil bounce. Tunable (grow amount / length / recoil) in the 🍖 Consume tuner.
+
+- **Consume "gulp" sound** — consuming a shop minion now plays a sound. Several consumes on one beat play a single gulp, not a stack.
+- **Fixed the misplaced dark panel in the Compendium** — each card's dark description panel was floating ~184px above the card (its absolute anchor broke under the grid's in-flow text drawer). The drawer is now a proper positioning context, so the panel seats back onto the card as it does in the hand. Scoped to the Compendium; the live game is untouched. (Also reverts the earlier wrong attempt that hid the grounding shadow.)
+
+- **Shop consume FX + slot hold** — eating a shop minion no longer plays the old ghost-Fred swirl. The eaten minion's ghost now launches from its **own shop slot**, **shakes**, **taffy-stretches** toward the eater, and is **pulled in** as it collapses, synced to a Pixi `consume-pull` source→target def (smoke at the eater + three point-gravity burst rings sucked into it). One GSAP timeline conducts it (the config `durationMs` is the clock), with a `🍖 Consume FX` dev tuner (shake / stretch / pull / duration + a show-stats toggle). And the surviving shop offers now **hold their positions until the ghost is gone**, then slide to close the gap — not the instant the consume commits. It covers **every** shop eater for free — Bob Blart, Cinder Clerk, Godfodder, the Consume spell, the tavern auto-eat — because `playFodderEat` is the single choke point. (Combat consumption is out of scope; the real energy-bands look is an owner workshop follow-up.)
+
+- **Combat replay auto-ramps its speed** — long fights no longer drag: each combat holds at your Speed-slider setting for the opening, eases up to a ceiling through the middle, then eases back down so the finishing blows still read at normal speed. On by default, with a toggle under the Speed slider (and a dev Speed Ramp tuner). Presentation only — the engine and replays are unchanged.
+
+- **Ultrawide side margins blend into the board** — on a monitor wider than 16:9 the board's side margins fade to `#312361` (blending into the art edge) instead of showing the flat tan backdrop. A 🌫️ Board Edge dev tuner picks the colour and blend width live. Self-gating: no effect at 16:9 or narrower.
+
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
 

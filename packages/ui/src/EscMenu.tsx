@@ -24,6 +24,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // 2026-08-11). Live store value; the arena's beat clock + CSS read it.
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  const combatRampUp = useGame((s) => s.combatRampUp);
+  const setCombatRampUp = useGame((s) => s.setCombatRampUp);
   // Desktop only (see desktop.ts): the browser build has no shell to close. Two-tap confirm —
   // closing the app mid-run is the most destructive button in here.
   const [confirmQuit, setConfirmQuit] = useState(false);
@@ -75,7 +77,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         </div>
         <div className="escsec">Combat</div>
         <div className="escvol">
-          <span className="evl">Speed</span>
+          <span className="evl">{combatRampUp ? 'Start speed' : 'Speed'}</span>
           <input
             type="range"
             min={0.5}
@@ -87,6 +89,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           />
           <span className="evv">{combatSpeed.toFixed(1)}×</span>
         </div>
+        <button
+          className={`escbtn pressable${combatRampUp ? ' on' : ''}`}
+          onPointerDown={() => { setCombatRampUp(!combatRampUp); sfx.pulse(); }}
+          aria-pressed={combatRampUp}
+        >
+          <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
+          <span className="ebs">Long fights speed up, then ease back down for the finish</span>
+        </button>
         <div className="escsec">Run</div>
         {/* Back to the main menu — the run stays saved (Continue resumes it); it does NOT abandon the run. */}
         <button

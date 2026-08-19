@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-18 — Consume "gulp" SFX + final tuner defaults
+
+Also lands the owner's **final Consume FX tuner defaults** (a snappier eat): durationMs 530, shakePhase 0.76,
+shakeAmp 18.5, shakeFreq 60, stretch 0.2, thin 0.66, lag 0.52, pullDist 1.08, collapseStart 0.92, fadeStart 0,
+showStats true.
+
+
+A sound now plays when a shop minion (or Tavern Fodder) is consumed: the owner's `consume.mp3`, dropped at
+`packages/ui/src/audio/consume.mp3` (globbed + keyed `consume`, like every other top-level clip). New audio
+category `consume` (bus `ui`, gain 0.5 — tunable in the dev SFX desk); a `sfx.consume()` method plays the
+sourced clip with a low synth-gulp fallback until it decodes.
+
+**De-dup:** the owner wants several consumes on one beat (one eater devouring multiple fodder, or multiple
+eaters resolving together) to read as a SINGLE gulp. `playFodderEat` fires `sfx.consume()` once per consume
+action (not per ghost), and `sfx.consume` itself guards on a short cooldown (`CONSUME_SFX_COOLDOWN_MS` = 140ms)
+so any consumes within one beat/frame collapse to one play.
+
+Verified: typecheck + lint + build green; audio config tests pass (the config test iterates `CATEGORY_GAINS`,
+so the new category is covered). The auto-generated `sfx-manifest.md` was intentionally NOT regenerated here —
+it is stale for many already-shipped clips and a full regen belongs in its own pass, not this feature.
 ## 2026-08-18 — Fix: misplaced grounding shadow on Compendium cards
 
 The Compendium's plated cards showed a dark, blurred oval smudge sitting on top of each stone plate — a

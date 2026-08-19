@@ -13,7 +13,7 @@ export interface ConsumeFxConfig {
 }
 
 const DEFAULTS: ConsumeFxConfig = {
-  durationMs: 980, shakePhase: 0.6, shakeAmp: 18.5, shakeFreq: 19, stretch: 0.45, thin: 0.52, lag: 0.74,
+  durationMs: 530, shakePhase: 0.76, shakeAmp: 18.5, shakeFreq: 60, stretch: 0.2, thin: 0.66, lag: 0.52,
   pullDist: 1.08, collapseStart: 0.92, fadeStart: 0, showStats: true,
 };
 

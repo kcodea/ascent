@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #7 — 2026-08-19</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #7</h1>
+    <p>2026-08-19 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: 'packages/core/src/types.ts defines <code>type TriggerFamily = \'battlecry\' | \'deathrattle\' | \'rally\' | \'slaughter\' | \'endOfTurn\' | \'startOfCombat\'</code> — only those six exact strings are allowed. What is this kind of type called, and what does it buy you?',
+    choices: [
+      "A \"string literal union\" — TypeScript flags an error anywhere code tries to pass a string that isn't one of those six exact values",
+      "A \"generic\" — it lets the type reshape itself into whatever the caller passes at runtime",
+      "An \"interface\" — it describes an object with six required properties",
+      "It has no real effect at runtime or compile time — it's just documentation for humans"
+    ],
+    answer: 0,
+    explanation: "<strong>A is correct.</strong> A union of specific string values (a \"string literal union\") means TypeScript checks every place <code>TriggerFamily</code> is used and rejects a typo like <code>'batlecry'</code> at compile time, before it ever reaches a player. B is wrong — generics are about type <em>parameters</em> (like <code>Array&lt;T&gt;</code>), not a fixed menu of exact strings. C is wrong — an interface shapes an <em>object</em>, this shapes a single string value. D is wrong — this absolutely does affect compilation: TypeScript will refuse to build if an invalid string is used where a <code>TriggerFamily</code> is expected."
+  },
+  {
+    topic: "immutability",
+    question: "CLAUDE.md has two rules that sound like they contradict each other: \"don't deep-clone <code>lastCombat</code>, the reducer shares it by reference\" AND \"never mutate shared <code>CardDef</code>s — clone them into combat <code>Minion</code> instances.\" How are both consistent with immutability?",
+    choices: [
+      "They aren't really consistent — it's a deliberate exception made purely for speed, with no principle behind it",
+      "Sharing a reference is safe as long as nothing ever writes through it afterward (<code>lastCombat</code> is finished, read-only data once combat ends); cloning is only needed for things the code is actually about to write into, like a Minion's stats changing turn to turn",
+      "Both rules are really about performance, not correctness — mutating shared data is fine as long as you don't save the file to disk",
+      "\"Clone\" and \"share by reference\" are two names for the exact same JavaScript operation"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> The real rule isn't \"never share references\" — it's \"never mutate something someone else might still be reading.\" <code>lastCombat</code> is an already-finished result nobody writes into again, so sharing it by reference is free and safe. A <code>CardDef</code>, by contrast, is a live template that combat is about to change the stats of — so it MUST be cloned into a fresh <code>Minion</code> first, or every copy of that card in the game would drift. A is wrong: there's a consistent principle, not an arbitrary exception. C is wrong: mutation-in-memory absolutely causes real bugs, it's not just a disk-saving concern. D is wrong: cloning makes an independent copy; sharing a reference points at the exact same object — they behave very differently once one side tries to change something."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "packages/sim/src/reducer.ts defines functions that take the current <code>RunState</code> plus an <code>Action</code> (like \"buy this card\") and return a brand-new <code>RunState</code>, without touching the object they were handed. What is this style of function called, and why use it for run state?",
+    choices: [
+      "A \"reducer\" — the same (state, action) pair always produces the same result, and the old state object is never invalidated, which makes runs predictable, testable, and safe to replay or save mid-run",
+      "A \"constructor\" — its only job is filling in default values the first time a RunState is created",
+      "\"Middleware\" — it intercepts network requests before they reach the run state",
+      "A \"getter\" — it reads a piece of RunState without changing anything"
+    ],
+    answer: 0,
+    explanation: "<strong>A is correct.</strong> This input-in, new-output-out shape (state + action → new state) is the classic \"reducer\" pattern. Because it never mutates its input, you can keep the old <code>RunState</code> around safely (for a replay, an undo, or a saved run) while also having the new one — and because it's deterministic, tests can assert exact outputs. B is wrong — reducers run on every action throughout the whole run, not just once at creation. C is wrong — this has nothing to do with networking. D is wrong — a getter only reads; a reducer actually computes and returns a changed state."
+  },
+  {
+    topic: "zustand-store",
+    question: "packages/ui/src/store.ts (the Zustand store) imports functions like <code>reduce</code>, <code>serialize</code>, and <code>deserialize</code> straight from <code>@game/sim</code> instead of recomputing run logic itself. What does that tell you about the UI's job?",
+    choices: [
+      "The UI store calls the sim's own pure functions to get results, then just holds and displays those results — it doesn't duplicate or reimplement any game logic of its own",
+      "Importing <code>reduce()</code> means Zustand code actually executes inside the <code>@game/sim</code> package rather than in the UI",
+      "The UI store replaces the sim's reducer whenever speed matters, and syncs the two back together afterward",
+      "It's an unused import left over from an earlier version — Zustand stores are always fully self-contained"
+    ],
+    answer: 0,
+    explanation: "<strong>A is correct.</strong> This is the sim/UI split from CLAUDE.md in action: the UI never computes outcomes itself — it hands an action to the sim's <code>reduce()</code>, gets back the new state, and stores that in Zustand purely for rendering. B is wrong — imports don't move where code executes; <code>store.ts</code> is still UI-package code that merely calls a function defined elsewhere. C is wrong — there's exactly one reducer; a second UI-side one would let the two disagree, which is precisely what the architecture avoids. D is wrong — go check the file, it's a live, load-bearing import."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/events.ts's <code>CombatBus.emit()</code> does <code>for (const handler of [...list]) handler(payload)</code> — copying the handler array — instead of just looping over the original list directly. Why copy it first?",
+    choices: [
+      "Copying is required because JavaScript Maps can't be iterated at all without first converting their values to an array",
+      "A handler that runs during the loop might register a brand-new handler for that same event (e.g. a minion just summoned by a Deathrattle) — iterating the live array while it's being modified could skip or double-count entries; the copy freezes the list for just this emit",
+      "It's purely a micro-optimization — copying an array is always faster than iterating it in place",
+      "It stops two separate combats from ever sharing the same CombatBus instance"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct</strong> — and the code comment says as much: \"handlers may register new handlers (summoned minions).\" If a handler mutates the array you're actively looping over, you can get unpredictable results (skipped or repeated calls). Snapshotting the list first means this emit only fires the handlers that existed when it started. A is wrong — <code>Map.get()</code> already returns a real array here, no conversion is needed to iterate it. C is wrong — copying isn't free, it's a deliberate safety tradeoff, not a speed trick. D is wrong — that's about combat isolation generally, unrelated to why this one loop copies its list."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/content/src/sets.ts builds Set 3's shared spell list by looking up each spell id in Set 1/Set 2's spell arrays, and does <code>if (!def) throw new Error(...)</code> immediately if an id isn't found. Why throw here instead of just quietly skipping a missing spell?",
+    choices: [
+      "Throwing turns a broken reference — say, someone renames a spell's id elsewhere in the codebase — into an immediate, obvious crash at load time, instead of a spell silently vanishing from the pool with nobody noticing until a player reports something feels off",
+      "JavaScript's <code>.find()</code> method always throws automatically when nothing matches, so this is unavoidable",
+      "It's a security check that stops players from adding unauthorized cards to their own runs",
+      "Throwing an Error here makes the lookup run measurably faster than returning undefined would"
+    ],
+    answer: 0,
+    explanation: "<strong>A is correct</strong> — this is the \"fail fast\" principle: a loud, immediate crash during development (or even in CI) is far cheaper to diagnose than a quiet, missing spell that only someone playtesting Set 3 would notice weeks later. The code comment even says a rename elsewhere should \"break loudly here.\" B is wrong — <code>.find()</code> just returns <code>undefined</code> on no match; the throw is written by hand in this file. C is wrong — this runs at content-load time, before any player is involved, it isn't an anti-cheat check. D is wrong — throwing isn't a performance feature, it's purely about surfacing bugs early."
+  },
+  {
+    topic: "package-boundaries",
+    question: "Every package (@game/core, @game/content, @game/sim, @game/ui) declares <code>\"exports\": { \".\": \"./src/index.ts\" }</code> in its package.json. If UI code wrote <code>import { reduce } from '@game/sim/src/reducer'</code> instead of <code>import { reduce } from '@game/sim'</code>, what would be wrong with that?",
+    choices: [
+      "Nothing — both import paths resolve to identical code, so it makes no difference which one you use",
+      "It reaches past the package's declared public entrypoint (<code>index.ts</code>) straight into an internal file — bypassing the boundary CLAUDE.md requires, since <code>reducer.ts</code> was never meant to be a stable public API and could be renamed or restructured at any time",
+      "It's invalid only because <code>.ts</code> files can never be imported directly, only compiled <code>.js</code> files can",
+      "It would automatically create a circular dependency between @game/sim and @game/ui"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> The <code>exports</code> field is exactly what enforces \"depend on packages through their public entrypoint only\" — importing an internal path sidesteps that contract, so a later refactor inside <code>@game/sim</code> (splitting or renaming <code>reducer.ts</code>) could silently break UI code that reached past the front door. A is wrong — the boundary is precisely the point; reaching around <code>index.ts</code> is what CLAUDE.md calls \"the boundary leaked.\" C is wrong — this monorepo imports <code>.ts</code> sources directly all the time via Vite; that's not the issue here. D is wrong — a bad import path doesn't create a circular dependency by itself."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "packages/content/src/schema.ts has <code>EffectFactoryIdSchema</code> — a zod enum whitelisting every valid effect id, like <code>'deathrattleSummon'</code> and <code>'onKillBuffSelf'</code>. If a new card's data accidentally has <code>do: 'deathrattlSummon'</code> (typo), what happens?",
+    choices: [
+      "Nothing — zod only checks that the value is a string, it doesn't check which specific strings are allowed",
+      "Zod validation fails as soon as the card data loads, because the typo'd string isn't one of the whitelisted enum values — catching the mistake immediately instead of the card silently doing nothing the first time a player draws it in a real game",
+      "TypeScript automatically corrects the typo to the nearest valid effect id at compile time",
+      "The card quietly gets dropped from the pool with no error and no card ever appears with that id"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> A zod <code>enum</code> validates the actual runtime <em>value</em>, not just its type — so a misspelled effect id fails validation right when content loads (ideally caught by a test or CI), long before any player ever sees the card. A is wrong — that's the whole point of using an enum instead of a plain <code>z.string()</code>. C is wrong — TypeScript doesn't auto-fix typos, it can only flag them (and only for statically-typed code, not runtime JSON-like data). D is wrong — an invalid id causes a validation error, not a silent skip; the goal is to make the mistake loud, not invisible."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "CLAUDE.md says Battlecry / buff-on-summon effects \"bake into stats before combat,\" while Deathrattle and Start-of-Combat effects run <em>inside</em> the combat simulator. Why can't Battlecry just be handled as \"another combat-time effect\" too?",
+    choices: [
+      "Because <code>simulate()</code> is a pure function that takes the board's stats as its input and fights from there — it has no idea what happened during recruiting (a card being bought, played from hand, etc.), so anything that should change a minion's stats before the fight starts has to already be reflected in the numbers handed to <code>simulate()</code>",
+      "Because Battlecry effects are too computationally complex for the combat simulator to execute",
+      "There's no real difference between the two timings — it's just an arbitrary naming choice in the code",
+      "Combat-time effects and recruit-phase effects are written in two different programming languages"
+    ],
+    answer: 0,
+    explanation: "<strong>A is correct.</strong> <code>simulate(playerSide, enemySide, rng, cards)</code> only ever sees final board state — it has no concept of \"a card was just bought\" or \"this minion was just played,\" because those are recruit-phase actions that happen outside combat entirely. So a Battlecry's stat change has to be applied and locked in <em>before</em> the board is handed to <code>simulate()</code>. B is wrong — complexity isn't the reason; it's about what information is even available to the simulator. C is wrong — the distinction maps directly onto which phase of the game (shop vs. fight) an effect belongs to. D is wrong — it's all TypeScript; the split is architectural, not linguistic."
+  },
+  {
+    topic: "testing-vitest",
+    question: "packages/ui/src/fx/poolDeterminism.test.ts checks that a particle effect looks byte-identical whether it's spawned on a recycled object or a brand-new one — by actually running both and diffing the real output, rather than just reading the pooling code and reasoning about whether it looks correct. What kind of bug is this style of test especially good at catching?",
+    choices: [
+      "Typos in variable names — something a linter would already catch just as well",
+      "Leftover state on a <em>recycled</em> object quietly leaking into the next thing that reuses it — a bug that's easy to miss just by reading the code, because it only shows up in the actual values a real run produces, not in the code's structure",
+      "Bugs inside TypeScript's own type-checking engine",
+      "Whether the project compiles without errors"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct</strong> — the file's own comment explains this directly: pooling is only safe if a recycled instance is \"indistinguishable from a fresh one,\" and the failure mode is \"state that survives on the object and only perturbs the second tenant.\" That kind of bug can look completely fine in the source code and only reveal itself in the actual numbers a run produces — which is exactly why the test diffs real output instead of reasoning about the code. A is wrong — a linter catches syntax/naming issues, not runtime state leaks. C and D are both unrelated to what this specific test is checking."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

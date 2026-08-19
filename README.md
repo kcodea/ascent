@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Shop-buff-on-attack fires in the lunge** — a minion that buffs the Shop when it attacks (Demon Horse) now pops its `+X/+Y` number during the attack lunge, with the trigger pulse, instead of as a detached beat after the swing.
+
 - **The consuming minion swells + recoils** — the eater now grows as it draws the ghost in, then snaps back to true size with a little recoil bounce. Tunable (grow amount / length / recoil) in the 🍖 Consume tuner.
 
 - **Consume "gulp" sound** — consuming a shop minion now plays a sound. Several consumes on one beat play a single gulp, not a stack.

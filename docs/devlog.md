@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-18 — Demon Horse's shop-buff fires during the lunge, not after the swing
+
+Owner report: Demon Horse (`dm_hungerling`, Rally: buff the Shop on attack) played its `+1/+2 Shop` number
+*after* its whole attack resolved, reading as a detached, post-swing event; it should land in the lunge, with
+the trigger pulse.
+
+Cause: the buff is a `gainTavernBuy` that emits a plain **`sc` narration** event (`+1/+2 Shop`) — not a
+combat `buff`, since its target is the Shop, not a unit. `sc` isn't in `absorbIntoWindup`
+(`choreo/compile.ts`), so the compiler left it as its own beat *after* the attack (which advances at contact),
+and the per-beat number + medallion pulse only fired there.
+
+Fix: a **predicate** absorb — a shop-buff flash (`sc`, non-cast, text `/ Shop$/`) is folded into the
+attacker's wind-up moment, exactly like the `buff`/`rally` on-attack flashes already are. So its number +
+trigger pulse now fire at the top of the wind-up = during the lunge, together with the pulse. Deliberately
+predicate-based (not adding `'sc'` to the type set) so ordinary and spell-cast `sc` events are untouched.
+Covers every shop-buff-on-attack minion, not just Demon Horse (same family). Added a compile test pinning
+both halves (shop-buff sc absorbed; an ordinary `+2 Spell Power` sc stays its own beat).
+
+Verified: choreo suite (406) + full test suite green; typecheck + lint + build green.
+
 ## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
 
 The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it

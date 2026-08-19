@@ -3070,6 +3070,28 @@ export function simulate(
         for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
       }
     }
+    if (rmods.runeStokedMenagerie) {
+      // Rune of the Stoked Menagerie: controlling EVERY active minion type doubles 3 random minions. "All 5"
+      // is read off the side's OWN active tribe list rather than a hardcoded 5, so a set with a different tribe
+      // count still asks for a full house (the same rule `uncontrolled` uses for the Menagerie payoffs).
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const onBoard = new Set<string>();
+      for (const m of living) {
+        const def = cards[m.cardId];
+        for (const t of [def?.tribe, def?.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+        // A universal-tribe body (Amalgam-likes) counts as every active type at once.
+        if (def?.universalTribe) for (const t of ctx.activeTribesFor(rside)) if (t !== 'neutral') onBoard.add(t);
+      }
+      const wanted = ctx.activeTribesFor(rside).filter((t) => t !== 'neutral');
+      if (wanted.length > 0 && wanted.every((t) => onBoard.has(t)) && living.length > 0) {
+        // Pick 3 WITHOUT replacement — "3 random minions" is three bodies, not three rolls that can collide.
+        const pool = living.slice();
+        const picked: typeof pool = [];
+        for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
+        nextStep(); fireTrigger('runeStokedMenagerie', rside);
+        for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+      }
+    }
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {

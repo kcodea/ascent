@@ -4607,6 +4607,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeGemstorm') s.questFlags.runeGemstorm = add(s.questFlags.runeGemstorm, r.amount ?? 2); // amount = Rubies per Kobold
       else if (r.flag === 'runeEngraving') s.questFlags.runeEngraving = true;
       else if (r.flag === 'runeUnderdog') s.questFlags.runeUnderdog = true;
+      else if (r.flag === 'runeStokedMenagerie') s.questFlags.runeStokedMenagerie = true;
       else if (r.flag === 'runeGemGolem') s.questFlags.runeGemGolem = true;
       else if (r.flag === 'runeChef') s.questFlags.runeChef = true;
       else if (r.flag === 'runeDragonscale') s.questFlags.runeDragonscale = add(s.questFlags.runeDragonscale, r.amount ?? 3);
@@ -5296,6 +5297,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeAftershocks: f?.runeAftershocks, // Rune of Aftershocks: Echo summons gain +4/+4
     runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
+    runeStokedMenagerie: f?.runeStokedMenagerie, // Rune of the Stoked Menagerie: SoC — all types → double 3 at random
     runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
     runeRuins: f?.runeRuins,                 // Rune of Ruins: a friendly Demon's landed hit buffs that board
     runeGolems: f?.runeGolems,               // Rune of the Golems (reserved — see the Gem Golem note in runes.ts)

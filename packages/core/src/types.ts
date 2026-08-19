@@ -1201,6 +1201,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeRuins' | 'runeGolems' | 'runeEngravingGems'
   | 'runeHerdingHorn' // every Rally triggered banks a free Shop refresh
   | 'runeDeathtouchedApple' // a minion that Rises gets Rise back (2 per combat)
+  | 'runeStokedMenagerie' // SoC: controlling every active type doubles 3 random minions
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
   | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
@@ -1545,6 +1546,8 @@ export interface QuestCombatMods {
   runeEngravingGems?: boolean;
   runeHerdingHorn?: boolean;
   runeDeathtouchedApple?: boolean;
+  /** Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions. */
+  runeStokedMenagerie?: boolean;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;

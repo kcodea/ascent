@@ -615,6 +615,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_twin_gilding:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_unbroken_vein:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_underdog:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_stoked_menagerie:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_undertow:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vanguard:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vault:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

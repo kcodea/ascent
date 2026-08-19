@@ -237,10 +237,10 @@ export const SET2_BEASTS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 5,
-    keywords: [],
+    keywords: ['DS'],
     effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 3, health: 3, improve: 3, every: 3 } }],
-    text: 'Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.',
-    goldenText: 'Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
+    text: '**Ward.** Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.',
+    goldenText: '**Ward.** Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
   },
   {
     // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets

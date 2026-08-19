@@ -2,6 +2,24 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Fourth wave (same PR): 10 keyword grants + 1 Epic rune.**
+
+Ward (`DS`) to Impossible Todd, Gem Portsmith, Karwind, Beardsley, Hellrider and Mountainbond; Taunt (`T`) to
+Kobe and Knocked; Critical Strike (`CR`) to Axeman, Warflame and Mountainbond. Every `CR` grant ships with an
+explicit `critChance: 0.5` — the pill alone is a badge that never rolls, since `simulate` gates the per-swing
+roll on the number, not the keyword. Each card's printed text now leads with the keyword it gained.
+
+**Rune of the Stoked Menagerie** (Epic, 5) — Start of Combat, if you control all 5 minion types, double the
+stats of 3 random minions. "All 5" reads the SIDE's own active tribe list rather than a hardcoded 5, so a set
+with a different tribe count still asks for a full house; a universal-tribe body counts as every type at once.
+The three are picked **without replacement** ("3 random minions" is three bodies, not three rolls that can
+collide) and each doubles its CURRENT stats, so the rune pays more the later the board is built.
+
+**Rune of the Warding Drakes was NOT built — it already exists.** `Rune of Dragonscale` (Epic, 4) is
+character-for-character the same card: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat",
+live in `EPIC_RUNES` with the allowance decremented on the GRANT rather than the attack. Flagged rather than
+shipped as a duplicate.
+
 **Third wave (same PR): 2 reworks, 5 Epic runes, 1 Shop Spell.**
 
 - **Rune of the Reliquary** → End of Turn, trigger your **2 left-most Echoes** (was one).

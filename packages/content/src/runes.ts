@@ -1770,6 +1770,17 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
+    // Owner add 2026-08-19. The Menagerie payoff as a rune: a full house of every active type, cashed once at
+    // Start of Combat. Three bodies picked WITHOUT replacement, each doubled at its CURRENT stats — so it pays
+    // more the later the board is built, and rewards holding a wide board rather than a single-tribe stack.
+    id: 'rune_stoked_menagerie',
+    name: 'Rune of the Stoked Menagerie',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** if you control all **5 minion types**, **double** the stats of **3 random minions**.',
+    reward: { kind: 'combatFlag', flag: 'runeStokedMenagerie' },
+  },
+  {
     id: 'rune_dragonscale',
     name: 'Rune of Dragonscale',
     cost: 4,

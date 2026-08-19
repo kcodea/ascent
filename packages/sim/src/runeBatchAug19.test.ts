@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
@@ -204,5 +205,79 @@ describe('rune batch 2026-08-19c — Reliquary / Blart / the five Epics', () => 
     // what `runeWiringAudit` catches. The Sticker fires when you PLAY a Demon, so it is recruit-side.
     expect(armed3('rune_deathtouched_apple').questFlags?.runeDeathtouchedApple).toBe(true);
     expect(armed3('rune_chipper_sticker').runeChipperSticker).toBe(true);
+  });
+});
+
+// ── WAVE 4 — 10 keyword grants + Rune of the Stoked Menagerie ────────────────────────────────────────────────
+describe('the 2026-08-19 keyword batch', () => {
+  // Ward is 'DS' and Critical Strike is 'CR'. A 'CR' pill with no `critChance` is a badge that never rolls, so
+  // the two must arrive together — that pairing is the real assertion here, not the pill itself.
+  const GRANTS: [string, string[]][] = [
+    ['k_kobe', ['T']], ['dm_knocked', ['T']], ['dm_chosenfiend', ['CR']], ['dm_todd', ['DS']],
+    ['dw_mountainbond', ['DS', 'CR']], ['k_portsmith', ['DS']], ['karwind', ['DS']],
+    ['d2_warflame', ['CR']], ['b2_beardsley', ['DS']], ['dm_maw', ['DS']],
+  ];
+
+  it.each(GRANTS)('%s wears its new keywords', (id, kws) => {
+    const def = CARD_INDEX[id]!;
+    for (const k of kws) expect(def.keywords, `${id} is missing ${k}`).toContain(k);
+  });
+
+  it('every Critical Strike grant carries a real per-swing chance', () => {
+    for (const [id] of GRANTS.filter(([, k]) => k.includes('CR'))) {
+      expect(CARD_INDEX[id]!.critChance, `${id} has the CR pill but never rolls`).toBeGreaterThan(0);
+    }
+  });
+
+  it('the printed text names each keyword it gained', () => {
+    for (const [id, kws] of GRANTS) {
+      const def = CARD_INDEX[id]!;
+      if (!def.text) continue; // a vanilla body's badges carry the meaning on their own
+      if (kws.includes('DS')) expect(def.text, `${id}`).toContain('Ward');
+      if (kws.includes('CR')) expect(def.text, `${id}`).toContain('Critical Strike');
+      if (kws.includes('T')) expect(def.text, `${id}`).toContain('Taunt');
+    }
+  });
+});
+
+describe('Rune of the Stoked Menagerie', () => {
+  const TRIBES = ['beast', 'undead', 'mech', 'dragon', 'demon'];
+  // One effect-free body per tribe, so the only `buff` events in the log are the rune's.
+  const TRIBE_BODY: Record<string, string> = {
+    beast: 'trailforager', undead: 'footman', mech: 'beatboxer', dragon: 'mauron', demon: 'godfodder',
+  };
+  const bm = (cardId: string, uid: string, attack: number, health: number): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords: [] });
+  // One body per active tribe, all identical 2/2s so a doubling is unmistakable, against a wall that cannot
+  // kill anything before Start of Combat resolves.
+  const fight = (tribes: string[], armed = true) => simulate(
+    tribes.map((t, i) => bm(TRIBE_BODY[t]!, `f${i}`, 2, 2)),
+    [{ cardId: 'sandbag', attack: 0, health: 40000 }],
+    makeRng(11), CARD_INDEX,
+    combatSide({ tier: 6, tribes: TRIBES, questMods: armed ? { runeStokedMenagerie: true } : {} }),
+    combatSide({ tier: 1 }),
+  );
+  const runeBuffs = (r: ReturnType<typeof fight>) =>
+    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Rune of the Stoked Menagerie') as
+      { target: string; attack: number; health: number }[];
+
+  it('a full house doubles exactly 3 bodies', () => {
+    const buffs = runeBuffs(fight(TRIBES));
+    const targets = new Set(buffs.map((b) => b.target));
+    expect(targets.size, 'three DISTINCT bodies — picked without replacement').toBe(3);
+    for (const b of buffs) expect([b.attack, b.health], 'each doubles its own 2/2').toEqual([2, 2]);
+  });
+
+  it('one type short pays nothing', () => {
+    expect(runeBuffs(fight(TRIBES.slice(0, 4))).length).toBe(0);
+  });
+
+  it('unarmed, a full house pays nothing either', () => {
+    expect(runeBuffs(fight(TRIBES, false)).length).toBe(0);
+  });
+
+  it('the rune is a live EPIC — membership, not the flag, is what the pool reads', () => {
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_stoked_menagerie'), 'must live in EPIC_RUNES').toBe(true);
+    expect(RUNES.some((r) => r.id === 'rune_stoked_menagerie'), 'and not in the basic pool').toBe(false);
   });
 });

@@ -353,10 +353,11 @@ export const SET2_DRAGONS: CardDef[] = [
     tier: 6,
     attack: 5,
     health: 8,
-    keywords: [],
+    keywords: ['CR'],
+    critChance: 0.5,
     effects: [{ on: 'onAttack', do: 'onTribeAttackCastNamedSpell', params: { tribe: 'dragon', spellId: 'sp_dragonflame' } }],
-    text: 'When a friendly **Dragon** attacks, cast **Dragonflame**.',
-    goldenText: 'When a friendly **Dragon** attacks, cast **Dragonflame** twice.',
+    text: '**Critical Strike (50%).** When a friendly **Dragon** attacks, cast **Dragonflame**.',
+    goldenText: '**Critical Strike (50%).** When a friendly **Dragon** attacks, cast **Dragonflame** twice.',
   },
   {
     // Owner add 2026-08-19. Dual-type Dragon/Demon: a spell-power engine — every shop turn opens with a Quick

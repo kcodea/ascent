@@ -276,13 +276,13 @@ export const SET2_KOBOLDS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 7,
-    keywords: [],
+    keywords: ['DS'],
     effects: [
       { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
       { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 1 } },
     ],
-    text: '**Avenge (3):** improve your Rubies **+1/+1** and get a random **Kobold**.',
-    goldenText: '**Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
+    text: '**Ward.** **Avenge (3):** improve your Rubies **+1/+1** and get a random **Kobold**.',
+    goldenText: '**Ward.** **Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
   },
   {
     // Start of Combat: play PERMANENT Rubies on this and its living same-tribe neighbours (carry back to the
@@ -293,10 +293,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 6,
-    keywords: ['SC'],
+    keywords: ['T', 'SC'],
     effects: [{ on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 2, permanent: true } }],
-    text: '**Start of Combat:** play **2 permanent Rubies** on this and adjacent **Kobolds**.',
-    goldenText: '**Start of Combat:** play **4 permanent Rubies** on this and adjacent **Kobolds**.',
+    text: '**Taunt.** **Start of Combat:** play **2 permanent Rubies** on this and adjacent **Kobolds**.',
+    goldenText: '**Taunt.** **Start of Combat:** play **4 permanent Rubies** on this and adjacent **Kobolds**.',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.

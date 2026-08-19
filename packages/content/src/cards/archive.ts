@@ -12,6 +12,34 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  {
+    // ARCHIVED 2026-08-19 (owner). Moved verbatim from set2/dwarves.ts.
+    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
+    // each rep re-rolling its target (owner ruling). Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.
+    id: 'dw_oaf',
+    name: 'Drunken Oaf',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 3, health: 3 } }],
+    text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
+    goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set1/neutral.ts — belonged to set 1 (+ carried into set 2).
+    id: 'blaster',
+    name: 'Blaster',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
+    text: '**Deathrattle:** deal **3** damage to ALL minions.',
+    goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
+  },
   // ── 2026-08-12 owner archive batch ─────────────────────────────────────────────────────────────────────
   {
     // ARCHIVED 2026-08-12 (owner). Moved verbatim from set2/demons.ts — belongs to no set now.
@@ -392,21 +420,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
     goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
   },
   {
-    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
-    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
-    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
-    id: 'k_frenzied',
-    name: 'Frenzied Excavator',
-    tribe: 'kobold',
-    tier: 4,
-    attack: 4,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
-  },
-  {
     // ARCHIVED 2026-08-18. Moved verbatim from set2/dwarves.ts (SET2_DWARVES). Name: Ayves.
     // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
     // "carries over through combat" true without extra wiring.
@@ -525,5 +538,128 @@ export const ARCHIVED_CARDS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengeSummonImps', params: { count: 4, summon: 1 } }],
     text: '**Avenge (4):** summon an **Imp** with **Taunt** and **Ward**.',
     goldenText: '**Avenge (4):** summon **2 Imps** with **Taunt** and **Ward**.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
+    // even when you have no other Dragon out. Permanent growth (owner ruling 2026-07-24).
+    id: 'd2_ashscribe',
+    name: 'Ashscribe',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffSelf', params: { attack: 2, health: 2 } }],
+    text: 'The first time you cast a **Shop spell** each turn, gain **+2/+2**.',
+    goldenText: 'The first time you cast a **Shop spell** each turn, gain **+4/+4**.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    // The tribe's combat headline: one Start of Combat that fires the whole board's Shouts. Pairs with
+    // Karwind (also a Dragon) — every trigger procs it, so the two together are the tribe's payoff turn.
+    id: 'd2_sovereign',
+    name: 'Thunderous Sovereign',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: ['SC'],
+    // The improvement is PER-INSTANCE and non-retroactive: it counts only spells cast while THIS body has
+    // been on the board (`onSpellCastImproveSummon` ticks `summonBonus`), so a Sovereign bought late doesn't
+    // inherit the turn's history. `scBeastAura` spends that accrual as the Start-of-Combat grant — the same
+    // pairing Kennelmaster uses, tribe-swapped to Dragons.
+    effects: [
+      // Owner balance 2026-08-07: the per-cast improvement is +2/+2 (golden +4/+4 — `scBeastAura` applies the
+      // golden multiplier to the WHOLE grant, base and accrual alike, so the step doubles for free).
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'dragon', attack: 1, health: 1, stepAttack: 2, stepHealth: 2 } },
+      { on: 'spellCast', do: 'onSpellCastImproveSummon', params: { step: 1 } },
+    ],
+    // TWO "+N/+N" groups: the GRANT (slot 0, which `summonBuffText` rewrites live as the accrual builds) and
+    // the per-cast STEP (slot 1, static — the helper only ever replaces the first). The step is printed rather
+    // than left as a bare "Improves" so the card states the number it is actually paying, per the text rule.
+    text: '**Start of Combat:** give your Dragons **+1/+1**. Improves by **+2/+2** with every Shop spell you cast.',
+    goldenText: '**Start of Combat:** give your Dragons **+2/+2**. Improves by **+4/+4** with every Shop spell you cast.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    // The combat spell-supply piece: dying allies feed you copies of your best held spell. Reads the hand
+    // snapshot taken at combat start (Vault Curator copies the left-most spell you took INTO the fight).
+    id: 'd2_curator',
+    name: 'Water Dragon',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    // Owner balance 2026-08-04: back to the Vault-Curator copy shape (the factory survived), at Avenge (3) —
+    // it copies the LEFT-MOST spell in the hand snapshot taken at combat start; no spell held = clean no-op.
+    effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 3 } }],
+    text: '**Avenge (3):** get a copy of the **left-most Spell** in your hand.',
+    goldenText: '**Avenge (3):** get **2** copies of the **left-most Spell** in your hand.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    id: 'd2_archivist',
+    name: 'Runic Archivist',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
+    // tally rides on the card (`soldProgress`) and carries round to round.
+    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 5 } }],
+    text: 'After you sell **5 minions**, get a **Shop spell**.',
+    goldenText: 'After you sell **5 minions**, get **2 Shop spells**.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    // The End-of-Turn half of the same idea — it pays out AFTER the turn's casting is done, so it rewards
+    // opening with your best spell rather than saving it.
+    id: 'd2_spellvault',
+    name: 'Spellvault Drake',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyCastSpell', params: { which: 'first', count: 1 } }],
+    text: '**End of Turn:** get a copy of the first **Shop spell** you cast this turn.',
+    goldenText: '**End of Turn:** get **2** copies of the first **Shop spell** you cast this turn.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).
+    // Set 1's Karwind pays on Battlecries; the Matriarch is the Attack-only Dragon version, so the tribe has a
+    // Shout payoff that isn't a full Karwind. Same `battlecryTriggered` channel.
+    id: 'd2_matriarch',
+    name: 'Bathing Matriarch', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    // Owner rework 2026-08-07: the alternating Attack/Health mode is GONE — it now pays a flat +1/+1 on every
+    // Shout trigger, the same shape as Karwind one tier up. `onBattlecryBuffTribe` is Karwind's own factory.
+    effects: [
+      { on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 1, health: 1 } },
+    ],
+    text: 'Whenever a **Shout** triggers, give your Dragons **+1/+1**.',
+    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+1/+1** twice.',
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Errand Fiend.
+    // Owner rework 2026-08-04: Echo → RALLY. (Owner 2026-08-11: Flurry removed — the Rally now fires once per
+    // attack rather than twice.)
+    id: 'dm_errand',
+    name: 'Errand Fiend',
+    tribe: 'demon',
+    tier: 2,
+    attack: 1,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallySummonImpBuffImps', params: { amount: 1 } }],
+    text: '**Rally:** summon an **Imp** and give your **Imps +1/+1**.',
+    goldenText: '**Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
   },
 ];

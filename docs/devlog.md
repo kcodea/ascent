@@ -1,5 +1,165 @@
 # ASCENT — development log
 
+## 2026-08-19 — Set 2: Fel Conjurer + Dwarven Sharpshooter, Oaf archive, Hoardflame tune (PR C cont.)
+
+Added to the same PR (#1097).
+
+**New minions (2):** **Fel Conjurer** (T5 Dragon/Demon 6/6 — Start of Turn: get a Quick Study) and **Dwarven
+Sharpshooter** (T4 Dwarf 4/5 — Shout: get a Deep Delve Writ). Both reuse the trigger-agnostic
+`battlecryGrantSpell` (a new `battlecryGrantSpell:startOfTurn` policy entry for the Conjurer). Art wired for both
+(`FelConjuror.png` / `DwarvenSharpshooter.png`).
+
+**Archived Drunken Oaf** (`dw_oaf`) → `ARCHIVED_CARDS`. **Un-archived Frenzied Excavator** (`k_frenzied`)
+back into the Kobold pool at its archived spec (T4 4/3, Shout: a Ruby on all your minions).
+
+**Hoardflame:** the per-Dragon base is **+1/+1** again (was briefly +2/+1); spell power still folds into the
+per-Dragon increment per the 2026-08-18 ruling.
+
+**Verified:** typecheck, lint, build:web, full suite green; new recruit tests for both minions; updated
+Hoardflame value/text + Oaf-archive tests.
+
+## 2026-08-19 — Combat replay: AoE echoes volley wave-by-wave (Fel Spikes pacing, PR C cont.)
+
+Owner report: Fel Spikes' echo animated inconsistently — on one board every pass blurred together with no pauses;
+on another (with demon-damage reactors on board) it fragmented into a 1-by-1 cascade, because each reactor `buff`
+event broke the replay's contiguous damage run into per-target moments.
+
+**Fix — a sim-declared `wave` tag (opt-in, zero blast radius):**
+- Engine: `CombatEvent` gains optional `wave`; `ctx.wave(fn)` scopes emits to one wave id
+  (`simulate.ts`). `deathrattleDamageAllExceptTribe` wraps EACH pass in a wave, so a pass's damage + its
+  synchronous reactor buffs + resulting deaths share one id. No logic/outcome/order change; all other content
+  emits untagged (byte-identical logs).
+- Replay grouping: `buildBeats` (oracle) + `compileMoments` (runtime) grew an identical wave branch — a
+  contiguous same-wave run collapses into ONE moment regardless of event type; a wave-id change splits it. The
+  per-moment hold then supplies the short pause between waves. `clashOrder`/`avengeOrder` reorderers are bounded
+  to a single wave so they can't slide events across a wave boundary.
+- Result: each AoE pass is one simultaneous volley; gilded's two passes (and Sylus re-fires) land as separate
+  waves with a beat between them — identical on both reported boards.
+
+**Verified:** typecheck, lint, build:web, full suite green; new compile tests (synthetic gilded log → exactly two
+moments; oracle ≡ runtime on wave-tagged logs; an end-to-end real gilded Fel Spikes death → two contiguous
+wave-moments through the live `replayOrder → compileMoments` path). Known judgment call: a minion killed
+mid-pass has its Echo cascade fold into that wave's moment rather than its own beat.
+
+## 2026-08-18 — Set 2 tuning: Hoardflame spell-power scaling, Fel Spikes gilded, Blaster archive (PR C cont.)
+
+Added to the same PR (#1097).
+
+**Hoardflame:** the per-Dragon term is now **+2/+1** (was +1/+1) and, reversing the 2026-07-26 once-only ruling,
+**spell power now folds into the per-Dragon increment too** — each Dragon adds (2+spellAtk)/(1+spellHealth). The
+base still takes spell power once (so 0 Dragons = base + spell power, e.g. +4/+4 → +5/+4 at +1/+0). `spellBuffPerDragonPlayed`
+gained `perAttack`/`perHealth`, and `spellDisplayText` now greens BOTH the base total and the live per-Dragon rate.
+
+**Fel Spikes:** gilded now fires the spray **twice as separate triggers** ("deal 4 damage … twice") instead of one
+double-damage pass — so each pass shows independently (like an Echo multiplier firing the Deathrattle again) and
+procs the demon-damage reactors on its own. `deathrattleDamageAllExceptTribe` loops `mul(self)` full passes.
+
+**Archived Blaster** (`blaster`, set-1 neutral carried into set 2) → `ARCHIVED_CARDS`; removed from the set-2
+neutral carry list. Made the Crypt Broker test seed-agnostic (it had pinned on conjuring Blaster).
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage for the Fel Spikes gilded-twice pass and
+updated Hoardflame value/text tests.
+
+## 2026-08-18 — Set 2 tuning: Rope Wrangler multicast, Beardsley escalation, Vaultkeeper text + Dragonflame badge (PR C cont.)
+
+Added to the same PR (#1097).
+
+**Rebalances:** Bellringer Voss → **T4 2/3**; Lastlight → **T3**.
+
+**Rope Wrangler** reworked: End of Turn casts **Lasso**, +1 cast per **6 Gold** spent this turn, capped at **5**
+(the +2/+2 self-buff is gone). Added opt-in `perGold` / `maxCasts` to the shared `castSpell` factory, and a live
+`castSpellPerGoldText` that folds the current cast count into the printed text.
+
+**Beardsley** reworked from a flat +6/+6 to an **escalating** summon buff: +3/+3 to each Beast summoned, improving
+**+3/+3 every 3 Beasts** (per-instance tally in `summonBonus`, both phases; composes ×golden and ×Rune-of-the-Zoo).
+New `summonEscalatingText` shows the live grant + countdown.
+
+**Vaultkeeper text fix:** `herzogText` printed a +1/+1 climb because it computed `base + step` instead of the
+factory's `base × (1 + step)`. Corrected — the card now shows +2/+2 → +4/+4 → +6/+6 (gilded +4 → +8 → +12),
+matching what the effect has always granted. Live text confirmed wired through `instView`.
+
+**Dragonflame ×N badge:** new `dragonflameCasts(state)` (1 + your Dragons) drives the spell's corner ×N badge,
+so the card shows how many minions it will hit based on the live board — mirroring Implosion's per-Demon badge.
+
+**Art:** wired the **Flutter** spell art.
+
+**Cleanup:** removed the now-dead `endOfTurnBuff:endOfTurn` presentation-policy entry (Rope Wrangler was its only user).
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage in `ownerBatchAug18b.test.ts` (Vaultkeeper
++2/+2 scaling, Beardsley escalation, Rope Wrangler's per-Gold multicast) plus updated Beardsley/Zoo, Rope Wrangler,
+Bellringer/Lastlight tests.
+
+## 2026-08-18 — Set 2 follow-up: Hawkus/Spots, Echo-trigger primitives, summon-tier cap + tuning (PR C cont.)
+
+Added to the same PR (#1097).
+
+**New minions (2 Beasts):** **Hawkus** (T5 6/9 — when a Rally is triggered, i.e. any friendly Rally minion
+attacks, trigger your left-most Echo) and **Spots** (T6 6/10 — Start of Combat: trigger your 2 left-most Echoes).
+Both reuse the Echohorn Stag machinery via a shared `triggerEcho` helper; new factories
+`onRallyProcLeftmostEcho` (Hawkus) and `scTriggerLeftmostEchoes` (Spots).
+
+**Changes:** Black Belt Brian and Nimbus reverted to **T5**. **Gemstorm Instigator** → Avenge (2): Play 2 Rubies
+on your **Kobolds** (was all minions). **Mineral Master** → Rally: 2 Rubies on your **minions** (was Kobolds).
+**Fatecarver** un-archived and dropped to **T5**. **Rune of the Wildscript** archived (Quil itself stays).
+
+**Bug fix:** Bullseye and Menagerie Mammoth now summon random Beasts only **up to your current tier** — a new
+`ctx.tierFor(side)` accessor caps the pool in `deathrattleSummonRandomTribe` / `…SetStats` (a low-tier Mammoth
+could previously roll a Tier-6 body).
+
+**Art:** wired art for 17 minions (Axeman, Enigma, Impossible Todd, Vaultkeeper, Mushy, Billings, Gemheart Golem,
+Broodfire, Cinderchef, Embercrest, Flamebeat Drake, Flutterdrake, River Drake, Roarcollector, Warflame, Hawkus,
+Spots) and included the owner's card-art tuner adjustments (Gangplank, Leech, Kobe). Removed a stray unused
+`d2_scalefeather2.webp`.
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage in `set2EchoTriggerAug18.test.ts`
+(Hawkus fires on Rally / not on a plain swing, Spots triggers exactly the 2 left-most Echoes, and the
+summon-tier cap holds at Tier 2/3).
+
+## 2026-08-18 — Set 2 Dragon batch: 8 new Dragons, 2 spells, 8 archives, rebalances + Fel Spikes fix (PR C)
+
+Stacked on the Part-B branch. A Dragon-focused content pass plus a combat bug fix.
+
+**Archives (8 cards + 1 rune):** `d2_ashscribe`, `d2_curator` (Water Dragon), `d2_archivist`, `d2_spellvault`,
+`d2_sovereign` (Thunderous Sovereign), `d2_matriarch` (Bathing Matriarch), `n2_fatecarver`, `dm_errand`
+(Errand Fiend) → `ARCHIVED_CARDS`; `rune_flooded_vault` (keyed entirely to Water Dragon) → `ARCHIVED_RUNES`.
+Set-count / pool-membership / rune tests updated by exactly the moved cards.
+
+**Rebalances:** Karwind → T5, buff +4/+4 → **+3/+3** (set-1 def, so it changes there too). Mushy → T5.
+Black Belt Brian → T6. Nimbus → T6. Contract Butcher → **+2/+1**. Bob Blart → **T3 3/3**. Fel Spikes → **T5**,
+echo damage 1 → **4**. Earthbreaker → **T4**, its Shop-spell buff is now Dragon-scoped **+2/+3** (via a new
+`tribe` filter on `spellCastBuffAll`). **Transcendant** reworked to "**Ward.** Adjacent Dragons are Engraved."
+— its Start-of-Combat buff (and the `SC` pill) removed; the Engrave adjacency aura is unchanged, so it is now a
+pure warded Engrave anchor.
+
+**New spells:** **Dragonflame** (T5, 3g, `spellBuffRandomPerTribe`) — buff a random friendly +4/+4, repeat for
+every Dragon you control (with replacement); resolves in both phases so minions can cast it. **Flutter** (T4,
+2g, `spellBuffHealthGrantFlurryDragon`) — +10 Health, and Flurry if the target is a Dragon.
+
+**New Dragons (8):** Embercrest (T6, Rally: trigger your Dragon Shouts — `rallyTriggerTribeShouts`, routed
+through `replayCombatBattlecry` + the `battlecryTriggered` emit), Broodfire (T2, Shout: Dragons +2/+2),
+Cinderchef (T1, Rally: +1/+1 — `rallyBuffSelf`), Roarcollector (T4, Rally: a random Shout minion — a `shoutOnly`
+filter on the combat `grantRandomMinion` carry-back), Flamebeat Drake (T5, Rally: cast Dragonflame —
+`rallyCastNamedSpell`), River Drake (T3, sell → a random Spell), Warflame (T6, a friendly Dragon attacks → cast
+Dragonflame — `onTribeAttackCastNamedSpell`), Flutterdrake (T5, Shout: get a Flutter).
+
+**Bug fix — Fel Spikes + the demon-damage mechanic:** `ctx.damage()` now threads an optional `source`.
+Fel Spikes' echo passes itself, so every LANDED hit — enemies AND your own non-Demons — registers as a friendly
+Demon dealing damage and procs Leech / Axeman / Impossible Todd once each. Previously the AoE had no poisoner and
+the reactors never saw it.
+
+**New engine:** factories `rallyBuffSelf`, `rallyCastNamedSpell`, `onTribeAttackCastNamedSpell`,
+`rallyGrantRandomShoutMinion`, `rallyTriggerTribeShouts`, `spellBuffRandomPerTribe`,
+`spellBuffHealthGrantFlurryDragon` (+ the shared `castNamedSpellInCombat` helper and the combat spell-resolver
+cases); `spellCastBuffAll` gained a `tribe` filter; `grantRandomMinion` a `shoutOnly` filter; `ctx.damage` a
+`source` param. All registered across the type union, zod schema, presentation-policy registry, `CARD_REF_EFFECTS`
+(the two named-spell casters preview Dragonflame on hover), and `spellDisplayText` (Dragonflame/Flutter green
+their values under spell power). The dead `scBuffTribe:startOfCombat` policy (Transcendant's old effect) removed.
+
+**Verified:** typecheck (pkgs + web), lint, `build:web`, full Vitest suite all green; new behavioural coverage in
+`set2DragonBatchAug18.test.ts` (Fel Spikes attribution, Dragonflame per-Dragon repeat, Flutter's conditional
+Flurry, and several of the new minions) plus updated Karwind / Earthbreaker / Butcher / Fel Spikes / Transcendant
+tests. No art wired (the art overhaul is a separate pass) — new cards use fallback art.
+
 ## 2026-08-18 — Set 2 content: 15 new minions + new engine primitives (PR B of 2)
 
 Part B — the new cards and the engine they needed (Part A was the changes + archives).

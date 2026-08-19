@@ -1677,8 +1677,8 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
-    // Flat +4/+4 (owner balance 2026-08-18: the 20% double-trigger clause was removed) — proves Karwind procced.
-    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4);
+    // Flat +3/+3 (owner balance 2026-08-18: +4/+4 → +3/+3, and the 20% double clause was removed) — proves Karwind procced.
+    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3);
     expect(proc, 'Karwind never procced').toBe(true);
   });
 
@@ -1699,11 +1699,11 @@ describe('simulate (handoff A.3)', () => {
     // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
     expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
     // Karwind procs once per trigger. Since the 2026-08-07 rework the adjacency clause is GONE: every Dragon
-    // takes the same flat +4/+4, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
-    // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: the 20% double-trigger clause
-    // was removed, so every grant is a flat +4/+4 and there are no crits — 8 triggers × 2 Dragons = 16 grants.
+    // takes the same flat +3/+3, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
+    // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: +4/+4 → +3/+3 and the 20%
+    // double-trigger clause was removed, so every grant is a flat +3/+3 and there are no crits — 8 × 2 = 16 grants.
     const dragons = 2; // Karwind + the Cleric
-    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length;
+    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length;
     const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
     expect(plain).toBe(8 * dragons);
     expect(crits).toBe(0);
@@ -2875,8 +2875,8 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // Karwind answers a triggered Battlecry with a flat +4/+4 to your Dragons (owner balance 2026-08-18).
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+    // Karwind answers a triggered Battlecry with a flat +3/+3 to your Dragons (owner balance 2026-08-18).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
   });
 
   it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {

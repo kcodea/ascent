@@ -77,13 +77,22 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
   while (i < events.length) {
     const start = i;
     const t = events[i]!.type;
-    if (rules.collapse.has(t)) {
-      while (i < events.length && rules.collapse.has(events[i]!.type)) i++;
+    const w = events[i]!.wave;
+    if (w !== undefined) {
+      // A presentation WAVE (multi-pass AoE echo — Fel Spikes): the whole pass — its volley of damage, the
+      // reactor buffs it fires, its deaths — shares one wave id and collapses into ONE moment regardless of
+      // event type; the next pass (a new id) is its own moment (a pause between waves). MUST mirror `buildBeats`
+      // (the equivalence oracle) exactly. Real logs today carry no wave tags, so equivalence is untouched.
+      while (i < events.length && events[i]!.wave === w) i++;
+    } else if (rules.collapse.has(t)) {
+      while (i < events.length && events[i]!.wave === undefined && rules.collapse.has(events[i]!.type)) i++;
     } else if (rules.collapseRuns.has(t)) {
-      while (i < events.length && events[i]!.type === t) i++;
+      while (i < events.length && events[i]!.wave === undefined && events[i]!.type === t) i++;
     } else if (t === 'attack') {
       i++;
-      while (i < events.length && (rules.absorbIntoWindup.has(events[i]!.type) || isShopBuffFlash(events[i]!))) i++;
+      // Both guards: never absorb across a WAVE boundary (partC), and DO absorb a shop-buff flash (Demon Horse).
+      while (i < events.length && events[i]!.wave === undefined
+        && (rules.absorbIntoWindup.has(events[i]!.type) || isShopBuffFlash(events[i]!))) i++;
     } else {
       i++;
     }

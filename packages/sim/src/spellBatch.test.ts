@@ -516,7 +516,7 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 1, 1)], hand: [mkSpell('sp', 'hoardflame')], playedThisTurn: ['emissary', 'cinder'] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
     const m = s.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1
+    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1 = +6/+6
   });
 
   it('Hoardflame live text folds in dragons played this turn', () => {

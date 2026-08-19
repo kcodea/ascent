@@ -43,9 +43,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 10,
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
-    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
-    text: '**Avenge (2):** Play **2 Rubies** on your minions.',
-    goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+    // Owner balance 2026-08-18: now Kobolds-only.
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2, tribe: 'kobold' } }],
+    text: '**Avenge (2):** Play **2 Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Play **4 Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -128,6 +129,21 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 0 } }],
     text: '**Echo:** your Rubies gain **+1 Attack**.',
     goldenText: '**Echo:** your Rubies gain **+2 Attack**.',
+  },
+  {
+    // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** play a Ruby on all of your minions.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
   },
   {
     // Echo (combat Deathrattle): summon a Gemheart Golem that is a 1/1 PLUS the Rubies played on THIS minion —
@@ -246,9 +262,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 7,
     health: 9,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
-    text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
-    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
+    // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
+    text: 'When you trigger a **Rally**, play **2 Rubies** on your **minions**.',
+    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your **minions**.',
   },
   {
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the

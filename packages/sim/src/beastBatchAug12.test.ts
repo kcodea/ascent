@@ -46,30 +46,44 @@ describe('Wolvie — Echo buffs the next summoned Beast', () => {
   });
 });
 
-// ── Rune of the Zoo (Beardsley's summon buff scales with the running combat-summon count) ─────────────────
+// ── Rune of the Zoo × Beardsley's escalating summon buff (base 3, +3 every 3 Beasts) ──────────────────────
+// Beardsley reworked 2026-08-18: base +3/+3, improves +3/+3 every 3 Beasts summoned. Rune of the Zoo scales
+// each grant by the running combat-summon ordinal (×1, ×2, …), and the two COMPOSE multiplicatively.
 describe('Rune of the Zoo — Beardsley scales with the combat-summon count', () => {
   const beardsleyBuffs = (r: ReturnType<typeof simulate>, bUid: string) =>
     (r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === bUid) as { attack: number }[]).map((b) => b.attack);
 
-  it('the 1st combat summon gets +6, the 2nd +12, … (Pack Leader summons 2 Pups)', () => {
+  it('the 1st combat summon gets +3, the 2nd +6, … (Pack Leader summons 2 Pups)', () => {
+    // Ordinal × base: pup 1 → step0 × zoo1 = 3; pup 2 → step0 × zoo2 = 6. (Neither has crossed the +3-every-3
+    // improve step yet — that only kicks in from the 4th Beast — so the growth here is pure Zoo ordinal.)
     const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)], { runeZoo: true });
     const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
-    expect(buffs, 'ordinal 1 → +6').toContain(6);
-    expect(buffs, 'ordinal 2 → +12').toContain(12);
+    expect(buffs, 'ordinal 1 → +3').toContain(3);
+    expect(buffs, 'ordinal 2 → +6').toContain(6);
   });
 
-  it('without the rune, every summon gets a flat +6 (no scaling)', () => {
+  it('without the rune, the first three summons get a flat +3 (no ordinal scaling)', () => {
+    // Off the Zoo the ordinal is always 1; with only two Beasts summoned neither has reached the +3-every-3
+    // improve step, so both land the flat base +3.
     const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)]);
     const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
-    expect(buffs.every((a) => a === 6), 'all +6, no ordinal scaling').toBe(true);
-    expect(buffs).not.toContain(12);
+    expect(buffs.every((a) => a === 3), 'all +3, no ordinal scaling').toBe(true);
+    expect(buffs).not.toContain(6);
   });
 
-  it('gilded Beardsley composes with the ordinal (×2 × N)', () => {
+  it('the escalation kicks in on the 4th Beast summoned (no rune): +3,+3,+3,+6', () => {
+    // Two Mama Pups → four Pups. Beasts 1-3 are at step 0 (+3); the 4th crosses `every:3` to step 1 (+6).
+    const r = sim([bm('b2_beardsley', 'B', 5, 999999), bm('pack', 'P1', 0, 1), bm('pack', 'P2', 0, 1)]);
+    const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
+    expect(buffs, 'first three Beasts land the base +3').toEqual([3, 3, 3, 6]);
+  });
+
+  it('gilded Beardsley composes with the ordinal (×2 × zoo)', () => {
+    // Base 3 × gild 2 × zoo ordinal: pup 1 → 3×2×1 = 6; pup 2 → 3×2×2 = 12.
     const r = sim([bm('b2_beardsley', 'B', 5, 9999, { golden: true }), bm('pack', 'P', 2, 1)], { runeZoo: true });
     const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));
-    expect(buffs, 'ordinal 1 × gild → +12').toContain(12);
-    expect(buffs, 'ordinal 2 × gild → +24').toContain(24);
+    expect(buffs, 'ordinal 1 × gild → +6').toContain(6);
+    expect(buffs, 'ordinal 2 × gild → +12').toContain(12);
   });
 });
 
@@ -221,8 +235,9 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
   });
 
   it('onSummon watchers fire in CURRENT board order, left→right (Beardsley vs Oona)', () => {
-    // Pack Leader's Echo Pup (1/1). Beardsley LEFT of Oona: +6/+6 first → Oona doubles 7 Attack (+7).
-    // Oona LEFT of Beardsley: Oona doubles 1 Attack (+1) → then +6/+6. The Oona buff amount is the tell.
+    // Pack Leader's Echo Pup (1/1). Beardsley LEFT of Oona: +3/+3 first (first summon, no rune) → Oona doubles
+    // the buffed 4 Attack (+4). Oona LEFT of Beardsley: Oona doubles the bare 1 Attack (+1) → then +3/+3. The
+    // Oona buff amount is the tell.
     const oonaGrant = (board: BoardMinion[]): number => {
       const r = sim(board, {}, 2);
       const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
@@ -231,7 +246,7 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
       return buffsOn(r, pup.minion.uid).find((b) => b.source === oonaUid)?.attack ?? 0;
     };
     expect(oonaGrant([bm('b2_beardsley', 'B', 0, 999999), bm('b2_oona', 'O', 0, 999999), bm('pack', 'P', 2, 1)]),
-      'Beardsley first: Oona doubles the buffed 7').toBe(7);
+      'Beardsley first: Oona doubles the buffed 4').toBe(4);
     expect(oonaGrant([bm('b2_oona', 'O', 0, 999999), bm('b2_beardsley', 'B', 0, 999999), bm('pack', 'P', 2, 1)]),
       'Oona first: it doubles the bare 1').toBe(1);
   });
@@ -240,29 +255,30 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
 // ── Rise IS a summon, in full (owner ruling 2026-08-12) ───────────────────────────────────────────────────
 describe('Rise fires the full summon-entry suite', () => {
   it('a risen Beast triggers onSummon watchers (Beardsley buffs it)', () => {
-    // A 0/1 Rise Beast dies to the wall and returns; Beardsley (immortal) must buff the RISEN body +6/+6 —
-    // the onSummon bus now fires on Rise (it used to be quest-tally-only).
+    // A 0/1 Rise Beast dies to the wall and returns; Beardsley (immortal) must buff the RISEN body +3/+3 (its
+    // base grant, first Beast summoned) — the onSummon bus now fires on Rise (it used to be quest-tally-only).
     const r = sim([bm('b2_beardsley', 'B', 0, 999999), bm('alley', 'A', 0, 1, { keywords: ['R'] })]);
     const beardsleyUid = uidOf(r, 'b2_beardsley');
     const risenUid = uidOf(r, 'alley');
     const got = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number; health: number }[])
-      .some((b) => b.target === risenUid && b.source === beardsleyUid && b.attack === 6 && b.health === 6);
-    expect(got, 'the risen Beast took Beardsley +6/+6').toBe(true);
+      .some((b) => b.target === risenUid && b.source === beardsleyUid && b.attack === 3 && b.health === 3);
+    expect(got, 'the risen Beast took Beardsley +3/+3').toBe(true);
   });
 
   it('a Rise advances the Zoo ordinal (the summon AFTER a Rise reads one step higher)', () => {
-    // With Rune of the Zoo: the Rise is summon #1 (its own Beardsley buff is +6), and a Pup summoned later is
-    // summon #2 → +12. Without the Rise counting, the Pup would read +6.
+    // With Rune of the Zoo: the Rise is summon #1 (its own Beardsley buff is base × zoo1 = +3), the first Pup
+    // is summon #2 → +6, and the second Pup summon #3 → +9. Without the Rise counting, the Pups would read one
+    // ordinal lower (+3/+6) — the +9 is the tell that the Rise consumed ordinal 1.
     const r = sim([
       bm('b2_beardsley', 'B', 0, 999999),
       bm('alley', 'A', 0, 1, { keywords: ['R'] }), // dies + rises first (summon #1), then dies for good
-      bm('pack', 'P', 2, 1), // its Echo Pup lands after → summon #2
+      bm('pack', 'P', 2, 1), // its Echo Pups land after → summons #2 and #3
     ], { runeZoo: true });
     const beardsleyUid = uidOf(r, 'b2_beardsley');
     const buffsBy = (r.events.filter((e) => e.type === 'buff') as { source: string; attack: number }[])
       .filter((b) => b.source === beardsleyUid).map((b) => b.attack);
-    expect(buffsBy, 'the Rise took the ordinal-1 grant').toContain(6);
-    expect(buffsBy, 'a later summon reads one ordinal higher because the Rise counted').toContain(12);
+    expect(buffsBy, 'the Rise took the ordinal-1 grant').toContain(3);
+    expect(buffsBy, 'a later summon reads a higher ordinal because the Rise counted').toContain(9);
   });
 
   it('a risen Beast doubles under Rune of the Jungle (summon-scoped runes reach a Rise)', () => {

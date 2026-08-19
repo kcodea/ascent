@@ -65,8 +65,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantRandomSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
   'factory:battlecryGrantShoutExtra:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -128,7 +130,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:echoSummonInheritAttackAndCharge:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:endOfTurnAdjacentConsumeFodder:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBonusGold:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnBuff:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffLeftmostTribePerCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffSpellsAndImps:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffWeakestDragon:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -207,6 +208,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onRallyProcLeftmostEcho:onAttack': { policy: 'ownBeat', family: 'rally' }, // Hawkus
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
   'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
@@ -244,10 +246,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyBuff:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffAttachments:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffCelestials:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffSelfPerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffShopPermanent:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyCastNamedSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastShopBuffSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyGrantRandomShoutMinion:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyTriggerTribeShouts:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onTribeAttackCastNamedSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastTribeAttack:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyDamageRandomEnemy:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGetRubies:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -277,8 +284,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scCastLeftmostHandSpell:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scTriggerLeftmostEchoes:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Spots
   'factory:scEngraveNeighbor:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
-  'factory:scBuffTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Transcendant
   'factory:scGainFodderStats:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGainKeyword:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scGrantEnemyTaunt:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -301,6 +308,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffNextShop:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffPerDragonPlayed:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffRandomFriendlies:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffRandomPerTribe:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffHealthGrantFlurryDragon:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffShop:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffShopByRuby:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
@@ -448,7 +457,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_first_round:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_five_banners:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_flagship:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_flooded_vault:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_flooded_vault archived 2026-08-18 (ARCHIVED_RUNES) — entry removed so the registry carries no ghost.
   'rune:rune_food_chain:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_forthcoming:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_foundry:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -584,7 +593,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_wheel:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_white_wolf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_wildscript:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_yazzus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_zoo:combat': { policy: 'foldedCue', family: 'combatModifier' },

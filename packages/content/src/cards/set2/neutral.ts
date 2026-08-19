@@ -38,9 +38,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     id: 'n2_bellringer',
     name: 'Bellringer Voss',
     tribe: 'neutral',
-    tier: 5,
-    attack: 4,
-    health: 6,
+    tier: 4, // owner balance 2026-08-18: T5 → T4
+    attack: 2,
+    health: 3,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyNeighbour', params: { every: 2 } }],
     text: '**Every 2 turns:** get a plain copy of the minion to the **left**.',
@@ -52,7 +52,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     id: 'n2_lastlight',
     name: 'Lastlight',
     tribe: 'neutral',
-    tier: 4,
+    tier: 3, // owner balance 2026-08-18: T4 → T3
     attack: 3,
     health: 2,
     keywords: [],
@@ -97,13 +97,13 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
-    // Owner roster addition 2026-07-29. Two branches, deliberately different SHAPES rather than two stat buffs:
-    // branch A pays off the spell/Dragon half of set 2 (per-cast, per-type spread), branch B pays off a wide
-    // aggressive board (per-attack, board-wide). Which one is live is a real read on your build.
+    // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). Two branches, deliberately
+    // different SHAPES rather than two stat buffs: branch A pays off the spell/Dragon half of set 2 (per-cast,
+    // per-type spread), branch B pays off a wide aggressive board (per-attack, board-wide).
     id: 'n2_fatecarver',
     name: 'Fatecarver',
     tribe: 'neutral',
-    tier: 6,
+    tier: 5, // owner balance 2026-08-18: T6 → T5
     attack: 8,
     health: 9,
     keywords: [],

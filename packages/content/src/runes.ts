@@ -777,15 +777,6 @@ export const RUNES: RuneDef[] = [
   },
 
   {
-    id: 'rune_flooded_vault',
-    name: 'Rune of the Flooded Vault',
-    cost: 5,
-    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
-    previewCards: ['d2_curator'],
-    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_unbroken_vein',
     name: 'Rune of the Unbroken Vein',
     cost: 5,
@@ -1574,17 +1565,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Chimerus**.',
     reward: { kind: 'grant', cards: ['chimerus'] },
   },
-  {
-    // Owner addition 2026-08-07. Hands over Quil, whose Start of Combat re-casts your left-most held spell
-    // every fight — so the rune's value is whatever spell you choose to park on the left of your hand.
-    id: 'rune_wildscript',
-    name: 'Rune of the Wildscript',
-    cost: 5,
-    epic: true,
-    text: 'Get a **Quil**.',
-    previewCards: ['b2_quil'], // text names it — the forge hover shows the card
-    reward: { kind: 'grant', cards: ['b2_quil'] },
-  },
   // ── the 2026-08-07 owner Epic batch (14 runes) ──
   {
     id: 'rune_enchantment',
@@ -1962,6 +1942,26 @@ export const EPIC_RUNES: RuneDef[] = [
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
   // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
+  {
+    // ARCHIVED 2026-08-18 (owner). Was an Epic rune. Quil (b2_quil) itself stays in the pool.
+    id: 'rune_wildscript',
+    name: 'Rune of the Wildscript',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Quil**.',
+    previewCards: ['b2_quil'],
+    reward: { kind: 'grant', cards: ['b2_quil'] },
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) — Water Dragon archived
+    id: 'rune_flooded_vault',
+    name: 'Rune of the Flooded Vault',
+    cost: 5,
+    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
+    previewCards: ['d2_curator'],
+    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
+    sets: ['set2'],
+  },
   {
     // ARCHIVED 2026-08-18 (owner) alongside Imp Wrangler (dm_wrangler).
     id: 'rune_wrangler',

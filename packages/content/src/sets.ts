@@ -79,7 +79,7 @@ const SET1_BEASTS_IN_SET2: readonly CardDef[] = BEASTS.filter((b) =>
  */
 const SET1_NEUTRALS_IN_SET2: readonly CardDef[] = NEUTRAL.filter((c) =>
   [
-    'buddy', 'venom', 'arenaheckler', 'blaster', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
+    'buddy', 'venom', 'arenaheckler', 'nimbus', 'tauntbreaker', 'wayfinder', 'blackbelt',
     'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus', // Taurus cut 2026-07-27
     'jenkins',
   ].includes(c.id),

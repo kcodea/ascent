@@ -68,6 +68,8 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   castSpell: 'spellId',
   onKillCastSpell: 'spellId',
   rallyCastSpell: 'spellId',
+  rallyCastNamedSpell: 'spellId',              // Flamebeat Drake -> Dragonflame
+  onTribeAttackCastNamedSpell: 'spellId',      // Warflame -> Dragonflame
   endOfTurnCastSpellEscalating: 'spellId',
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',

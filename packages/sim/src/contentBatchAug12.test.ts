@@ -65,9 +65,10 @@ describe('Bullseye — Echo summons a random Beast at fixed stats', () => {
   });
 });
 
-// ── Beardsley (T4 Beast 5/5) — when you summon a Beast IN COMBAT, give it +6/+6 (gilded +12/+12) ────────────
+// ── Beardsley (T4 Beast 5/5) — escalating summon buff: the first Beast gets +3/+3 (gilded +6/+6) ────────────
+// Reworked 2026-08-18: base +3/+3, improving +3/+3 every 3 Beasts summoned. The FIRST summon is at step 0.
 describe('Beardsley — combat-only summon buff', () => {
-  it('a Beast summoned in combat is buffed +6/+6 (gilded +12/+12)', () => {
+  it('a Beast summoned in combat is buffed +3/+3 (gilded +6/+6)', () => {
     // A Pack Leader dies and its Echo summons a Pup; Beardsley buffs that summoned Beast. Asserted on the buff
     // EVENT (the summon snapshot is captured before the buff lands), the same shape the Groveweaver test uses.
     const run = (golden: boolean) => simulate(
@@ -81,11 +82,11 @@ describe('Beardsley — combat-only summon buff', () => {
       return (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
         .some((b) => b.target === pup.minion.uid && b.attack === amount && b.health === amount);
     };
-    expect(buffedSummon(run(false), 6), 'summoned Beast got Beardsley +6/+6').toBe(true);
-    expect(buffedSummon(run(true), 12), 'gilded Beardsley +12/+12').toBe(true);
+    expect(buffedSummon(run(false), 3), 'first summoned Beast got Beardsley +3/+3').toBe(true);
+    expect(buffedSummon(run(true), 6), 'gilded Beardsley +6/+6').toBe(true);
   });
 
-  it('fires in the SHOP too (owner 2026-08-12: both phases) — a Beast played beside it gets +6/+6', () => {
+  it('fires in the SHOP too (owner 2026-08-12: both phases) — a Beast played beside it gets +3/+3', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99,
       board: [minion('BD', 'b2_beardsley', 5, 5)],
@@ -93,7 +94,7 @@ describe('Beardsley — combat-only summon buff', () => {
     };
     s = reduce(s, { type: 'play', uid: 'p' });
     const pack = s.board.find((c) => c.uid === 'p')!;
-    expect([pack.attack, pack.health], 'Beardsley +6/+6 in the shop').toEqual([9, 8]);
+    expect([pack.attack, pack.health], 'Beardsley +3/+3 in the shop (first Beast, step 0)').toEqual([6, 5]);
   });
 });
 

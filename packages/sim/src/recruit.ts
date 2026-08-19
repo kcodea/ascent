@@ -1070,6 +1070,12 @@ export function implosionCasts(state: RunState): number {
   return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
 }
 
+/** Dragonflame's repeat count: the base buff plus one more per Dragon you control (1 + your Dragons). Drives the
+ *  ×N badge so the card shows how many minions it will hit, based on the live board. */
+export function dragonflameCasts(state: RunState): number {
+  return 1 + state.board.filter((c) => isTribe(c, 'dragon')).length;
+}
+
 /**
  * Buff the SHOP by +attack/+health from a run-level source (a quest reward), through the same `tavernBuyBonus`
  * channel the Staff of Guel and Contract Butcher use — so "a quest buffs the shop" and "a card buffs the shop"
@@ -2476,9 +2482,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const g = gold(self);
-    const a = num(params.attack, 6) * g;
-    const h = num(params.health, 6) * g;
+    // Escalating variant (Beardsley 2026-08-18): +`improve` per stat every `every` tribe summons, tracked on a
+    // per-instance counter. Absent `improve` → the plain flat grant, unchanged.
+    const improve = num(params.improve, 0);
+    const every = Math.max(1, num(params.every, 1));
+    const step = improve > 0 ? Math.floor((self.summonBonus ?? 0) / every) : 0;
+    const a = (num(params.attack, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
+    if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
   },
 
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
@@ -4929,13 +4941,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    // Spell power applies ONCE to the grant, exactly like every other stat-granting spell (`spellBuffTarget`).
-    // It was missing entirely (owner report 2026-07-26): a Spellbinder's +0/+1 did nothing here, and the
-    // printed text matched the broken behaviour. Deliberately not multiplied by the Dragon count — no other
-    // spell scales spell power by anything, and doing so here would make Hoardflame silently the best
-    // spell-power payoff in the game.
-    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + per * dragons;
-    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + per * dragons;
+    // Owner 2026-08-18: spell power now scales the PER-DRAGON increment as well (reversing the once-only
+    // 2026-07-26 ruling), and the per-Dragon rate is asymmetric (`perAttack`/`perHealth`, default `per`). The
+    // base still takes spell power once, so with 0 Dragons the grant is base + spell power (e.g. 4/4 + 1/0 = 5/4).
+    void per;
+    const perA = num(params.perAttack, num(params.per, 1)) + spellAttackBonus(ctx.state);
+    const perH = num(params.perHealth, num(params.per, 1)) + spellHealthBonus(ctx.state);
+    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + perA * dragons;
+    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + perH * dragons;
     addBuff(self, str(params._source) || 'Hoardflame', a, h);
   },
 
@@ -5375,6 +5388,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of picks) addBuff(t, 'Ale', attack, health);
   },
 
+  /** Set 2 — Dragonflame (shop cast): buff `base` + (# friendly `tribe`, Dragons) random friendlies by +atk/+hp,
+   *  WITH replacement — more buffs than bodies simply stacks. Spell power folds in like every stat spell. */
+  spellBuffRandomPerTribe: (ctx, _self, params) => {
+    const board = ctx.state.board;
+    if (board.length === 0) return;
+    const tribe = str(params.tribe) as Tribe;
+    const dragons = tribe ? board.filter((c) => isTribe(c, tribe)).length : 0;
+    const reps = num(params.base, 1) + dragons;
+    let attack = num(params.attack, 4);
+    let health = num(params.health, 4);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < reps; i++) addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health);
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Set 2 — Flutter (shop cast): the targeted minion (`self`) gains +Health; a Dragon also gains Flurry. */
+  spellBuffHealthGrantFlurryDragon: (ctx, self, params) => {
+    let attack = 0;
+    let health = num(params.health, 10);
+    if (health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    addBuff(self, nameOf(self), attack, health);
+    if (isTribe(self, 'dragon') && !self.keywords.includes('W')) self.keywords.push('W');
+  },
+
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
    *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
    *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
@@ -5429,7 +5473,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
     // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
     // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
-    for (let i = 0; i < gold(self); i++) {
+    // Opt-in multicast (Rope Wrangler 2026-08-18): `perGold` grants +1 cast per that much Gold spent this turn,
+    // and `maxCasts` is a hard cap on the total. Absent → plain gold-scaled casting, unchanged.
+    const perGold = num(params.perGold, 0);
+    const maxCasts = num(params.maxCasts, 0);
+    let n = (perGold > 0 ? 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / perGold) : 1) * gold(self);
+    if (maxCasts > 0) n = Math.min(maxCasts, n);
+    for (let i = 0; i < n; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
       applyCastEffects(ctx, spellDef, target);
@@ -6014,13 +6064,22 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
   if (def.id === 'hoardflame') {
+    const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
+    const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number; per?: number } | undefined;
+    const baseA = Number(p?.attack ?? 4), baseH = Number(p?.health ?? 4);
+    const perAttack = Number(p?.perAttack ?? p?.per ?? 1), perHealth = Number(p?.perHealth ?? p?.per ?? 1);
     const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    const a = 4 + bonusA + dragons;
-    const h = 4 + bonusH + dragons;
-    return a > 4 || h > 4 ? def.text.replace('+4/+4', `{{+${a}/+${h}}}`) : def.text;
+    // Spell power folds into BOTH the base and the per-Dragon rate (owner 2026-08-18). Green the base total AND
+    // the live per-Dragon rate so the card always states what it will grant right now.
+    const perA = perAttack + bonusA, perH = perHealth + bonusH;
+    const a = baseA + bonusA + perA * dragons, h = baseH + bonusH + perH * dragons;
+    let t = def.text;
+    if (a > baseA || h > baseH) t = t.replace(`+${baseA}/+${baseH}`, `{{+${a}/+${h}}}`);
+    if (bonusA > 0 || bonusH > 0) t = t.replace(`+${perAttack}/+${perHealth}`, `{{+${perA}/+${perH}}}`);
+    return t;
   }
   // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
   // the same value the cast actually grants (see the gainEmbers override above). Handled before the
@@ -6085,6 +6144,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
     if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
     return def.text;
+  }
+  // Dragonflame: its per-buff "+A/+B" folds spell power (the repeat count is relational, not greened).
+  const dragonflame = def.effects.find((e) => e.do === 'spellBuffRandomPerTribe');
+  if (dragonflame) {
+    const pa = Number((dragonflame.params as { attack?: number } | undefined)?.attack ?? 4);
+    const ph = Number((dragonflame.params as { health?: number } | undefined)?.health ?? 4);
+    return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+  }
+  // Flutter: its "+N Health" becomes the full live "+A/+H" pair once spell power is up (like the Ales above).
+  const flutter = def.effects.find((e) => e.do === 'spellBuffHealthGrantFlurryDragon');
+  if (flutter) {
+    const ph = Number((flutter.params as { health?: number } | undefined)?.health ?? 10);
+    return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
   }
   // Beefy: its "+A/+B" lands on the target AND both neighbours, and every grant picks up spell power — so the
   // printed number must too (the live-text rule; the spell-power audit test pins it).

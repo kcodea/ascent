@@ -519,10 +519,11 @@ describe('Fatecarver (owner roster 2026-07-29)', () => {
     return reduce(opened, { type: 'chooseOne', index });
   };
 
-  it('is in set 2 with both branches declared', () => {
+  it('is a T5 set-2 card with both branches declared (un-archived 2026-08-18)', () => {
     const def = CARD_INDEX['n2_fatecarver']!;
     expect(def.chooseOne, 'Fatecarver has no Choose One').toHaveLength(2);
-    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver')).toBe(true);
+    expect(def.tier, 'un-archived at T5').toBe(5);
+    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver'), 'back in the set pool').toBe(true);
   });
 
   it('branch A buffs ONE minion of each type on a spell cast, not every minion', () => {

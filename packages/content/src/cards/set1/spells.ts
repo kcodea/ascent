@@ -1007,7 +1007,8 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, per: 1 } }],
+    // Owner balance 2026-08-19: the per-Dragon base is +1/+1 again (spell power still folds into it).
+    effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, perAttack: 1, perHealth: 1 } }],
     text: 'Give a minion **+4/+4**, plus **+1/+1** for each **Dragon** you played this turn.',
   },
 

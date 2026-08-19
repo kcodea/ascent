@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, SILENT_ONPLAY } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -98,7 +98,19 @@ export function simulate(
     effectCtx = { key: `factory:${effect.do}:${effect.on}`, srcCard: self.cardId };
     try { run(); } finally { effectCtx = prev; }
   };
-  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}) }); };
+  // Presentation WAVE tag (multi-pass echo pacing — Fel Spikes). Unlike `stepN`, which a death bumps mid-pass,
+  // `waveN` stays constant for a whole pass, so all of a pass's damage + its synchronous reactor buffs + the
+  // deaths it resolves share one id; the replay groups a same-`wave` run into one volley moment and pauses
+  // between waves. `waveSeq` only ever increments (monotonic ids), so re-fires (Sylus) get fresh waves too.
+  // Opt-in via `ctx.wave(fn)`; `waveN` is undefined everywhere else, so untagged combat is byte-identical.
+  let waveN: number | undefined;
+  let waveSeq = 0;
+  const withWave = <T,>(fn: () => T): T => {
+    const prev = waveN;
+    waveN = ++waveSeq;
+    try { return fn(); } finally { waveN = prev; }
+  };
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
@@ -575,6 +587,7 @@ export function simulate(
       spellEscalationGain[side].attack += attack;
       spellEscalationGain[side].health += health;
     },
+    tierFor: (side) => (side === 'player' ? playerState : enemyState).tier,
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -687,8 +700,8 @@ export function simulate(
       const auraKey = tribe === 'undead' ? 'undead' : tribe === 'beast' ? 'beast' : tribe === 'mech' ? 'attachment' : undefined;
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe, attack, health, aura: auraKey });
     },
-    damage: (target, amount, poison = false, bypassShield = false) =>
-      dealDamage(target, amount, poison, bypassShield),
+    damage: (target, amount, poison = false, bypassShield = false, source) =>
+      dealDamage(target, amount, poison, bypassShield, source),
     armBleed: (minion, everyN, targets) => {
       if (everyN <= 0 || targets <= 0) return;
       // MARK a fixed set of enemies now (Start of Combat) — up to `targets` distinct random living foes. These
@@ -703,6 +716,7 @@ export function simulate(
       emit({ type: 'sc', source: minion.uid, text: `${minion.name} marks ${marked.length} ${marked.length === 1 ? 'enemy' : 'enemies'}`, cast: true });
       bleeders.push({ minion, everyN, marked });
     },
+    wave: withWave,
     summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     grantDeathrattle: (target, effects) => {
       // Graft copied Echoes onto `target` and register them so they fire on its death (Grave Body). Effects were
@@ -842,7 +856,7 @@ export function simulate(
         emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
-    grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier) => {
+    grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier, shoutOnly) => {
       if (side !== 'player') return; // enemies have no hand
       // Wayfinder's `tribe: 'uncontrolled'` is a SENTINEL, not a real tribe — "a minion from a tribe you don't
       // control". Resolve it here to the active tribes absent from your board, mirroring `uncontrolledTribes`
@@ -872,7 +886,9 @@ export function simulate(
         (c) =>
           !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= playerState.tier) && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
-          inTribe(c),
+          inTribe(c) &&
+          // Roarcollector: restrict to SHOUT minions — a real (non-silent) `onPlay`.
+          (!shoutOnly || c.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do))),
       );
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;

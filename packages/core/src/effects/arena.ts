@@ -418,7 +418,9 @@ export const ARENA_EFFECTS = {
     const a = (typeof params.attack === 'number' ? params.attack : 1) * g;
     const h = (typeof params.health === 'number' ? params.health : 0) * g;
     if (a === 0 && h === 0) return;
-    for (const f of arena.friends()) arena.buff(f, a, h);
+    // Optional `tribe` filter (Earthbreaker: Dragons only) — omitted → buffs the whole side, as before.
+    const tribe = typeof params.tribe === 'string' ? params.tribe : '';
+    for (const f of arena.friends()) if (!tribe || arena.isTribe(f, tribe)) arena.buff(f, a, h);
   },
 
   /** Deathswarmer's spell-cast twin: your Undead gain +Attack EVERYWHERE, permanently (golden doubles). */

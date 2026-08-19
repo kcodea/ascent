@@ -77,6 +77,27 @@ export function summonFlatZooText(cardId: string, golden: boolean, zooSummons: n
   return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${h}}}`);
 }
 
+/**
+ * Beardsley's escalating summon buff: the per-Beast grant is base + improve × ⌊summonBonus / every⌋ (× golden),
+ * where `summonBonus` is Beasts summoned so far with this on board. Injects the current grant into the FIRST
+ * +N/+N (leaving the "Improves +N/+N" step as printed) and appends the countdown to the next step. Only for the
+ * escalating shape (an `improve` param); returns null otherwise so the flat/zoo helpers handle their cases.
+ */
+export function summonEscalatingText(cardId: string, golden: boolean, summonBonus: number | null | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffFlat' && (e.params as { improve?: number } | undefined)?.improve);
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; improve?: number; every?: number };
+  const seen = Math.max(0, summonBonus ?? 0);
+  const base = Number(p?.attack ?? 3);
+  const improve = Number(p?.improve ?? 3);
+  const every = Math.max(1, Number(p?.every ?? 3));
+  const cur = (base + improve * Math.floor(seen / every)) * (golden ? 2 : 1);
+  const toNext = every - (seen % every);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} to next step}}`;
+}
+
 export function summonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
   if (summonBonus <= 0) return null; // baseline: fall back to printed text (golden's `doubleNums` handles it)
   const def = CARD_INDEX[cardId];
@@ -520,7 +541,9 @@ export function herzogText(cardId: string, golden: boolean, spellsCast: number):
   if (!def || !eff) return null;
   const per = Math.max(1, Number((eff.params as { per?: number } | undefined)?.per ?? 4));
   const base = Number((eff.params as { base?: number } | undefined)?.base ?? 1);
-  const cur = (base + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
+  // Match the FACTORY exactly: grant = base × (1 + step) (not base + step) — so a base-2 Vaultkeeper improves
+  // +2/+2 per step (2 → 4 → 6), gilded 4 → 8 → 12. The old `base + step` printed a +1/+1 climb (owner report).
+  const cur = base * (1 + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
   const toNext = per - (spellsCast % per);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} spells to next step}}`;
@@ -917,6 +940,24 @@ export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, gold
   const per = Number((eff.params as { health?: number })?.health ?? 1) * (golden ? 2 : 1);
   const total = per * goldSpentThisTurn;
   return `**Shout:** give a friendly minion **{{+${total} Health}}** (+${per} per Gold spent this turn).`;
+}
+
+/**
+ * Rope Wrangler: End of Turn casts its spell 1 + ⌊Gold spent this turn / perGold⌋ times (× golden), capped at
+ * `maxCasts`. The count depends on live turn state (Gold spent this turn is on the text-rule list), so append
+ * the current cast count in green. Generic over the `castSpell` effect with a `perGold` param.
+ */
+export function castSpellPerGoldText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'castSpell' && (e.params as { perGold?: number } | undefined)?.perGold);
+  if (!def || !eff) return null;
+  const p = eff.params as { perGold?: number; maxCasts?: number } | undefined;
+  const perGold = Math.max(1, Number(p?.perGold ?? 6));
+  const maxCasts = Number(p?.maxCasts ?? 0);
+  let n = (1 + Math.floor(Math.max(0, goldSpentThisTurn) / perGold)) * (golden ? 2 : 1);
+  if (maxCasts > 0) n = Math.min(maxCasts, n);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${src} {{Casts ${n}× now.}}`;
 }
 
 export interface StepProgress {

@@ -78,13 +78,13 @@ describe('set 2 — Fel Spikes Echo (combat)', () => {
   it('deals 1 to all minions except the controller’s OWN Demons — enemy Demons ARE hit', () => {
     // Board: m0 Fel Spikes (Taunt, 1 HP — dies), m1 a FRIENDLY Demon (spared), m2 a FRIENDLY non-Demon (hit).
     // Enemy m3 is a Demon (hit — the exclusion is friendly-only). Both bystanders are 0-attack walls so the only
-    // 1-damage in the whole fight is the Echo.
+    // 4-damage in the whole fight is the Echo (owner balance 2026-08-18: Tier 5, echo amount 1 → 4).
     const r = simulate(
       [bm('dm_felspikes', 'FS', 4, 1, ['T']), bm('dm_clerk', 'FD', 0, 40), bm('sandbag', 'FN', 0, 40)],
       [bm('dm_clerk', 'ED', 10, 40)],
       makeRng(3), CARD_INDEX, combatSide({ tier: 3 }), combatSide({ tier: 1 }));
     const oneDmgTargets = new Set(
-      r.events.filter((e) => e.type === 'dmg' && (e as { amount: number }).amount === 1)
+      r.events.filter((e) => e.type === 'dmg' && (e as { amount: number }).amount === 4)
         .map((e) => (e as { target: string }).target));
     expect(oneDmgTargets.has('m2'), 'the friendly NON-Demon takes 1').toBe(true);
     expect(oneDmgTargets.has('m3'), 'the ENEMY Demon takes 1 — exclusion is friendly-only').toBe(true);
@@ -146,6 +146,18 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     applyStartOfTurn(s);
     expect(s.hand.some((c) => c.cardId === 'veinstorm'), 'a Veinstorm was granted to hand').toBe(true);
     expect(s.rubyBonus, 'the run’s Ruby strength improved +1/+1').toEqual({ attack: before.attack + 1, health: before.health + 1 });
+  });
+
+  it('Fel Conjurer: Start of Turn gets a Quick Study (owner add 2026-08-19)', () => {
+    const s = recruit({ board: [recruitBody('d2_felconjurer', 'fc')], hand: [], shop: [] });
+    applyStartOfTurn(s);
+    expect(s.hand.filter((c) => c.cardId === 'quickstudy').length, 'one Quick Study granted').toBe(1);
+  });
+
+  it('Dwarven Sharpshooter: Shout gets a Deep Delve Writ (owner add 2026-08-19)', () => {
+    let s = recruit({ board: [], hand: [{ ...recruitBody('dw_sharpshooter', 'ss') }], shop: [] });
+    s = reduce(s, { type: 'play', uid: 'ss' });
+    expect(s.hand.filter((c) => c.cardId === 'deepdelvewrit').length, 'one Writ granted').toBe(1);
   });
 
   it('Grevlin & Co.: consumes the right-most Shop minion after the 3rd sale', () => {

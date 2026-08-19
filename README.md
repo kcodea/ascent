@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The consuming minion swells + recoils** — the eater now grows as it draws the ghost in, then snaps back to true size with a little recoil bounce. Tunable (grow amount / length / recoil) in the 🍖 Consume tuner.
+
 - **Consume "gulp" sound** — consuming a shop minion now plays a sound. Several consumes on one beat play a single gulp, not a stack.
 - **Fixed a misplaced shadow in the Compendium** — plated cards no longer show a stray dark oval smudge sitting on top of their stone plate. The frame's grounding contact shadow is meant for un-plated board cards; it's now dropped inside the Compendium grid (the plate does the grounding). Hand and drag-lift shadows are untouched.
 

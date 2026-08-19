@@ -9,12 +9,16 @@ export interface ConsumeFxConfig {
   pullDist: number;     // fraction of the ghost→eater vector travelled (0..1)
   collapseStart: number; // fraction of the eat at which the ghost starts to SHRINK toward the eater (0..1)
   fadeStart: number;    // fraction of the eat at which the ghost starts to FADE OUT (0..1)
+  eaterGrowAmount: number; // how much bigger the CONSUMING minion swells at its peak (0 = none, 0.2 = +20%)
+  eaterGrowLength: number; // fraction of the eat where the swell peaks before it snaps back (0..1)
+  eaterRecoil: number;  // overshoot as it snaps back to true size — the little settle bounce (0..0.3)
   showStats: boolean;   // render the eaten minion's stats on the ghost
 }
 
 const DEFAULTS: ConsumeFxConfig = {
   durationMs: 530, shakePhase: 0.76, shakeAmp: 18.5, shakeFreq: 60, stretch: 0.2, thin: 0.66, lag: 0.52,
-  pullDist: 1.08, collapseStart: 0.92, fadeStart: 0, showStats: true,
+  pullDist: 1.08, collapseStart: 0.92, fadeStart: 0, eaterGrowAmount: 0.12, eaterGrowLength: 0.82,
+  eaterRecoil: 0.05, showStats: true,
 };
 
 // [min, max, step] for the tuner sliders (booleans handled as a toggle, not here).
@@ -22,6 +26,7 @@ export const CONSUMEFX_RANGES: Partial<Record<keyof ConsumeFxConfig, [number, nu
   durationMs: [200, 2000, 10], shakePhase: [0, 0.9, 0.02], shakeAmp: [0, 20, 0.5], shakeFreq: [0, 60, 1],
   stretch: [0, 2.5, 0.05], thin: [0, 1, 0.02], lag: [0, 0.9, 0.02], pullDist: [0, 1.2, 0.02],
   collapseStart: [0, 1, 0.02], fadeStart: [0, 1, 0.02],
+  eaterGrowAmount: [0, 0.6, 0.01], eaterGrowLength: [0, 1, 0.02], eaterRecoil: [0, 0.3, 0.01],
 };
 
 const KEY = 'ascent.consumeFx';

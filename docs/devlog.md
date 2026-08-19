@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
+
+The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it
+**swells** in size as the ghost is drawn in, then **snaps back to true size with a small recoil bounce** as it
+settles (owner ask). One scale-only WAAPI keyframe animation per eater (`composite: 'add'`, so it stacks on the
+card's own transforms), started on the frame the ghosts mount so it's synced to the pull, spanning
+`durationMs`. This replaces the old 380ms gulp-pop.
+
+Three new 🍖 Consume tuner dials, under an **Eater swell** group: **Grow amount** (peak extra size), **Grow
+length** (how far into the eat the swell peaks before the snap — higher = a quicker snap), **Recoil** (the
+settle overshoot). Defaults: grow +12%, peak at 0.82, recoil 0.05. Naming note: the owner called this "source
+grow", but in the FX def "source" is the *consumed* ghost and "target" the eater — the dials are labelled for
+the eater to avoid that inversion.
+
+Verified: typecheck + lint (0 errors) + build + the consume transform/config tests green.
+
 ## 2026-08-18 — Consume "gulp" SFX + final tuner defaults
 
 Also lands the owner's **final Consume FX tuner defaults** (a snappier eat): durationMs 530, shakePhase 0.76,

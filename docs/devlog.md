@@ -473,6 +473,19 @@ Verified: `typecheck` + `build:web` green; the config applies its vars inline at
 `--board-edge-col` #312361 with the derived `rgb(49 35 97 / 0)` twin and 186px fade), and the live `.boardbg`
 computed background carries scrim + blend + art + fill. Final look is the owner's call on their friend's
 actual ultrawide.
+## 2026-08-18 — New minion Standard Bearer; Aster hero + power art wired
+
+- **Standard Bearer** (`n2_standardbearer`, Set 2 neutral) — Tier 3, all-type 3/5, `**Rally:** give a minion of
+  each type +2/+3 permanently`. A cheaper, lower-tier Paragon: same `onRallyBuffOnePerTribe` factory (gild
+  doubles → golden +4/+6), `universalTribe`, `RL`. Art wired (`art/minions/n2_standardbearer.webp`).
+- **Aster, the Guide** (tutorial hero) now has art: the portrait (`art/heroes/aster.webp`) and the Preparation
+  power (`art/powers/aster.webp`), so the tutorial's hero panel + power button render properly instead of the
+  placeholder.
+
+Verified live (dev server restarted so the new files enter the eager art globs): all three images resolve on a
+sandbox Aster run with Standard Bearer in the shop; the Set-2 live minion count ticked to 133. Gates: typecheck,
+lint (0 errors), build:web, full test suite green (set-membership / presentation-policy / live-text audits all
+pass for the new card).
 
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 

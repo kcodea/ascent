@@ -2,6 +2,20 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Follow-up (same day): literal 1:1 pacing** (owner ruling: "I want it to be a literal 1:1 experience of when
+a player buys cards, plays cards"). Capture was already exact wall-clock; the CLOCK had inherited v1's
+legibility clamps (every gap squeezed into 350 ms–5 s). The live rule is now `paceStepMs`: **the recorded delta
+plays back verbatim**, floored only at 50 ms rendering sanity and ceilinged only at an 8 s idle cap — a 2.3 s
+think replays as 2.3 s, two buys 100 ms apart replay 100 ms apart; only a genuine AFK gap compresses (nobody
+wants to watch a phone call). The transport bar's timeline uses the same rule, so bar position stays ≡ watch
+time. `clampStepMs` is retired from the live clock but kept for the fixed beats. Judgment call flagged to the
+owner: the 8 s idle cap is the one deliberate departure from "literal" — raise/remove it if wanted.
+
+Also owned in this entry: the anonymous "bravedrake20" row on the shared feed is the live-verification bot run
+this build was tested with (uploaded through the real run-end path, as designed) — cleanup SQL given to the
+owner; a "don't upload from dev builds" guard is listed as an open improvement rather than shipped, since dev
+uploads are also how live testing populates the pool today.
+
 The whole feature specced in [`replay-v2-handoff.md`](replay-v2-handoff.md) is built, on the same PR as the
 spec. Five commits, one per phase, built by parallel agents off the spec and integrated + live-verified at the
 end. **Playback is a pure renderer** — no `reduce()`, no `simulate()` — so what you watch is what happened, by

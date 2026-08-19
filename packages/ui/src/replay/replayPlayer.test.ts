@@ -11,7 +11,7 @@ import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
   SHOP_VIEW_EXCLUDED_KEYS, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, endReplay, frameIndexAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
+import { clampStepMs, paceStepMs, endReplay, frameIndexAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -42,6 +42,16 @@ describe('clampStepMs (clock pacing)', () => {
     expect(clampStepMs(0)).toBe(900);
     expect(clampStepMs(-40)).toBe(900); // a clock hiccup must not schedule a negative step
     expect(clampStepMs(undefined)).toBe(900);
+  });
+
+  it('paceStepMs — the LIVE 1:1 rule: recorded deltas play back verbatim between the sanity floor and idle cap', () => {
+    expect(paceStepMs(100), 'two buys 100ms apart replay 100ms apart').toBe(100);
+    expect(paceStepMs(2300), 'a 2.3s think replays as 2.3s — no 5s ceiling, no 350ms floor').toBe(2300);
+    expect(paceStepMs(7999)).toBe(7999);
+    expect(paceStepMs(60000), 'an AFK gap compresses to the 8s idle cap').toBe(8000);
+    expect(paceStepMs(10), 'sub-frame deltas take the rendering-sanity floor').toBe(50);
+    expect(paceStepMs(0), 'a degenerate capture falls back to the legibility default').toBe(900);
+    expect(paceStepMs(undefined)).toBe(900);
   });
 });
 
@@ -183,9 +193,9 @@ describe('the clamped transport timeline (found live 2026-08-19)', () => {
     const raw = [0, 31160, 31161, 31163, 31221];
     const eff = effectiveTimesOf(raw);
     expect(eff[0]).toBe(0);
-    expect(eff[1]! - eff[0]!, 'the 31 s gap clamps to the 5 s ceiling').toBe(5000);
-    // Sub-350ms real deltas clamp UP to the floor, so every frame owns a visible slice of the bar.
-    expect(eff[2]! - eff[1]!).toBe(350);
+    expect(eff[1]! - eff[0]!, 'the 31 s gap compresses to the 8 s idle cap').toBe(8000);
+    // A real 1ms delta takes only the 50ms rendering-sanity floor — the bar stays 1:1 with watch time.
+    expect(eff[2]! - eff[1]!).toBe(50);
     const dur = eff[eff.length - 1]!;
     // The right edge of the bar maps to the LAST frame, not the gap.
     let lo = 0, hi = eff.length - 1, ans = 0;

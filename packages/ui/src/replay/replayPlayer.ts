@@ -25,6 +25,14 @@ import { synthRunFromShopView } from './synthRun';
 export const MIN_STEP_MS = 350;
 export const DEFAULT_STEP_MS = 900;
 export const MAX_STEP_MS = 5000;
+/** 1:1 pacing floor — a rendering-sanity minimum only, NOT a legibility clamp: two buys 100 ms apart replay
+ *  100 ms apart. 50 ms keeps React/FX from being asked to render faster than a frame can land. */
+export const TRUE_MIN_STEP_MS = 50;
+/** 1:1 pacing idle ceiling. The recorded deltas are the player's REAL cadence and play back verbatim below
+ *  this — the one exception is a long idle (AFK, alt-tab, a phone call), which nobody wants to sit through.
+ *  Anything above 8 s compresses to 8 s; everything under it is literal (owner ruling 2026-08-19: "a literal
+ *  1:1 experience of when a player buys cards, plays cards"). */
+export const IDLE_CAP_MS = 8000;
 /** A short breath after a fight's animation finishes before the next shop frame lands (v1's post-combat beat). */
 const POST_COMBAT_BEAT_MS = 500;
 /** Safety net: if the arena's done bridge never fires (an FX stall, a hidden tab throttling rAF), the
@@ -37,6 +45,15 @@ type Frame = ShopFrame | CombatFrame;
 export function clampStepMs(deltaMs: number | undefined): number {
   if (deltaMs === undefined || !(deltaMs > 0)) return DEFAULT_STEP_MS;
   return Math.max(MIN_STEP_MS, Math.min(deltaMs, MAX_STEP_MS));
+}
+
+/** The LIVE pacing rule: literal 1:1 — each step is the recorded delta, floored only at rendering sanity
+ *  (50 ms) and ceilinged only at the idle cap (8 s). A missing/zero delta (a scripted or degenerate capture)
+ *  falls back to the legibility default rather than machine-gunning frames. `clampStepMs` above is RETIRED
+ *  from the live clock (owner ruling 2026-08-19 — literal 1:1); kept for the fixed beats + its tests. */
+export function paceStepMs(deltaMs: number | undefined): number {
+  if (deltaMs === undefined || !(deltaMs > 0)) return DEFAULT_STEP_MS;
+  return Math.max(TRUE_MIN_STEP_MS, Math.min(deltaMs, IDLE_CAP_MS));
 }
 
 /** Binary search: the index of the frame ACTIVE at `tMs` — the greatest i with frames[i].tMs <= tMs,
@@ -95,7 +112,7 @@ export function replayFrameTimes(): readonly number[] {
   return frameTimes;
 }
 
-/** The CLAMPED cumulative timeline — each frame-to-frame delta run through `clampStepMs`, exactly the
+/** The PACED cumulative timeline — each frame-to-frame delta run through `paceStepMs`, exactly the
  *  pacing the playback clock uses. This is what the transport bar's geometry maps through (position ⇄ frame
  *  index), NOT the raw `tMs`: raw deltas include idle gaps (a player AFK for five minutes mid-run), which
  *  would compress all actual play into a sliver of the bar — found live 2026-08-19, where a capture with a
@@ -105,11 +122,11 @@ export function replayEffectiveTimes(): readonly number[] {
   return effTimes;
 }
 
-/** Build the clamped timeline: frame 0 at 0, each later frame at prev + clampStepMs(raw delta). */
+/** Build the paced timeline: frame 0 at 0, each later frame at prev + paceStepMs(raw delta). */
 export function effectiveTimesOf(times: readonly number[]): number[] {
   const out: number[] = [];
   for (let i = 0; i < times.length; i++) {
-    out.push(i === 0 ? 0 : out[i - 1]! + clampStepMs(times[i]! - times[i - 1]!));
+    out.push(i === 0 ? 0 : out[i - 1]! + paceStepMs(times[i]! - times[i - 1]!));
   }
   return out;
 }
@@ -221,7 +238,7 @@ function scheduleNext(myToken: number): void {
       timer = setTimeout(() => { if (myToken === token) finish(); }, DEFAULT_STEP_MS / speed);
       return;
     }
-    timer = setTimeout(() => advance(myToken), clampStepMs(next.tMs - f.tMs) / speed);
+    timer = setTimeout(() => advance(myToken), paceStepMs(next.tMs - f.tMs) / speed);
   }
 }
 

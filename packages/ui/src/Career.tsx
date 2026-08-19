@@ -7,7 +7,7 @@ import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame, tempHandle, type CareerFocus } from './store';
+import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
 import { fetchRunHistory } from './remoteBoards';
 
@@ -123,8 +123,14 @@ export function Career() {
     // Viewing someone else reads THEIR rows by user_id. `careerOf` is in the deps so switching players from
     // the leaderboard refetches rather than showing the previous player's runs under the new name.
     void fetchRunHistory<RunHistoryEntry>(50, careerOf?.userId).then((rows) => { if (live) setEntries(rows ?? []); });
+    // …and re-read YOUR OWN rating from the server while we're here (owner ask 2026-08-19). The profile is a
+    // local MIRROR of the `profiles` row; without this it is only refreshed at launch, so a rating edited (or
+    // a row deleted) server-side didn't show until a full restart. Own career only — another player's rating
+    // comes from the leaderboard row we were handed, not from our profile. Best-effort: offline keeps the
+    // mirror, silently.
+    if (!careerOf) syncProfileFromServer(playerName);
     return () => { live = false; };
-  }, [show, careerVersion, careerOf?.userId]);
+  }, [show, careerVersion, careerOf?.userId, careerOf, playerName]);
   const stats = useMemo(() => careerStats(entries ?? []), [entries]);
   // Any recorded placement means these are lobby results, and the course-shaped headline numbers below
   // (Completed / Flawless / the Oath-based Win Rate) would read as a flat 0 or as an answer to a question

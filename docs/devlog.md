@@ -1,5 +1,43 @@
 # ASCENT — development log
 
+## 2026-08-19 — The Career rating is a real Supabase read (a wiped ladder now reaches the client)
+
+Owner report: after truncating the Supabase tables, the Career screen still read **RATING 1078** beside
+"No runs yet — play a run to start your career."
+
+**Cause.** The rating shown is a LOCAL MIRROR of this account's `profiles` row (`ascent.profile` in
+localStorage, via `profileStore.ts`); `syncProfileFromServer` adopts the server value over it at launch. But
+`fetchPlayerRating` collapsed FOUR situations into one `null` — no backend configured, no session, a
+failed/timed-out query, and "you genuinely have no row" — and the caller's `if (serverRating == null) return`
+then kept the local number in every one of them. So a deliberate server wipe could never reach a client: the
+mirror had no way to tell "the server has nothing for me" from "I couldn't reach the server".
+
+**Fix (two parts).**
+- `fetchPlayerRating` is now THREE-WAY: `undefined` = couldn't ask (keep local), `null` = asked and answered,
+  no row (the server says unranked), a number = the authoritative rating. The discrimination is `result.error`
+  (a failure) vs an empty `result.data` (an answer).
+- The reconciliation moved into **pure math in `@game/sim`** — `resolveServerProfile(profile, serverRating)`
+  — beside `adoptServerRating`, matching the "rating math lives in sim" convention. Couldn't-ask keeps the
+  mirror silently (owner ruling: a network blip must never blank an established player's rating); an answered
+  "no row" resets to `initialProfile()`; a number is adopted. It returns `null` for "no change" so the caller
+  skips a needless write + re-render. Deliberately `initialProfile()` rather than `adoptServerRating(p, 0)`:
+  the latter's high-water `Math.max` would carry the old peak across a wipe, still advertising
+  "Highest: Rating 1078".
+
+**Live Career read.** The Career screen now re-syncs your own rating from the server when it OPENS (and on
+`careerVersion` bumps), not only at launch — so a rating edited or deleted server-side shows without a full
+restart. Own career only; another player's numbers still come from the leaderboard row we were handed.
+
+Net: `profiles` is now genuinely authoritative for display. Editing or deleting a row moves the client on its
+next Career open or launch, and offline still shows the last-known value rather than a scary 0.
+
+**Verified:** typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (353 files / 5642 tests),
+including 11 new tests — `playerRatingRead.test.ts` pins the three-way read against a fake Supabase client,
+`serverProfileSync.test.ts` pins the reconciliation ruling (keep / reset / adopt / no-change).
+
+**Not done (flagged):** the store's `resetCareer()` action — which clears the local profile + history in one
+step — still has NO UI caller anywhere. Clearing a local career remains a console job.
+
 ## 2026-08-19 — Set 2: Fel Conjurer + Dwarven Sharpshooter, Oaf archive, Hoardflame tune (PR C cont.)
 
 Added to the same PR (#1097).

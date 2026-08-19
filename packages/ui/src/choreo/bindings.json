@@ -62,6 +62,11 @@
         "def": "echohorn-target-sparkle"
       }
     },
+    "b2_hawkus": {
+      "rally": {
+        "def": "hawkus-updraft"
+      }
+    },
     "bloodbinder": {
       "scCast": {
         "def": "ruby-lance",

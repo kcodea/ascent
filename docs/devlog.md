@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-08-19 — Hawkus gets a beat: an upward wind gust when its Echo trigger fires
+
+Owner report: Hawkus "triggers silently" — and notably, *"this seems to work pretty well with dawnclaw
+already, but without dawnclaw it triggers silently"*.
+
+**Cause.** Hawkus reacts to ANY friendly Rally, so — unlike Echohorn Stag, which procs off its OWN attack —
+its `rally` event is emitted while a DIFFERENT minion is the attacker. The moment compiler absorbs a `rally`
+into that attacker's wind-up (`WINDUP_ABSORB`), which is fine: the `rallyFx` channel exists precisely to play
+inside an absorbed wind-up. But that channel resolves a binding **per rallier CARD** and **drops unbound
+ralliers** — and `b2_hawkus` had no row in `bindings.json`. So the proc played nothing at all. With a Dawnclaw
+on board the surrounding death/Shout moments supplied their own beats, which is why it only *looked* fine there.
+
+**Fix.** A new authored def, **`hawkus-updraft`**, bound as `cards.b2_hawkus.rally`:
+- a `burst` layer of upward-oriented shards (`aimMode: fixed`, `angle: -90`, low gravity so they rise and drift
+  rather than falling back as a fountain), emitted from a wide `box` so the gust leaves the card's whole width;
+- a `smoke` layer of slow rising air (slight NEGATIVE gravity, squashed wide) for the body of the gust.
+
+Both layers anchor to **`source`** — the owner asked for the gust to come *from the card*, where Echohorn's
+sparkle deliberately anchors to its `target` instead. The channel already supplies the per-proc medallion pulse
+and the `rallyLeadMs` sequencing, so binding it is what turns the trigger into a readable beat: pulse, then gust.
+
+**Verified live** (dev server, throwaway run): `hawkus-updraft` loads into the FX registry and plays as a pale
+upward plume rising off the card. Sim side pinned by `hawkusRallyBeat.test.ts` — Hawkus really does emit a
+`rally` sourced at ITSELF off an ALLY's Rally with **no Dawnclaw present** (the exact failing case), aimed at
+the left-most Echo, and stays silent when no ally has Rally. The binding itself is pinned in the
+`bindings.test.ts` golden copy, and `fx/defs.test.ts` validates the def's params against the primitive registry.
+
+Tuning the gust further is a workbench job — the def is data, so its look can be dialled without code.
+
+Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (355 files / 5649 tests).
+
 ## 2026-08-19 — Live Imp stats: the summoned-Imp (X/Y) no longer goes stale
 
 Owner report: Imp Overseer printed "Echo: summon an Imp **(5/3)**" and the (5/3) "is not updating in

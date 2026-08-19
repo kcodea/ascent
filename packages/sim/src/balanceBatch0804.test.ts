@@ -32,23 +32,47 @@ describe('Water Dragon — Avenge (3) copies the left-most hand Spell', () => {
   });
 });
 
-describe("Rope Wrangler — End of Turn casts Lasso and grows itself (owner rework 2026-08-11)", () => {
-  // The Echo (deathrattleSummonRandomHandMinion) was removed. The Wrangler now has TWO End-of-Turn effects:
-  // cast Lasso, and buff itself +2/+2 (golden: Lasso twice, +4/+4). No more hand-summon / consumption to track.
-  it('gains +2/+2 at End of Turn', () => {
-    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 10, shop: [],
-      board: [card('rw', 'ropewrangler', 5, 4)] };
-    applyEndOfTurn(s);
-    const rw = s.board.find((c) => c.uid === 'rw')!;
-    expect([rw.attack, rw.health], 'the Wrangler grew +2/+2').toEqual([7, 6]);
+describe("Rope Wrangler — End of Turn casts Lasso, scaling with Gold spent (owner rework 2026-08-18)", () => {
+  // The +2/+2 self-buff is GONE. The single End-of-Turn effect casts Lasso, plus one more cast per 6 Gold spent
+  // this turn, capped at 5 casts. Golden multiplies the cast count (then caps). Each cast bumps `spellsCast` /
+  // `spellsThisTurn`, so the cast count is read off the `spellsCast` delta.
+  const wrangler = (gold: number, golden = false): RunState => ({
+    ...createRun(1), phase: 'recruit', embers: 10, shop: [],
+    board: [{ ...card('rw', 'ropewrangler', 5, 4), golden }],
+    goldSpentThisTurn: gold, spellsCast: 0, spellsThisTurn: 0,
   });
 
-  it('golden gains +4/+4 at End of Turn', () => {
-    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 10, shop: [],
-      board: [{ ...card('rw', 'ropewrangler', 5, 4), golden: true }] };
+  it('casts Lasso once with no Gold spent this turn (min 1)', () => {
+    const s = wrangler(0);
     applyEndOfTurn(s);
+    expect(s.spellsCast, 'one Lasso cast').toBe(1);
+    expect(s.spellsThisTurn).toBe(1);
+    // The self-buff is gone: the Wrangler's stats are untouched by its own End of Turn.
     const rw = s.board.find((c) => c.uid === 'rw')!;
-    expect([rw.attack, rw.health], 'the golden Wrangler grew +4/+4').toEqual([9, 8]);
+    expect([rw.attack, rw.health], 'no self-buff any more').toEqual([5, 4]);
+  });
+
+  it('adds one cast per 6 Gold spent this turn (12 Gold → 3 casts)', () => {
+    const s = wrangler(12);
+    applyEndOfTurn(s);
+    expect(s.spellsCast, '1 + floor(12/6) = 3 casts').toBe(3);
+  });
+
+  it('caps the total at 5 casts however much Gold was spent', () => {
+    const s = wrangler(600); // 1 + 100 → capped
+    applyEndOfTurn(s);
+    expect(s.spellsCast, 'hard cap of 5').toBe(5);
+  });
+
+  it('golden multiplies the cast count, then caps at 5', () => {
+    // 12 Gold → base 3 casts × golden 2 = 6 → capped at 5.
+    const s = wrangler(12, true);
+    applyEndOfTurn(s);
+    expect(s.spellsCast, '(1 + 12/6) × 2 = 6, capped at 5').toBe(5);
+    // A dry golden turn: base 1 × 2 = 2 casts, under the cap.
+    const dry = wrangler(0, true);
+    applyEndOfTurn(dry);
+    expect(dry.spellsCast, 'golden with no Gold spent → 2 casts').toBe(2);
   });
 });
 

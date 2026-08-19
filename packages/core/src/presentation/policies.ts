@@ -129,7 +129,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:echoSummonInheritAttackAndCharge:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:endOfTurnAdjacentConsumeFodder:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBonusGold:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnBuff:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffLeftmostTribePerCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffSpellsAndImps:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffWeakestDragon:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },

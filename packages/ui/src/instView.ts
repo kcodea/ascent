@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, attackGrantImproveText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
 
@@ -128,6 +128,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
 
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
+            summonEscalatingText(c.id, p.golden, p.summonBonus) ?? // Beardsley: the current escalating grant + countdown
             summonFlatZooText(c.id, p.golden, p.zooSummons) ?? // Beardsley under Rune of the Zoo: the NEXT summon's live grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable
@@ -149,6 +150,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
+            castSpellPerGoldText(c.id, p.goldSpent ?? 0, p.golden) ?? // Rope Wrangler: live Lasso cast count
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??

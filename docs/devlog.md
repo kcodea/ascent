@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-18 — Set 2 tuning: Rope Wrangler multicast, Beardsley escalation, Vaultkeeper text + Dragonflame badge (PR C cont.)
+
+Added to the same PR (#1097).
+
+**Rebalances:** Bellringer Voss → **T4 2/3**; Lastlight → **T3**.
+
+**Rope Wrangler** reworked: End of Turn casts **Lasso**, +1 cast per **6 Gold** spent this turn, capped at **5**
+(the +2/+2 self-buff is gone). Added opt-in `perGold` / `maxCasts` to the shared `castSpell` factory, and a live
+`castSpellPerGoldText` that folds the current cast count into the printed text.
+
+**Beardsley** reworked from a flat +6/+6 to an **escalating** summon buff: +3/+3 to each Beast summoned, improving
+**+3/+3 every 3 Beasts** (per-instance tally in `summonBonus`, both phases; composes ×golden and ×Rune-of-the-Zoo).
+New `summonEscalatingText` shows the live grant + countdown.
+
+**Vaultkeeper text fix:** `herzogText` printed a +1/+1 climb because it computed `base + step` instead of the
+factory's `base × (1 + step)`. Corrected — the card now shows +2/+2 → +4/+4 → +6/+6 (gilded +4 → +8 → +12),
+matching what the effect has always granted. Live text confirmed wired through `instView`.
+
+**Dragonflame ×N badge:** new `dragonflameCasts(state)` (1 + your Dragons) drives the spell's corner ×N badge,
+so the card shows how many minions it will hit based on the live board — mirroring Implosion's per-Demon badge.
+
+**Art:** wired the **Flutter** spell art.
+
+**Cleanup:** removed the now-dead `endOfTurnBuff:endOfTurn` presentation-policy entry (Rope Wrangler was its only user).
+
+**Verified:** typecheck, lint, build:web, full suite green; new coverage in `ownerBatchAug18b.test.ts` (Vaultkeeper
++2/+2 scaling, Beardsley escalation, Rope Wrangler's per-Gold multicast) plus updated Beardsley/Zoo, Rope Wrangler,
+Bellringer/Lastlight tests.
+
 ## 2026-08-18 — Set 2 follow-up: Hawkus/Spots, Echo-trigger primitives, summon-tier cap + tuning (PR C cont.)
 
 Added to the same PR (#1097).

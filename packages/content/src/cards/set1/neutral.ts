@@ -303,14 +303,14 @@ export const NEUTRAL: CardDef[] = [
     attack: 6,
     health: 5,
     keywords: [],
-    // Owner rework 2026-08-11: dropped the Echo (deathrattleSummonRandomHandMinion); End of Turn now also grows
-    // the Wrangler itself by +2/+2 (golden +4/+4). Two endOfTurn effects fire in array order.
+    // Owner rework 2026-08-18: the +2/+2 self-buff is gone; End of Turn now casts Lasso, plus one more cast per
+    // 6 Gold spent this turn, capped at 5 casts (`perGold` / `maxCasts` on the shared castSpell factory). The
+    // live cast count is folded into the printed text (see `castSpellPerGoldText`).
     effects: [
-      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } },
-      { on: 'endOfTurn', do: 'endOfTurnBuff', params: { attack: 2, health: 2 } },
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso', perGold: 6, maxCasts: 5 } },
     ],
-    text: '**End of Turn:** Cast **Lasso** and gain **+2/+2**.',
-    goldenText: '**End of Turn:** Cast **Lasso** twice and gain **+4/+4**.',
+    text: '**End of Turn:** Cast **Lasso**. Casts an additional time per **6 Gold** spent this turn (**5 max**).',
+    goldenText: '**End of Turn:** Cast **Lasso twice**. Casts an additional time per **6 Gold** spent this turn (**5 max**).',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

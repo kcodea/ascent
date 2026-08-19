@@ -228,9 +228,9 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Echo:** summon a random **Beast** and set its stats to **14/14**.',
   },
   {
-    // Owner add 2026-08-12 (owner 2026-08-12: now BOTH phases). Whenever you summon a Beast — in the shop or in
-    // combat — give it +6/+6 flat (`onSummonTribeBuffFlat` is wired in both the recruit and combat factories).
-    // Golden gives +12/+12. Rune of the Zoo scales the COMBAT half by the running summon count.
+    // Owner rework 2026-08-18: an ESCALATING summon buff — whenever you summon a Beast give it +3/+3, and the
+    // grant improves +3/+3 every 3 Beasts summoned (per-instance tally in `summonBonus`, both phases). Golden
+    // doubles both the grant and the step. The live grant is folded into the printed text.
     id: 'b2_beardsley',
     name: 'Beardsley',
     tribe: 'beast',
@@ -238,9 +238,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 6, health: 6 } }],
-    text: 'Whenever you summon a **Beast**, give it **+6/+6**.',
-    goldenText: 'Whenever you summon a **Beast**, give it **+12/+12**.',
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 3, health: 3, improve: 3, every: 3 } }],
+    text: 'Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.',
+    goldenText: 'Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
   },
   {
     // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets

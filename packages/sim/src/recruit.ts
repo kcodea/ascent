@@ -1070,6 +1070,12 @@ export function implosionCasts(state: RunState): number {
   return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
 }
 
+/** Dragonflame's repeat count: the base buff plus one more per Dragon you control (1 + your Dragons). Drives the
+ *  ×N badge so the card shows how many minions it will hit, based on the live board. */
+export function dragonflameCasts(state: RunState): number {
+  return 1 + state.board.filter((c) => isTribe(c, 'dragon')).length;
+}
+
 /**
  * Buff the SHOP by +attack/+health from a run-level source (a quest reward), through the same `tavernBuyBonus`
  * channel the Staff of Guel and Contract Butcher use — so "a quest buffs the shop" and "a card buffs the shop"
@@ -2476,9 +2482,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const g = gold(self);
-    const a = num(params.attack, 6) * g;
-    const h = num(params.health, 6) * g;
+    // Escalating variant (Beardsley 2026-08-18): +`improve` per stat every `every` tribe summons, tracked on a
+    // per-instance counter. Absent `improve` → the plain flat grant, unchanged.
+    const improve = num(params.improve, 0);
+    const every = Math.max(1, num(params.every, 1));
+    const step = improve > 0 ? Math.floor((self.summonBonus ?? 0) / every) : 0;
+    const a = (num(params.attack, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
+    if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
   },
 
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
@@ -5460,7 +5472,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
     // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
     // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
-    for (let i = 0; i < gold(self); i++) {
+    // Opt-in multicast (Rope Wrangler 2026-08-18): `perGold` grants +1 cast per that much Gold spent this turn,
+    // and `maxCasts` is a hard cap on the total. Absent → plain gold-scaled casting, unchanged.
+    const perGold = num(params.perGold, 0);
+    const maxCasts = num(params.maxCasts, 0);
+    let n = (perGold > 0 ? 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / perGold) : 1) * gold(self);
+    if (maxCasts > 0) n = Math.min(maxCasts, n);
+    for (let i = 0; i < n; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
       applyCastEffects(ctx, spellDef, target);

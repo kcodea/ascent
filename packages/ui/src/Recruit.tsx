@@ -3553,8 +3553,8 @@ export function Recruit() {
       // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
       // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
       // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-
-      // authored `consume-bands` def, fired at the SAME instant each ghost's timeline starts so the bands and
-      // the pull share one clock (`cfg.durationMs`). Every value is read LIVE from the 🍖 consume tuner.
+      // authored `consume-pull` particle def (smoke at the eater + three point-gravity burst rings sucked in),
+      // fired at the SAME instant each ghost's timeline starts. Every value is read LIVE from the 🍖 tuner.
       const cfg = getConsumeFxConfig();
       // Who reacts as the pull lands — summed per eater (one Demon can eat several Fodder). The eater's stat
       // WITHHOLD is deliberately NOT placed here (see `holdFodderGains`): it must ride the commit that raises
@@ -3576,9 +3576,10 @@ export function Recruit() {
           const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
-          // The authored bands whip from the ghost into ITS eater — fired at t=0 of the ghost's pull.
+          // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
+          // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
           playDef(
-            'consume-bands',
+            'consume-pull',
             { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
             { uids: { source: g.eaterUid, target: g.eaterUid } },
           );

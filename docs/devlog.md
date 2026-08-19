@@ -1,5 +1,16 @@
 # ASCENT — development log
 
+## 2026-08-18 — `consume-pull` particles replace the placeholder `consume-bands`
+
+The consume's particle layer is now the owner's workshop-authored **`consume-pull`** def: smoke gathers at the
+eater while three `burst` rings are sucked in by **point-gravity** (the black-hole pull param, #1076) — the
+"real energy-bands look" the earlier entry flagged as a follow-up. `playFodderEat` fires `consume-pull`
+(source = ghost, target = eater) in place of `consume-bands`, at t=0 of each ghost's taffy pull; the taffy card
+ghost, slot-launch, tilt, and reflow-hold are unchanged. The old placeholder `consume-bands.json` is deleted
+(nothing else referenced it), and the direct-call snapshot + its golden swap `consume-bands` → `consume-pull`.
+
+Verified: the fx def-registry gate loads + validates the new def (1372 fx tests green), typecheck + build green.
+
 ## 2026-08-18 — Consume slot-hold: the taffy pull now launches from the slot, and the row closes *after* it leaves
 
 Combined two parallel consume efforts onto latest main. Base: the other session's `feat/consume-fx` taffy

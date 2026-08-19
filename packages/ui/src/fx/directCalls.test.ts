@@ -132,7 +132,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   // plus `watcher-pulse`, fired directly from `useCombatReplay.ts`'s trigger-medallion effect.
   it('finds every effect the game plays from code', () => {
     expect(directCallDefIds()).toEqual([
-      'ale-bubbles', 'click-puff', 'coin', 'coins', 'consume-bands', 'damage-burst', 'death-dissolve',
+      'ale-bubbles', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
       'shop-tier-up', 'strike-impact', 'watcher-pulse',
     ]);

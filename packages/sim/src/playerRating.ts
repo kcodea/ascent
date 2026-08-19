@@ -90,6 +90,38 @@ export function adoptServerRating(profile: PlayerProfile, serverRating: number):
   };
 }
 
+/**
+ * Reconcile the local profile MIRROR against what the server said about this account's rating.
+ *
+ * The three inputs are deliberately distinct, because two of them want opposite handling (owner report
+ * 2026-08-19: a truncated `profiles` table left clients showing their old local rating forever):
+ *   • `undefined` — we COULDN'T ASK (offline, no backend, no session, a failed/timed-out query). Keep the
+ *     local mirror, silently: a network blip must never blank an established player's rating.
+ *   • `null`      — we asked and the server has NO rating for this account. The mirror is stale, so reset to
+ *     a fresh profile. Deliberately `initialProfile()` and not `adoptServerRating(p, 0)`, whose high-water
+ *     `Math.max` would preserve "Highest: Rating 1078" across a wipe.
+ *   • a number    — the authoritative rating; adopt it.
+ *
+ * Returns `null` when nothing should change, so the caller can skip the write + re-render.
+ */
+export function resolveServerProfile(
+  profile: PlayerProfile,
+  serverRating: number | null | undefined,
+): PlayerProfile | null {
+  if (serverRating === undefined) return null;            // couldn't ask → keep local
+  if (serverRating === null) {                            // answered: unranked → fresh
+    const fresh = initialProfile();
+    const same = profile.rating === fresh.rating
+      && profile.highestRating === fresh.highestRating
+      && profile.currentLine === fresh.currentLine
+      && profile.highestLine === fresh.highestLine
+      && profile.season === fresh.season;
+    return same ? null : fresh;
+  }
+  if (profile.rating === serverRating) return null;
+  return adoptServerRating(profile, serverRating);
+}
+
 /** Resolve the Line after a rating change, applying the promotion/demotion buffer from the *current* Line so
  *  a player straddling a band edge stays put until they clear the full threshold in either direction. */
 export function resolveLine(currentLine: number, rating: number): number {

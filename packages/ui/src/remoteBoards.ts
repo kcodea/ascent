@@ -414,24 +414,32 @@ export async function uploadVictory(v: {
  *  launch, so editing the row in Supabase overrides any client. */
 // `_author` is deliberately UNUSED since C1 — the row is selected by `user_id`, not by name. Kept in the
 // signature so callers read unchanged and because C2's handle model wants it back.
-export async function fetchPlayerRating(_author: string): Promise<number | null> {
+export async function fetchPlayerRating(_author: string): Promise<number | null | undefined> {
   const c = client();
   const userId = currentUserId();
   // ACCOUNTS C1: look the rating up by USER, not by display name. Looking it up by name meant renaming
   // yourself to another player's name ADOPTED their rating — the read side of the same hole the write side
-  // had. With no identity there is no rating to adopt, so return null rather than guessing from a name.
-  if (!c || !userId) return null;
+  // had. With no identity there is no rating to adopt, so report "couldn't ask" rather than guessing.
+  //
+  // THREE-WAY RESULT (owner report 2026-08-19: a wiped `profiles` table left every client showing its old
+  // local rating). The caller has to tell "the server has no rating for me" apart from "I couldn't reach the
+  // server", because those want opposite handling — adopt-fresh vs keep-local:
+  //   • `undefined` — COULDN'T ASK (no backend configured, no session, query error, timeout). Keep local.
+  //   • `null`      — ASKED AND ANSWERED: no row, or a row with no usable rating. The server says unranked.
+  //   • `number`    — this account's authoritative rating.
+  if (!c || !userId) return undefined;
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const timeout = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
       Promise.resolve(c.from('profiles').select('rating').eq('user_id', userId).limit(1)),
       timeout,
     ]);
-    if (!result || result.error || !result.data?.length) return null;
+    if (!result || result.error) return undefined;   // timed out / query failed — we never got an answer
+    if (!result.data?.length) return null;           // answered: this account has no profile row
     const rating = (result.data[0] as { rating?: unknown }).rating;
     return typeof rating === 'number' && Number.isFinite(rating) ? rating : null;
   } catch {
-    return null;
+    return undefined;
   }
 }
 

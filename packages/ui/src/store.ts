@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, adoptServerRating, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -1243,12 +1243,13 @@ export function syncProfileFromServer(name: string): void {
   // The NAME no longer selects the row — `fetchPlayerRating` reads this user's own profile. The parameter is
   // kept so callers (and the rename path) read unchanged, and because C2's handle model will want it back.
   void fetchPlayerRating(name).then((serverRating) => {
-    if (serverRating == null) return;
-    const s = useGame.getState();
-    if (s.profile.rating === serverRating) return;
-    const adopted = adoptServerRating(s.profile, serverRating);
-    saveProfile(adopted);
-    useGame.setState({ profile: adopted });
+    // The reconciliation is PURE MATH in @game/sim (`resolveServerProfile`), which owns the three-way ruling:
+    // couldn't-ask keeps the local mirror silently, an answered "no row" resets to a fresh profile (so a
+    // wiped/deleted `profiles` row actually reaches the client), a number is adopted. `null` = no change.
+    const next = resolveServerProfile(useGame.getState().profile, serverRating);
+    if (!next) return;
+    saveProfile(next);
+    useGame.setState({ profile: next });
   });
 }
 if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());

@@ -51,6 +51,20 @@
      1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
      button offsets were tuned against. */
   --board-fill: 1;
+  /* Ultrawide side-blend (owner ask 2026-08-18). The 16:9 default board can't fill a window WIDER than 16:9, so
+     the bare `--bg` (#8c857a tan) shows in the side margins there — see `.boardbg`, which lays a `--board-edge-col`
+     gradient over those margins that fades INTO the art edges so the two meet seamlessly. `--board-edge-col` is
+     the ambient the art's edges sit in; `--board-edge-fade` is how far (design px, × --scale) the blend reaches
+     into the art from each edge. `--board-edge-col-0` is that SAME colour at 0 alpha — used for the fade's inner
+     stop so it doesn't interpolate through transparent-black and leave a grey fringe; keep it in sync with the
+     colour. Self-gating: the blend's edges are pinned to the art's real edges, which on a ≤16:9 window sit
+     off-screen (the art overspills), so the whole visible strip computes transparent and this costs nothing
+     until the window is actually wider than the art. Live-tunable via the 🌫️ Board Edge dev tuner
+     (`boardEdgeConfig.ts`), which overrides these on `:root` at runtime; keep these values in sync with its
+     DEFAULTS (they are the pre-JS / no-JS paint). */
+  --board-edge-col: #312361;
+  --board-edge-col-0: rgb(49 35 97 / 0);
+  --board-edge-fade: 186px;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -166,9 +180,25 @@ canvas.spr { image-rendering: pixelated; display: block; }
      shows the band again — bump `--board-fill`, and re-check the four button offsets, which are tuned against
      that exact art size. The 16:9 DEFAULT board has no such surplus: anything wider than 16:9 shows the side
      margins, by design (see `--board` above). */
+  /* The art's on-screen WIDTH, and its left/right edge X (centred, plus the same `--board-x` nudge the art
+     layer uses). Shared so the side-blend's fade points can't drift from the art edges — change the size
+     formula here and both move together. */
+  --_board-w: calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132));
+  --_board-l: calc(50% - var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
+  --_board-r: calc(50% + var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
+  --_board-fade: calc(var(--board-edge-fade) * var(--scale));
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
+    /* Side-blend: solid `--board-edge-col` across each margin, fading into the art by `--_board-fade`. On a
+       ≤16:9 window `--_board-l`/`--_board-r` are off-screen, so the visible strip is entirely transparent. */
+    linear-gradient(to right,
+      var(--board-edge-col) 0,
+      var(--board-edge-col) var(--_board-l),
+      var(--board-edge-col-0) calc(var(--_board-l) + var(--_board-fade)),
+      var(--board-edge-col-0) calc(var(--_board-r) - var(--_board-fade)),
+      var(--board-edge-col) var(--_board-r),
+      var(--board-edge-col) 100%),
+    var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -2565,19 +2595,15 @@ body.modalup .app { z-index: auto; }
    Demon that ate it (a purple swirl), so the auto-consume is visible (not instantaneous) */
 /* z120: the Fodder consume swirl rides ABOVE the FX overlay (.pixifx z110) so a consumed unit's divine-shield
    bubble can't cover it — the consume animation is the thing to watch. (Discover at z160 still wins over this.) */
-/* The modernized Fodder eat (owner redesign 2026-07-16): the ghost card POPS IN hovering above the shop
-   line — dropping in fast and easing to a stop — holds a beat, then CRUMBLES away (shrink + sink + fade)
-   as the purple energy burst + tendril take over (fired from JS at the 65% mark, CRUMBLE_MS). One-shot,
-   transform/opacity only. (The old 2.2s swirl-and-fly + orbiting orbs retired.) */
-.fodderghost { position: fixed; z-index: 120; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); animation: fodderpop 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+/* The consume ghost (owner redesign 2026-08-16): the ghost's transform + opacity are now GSAP-OWNED — a
+   shake → taffy-stretch → pull-into-the-eater → vanish timeline in `playFodderEat` driving
+   `consumeTransform` (see consumeFxConfig / fx/consumeTransform). No CSS keyframe touches transform/opacity
+   here, or it would fight GSAP; this rule keeps only the placement + the purple wreath. (The old `fodderpop`
+   pop-in/crumble keyframes retired with the Pixi tendril.) */
+.fodderghost { position: fixed; z-index: 120; pointer-events: none; transform-origin: center; filter: drop-shadow(0 0 16px rgba(177, 92, 240, 0.95)); }
 .fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
-@keyframes fodderpop {
-  0% { transform: translateY(-34px) scale(0.3); opacity: 0; }
-  30% { transform: translateY(2px) scale(1.05); opacity: 1; } /* fast in, slight overshoot */
-  44% { transform: translateY(0) scale(1); }
-  65% { transform: translateY(0) scale(1); opacity: 1; }      /* the hover — the crumble fires here */
-  100% { transform: translateY(10px) scale(0.72); opacity: 0; } /* crumble: shrink + sink into the energy */
-}
+/* Stats toggle (🍖 consume tuner `showStats`): hide the eaten minion's atk/hp badges on the ghost. */
+.fodderghost.nostats .badge { visibility: hidden; }
 
 /* "End of Turn" banner — a brief centred title as the turn ends (end-of-turn effects resolved). */
 /* Centred over the upper (shop / enemy-board) region, not the screen middle — so the banner
@@ -5726,8 +5752,14 @@ svg { width: 18px; height: 18px; }
    panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
    fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely
    positioned on purpose — in centered contexts (Discover, inspect, rows) in-flow growth moved the frame
-   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo. */
-.book-grid .card.compact.showtext .drawer { position: static; margin-top: calc(var(--ccw) * 0.15); }
+   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo.
+   Use `relative` (still in flow, so row-sizing is unchanged) rather than `static`, and `inset: auto` to drop
+   the absolute-mode offsets: the drawer must stay a POSITIONING CONTEXT because its `.descbox` (the dark
+   desc-backbox panel) is `position:absolute; top:-184px` anchored to it. Under `static` the descbox escaped to
+   a higher ancestor and floated ~184px ABOVE the card (owner report 2026-08-18: "the dark [panel]… is way above,
+   lower it… seated perfectly in the live game"); as a relative context it re-seats on the card exactly as it
+   does in the hand. Scoped to `.book-grid`, so the hand is untouched. */
+.book-grid .card.compact.showtext .drawer { position: relative; inset: auto; margin-top: calc(var(--ccw) * 0.15); }
 /* With the drawer in flow the cell owns its full height, so the hover scale needs a transform origin that
    doesn't push a tall card under its neighbour. */
 .book-grid .book-cell { display: flex; justify-content: center; width: 100%; }

@@ -12,6 +12,8 @@ import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
+import { BoardEdgeTuner } from './BoardEdgeTuner';
+import { CombatRampTuner } from './CombatRampTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
@@ -20,6 +22,7 @@ import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
+import { ConsumeFxTuner } from './ConsumeFxTuner';
 import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
@@ -111,6 +114,7 @@ const GROUPS: Group[] = [
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
+      { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — each card, the art inside it, and the MODE title', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
@@ -145,6 +149,7 @@ const GROUPS: Group[] = [
     title: 'Strikes',
     items: [
       { key: 'lunge', icon: '🗡️', label: 'Lunge', C: LungeTuner, hint: "The attacker's lunge into its target" },
+      { key: 'speedramp', icon: '⏩', label: 'Speed Ramp', C: CombatRampTuner, hint: 'The auto speed-up curve during combat — grace, ramp-up, ceiling, ease-down', alt: 'combat replay pacing auto ramp' },
       { key: 'critfx', icon: '⚡', label: 'Critical Strike', C: CritFxTuner, hint: 'The crimson-gold crit flourish', alt: 'crit fx' },
       { key: 'flurryswing', icon: '🌬️', label: 'Flurry Swing', C: FlurrySwingTuner, hint: "The wind-slash sparkle on a Flurry minion's extra swing", alt: 'windfury' },
       { key: 'cleavefx', icon: '🪓', label: 'Cleave Slash', C: CleaveFxTuner, hint: 'The hit-stop and red gash a Cleave attacker plays' },
@@ -162,6 +167,7 @@ const GROUPS: Group[] = [
       { key: 'herobufffx', icon: '🎆', label: 'Hero Buff Flash', C: HeroBuffFxTuner, hint: 'The shard blast and ripple over the hero portrait' },
       { key: 'aurafx', icon: '🌊', label: 'Aura Wave', C: AuraFxTuner, hint: 'The run-wide tribe-aura wave across the board' },
       { key: 'infusefx', icon: '🍖', label: 'Fodder Infusion', C: InfuseFxTuner, hint: 'The tendrils that send Fodder to the shop', alt: 'consume' },
+      { key: 'consumefx', icon: '🍖', label: 'Consume FX', C: ConsumeFxTuner, hint: 'The eaten-minion shake / taffy / pull + bands' },
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
     ],
   },

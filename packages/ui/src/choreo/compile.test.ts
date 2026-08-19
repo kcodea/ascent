@@ -76,6 +76,30 @@ describe('compileMoments — default rules reproduce buildBeats exactly', () => 
     expect(moments[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'toHand', cardId: 'y' }, stepGroups: [[1]] });
   });
 
+  it('a shop-buff sc after an attack is absorbed into the attack wind-up (Demon Horse); an ordinary sc is not', () => {
+    // Shop-buff flash: `attack` then `+1/+2 Shop` fold into ONE attack moment so the number fires in the lunge.
+    const shop = compileMoments(
+      [
+        { type: 'attack', source: 'a', target: 'b', step: 0 },
+        { type: 'sc', source: 'a', text: '+1/+2 Shop', step: 1 },
+        { type: 'dmg', target: 'b', amount: 3, step: 2 },
+      ] as unknown as Parameters<typeof compileMoments>[0],
+      DEFAULT_RULES,
+    );
+    expect(shop[0]).toMatchObject({ start: 0, end: 2, primary: { type: 'attack' } }); // attack + sc together
+    expect(shop[1]).toMatchObject({ primary: { type: 'dmg' } });
+    // An ordinary (non-Shop) sc after an attack stays its OWN beat — the predicate is shop-buff-only.
+    const other = compileMoments(
+      [
+        { type: 'attack', source: 'a', target: 'b', step: 0 },
+        { type: 'sc', source: 'a', text: '+2 Spell Power', step: 1 },
+      ] as unknown as Parameters<typeof compileMoments>[0],
+      DEFAULT_RULES,
+    );
+    expect(other[0]).toMatchObject({ start: 0, end: 1, primary: { type: 'attack' } });
+    expect(other[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'sc' } });
+  });
+
   it('empty log compiles to no moments', () => {
     expect(compileMoments([], DEFAULT_RULES)).toEqual([]);
   });

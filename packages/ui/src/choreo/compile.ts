@@ -34,6 +34,15 @@ export const DEFAULT_RULES: GroupingRules = {
   absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura']),
 };
 
+/** A shop-buff narration (`+X/+Y Shop`, non-cast) is an on-attack FLASH just like the `buff` events already
+ *  absorbed — a minion that buffs the Shop as it swings (Demon Horse, etc.). It only rides an `sc` instead of a
+ *  `buff` event because its target is the Shop, not a combat unit. Fold it into the attacker's wind-up so its
+ *  number + trigger pulse fire DURING the lunge (with the pulse), not as a detached beat after the swing (owner
+ *  ask 2026-08-18). Predicate-based (not a type in `absorbIntoWindup`) so ordinary/spell-cast `sc` are untouched. */
+function isShopBuffFlash(e: CombatEvent): boolean {
+  return e.type === 'sc' && !e.cast && / Shop$/.test(e.text);
+}
+
 /** A presentation moment — `Beat`-shaped (start/end/primary) so every existing consumer
  *  (`attackerOfImpact`, the scheduler, float/anim derivation) works unchanged, plus the step structure. */
 export interface Moment extends Beat {
@@ -74,7 +83,7 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
       while (i < events.length && events[i]!.type === t) i++;
     } else if (t === 'attack') {
       i++;
-      while (i < events.length && rules.absorbIntoWindup.has(events[i]!.type)) i++;
+      while (i < events.length && (rules.absorbIntoWindup.has(events[i]!.type) || isShopBuffFlash(events[i]!))) i++;
     } else {
       i++;
     }

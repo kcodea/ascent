@@ -61,6 +61,258 @@ tutorial's CARD_IDS (unused). The tutorial's Imp Wrangler / Cinder Clerk lessons
 serves by id from `CARD_INDEX`, which archived cards remain in.
 
 Gates: typecheck, lint, `build:web`; full test suite updated for the archives + stat changes and green.
+## 2026-08-18 — Demon Horse's shop-buff fires during the lunge, not after the swing
+
+Owner report: Demon Horse (`dm_hungerling`, Rally: buff the Shop on attack) played its `+1/+2 Shop` number
+*after* its whole attack resolved, reading as a detached, post-swing event; it should land in the lunge, with
+the trigger pulse.
+
+Cause: the buff is a `gainTavernBuy` that emits a plain **`sc` narration** event (`+1/+2 Shop`) — not a
+combat `buff`, since its target is the Shop, not a unit. `sc` isn't in `absorbIntoWindup`
+(`choreo/compile.ts`), so the compiler left it as its own beat *after* the attack (which advances at contact),
+and the per-beat number + medallion pulse only fired there.
+
+Fix: a **predicate** absorb — a shop-buff flash (`sc`, non-cast, text `/ Shop$/`) is folded into the
+attacker's wind-up moment, exactly like the `buff`/`rally` on-attack flashes already are. So its number +
+trigger pulse now fire at the top of the wind-up = during the lunge, together with the pulse. Deliberately
+predicate-based (not adding `'sc'` to the type set) so ordinary and spell-cast `sc` events are untouched.
+Covers every shop-buff-on-attack minion, not just Demon Horse (same family). Added a compile test pinning
+both halves (shop-buff sc absorbed; an ordinary `+2 Spell Power` sc stays its own beat).
+
+Verified: choreo suite (406) + full test suite green; typecheck + lint + build green.
+
+Follow-up: the `+X/+Y Shop` NUMBER moved into the lunge (above), but the `shop-buff-aura` PIXI still played only
+later — over the shop row on return to recruit (the reducer's `tavernBuyBonus` diff → `shopBuffAllFxSeq` cue), a
+different surface entirely from the mid-combat telegraph. So there was no on-attack bloom. Fixed by firing the
+authored `shop-buff-aura` def from the same combat `sc`-telegraph block in `useCombatReplay.ts` that fires the
+number — one camera-anchored play per beat (deduped over several shop-buffers, anchored at the last buffer for
+any source/target layers). Because the `sc` is now absorbed into the wind-up, this runs at the attack beat's
+presentation, so the aura blooms in the lunge alongside the number + pulse. The shop-row confirmation on return
+still fires (different surface). Registered the new literal `playDef('shop-buff-aura', …)` in `directCalls.ts` +
+its golden.
+
+Then de-duplicated: with the combat bloom in place, the shop-row aura on return played the effect a SECOND time
+(owner report). That post-combat replay is stamped by the reducer's generic post-action `tavernBuyBonus` diff
+(`shopBuffAllFx`/`Seq`), which also fires at `resolveCombat`/`settleCombat`. Gated that stamp to SKIP the
+combat-transition actions — a Shop buff earned in combat already bloomed in the lunge, so it must not stamp the
+shop-row aura again. The buff itself still applies (offers carry it); only the duplicate FX is skipped.
+Recruit-phase casts/shouts and the End-of-Turn beat path are untouched. Added a sim test pinning it.
+
+## 2026-08-18 — Consume: the eater swells, then snaps back with a recoil
+
+The consuming minion now physically reacts across the WHOLE eat instead of a single end-of-pull pop: it
+**swells** in size as the ghost is drawn in, then **snaps back to true size with a small recoil bounce** as it
+settles (owner ask). One scale-only WAAPI keyframe animation per eater (`composite: 'add'`, so it stacks on the
+card's own transforms), started on the frame the ghosts mount so it's synced to the pull, spanning
+`durationMs`. This replaces the old 380ms gulp-pop.
+
+Three new 🍖 Consume tuner dials, under an **Eater swell** group: **Grow amount** (peak extra size), **Grow
+length** (how far into the eat the swell peaks before the snap — higher = a quicker snap), **Recoil** (the
+settle overshoot). Defaults: grow +12%, peak at 0.82, recoil 0.05. Naming note: the owner called this "source
+grow", but in the FX def "source" is the *consumed* ghost and "target" the eater — the dials are labelled for
+the eater to avoid that inversion.
+
+Two follow-up fixes the same day:
+- **Recoil decoupled from grow length.** The bounce used to be crushed into whatever sliver of the timeline
+  was left after the swell peaked, so at a high grow length it vanished. Now the swell takes `growLength` of
+  the eat to peak and the recoil ALWAYS gets its own fixed tail after (min ~180ms), running a touch past the
+  eat — so `growLength = 1` (grow the whole time) still shows a clear undershoot→small-overshoot→settle spring.
+- **Stat badge no longer lags.** The eater's attack/health withhold was released on the *old infuse-tendril*
+  clock (~0.9s), decoupled from the shorter taffy eat, so the number popped well after the animation. It's now
+  released at 0.8 of the consume's `durationMs`, climbing into place as the eater gulps.
+
+Verified: typecheck + lint (0 errors) + build + the consume transform/config tests green.
+
+## 2026-08-18 — Fix: Compendium description panel floated above the card (and revert the wrong first attempt)
+
+The real "misplaced shadow" in the Compendium was the **`.descbox`** — the dark `desc-backbox.webp` panel behind
+each card's description. It is `position:absolute; top:-184px` anchored to its `.drawer`, but the Compendium
+renders the drawer `position:static` (so the text sits in flow and rows self-size). With a static parent the
+descbox escaped to a higher positioning ancestor and floated ~184px **above** the card — a dark panel hanging in
+the grid gaps, "way above" where it belongs (owner report). In the hand the drawer isn't static, so it always
+seated correctly there.
+
+**Fix:** make the Compendium drawer `position: relative; inset: auto` instead of `static`. `relative` is still
+in normal flow (row self-sizing is unchanged) but re-establishes the drawer as the positioning context, so the
+descbox anchors to it and seats on the card exactly as in the hand. Scoped to `.book-grid`; the hand/live game is
+untouched.
+
+**Also reverts the earlier wrong fix (#1096).** That PR misdiagnosed this as the frame's oval *grounding shadow*
+(`.cshadow`) and hid it in the grid; the grounding shadow was never the problem, so this restores it to its
+normal `translateY(5px)` resting state in the Compendium. Verified live on the dev server (descbox re-seated onto
+the card; grounding shadow back to normal) and against typecheck + lint + build:web.
+
+## 2026-08-18 — Consume "gulp" SFX + final tuner defaults
+
+Also lands the owner's **final Consume FX tuner defaults** (a snappier eat): durationMs 530, shakePhase 0.76,
+shakeAmp 18.5, shakeFreq 60, stretch 0.2, thin 0.66, lag 0.52, pullDist 1.08, collapseStart 0.92, fadeStart 0,
+showStats true.
+
+
+A sound now plays when a shop minion (or Tavern Fodder) is consumed: the owner's `consume.mp3`, dropped at
+`packages/ui/src/audio/consume.mp3` (globbed + keyed `consume`, like every other top-level clip). New audio
+category `consume` (bus `ui`, gain 0.5 — tunable in the dev SFX desk); a `sfx.consume()` method plays the
+sourced clip with a low synth-gulp fallback until it decodes.
+
+**De-dup:** the owner wants several consumes on one beat (one eater devouring multiple fodder, or multiple
+eaters resolving together) to read as a SINGLE gulp. `playFodderEat` fires `sfx.consume()` once per consume
+action (not per ghost), and `sfx.consume` itself guards on a short cooldown (`CONSUME_SFX_COOLDOWN_MS` = 140ms)
+so any consumes within one beat/frame collapse to one play.
+
+Verified: typecheck + lint + build green; audio config tests pass (the config test iterates `CATEGORY_GAINS`,
+so the new category is covered). The auto-generated `sfx-manifest.md` was intentionally NOT regenerated here —
+it is stale for many already-shipped clips and a full regen belongs in its own pass, not this feature.
+## 2026-08-18 — Fix: misplaced grounding shadow on Compendium cards
+
+The Compendium's plated cards showed a dark, blurred oval smudge sitting on top of each stone plate — a
+"misplaced shadow" (owner report). Root cause: the frame's **grounding shadow** (`.cshadow`, a `brightness(0)
+blur` copy of the oval/square/heater frame, offset down 5px at opacity 0.8) is meant to ground an **un-plated**
+card on the dark board. On a plated card the frame subtree lives in `.archbox` (`position:relative; z-index:1`),
+so it paints **above** the `z-index:0` stone plate, dropping that dark oval onto the lit stone. In the hand it's
+invisible against the dark board and the drag-lift version is a wanted feel effect, but in the Compendium's
+large, static gallery it read as a shadow in the wrong place.
+
+**Fix (CSS only):** drop the frame's contact shadow inside the grid — the plate is the card's grounding body
+there. Scoped to `.book-grid .card.plated .cframe.cshadow, .book-grid .card.plated .tframe.cshadow { display:
+none }` so the hand's resting look and the drag-lift shadow are completely untouched. Verified live via the
+running dev server (all 132 plated cards' shadows now `display:none` in the grid, with the diagnostic style
+removed) and against typecheck + lint + build:web.
+
+## 2026-08-18 — `consume-pull` particles replace the placeholder `consume-bands`
+
+The consume's particle layer is now the owner's workshop-authored **`consume-pull`** def: smoke gathers at the
+eater while three `burst` rings are sucked in by **point-gravity** (the black-hole pull param, #1076) — the
+"real energy-bands look" the earlier entry flagged as a follow-up. `playFodderEat` fires `consume-pull`
+(source = ghost, target = eater) in place of `consume-bands`, at t=0 of each ghost's taffy pull; the taffy card
+ghost, slot-launch, tilt, and reflow-hold are unchanged. The old placeholder `consume-bands.json` is deleted
+(nothing else referenced it), and the direct-call snapshot + its golden swap `consume-bands` → `consume-pull`.
+
+Verified: the fx def-registry gate loads + validates the new def (1372 fx tests green), typecheck + build green.
+
+## 2026-08-18 — Consume slot-hold: the taffy pull now launches from the slot, and the row closes *after* it leaves
+
+Combined two parallel consume efforts onto latest main. Base: the other session's `feat/consume-fx` taffy
+pull + `🍖 Consume FX` tuner + `consume-bands` def (its own entry below), squash-merged onto current main —
+which keeps main's slot-launch ghost (#1078), so the taffy ghost now stretches out of the eaten card's **own
+slot**, not the row centre. On top of that, this adds the **reflow-hold**:
+
+- On the consume commit, a derive-during-render step reads the eaten uid + its pre-removal slot index (from
+  `shopRectsRef.cur`, still the pre-removal layout at that point) and re-injects an **invisible placeholder**
+  (`.card.compact.dragsrc`, `data-uid` intact) at that index — so `flipKey` is byte-identical to the
+  pre-consume frame and the survivors do **not** reflow while the ghost is being pulled in.
+- A timer releases the hold at the taffy's own clock (`getConsumeFxConfig().durationMs`); only then does the
+  slot drop, `flipKey` change, and the committed-move FLIP glide the survivors closed.
+- The taffy ghost's slot-launch read now falls back `prev ?? cur`, because a held commit leaves `flipKey`
+  unchanged so the snapshot effect never swaps `cur`→`prev`.
+
+Why derive-during-render, not an effect: a passive effect runs AFTER the FLIP layout effect, so the reflow
+would already have animated before the placeholder could hold the slot.
+
+Verified: typecheck (pkgs + web), lint (0 errors), full test suite, and `build:web` all green; live consume
+checked by the owner on the branch dev server.
+
+## 2026-08-16 - Shop consume FX: shake + taffy-stretch + pull ghost, synced to a `consume-bands` def
+
+Replaced the old ghost-Fred swirl that played when a shop minion is eaten with a purpose-built "consumed"
+moment: the eaten minion's ghost **shakes**, **taffy-stretches** along the aim axis toward the eater, and is
+**pulled in** as it collapses and fades, synced to a Pixi source→target `consume-bands` def fired at the same
+instant. One GSAP timeline conducts the whole thing — the config's `durationMs` is the clock (default 800ms,
+matched to the def's duration), and its `onUpdate` reads a cached `from`/`to` (the eater is measured **once**
+per eat, never per frame) through the pure `consumeTransform` helper (shake / stretch / thin / pull, plus a
+`showStats` toggle that renders the eaten minion's stats on the ghost).
+
+Because **`playFodderEat` is the single choke point** for every "a minion got eaten" moment — reached from the
+mid-turn watchers, the end-of-turn beat loop, and (remapped) `shopEaten` — the rewire lands ONCE and covers
+**every shop eater automatically**: Bob Blart, Cinder Clerk, Godfodder, the Consume spell, the tavern auto-eat,
+and any future consumer. A **`🍖 Consume FX`** dev tuner (shake amp/freq, stretch, thin, pull distance,
+duration, and the show-stats toggle) drives it live, wired through the standard tuner schema/persist scaffolding.
+
+Scope: shop phase only. Combat consumption and the two `spellDevour`/`orbitDevour` orphans are deliberately
+**out** — there is no `CN`/consume combat event to hang a synced def on.
+
+How verified: unit tests for the pure `consumeTransform` taffy math and the config getter/persist, the
+`fx/directCalls.test.ts` pin updated for the new `consume-bands` literal call site, and the full gate suite
+(typecheck + lint + test + build:web) green. The live in-shop visual and the real `consume-bands` energy-bands
+look are owner-run in the FX workshop.
+
+Follow-ups: the owner authors the real `consume-bands` def in the workshop (the committed one is a placeholder,
+duration-matched to `durationMs`); `holdFodderGains`' stat-reveal timing (~90ms — the beat where the eater's
+buffed stats commit) may want re-aligning once the final `durationMs` is locked in.
+
+## 2026-08-18 — Combat auto-ramp: tune the shipped defaults for a gentler curve
+
+Owner feel pass on the auto-ramp curve (the live Speed Ramp tuner). Updated `COMBAT_RAMP_DEFAULTS`
+(`packages/ui/src/combatRampConfig.ts`) from grace 2000 / ramp-up 4000 / tail 5000 to **grace 3600 /
+ramp-up 10000 / tail 10000** (ceiling unchanged at 3×): a longer opening hold, a much gentler climb, and a
+longer ease-down tail so the finish settles back to base well before the last blow. Defaults-only change —
+no logic, no test impact (the math tests use their own fixture, not the defaults). Verified: typecheck +
+build:web green.
+
+## 2026-08-18 — Combat replay auto-ramps its speed so long fights stop dragging
+
+A toggle-able option (**ON by default**) that lets each combat replay auto-ramp its own playback speed within a
+fight: it holds at the Speed-slider value (the *starting* speed) through an opening grace window, eases **up**
+toward a ceiling for the long middle, then eases back **down** to the starting speed for the finish — so a
+drawn-out fight stops dragging while the opening and finishing blows still read at normal speed. The base Speed
+slider is never mutated; this is a presentation-only layer on top of it.
+
+**UI/presentation only — no engine, sim, or content change.** The combat event log, determinism, and golden
+outputs are untouched; this only changes the *clock* the UI replays them on.
+
+- **Pure ramp module** (`packages/ui/src/combatRampConfig.ts`). `rampSpeed(base, elapsedMs, remainingMs, cfg)`
+  is the **min of two curves** — an up-curve driven by wall-clock elapsed (grace → ramp-up → ceiling) and a
+  down-curve driven by estimated time-remaining (ease back to the starting speed for the tail) — so whichever
+  bound is tighter wins, and a short fight simply never gets far up the up-curve before the down-curve pulls it
+  back. It no-ops when the base speed is already ≥ the ceiling.
+- **O(1) authored-time estimate.** `buildAuthoredTimeline` precomputes a prefix sum of per-beat authored
+  durations so the rAF loop can read "authored time remaining" in constant time each frame instead of summing
+  the tail. It deliberately errs slightly **early** (treats the fight as a touch shorter than it is) — the safe
+  direction, since easing down a hair early protects the finish rather than clipping it.
+- **Effective-speed layer** (`useCombatReplay.ts`). A rAF loop drives an effective-speed ref, the
+  `--combat-speed` CSS var, and the float speed with **zero per-frame React renders**; the ref resets per fight.
+  Off (or in the tutorial, which always plays flat 1×) the whole path is a no-op and playback is byte-identical
+  to today's flat behavior.
+- **Default-ON toggle** `combatRampUp` in the store (persisted), surfaced as a Settings → Combat toggle placed
+  **directly under the Speed slider**, plus a dev **Speed Ramp** tuner exposing every number (grace / ramp-up /
+  ceiling / ease-down tail).
+
+Verified: the pure-math unit tests in `combatRampConfig.test.ts` (ramp profile, the two-curve min, the
+timeline prefix-sum + its early-erring approximation, and the off-path no-op); the full four-gate suite green
+(`typecheck` + `lint` + `test` with **5587** tests + `build:web`); combat determinism / golden suites unchanged.
+**Follow-up:** the live feel pass — settling the grace window, ceiling, and ease-down tail to taste — is
+owner-driven via the Speed Ramp tuner at 1× (the owner's play speed).
+
+## 2026-08-18 — Ultrawide side margins blend into the board instead of showing tan
+
+The 16:9 default board can't fill a window wider than 16:9, so the bare `--bg` (#8c857a tan) showed in the side
+margins on ultrawide monitors (owner report, a friend's 21:9). Resolves the open roadmap item.
+
+`.boardbg` gains one horizontal gradient layer above the art: solid `--board-edge-col` (#312361 — the ambient
+the art's edges sit in) across each margin, fading into the art edge by `--board-edge-fade` (186px × --scale) so
+the margin colour and the art meet seamlessly rather than at a hard line. The fade's inner stop uses
+`--board-edge-col-0` — the same colour at 0 alpha — instead of the `transparent` keyword, which would
+interpolate through transparent-black and leave a grey fringe.
+
+**Self-gating, so it costs nothing below ultrawide.** The gradient's fade points are pinned to the art's REAL
+left/right edges, computed from a new shared `--_board-w` (the same size formula the art layer now also reads,
+so the seam can't drift from the art). On a ≤16:9 window the board overspills the viewport (board-zoom 1.25), so
+those edges sit off-screen and the entire visible strip computes transparent — no media query needed, and it
+tracks the art automatically if the zoom/fill/aspect ever change. Verified by the edge geometry: at 16:9 the art
+edges land at −333px / 2893px (off-screen, blend transparent); at 21:9 they land at 107px / 3333px (≈107px
+blended margins each side); at 32:9, ≈947px each side.
+
+**Live-tunable via a new 🌫️ Board Edge dev tuner** (owner ask — three colour tries in, a picker beats the
+round-trip). `boardEdgeConfig.ts` + `BoardEdgeTuner.tsx` ride the shared `TunerPanel`, exposing the colour and
+the blend reach; it applies its values inline on `:root` at boot (dev: persisted; prod: DEFAULTS) and imports
+for side effect in `Game.tsx` beside `boardConfig`. Same convention as the other tuners: the styles.css `:root`
+values are the pre-JS mirror and must stay in sync with DEFAULTS when a tune is baked. The 0-alpha stop is
+DERIVED from the colour (recomputed on every change) so the picker only ever exposes the one colour. It only
+shows an effect on an ultrawide viewport, by the self-gating above; the panel header says so.
+
+Verified: `typecheck` + `build:web` green; the config applies its vars inline at boot (confirmed live —
+`--board-edge-col` #312361 with the derived `rgb(49 35 97 / 0)` twin and 186px fade), and the live `.boardbg`
+computed background carries scrim + blend + art + fill. Final look is the owner's call on their friend's
+actual ultrawide.
 
 ## 2026-08-18 — Balance patch: ~48 stat/tier tweaks, effect reworks, new hero power, rune tuning
 

@@ -29,6 +29,19 @@ which metric the bars encode, and each option is one line of the fold. Priority 
 §7.5; the pick worth calling out is **board power yours-vs-the-board-you-actually-faced**, since both sides are
 already in `CombatFrame.initial` and it shows the exact round you fell behind, which a solo curve cannot.
 
+**Board power is in, as a BASELINE** (owner ruling: the algorithm "isn't perfect, but it's still fine to include
+as a baseline"). §7.6 writes down what that has to mean in practice, because the code is specific about its own
+limits: raw `Σ(atk+hp)` explains synthetic boards at r 0.88–0.94 but human boards at **r = 0.37 by waves
+10–12**, and the fitted `predictBoardElo` narrows that to a held-out **0.789** without closing it (its 16–20
+band was never fitted at all). Both are weakest in the late game — exactly the rounds a viewer cares about. So:
+raw stat total is the primary line (exact, model-free, and consistent with rendering recorded facts rather than
+re-derived judgments); the modeled score is optional and secondary; and it is presented as SHAPE, not magnitude
+— "which round did the lines cross", which survives an r ≈ 0.79 model far better than any single value does.
+
+The trap worth the paragraph: **if the modeled score is shown it must be captured, never computed at playback.**
+Scoring a months-old replay with today's fitted weights would reintroduce exactly the content-drift fragility v2
+exists to eliminate — a model refit would silently rewrite the history of every stored run.
+
 Phase plan updated: the rail lands in Phase B (it is one pass on top of the seek that phase already builds), the
 stats panel becomes its own Phase D, and polish moves to E.
 

@@ -316,12 +316,45 @@ owner asked for is then just *which metric the bars encode* — and every option
 2. **Board power curve, yours vs the board you actually faced.** Both sides are already in
    `CombatFrame.initial` (`player` and `enemy` `CombatSideState`), so the opponent overlay is free — and it is
    the most diagnostic chart available: it shows the exact round you fell behind, which a solo curve cannot.
+   **Ship it as a BASELINE, not as truth** — see §7.6 for what that means in practice (owner ruling
+   2026-08-19: "the board power algorithm isn't perfect, though, but it's still fine to include as a
+   baseline").
 3. **Resolve track** — where the run started dying, straight off `resolveLost` per combat frame.
 4. **Gold left on the table at End of Turn** — the sharpest read on *play quality* rather than activity.
 5. **Purchase log** — a plain table of every card bought, with round and price.
 6. **Tribe mix over rounds** — shows the pivot, and reads well as a stacked band.
 
-### 7.6 Spoilers
+### 7.6 Board power is a baseline — present it as one
+
+Two different things could draw this curve, and the difference matters:
+
+- **Raw stat total**, `Σ(attack + health)` over the board. Exact, model-free, and derivable straight from a
+  recorded frame — nothing to be wrong about.
+- **The fitted model**, `predictBoardElo(minions, wave)` / `boardStrength(...)` in `packages/sim/src/boardModel.ts`.
+  Better on average, and honest about its own limits: held-out r = **0.789**, against 0.716 for raw power. Raw
+  power explains synthetic boards almost perfectly (r 0.88–0.94) and **human** boards badly once they get
+  going — **r = 0.37 at waves 10–12**. The model narrows that but does not close it, and its 16–20 band was
+  never fitted at all, so late-game boards are scored against a neighbouring band.
+
+Note where both are weakest: **the late game** — exactly the rounds a viewer cares most about. That is the
+substance of the owner's caveat, and it drives three rules.
+
+**Rule 1 — raw stat total is the primary line.** It is exact, it needs no model, and it is consistent with the
+whole point of §3: a state replay renders recorded facts rather than re-derived judgments. The modeled score is
+an optional secondary line, never the default.
+
+**Rule 2 — if the modeled score is shown, CAPTURE it, never compute it at playback.** Computing
+`predictBoardElo` while watching would score a months-old replay with *today's* fitted weights — reintroducing
+precisely the content-drift fragility v2 exists to eliminate (§2). A model refit would silently rewrite the
+history of every stored run. If we want it, it is a number recorded on the `CombatFrame` at capture time,
+alongside the patch string that produced it.
+
+**Rule 3 — present it as shape, not magnitude.** Label the series an estimate, avoid a precise-looking figure
+next to it, and let it answer "which round did the lines cross" rather than "how strong was I." The crossing
+point survives an r ≈ 0.79 model far better than any single value does, and the crossing is the question a
+viewer is actually asking.
+
+### 7.7 Spoilers
 
 The panel necessarily reveals rounds the viewer hasn't watched yet (it shows the whole run). Since the scrub bar
 already reveals the ending, **recommend showing everything**, with the current round highlighted. If that reads
@@ -435,8 +468,10 @@ before B is built.
   rail makes this routine rather than rare — every rail click on a mid-combat target hits it.
 - **Gross vs net Gold in the stats panel** (§7.3). Recommend capturing `spent`/`earned` in Phase A so gross is
   exact; the fallback is showing net flow only, which is free but reads less like "where the action was".
-- **Does the stats panel spoil the run?** (§7.6) Recommend showing all rounds, since the scrub bar already
+- **Does the stats panel spoil the run?** (§7.7) Recommend showing all rounds, since the scrub bar already
   reveals the ending.
+- **Is the MODELED board score worth capturing at all** (§7.6), or is the raw stat total enough on its own?
+  It is one number per combat frame if we want it, but it must be recorded rather than computed at playback.
 
 ---
 

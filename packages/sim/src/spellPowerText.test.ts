@@ -58,9 +58,9 @@ describe('spell power is visible on every spell that gets it', () => {
     // The owner's case: a +0/+1 spell buff and no Dragons played yet.
     expect(spellDisplayText('hoardflame', 0, 0, 1, 0, 0, 0, {}), 'shows +4/+5, not the printed +4/+4')
       .toContain('{{+4/+5}}');
-    // …and the per-Dragon term (+2/+1, now scaling with spell power too) stacks on top: base 4/5 + 2×(2/2) = 8/9.
+    // …and the per-Dragon term (+1/+1, scaling with spell power too) stacks on top: base 4/5 + 2×(1/2) = 6/9.
     expect(spellDisplayText('hoardflame', 0, 0, 1, 0, 0, 0, { playedThisTurn: ['d2_embermouth', 'd2_embermouth'] }))
-      .toContain('{{+8/+9}}');
+      .toContain('{{+6/+9}}');
     // With no spell power and no Dragons, the printed text is already correct and stays plain.
     expect(spellDisplayText('hoardflame', 0, 0, 0, 0, 0, 0, {})).toBe(CARD_INDEX['hoardflame']!.text);
   });

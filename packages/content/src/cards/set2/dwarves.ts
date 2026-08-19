@@ -418,21 +418,17 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     goldenText: 'When you cast **8 Shop spells**, trigger **both adjacent Shouts**.',
   },
   {
-    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
-    // each rep re-rolling its target (owner ruling) so a long brew sprays the line instead of spiking one body.
-    // Unlike Bucky this is buyable, not forge-only, and it reads the shop phase that just ended — see the note on
-    // `scBuffRandomTribePerAle` for why the underlying read is still called "last turn". Live text folds in the
-    // actual rep count (`cardText.ts`), so it never prints the base rate alone.
-    id: 'dw_oaf',
-    name: 'Drunken Oaf',
+    // Owner add 2026-08-19. The steal package's body: a Shout that hands over a Deep Delve Writ (steal a random
+    // Dwarf from the Shop). Reuses the trigger-agnostic `battlecryGrantSpell`; golden hands over two.
+    id: 'dw_sharpshooter',
+    name: 'Dwarven Sharpshooter',
     tribe: 'dwarf',
     tier: 4,
-    attack: 5,
+    attack: 4,
     health: 5,
-    keywords: ['SC'],
-    // Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.
-    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 3, health: 3 } }],
-    text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
-    goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'deepdelvewrit', count: 1 } }],
+    text: '**Shout:** get a **Deep Delve Writ**.',
+    goldenText: '**Shout:** get **2 Deep Delve Writs**.',
   },
 ];

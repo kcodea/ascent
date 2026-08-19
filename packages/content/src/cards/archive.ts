@@ -13,6 +13,21 @@ import type { CardDef } from '@game/core';
  */
 export const ARCHIVED_CARDS: CardDef[] = [
   {
+    // ARCHIVED 2026-08-19 (owner). Moved verbatim from set2/dwarves.ts.
+    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
+    // each rep re-rolling its target (owner ruling). Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.
+    id: 'dw_oaf',
+    name: 'Drunken Oaf',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 3, health: 3 } }],
+    text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
+    goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
+  },
+  {
     // ARCHIVED 2026-08-18 (owner). Moved verbatim from set1/neutral.ts — belonged to set 1 (+ carried into set 2).
     id: 'blaster',
     name: 'Blaster',

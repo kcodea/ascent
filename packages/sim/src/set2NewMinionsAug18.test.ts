@@ -148,6 +148,18 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(s.rubyBonus, 'the run’s Ruby strength improved +1/+1').toEqual({ attack: before.attack + 1, health: before.health + 1 });
   });
 
+  it('Fel Conjurer: Start of Turn gets a Quick Study (owner add 2026-08-19)', () => {
+    const s = recruit({ board: [recruitBody('d2_felconjurer', 'fc')], hand: [], shop: [] });
+    applyStartOfTurn(s);
+    expect(s.hand.filter((c) => c.cardId === 'quickstudy').length, 'one Quick Study granted').toBe(1);
+  });
+
+  it('Dwarven Sharpshooter: Shout gets a Deep Delve Writ (owner add 2026-08-19)', () => {
+    let s = recruit({ board: [], hand: [{ ...recruitBody('dw_sharpshooter', 'ss') }], shop: [] });
+    s = reduce(s, { type: 'play', uid: 'ss' });
+    expect(s.hand.filter((c) => c.cardId === 'deepdelvewrit').length, 'one Writ granted').toBe(1);
+  });
+
   it('Grevlin & Co.: consumes the right-most Shop minion after the 3rd sale', () => {
     let s = recruit({
       board: [recruitBody('dm_grevlin', 'grv'), recruitBody('sandbag', 'f1'), recruitBody('sandbag', 'f2'), recruitBody('sandbag', 'f3')],

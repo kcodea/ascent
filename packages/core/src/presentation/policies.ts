@@ -68,6 +68,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
   'factory:battlecryGrantShoutExtra:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },

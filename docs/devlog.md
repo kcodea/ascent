@@ -1,5 +1,22 @@
 # ASCENT — development log
 
+## 2026-08-19 — Set 2: Fel Conjurer + Dwarven Sharpshooter, Oaf archive, Hoardflame tune (PR C cont.)
+
+Added to the same PR (#1097).
+
+**New minions (2):** **Fel Conjurer** (T5 Dragon/Demon 6/6 — Start of Turn: get a Quick Study) and **Dwarven
+Sharpshooter** (T4 Dwarf 4/5 — Shout: get a Deep Delve Writ). Both reuse the trigger-agnostic
+`battlecryGrantSpell` (a new `battlecryGrantSpell:startOfTurn` policy entry for the Conjurer). Art wired for both
+(`FelConjuror.png` / `DwarvenSharpshooter.png`).
+
+**Archived Drunken Oaf** (`dw_oaf`) → `ARCHIVED_CARDS`.
+
+**Hoardflame:** the per-Dragon base is **+1/+1** again (was briefly +2/+1); spell power still folds into the
+per-Dragon increment per the 2026-08-18 ruling.
+
+**Verified:** typecheck, lint, build:web, full suite green; new recruit tests for both minions; updated
+Hoardflame value/text + Oaf-archive tests.
+
 ## 2026-08-19 — Combat replay: AoE echoes volley wave-by-wave (Fel Spikes pacing, PR C cont.)
 
 Owner report: Fel Spikes' echo animated inconsistently — on one board every pass blurred together with no pauses;

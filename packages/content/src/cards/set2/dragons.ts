@@ -359,6 +359,21 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'When a friendly **Dragon** attacks, cast **Dragonflame** twice.',
   },
   {
+    // Owner add 2026-08-19. Dual-type Dragon/Demon: a spell-power engine — every shop turn opens with a Quick
+    // Study in hand. Reuses the trigger-agnostic `battlecryGrantSpell` on the `startOfTurn` hook; golden two.
+    id: 'd2_felconjurer',
+    name: 'Fel Conjurer',
+    tribe: 'dragon',
+    tribe2: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'quickstudy', count: 1 } }],
+    text: '**Start of Turn:** get a **Quick Study**.',
+    goldenText: '**Start of Turn:** get **2 Quick Studies**.',
+  },
+  {
     // Seeds the Flutter combo — hand a Flutter to pump a Dragon into a Flurry threat. Golden gets two.
     id: 'd2_flutterdrake',
     name: 'Flutterdrake',

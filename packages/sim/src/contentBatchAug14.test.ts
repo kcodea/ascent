@@ -127,10 +127,10 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
     (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0' && b.attack === per && b.health === per);
 
-  it('the card is a T4 5/5 Dwarf', () => {
+  it('the card is a T4 5/5 Dwarf (archived 2026-08-19 — out of the pool, still resolvable)', () => {
     const def = CARD_INDEX['dw_oaf']!;
     expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 5, 5, 'dwarf']); // owner balance 2026-08-18
-    expect(poolFor('set2').all.some((c) => c.id === 'dw_oaf'), 'buyable in set 2').toBe(true);
+    expect(poolFor('set2').all.some((c) => c.id === 'dw_oaf'), 'archived — not in the set').toBe(false);
   });
 
   it('a dry turn still pays once — the base grant is not gated on Ales', () => {

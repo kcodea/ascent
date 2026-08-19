@@ -110,13 +110,26 @@ function conjurePlainCopy(s: RunState, cardId: string): void {
 /** Gorr's Four Peat: when you buy your 3rd MINION in a single turn, get a plain copy of one of the three at
  *  random — conjured (no pool take), once per turn (`gorrBuys` resets at turn setup; it keeps counting past 3
  *  but only the exact 3rd buy fires). Called from both paid minion-buy paths (normal + held-Displacement). */
+/**
+ * How many times a Hero Power's effect resolves — 2 while Rune of the Wishbone is held, else 1.
+ *
+ * The ACTIVE powers read `reps` inside the power-activation switch. A PASSIVE power never reaches that switch
+ * (its work happens on a buy, a play, a turn advance, or in combat), so each passive calls this at its own
+ * fire site instead. One helper rather than `s.runeWishbone ? 2 : 1` scattered about, so "what does twice
+ * mean" stays one question with one answer.
+ */
+export function wishboneReps(s: RunState): number {
+  return s.runeWishbone ? 2 : 1;
+}
+
 function gorrQuestBuy(s: RunState, card: CardDef): void {
   if (getHero(s.heroId).power.kind !== 'fourPeat' || card.spell) return;
   const buys = [...(s.gorrBuys ?? []), card.id];
   s.gorrBuys = buys;
   if (buys.length !== 3) return; // fires on EXACTLY the 3rd minion buy each turn
   const rng = makeRng(s.rngCursor);
-  conjurePlainCopy(s, buys[rng.int(3)]!);
+  // Wishbone: another copy, RE-ROLLED among the same three — "not necessarily the same" (owner ruling).
+  for (let r = 0; r < wishboneReps(s); r++) conjurePlainCopy(s, buys[rng.int(3)]!);
   s.rngCursor = rng.state();
 }
 
@@ -177,7 +190,7 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
  *  threshold. */
 function keshiCrownBuy(s: RunState, card: CardDef): void {
   if (getHero(s.heroId).power.kind !== 'crownTally') return;
-  s.keshiTierPoints += card.tier;
+  s.keshiTierPoints += card.tier * wishboneReps(s); // Wishbone: the buy banks its tier twice
   // A `while` (not an `if`) purely for safety: max tier 7 against KESHI_CROWN_THRESHOLD (25) means one
   // purchase can never pay twice today, but this can't silently break if either number is retuned later.
   while (s.keshiTierPoints >= KESHI_CROWN_THRESHOLD) {
@@ -1565,7 +1578,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (getHero(s.heroId).power.kind === 'exhibition' && to > 0 && to < s.board.length - 1) {
         const trio = [s.board[to - 1]!, card, s.board[to + 1]!];
         if (threeDistinctTypes(trio)) {
-          const amt = exhibitionGrantOf(s);
+          const amt = exhibitionGrantOf(s) * wishboneReps(s); // Wishbone: the Exhibition pays twice
           for (const m of trio) addBuff(m, 'Exhibition', amt, amt);
         }
       }
@@ -1922,7 +1935,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // semantics like Jensen's dig: the reward is the tier you bought, not "up to" it.
       if (getHero(s.heroId).power.kind === 'vanguard') {
         const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === s.tier);
-        if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
+        if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, wishboneReps(s)); // Wishbone: two
       }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
@@ -2124,6 +2137,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
         if (!card || !replayBattlecry(s, card)) return state;
+        for (let r = 1; r < reps; r++) replayBattlecry(s, card); // Wishbone: the Pulse fires again
       } else if (power.kind === 'replayEndOfTurn') {
         // (legacy) proc a single friendly board minion's End of Turn now. No-op on a missing target or a
         // minion with no End-of-Turn effect.
@@ -2200,7 +2214,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.
         const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
         if (pool.length === 0 || s.hand.length >= handCap(s)) return state;
-        conjureToHand(s, pool, 1);
+        conjureToHand(s, pool, reps); // Wishbone: two spells (conjureToHand is hand-cap safe)
       } else if (power.kind === 'dice') {
         // Gambler: locked until `heroDiceLockUntil`. Roll 1–6 (seeded), gain that Gold, then lock the power for
         // that many turns — a big roll pays more but costs more downtime. No charge while locked.
@@ -2232,6 +2246,19 @@ function reduceCore(state: RunState, action: Action): RunState {
           resummon: false, // a Soren mark is a per-body choice, not part of the stat line
         };
         s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, copy);
+        // Wishbone: a second copy, each needing its OWN free slot — a full board simply stops the extras
+        // rather than overfilling (the same rule the first copy is gated on above).
+        for (let r = 1; r < reps && s.board.length < CONFIG.boardMax; r++) {
+          const extra: BoardCard = {
+            ...card,
+            uid: `b${s.uidSeq++}`,
+            buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
+            keywords: [...card.keywords],
+            copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
+            resummon: false,
+          };
+          s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, extra);
+        }
       } else if (power.kind === 'roundedSpellbook') {
         // Hunch: a copy of the LAST spell you cast — run-lifetime (`lastSpellCastId`), so it carries across
         // turns. Cost shrinks 1 per turn since the last use (charged here, not the shared block; using it
@@ -2243,7 +2270,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < bookCost) return state; // can't afford → no charge spent
         spendGold(s, bookCost);
         s.hunchResetWave = s.wave;
-        conjureToHand(s, [def], 1);
+        conjureToHand(s, [def], reps); // Wishbone: two copies
       } else if (power.kind === 'clearance') {
         // Frantic Frank: refresh the Shop (free — the 1-Gold power cost is the shared block's) and mark this
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
@@ -2270,23 +2297,30 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (card) s.board = s.board.filter((c) => c.uid !== card.uid);
         else s.shop.splice(shopIdx, 1);
         const t = (def.tribe && def.tribe !== 'neutral') ? def.tribe : (def.tribe2 ?? def.tribe);
-        (s.archivedTribes ??= []).push(t as Tribe);
-        if (s.archivedTribes.length >= 3) {
+        // Wishbone: the archived minion's TYPE is recorded `reps` times (owner ruling — "2 counts added of the
+        // targeted minion type"). The bucket below drains exactly 3 and leaves the remainder in place, so an
+        // overflow count carries toward the NEXT bucket rather than being discarded.
+        const banked = (s.archivedTribes ??= []);
+        for (let r = 0; r < reps; r++) banked.push(t as Tribe);
+        if (banked.length >= 3) {
           const rng = makeRng(s.rngCursor);
           const picks: string[] = [];
-          for (const tribe of s.archivedTribes) {
+          // Exactly THREE counts pay out; anything above that stays banked toward the next bucket (owner
+          // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
+          // clear-everything for an undoubled Quillen, which can never bank more than 3.
+          for (const tribe of banked.slice(0, 3)) {
             const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
             if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
           }
           s.rngCursor = rng.state();
-          s.archivedTribes = [];
+          s.archivedTribes = banked.slice(3); // keep the overflow
           if (picks.length > 0) s.discover = picks;
         }
       } else if (power.kind === 'investment') {
         // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
         // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
         // block. A full hand blocks the payout, so the bank is only advanced when it can actually pay.
-        const invested = (s.bramInvested ?? 0) + 1;
+        const invested = (s.bramInvested ?? 0) + reps; // Wishbone: two counts banked per use
         if (invested >= 5) {
           if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
           const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
@@ -2323,6 +2357,23 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.shop = [];
         refreshTavern(s);
         applyShopRefreshed(s);
+        // Wishbone: take the FRESHLY ROLLED shop too (owner ruling — "2 consecutive shops"), then roll again
+        // so the player is still left with a row. Same take-what-fits rule as the first sweep.
+        for (let r = 1; r < reps; r++) {
+          for (const offer of s.shop) {
+            const d = CARD_INDEX[offer.cardId];
+            if (!d) continue;
+            if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+            s.hand.push({
+              uid: `b${s.uidSeq++}`, cardId: d.id, tribe: d.tribe,
+              ...conjuredStats(s, d, cardBuff(s, d.id)),
+              keywords: [...d.keywords], golden: offer.golden ?? false,
+            });
+          }
+          s.shop = [];
+          refreshTavern(s);
+          applyShopRefreshed(s);
+        }
       } else if (power.kind === 'allIn') {
         // Rascal: 1 Gold + 2 per turn since the last use, then re-base. Twice a game (`maxUses`), still once
         // per turn through `heroReady`. Untargeted and free, so the shared block only spends the charge.
@@ -2385,6 +2436,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
         s.rngCursor = rng.state();
         s.discover = picks;
+        // Wishbone: a second Discover, QUEUED behind the open one so the player resolves them in turn rather
+        // than the second silently overwriting the first.
+        for (let r = 1; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier });
       } else if (power.kind === 'empowerment') {
         // Albus: a SHOP minion becomes a Discover from the tier above it. The tier step follows the standard
         // ceiling (`hasTier7Access`), so on a Tier-6 offer it re-rolls within Tier 6 unless Tier 7 is open —
@@ -2393,7 +2447,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (shopIdx < 0) return state;
         const def = CARD_INDEX[s.shop[shopIdx]!.cardId];
         if (!def || def.spell || def.ruby) return state; // minions only
-        const tgt = Math.min(def.tier + 1, hasTier7Access(s) ? 7 : 6);
+        // Wishbone: the power happening TWICE steps the tier twice (tier + 2) rather than opening a second
+        // Discover — the pick REPLACES the targeted offer, so a second one would have no offer to land on.
+        const tgt = Math.min(def.tier + reps, hasTier7Access(s) ? 7 : 6);
         const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
         if (pool.length === 0) return state;
         const rng = makeRng(s.rngCursor);
@@ -2542,6 +2598,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const heroDef = getHero(s.heroId);
         const cardId = s.hand[0]!.cardId;
         heroBeat(s, 'secondHand', heroDef.name, () => {
+          for (let r = 1; r < wishboneReps(s); r++) conjurePlainCopy(s, cardId); // Wishbone: a second copy
           conjurePlainCopy(s, cardId);
           const made = s.hand[s.hand.length - 1];
           const c = currentCollector();
@@ -4155,17 +4212,32 @@ const RUNEFORGE_OFFER = 4;
  * offered less often. Add each here as its passive learns to repeat.
  */
 const DOUBLEABLE_POWERS = new Set([
-  'empowerment',      // Albus — a Shop minion becomes a Discover from the tier above
-  'replayBattlecry',  // Auctioneer (Pulse) / Myra — re-trigger a friendly Battlecry
-  'buyout',           // Harlan — steal a Shop (twice = two consecutive shops)
-  'roundedSpellbook', // Hunch — a copy of the last spell you cast
-  'dynamiteDig',      // Jensen — Discover a minion of your tier (twice = 2 Discovers)
-  'pocketMagic',      // Merrin — a random Shop spell to hand
-  'gainMaxMana',      // Nadja — +1 max Gold
-  'archive',          // Quillen — archive a minion (twice = 2 counts toward the bucket)
-  'dragonTamer',      // Tiff — Discover a Dragon (twice = 2 Discovers)
-  'soulkeeper',       // Underdweller — Discover among the minions that died last combat
-  'copyMachine',      // Xerox — copy a friendly board minion into hand
+  // ACTIVE — their branch in the power-activation switch runs `reps` times.
+  'empowerment',      // Albus — the Discover steps TWO tiers (the pick replaces the offer, so a second
+                      //         Discover would have nothing to land on)
+  'replayBattlecry',  // Auctioneer (Pulse) / Myra — the Battlecry is replayed twice
+  'buyout',           // Harlan — two consecutive Shops (take, reroll, take again)
+  'roundedSpellbook', // Hunch — two copies of the last spell
+  'dynamiteDig',      // Jensen — 2 Discovers
+  'pocketMagic',      // Merrin — 2 Shop spells
+  'gainMaxMana',      // Nadja — +2 max Gold
+  'archive',          // Quillen — the type is banked twice; the overflow carries to the next bucket
+  'dragonTamer',      // Tiff — 2 Discovers
+  'soulkeeper',       // Underdweller — a second Discover, queued behind the first
+  'copyMachine',      // Xerox — two copies, each needing its own board slot
+  'investment',       // Braum — two counts banked per use
+  // PASSIVE — no activation to run twice, so each doubles at its OWN fire site via `wishboneReps`.
+  'luckySeat',        // Cia — the prize pays twice
+  'vanguard',         // Emerald Warden — the tavern-up hands over 2
+  'unitedFront',      // Emissary — the Start-of-Combat grant pays double
+  'fourPeat',         // Gorr — another copy, re-rolled among the same three
+  'baldgecoin',       // Juggler — 2 Carnival Coins
+  'crownTally',       // Keshi — the purchase banks its tier twice
+  'exhibition',       // Odelle — the Exhibition trio is paid twice
+  'secondHand',       // Re-Pete — 2 copies (stacks with a Chronos replay, which re-enters the same beat)
+  // NOT included: Flash (`firstOrLast`). Its power ARMS A MARK — which end of next combat's kills to claim —
+  // and a mark set twice is the same mark. There is no honest reading of "triggers twice" for it that isn't a
+  // design change (claim BOTH ends), so it stays out rather than being offered a rune that does nothing.
 ]);
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
@@ -5206,7 +5278,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
     // Emissary: SoC — one friendly of each type gains +1/+1 for EVERY spell cast this game.
-    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.spellsCast : undefined,
+    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.spellsCast * wishboneReps(s) : undefined, // Wishbone: triggers twice
     solidGroundLeft: s.solidGroundLeft,           // Solid Ground: first N summons next combat land bigger
     solidGroundStat: s.solidGroundStat,
     containFirstEnemySummon: s.containFirstEnemySummon, // Containment Rune: pin the foe's first summon to 1/1
@@ -5347,7 +5419,7 @@ function jugglerBuy(s: RunState): void {
   if (n < 3) { s.jugglerBuys = n; return; }
   s.jugglerBuys = 0;
   const coin = CARD_INDEX['carnivalcoin'];
-  if (coin && s.hand.length < handCap(s)) conjureToHand(s, [coin], 1);
+  if (coin && s.hand.length < handCap(s)) conjureToHand(s, [coin], wishboneReps(s)); // Wishbone: two coins
 }
 
 /**
@@ -5367,6 +5439,9 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
   s.ciaEnchantedBought = 0;
   const suit = s.ciaSuit ?? 'hearts';
   const cap = hasTier7Access(s) ? 7 : 6;
+  // Wishbone: the prize pays TWICE (owner ruling — "doubles reward"). Wrapped around the whole switch rather
+  // than doubling each arm, so a suit added later doubles for free instead of silently paying once.
+  for (let rep = 0; rep < wishboneReps(s); rep++)
   switch (suit) {
     case 'hearts': {
       // Discover a minion of your CURRENT tier.

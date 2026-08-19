@@ -18,11 +18,31 @@ and implying another payout — the War Drum's own per-turn latch (separate from
 and the 1/0 charge readout is independent), and `runeBaller`, whose tally lives on the RUNE rather than a card
 (a sell payoff counting on a card would reset every time you cashed one in).
 
-**Wishbone is gated to the ACTIVE half of the owner's roster** — Albus, Auctioneer, Harlan, Hunch, Jensen,
-Merrin, Nadja, Quillen, Tiff, Underdweller, Xerox. The owner also named ten PASSIVE powers (Emerald Warden,
-Emissary, Cia, Keshi, Gorr, Re-Pete, Braum, Flash, Odelle, Juggler) which never pass through the activation
-branch where `reps` lives and each need doubling at their own fire site. They are deliberately excluded until
-that lands: a rune offered to a hero it silently does nothing for is worse than one offered less often.
+**Wishbone now doubles all 20 heroes on the owner's roster.** The first pass gated it to the powers whose
+branch was assumed to read `reps` — an audit then showed only FOUR sites in the whole reducer ever did
+(`scalingGold`, `dynamiteDig`, `dragonTamer`, `gainMaxMana`). Eight of the gated eleven were being offered a
+rune that did nothing for them. Every one is now implemented:
+
+- **Active** (their branch runs `reps` times): Albus steps the Discover TWO tiers — its pick REPLACES the
+  targeted offer, so a second Discover would have nothing to land on · Auctioneer replays the Battlecry twice
+  · Harlan takes two consecutive Shops (take, reroll, take again) · Hunch and Merrin hand over two cards ·
+  Jensen and Tiff open two Discovers · Nadja banks +2 max Gold · Quillen banks the type twice · Underdweller
+  queues a second Discover behind the first rather than overwriting it · Xerox makes two copies, each needing
+  its own board slot · Braum banks two counts.
+- **Passive** (never reaches the activation switch, so each doubles at its OWN fire site through the new
+  `wishboneReps` helper): Cia's prize pays twice · Emerald Warden hands over 2 on a tavern-up · Emissary's
+  Start-of-Combat grant pays double · Gorr makes another copy, RE-ROLLED among the same three ("not
+  necessarily the same") · Juggler pays 2 Coins · Keshi banks the purchase's tier twice · Odelle's Exhibition
+  pays twice · Re-Pete makes 2 copies.
+
+Quillen's overflow rule forced a real fix: the bucket used to CLEAR the whole tally, so a doubled archive
+would have thrown its 4th count away. It now consumes exactly three and keeps the remainder — identical for
+an undoubled Quillen, which can never bank more than three.
+
+**Flash (`firstOrLast`) is deliberately excluded.** His power ARMS A MARK — which end of next combat's kills
+to claim — and a mark set twice is the same mark. There is no honest reading of "triggers twice" for it that
+isn't a design change (claim BOTH ends), so he stays out rather than being offered a rune that does nothing.
+Pinned by a test, so a later widening has to decide deliberately.
 
 
 **Reworks.** **Rune of Blart** → basic at 4 Gold. Demoting a rune means MOVING the def between arrays, not

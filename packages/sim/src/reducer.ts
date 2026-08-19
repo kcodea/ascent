@@ -917,7 +917,13 @@ export function reduce(state: RunState, action: Action): RunState {
   // Defiler / Display Curator buff the shop exactly there. The End-of-Turn BEAT path plays this while the
   // shop is still on screen (see `eotFx`'s `shopBuffAll`); this action-level stamp covers the recruit-phase
   // casts and shouts.
-  if (next !== state) {
+  //
+  // EXCEPT combat resolution (`resolveCombat`/`settleCombat`): a Shop buff EARNED in combat (Demon Horse's
+  // Rally, etc.) now blooms the aura DURING the fight, in the attacker's lunge (see the `sc`-telegraph block in
+  // `useCombatReplay`). Stamping it again here would replay the aura a SECOND time over the shop on return
+  // (owner report 2026-08-19) — so skip the stamp for the combat transition; the offers still carry the buff.
+  const combatResolve = action.type === 'resolveCombat' || action.type === 'settleCombat';
+  if (next !== state && !combatResolve) {
     const da = (next.tavernBuyBonus?.atk ?? 0) - (state.tavernBuyBonus?.atk ?? 0);
     const dh = (next.tavernBuyBonus?.hp ?? 0) - (state.tavernBuyBonus?.hp ?? 0);
     if (da > 0 || dh > 0) {

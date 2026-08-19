@@ -55,6 +55,20 @@ describe('shopBuffAllFx (the shop-wide buff signal)', () => {
     expect(next.shopBuffAllFx).toBeUndefined();
   });
 
+  it('does NOT stamp for a Shop buff EARNED in combat — the aura already bloomed in the lunge', () => {
+    // Demon Horse's Rally raises `tavernBuyBonus` at combat resolution (`playerTavernBuyGain`). The bloom now
+    // plays DURING the fight (useCombatReplay's sc-telegraph); stamping here too would replay the aura a second
+    // time over the shop on return, which the owner reported. The buff still APPLIES — only the FX is skipped.
+    const s: RunState = {
+      ...createRun(1), phase: 'combat', combatSettled: false,
+      lastCombat: { result: 'win', events: [], playerDamage: 0, initial: { player: [], enemy: [] }, playerTavernBuyGain: { attack: 1, health: 2 } } as never,
+    };
+    const before = s.tavernBuyBonus.atk;
+    const next = reduce(s, { type: 'resolveCombat' });
+    expect(next.tavernBuyBonus.atk).toBe(before + 1); // the run-wide channel still rose
+    expect(next.shopBuffAllFxSeq).toBeUndefined();      // …but no second shop-wide aura on return
+  });
+
   it('does not stamp on an action that buffs nothing in the shop', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,

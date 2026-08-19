@@ -2289,7 +2289,16 @@ export function Recruit() {
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats],
+    // DEP COMPLETENESS (owner report 2026-08-19: an Imp Overseer's live "(X/Y)" froze). Nine values were READ
+    // above but missing here — `impBuff` (the Imp Aura the summoned-Imp stats print), `rubyCasts`,
+    // `growthBonus`, `frontToBackBonusH`, the three spell-name ids, `cadenceMinionOff` and `tier`. In ordinary
+    // play the omission is MASKED: the reducer `structuredClone`s the run every action, so `run.shop`'s
+    // identity changes and this memo rebuilds anyway. It only bites when one of these moves while the shop
+    // identity does not — which is exactly what a live-verified repro showed (board read the new Imp stats,
+    // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
+    // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
+    // rendered content is unchanged.
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier],
   );
   const spellView = useMemo(
     () => {

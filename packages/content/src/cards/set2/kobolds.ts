@@ -131,6 +131,21 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** your Rubies gain **+2 Attack**.',
   },
   {
+    // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** play a Ruby on all of your minions.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
+  },
+  {
     // Echo (combat Deathrattle): summon a Gemheart Golem that is a 1/1 PLUS the Rubies played on THIS minion —
     // both the shop-phase ones (its `Ruby` buff entry) and any played mid-fight (`rubyGain`). Golden doubles
     // the whole Shard, base included. It always summons, even with no Rubies on it (owner 2026-07-24).

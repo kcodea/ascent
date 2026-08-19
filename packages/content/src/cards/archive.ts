@@ -420,21 +420,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
     goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
   },
   {
-    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
-    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
-    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
-    id: 'k_frenzied',
-    name: 'Frenzied Excavator',
-    tribe: 'kobold',
-    tier: 4,
-    attack: 4,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
-  },
-  {
     // ARCHIVED 2026-08-18. Moved verbatim from set2/dwarves.ts (SET2_DWARVES). Name: Ayves.
     // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
     // "carries over through combat" true without extra wiring.

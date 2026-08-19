@@ -9,7 +9,8 @@ Sharpshooter** (T4 Dwarf 4/5 — Shout: get a Deep Delve Writ). Both reuse the t
 `battlecryGrantSpell` (a new `battlecryGrantSpell:startOfTurn` policy entry for the Conjurer). Art wired for both
 (`FelConjuror.png` / `DwarvenSharpshooter.png`).
 
-**Archived Drunken Oaf** (`dw_oaf`) → `ARCHIVED_CARDS`.
+**Archived Drunken Oaf** (`dw_oaf`) → `ARCHIVED_CARDS`. **Un-archived Frenzied Excavator** (`k_frenzied`)
+back into the Kobold pool at its archived spec (T4 4/3, Shout: a Ruby on all your minions).
 
 **Hoardflame:** the per-Dragon base is **+1/+1** again (was briefly +2/+1); spell power still folds into the
 per-Dragon increment per the 2026-08-18 ruling.

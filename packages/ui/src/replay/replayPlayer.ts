@@ -13,8 +13,9 @@
 import type { CombatResult } from '@game/core';
 import {
   expandFrames, rollupRounds, roundMarks,
-  type CombatFrame, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
+  type CombatFrame, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
+import type { CardView } from '../Card';
 import { useGame } from '../store';
 import { synthRunFromShopView } from './synthRun';
 
@@ -28,11 +29,9 @@ export const MAX_STEP_MS = 5000;
 /** 1:1 pacing floor — a rendering-sanity minimum only, NOT a legibility clamp: two buys 100 ms apart replay
  *  100 ms apart. 50 ms keeps React/FX from being asked to render faster than a frame can land. */
 export const TRUE_MIN_STEP_MS = 50;
-/** 1:1 pacing idle ceiling. The recorded deltas are the player's REAL cadence and play back verbatim below
- *  this — the one exception is a long idle (AFK, alt-tab, a phone call), which nobody wants to sit through.
- *  Anything above 8 s compresses to 8 s; everything under it is literal (owner ruling 2026-08-19: "a literal
- *  1:1 experience of when a player buys cards, plays cards"). */
-export const IDLE_CAP_MS = 8000;
+/** How long the terminal "Final" state lingers before the replay closes itself (owner ask 2026-08-19:
+ *  leaving the replay should close the overlay automatically — reaching the end IS leaving). */
+export const TERMINAL_LINGER_MS = 2500;
 /** A short breath after a fight's animation finishes before the next shop frame lands (v1's post-combat beat). */
 const POST_COMBAT_BEAT_MS = 500;
 /** Safety net: if the arena's done bridge never fires (an FX stall, a hidden tab throttling rAF), the
@@ -47,13 +46,15 @@ export function clampStepMs(deltaMs: number | undefined): number {
   return Math.max(MIN_STEP_MS, Math.min(deltaMs, MAX_STEP_MS));
 }
 
-/** The LIVE pacing rule: literal 1:1 — each step is the recorded delta, floored only at rendering sanity
- *  (50 ms) and ceilinged only at the idle cap (8 s). A missing/zero delta (a scripted or degenerate capture)
+/** The LIVE pacing rule: literal 1:1, NO idle condensing of any kind (owner ruling 2026-08-19, second pass:
+ *  "i dont want any idle gap condensing at all") — each step is exactly the recorded delta, floored only at
+ *  the 50 ms rendering-sanity minimum. A five-minute AFK plays back as five minutes at 1× (the speed slider
+ *  and the scrub bar are the viewer's tools for it). A missing/zero delta (a scripted or degenerate capture)
  *  falls back to the legibility default rather than machine-gunning frames. `clampStepMs` above is RETIRED
- *  from the live clock (owner ruling 2026-08-19 — literal 1:1); kept for the fixed beats + its tests. */
+ *  from the live clock; kept for the fixed beats + its tests. */
 export function paceStepMs(deltaMs: number | undefined): number {
   if (deltaMs === undefined || !(deltaMs > 0)) return DEFAULT_STEP_MS;
-  return Math.max(TRUE_MIN_STEP_MS, Math.min(deltaMs, IDLE_CAP_MS));
+  return Math.max(TRUE_MIN_STEP_MS, deltaMs);
 }
 
 /** Binary search: the index of the frame ACTIVE at `tMs` — the greatest i with frames[i].tMs <= tMs,
@@ -80,6 +81,11 @@ let authorName: string | undefined;
 let token = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let unsubCombat: (() => void) | null = null;
+/** The recording's inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
+ *  Playback re-opens the recorded panel at its literal in-step offset — the 1:1 experience includes hovers. */
+let inspectTrail: InspectEvent[] = [];
+/** Pending in-step inspect timers — cleared alongside the frame timer (a seek/pause must not fire a stale open). */
+let inspectTimers: ReturnType<typeof setTimeout>[] = [];
 
 /** Every store key the player writes while rendering — snapshotted on start, restored verbatim on exit, so
  *  the viewer's real in-progress run (and whatever screen they came from) survives watching a replay. */
@@ -134,6 +140,43 @@ export function effectiveTimesOf(times: readonly number[]): number[] {
 function clearPending(): void {
   if (timer !== null) { clearTimeout(timer); timer = null; }
   if (unsubCombat) { unsubCombat(); unsubCombat = null; }
+  for (const t of inspectTimers) clearTimeout(t);
+  inspectTimers = [];
+}
+
+/** The inspect events that fall STRICTLY inside one shop step (t0, t1) — an event at exactly `t1` coincides
+ *  with the next action, whose frame render closes the panel anyway (live, every action closes inspect).
+ *  Pure — tested. */
+export function inspectEventsBetween(events: readonly InspectEvent[], t0: number, t1: number): InspectEvent[] {
+  return events.filter((e) => e.tMs > t0 && e.tMs < t1);
+}
+
+/** Index of the latest inspect event at-or-before `tMs`, or -1 when none — the seek rule. The trail records
+ *  every close (explicit AND the implicit action-close), so this is always the true panel state at `tMs`,
+ *  never a resurrected stale open. Pure — tested. */
+export function latestInspectAt(events: readonly InspectEvent[], tMs: number): number {
+  let lo = 0, hi = events.length - 1, ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid]!.tMs <= tMs) { ans = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  return ans;
+}
+
+/** Apply one recorded inspect state to the store — the panel renders the recorded CardView verbatim (no uid
+ *  lookup against the frame, so a coalesced/stale target can never miss or crash). */
+function applyInspect(view: InspectEvent['inspect']): void {
+  useGame.setState({ inspect: view as CardView | null });
+}
+
+/** Arm the in-step inspect timers for the shop step from `f.tMs` to `t1`. Offsets are LITERAL (1:1 pacing:
+ *  event-time minus frame-time is the real offset), divided by the speed like every other delay. */
+function scheduleInspects(myToken: number, t0: number, t1: number): void {
+  for (const ev of inspectEventsBetween(inspectTrail, t0, t1)) {
+    const at = Math.max(0, ev.tMs - t0) / speed;
+    inspectTimers.push(setTimeout(() => { if (myToken === token) applyInspect(ev.inspect); }, at));
+  }
 }
 
 function patchSession(patch: Partial<NonNullable<StoreState['replaySession']>>): void {
@@ -201,8 +244,13 @@ function renderFrame(i: number): void {
 function finish(): void {
   clearPending();
   playing = false;
-  // Terminal snap: the bar reads full + "Final", and the loop stops.
+  // Terminal snap: the bar reads full + "Final" — then the replay CLOSES ITSELF after a short linger
+  // (owner ask 2026-08-19: leaving the replay should close the overlay automatically; reaching the end is
+  // the common way out, and requiring a ✕ click after "Final" read as the overlay being stuck). A seek
+  // during the linger bumps `token`, so the pending close is cancelled and the viewer can scrub back.
   patchSession({ index: frames.length, playing: false, ended: true });
+  const myToken = token;
+  timer = setTimeout(() => { if (myToken === token) endReplay(); }, TERMINAL_LINGER_MS);
 }
 
 function advance(myToken: number): void {
@@ -238,6 +286,10 @@ function scheduleNext(myToken: number): void {
       timer = setTimeout(() => { if (myToken === token) finish(); }, DEFAULT_STEP_MS / speed);
       return;
     }
+    // Recorded hovers replay at their literal in-step offsets (the panel closes with the next frame's
+    // render, exactly as the live action closed it). Combat steps schedule none — inspect is a recruit-only
+    // surface, so no trail event can fall inside a fight.
+    scheduleInspects(myToken, f.tMs, next.tMs);
     timer = setTimeout(() => advance(myToken), paceStepMs(next.tMs - f.tMs) / speed);
   }
 }
@@ -261,6 +313,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   stats = rollupRounds(expanded);
   frameTimes = expanded.map((f) => f.tMs);
   effTimes = effectiveTimesOf(frameTimes);
+  inspectTrail = replay.inspectTrail ?? []; // absent on recordings made before the trail existed
   idx = 0;
   speed = 1;
   playing = true;
@@ -300,7 +353,7 @@ export function resumeReplay(): void {
 
 export function setReplaySpeed(v: number): void {
   if (!snapshot) return;
-  speed = Math.max(0.5, Math.min(10, v));
+  speed = Math.max(0.5, Math.min(5, v)); // owner ruling 2026-08-19: the replay speed range is 0.5–5×
   patchSession({ speed });
   // Re-arm the current step at the new speed (a full step, not the remainder — a simplification that costs
   // at most one step of drift, invisible against the clamped pacing).
@@ -331,6 +384,13 @@ export function seekReplay(tMs: number): void {
   idx = i;
   useGame.setState((st) => ({ replaySeekEpoch: st.replaySeekEpoch + 1 }));
   renderFrame(idx);
+  // The panel state AT the seek target: the latest trail event at-or-before it (the trail records every
+  // close, incl. the implicit action-close, so this can never resurrect a stale open). `renderFrame` already
+  // nulled the panel; only a live open needs applying. When the combat-skip advanced `idx` PAST the target,
+  // the frame boundary itself is the target — where the invariant says closed.
+  const seekTarget = Math.max(tMs, frames[idx]?.tMs ?? tMs);
+  const ei = latestInspectAt(inspectTrail, seekTarget);
+  if (ei >= 0 && inspectTrail[ei]!.inspect) applyInspect(inspectTrail[ei]!.inspect);
   patchSession({ ended: false }); // seeking rewinds out of the terminal state
   if (playing) scheduleNext(token);
 }
@@ -338,7 +398,7 @@ export function seekReplay(tMs: number): void {
 /** Seek straight to a frame INDEX — the transport bar's path (it maps a bar fraction through the CLAMPED
  *  timeline to an index, so the raw-tMs search would undo the clamping). Same combat-scrub rule + epoch
  *  bump as `seekReplay`; the round rail keeps `seekReplay` (its marks carry exact frame times). */
-export function seekReplayIndex(i: number): void {
+export function seekReplayIndex(i: number, opts?: { atTMs?: number }): void {
   if (!snapshot || frames.length === 0) return;
   token += 1;
   clearPending();
@@ -351,6 +411,14 @@ export function seekReplayIndex(i: number): void {
   idx = k;
   useGame.setState((st) => ({ replaySeekEpoch: st.replaySeekEpoch + 1 }));
   renderFrame(idx);
+  // A bar scrub can target a moment MID-step — a point after the landed frame where the recorded player had
+  // an inspect panel open (found live 2026-08-19: scrubbing into an open window snapped it closed, because
+  // this path only lands on frame boundaries, where the panel is always closed). Apply the trail at the
+  // REAL target time when the caller has one; the frame's own boundary time otherwise (a rail click), where
+  // the latest event is a close and this stays a no-op.
+  const at = opts?.atTMs ?? frames[k]!.tMs;
+  const ei = latestInspectAt(inspectTrail, at);
+  if (ei >= 0 && inspectTrail[ei]!.inspect) applyInspect(inspectTrail[ei]!.inspect);
   patchSession({ ended: false });
   if (playing) scheduleNext(token);
 }
@@ -368,6 +436,7 @@ export function endReplay(): void {
   stats = [];
   frameTimes = [];
   effTimes = [];
+  inspectTrail = [];
   playing = false;
   useGame.setState({
     ...restore,

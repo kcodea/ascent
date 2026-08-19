@@ -13,6 +13,10 @@ import {
   rollupRounds,
   roundMarks,
   shopFrameOf,
+  appendInspectEvent,
+  INSPECT_NOISE_MS,
+  INSPECT_OPEN_THROTTLE_MS,
+  type InspectEvent,
   type ReplayFrame,
   type ReplayV2,
   type ShopView,
@@ -279,5 +283,73 @@ describe('a full captured bot run — result golden, frame structure, rollups, s
     );
     expect(bytes).toBeLessThan(4 * 1024 * 1024);
     expect(projected250).toBeLessThan(4 * 1024 * 1024);
+  });
+});
+
+describe('the inspect trail — appendInspectEvent coalescing (owner ask 2026-08-19: 1:1 includes hovers)', () => {
+  const open = (tMs: number, cardId = 'imp'): InspectEvent => ({ tMs, inspect: { cardId } });
+  const close = (tMs: number): InspectEvent => ({ tMs, inspect: null });
+
+  it('records a plain open → close round-trip', () => {
+    const trail: InspectEvent[] = [];
+    appendInspectEvent(trail, open(1000));
+    appendInspectEvent(trail, close(2000));
+    expect(trail).toEqual([open(1000), close(2000)]);
+  });
+
+  it('drops an open+close blip shorter than the noise window (both events vanish)', () => {
+    const trail: InspectEvent[] = [];
+    appendInspectEvent(trail, open(1000));
+    appendInspectEvent(trail, close(1000 + INSPECT_NOISE_MS - 1));
+    expect(trail).toEqual([]);
+    // …but exactly AT the window the pair is a real read and both stay.
+    appendInspectEvent(trail, open(3000));
+    appendInspectEvent(trail, close(3000 + INSPECT_NOISE_MS));
+    expect(trail).toHaveLength(2);
+  });
+
+  it('a quick close after switching cards is still recorded (noise-cancel only restores a CLOSED state)', () => {
+    // Inspect A, switch to B, close within the noise window: dropping B's open+close would leave the trail
+    // claiming A is still open — the close must land instead.
+    const trail: InspectEvent[] = [];
+    appendInspectEvent(trail, open(1000, 'a'));
+    appendInspectEvent(trail, open(2000, 'b'));
+    appendInspectEvent(trail, close(2050));
+    expect(trail.map((e) => e.inspect?.cardId ?? null)).toEqual(['a', 'b', null]);
+  });
+
+  it('throttles re-opens of the SAME card — the newer open replaces the recorded one', () => {
+    const trail: InspectEvent[] = [];
+    appendInspectEvent(trail, open(1000));
+    appendInspectEvent(trail, open(1000 + INSPECT_OPEN_THROTTLE_MS - 1));
+    expect(trail).toEqual([open(1000 + INSPECT_OPEN_THROTTLE_MS - 1)]);
+    // A DIFFERENT card inside the window is a real switch, not a re-open — both stay.
+    appendInspectEvent(trail, open(1050, 'other'));
+    expect(trail).toHaveLength(2);
+  });
+
+  it('dedupes closes: never a leading close, never two closes in a row', () => {
+    const trail: InspectEvent[] = [];
+    appendInspectEvent(trail, close(500));
+    expect(trail).toEqual([]);
+    appendInspectEvent(trail, open(1000));
+    appendInspectEvent(trail, close(2000));
+    appendInspectEvent(trail, close(2100)); // e.g. clearInspect after the action already closed it
+    expect(trail).toEqual([open(1000), close(2000)]);
+  });
+
+  it('caps the trail: opens are dropped at the cap, but a close still lands so it never ends stuck-open', () => {
+    const trail: InspectEvent[] = [];
+    for (let i = 0; i < 3; i++) {
+      appendInspectEvent(trail, open(i * 1000), 4);
+      appendInspectEvent(trail, close(i * 1000 + 500), 4);
+    }
+    expect(trail).toHaveLength(4); // the third open was dropped at the cap; its close deduped away
+    expect(trail[3]!.inspect).toBeNull();
+    // At the cap with a live open, the close exceeds the cap by one rather than stranding the panel open.
+    const trail2: InspectEvent[] = [open(0), close(500), open(1000), open(2000)];
+    appendInspectEvent(trail2, close(3000), 4);
+    expect(trail2).toHaveLength(5);
+    expect(trail2[4]!.inspect).toBeNull();
   });
 });

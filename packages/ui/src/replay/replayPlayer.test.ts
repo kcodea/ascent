@@ -9,9 +9,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
-  SHOP_VIEW_EXCLUDED_KEYS, type ReplayFrame, type ReplayV2, type RunState,
+  SHOP_VIEW_EXCLUDED_KEYS, type InspectEvent, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, paceStepMs, endReplay, frameIndexAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
+import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -44,11 +44,10 @@ describe('clampStepMs (clock pacing)', () => {
     expect(clampStepMs(undefined)).toBe(900);
   });
 
-  it('paceStepMs — the LIVE 1:1 rule: recorded deltas play back verbatim between the sanity floor and idle cap', () => {
+  it('paceStepMs — the LIVE 1:1 rule: recorded deltas play back verbatim, NO idle condensing at all', () => {
     expect(paceStepMs(100), 'two buys 100ms apart replay 100ms apart').toBe(100);
-    expect(paceStepMs(2300), 'a 2.3s think replays as 2.3s — no 5s ceiling, no 350ms floor').toBe(2300);
-    expect(paceStepMs(7999)).toBe(7999);
-    expect(paceStepMs(60000), 'an AFK gap compresses to the 8s idle cap').toBe(8000);
+    expect(paceStepMs(2300), 'a 2.3s think replays as 2.3s — no ceiling, no 350ms floor').toBe(2300);
+    expect(paceStepMs(60000), 'a full AFK minute plays back as a full minute (owner ruling: zero condensing)').toBe(60000);
     expect(paceStepMs(10), 'sub-frame deltas take the rendering-sanity floor').toBe(50);
     expect(paceStepMs(0), 'a degenerate capture falls back to the legibility default').toBe(900);
     expect(paceStepMs(undefined)).toBe(900);
@@ -193,7 +192,7 @@ describe('the clamped transport timeline (found live 2026-08-19)', () => {
     const raw = [0, 31160, 31161, 31163, 31221];
     const eff = effectiveTimesOf(raw);
     expect(eff[0]).toBe(0);
-    expect(eff[1]! - eff[0]!, 'the 31 s gap compresses to the 8 s idle cap').toBe(8000);
+    expect(eff[1]! - eff[0]!, 'the 31 s gap plays back verbatim — the bar timeline is literal too').toBe(31160);
     // A real 1ms delta takes only the 50ms rendering-sanity floor — the bar stays 1:1 with watch time.
     expect(eff[2]! - eff[1]!).toBe(50);
     const dur = eff[eff.length - 1]!;
@@ -207,5 +206,88 @@ describe('the clamped transport timeline (found live 2026-08-19)', () => {
   it('a zero-delta timeline (a scripted capture) still spans the bar', () => {
     const eff = effectiveTimesOf([0, 0, 0, 0]);
     expect(eff).toEqual([0, 900, 1800, 2700]); // a 0 delta reads as absent → the DEFAULT step, never 0 wide
+  });
+});
+
+describe('the inspect trail — playback (owner ask 2026-08-19: 1:1 includes the inspect panel)', () => {
+  const open = (tMs: number, cardId = 'imp'): InspectEvent => ({ tMs, inspect: { cardId } });
+  const close = (tMs: number): InspectEvent => ({ tMs, inspect: null });
+
+  it('inspectEventsBetween — events map to their step, boundaries excluded', () => {
+    const trail = [open(0), close(100), open(500), close(799), open(800), close(1200)];
+    // The step from frame t=0 to frame t=800: the boundary events belong to the frames, not the step —
+    // an event at exactly t1 coincides with the next action, whose frame render closes the panel anyway.
+    expect(inspectEventsBetween(trail, 0, 800)).toEqual([close(100), open(500), close(799)]);
+    expect(inspectEventsBetween(trail, 800, 2000)).toEqual([close(1200)]);
+    expect(inspectEventsBetween(trail, 0, 0)).toEqual([]);
+  });
+
+  it('latestInspectAt — the seek rule: latest event at-or-before, -1 when none', () => {
+    const trail = [open(300), close(799), open(1000)];
+    expect(latestInspectAt(trail, 0)).toBe(-1);
+    expect(latestInspectAt(trail, 300)).toBe(0);
+    expect(latestInspectAt(trail, 500)).toBe(0);
+    expect(latestInspectAt(trail, 799)).toBe(1); // the implicit action-close wins at the frame boundary
+    expect(latestInspectAt(trail, 5000)).toBe(2);
+    expect(latestInspectAt([], 5000)).toBe(-1);
+  });
+
+  it('seeking applies the panel state recorded at the target — open mid-step, closed at a frame boundary', () => {
+    const source = createRun(778);
+    const f0 = shopFrameOf(source, 'turnStart', 0);
+    const after = reduce(source, { type: 'roll' });
+    const d = deltaShopFrameOf(f0.view, after, 'roll', 800);
+    const replay: ReplayV2 = {
+      version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby',
+      author: 'brackus', patch: 'test',
+      frames: [f0, d.frame],
+      // Opened a card 300 ms in; the roll at t=800 closed it (the implicit close ticks just before the frame).
+      inspectTrail: [open(300, 'imp'), close(799)],
+      result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null },
+    };
+    try {
+      startReplay(replay);
+      expect(useGame.getState().inspect, 'frame 0 renders with the panel closed').toBeNull();
+      seekReplay(500); // mid-step, after the open
+      expect(useGame.getState().inspect?.cardId).toBe('imp');
+      seekReplay(800); // the frame boundary — the action's implicit close wins
+      expect(useGame.getState().inspect).toBeNull();
+      seekReplay(100); // before the open
+      expect(useGame.getState().inspect).toBeNull();
+    } finally {
+      endReplay();
+    }
+  });
+
+  it('endReplay restores the viewer\'s own pre-replay inspect state (inspect is in the snapshot)', () => {
+    const before = useGame.getState().inspect;
+    const source = createRun(779);
+    const replay: ReplayV2 = {
+      version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby',
+      author: 'brackus', patch: 'test',
+      frames: [shopFrameOf(source, 'turnStart', 0)],
+      inspectTrail: [open(100)],
+      result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null },
+    };
+    startReplay(replay);
+    seekReplay(200);
+    expect(useGame.getState().inspect?.cardId).toBe('imp');
+    endReplay();
+    expect(useGame.getState().inspect).toBe(before);
+  });
+});
+
+describe('mid-step scrub restores an open inspect (found live 2026-08-19)', () => {
+  it('latestInspectAt at a mid-window time is the OPEN, at a frame boundary the close wins', () => {
+    const trail = [
+      { tMs: 14230, inspect: { cardId: 'k_beggy' } },
+      { tMs: 29811, inspect: null },
+    ] as never[];
+    // Mid-window: the recorded player was looking at the card.
+    const mid = latestInspectAt(trail as never, 22000);
+    expect(mid).toBe(0);
+    // At/after the close boundary: closed.
+    expect(latestInspectAt(trail as never, 29811)).toBe(1);
+    expect(latestInspectAt(trail as never, 14229), 'before the open — nothing').toBe(-1);
   });
 });

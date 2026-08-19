@@ -2,6 +2,33 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Second follow-up (same day): fully literal + hover-inspect + Career Watch + auto-close.**
+
+- **Zero idle condensing** (owner: "i dont want any idle gap condensing at all") — the 8 s idle cap from the
+  first follow-up is GONE; every recorded delta plays back verbatim (50 ms rendering-sanity floor only). A
+  five-minute AFK plays as five minutes at 1×; the speed slider and scrub bar are the viewer's tools for it.
+  **Speed range is now 0.5–5×** (was 0.5–10×).
+- **The replay closes itself** — reaching "Final" lingers 2.5 s then auto-exits (a scrub during the linger
+  cancels it), so leaving a replay never requires hunting for the ✕.
+- **Hover-inspect is captured and replayed** — the recorded player right-click-inspecting a card now shows the
+  SAME panel on the SAME card at the SAME moment in playback. Inspect is store-level UI state (not a reducer
+  action), so it rides its own `inspectTrail` on ReplayV2: full CardView per open (~0.5 KB — it already folds
+  in live card text, so playback re-derives nothing and can never miss a stale target), stamped by the SAME
+  clock as the frames, coalesced (<150 ms blips dropped, same-card re-opens throttled, closes always land),
+  capped at 2000 events. Playback schedules events at their literal in-step offsets; **scrubbing into the
+  middle of an open window restores the open panel** (found live — the bar's index seek landed on frame
+  boundaries, where the panel is always closed, so the overlay now passes the true mid-step target time
+  through to the trail apply).
+- **Career Watch** — the player's own match-history rows now carry ▶ Watch. What unblocked it (Phase C had
+  skipped it): history rows have carried the run SEED since v1, and every uploaded replay carries its seed, so
+  the row→replay mapping is exact — `fetchReplayForSeed` filters `replay->>seed` + `v2->>version = 2` + the
+  owner's user id, and the client re-verifies the payload's seed. Rows that can't map (no seed, non-lobby,
+  pre-v2-capture) get no button at all.
+
+Live-verified in the browser end-to-end: a captured run with a real inspect window replayed showing the panel;
+a mid-window scrub restored it; the run reached Final and closed itself, restoring the viewer's world exactly.
+Gates: typecheck ✅ lint 0 errors ✅ 5843 tests / 362 files ✅ build:web ✅.
+
 **Follow-up (same day): literal 1:1 pacing** (owner ruling: "I want it to be a literal 1:1 experience of when
 a player buys cards, plays cards"). Capture was already exact wall-clock; the CLOCK had inherited v1's
 legibility clamps (every gap squeezed into 350 ms–5 s). The live rule is now `paceStepMs`: **the recorded delta

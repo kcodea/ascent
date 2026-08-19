@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type ReplayFrame, type ReplayV2, type ShopView, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -605,6 +605,18 @@ let replayElapsedMs = 0;
 // The previous shop frame's full view — what the next per-action DELTA frame diffs against (every wave's
 // `turnStart` is a full keyframe; the actions within the wave record only the top-level keys that changed).
 let replayLastShopView: ShopView | null = null;
+// The INSPECT TRAIL (owner ask 2026-08-19, literal 1:1): open/close events of the card-inspect overlay, on
+// the SAME clock as the frames (replayClockTick below), coalesced + capped by `appendInspectEvent`. Module-
+// level like the frame clock; reset alongside it in `seedReplayFrames`; attached to the ReplayV2 at run end.
+let replayInspectTrail: InspectEvent[] = [];
+/** Record one inspect open/close into the trail. Opens are deep-cloned — the CardView the panel renders is
+ *  a small plain-JSON projection, and playback feeds it back to the store verbatim. */
+function recordInspectEvent(view: CardView | null): void {
+  appendInspectEvent(replayInspectTrail, {
+    tMs: replayClockTick(),
+    inspect: view ? (structuredClone(view) as unknown as InspectSnapshot) : null,
+  });
+}
 const replayNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0);
 function replayClockTick(): number {
   const now = replayNow();
@@ -618,6 +630,7 @@ function seedReplayFrames(run: RunState): ReplayFrame[] {
   replayLastFrameAt = replayNow();
   replayElapsedMs = 0;
   replayLastShopView = null;
+  replayInspectTrail = [];
   if (run.phase !== 'recruit') return [];
   const first = shopFrameOf(run, 'turnStart', 0);
   replayLastShopView = first.view;
@@ -755,6 +768,11 @@ function commitResolvedAction(
     // returns the same object, exactly like the log above — this runs per dispatched action (a click),
     // never per frame, so its cost is a handful of object touches at human cadence.
     const deriveState = observeAction(s.deriveState, s.run, action, next);
+    // REPLAY V2 (inspect trail): every dispatched action closes the inspect overlay (`inspect: null` in the
+    // return below) — record that IMPLICIT close so the trail is self-contained (a seek's "latest event
+    // at-or-before T" is then always the truth, never a resurrected stale open). Ticked BEFORE the frame's
+    // own clock tick so the close lands at-or-before the frame it coincides with. Zero-cost when closed.
+    if (s.inspect) recordInspectEvent(null);
     // REPLAY V2 (Phase A — capture). One frame per state-changing action, all DEEP-CLONED at capture
     // (`projectShopView` / `combatFrameOf` structuredClone internally): the reducer shares `lastCombat` /
     // `servedBoards` by reference and mutates boards in place, so a shallow capture would let later turns
@@ -830,6 +848,9 @@ function commitResolvedAction(
       // It's overwritten the moment they set a real name.
       const author = s.playerName || tempHandle(s.account.userId);
       const heroOffer = s.lastHeroOffer;
+      // Copied SYNCHRONOUSLY — the module-level trail resets the moment a new run seeds, and the v2 assembly
+      // below runs deferred. Events are capture-owned clones, so sharing them into the copy is safe.
+      const inspectTrail = replayInspectTrail.slice();
       // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
       // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
       // the end screen; all best-effort and never throw.
@@ -897,6 +918,8 @@ function commitResolvedAction(
           // A resumed run lost its pre-reload frames (frames aren't autosaved — see `replayFrames`).
           ...(s.replayPartial ? { partial: true as const } : {}),
           frames: replayFrames,
+          // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
+          ...(inspectTrail.length ? { inspectTrail } : {}),
           result: {
             placement: lobbyPlacement ?? 0,
             record: runRecord(next),
@@ -1245,8 +1268,20 @@ export const useGame = create<GameStore>((set, get) => ({
   setCombatQuestDelta: (d) => set({ combatQuestDelta: d }),
   setCombatTriggeredQuests: (ids) => set({ combatTriggeredQuests: ids }),
   setCombatCompletedQuests: (ids) => set({ combatCompletedQuests: ids }),
-  inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
-  clearInspect: () => set({ inspect: null }),
+  inspectCard: (view) => {
+    sfx.inspect();
+    set({ inspect: view });
+    // REPLAY V2: record the open into the inspect trail (literal 1:1 — the viewer sees the same panel open
+    // on the same card at the same moment). Recruit only (inspect's only live surface), never while a replay
+    // is itself the thing setting/reading `inspect`.
+    const s = get();
+    if (!s.replaying && s.run.phase === 'recruit') recordInspectEvent(view);
+  },
+  clearInspect: () => {
+    const s = get();
+    set({ inspect: null });
+    if (!s.replaying && s.inspect) recordInspectEvent(null);
+  },
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
   pickHero: (heroId) => {
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects

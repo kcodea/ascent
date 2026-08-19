@@ -694,6 +694,70 @@ export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2
   }
 }
 
+// ── Career Watch (owner ask 2026-08-19): map a match-history row to ITS uploaded replay by SEED ────────────
+// run_history and run_telemetry are separate rows written from the same run-end flow with no shared id — but
+// both carry the run's SEED (`RunHistoryEntry.seed`; `replay.seed` at the top of the telemetry jsonb, echoed
+// as `replay.v2.seed`). The seed is the run's identity (it's already the rating dedupe key), so it is the join.
+
+/** When replay-v2 capture shipped (Phase A, commit e15eef75 2026-08-19T16:32:35-04:00). History entries that
+ *  finished before this moment cannot have a v2 payload on the server, so the Career offers them no Watch at
+ *  all — a button that usually answers "No replay" is noise. */
+export const V2_CAPTURE_START_MS = Date.parse('2026-08-19T16:32:35-04:00');
+
+/**
+ * Can this Career match-history row offer a Watch? Three structural gates, all knowable WITHOUT a network
+ * round-trip (the fetch only runs on click):
+ *  - a finite `seed` — the only key that maps the row to its telemetry replay; no seed, no honest mapping;
+ *  - a LOBBY run — `uploadRunTelemetry` (which carries the replay) only fires for lobby runs, so a course/rift
+ *    row has nothing uploaded to find (`mode === 'lobby'`, or a recorded placement — only lobbies have one);
+ *  - finished AFTER v2 capture shipped — the full `at` timestamp must parse and post-date Phase A. Entries
+ *    without `at` predate 2026-08-11 and are pre-v2 by years of margin, so they're out too.
+ */
+export function historyEntryWatchable(e: { seed?: unknown; at?: string; mode?: string; placement?: number }): boolean {
+  if (typeof e.seed !== 'number' || !Number.isFinite(e.seed)) return false;
+  if (e.mode !== 'lobby' && typeof e.placement !== 'number') return false;
+  if (!e.at) return false;
+  const t = Date.parse(e.at);
+  return Number.isFinite(t) && t >= V2_CAPTURE_START_MS;
+}
+
+/** Pick the newest watchable v2 replay for a seed out of fetched rows (newest first). The server already
+ *  filtered by seed + version, but the payloads still get the structural gate (malformed rows skip to the
+ *  next) and the seed echo inside `v2` is verified, so a mismatched row can never play as someone's run.
+ *  Exported pure for the Career Watch tests. */
+export function pickReplayForSeed(rows: Array<{ v2: unknown }>, seed: number): ReplayV2 | null {
+  for (const row of rows) {
+    if (isReplayV2(row.v2) && row.v2.seed === seed) return row.v2;
+  }
+  return null;
+}
+
+/** Fetch the v2 replay of the run with this SEED — the Career match row's Watch. Filters server-side on the
+ *  top-level `replay->>seed` (every upload writes it beside `v2`) + `replay->v2->>version = 2` so v1-only and
+ *  foreign-seed rows never cross the wire, and by `user_id` when the career's owner is known (a seed collision
+ *  across players is unlikely, but the column exists and the filter is free). Newest first, two rows deep in
+ *  case the latest payload is malformed. Best-effort + time-boxed; null on any failure — the caller shows
+ *  "No replay", never a broken viewer. */
+export async function fetchReplayForSeed(seed: number, opts?: { userId?: string | null }): Promise<ReplayV2 | null> {
+  const c = client();
+  if (!c || !Number.isFinite(seed)) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const base = c.from('run_telemetry').select('v2:replay->v2')
+      .eq('replay->>seed', String(seed)) // ->> compares as text — robust across PostgREST versions
+      .eq('replay->v2->>version', '2');
+    const query = opts?.userId ? base.eq('user_id', opts.userId) : base;
+    const result = await Promise.race([
+      Promise.resolve(query.order('created_at', { ascending: false }).limit(2)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    return pickReplayForSeed(result.data as unknown as Array<{ v2: unknown }>, seed);
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch ONE player's leaderboard row by user id — the rating / games-played / favorite-hero the Career header
  *  needs when a Career is opened from a Recent Games row (run_telemetry carries no rating). Best-effort +
  *  time-boxed; null when absent / offline / no backend. */

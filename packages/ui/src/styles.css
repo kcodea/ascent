@@ -5653,6 +5653,10 @@ svg { width: 18px; height: 18px; }
 .carmatch { padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
 .carmatch.open { border-color: rgba(196, 160, 92, 0.55); }
 .carmatch-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 18px; background: none; border: none; color: inherit; font: inherit; }
+/* The Career row's ▶ Watch — the Recent Games `.matchwatch` chip, sized down a step for the denser match-card
+   head. It sits INSIDE the row's carresult cluster, so the head itself is a div[role=button] (a button can't
+   nest a button — same shape as the Recent Games rows). */
+.carwatch { padding: 6px 12px; font-size: 12px; }
 .carmatch-head:hover { background: rgba(255, 255, 255, 0.04); }
 .carmatch-head .lbinfo { flex: 1; min-width: 0; }
 .carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }

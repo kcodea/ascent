@@ -121,6 +121,10 @@ export interface ReplayV2 {
   partial?: true;
   /** Wall-clock order. */
   frames: ReplayFrame[];
+  /** Open/close events of the card-inspect overlay (right-click), on the SAME clock as `frames[].tMs` —
+   *  playback re-opens the same panel on the same card at the same moment (literal 1:1). Optional: absent
+   *  on recordings made before it existed. See the inspect-trail section at the bottom of this module. */
+  inspectTrail?: InspectEvent[];
   /** The recorded truth about the outcome. */
   result: {
     /** Lobby finish, 1..8 (1 = won). */
@@ -314,4 +318,62 @@ export function rollupRounds(frames: readonly ReplayFrame[]): RoundStat[] {
   return [...byWave.values()]
     .sort((a, b) => a.wave - b.wave)
     .map(({ sawTurnStart: _s, ...stat }) => stat);
+}
+
+// ── Inspect trail (owner ask 2026-08-19: literal 1:1 includes the inspect overlay) ─────────────────────────
+// When the recorded player right-clicked a card open (the centred inspect panel), the replay viewer sees the
+// same panel open on the same card at the same moment, and close when it closed. Inspect is STORE-level UI
+// state, not a reducer action, so it rides its own capture channel: a wall-clock trail of open/close events
+// on the SAME clock the frames use. The payload per open is the UI's full CardView snapshot — the panel
+// renders `store.inspect` directly (buffs breakdown + the plated Card), and the CardView is a small plain-
+// JSON projection that already folds in live card text, so replaying it verbatim is both the faithful choice
+// (the hard live-text rule) and the crash-proof one (no uid lookup against a frame can miss).
+
+/** The inspect payload: the UI's CardView, opaque to sim (the ui package owns the shape; playback feeds it
+ *  back to the store verbatim). `cardId` is the one field the coalescing rule reads (per-target throttle). */
+export type InspectSnapshot = { cardId: string } & Record<string, unknown>;
+
+export interface InspectEvent {
+  /** Same cumulative-ms clock as the frames' `tMs` — the two timelines are one timeline. */
+  tMs: number;
+  /** The opened card's snapshot, or null = the panel closed. */
+  inspect: InspectSnapshot | null;
+}
+
+/** An open+close round-trip shorter than this is hover noise — both events are dropped. */
+export const INSPECT_NOISE_MS = 150;
+/** Re-opens of the SAME card are throttled to one recorded open per this window (the newer one wins). */
+export const INSPECT_OPEN_THROTTLE_MS = 100;
+/** Trail cap — a hover-happy run can't bloat the payload. A close may exceed it by one so the trail can
+ *  never end stuck-open. */
+export const INSPECT_TRAIL_MAX = 2000;
+
+/**
+ * Append one inspect event to the trail IN PLACE, applying the coalescing rules. Pure with respect to
+ * everything but `trail` — unit-testable. The rules:
+ *  - a CLOSE that lands < `INSPECT_NOISE_MS` after the open it closes, where dropping BOTH returns the trail
+ *    to a closed state, is hover noise: the open is popped and the close dropped;
+ *  - an OPEN of the same card < `INSPECT_OPEN_THROTTLE_MS` after its previous recorded open REPLACES it;
+ *  - a CLOSE is otherwise always recorded (deduped: never two closes in a row, never a leading close);
+ *  - at `max` events, new opens are dropped; a close still lands if the trail would otherwise end open.
+ */
+export function appendInspectEvent(trail: InspectEvent[], ev: InspectEvent, max = INSPECT_TRAIL_MAX): void {
+  const last = trail[trail.length - 1];
+  if (ev.inspect === null) {
+    if (!last || last.inspect === null) return; // already closed — nothing to record
+    const beforeLast = trail[trail.length - 2];
+    if (ev.tMs - last.tMs < INSPECT_NOISE_MS && (!beforeLast || beforeLast.inspect === null)) {
+      trail.pop(); // noise: the blip open + its close both vanish, restoring the closed state
+      return;
+    }
+    trail.push(ev); // a close always lands (the +1 over `max` is deliberate — never end stuck-open)
+    return;
+  }
+  if (last && last.inspect && last.inspect.cardId === ev.inspect.cardId
+      && ev.tMs - last.tMs < INSPECT_OPEN_THROTTLE_MS) {
+    trail[trail.length - 1] = ev; // per-target throttle: the newer open replaces the recorded one
+    return;
+  }
+  if (trail.length >= max) return; // capped: drop further opens (closes above still land)
+  trail.push(ev);
 }

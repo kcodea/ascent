@@ -1,5 +1,5 @@
 import { useGame } from '../store';
-import { pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay, replayEffectiveTimes } from './replayPlayer';
+import { pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay, replayEffectiveTimes, replayFrameTimes } from './replayPlayer';
 
 /**
  * REPLAY VIEWER transport — a floating control bar shown while a recorded run plays back (`replaySession`
@@ -26,7 +26,11 @@ export function ReplayOverlay(): JSX.Element | null {
     const target = frac * duration;
     let lo = 0, hi = times.length - 1, ans = 0;
     while (lo <= hi) { const mid = (lo + hi) >> 1; if (times[mid]! <= target) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
-    seekReplayIndex(ans);
+    // Recover the RAW recorded time of the scrub target (paced deltas are literal above the sanity floor, so
+    // the in-step remainder maps 1:1), for the mid-step inspect-trail apply.
+    const raw = replayFrameTimes();
+    const atTMs = (raw[ans] ?? 0) + Math.max(0, target - times[ans]!);
+    seekReplayIndex(ans, { atTMs });
   };
 
   return (
@@ -48,7 +52,7 @@ export function ReplayOverlay(): JSX.Element | null {
 
       <label className="replayspeed" title="Playback speed">
         <span>{s.speed}×</span>
-        <input type="range" min={0.5} max={10} step={0.5} value={s.speed} onChange={(e) => setReplaySpeed(Number(e.target.value))} />
+        <input type="range" min={0.5} max={5} step={0.5} value={s.speed} onChange={(e) => setReplaySpeed(Number(e.target.value))} />
       </label>
 
       <button className="replaybtn ghost pressable" onClick={endReplay} title="Exit replay" aria-label="Exit replay">✕</button>

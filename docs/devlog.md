@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-19 — Chains on the locked third rune slot
+
+Most runs only ever earn 2 runes (universal basic forge turn 6 + epic turn 9), so the third rune slot is
+unreachable. It now wears **chains** to read as "not possible yet" (owner ask). New overlay
+`apps/web/public/frames/rune-chains.webp` (owner art, converted to a 15KB alpha webp), rendered in
+`QuestBadges` on the same 3rd-node anchor + counter-scale as the rune sheen so it stays glued to the slot
+through the Quest-nodes Scale slider.
+
+Shown by `canReachThirdRune(run)`: the chains hide when the run can actually forge off-schedule — a
+runeforge-native hero (**Runesmith** `runeforge` turn 5, **Guardian** `epicRuneforge` turn 8) or owning **Rune
+of the Epic Forge** (schedules an extra turn-8 epic visit) — matching the owner's wording ("visit the runeforge
+on a turn separate from 6 and 9"). It also clears once the slot is actually filled (`ownedRunes.length >= 3`,
+e.g. via Rune of Duplication). Placement is tunable — **x / y / size** dials added under a "Chains (3rd slot)"
+group in the 💠 Rune Sheen tuner (`--rch-*` vars with styles.css fallbacks, same DEV-localStorage / prod-CSS
+architecture as the sheen).
+
+Verified: typecheck + lint + build green; full suite green.
+
 ## 2026-08-19 — Hawkus gets a beat: the watcher pulse every other reaction card uses
 
 Owner report: Hawkus "triggers silently" — and pointedly, *"this seems to work pretty well with dawnclaw

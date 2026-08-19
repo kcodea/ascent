@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **The locked third rune slot wears chains** — most runs only get 2 runes (forge turns 6 & 9), so the third slot now shows chains as "not possible yet." They lift for heroes/runes that forge off-schedule (Runesmith, Guardian, Rune of the Epic Forge). Position/size tunable in the 💠 Rune Sheen tuner.
+
 - **Set 2 Dragon batch.** Eight new Dragons (a Shout-retrigger line — Embercrest, Broodfire, Roarcollector — and a spell-cast line — Flamebeat, Warflame — plus Cinderchef, River Drake, Flutterdrake) and two new spells (**Dragonflame**, **Flutter**), alongside eight archives and a round of rebalances (Karwind, Fel Spikes, Earthbreaker, Transcendant→Ward+Engrave, and more). Fixed a bug so **Fel Spikes**' echo correctly counts as its Demon dealing damage (proccing the demon-damage payoffs on every landed hit).
 - **Shop-buff-on-attack fires in the lunge** — a minion that buffs the Shop when it attacks (Demon Horse) now pops its `+X/+Y` number during the attack lunge, with the trigger pulse, instead of as a detached beat after the swing.
 

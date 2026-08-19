@@ -32,6 +32,15 @@ const controls: TunerControl<Key>[] = [1, 2, 3].flatMap((n) => {
   return [...nums, blend];
 });
 
+// The chains over the LOCKED third rune slot — placement only (whether it shows is game logic; see QuestBadges).
+const chainsControls: TunerControl<Key>[] = (['x', 'y', 'w'] as const).map((f) => {
+  const key = `ch${f}` as RshNumKey;
+  const [label, unit] = FIELD[f];
+  const [min, max, step] = RSH_RANGES[key];
+  return { key, label, unit, hint: 'Position / size of the chains on the locked 3rd rune slot.', group: 'Chains (3rd slot)', min, max, step };
+});
+controls.push(...chainsControls);
+
 export const SPEC: TunerSpec<RuneSheenConfig> = {
   id: 'runesheen',
   title: 'Rune Sheen',

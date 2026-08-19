@@ -34,6 +34,9 @@ export interface RuneSheenConfig {
   c1x: number; c1y: number; c1w: number; c1o: number; c1blend: RuneSheenBlend;
   c2x: number; c2y: number; c2w: number; c2o: number; c2blend: RuneSheenBlend;
   c3x: number; c3y: number; c3w: number; c3o: number; c3blend: RuneSheenBlend;
+  // The CHAINS over the LOCKED third rune slot (owner ask 2026-08-19): shown when the run can't reach a 3rd
+  // rune (see `canReachThirdRune` in QuestBadges). Placement only — WHETHER it shows is game logic, not tuned.
+  chx: number; chy: number; chw: number;
 }
 
 // Defaults measured against the live 3-rune stagger (2026-08-15): each disc centred on its rune node, matching
@@ -51,6 +54,7 @@ const DEFAULTS: RuneSheenConfig = {
   c1x: -1, c1y: -1, c1w: 52, c1o: 1, c1blend: 'hard-light',
   c2x: 63, c2y: -1, c2w: 52, c2o: 1, c2blend: 'hard-light',
   c3x: 127, c3y: -1, c3w: 52, c3o: 1, c3blend: 'hard-light',
+  chx: 127, chy: -1, chw: 56, // chains seated over the 3rd rune slot (owner to fine-tune)
 };
 
 /** Which keys are the blend SELECTs (string), so the numeric maps below can exclude them. */
@@ -63,6 +67,7 @@ export const RSH_RANGES: Record<RshNumKey, [number, number, number]> = {
   c1x: [-200, 400, 1], c1y: [-200, 200, 1], c1w: [10, 300, 1], c1o: [0, 1, 0.01],
   c2x: [-200, 400, 1], c2y: [-200, 200, 1], c2w: [10, 300, 1], c2o: [0, 1, 0.01],
   c3x: [-200, 400, 1], c3y: [-200, 200, 1], c3w: [10, 300, 1], c3o: [0, 1, 0.01],
+  chx: [-200, 400, 1], chy: [-200, 200, 1], chw: [10, 300, 1],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -95,6 +100,9 @@ export function applyRuneSheenVars(): void {
     root.setProperty(`--rsh${n}-o`, String(cfg[`c${n}o`]));
     root.setProperty(`--rsh${n}-blend`, cfg[`c${n}blend`]);
   }
+  root.setProperty('--rch-x', String(cfg.chx));
+  root.setProperty('--rch-y', String(cfg.chy));
+  root.setProperty('--rch-w', String(cfg.chw));
 }
 
 // One setter for both channels: the numeric sliders and the blend SELECTs (a string).

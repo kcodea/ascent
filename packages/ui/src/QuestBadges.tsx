@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { getHero, type RunState } from '@game/sim';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
@@ -40,6 +41,21 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
  * (or its tribe emblem as a fallback), and hovering floats the reward's LIVE ongoing state — Warm Embers'
  * Shouts remaining, Trail Rations' repeat countdown, else the reward it granted.
  */
+/**
+ * Can this run reach a THIRD rune — i.e. does it have Runeforge access on a turn OTHER than 6 and 9? Most
+ * runs get exactly 2 runes (universal basic forge turn 6 + epic turn 9), so the 3rd slot is locked and wears
+ * the chains. It unlocks only when the hero forges off-schedule — Runesmith (`runeforge`, turn 5) or Guardian
+ * (`epicRuneforge`, turn 8) — or the run owns Rune of the Epic Forge (schedules an extra turn-8 epic visit).
+ * Strictly "off-6/9 forge access", per the owner's wording; Rune of Duplication is deliberately NOT counted
+ * (it makes a 3rd BADGE off the normal turn-9 forge, not a separate forge turn — and once that badge appears,
+ * the render below hides the chains anyway because the slot is filled).
+ */
+function canReachThirdRune(run: RunState): boolean {
+  const kind = getHero(run.heroId).power.kind;
+  if (kind === 'runeforge' || kind === 'epicRuneforge') return true;
+  return (run.ownedRunes ?? []).includes('rune_epic_forge');
+}
+
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
@@ -234,6 +250,13 @@ export function QuestBadges() {
       {runes.length > 0 && [1, 2, 3].map((n) => (
         <img key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
       ))}
+      {/* CHAINS on the LOCKED third rune slot (owner ask 2026-08-19): shown once the rune row is up but the 3rd
+          slot is empty AND out of reach — most runs only ever get 2 (basic forge turn 6, epic turn 9). It clears
+          the instant the slot could be filled (a runeforge-native hero / Rune of the Epic Forge) or actually is
+          (a 3rd owned rune, e.g. via Duplication). Placement from the 💠 Rune Sheen tuner (`--rch-*`). */}
+      {runes.length > 0 && runes.length < 3 && !canReachThirdRune(run) && (
+        <img className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
+      )}
     </div>
   );
 }

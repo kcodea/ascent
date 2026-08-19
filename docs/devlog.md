@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-19 — Hawkus gets a beat: the watcher pulse every other reaction card uses
+
+Owner report: Hawkus "triggers silently" — and pointedly, *"this seems to work pretty well with dawnclaw
+already, but without dawnclaw it triggers silently."*
+
+**Cause.** Hawkus reacts to ANY friendly Rally, so — unlike Echohorn Stag, which procs off its OWN attack —
+its `rally` event is emitted while a DIFFERENT minion is the attacker, and the moment compiler absorbs it into
+that attacker's wind-up. Nothing on the presentation side then claimed it: `rallyFx` (choreo/score.ts) only
+plays for a rallier with an FX def BOUND, and the watcher-pulse scan did not count `rally` as "acting". So the
+proc left no cue whatsoever — the Echo it fired animated, but the card that caused it never lit up. With a
+Dawnclaw on board the surrounding death/Shout moments supplied their own beats, which is why it only *looked*
+fine there.
+
+**Fix.** `rally` now counts as acting in `choreo/channels/watcherPulse.ts`, so Hawkus earns the same
+light-blue medallion + card-frame bloom that every other reaction card already gets (Crypt Drake, Mineral
+Master, Traveling Skald, Raptor). No bespoke FX, no new timing — it joins the treatment that already exists.
+
+The scan's ATTACKER GUARD does the interesting work here: Echohorn procs off its own swing, so it IS the
+attacker and keeps its existing attacker pulse rather than gaining a second, differently-coloured one. The
+same event earns a pulse for the card that answers a swing and not for the card that made it.
+
+**Route not taken.** An authored gust def (`hawkus-updraft`) plus a live dev tuner for it were built first and
+**removed on the owner's call** — they didn't like the effect. The tuner went with it, since it existed only
+to dial that def's params. What survives is the beat, which is what the report was actually about.
+
+**Tests:** `watcherPulse.test.ts` covers the three cases that matter — a rally source earns a pulse, a rally
+by the ATTACKER does not (Echohorn keeps its own), and a multi-proc rally dedupes to ONE pulse rather than
+stuttering. `hawkusRallyBeat.test.ts` pins the half that depends on: the simulator emits a `rally` sourced at
+HAWKUS off an ALLY's Rally **with no Dawnclaw present** (the exact failing case), aimed at the left-most Echo,
+and silent when no ally has Rally.
+
+Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (355 files / 5652 tests).
+
 ## 2026-08-19 — Live Imp stats: the summoned-Imp (X/Y) no longer goes stale
 
 Owner report: Imp Overseer printed "Echo: summon an Imp **(5/3)**" and the (5/3) "is not updating in

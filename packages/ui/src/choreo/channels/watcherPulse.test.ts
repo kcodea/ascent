@@ -17,6 +17,37 @@ describe('watcherPulseUids', () => {
     expect(watcherPulseUids({ start: 0, end: 5 }, events, 'ATK')).toEqual(['WCH', 'WCH2']);
   });
 
+  it('a RALLY source earns a pulse — the Hawkus case (owner call 2026-08-19)', () => {
+    // Hawkus procs an ally's Echo off ANOTHER unit's swing, so its only trace in the beat is a `rally` cue.
+    // Before this it left no pulse at all: the Echo it fired animated, but the card that caused it never lit.
+    const events = [
+      ev({ type: 'attack', attacker: 'ATK', defender: 'DEF', swing: 0 }),
+      ev({ type: 'rally', source: 'HAWK', target: 'ECHO' }),
+    ];
+    expect(watcherPulseUids({ start: 0, end: 2 }, events, 'ATK')).toEqual(['HAWK']);
+  });
+
+  it('does NOT pulse a rallier that is the attacker — Echohorn keeps its own attacker pulse', () => {
+    // The other shape of the same event: Echohorn procs off its OWN swing, so it is the attacker and already
+    // has attacker pulse paths. Letting `rally` through the guard would give it a second, differently
+    // coloured pulse on top.
+    const events = [
+      ev({ type: 'attack', attacker: 'ECH', defender: 'DEF', swing: 0 }),
+      ev({ type: 'rally', source: 'ECH', target: 'ally' }),
+    ];
+    expect(watcherPulseUids({ start: 0, end: 2 }, events, 'ECH')).toEqual([]);
+  });
+
+  it('dedupes a multi-proc rally into ONE pulse', () => {
+    // A gilded Hawkus fires its Echo twice; the medallion should light once, not stutter per proc.
+    const events = [
+      ev({ type: 'attack', attacker: 'ATK', defender: 'DEF', swing: 0 }),
+      ev({ type: 'rally', source: 'HAWK', target: 'ECHO' }),
+      ev({ type: 'rally', source: 'HAWK', target: 'ECHO' }),
+    ];
+    expect(watcherPulseUids({ start: 0, end: 3 }, events, 'ATK')).toEqual(['HAWK']);
+  });
+
   it('is empty when only the attacker acts', () => {
     const events = [
       ev({ type: 'attack', attacker: 'ATK', defender: 'DEF', swing: 0 }),

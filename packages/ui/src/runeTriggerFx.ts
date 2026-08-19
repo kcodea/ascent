@@ -50,6 +50,9 @@ export interface RuneSlotPulse {
   slot: number;
   /** The rune id, used only to find the badge in the DOM (`data-source-id`). */
   id: string;
+  /** Epic runes fire a distinct def (`epic-rune-burst`) — resolved per slot so a board holding both an epic
+   *  and a common rune bursts each in its own colour. */
+  epic?: boolean;
   /** A true cumulative COUNT of fires (combat triggers + shop procs). Its DELTA is how many times to burst,
    *  so this may only ever be fed numbers that count events. */
   pulse: number;
@@ -132,14 +135,17 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
   // the effect's cleanup, so any re-render between a bump and the next frame silently swallowed that burst
   // (owner report 2026-08-19 — the second Void Cub never popped). Queueing instead means a burst survives as
   // many re-renders as it takes to reach a frame.
-  const pending = useRef<{ id: string; occurrence: number; index: number }[]>([]);
+  const pending = useRef<{ id: string; occurrence: number; index: number; epic: boolean }[]>([]);
   const raf = useRef(0);
   useEffect(() => {
     const fired = bumpedSlots(slots, prev.current);
     captureSlots(slots, prev.current);
     if (fired.length === 0 || !canPlayDefs()) return;
-    const binding = bindingFor(null, 'runeTriggered');
-    if (!binding) return;
+    // Resolve BOTH bindings once; each fire picks by the slot's `epic` flag. Either may be unbound (a removed
+    // binding), in which case that class of rune simply does not burst.
+    const commonBinding = bindingFor(null, 'runeTriggered');
+    const epicBinding = bindingFor(null, 'epicRuneTriggered');
+    if (!commonBinding && !epicBinding) return;
     // How many earlier slots hold this same rune id — the badge's index among its duplicates.
     const seen = new Map<string, number>();
     for (const s of slots) {
@@ -148,7 +154,7 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
       const hit = fired.find((f) => f.slot === s);
       if (!hit) continue;
       // One entry per fire: a rune that triggered twice between commits bursts twice.
-      for (let n = 0; n < hit.times; n++) pending.current.push({ id: s.id, occurrence, index: s.slot });
+      for (let n = 0; n < hit.times; n++) pending.current.push({ id: s.id, occurrence, index: s.slot, epic: !!s.epic });
     }
     if (pending.current.length === 0 || raf.current !== 0) return;
     // Measured on the next frame, not now: the badge re-rendered this commit (its inner node is REMOUNTED by
@@ -165,7 +171,9 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
         const key = `${q.id}#${q.occurrence}`;
         const nth = perBadge.get(key) ?? 0;
         perBadge.set(key, nth + 1);
+        const binding = q.epic ? epicBinding : commonBinding;
         const fire = (): void => {
+          if (!binding) return; // this class of rune is unbound — nothing to play
           const at = badgeCenterOf(q.id, q.occurrence);
           if (!at) return; // badge left the DOM (rune sold, screen changed) before it could play
           playDef(binding.def, { source: at, camera }, { index: q.index });

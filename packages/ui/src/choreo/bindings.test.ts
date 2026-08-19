@@ -166,6 +166,8 @@ const BINDINGS: Record<string, { def: string }> = {
   // A rune's own effect firing, on its HUD badge. Deliberately not `questTrigger`: that kind is anchored by
   // the combat score, which can only reach board units, so it has never played (see `runeTriggerFx.ts`).
   runeTriggered: { def: 'rune-burst' },
+  // Epic runes fire a distinct burst — same HUD-badge channel, resolved per slot by the rune's `epic` flag.
+  epicRuneTriggered: { def: 'epic-rune-burst' },
   // The DEFAULT tavern-spell cast — every spell with no card binding of its own. Fires ONCE at the cursor
   // (no `fanOut`), which is what makes it safe as a default; the ales opt into the per-minion volley.
   spellCast: { def: 'spell-sparks' },

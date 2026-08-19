@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-08-19 — The End-Turn rune-burst spike, and a distinct epic-rune burst
+
+**Root-caused the "it triggers many times when I press End Turn" report.** It was NOT in the rune-FX hook —
+it was the documented stale render in `useCombatReplay`. When a new fight's `combat` object arrives, `beatIdx`
+holds the PREVIOUS fight's value for exactly one render before the `[combat]` reset effect runs `resetTo(0)`.
+During that render `beats[beatIdx - 1]` is undefined, so `processedEnd` falls back to `events.length` (a guard
+that exists to avoid a crash) — which makes `triggeredQuests` report the WHOLE new fight's trigger set at once.
+The badge BOUNCE tolerated this (it self-corrects on the next render), but the new rune-burst is a one-shot
+that cannot be un-fired, so every one of the fight's triggers burst at the instant combat began.
+
+Fixed at the source with `beatIdxIsStale` — a ref, set in the reset effect, that is true only on that one
+stale render. `triggeredQuests` holds at empty while stale, so the real per-trigger progression plays from 0
+as the replay advances. The guard is an exact no-op on every non-stale render, so nothing else changes.
+
+Verification honesty: the earlier hook fixes (re-render-safe burst queue, delta-as-count, increase-only) were
+confirmed by driving the LIVE hook through every transition (0->1, 1->2, 0->2, 2->0 reset). This stale-render
+fix is proven by code-tracing the documented transient — it could NOT be reproduced in the headless harness
+because the Browser pane runs hidden (`document.hidden`), which throttles the beat clock so the animated replay
+never advances `beatIdx` past 0, and the stale render requires `beatIdx > 0` from a prior fight. Owner to
+confirm in a focused tab.
+
+**Epic runes get their own burst.** A second HUD binding kind, `epicRuneTriggered` -> `epic-rune-burst`,
+resolved PER SLOT by the rune's `epic` flag (`RUNE_INDEX[id].epic`) — a board holding both an epic and a
+common rune bursts each in its own colour. Both bindings are workbench-editable; either being unbound simply
+means that class of rune does not burst.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5800 passed) + `build:web` green.
+
 ## 2026-08-19 — Category 2: the continuous-modifier runes burst too (owner ruling)
 
 Walked the eleven runes that have no trigger of their own — they modify what something ELSE does — and the

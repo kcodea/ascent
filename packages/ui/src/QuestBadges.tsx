@@ -134,7 +134,7 @@ export function QuestBadges() {
     // `pulse` takes only true COUNTS (combat triggers + shop procs); the End-of-Turn tendril stamp is a
     // global action SEQUENCE and rides `seq`, where any change is exactly one fire. Folding it into `pulse`
     // would make one End-of-Turn proc burst once per intervening action.
-    return { slot, id, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0), seq: procced };
+    return { slot, id, epic: !!RUNE_INDEX[id]?.epic, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0), seq: procced };
   }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs]);
   useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).

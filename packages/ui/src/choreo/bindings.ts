@@ -15,12 +15,12 @@ import type { RecruitMomentKind } from './recruitMoments';
  * never should, and no emitter in `recruitMoments.ts` either — folding them into either union would break
  * that module's "every declared kind has a source" invariant with a kind it can never emit.
  */
-export type HudBindingKind = 'runeTriggered';
+export type HudBindingKind = 'runeTriggered' | 'epicRuneTriggered';
 
 /** The HUD kinds at runtime. Exists so `bindings.test.ts` can validate a binding key against them the way it
  *  already does against `SCORE_DEFAULTS` and `RECRUIT_MOMENT_KINDS` — without it a HUD key reads as naming
  *  nothing real, and the "no binding for a kind that does not exist" guard would have to be weakened. */
-export const HUD_BINDING_KINDS: readonly HudBindingKind[] = ['runeTriggered'];
+export const HUD_BINDING_KINDS: readonly HudBindingKind[] = ['runeTriggered', 'epicRuneTriggered'];
 
 /**
  * Every key a binding can hang off — a COMBAT moment kind, a SHOP one, or a HUD one.

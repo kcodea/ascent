@@ -809,6 +809,11 @@ export function useCombatReplay(
   // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
   const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
+  // The combat `beatIdx` was last reset for. During the ONE render after a new combat arrives — before the
+  // `[combat]` reset effect runs `resetTo(0)` — `beatIdx` still holds the previous fight's value, and this
+  // ref still holds the previous fight's `combat`. That single render is the stale one the `processedEnd`
+  // fallback and `beatIdxIsStale` below both exist to survive.
+  const seenCombatRef = useRef<typeof combat>(combat);
   // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
   const beatIdxRef = useRef(0);
   beatIdxRef.current = beatIdx;
@@ -1114,6 +1119,9 @@ export function useCombatReplay(
   // A fresh combat resets the replay to the top (the hook persists across fights).
   useEffect(() => {
     resetTo(0);
+    // Mark that `beatIdx` now belongs to THIS combat. Read during render by `beatIdxIsStale` below — until
+    // this effect runs, one render sees the PREVIOUS fight's `beatIdx` (see the `processedEnd` note).
+    seenCombatRef.current = combat;
   }, [combat, resetTo]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
@@ -1864,6 +1872,13 @@ export function useCombatReplay(
   // instead of reading `.end`/`.start` off an out-of-range (undefined) beat — which threw, and with no
   // error boundary crash-looped the whole app into a hard lock (a long fight followed by a shorter one).
   const processedEnd = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  // TRUE only on that one stale render: `beatIdx` is from the previous fight, so `processedEnd` fell back to
+  // `events.length` and every derived "…so far this fight" count would briefly read the WHOLE new fight at
+  // once. Harmless for the self-correcting live-tick displays (they fix on the very next render), but
+  // `triggeredQuests` drives a ONE-SHOT rune-badge burst that cannot be un-fired — a spike there fired every
+  // one of the fight's triggers at the instant combat began (owner report 2026-08-19: "it triggers many
+  // times when I press End Turn"). Gate that one memo on this.
+  const beatIdxIsStale = seenCombatRef.current !== combat;
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
@@ -2098,7 +2113,10 @@ export function useCombatReplay(
   // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
   const triggeredQuests = useMemo(() => {
     const counts: Record<string, number> = {};
-    if (processedEnd <= 0) return counts;
+    // The stale render (above) would otherwise report every trigger of the new fight at once — firing all of
+    // its badge bursts the instant combat starts. Hold at empty until `beatIdx` has been reset for this fight;
+    // the real per-trigger progression then plays from 0 as the replay advances.
+    if (beatIdxIsStale || processedEnd <= 0) return counts;
     const curStep = events[processedEnd - 1]?.step ?? Infinity;
     for (const e of events) {
       if (e.type !== 'questTrigger' || e.side !== 'player' || (e.step ?? 0) > curStep) continue;
@@ -2106,7 +2124,7 @@ export function useCombatReplay(
       if (id) counts[id] = (counts[id] ?? 0) + 1; // how many times it has fired so far — a fresh one-shot pulse per bump
     }
     return counts;
-  }, [events, processedEnd]);
+  }, [events, processedEnd, beatIdxIsStale]);
 
   // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
   // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after

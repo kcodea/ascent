@@ -60,6 +60,9 @@
     },
     "spellCast": {
       "def": "spell-sparks"
+    },
+    "epicRuneTriggered": {
+      "def": "epic-rune-burst"
     }
   },
   "cards": {

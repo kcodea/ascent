@@ -16,8 +16,9 @@ const body = (uid: string, cardId: string): BoardCard =>
 const borrowed = (uid: string, cardId: string): BoardCard => ({ ...body(uid, cardId), borrowed: true } as BoardCard);
 
 describe('a borrowed minion occupies its drop slot while the Echo fires', () => {
-  it('Legion Shepherd on a 6-minion board summons what fits and converts the rest into the Imp buff', () => {
-    // 6 on board + the ghost Shepherd = full. Its 4 Imps: none fit → all 4 overflow → +8/+8 Imp aura (2/2 × 4).
+  it('Legion Shepherd (rework 2026-08-18): its shop Echo buffs Imps +5/+5 and summons an Imp', () => {
+    // The old "summon 4 Imps, overflow → aura" shape is gone. Now the Echo is a flat +5/+5 Imp aura plus one Imp
+    // summoned. On a full board (6 + the ghost Shepherd) the Imp can't land, but the +5/+5 aura is unconditional.
     const s: RunState = {
       ...createRun(11), embers: 30, shop: [],
       board: [body('b1', 'sandbag'), body('b2', 'sandbag'), body('b3', 'sandbag'), body('b4', 'sandbag'), body('b5', 'sandbag'), body('b6', 'sandbag')],
@@ -25,13 +26,13 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
     };
     const after = reduce(s, { type: 'play', uid: 'sh', toIndex: 3 });
     expect(after.board.some((c) => c.uid === 'sh'), 'the borrowed body must not STAY').toBe(false);
-    expect(after.impBuff, 'all four Imps overflowed into the permanent aura').toEqual({ attack: 8, health: 8 });
+    expect(after.impBuff, 'the flat +5/+5 Imp aura landed').toEqual({ attack: 5, health: 5 });
 
-    // …and on an EMPTIER board it actually summons: 3 slots free (+ its own ghost slot) → 3 Imps land, 1 overflows.
+    // …and on an EMPTIER board the Imp it summons actually lands (room in the line).
     const roomy: RunState = { ...s, board: s.board.slice(0, 3), hand: [borrowed('sh', 'dm_shepherd')] };
     const a2 = reduce(roomy, { type: 'play', uid: 'sh', toIndex: 0 });
-    expect(a2.board.filter((c) => c.cardId === 'impscrap').length, 'the Imps that fit must actually land').toBe(3);
-    expect(a2.impBuff, 'one overflow → +2/+2').toEqual({ attack: 2, health: 2 });
+    expect(a2.board.filter((c) => c.cardId === 'impscrap').length, 'the summoned Imp lands with room to spare').toBe(1);
+    expect(a2.impBuff, 'the +5/+5 aura is unconditional').toEqual({ attack: 5, health: 5 });
   });
 
   it("Menagerie Mammoth's Echo summons Beasts (was a silent no-op — no shop body)", () => {

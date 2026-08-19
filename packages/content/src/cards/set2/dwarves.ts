@@ -269,13 +269,43 @@ export const SET2_DWARVES: CardDef[] = [
     name: 'Mountainbond',
     tribe: 'dwarf',
     tribe2: 'kobold',
-    tier: 6,
+    tier: 5, // owner rework 2026-08-18: T6 → T5
     attack: 7,
     health: 6,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 2, tribe: 'kobold' } }],
-    text: 'When you spend **8 Gold**, get **2 Rubies** and play a **Ruby** on your **Kobolds**.',
-    goldenText: 'When you spend **8 Gold**, get **4 Rubies** and play **2 Rubies** on your **Kobolds**.',
+    // Owner rework 2026-08-18: the hand-mint half is dropped and the board half now hits ALL your minions
+    // (`tribe: 'all'`, `count: 0` = mint nothing). `every` still metered per-instance by `applyGoldSpent`.
+    effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 0, play: 1, tribe: 'all' } }],
+    text: 'When you spend **8 Gold**, play a **Ruby** on your minions.',
+    goldenText: 'When you spend **8 Gold**, play **2 Rubies** on your minions.',
+  },
+  {
+    // Set 2 — Billings (owner add 2026-08-18): every 5 Gold spent, two random Dwarves get a big +5/+5. The
+    // recipient count is fixed; golden doubles the STAT (+10/+10).
+    id: 'dw_billings',
+    name: 'Billings',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 5, tribe: 'dwarf', count: 2, attack: 5, health: 5 } }],
+    text: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +5/+5**.',
+    goldenText: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +10/+10**.',
+  },
+  {
+    // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
+    // granted minion, a minted Ruby) buffs your left-most Dwarf. Golden doubles the grant.
+    id: 'dw_gangplank',
+    name: 'Gangplank',
+    tribe: 'dwarf',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onGainCard', do: 'onGainCardBuffTribe', params: { tribe: 'dwarf', attack: 1, health: 2 } }],
+    text: 'When a card is added to your hand, give a friendly **Dwarf +1/+2**.',
+    goldenText: 'When a card is added to your hand, give a friendly **Dwarf +2/+4**.',
   },
 ];
 

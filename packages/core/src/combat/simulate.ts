@@ -2105,6 +2105,11 @@ export function simulate(
     emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
+    // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
+    // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
+    if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {
+      bus.emit('friendlyDemonDealtDamage', { minion: poisoner, side: poisoner.side });
+    }
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was
     // already lethal. So attacking a Venomous minion is fatal *unless you were shielded from the

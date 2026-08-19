@@ -336,12 +336,12 @@ describe('tranche C — the five that needed machinery', () => {
     expect(goldFrom(true), 'Edward did not double the Ale').toBe(plain * 2);
   });
 
-  it('Mountainbond pays on a GOLD meter: 2 Rubies to hand + a Ruby on each Kobold (owner rework 2026-08-14)', () => {
-    // Was a cumulative cards-PLAYED meter that showered every minion. Now: every 8 Gold spent, 2 Rubies to
-    // hand and one played on your KOBOLDS only — so a non-Kobold on the same board is proof of the filter.
+  it('Mountainbond plays a Ruby on ALL your minions every 8 Gold spent — no hand mint (owner rework 2026-08-18)', () => {
+    // Was "2 Rubies to hand + one on your Kobolds" (2026-08-14). Now (2026-08-18) the hand-mint half is dropped
+    // (`count: 0`) and the board half hits `tribe: 'all'` — every friendly minion, Kobold or not, gets a Ruby.
     const s = set2();
     const kobold = body('k_gemheart', 'kb');       // Kobold — takes a Ruby
-    const dwarf = body('dw_brunni', 'dw');          // not a Kobold — must be untouched
+    const dwarf = body('dw_brunni', 'dw');          // NOT a Kobold — must ALSO take a Ruby now (tribe: 'all')
     s.board = [body('dw_mountainbond', 'mb'), kobold, dwarf];
     s.hand = [];
     const statsOf = (uid: string) => { const c = s.board.find((b) => b.uid === uid)!; return c.attack + c.health; };
@@ -350,9 +350,9 @@ describe('tranche C — the five that needed machinery', () => {
     expect(s.hand.length, 'fired below the 8-Gold threshold').toBe(0);
     expect(statsOf('kb'), 'fired below the threshold').toBe(kBefore);
     applyGoldSpent(s, 1); // the 8th Gold
-    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'two Rubies should have been minted').toBe(2);
-    expect(statsOf('kb'), 'no Ruby landed on the Kobold').toBeGreaterThan(kBefore);
-    expect(statsOf('dw'), 'a non-Kobold must not be gemmed').toBe(dBefore);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'the hand-mint half is dropped — no Rubies minted').toBe(0);
+    expect(statsOf('kb'), 'a Ruby landed on the Kobold').toBeGreaterThan(kBefore);
+    expect(statsOf('dw'), 'a Ruby landed on the non-Kobold too (tribe: all)').toBeGreaterThan(dBefore);
   });
 
   it('High King Mykel triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
@@ -373,7 +373,8 @@ describe('tranche C — the five that needed machinery', () => {
     // 26 → 27 on 2026-08-07: Bucky (`dw_bucky`) joined the forge-only rune minions (Rune of Bucky).
     // 27 → 28 on 2026-08-14: Drunken Oaf (`dw_oaf`) joined the buyable roster.
     // 28 → 26 on 2026-08-18: dw_runekeg + dw_chirurgeon (Ayves) archived to ARCHIVED_CARDS.
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(26);
+    // 26 → 28 on 2026-08-18: dw_billings + dw_gangplank joined the buyable roster.
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(28);
     expect(dwarfIds).toContain('dw_chickenbrawl');
     expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');

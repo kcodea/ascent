@@ -71,7 +71,7 @@ export function castInCombat(ctx: CombatContext, self: Minion, body: () => void)
  *  "plays a Ruby" in combat must come through here: a hand-rolled `ctx.buff` with Ruby-shaped stats misses
  *  the Deepdelve multiplier, the target's `onRubyPlayed` listeners, the Spellstone cast-count and the
  *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
-export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
+export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number, permanent = false): void {
   if (per <= 0) return;
   // RUNE OF BATTLE REFRACTION: living Prismcasters repeat Rubies played during combat, exactly as they repeat
   // hand-played Rubies in the shop (`rubyExtraCast`). Folded into `per` at this single chokepoint, so every
@@ -82,7 +82,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
-  applyRubyStats(ctx, self, target, a, h);
+  applyRubyStats(ctx, self, target, a, h, permanent);
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
   // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.
@@ -94,7 +94,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       for (let b = 0; b < bounces; b++) {
         const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
         if (others.length === 0) break;
-        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h);
+        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, permanent);
       }
     }
   }
@@ -156,7 +156,7 @@ function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
   return [...before, ...after];
 }
 
-function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
+function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number, permanent = false): void {
   ctx.buff(target, a, h, self.uid, true); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
@@ -169,6 +169,13 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
   // recipient. `permaRuby` stays as the LABEL for the Engraved share, so the carry-back split (Ruby vs the
   // rest, simulate ~2405) keeps attributing correctly — it must only accrue when the gain actually persists.
   if (target.keywords.includes('EG')) {
+    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
+  } else if (permanent) {
+    // A card that explicitly prints "permanently" (Kobe / Boulderdash / Blazer): accrue BOTH permaGain (so the
+    // carry-back filter at settle picks it up — ctx.buff only accrues permaGain for Engraved bodies) AND
+    // permaRuby (so the carry-back split labels it a Ruby rather than a generic gift). This is the `permanent`
+    // hook the applyRubyStats reversal note (2026-07-31) reserved for exactly this case.
+    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
     target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
   }
 }
@@ -3435,6 +3442,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
   },
 
+  /** Set 2 — Malphas (Echo half): when THIS minion dies, permanently buff every minion in the Shop. The Shout
+   *  half is the recruit `buffShopPermanent`; this is its combat twin, carried back through `gainTavernBuy`
+   *  exactly like Demon Horse's Rally — a recruit factory would never fire on a combat death. Golden doubles. */
+  deathrattleBuffShopPermanent: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (minion !== self) return; // own Echo only — the bus broadcasts every death
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
+  },
+
   /** Ashen Broodlord (owner rework 2026-07-31) — Rally: CAST A STAFF OF GUEL. A real spell cast, so it
    *  follows the Taragosa pattern exactly: the run's spell power folds into the grant (`spellPowerFor`, so an
    *  enemy Broodlord scales with the OPPONENT's), and `ctx.castSpell` fires the cast so per-spell payoffs
@@ -3459,6 +3475,80 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Traveling Skald: whenever ANOTHER friendly minion of `tribe` attacks, give IT +atk/+hp. The
    *  payload's attacker is the target; the Skald's OWN swing never buffs itself (owner ruling 2026-08-01 —
    *  the printed text says "another"). Golden doubles. */
+  /** Set 2 — Impossible Todd / Leech / Axeman: react whenever a FRIENDLY Demon deals combat damage
+   *  (attack, retaliation, or incidental; a Ward-absorbed 0-damage hit never fires the event). Gains `attack`/
+   *  `health` on self, and optionally grants your Imps `impAttack`/`impHealth` run-wide (`grantImpBuff` carries
+   *  back to RunState.impBuff — "this game"). The emit already guaranteed the dealer is a Demon; we just
+   *  confirm it's on our side. `self` MAY be the dealer (a Demon reacting to its own damage counts). */
+  onFriendlyDemonDamageBuffSelf: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a || h) {
+      ctx.buff(self, a, h, self.uid);
+      // PERMANENT: carry the gain back to the run board like an Engraved minion (owner 2026-08-18: these gains
+      // are permanent). `ctx.buff` only auto-accrues permaGain for EG/Transcendant bodies, so add it here for
+      // the rest. Carry-back only reads PLAYER minions with a sourceUid, so an enemy copy is harmless.
+      if (!self.keywords.includes('EG')) {
+        self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: (self.permaGain?.health ?? 0) + h };
+      }
+    }
+    const ia = num(params.impAttack, 0) * mul(self);
+    const ih = num(params.impHealth, 0) * mul(self);
+    if (ia || ih) ctx.grantImpBuff(ia, ih, self.side);
+  },
+
+  /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
+   *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
+   *  run board (see `applyRubyStats`); golden doubles `count`. */
+  scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
+    if (self.dead) return;
+    const per = num(params.count, 1) * mul(self);
+    const permanent = params.permanent === true;
+    const tribe = str(params.tribe);
+    playRubyOn(ctx, self, self, per, permanent);
+    for (const adj of livingNeighbours(ctx, self)) {
+      if (tribe && adj.tribe !== tribe && adj.tribe2 !== tribe && !ctx.getCard(adj.cardId)?.universalTribe) continue;
+      playRubyOn(ctx, self, adj, per, permanent);
+    }
+  },
+
+  /** Set 2 — Boulderdash (Rally): each time THIS minion attacks, play `count` PERMANENT Rubies on itself.
+   *  Fires on its own attack (Flurry → per hit); golden doubles `count`. */
+  rallyPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    playRubyOn(ctx, self, self, num(params.count, 1) * mul(self), params.permanent === true);
+  },
+
+  /** Set 2 — Blazer (Rally): each time THIS minion attacks, play `count` PERMANENT Rubies on EVERY friendly
+   *  minion. Fires on its own attack (Flurry → per hit); golden doubles `count`. */
+  rallyPlayRubiesAll: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const per = num(params.count, 1) * mul(self);
+    const permanent = params.permanent === true;
+    for (const m of ctx.living(self.side)) playRubyOn(ctx, self, m, per, permanent);
+  },
+
+  /** Set 2 — Fel Spikes (Echo): deal `amount` to EVERY minion on BOTH sides EXCEPT friendly minions of
+   *  `exceptTribe` (Demons). The exclusion is FRIENDLY-only — an ENEMY Demon is still hit — which is why this
+   *  can't route through the tribe-agnostic `deathrattleDamageAll`. Golden doubles the damage. */
+  deathrattleDamageAllExceptTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const amount = num(params.amount, 1) * mul(self);
+    if (amount <= 0) return;
+    const exc = str(params.exceptTribe);
+    for (const sideKey of ['player', 'enemy'] as Side[]) {
+      for (const m of [...ctx.living(sideKey)]) {
+        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+        ctx.damage(m, amount);
+      }
+    }
+  },
+
   onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
     if (self.dead) return;
     const { minion } = payload as MinionPayload;

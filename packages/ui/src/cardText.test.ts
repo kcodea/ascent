@@ -319,7 +319,7 @@ describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => 
 
   it('gates on cards that actually SUMMON an Imp', () => {
     expect(cardSummonsImp('dm_wrangler')).toBe(true);   // startOfCombat summonImps
-    expect(cardSummonsImp('dm_shepherd')).toBe(true);   // deathrattleImpsOverflowGrant
+    expect(cardSummonsImp('dm_shepherd')).toBe(true);   // deathrattleSummon tokenId impscrap (rework 2026-08-18)
     expect(cardSummonsImp('dm_errand')).toBe(true);     // rallySummonImpBuffImps
     expect(cardSummonsImp('impking')).toBe(true);       // deathrattleSummon tokenId impscrap
     expect(cardSummonsImp('dm_broodwright')).toBe(false); // REACTS to summons, doesn't summon
@@ -338,9 +338,11 @@ describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => 
     expect(t.match(/\{\{\(2\/2\)\}\}/g)?.length, 'exactly one annotation').toBe(1);
   });
 
-  it('handles plural summons ("summon 4 Imps")', () => {
-    const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.text, aura);
-    expect(t).toContain('summon **4 Imps {{(2/2)}}**');
+  it('handles plural summons ("Summon 2 Imps")', () => {
+    // dm_shepherd's rework (2026-08-18) made its base text summon a single Imp; the plural lives on the golden
+    // text ("Summon 2 Imps"), which is what exercises the plural branch of the annotation regex.
+    const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.goldenText!, aura);
+    expect(t).toContain('Summon **2 Imps {{(2/2)}}**');
   });
 
   it('shows the 1/1 base with no Imp Aura, and leaves non-summoners alone', () => {

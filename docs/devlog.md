@@ -14,7 +14,7 @@ Three needed a hand-mapping the name-normaliser could not reach, all flagged rat
 `RuneOfScale.png` → `rune_scale` (the id matches the filename; the rune's NAME is Bulk Order),
 `SpellOfPillaging.png` → `rune_pillaging`, and `RuneOfTheCaravan.png` → `rune_strange_caravan`.
 
-**Still missing art:** Rune of the Stoked Menagerie (new this batch) and Rune of Wild Memory (archived). Six
+**Still missing art:** only Rune of Wild Memory (archived). Six
 source files match no live rune — `RuneOfEchoingCry`, `RuneOfGilding`, `RuneOfTheAftermath`,
 `RuneOfTheFinalVerse`, `RuneOfTheGolems`, `RuneoftheMotherload` — plus one UUID-named file.
 

@@ -101,9 +101,9 @@
     {
       "primitive": "burst",
       "anchor": "source",
-      "at": 40,
+      "at": 120,
       "params": {
-        "count": 397,
+        "count": 162,
         "interval": 100,
         "spread": 0.93,
         "aimMode": "travel",
@@ -123,7 +123,7 @@
         ],
         "drag": 0.855,
         "gravity": 2000,
-        "pointGravity": 3160,
+        "pointGravity": 3880,
         "life": 1190,
         "orientToVelocity": false,
         "turbulence": 955,
@@ -139,26 +139,26 @@
         "offsetY": 0,
         "inheritVel": 0.71,
         "shape": "circle",
-        "size": 63,
+        "size": 141,
         "sizeVar": 0.35,
         "stretchX": 1,
         "stretchY": 1,
         "sizeCurve": [
           [
             0,
-            0.07428162300093932
+            1.172800732887573
           ],
           [
             0.15943364184554185,
             1.1155747957681654
           ],
           [
-            0.7943544081602116,
-            2
+            0.999,
+            0
           ],
           [
             1,
-            2
+            0
           ]
         ],
         "coreBias": 0.39,
@@ -221,9 +221,9 @@
     {
       "primitive": "burst",
       "anchor": "source",
-      "at": 40,
+      "at": 100,
       "params": {
-        "count": 397,
+        "count": 210,
         "interval": 100,
         "spread": 1,
         "aimMode": "travel",
@@ -341,9 +341,9 @@
     {
       "primitive": "burst",
       "anchor": "source",
-      "at": 40,
+      "at": 70,
       "params": {
-        "count": 397,
+        "count": 85,
         "interval": 100,
         "spread": 1,
         "aimMode": "fixed",
@@ -363,7 +363,7 @@
         ],
         "drag": 0.905,
         "gravity": 1160,
-        "pointGravity": 3590,
+        "pointGravity": 3910,
         "life": 1190,
         "orientToVelocity": false,
         "turbulence": 955,
@@ -379,7 +379,7 @@
         "offsetY": 0,
         "inheritVel": 0.71,
         "shape": "circle",
-        "size": 63,
+        "size": 165,
         "sizeVar": 0.35,
         "stretchX": 1,
         "stretchY": 1,
@@ -461,9 +461,9 @@
     {
       "primitive": "burst",
       "anchor": "source",
-      "at": 40,
+      "at": 30,
       "params": {
-        "count": 397,
+        "count": 151,
         "interval": 100,
         "spread": 1,
         "aimMode": "fixed",
@@ -483,7 +483,7 @@
         ],
         "drag": 0.905,
         "gravity": 1160,
-        "pointGravity": 3590,
+        "pointGravity": 3940,
         "life": 1190,
         "orientToVelocity": false,
         "turbulence": 955,

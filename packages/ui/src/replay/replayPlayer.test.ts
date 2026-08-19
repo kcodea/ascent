@@ -11,7 +11,7 @@ import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
   SHOP_VIEW_EXCLUDED_KEYS, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, endReplay, frameIndexAt, seekReplay, startReplay } from './replayPlayer';
+import { clampStepMs, endReplay, frameIndexAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -173,5 +173,29 @@ describe('startReplay / endReplay snapshot-restore (the store contract)', () => 
     expect(st.replaySeekEpoch).toBe(epoch0 + 1);
     seekReplay(0);
     expect(useGame.getState().replaySession?.index).toBe(0);
+  });
+});
+
+describe('the clamped transport timeline (found live 2026-08-19)', () => {
+  it('an idle gap in the capture cannot dominate the bar — deltas clamp to MAX_STEP', () => {
+    // The live repro: frame 0 at t=0, a 31 s setup gap, then 61 frames in ~60 ms. Raw-proportional geometry
+    // put 99.8% of the bar inside the gap, so clicking the right edge seeked to frame 0.
+    const raw = [0, 31160, 31161, 31163, 31221];
+    const eff = effectiveTimesOf(raw);
+    expect(eff[0]).toBe(0);
+    expect(eff[1]! - eff[0]!, 'the 31 s gap clamps to the 5 s ceiling').toBe(5000);
+    // Sub-350ms real deltas clamp UP to the floor, so every frame owns a visible slice of the bar.
+    expect(eff[2]! - eff[1]!).toBe(350);
+    const dur = eff[eff.length - 1]!;
+    // The right edge of the bar maps to the LAST frame, not the gap.
+    let lo = 0, hi = eff.length - 1, ans = 0;
+    const target = 1 * dur;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (eff[mid]! <= target) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    expect(ans).toBe(raw.length - 1);
+  });
+
+  it('a zero-delta timeline (a scripted capture) still spans the bar', () => {
+    const eff = effectiveTimesOf([0, 0, 0, 0]);
+    expect(eff).toEqual([0, 900, 1800, 2700]); // a 0 delta reads as absent → the DEFAULT step, never 0 wide
   });
 });

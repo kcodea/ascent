@@ -95,6 +95,25 @@ export function replayFrameTimes(): readonly number[] {
   return frameTimes;
 }
 
+/** The CLAMPED cumulative timeline — each frame-to-frame delta run through `clampStepMs`, exactly the
+ *  pacing the playback clock uses. This is what the transport bar's geometry maps through (position ⇄ frame
+ *  index), NOT the raw `tMs`: raw deltas include idle gaps (a player AFK for five minutes mid-run), which
+ *  would compress all actual play into a sliver of the bar — found live 2026-08-19, where a capture with a
+ *  31 s setup gap put 61 of 62 frames in the bar's last 0.2%. Bar position ≡ actual watch time. */
+let effTimes: number[] = [];
+export function replayEffectiveTimes(): readonly number[] {
+  return effTimes;
+}
+
+/** Build the clamped timeline: frame 0 at 0, each later frame at prev + clampStepMs(raw delta). */
+export function effectiveTimesOf(times: readonly number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < times.length; i++) {
+    out.push(i === 0 ? 0 : out[i - 1]! + clampStepMs(times[i]! - times[i - 1]!));
+  }
+  return out;
+}
+
 function clearPending(): void {
   if (timer !== null) { clearTimeout(timer); timer = null; }
   if (unsubCombat) { unsubCombat(); unsubCombat = null; }
@@ -224,6 +243,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   marks = roundMarks(expanded);
   stats = rollupRounds(expanded);
   frameTimes = expanded.map((f) => f.tMs);
+  effTimes = effectiveTimesOf(frameTimes);
   idx = 0;
   speed = 1;
   playing = true;
@@ -298,6 +318,26 @@ export function seekReplay(tMs: number): void {
   if (playing) scheduleNext(token);
 }
 
+/** Seek straight to a frame INDEX — the transport bar's path (it maps a bar fraction through the CLAMPED
+ *  timeline to an index, so the raw-tMs search would undo the clamping). Same combat-scrub rule + epoch
+ *  bump as `seekReplay`; the round rail keeps `seekReplay` (its marks carry exact frame times). */
+export function seekReplayIndex(i: number): void {
+  if (!snapshot || frames.length === 0) return;
+  token += 1;
+  clearPending();
+  let k = Math.max(0, Math.min(frames.length - 1, Math.round(i)));
+  if (frames[k]?.kind === 'combat') {
+    let j = k + 1;
+    while (j < frames.length && frames[j]?.kind === 'combat') j += 1;
+    if (j < frames.length) k = j;
+  }
+  idx = k;
+  useGame.setState((st) => ({ replaySeekEpoch: st.replaySeekEpoch + 1 }));
+  renderFrame(idx);
+  patchSession({ ended: false });
+  if (playing) scheduleNext(token);
+}
+
 /** Exit the replay and restore the snapshotted store slice — the viewer's real in-progress run, screen
  *  flags and combat bridges all return exactly as they were before `startReplay`. */
 export function endReplay(): void {
@@ -310,6 +350,7 @@ export function endReplay(): void {
   marks = [];
   stats = [];
   frameTimes = [];
+  effTimes = [];
   playing = false;
   useGame.setState({
     ...restore,

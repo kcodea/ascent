@@ -1,5 +1,5 @@
 import { useGame } from '../store';
-import { pauseReplay, resumeReplay, setReplaySpeed, seekReplay, endReplay, replayFrameTimes } from './replayPlayer';
+import { pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay, replayEffectiveTimes } from './replayPlayer';
 
 /**
  * REPLAY VIEWER transport — a floating control bar shown while a recorded run plays back (`replaySession`
@@ -12,14 +12,21 @@ export function ReplayOverlay(): JSX.Element | null {
   const s = useGame((st) => st.replaySession);
   if (!s) return null;
 
-  const times = replayFrameTimes();
+  // The CLAMPED timeline, not raw tMs: bar position ≡ actual watch time, so an idle gap in the capture (a
+  // player AFK mid-run) doesn't compress all real play into a sliver of the bar (found live 2026-08-19).
+  const times = replayEffectiveTimes();
   const duration = times.length > 0 ? times[times.length - 1]! : 0;
   const cur = times[Math.min(s.index, times.length - 1)] ?? 0;
   const pct = s.ended ? 100 : duration > 0 ? (cur / duration) * 100 : 0;
   const seekFromClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     const r = e.currentTarget.getBoundingClientRect();
     const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-    seekReplay(frac * duration);
+    // Map the bar fraction through the clamped timeline to a frame INDEX (last frame at or before the
+    // target watch-time), then seek by index — a raw-tMs seek would undo the clamping.
+    const target = frac * duration;
+    let lo = 0, hi = times.length - 1, ans = 0;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (times[mid]! <= target) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    seekReplayIndex(ans);
   };
 
   return (

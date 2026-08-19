@@ -625,38 +625,22 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
    already carries the spent read, so the dim is light). The housing stays lit either way. */
 .etbwrap:disabled:not(.pressed) .etb-gem { filter: grayscale(0.4) brightness(0.8); }
 .etbwrap.pressed .etb-gem, body.etb-pressed-preview .etbwrap .etb-gem { filter: brightness(0.85); }
-/* Hover brightens the gem (the halo itself is the separate `.etb-glow` layer above). Normal state only. */
+/* Hover glow — copied from the Freeze gem (owner ask 2026-08-19): a stacked ice-blue drop-shadow applied
+   DIRECTLY on the gem, exactly like `.frzwrap … .frz-gem`. Because the gem overlay (`.etb-gembox`, z2) sits
+   above the base housing (`.etb-base`, z2 but earlier in the DOM), the drop-shadow radiates from BEHIND the
+   gem's own pixels and OVER the housing — i.e. below the gem, above the base layer — instead of the old
+   separate `.etb-glow` halo that floated above everything. `--etb-gemglow` is composed in endTurnConfig from
+   the glow blur/strength/colour dials (same recipe as `--frz-gemglow`); the fallback here mirrors the Freeze
+   default (4× blur-8 rgba(120,200,255,0.95)). Static filter + the opacity-cheap `filter` transition below. */
 .etbwrap .etb-gem { transition: filter 0.16s ease; }
-.etbwrap:not(:disabled):not(.pressed):hover .etb-gem { filter: brightness(var(--etb-gem-hover, 1.53)); }
-/* The DIAMOND GLOW — the GEM-ONLY cut of the art (end_button_gem.webp) whose stacked drop-shadow follows
-   the alpha silhouette, so the halo hugs the blue diamond itself, NOT the bronze housing (owner note
-   2026-07-16). Seated ABOVE the art (the gem's light spills over the housing). HOVER-ONLY: hidden at rest
-   (a soft opacity transition eases it in/out), breathing while hovered. The filter is STATIC; both the
-   breath and the fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
-.etbwrap .etb-glow {
-  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
-  /* Alignment dials (💎 tuner): nudge in design px (× --u) + width/height fit, so the halo can be seated
-     square on the gem. */
-  transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, -1.5) * var(--u))) scale(var(--etb-glow-w, 0.98), var(--etb-glow-h, 0.925));
-  filter: var(--etb-glow-filter, drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff));
-  /* Only the HALO paints: the drop-shadows are computed from the gem image's alpha (filter runs first), then
-     this mask — full canvas MINUS the gem shape (mask-composite: exclude) — cuts the source pixels back out.
-     So the offset/fit dials move the glow alone; there's no "copied diamond" riding the art (owner note). */
-  mask-image: linear-gradient(#fff, #fff), url('/frames/end_button_gem.webp');
-  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
-  opacity: 0; transition: opacity 0.22s ease;
+.etbwrap:not(:disabled):not(.pressed):hover .etb-gem {
+  filter: var(--etb-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--etb-gem-hover, 1.53));
 }
-.etbwrap:not(:disabled):hover .etb-glow {
-  opacity: var(--etb-glow-alpha, 0.32);
-  animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite;
-}
-.etbwrap.pressed .etb-glow, body.etb-pressed-preview .etbwrap .etb-glow, .etbwrap:disabled .etb-glow { opacity: 0; animation: none; }
-.etbwrap.urgent:not(:disabled):hover .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
-/* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
-body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity: var(--etb-glow-alpha, 0.32); animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite; }
-@keyframes etbbreathe {
-  0%, 100% { opacity: var(--etb-glow-alpha, 0.32); }
-  50% { opacity: var(--etb-glow-dim, 0.83); }
+/* Tuner's "glow always on" preview — pins the gem hover glow so its blur/strength/colour sliders can be
+   dialled without holding hover. The glow is now a drop-shadow on `.etb-gem` (copied from the Freeze gem —
+   see the hover rule above), so the preview just applies that same filter at rest. */
+body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
+  filter: var(--etb-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--etb-gem-hover, 1.53));
 }
 /* The strike FLASH — a white-hot pop of the gem masking the lit→dim swap. Static bright filter; the
    one-shot animation (duration from the tuner via --etb-flash-ms) fades OPACITY only, then the layer

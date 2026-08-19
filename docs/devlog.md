@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-19 — End Turn gem glow copied from the Freeze gem (and re-seated below the gem)
+
+Owner ask: the End Turn diamond's hover glow floated over the bronze housing on its own top layer, unlike the
+Freeze gem where the glow sits behind the gem and above the base. Reworked to match Freeze exactly.
+
+- **Retired the separate `.etb-glow` halo layer** (the masked `end_button_gem.webp` copy at z-index 3) — removed
+  the `<img>`, its CSS block, the `etbbreathe` keyframe, and the `--etb-glow-x/y/w/h/alpha/dim/pulse/filter`
+  vars.
+- **Glow is now a drop-shadow ON `.etb-gem`** on hover (`--etb-gemglow`), composed from the glow blur/strength/
+  colour dials exactly like Freeze's `--frz-gemglow`. Because the gem overlay (z2) sits above the base housing
+  (z2, earlier in the DOM), the shadow radiates from behind the gem's own pixels and over the housing — i.e.
+  **below the gem, above the base** — the Freeze layering. Defaults copied from Freeze: 4× `blur-8`
+  `rgba(120,200,255,0.95)`.
+- **Tuner tidied**: dropped the seven now-dead glow-layer dials (opacity/breathing/alignment/fit); the "Glow
+  always on" preview now pins the gem drop-shadow so blur/strength/colour still dial without holding hover.
+
+Presentation only. Verified live on the dev server (glow seated behind the gem, matches Freeze on hover) and
+against typecheck + lint + build:web.
+
 ## 2026-08-19 — Chains on the locked third rune slot
 
 Most runs only ever earn 2 runes (universal basic forge turn 6 + epic turn 9), so the third rune slot is

@@ -2,6 +2,22 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Rune art: full re-wire (2026-08-19).** Re-copied every rune's master from `Ascent Art/Runes` and re-ran
+`optimize-art`, rather than only filling the gaps — the owner had revised some already-wired pieces. **257 of
+262 runes now carry art.** Seven existing pieces changed (Badger, Foundry, Groveweaver, Matriarch, Set-2
+Menagerie, Remains, Tip Jar) and eleven newly landed (Bubble Crown, Catacomb, Chipper Sticker, Deathtouched
+Apple, Drake Skull, Embers, Engraving Gems, Held Strength, Might, Refreshments, Rising Echoes). The rest
+re-encoded byte-identical, which is the useful signal: WebP output here is deterministic, so a full re-wire
+shows exactly what actually moved.
+
+Three needed a hand-mapping the name-normaliser could not reach, all flagged rather than silently guessed:
+`RuneOfScale.png` → `rune_scale` (the id matches the filename; the rune's NAME is Bulk Order),
+`SpellOfPillaging.png` → `rune_pillaging`, and `RuneOfTheCaravan.png` → `rune_strange_caravan`.
+
+**Still missing art:** Rune of the Stoked Menagerie (new this batch) and Rune of Wild Memory (archived). Six
+source files match no live rune — `RuneOfEchoingCry`, `RuneOfGilding`, `RuneOfTheAftermath`,
+`RuneOfTheFinalVerse`, `RuneOfTheGolems`, `RuneoftheMotherload` — plus one UUID-named file.
+
 **Seventh wave (same PR): Rune of Refreshments + the Baller's new cadence.**
 
 - **Rune of Refreshments** (Epic, 1) — playing a **Demon** banks a **free refresh**. It hangs off the same play

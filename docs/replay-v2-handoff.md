@@ -289,74 +289,45 @@ the before/after gold and the action in hand. Two numbers per frame is negligibl
 dominate the payload (§8), and it removes a whole class of "the panel says 14, I counted 11" bugs. This is the
 *only* capture change either feature needs, and it belongs in Phase A so recordings carry it from day one.
 
-### 7.4 Recommendation: the rail and the panel are one widget
+### 7.4 The locked UX (owner ruling 2026-08-19): rail + slide-out metrics drawer
 
-They answer the same question from two directions — "where was the action" and "take me there" — so building
-them as one component makes the second gesture free:
+> "I want a round panel for scrubbing through rounds, and ideally a metrics pop-out drawer that slides out of
+> the rail to the right that shows gold spent / actions this turn / shop tier at the start of this turn."
+
+The rail is the primary control; the metrics live in a **drawer that slides out of the rail to the right**,
+per round. No charts, no metric dropdown, no dashboard — three numbers per round, exactly:
 
 ```
-┌──────────────────────────┐
-│ Gold spent          ▾    │  ← the dropdown: what the bars encode
-├──────────────────────────┤
-│  R6  ▓▓▓▓▓▓▓▓▓  W   -0   │  ← click the row to seek to that round's shop opening
-│  R7  ▓▓▓        L   -7   │
-│ ▶R8  ▓▓▓▓▓▓▓▓▓▓▓▓ W  -0  │  ← current round, highlighted as playback advances
-│  R9  ▓▓▓▓▓       L  -9   │
-└──────────────────────────┘
+┌──────────┐ ┌───────────────────────────┐
+│  R6  W   │ │  Round 8                  │
+│  R7  L   │ │  Gold spent          9    │   ← §7.3: capture `spent`, don't diff `view.gold`
+│ ▶R8  W   │◄┤  Actions            12    │   ← count of this wave's non-`turnStart` frames
+│  R9  L   │ │  Shop tier at start  4    │   ← `view.tier` on the wave's `turnStart` frame
+│  …       │ └───────────────────────────┘
+└──────────┘
 ```
 
-One row per round: number, a bar for the selected metric, the combat verdict, the Resolve delta. Click to seek;
-expand a row for that round's detail (purchases, plays, board power, the fight). The "dropdown for fun" the
-owner asked for is then just *which metric the bars encode* — and every option in it is one line of the fold in
-§7.2, so adding metrics later costs nothing.
+- **Rail row:** round number + combat verdict; current round highlighted as playback advances. Click → seek to
+  that round's shop opening (§7.1).
+- **Drawer:** opens for the hovered/selected round. All three values are one line each of the §7.2 fold:
+  - *Gold spent* — Σ `spent` over the wave's frames (the §7.3 capture; net-diffing `view.gold` is NOT it).
+  - *Actions this turn* — count of the wave's shop frames with `cause !== 'turnStart'`.
+  - *Shop tier at start* — `view.tier` on the wave's `turnStart` frame.
+- The fold (§7.2) supports far more, and the drawer is the natural home if more is ever wanted — but these
+  three are the shipped set. Anything further is a future owner ask, not scope.
 
-### 7.5 The metrics worth shipping, in priority order
+### 7.5 Cut: board power / modeled score
 
-1. **Gold spent + cards played per round** — the literal ask, and the best single answer to "where was the action."
-2. **Board power curve, yours vs the board you actually faced.** Both sides are already in
-   `CombatFrame.initial` (`player` and `enemy` `CombatSideState`), so the opponent overlay is free — and it is
-   the most diagnostic chart available: it shows the exact round you fell behind, which a solo curve cannot.
-   **Ship it as a BASELINE, not as truth** — see §7.6 for what that means in practice (owner ruling
-   2026-08-19: "the board power algorithm isn't perfect, though, but it's still fine to include as a
-   baseline").
-3. **Resolve track** — where the run started dying, straight off `resolveLost` per combat frame.
-4. **Gold left on the table at End of Turn** — the sharpest read on *play quality* rather than activity.
-5. **Purchase log** — a plain table of every card bought, with round and price.
-6. **Tribe mix over rounds** — shows the pivot, and reads well as a stacked band.
+An earlier draft of this section proposed a board-power curve (raw Σ(atk+hp) and/or the fitted
+`predictBoardElo`). **The owner cut it** (2026-08-19: "I don't really care about the score thing") — the
+priorities are exactness of playback, the rail, and the three-number drawer. Do not build a score capture or a
+power chart. If a strength readout is ever revisited, the earlier analysis still holds: any MODELED score must
+be captured at record time, never computed at playback (today's weights would silently re-score old replays —
+the §2 drift class), and raw stat totals are already derivable from recorded frames with no capture change.
 
-### 7.6 Board power is a baseline — present it as one
+### 7.6 Spoilers
 
-Two different things could draw this curve, and the difference matters:
-
-- **Raw stat total**, `Σ(attack + health)` over the board. Exact, model-free, and derivable straight from a
-  recorded frame — nothing to be wrong about.
-- **The fitted model**, `predictBoardElo(minions, wave)` / `boardStrength(...)` in `packages/sim/src/boardModel.ts`.
-  Better on average, and honest about its own limits: held-out r = **0.789**, against 0.716 for raw power. Raw
-  power explains synthetic boards almost perfectly (r 0.88–0.94) and **human** boards badly once they get
-  going — **r = 0.37 at waves 10–12**. The model narrows that but does not close it, and its 16–20 band was
-  never fitted at all, so late-game boards are scored against a neighbouring band.
-
-Note where both are weakest: **the late game** — exactly the rounds a viewer cares most about. That is the
-substance of the owner's caveat, and it drives three rules.
-
-**Rule 1 — raw stat total is the primary line.** It is exact, it needs no model, and it is consistent with the
-whole point of §3: a state replay renders recorded facts rather than re-derived judgments. The modeled score is
-an optional secondary line, never the default.
-
-**Rule 2 — if the modeled score is shown, CAPTURE it, never compute it at playback.** Computing
-`predictBoardElo` while watching would score a months-old replay with *today's* fitted weights — reintroducing
-precisely the content-drift fragility v2 exists to eliminate (§2). A model refit would silently rewrite the
-history of every stored run. If we want it, it is a number recorded on the `CombatFrame` at capture time,
-alongside the patch string that produced it.
-
-**Rule 3 — present it as shape, not magnitude.** Label the series an estimate, avoid a precise-looking figure
-next to it, and let it answer "which round did the lines cross" rather than "how strong was I." The crossing
-point survives an r ≈ 0.79 model far better than any single value does, and the crossing is the question a
-viewer is actually asking.
-
-### 7.7 Spoilers
-
-The panel necessarily reveals rounds the viewer hasn't watched yet (it shows the whole run). Since the scrub bar
+The rail necessarily reveals rounds the viewer hasn't watched yet (verdicts per round). Since the scrub bar
 already reveals the ending, **recommend showing everything**, with the current round highlighted. If that reads
 badly in practice, a "hide future rounds" toggle is a two-line change over the same rollup.
 
@@ -444,9 +415,10 @@ supersede the v1 recording so telemetry isn't carrying both. Revisit at build ti
   over `frames[].wave` on top of the seek this phase already builds, and it is the coarse position indicator
   the transport bar is bad at.
 - **Phase C — entry points.** Lift the recent-matches feed + leaderboard Watch (§10), gated on `version === 2`.
-- **Phase D — the stats panel** (§7.2–§7.5). A pure `rollup(frames)` fold plus the rail-row UI. Independent of
-  everything above and buildable last, since it reads only recorded frames — it even works on replays captured
-  before it existed. Ship metrics 1–4 from §7.5; the rest are one fold line each.
+- **Phase D — the metrics drawer** (§7.2–§7.4). A pure `rollup(frames)` fold plus the slide-out drawer on the
+  rail. Independent of everything above and buildable last, since it reads only recorded frames — it even works
+  on replays captured before it existed. Ships exactly the three numbers in §7.4: gold spent, actions this
+  turn, shop tier at start.
 - **Phase E — polish.** Size (delta/gzip) if measured; combat mid-seek behavior; speed edge cases; a "Watch"
   on Career match cards.
 
@@ -468,10 +440,9 @@ before B is built.
   rail makes this routine rather than rare — every rail click on a mid-combat target hits it.
 - **Gross vs net Gold in the stats panel** (§7.3). Recommend capturing `spent`/`earned` in Phase A so gross is
   exact; the fallback is showing net flow only, which is free but reads less like "where the action was".
-- **Does the stats panel spoil the run?** (§7.7) Recommend showing all rounds, since the scrub bar already
+- **Does the stats panel spoil the run?** (§7.6) Recommend showing all rounds, since the scrub bar already
   reveals the ending.
-- **Is the MODELED board score worth capturing at all** (§7.6), or is the raw stat total enough on its own?
-  It is one number per combat frame if we want it, but it must be recorded rather than computed at playback.
+
 
 ---
 

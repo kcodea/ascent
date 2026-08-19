@@ -373,6 +373,9 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
 ### Run identity
 The career surface exists; deepen what a finished run *remembers*.
 - **Round-by-round + replay view — TABLED, rebuild as state-replay (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+  *(Spec extended 2026-08-19: a left-hand ROUND RAIL — click round 8, seek to its shop opening — and a
+  per-turn STATS PANEL, gold spent / cards played / board power, as one widget. Both are a fold over the
+  recorded frames, so they need no new capture beyond an optional per-frame `spent`/`earned`; see §7.)*
   A full action-replay spectator was built (watch any player's run through the live UI, from the leaderboard /
   a recent-matches feed) on branch `feat/replay-driver` and **killed 2026-08-11**: action-replay re-derives the
   run from `{seed,actions}`, and a mid-run combat RNG/uid drift makes real runs diverge completely (a recorded

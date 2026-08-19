@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-19 — Replay v2 spec: the round rail + the per-turn stats panel
+
+Docs only — no code. Owner ask: a left-hand round scrub ("click round 8, it seeks to the start of round 8") and
+an extendable stats panel showing cards played / Gold spent per turn, "so I could see where all the action was."
+
+Both went into [`replay-v2-handoff.md`](replay-v2-handoff.md) as a new §7, and the useful finding is that
+**neither needs new capture** — that falls out of the state-replay decision rather than being luck. Because a
+state replay snapshots the full visible state after *every* action and stamps each frame with the action that
+caused it, the frame list already IS a per-turn event log. The rail is an index over `frames[].wave`; the stats
+panel is a pure `rollup(frames)` fold. So both are buildable last, and work retroactively on replays captured
+before either existed.
+
+Two things the write-up pins down that would otherwise bite at build time:
+
+- **`ShopFrame.cause` is promoted from debug metadata to a data contract.** The panel counts by it, so the
+  `ActionCause` union has to cover every dispatched action or a missing case silently reads as "you played 3
+  cards that turn" when you played 5. Phase A now owes an exhaustiveness check over the `Action` union.
+- **Gross Gold spent is the one thing that is NOT free.** Net flow per round is exact from consecutive
+  `view.gold`, but diffing conflates spend with income, and a single action can do both (Rune of the Tip Jar
+  costs 0 and pays 4). Recommended fix is two optional numbers per frame — `spent` / `earned` — captured where
+  the reducer has the before/after Gold and the action together. Negligible against the combat logs that
+  dominate the payload, and it belongs in Phase A so recordings carry it from day one.
+
+Recommended shape: the rail and the panel are **one widget** — one row per round (number, a bar for the selected
+metric, combat verdict, Resolve delta), click to seek, expand for detail. The "dropdown for fun" is then just
+which metric the bars encode, and each option is one line of the fold. Priority order for the metrics is in
+§7.5; the pick worth calling out is **board power yours-vs-the-board-you-actually-faced**, since both sides are
+already in `CombatFrame.initial` and it shows the exact round you fell behind, which a solo curve cannot.
+
+Phase plan updated: the rail lands in Phase B (it is one pass on top of the seek that phase already builds), the
+stats panel becomes its own Phase D, and polish moves to E.
+
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
 **Rune art: full re-wire (2026-08-19).** Re-copied every rune's master from `Ascent Art/Runes` and re-ran

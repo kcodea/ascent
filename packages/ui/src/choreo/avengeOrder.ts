@@ -53,6 +53,7 @@ export function deferAvengeAfterSummons(events: CombatEvent[]): CombatEvent[] {
     for (let j = i + 1; j < work.length; j++) {
       const f = work[j]!;
       if (f.type === 'attack') break; // a new exchange — this death's cascade ends here
+      if (f.wave !== e.wave) break; // never slide an Avenge into/across a WAVE (multi-pass echo) — keep waves contiguous
       if (f.type === 'summon') { lastSummon = j; continue; } // new uid → always safe to hop
       const ft = targetOf(f);
       if (et !== undefined && ft === et) break; // a same-unit interaction → don't reorder two ops on one unit

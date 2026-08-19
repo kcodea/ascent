@@ -98,7 +98,19 @@ export function simulate(
     effectCtx = { key: `factory:${effect.do}:${effect.on}`, srcCard: self.cardId };
     try { run(); } finally { effectCtx = prev; }
   };
-  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}) }); };
+  // Presentation WAVE tag (multi-pass echo pacing — Fel Spikes). Unlike `stepN`, which a death bumps mid-pass,
+  // `waveN` stays constant for a whole pass, so all of a pass's damage + its synchronous reactor buffs + the
+  // deaths it resolves share one id; the replay groups a same-`wave` run into one volley moment and pauses
+  // between waves. `waveSeq` only ever increments (monotonic ids), so re-fires (Sylus) get fresh waves too.
+  // Opt-in via `ctx.wave(fn)`; `waveN` is undefined everywhere else, so untagged combat is byte-identical.
+  let waveN: number | undefined;
+  let waveSeq = 0;
+  const withWave = <T,>(fn: () => T): T => {
+    const prev = waveN;
+    waveN = ++waveSeq;
+    try { return fn(); } finally { waveN = prev; }
+  };
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
@@ -704,6 +716,7 @@ export function simulate(
       emit({ type: 'sc', source: minion.uid, text: `${minion.name} marks ${marked.length} ${marked.length === 1 ? 'enemy' : 'enemies'}`, cast: true });
       bleeders.push({ minion, everyN, marked });
     },
+    wave: withWave,
     summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     grantDeathrattle: (target, effects) => {
       // Graft copied Echoes onto `target` and register them so they fire on its death (Grave Body). Effects were

@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+## 2026-08-19 — Combat replay: AoE echoes volley wave-by-wave (Fel Spikes pacing, PR C cont.)
+
+Owner report: Fel Spikes' echo animated inconsistently — on one board every pass blurred together with no pauses;
+on another (with demon-damage reactors on board) it fragmented into a 1-by-1 cascade, because each reactor `buff`
+event broke the replay's contiguous damage run into per-target moments.
+
+**Fix — a sim-declared `wave` tag (opt-in, zero blast radius):**
+- Engine: `CombatEvent` gains optional `wave`; `ctx.wave(fn)` scopes emits to one wave id
+  (`simulate.ts`). `deathrattleDamageAllExceptTribe` wraps EACH pass in a wave, so a pass's damage + its
+  synchronous reactor buffs + resulting deaths share one id. No logic/outcome/order change; all other content
+  emits untagged (byte-identical logs).
+- Replay grouping: `buildBeats` (oracle) + `compileMoments` (runtime) grew an identical wave branch — a
+  contiguous same-wave run collapses into ONE moment regardless of event type; a wave-id change splits it. The
+  per-moment hold then supplies the short pause between waves. `clashOrder`/`avengeOrder` reorderers are bounded
+  to a single wave so they can't slide events across a wave boundary.
+- Result: each AoE pass is one simultaneous volley; gilded's two passes (and Sylus re-fires) land as separate
+  waves with a beat between them — identical on both reported boards.
+
+**Verified:** typecheck, lint, build:web, full suite green; new compile tests (synthetic gilded log → exactly two
+moments; oracle ≡ runtime on wave-tagged logs; an end-to-end real gilded Fel Spikes death → two contiguous
+wave-moments through the live `replayOrder → compileMoments` path). Known judgment call: a minion killed
+mid-pass has its Echo cascade fold into that wave's moment rather than its own beat.
+
 ## 2026-08-18 — Set 2 tuning: Hoardflame spell-power scaling, Fel Spikes gilded, Blaster archive (PR C cont.)
 
 Added to the same PR (#1097).

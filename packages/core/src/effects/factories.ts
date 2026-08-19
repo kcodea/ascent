@@ -3666,15 +3666,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (amount <= 0) return;
     const exc = str(params.exceptTribe);
     for (let pass = 0; pass < mul(self); pass++) {
-      for (const sideKey of ['player', 'enemy'] as Side[]) {
-        for (const m of [...ctx.living(sideKey)]) {
-          if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
-          // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
-          // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
-          // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
-          ctx.damage(m, amount, false, false, self);
+      // Each pass is one WAVE: wrap it so all its damage + the reactor buffs those hits fire land together as a
+      // single volley moment, with a short pause before the next pass (owner ask 2026-08-19). Purely presentation
+      // pacing — the loop, the damage, the reactor procs and their order are all unchanged.
+      ctx.wave(() => {
+        for (const sideKey of ['player', 'enemy'] as Side[]) {
+          for (const m of [...ctx.living(sideKey)]) {
+            if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+            // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
+            // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
+            // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
+            ctx.damage(m, amount, false, false, self);
+          }
         }
-      }
+      });
     }
   },
 

@@ -67,15 +67,22 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
   while (i < events.length) {
     const start = i;
     const t = events[i]!.type;
-    if (RESULT_TYPES.has(t)) {
-      while (i < events.length && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
+    const w = events[i]!.wave;
+    if (w !== undefined) {
+      // A presentation WAVE (multi-pass AoE echo — Fel Spikes): every event of one pass carries the SAME wave id
+      // regardless of type — its volley of damage, the reactor buffs those hits fire, and any deaths — so the
+      // whole pass reads as ONE simultaneous moment, and the next pass (a new id) becomes its own moment with a
+      // pause before it. This runs BEFORE the type rules so a wave is never split by an interleaved reactor buff.
+      while (i < events.length && events[i]!.wave === w) i++;
+    } else if (RESULT_TYPES.has(t)) {
+      while (i < events.length && events[i]!.wave === undefined && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
     } else if (t === 'buff') {
-      while (i < events.length && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
+      while (i < events.length && events[i]!.wave === undefined && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
     } else if (t === 'attack') {
       i++; // the attack (the wind-up itself) …
       // … then absorb the on-attack flashes that precede the damage, so they play during the lunge and the
-      // NEXT beat — the result run — lands at the connection. Stop at the first result event / new action.
-      while (i < events.length && WINDUP_ABSORB.has(events[i]!.type)) i++;
+      // NEXT beat — the result run — lands at the connection. Stop at the first result event / new action / wave.
+      while (i < events.length && events[i]!.wave === undefined && WINDUP_ABSORB.has(events[i]!.type)) i++;
     } else {
       i++; // a single action (sc, a lone summon, toHand, maxGold, …)
     }

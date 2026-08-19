@@ -41,19 +41,22 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
  * (or its tribe emblem as a fallback), and hovering floats the reward's LIVE ongoing state — Warm Embers'
  * Shouts remaining, Trail Rations' repeat countdown, else the reward it granted.
  */
+/** Runes that unlock a THIRD rune — Rune of the Epic Forge (schedules an extra turn-8 epic visit) and Rune of
+ *  Duplication (a 3rd badge off the turn-9 epic). Owning either lifts the chains (owner ask 2026-08-19). */
+const THIRD_RUNE_UNLOCKERS = ['rune_epic_forge', 'rune_duplication'];
+
 /**
- * Can this run reach a THIRD rune — i.e. does it have Runeforge access on a turn OTHER than 6 and 9? Most
- * runs get exactly 2 runes (universal basic forge turn 6 + epic turn 9), so the 3rd slot is locked and wears
- * the chains. It unlocks only when the hero forges off-schedule — Runesmith (`runeforge`, turn 5) or Guardian
- * (`epicRuneforge`, turn 8) — or the run owns Rune of the Epic Forge (schedules an extra turn-8 epic visit).
- * Strictly "off-6/9 forge access", per the owner's wording; Rune of Duplication is deliberately NOT counted
- * (it makes a 3rd BADGE off the normal turn-9 forge, not a separate forge turn — and once that badge appears,
- * the render below hides the chains anyway because the slot is filled).
+ * Can this run reach a THIRD rune? Most runs get exactly 2 (universal basic forge turn 6 + epic turn 9), so
+ * the 3rd slot is LOCKED and wears the chains from the very start of the run. The chains lift only once the run
+ * can actually earn a 3rd: a runeforge-native HERO — Runesmith (`runeforge`, turn 5) or Guardian
+ * (`epicRuneforge`, turn 8) — or owning a RUNE that enables one (see `THIRD_RUNE_UNLOCKERS`). This is the state
+ * flip the "chains unlock" FX will hook.
  */
 function canReachThirdRune(run: RunState): boolean {
   const kind = getHero(run.heroId).power.kind;
   if (kind === 'runeforge' || kind === 'epicRuneforge') return true;
-  return (run.ownedRunes ?? []).includes('rune_epic_forge');
+  const owned = run.ownedRunes ?? [];
+  return THIRD_RUNE_UNLOCKERS.some((id) => owned.includes(id));
 }
 
 export function QuestBadges() {
@@ -74,11 +77,18 @@ export function QuestBadges() {
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
-  if (nodes.length === 0 && runes.length === 0) return null;
+  // Chains on the LOCKED third rune slot — shown from the very start of the run (not just once a rune is owned),
+  // and lifted only when the slot could actually be filled: a 3rd rune is reachable, or already earned. So the
+  // badge row must render for the chains alone, even with no quests and no runes yet.
+  const showChains = runes.length < 3 && !canReachThirdRune(run);
+  if (nodes.length === 0 && runes.length === 0 && !showChains) return null;
   const isDone = (aq: (typeof nodes)[number]): boolean =>
     aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId);
   return (
-    <div className="questbadges">
+    // `hasrunelock` reserves the rune-row height so the chains sit at a STABLE spot from turn 1 (empty row) all
+    // the way to two runes — the row is bottom-anchored and would otherwise grow (and shift the chains) as
+    // badges appear.
+    <div className={`questbadges${showChains ? ' hasrunelock' : ''}`}>
       {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
       {runes.map((id, i) => {
         const rune = RUNE_INDEX[id]!;
@@ -254,7 +264,7 @@ export function QuestBadges() {
           slot is empty AND out of reach — most runs only ever get 2 (basic forge turn 6, epic turn 9). It clears
           the instant the slot could be filled (a runeforge-native hero / Rune of the Epic Forge) or actually is
           (a 3rd owned rune, e.g. via Duplication). Placement from the 💠 Rune Sheen tuner (`--rch-*`). */}
-      {runes.length > 0 && runes.length < 3 && !canReachThirdRune(run) && (
+      {showChains && (
         <img className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
       )}
     </div>

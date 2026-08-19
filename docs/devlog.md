@@ -8,13 +8,15 @@ unreachable. It now wears **chains** to read as "not possible yet" (owner ask). 
 `QuestBadges` on the same 3rd-node anchor + counter-scale as the rune sheen so it stays glued to the slot
 through the Quest-nodes Scale slider.
 
-Shown by `canReachThirdRune(run)`: the chains hide when the run can actually forge off-schedule — a
-runeforge-native hero (**Runesmith** `runeforge` turn 5, **Guardian** `epicRuneforge` turn 8) or owning **Rune
-of the Epic Forge** (schedules an extra turn-8 epic visit) — matching the owner's wording ("visit the runeforge
-on a turn separate from 6 and 9"). It also clears once the slot is actually filled (`ownedRunes.length >= 3`,
-e.g. via Rune of Duplication). Placement is tunable — **x / y / size** dials added under a "Chains (3rd slot)"
-group in the 💠 Rune Sheen tuner (`--rch-*` vars with styles.css fallbacks, same DEV-localStorage / prod-CSS
-architecture as the sheen).
+The chains show from the **very start of the run** — the badge row renders for the chains even with no quests
+or runes yet, and a `hasrunelock` modifier reserves one rune-row's height so the (bottom-anchored) row can't
+grow and slide the chains as the first two runes arrive. They lift, via `canReachThirdRune(run)`, only once the
+run can actually reach a 3rd rune: a runeforge-native hero (**Runesmith** `runeforge` turn 5, **Guardian**
+`epicRuneforge` turn 8) or owning a rune that enables one — **Rune of the Epic Forge** (extra turn-8 epic
+visit) or **Rune of Duplication** (`THIRD_RUNE_UNLOCKERS`, owner ask: Duplication counts). This hero/rune state
+flip is the hook the coming "chains unlock" pixi effect will animate. Placement is tunable — **x / y / size**
+dials under a "Chains (3rd slot)" group in the 💠 Rune Sheen tuner (`--rch-*` vars with styles.css fallbacks,
+same DEV-localStorage / prod-CSS architecture as the sheen).
 
 Verified: typecheck + lint + build green; full suite green.
 

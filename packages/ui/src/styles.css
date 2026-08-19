@@ -2801,6 +2801,9 @@ body.modalup .app { z-index: auto; }
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
 .questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 56) * var(--u-base)); transform: translate(calc(var(--rch-x, 127) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -1) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+/* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
+   the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
+.questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
 /* ---- PENDING quest node — taken but not yet activated (QuestBadges).
    The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the
    moment it's taken and sits DIM until it activates, then lights up as a trophy in the same slot. The dim

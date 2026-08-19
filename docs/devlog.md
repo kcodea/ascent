@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-19 — Enchantment bursts, 4 broken multi-rune stamps fixed, stale-render guard proven
+
+Owner report: Rune of Enchantment did not burst on a Shop-spell cast. It had NO stamp — a miss in the earlier
+sweep. Both halves fixed: the shop cast (`procRune`) and the combat cast (`fireTrigger`).
+
+Hunting that down, a wider audit (every rune cross-checked against the actual stamped keys, accounting for the
+`runeAvenge` dynamic-flag path) surfaced a class of bug I had SHIPPED: four `multi`-kind runes — Display Case,
+Full Measure, Open Appetite, Unbroken Vein — stamped with `procRune(state, 'runeXxx')`. But `procRune` resolves
+through `runeIdByKind`, which keys `multi` runes by the SHARED kind `multi` (many runes have it), so
+`runeIdByKind['runeXxx']` was undefined and every one of those stamps silently no-op'd. They never burst.
+Fixed by stamping with the literal rune id via `procRuneId` (the same escape hatch the threshold runes use).
+`combatFlag` stamps were never affected — that kind is keyed by flag, and the flag name matches what the site
+passes.
+
+Also: the stale-render guard from the End-Turn-spike fix is now PROVEN. Its logic — `triggeredQuests` holding
+empty while `beatIdx` is stale — was extracted into a pure `triggerCounts(events, processedEnd, isStale)` and
+unit-tested (`triggerCounts(events, events.length, true) === {}`), since the live path could not be exercised
+headlessly (the Browser pane runs hidden, so the animated replay never advances `beatIdx`).
+
+**Known-incomplete, stated plainly:** the full rune roster is far larger than the earlier passes covered. A
+cross-check finds ~100 runes still with no burst — a mix of shop runes with genuine triggers, a handful of
+combat runes that fire their flag through a path not yet stamped, and passive/one-shot `multi` runes that have
+no discrete moment. Enumerated for a focused follow-up rather than stamped blindly (blind stamping is exactly
+what produced the four no-op bugs above).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5805 passed) + `build:web` green.
+
 ## 2026-08-19 — The End-Turn rune-burst spike, and a distinct epic-rune burst
 
 **Root-caused the "it triggers many times when I press End Turn" report.** It was NOT in the rune-FX hook —

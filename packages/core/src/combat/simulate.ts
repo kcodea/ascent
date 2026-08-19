@@ -981,6 +981,7 @@ export function simulate(
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read. (owner 2026-08-11)
       if (modsFor(side).runeEnchantment) {
+        fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 6, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });

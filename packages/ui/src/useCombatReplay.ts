@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
-import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
+import { CARD_INDEX } from '@game/content';
+import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
@@ -2111,20 +2112,10 @@ export function useCombatReplay(
   // Quest/rune badges whose COMBAT effect has fired so far this fight (player side): each `questTrigger` event's
   // `flag` resolves to its badge id (via content). The node glows the moment its trigger is REPLAYED (up-to-the-
   // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
-  const triggeredQuests = useMemo(() => {
-    const counts: Record<string, number> = {};
-    // The stale render (above) would otherwise report every trigger of the new fight at once — firing all of
-    // its badge bursts the instant combat starts. Hold at empty until `beatIdx` has been reset for this fight;
-    // the real per-trigger progression then plays from 0 as the replay advances.
-    if (beatIdxIsStale || processedEnd <= 0) return counts;
-    const curStep = events[processedEnd - 1]?.step ?? Infinity;
-    for (const e of events) {
-      if (e.type !== 'questTrigger' || e.side !== 'player' || (e.step ?? 0) > curStep) continue;
-      const id = badgeIdForCombatFlag(e.flag);
-      if (id) counts[id] = (counts[id] ?? 0) + 1; // how many times it has fired so far — a fresh one-shot pulse per bump
-    }
-    return counts;
-  }, [events, processedEnd, beatIdxIsStale]);
+  const triggeredQuests = useMemo(
+    () => triggerCounts(events, processedEnd, beatIdxIsStale),
+    [events, processedEnd, beatIdxIsStale],
+  );
 
   // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
   // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after

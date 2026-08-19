@@ -2167,7 +2167,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived
     // from `h` rather than recomputed, so the two halves can never drift apart.
     const a = ctx.state.runeFullMeasure ? h : 0;
-    if (a > 0) procRune(ctx.state, 'runeFullMeasure'); // the rune paid Attack; a 0 grant is not a fire
+    if (a > 0) procRuneId(ctx.state, 'rune_full_measure'); // the rune paid Attack; a 0 grant is not a fire
     if (h > 0 || a > 0) addBuff(target, nameOf(self), a, h);
   },
 
@@ -3269,7 +3269,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // is a pure query the aim UI, the can-target probe and the auto-pick pool all call, so a stamp there
     // would fire on hover and on every re-render rather than on the feed.
     const declared = CARD_INDEX[self.cardId]?.targetTribe;
-    if (ctx.state.runeOpenAppetite && declared && !isTribe(target, declared)) procRune(ctx.state, 'runeOpenAppetite');
+    if (ctx.state.runeOpenAppetite && declared && !isTribe(target, declared)) procRuneId(ctx.state, 'rune_open_appetite');
     for (let n = 0; n < num(params.count, 1) * gold(self); n++) {
       const i = rightmostShopMinion(ctx.state);
       if (i < 0) return;
@@ -3330,7 +3330,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Rune of the Display Case: your Market Tormentors ALSO enchant the LEFT-most Shop slot, permanently —
     // its own accumulator, re-landed on every fresh roll by applyShopRefreshed (mirrors the rightmost channel).
     if (st.runeDisplayCase) {
-      procRune(st, 'runeDisplayCase');
+      procRuneId(st, 'rune_display_case');
       st.leftmostSlotBuff = {
         attack: (st.leftmostSlotBuff?.attack ?? 0) + a,
         health: (st.leftmostSlotBuff?.health ?? 0) + h,
@@ -7445,6 +7445,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
   // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.
   if (state.runeEnchantment) {
+    procRune(state, 'runeEnchantment');
     captureBuffFx(state, undefined, 'spell', () => {
       for (const c of state.board) addBuff(c, 'Rune of Enchantment', 2, 3);
     });

@@ -985,6 +985,8 @@ export interface RunState {
   runeBaller?: { step: number; sales: number };
   /** Rune of the Embers: every refresh doubles the right-most Shop minion's Health. */
   runeEmbers?: boolean;
+  /** Rune of Refreshments: playing a Demon banks a free Shop refresh. */
+  runeRefreshments?: boolean;
   /** Summoning Bulwark: minions-summoned-gain-Taunt banked for the NEXT combat. Cleared at the turn rollover. */
   summonTauntsNextCombat?: number;
   /** Rune of the Wishbone: the Hero Power triggers twice (gated to `DOUBLEABLE_POWERS`). */

@@ -44,6 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Rune of Refreshments** — every Demon you play buys another look at the Shop.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.
 - **Rune art wired (24 pieces)** plus the Baller's live "next payout" pill, reworks to the Wild Hunt, the Burrow and the Tip Jar, and a new **Summoning Bulwark** spell.
 - **Big rune batch — 6 reworks + 27 new runes.** Basic and Epic faucets for every tribe, plus Refraction, Ruby Resonance, Hoardflame, Glider, Drake Skull, Catacomb, Pendant, Ornate Clock, Herding Horn, Bubble Crown, War Drum, Baller, Wishbone (your Hero Power triggers twice — now doubling all 20 heroes on the roster, including Flash's mark paying out 2 copies), Deathtouched Apple, Held Strength, Chipper Sticker, Rising Echoes and Might. Reworks: Blart, Kindling, Infernal Ink, Merchant's Chorus, Reliquary. Also adds the **Might of Aeon** Shop Spell.

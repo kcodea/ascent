@@ -67,7 +67,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // paid, so the next sale is `sales + 1`: odd = Attack, even = Health, at `step x sale`.
   if (runeId === 'rune_baller' && run.runeBaller) {
     const next = run.runeBaller.sales + 1;
-    return `+${run.runeBaller.step * next} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
+    return `+${run.runeBaller.step * Math.ceil(next / 2)} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
   }
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;

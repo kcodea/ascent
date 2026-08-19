@@ -2,6 +2,17 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Seventh wave (same PR): Rune of Refreshments + the Baller's new cadence.**
+
+- **Rune of Refreshments** (Epic, 1) — playing a **Demon** banks a **free refresh**. It hangs off the same play
+  chokepoint (`fireSummonBuffs`) as the Chipper Sticker, and deliberately fires BEFORE that rune's early
+  return: the Sticker bails when it finds no second Demon to eat with, and holding both runes must not let one
+  silently swallow the other. Pinned by a test.
+- **Rune of the Baller** → the step now climbs every **2 sales**: +1 Atk, +1 Hp, +2 Atk, +2 Hp, … Each size is
+  paid on both axes before the magnitude rises (it used to climb every single sale). The tally pill, the
+  payout and the printed text all moved together, and a test sells four times to check the pill's promise
+  against what actually lands.
+
 **Sixth wave (same PR): Gemline Martyr, Arnold, Rune of the Embers.**
 
 - **Gemline Martyr** → back to **End of Turn: get a Veinstorm**, with the Ruby-improvement half dropped. It is a

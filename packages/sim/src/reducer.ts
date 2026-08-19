@@ -4550,6 +4550,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeEmbers':
       s.runeEmbers = true;
       break;
+    case 'runeRefreshments':
+      s.runeRefreshments = true;
+      break;
     case 'runeBaller':
       // `sales` starts at 0 — the FIRST sale after taking it is the +1 Attack step.
       s.runeBaller = { step: r.step, sales: s.runeBaller?.sales ?? 0 };

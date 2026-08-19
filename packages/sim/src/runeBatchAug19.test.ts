@@ -5,7 +5,7 @@ const bm = (cardId: string, uid: string, attack: number, health: number): BoardM
   ({ cardId, attack, health, sourceUid: uid, keywords: [] });
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, applyCastEffects, applyEndOfTurn, applyShopRefreshed, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
+import { applyCardsPlayed, applyCastEffects, applyEndOfTurn, applyShopRefreshed, fireSummonBuffs, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
 import { runeTally } from '../../ui/src/runeTally';
 
 /**
@@ -131,16 +131,18 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
     expect(s.runeWarDrumUsedThisTurn, 'the charge starts available (the readout reads 1)').toBeFalsy();
   });
 
-  it('the Baller escalates AND alternates: +1 Attack, then +2 Health, then +3 Attack', () => {
+  it('the Baller alternates every sale and improves every SECOND one (owner rework 2026-08-19)', () => {
     const s = armed('rune_baller');
     s.board = [minion('m', 'stray', 1, 1)];
     const body = () => [s.board[0]!.attack, s.board[0]!.health];
     fireOnSell(s, minion('sold1', 'stray'));
     expect(body(), 'sale 1 → +1 Attack').toEqual([2, 1]);
     fireOnSell(s, minion('sold2', 'stray'));
-    expect(body(), 'sale 2 → +2 Health').toEqual([2, 3]);
+    expect(body(), 'sale 2 → +1 Health (the SAME size, on the other axis)').toEqual([2, 2]);
     fireOnSell(s, minion('sold3', 'stray'));
-    expect(body(), 'sale 3 → +3 Attack').toEqual([5, 3]);
+    expect(body(), 'sale 3 → +2 Attack (now the step rises)').toEqual([4, 2]);
+    fireOnSell(s, minion('sold4', 'stray'));
+    expect(body(), 'sale 4 → +2 Health').toEqual([4, 4]);
   });
 
   it('Wishbone is offered ONLY to heroes whose power can actually repeat', () => {
@@ -290,11 +292,11 @@ describe('Rune of the Baller — the pill names its NEXT payout', () => {
   // see is WHICH stat is up next and how big it is, which is exactly what the pill now carries.
   const armed = (sales: number): RunState => ({ ...createRun(1), runeBaller: { step: 1, sales } } as RunState);
 
-  it('alternates Attack / Health and climbs, one sale ahead', () => {
-    expect(runeTally(armed(0), 'rune_baller'), 'first sale').toBe('+1 Atk');
-    expect(runeTally(armed(1), 'rune_baller'), 'second').toBe('+2 Hp');
-    expect(runeTally(armed(2), 'rune_baller'), 'third').toBe('+3 Atk');
-    expect(runeTally(armed(3), 'rune_baller'), 'fourth').toBe('+4 Hp');
+  it('reads one sale AHEAD — it is a promise, not a tally of what already happened', () => {
+    // The exact cadence is pinned in the rework block further down; what this owns is the OFF-BY-ONE, which is
+    // the easy thing to get wrong: an untouched rune must already advertise its first payout.
+    expect(runeTally(armed(0), 'rune_baller'), 'nothing sold yet, but the next sale is knowable').toBe('+1 Atk');
+    expect(runeTally(armed(1), 'rune_baller'), 'after one sale it names the SECOND').toBe('+1 Hp');
   });
 
   it('the pill matches what the sale actually hands out', () => {
@@ -304,9 +306,9 @@ describe('Rune of the Baller — the pill names its NEXT payout', () => {
       ...createRun(1), phase: 'recruit', runeBaller: { step: 1, sales: 1 },
       board: [{ uid: 'a', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
     } as RunState;
-    expect(runeTally(s, 'rune_baller')).toBe('+2 Hp');
+    expect(runeTally(s, 'rune_baller')).toBe('+1 Hp');
     fireOnSell(s, { uid: 'x', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } as BoardCard);
-    expect([s.board[0]!.attack, s.board[0]!.health], 'the promised +2 Health landed').toEqual([1, 3]);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the promised +1 Health landed').toEqual([1, 2]);
   });
 
   it('unarmed, there is no pill at all', () => {
@@ -520,5 +522,67 @@ describe('Rune of the Embers', () => {
   it('it is a live Epic', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_embers')).toBe(true);
     expect(RUNE_INDEX['rune_embers']!.cost).toBe(4);
+  });
+});
+
+// ── WAVE 7 — Rune of Refreshments + the Baller's every-2-sales step ──────────────────────────────────────────
+describe('Rune of Refreshments', () => {
+  const play = (cardId: string, extra: Partial<RunState> = {}): RunState => {
+    const s: RunState = { ...createRun(4), phase: 'recruit', freeRolls: 0, board: [], hand: [], ...extra } as RunState;
+    const card = { uid: 'p', cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: 1, health: 1, keywords: [], golden: false } as BoardCard;
+    s.board.push(card);
+    fireSummonBuffs(s, card);
+    return s;
+  };
+
+  it('playing a Demon banks a refresh', () => {
+    expect(play('godfodder', { runeRefreshments: true }).freeRolls).toBe(1);
+  });
+
+  it('a non-Demon banks nothing', () => {
+    expect(play('stray', { runeRefreshments: true }).freeRolls).toBe(0);
+  });
+
+  it('unarmed, the same Demon banks nothing', () => {
+    expect(play('godfodder').freeRolls).toBe(0);
+  });
+
+  it('it does not gate — or get gated by — the other Demon-play rune', () => {
+    // Both runes hang off the same play chokepoint. The Chipper Sticker returns early when it finds no eligible
+    // eater, so Refreshments has to fire BEFORE that return or holding both would silently break one.
+    expect(play('godfodder', { runeRefreshments: true, runeChipperSticker: true }).freeRolls,
+      'the Sticker finding no second Demon must not eat the refresh').toBe(1);
+  });
+
+  it('it is a live 1-Gold Epic', () => {
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_refreshments')).toBe(true);
+    expect(RUNE_INDEX['rune_refreshments']!.cost).toBe(1);
+  });
+});
+
+describe('Rune of the Baller — the step now climbs every 2 sales (owner rework 2026-08-19)', () => {
+  const armed = (sales: number): RunState => ({ ...createRun(1), runeBaller: { step: 1, sales } } as RunState);
+
+  it('each size is paid on BOTH axes before the step rises', () => {
+    expect(runeTally(armed(0), 'rune_baller')).toBe('+1 Atk');
+    expect(runeTally(armed(1), 'rune_baller')).toBe('+1 Hp');
+    expect(runeTally(armed(2), 'rune_baller')).toBe('+2 Atk');
+    expect(runeTally(armed(3), 'rune_baller')).toBe('+2 Hp');
+    expect(runeTally(armed(4), 'rune_baller')).toBe('+3 Atk');
+  });
+
+  it('the payout matches the pill across a run of four sales', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', runeBaller: { step: 1, sales: 0 },
+      board: [{ uid: 'a', cardId: 'stray', tribe: 'beast', attack: 0, health: 0, keywords: [], golden: false }],
+    } as RunState;
+    const sold = { uid: 'x', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } as BoardCard;
+    for (let i = 0; i < 4; i++) fireOnSell(s, sold);
+    // +1 Atk, +1 Hp, +2 Atk, +2 Hp → 3 Attack and 3 Health total.
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the four sales sum to +3/+3').toEqual([3, 3]);
+  });
+
+  it('the printed text says what the step actually does', () => {
+    expect(RUNE_INDEX['rune_baller']!.text).toContain('every **2 sales**');
   });
 });

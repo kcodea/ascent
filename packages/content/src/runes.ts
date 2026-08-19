@@ -1025,7 +1025,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_baller',
     name: 'Rune of the Baller',
     cost: 4,
-    text: 'When you **sell** a minion, give your minions **+1 Attack** and improve this. Alternates between **Attack** and **Health**.',
+    text: 'When you **sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **2 sales**.',
     reward: { kind: 'runeBaller', step: 1 },
   },
   {
@@ -1763,6 +1763,16 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeGemGolem' },
     sets: ['set2'], // Rubies
+  },
+  {
+    // Owner add 2026-08-19. The Demon board's Shop-economy payoff: a wide Demon curve turns every play into
+    // another look at the row. Rides the same play chokepoint as the Chipper Sticker (`fireSummonBuffs`).
+    id: 'rune_refreshments',
+    name: 'Rune of Refreshments',
+    cost: 1,
+    epic: true,
+    text: 'When you play a **Demon**, gain a **free refresh**.',
+    reward: { kind: 'runeRefreshments' },
   },
   {
     // Owner add 2026-08-19. A refresh-paced Health faucet on the slot the Shop's eaters and copiers already

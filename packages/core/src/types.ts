@@ -902,6 +902,7 @@ export type QuestReward =
    *  ALTERNATING Attack / Health (sale 1 = +1 Atk, sale 2 = +2 Health, sale 3 = +3 Atk, …). */
   | { kind: 'runeBaller'; step: number }
   | { kind: 'runeEmbers' }
+  | { kind: 'runeRefreshments' }
   /** Rune of the Wishbone: your Hero Power triggers twice (gated to the powers that can express it). */
   | { kind: 'runeWishbone' }
   /** Rune of Might: every Shop spell you cast also casts Might of Aeon. */

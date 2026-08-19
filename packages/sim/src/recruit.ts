@@ -6327,6 +6327,10 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   // RUNE OF THE CHIPPER STICKER: playing a Demon makes ANOTHER friendly Demon eat a Shop minion — Chipper's
   // own shape as a run-wide rune. "Another" is load-bearing: the eater is picked from the OTHER Demons, so the
   // minion you just played never feeds itself (that is Chipper's `self: true`, a different card).
+  // RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired at the same play chokepoint as the
+  // Chipper Sticker, and BEFORE its early return, so the two Demon-play runes are independent — holding one
+  // must not silently gate the other.
+  if (state.runeRefreshments && isTribe(minion, 'demon')) state.freeRolls += 1;
   if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
   const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
   if (eaters.length === 0) return;
@@ -6344,13 +6348,14 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
  *  the card is removed from the board/hand; its effects act via the shared recruit context. */
 export function fireOnSell(state: RunState, card: BoardCard): void {
-  // RUNE OF THE BALLER: each sale pumps your whole board, the magnitude climbing +step per sale and
-  // ALTERNATING stat — sale 1 = +1 Attack, sale 2 = +2 Health, sale 3 = +3 Attack, … The tally lives on the
-  // rune (not the card) so it survives the body leaving the board, which is the whole point of a sell payoff.
+  // RUNE OF THE BALLER: each sale pumps your whole board, ALTERNATING stat, and the magnitude climbs every
+  // SECOND sale (owner rework 2026-08-19) — +1 Atk, +1 Hp, +2 Atk, +2 Hp, … so each size is paid on both axes
+  // before the step rises. The tally lives on the rune (not the card) so it survives the body leaving the
+  // board, which is the whole point of a sell payoff.
   const baller = state.runeBaller;
   if (baller) {
     baller.sales += 1;
-    const amount = baller.step * baller.sales;
+    const amount = baller.step * Math.ceil(baller.sales / 2);
     const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
     captureBuffFx(state, undefined, 'spell', () => {
       for (const c of state.board) addBuff(c, 'Rune of the Baller', toAttack ? amount : 0, toAttack ? 0 : amount);

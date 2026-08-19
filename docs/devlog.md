@@ -14,6 +14,15 @@ settle overshoot). Defaults: grow +12%, peak at 0.82, recoil 0.05. Naming note: 
 grow", but in the FX def "source" is the *consumed* ghost and "target" the eater — the dials are labelled for
 the eater to avoid that inversion.
 
+Two follow-up fixes the same day:
+- **Recoil decoupled from grow length.** The bounce used to be crushed into whatever sliver of the timeline
+  was left after the swell peaked, so at a high grow length it vanished. Now the swell takes `growLength` of
+  the eat to peak and the recoil ALWAYS gets its own fixed tail after (min ~180ms), running a touch past the
+  eat — so `growLength = 1` (grow the whole time) still shows a clear undershoot→small-overshoot→settle spring.
+- **Stat badge no longer lags.** The eater's attack/health withhold was released on the *old infuse-tendril*
+  clock (~0.9s), decoupled from the shorter taffy eat, so the number popped well after the animation. It's now
+  released at 0.8 of the consume's `durationMs`, climbing into place as the eater gulps.
+
 Verified: typecheck + lint (0 errors) + build + the consume transform/config tests green.
 
 ## 2026-08-18 — Consume "gulp" SFX + final tuner defaults

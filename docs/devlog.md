@@ -1,6 +1,11 @@
 # ASCENT — development log
 
-## 2026-08-18 — Consume "gulp" SFX (de-duped so simultaneous consumes play once)
+## 2026-08-18 — Consume "gulp" SFX + final tuner defaults
+
+Also lands the owner's **final Consume FX tuner defaults** (a snappier eat): durationMs 530, shakePhase 0.76,
+shakeAmp 18.5, shakeFreq 60, stretch 0.2, thin 0.66, lag 0.52, pullDist 1.08, collapseStart 0.92, fadeStart 0,
+showStats true.
+
 
 A sound now plays when a shop minion (or Tavern Fodder) is consumed: the owner's `consume.mp3`, dropped at
 `packages/ui/src/audio/consume.mp3` (globbed + keyed `consume`, like every other top-level clip). New audio

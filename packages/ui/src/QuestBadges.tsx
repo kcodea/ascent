@@ -131,7 +131,10 @@ export function QuestBadges() {
     // `runeProcs` is the SHOP-phase half: a threshold rune paying out mid-shop (Bulk Order every 5 Gold) is
     // neither a combat trigger nor an End-of-Turn tendril, so without this its badge never burst at all
     // (owner report 2026-08-19).
-    return { slot, id, pulse: (triggered[id] ?? 0) + procced + (run.runeProcs?.[id] ?? 0) };
+    // `pulse` takes only true COUNTS (combat triggers + shop procs); the End-of-Turn tendril stamp is a
+    // global action SEQUENCE and rides `seq`, where any change is exactly one fire. Folding it into `pulse`
+    // would make one End-of-Turn proc burst once per intervening action.
+    return { slot, id, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0), seq: procced };
   }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs]);
   useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).

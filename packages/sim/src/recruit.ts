@@ -877,9 +877,13 @@ export function armFodderSchedule(state: RunState, count: number, shops: number)
 }
 
 export function buffImpsRunWide(state: RunState, a: number, h: number, source: string): void {
-  state.impBuff ??= { attack: 0, health: 0 };
-  state.impBuff.attack += a;
-  state.impBuff.health += h;
+  // REPLACE, never mutate in place (owner report 2026-08-19: "the (5/3) text is not updating in real-time").
+  // The UI's live-text memos (Recruit's `live` / `refViewsByUid`, and the Card/Unit value comparators) key on
+  // `run.impBuff` BY REFERENCE. Bumping `.attack`/`.health` on the existing object left that reference
+  // identical for the whole run, so every one of those memos bailed out and the printed Imp stats — the live
+  // "(X/Y)" `withImpStats` injects — froze at whatever they were on first render.
+  const prev = state.impBuff ?? { attack: 0, health: 0 };
+  state.impBuff = { attack: prev.attack + a, health: prev.health + h };
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }

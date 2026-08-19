@@ -3399,9 +3399,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const c of [...s.board, ...s.hand]) addBuff(c, 'Rune of Overflow', g.attack, g.health);
   }
   if (result.playerImpBuffGain) {
-    s.impBuff ??= { attack: 0, health: 0 };
-    s.impBuff.attack += result.playerImpBuffGain.attack;
-    s.impBuff.health += result.playerImpBuffGain.health;
+    // REPLACED, not mutated — same reason as `buffImpsRunWide`: the UI's live-text memos key on `impBuff` by
+    // reference, so an in-place bump never reached the printed Imp stats (owner report 2026-08-19).
+    const prevImp = s.impBuff ?? { attack: 0, health: 0 };
+    s.impBuff = {
+      attack: prevImp.attack + result.playerImpBuffGain.attack,
+      health: prevImp.health + result.playerImpBuffGain.health,
+    };
   }
   // Right Hand Hank's Echo: grow the run's right-most Shop-slot accumulator (the same total Market Tormentor
   // feeds). The next shop roll's applyShopRefreshed re-lands it on the right-most offer.

@@ -1,5 +1,46 @@
 # ASCENT — development log
 
+## 2026-08-19 — Live Imp stats: the summoned-Imp (X/Y) no longer goes stale
+
+Owner report: Imp Overseer printed "Echo: summon an Imp **(5/3)**" and the (5/3) "is not updating in
+real-time".
+
+Any card that summons an Imp prints the Imp's CURRENT body — base 1/1 plus the run-wide `impBuff` — through
+`withImpStats`, on both text chains (`liveCardText`, shared by shop/board/hand and `Unit`). The helper and the
+wiring were correct; the staleness was REACTIVITY. Two causes, both fixed:
+
+**1. `impBuff` was mutated in place.** `buffImpsRunWide` (recruit: Imp Overseer's Shout, Ritualist, Bane) and
+the combat carry-back (`playerImpBuffGain`, reducer) both bumped `.attack`/`.health` on the existing object.
+The VALUES were always right, but the object's identity never changed — and the UI's memos (`Recruit`'s `live`
+and `refViewsByUid`, plus the `Card`/`Unit` value comparators) key on `run.impBuff` BY REFERENCE. Both sites
+now REPLACE the object. (In ordinary play the reducer's `structuredClone` masked this; it bit any path that
+moved the buff without a full clone.)
+
+**2. `shopViews` read `run.impBuff` but never listed it as a dependency.** Live-verified repro: with an Imp
+Overseer in both the shop and the warband, moving only the Imp Aura updated the BOARD card to the new (X/Y)
+while the SHOP row stayed frozen on the old one. Eight sibling values were missing from the same array for the
+same reason (`rubyCasts`, `growthBonus`, `frontToBackBonusH`, the three spell-name ids, `cadenceMinionOff`,
+`tier`) — all read, none declared, all masked in normal play by the per-dispatch clone changing `run.shop`'s
+identity. The array now declares what it reads; `stabilizeViewMap` keeps the `Card` memo bailout, so the added
+deps cost nothing when rendered content is unchanged.
+
+**Verified live** (dev server, throwaway run): before the fix the shop row read (3/2) while the board read
+(11/11) off the same Imp Aura; after, both track it exactly — confirmed again end-to-end through a real
+`play` dispatch.
+
+**Tests:** `impBuffIdentity.test.ts` pins the invariant that actually broke — IDENTITY, not arithmetic: a buff
+must yield a NEW object, must not retro-mutate a captured reference, and must still accrue the right totals.
+Confirmed the guard bites by reverting the fix (the two identity cases fail, the arithmetic ones pass — which
+is precisely the shape of the original bug).
+
+**Known gap, NOT fixed (flagged).** During a FIGHT the printed Imp stats read `run.impBuff`, which is frozen
+for the combat by design (the in-combat aura carries back at settle). So Imp Aura gained mid-fight (Bane,
+Legion Shepherd's Echo) is not reflected in the card text until the fight ends. Closing that needs the replay
+to surface a per-beat Imp aura to `Unit` — a bigger change than this fix, so it is called out rather than
+guessed at.
+
+Gates: typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green (354 files / 5646 tests).
+
 ## 2026-08-19 — The Career rating is a real Supabase read (a wiped ladder now reaches the client)
 
 Owner report: after truncating the Supabase tables, the Career screen still read **RATING 1078** beside

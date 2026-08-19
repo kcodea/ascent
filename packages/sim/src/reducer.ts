@@ -2109,7 +2109,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // powers below (scalingGold / gainMaxMana / fortify / dynamiteDig — the DOUBLEABLE_POWERS the rune is
       // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
       // only read by those four branches.
-      const reps = s.runeEmpowerment ? 2 : 1;
+      const reps = (s.runeEmpowerment || s.runeWishbone) ? 2 : 1;
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -3711,6 +3711,7 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
   s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover
+  s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   // Batch-4 per-turn gates (Shared Pour / Aftermarket / Hoardcalling all read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -4141,7 +4142,31 @@ const RUNEFORGE_OFFER = 4;
 
 /** Hero-power kinds that get value from a double trigger — the (dormant) gate for Rune of Empowerment. Keep in
  *  sync with the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
-const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig', 'dragonTamer']);
+/**
+ * The hero powers a "your Hero Power triggers twice" rune may be offered for (Rune of the Wishbone; the
+ * retired Rune of Empowerment shared this gate). The owner named the roster 2026-08-19.
+ *
+ * ONLY the ACTIVE powers are listed. Their reducer branch runs `reps` times, so doubling is real the moment
+ * the rune is held. The owner also named ten PASSIVE powers — Emerald Warden (`vanguard`), Emissary
+ * (`unitedFront`), Cia (`luckySeat`), Keshi (`crownTally`), Gorr (`fourPeat`), Re-Pete (`secondHand`), Braum
+ * (`investment`), Flash (`firstOrLast`), Odelle (`exhibition`), Juggler (`baldgecoin`) — which never pass
+ * through the activation branch at all and each need doubling at their own fire site. They are DELIBERATELY
+ * absent until that lands: a rune offered to a hero it silently does nothing for is worse than one that is
+ * offered less often. Add each here as its passive learns to repeat.
+ */
+const DOUBLEABLE_POWERS = new Set([
+  'empowerment',      // Albus — a Shop minion becomes a Discover from the tier above
+  'replayBattlecry',  // Auctioneer (Pulse) / Myra — re-trigger a friendly Battlecry
+  'buyout',           // Harlan — steal a Shop (twice = two consecutive shops)
+  'roundedSpellbook', // Hunch — a copy of the last spell you cast
+  'dynamiteDig',      // Jensen — Discover a minion of your tier (twice = 2 Discovers)
+  'pocketMagic',      // Merrin — a random Shop spell to hand
+  'gainMaxMana',      // Nadja — +1 max Gold
+  'archive',          // Quillen — archive a minion (twice = 2 counts toward the bucket)
+  'dragonTamer',      // Tiff — Discover a Dragon (twice = 2 Discovers)
+  'soulkeeper',       // Underdweller — Discover among the minions that died last combat
+  'copyMachine',      // Xerox — copy a friendly board minion into hand
+]);
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
  *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */
@@ -4442,6 +4467,17 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Rune of the Glider: stacks additively, so two Gliders give the Dragon both grants on a play.
       s.runeGlider = { attack: (s.runeGlider?.attack ?? 0) + r.attack, health: (s.runeGlider?.health ?? 0) + r.health };
       break;
+    case 'runeWarDrum':
+      // Stacks: two Drums make the turn's charged Shout trigger that many more times.
+      s.runeWarDrum = (s.runeWarDrum ?? 0) + r.extra;
+      break;
+    case 'runeBaller':
+      // `sales` starts at 0 — the FIRST sale after taking it is the +1 Attack step.
+      s.runeBaller = { step: r.step, sales: s.runeBaller?.sales ?? 0 };
+      break;
+    case 'runeWishbone':
+      s.runeWishbone = true;
+      break;
     case 'runePendant':
       // Rune of the Pendant: a duplicate can only ever RAISE the ceiling it gilds within, never lower it.
       s.runePendant = Math.max(s.runePendant ?? 0, r.maxTier);
@@ -4573,7 +4609,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };
@@ -5165,6 +5201,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRuins: f?.runeRuins,                 // Rune of Ruins: a friendly Demon's landed hit buffs that board
     runeGolems: f?.runeGolems,               // Rune of the Golems (reserved — see the Gem Golem note in runes.ts)
     runeEngravingGems: f?.runeEngravingGems, // Rune of Engraving Gems: combat Rubies carry back
+    runeHerdingHorn: f?.runeHerdingHorn,     // Rune of the Herding Horn: each Rally banks a free refresh
     runeChef: f?.runeChef,                   // Rune of the Chef: the Chef's Rally pays last turn's granted total
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6

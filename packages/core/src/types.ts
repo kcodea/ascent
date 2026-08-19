@@ -894,6 +894,13 @@ export type QuestReward =
   | { kind: 'runeGlider'; attack: number; health: number }
   /** Rune of the Pendant: each turn setup, gild a random friendly minion of `maxTier` or below. */
   | { kind: 'runePendant'; maxTier: number }
+  /** Rune of the War Drum: ONE Shout each turn triggers `extra` additional times (a per-turn charge). */
+  | { kind: 'runeWarDrum'; extra: number }
+  /** Rune of the Baller: each minion sold buffs your board, the magnitude climbing +`step` per sale and
+   *  ALTERNATING Attack / Health (sale 1 = +1 Atk, sale 2 = +2 Health, sale 3 = +3 Atk, …). */
+  | { kind: 'runeBaller'; step: number }
+  /** Rune of the Wishbone: your Hero Power triggers twice (gated to the powers that can express it). */
+  | { kind: 'runeWishbone' }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -944,7 +951,9 @@ export type QuestReward =
    */
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn'; attack: number; health: number };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells'; attack: number; health: number };
+      /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
+      once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
@@ -1183,6 +1192,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // body is Engraved); Golems = a dying friendly Kobold summons a Gemheart Golem carrying its Rubies;
   // EngravingGems = Rubies applied in combat carry back to the run board.
   | 'runeRuins' | 'runeGolems' | 'runeEngravingGems'
+  | 'runeHerdingHorn' // every Rally triggered banks a free Shop refresh
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
   | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
@@ -1523,6 +1533,7 @@ export interface QuestCombatMods {
   runeRuins?: boolean;
   runeGolems?: boolean;
   runeEngravingGems?: boolean;
+  runeHerdingHorn?: boolean;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;

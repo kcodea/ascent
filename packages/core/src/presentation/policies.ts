@@ -419,6 +419,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_chimerus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_choir:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   // 2026-08-19 owner rune batch.
+  'rune:rune_baller:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_bubble_crown:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_herding_horn:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_war_drum:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_wishbone:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_beast:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_demon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_dragon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

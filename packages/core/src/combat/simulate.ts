@@ -497,6 +497,10 @@ export function simulate(
     if (n <= 0) return;
     playerRallies += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+    // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
+    // rather than at each Rally site so it counts exactly what the `rally` quest objective counts — every
+    // fire, doubler re-fires included — instead of drifting from the game's own definition of "a Rally".
+    if (modsFor('player').runeHerdingHorn) ctx.grantFreeRolls(n, 'player');
     checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per

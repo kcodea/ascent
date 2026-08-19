@@ -2,6 +2,29 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Second wave (same PR): 5 more basic runes.** Herding Horn (2 — every Rally banks a free refresh), Bubble
+Crown (1 — at 12 spells, spell power +6/+6, ONCE), War Drum (2 — one Shout triggers 2 extra times per turn),
+Baller (4 — each sale buffs the board, climbing and alternating Attack/Health), Wishbone (2 — Hero Power
+triggers twice).
+
+Notable reuse: **Wishbone's entire mechanism already existed and nothing used it** — the `runeEmpowerment`
+reward (which sets `reps = 2` on the hero power), the `requiresDoublePower` rune field, and the
+`DOUBLEABLE_POWERS` gate that hides the rune from heroes it cannot help. The retired Rune of Empowerment left
+all of it behind.
+
+New engine: a `spells` threshold buff target (raises run spell power, the Cinderwing channel), a `once`
+threshold that PARKS its meter at the cap after paying — so the x/12 counter reads 12/12 rather than resetting
+and implying another payout — the War Drum's own per-turn latch (separate from Warm Embers' so the two stack
+and the 1/0 charge readout is independent), and `runeBaller`, whose tally lives on the RUNE rather than a card
+(a sell payoff counting on a card would reset every time you cashed one in).
+
+**Wishbone is gated to the ACTIVE half of the owner's roster** — Albus, Auctioneer, Harlan, Hunch, Jensen,
+Merrin, Nadja, Quillen, Tiff, Underdweller, Xerox. The owner also named ten PASSIVE powers (Emerald Warden,
+Emissary, Cia, Keshi, Gorr, Re-Pete, Braum, Flash, Odelle, Juggler) which never pass through the activation
+branch where `reps` lives and each need doubling at their own fire site. They are deliberately excluded until
+that lands: a rune offered to a hero it silently does nothing for is worse than one offered less often.
+
+
 **Reworks.** **Rune of Blart** → basic at 4 Gold. Demoting a rune means MOVING the def between arrays, not
 just dropping `epic: true` — `runeforgePool` reads `s.runeforgeEpic ? EPIC_RUNES : RUNES`, so the flag is
 presentation (the card's kicker) and membership is the pool. **Rune of Kindling** → +4/+6 (its magnitude was

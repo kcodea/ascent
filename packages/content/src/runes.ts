@@ -1009,6 +1009,55 @@ export const RUNES: RuneDef[] = [
     text: 'Gain **2 Gold**. Visit the **Epic Runeforge** next turn instead of turn 9.',
     reward: { kind: 'scheduleRuneforge', forge: 'epic', gold: 2 },
   },
+
+  // ── 2026-08-19 owner rune batch (second wave) ─────────────────────────────────────────────────────────
+  {
+    // Hooked into the sim's own `bumpRally`, so it counts exactly what the `rally` quest objective counts —
+    // every fire, doubler re-fires included — rather than drifting from the game's definition of "a Rally".
+    id: 'rune_herding_horn',
+    name: 'Rune of the Herding Horn',
+    cost: 2,
+    text: 'Whenever you trigger a **Rally**, gain a **free refresh**.',
+    reward: { kind: 'combatFlag', flag: 'runeHerdingHorn' },
+  },
+  {
+    // `once` parks the meter at its cap after paying, so the x/12 counter reads 12/12 rather than resetting
+    // and implying another payout is coming. The `spells` target feeds the run's spell power.
+    id: 'rune_bubble_crown',
+    name: 'Rune of the Bubble Crown',
+    cost: 1,
+    text: 'When you cast **12 spells**, your **spells gain +6/+6**. (Once)',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 12, once: true, buff: { target: 'spells', attack: 6, health: 6 } },
+  },
+  {
+    // Its own per-turn latch rather than Warm Embers' — so the two stack, and so the charge readout can say
+    // 1 or 0 for this rune independently.
+    id: 'rune_war_drum',
+    name: 'Rune of the War Drum',
+    cost: 2,
+    text: 'One **Shout** triggers **2 extra times** per turn.',
+    reward: { kind: 'runeWarDrum', extra: 2 },
+  },
+  {
+    // The tally lives on the RUNE, not on a card — a sell payoff whose counter died with the body it was
+    // stored on would reset every time you cashed one in, which is the opposite of what it rewards.
+    id: 'rune_baller',
+    name: 'Rune of the Baller',
+    cost: 4,
+    text: 'When you **sell** a minion, give your minions **+1 Attack** and improve this. Alternates between **Attack** and **Health**.',
+    reward: { kind: 'runeBaller', step: 1 },
+  },
+  {
+    // `requiresDoublePower` hides it for a hero whose power cannot express "twice" — the gate is
+    // `DOUBLEABLE_POWERS` in the reducer, which carries the owner's roster and the reason it is the ACTIVE
+    // half of it. Machinery reused from the retired Rune of Empowerment, which nothing had used since.
+    id: 'rune_wishbone',
+    name: 'Rune of the Wishbone',
+    cost: 2,
+    text: 'Your **Hero Power** triggers **twice**.',
+    requiresDoublePower: true,
+    reward: { kind: 'runeWishbone' },
+  },
 ];
 
 /**

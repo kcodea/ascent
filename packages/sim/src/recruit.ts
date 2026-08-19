@@ -1147,10 +1147,15 @@ export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCas
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
+    // `once` (Bubble Crown): a ONE-SHOT threshold. Stop ticking entirely once it has paid, so the meter parks
+    // at its cap rather than rolling over — which is also what makes its x/N counter stop at N instead of
+    // resetting to 0 and implying another payout is coming.
+    if (t.once && t.spent) continue;
     t.tick += amount;
     while (t.tick >= t.per) {
       t.tick -= t.per;
       if (t.oncePerTurn && t.usedThisTurn) continue; // banked but not paid — the cap is per turn, not per run
+      if (t.once) { t.spent = true; t.tick = t.per; payRuneThreshold(state, t); break; } // pay once, then park
       t.usedThisTurn = true;
       payRuneThreshold(state, t);
     }
@@ -1178,6 +1183,11 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   const b = t.buff;
   if (!b) return;
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  // `spells` (Bubble Crown): raise the run's SPELL POWER, the same channel Cinderwing Matron feeds — so every
+  // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
+  else if (b.target === 'spells') {
+    state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + b.attack, health: (state.spellBonus?.health ?? 0) + b.health };
+  }
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
   // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
   // across every roll this turn and is gone at the rollover. Not `applyRunShopBuff`, which is permanent.
@@ -6302,6 +6312,18 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
  *  the card is removed from the board/hand; its effects act via the shared recruit context. */
 export function fireOnSell(state: RunState, card: BoardCard): void {
+  // RUNE OF THE BALLER: each sale pumps your whole board, the magnitude climbing +step per sale and
+  // ALTERNATING stat — sale 1 = +1 Attack, sale 2 = +2 Health, sale 3 = +3 Attack, … The tally lives on the
+  // rune (not the card) so it survives the body leaving the board, which is the whole point of a sell payoff.
+  const baller = state.runeBaller;
+  if (baller) {
+    baller.sales += 1;
+    const amount = baller.step * baller.sales;
+    const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of state.board) addBuff(c, 'Rune of the Baller', toAttack ? amount : 0, toAttack ? 0 : amount);
+    });
+  }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onSell')) return;
   const ctx = makeContext(state);
@@ -6533,6 +6555,12 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
     }
     // Legacy Warm Embers charge (the `shoutDouble` reward), while any remain.
     if ((state.shoutDoubleCharges ?? 0) > 0) { state.shoutDoubleCharges! -= 1; n += 1; }
+    // RUNE OF THE WAR DRUM: ONE Shout each turn triggers `runeWarDrum` extra times. Its own per-turn latch
+    // (not Warm Embers') so the two stack, and so the charge readout can say 1 or 0 independently.
+    if (state.runeWarDrum && !state.runeWarDrumUsedThisTurn) {
+      state.runeWarDrumUsedThisTurn = true;
+      n += state.runeWarDrum;
+    }
   }
   // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
   // fire Shouts from more than one path (a play PLUS an Echoing Roar re-trigger). Assigning meant the last

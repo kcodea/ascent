@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds } from './recruit';
+import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell } from './recruit';
 
 /**
  * The 2026-08-19 owner rune batch: 4 reworks + 22 new runes.
@@ -95,5 +95,60 @@ describe('rune batch 2026-08-19 — the new mechanics', () => {
       expect(CARD_INDEX[id], `${id} must not collide with a card id`).toBeUndefined();
     }
     expect(NEW).toHaveLength(22);
+  });
+});
+
+/** The second wave (owner batch 2026-08-19b): five basic runes whose value is decided by engine behaviour. */
+describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Baller / Wishbone', () => {
+  const armed = (id: string): RunState => reduce(
+    { ...createRun(1, 'runesmith'), wave: 7, phase: 'recruit', embers: 20, runeforgeOffer: [id] } as RunState,
+    { type: 'buyRune', index: 0 },
+  );
+
+  it('Bubble Crown pays ONCE at 12 spells, raising spell power — then the meter parks at 12/12', () => {
+    const s = armed('rune_bubble_crown');
+    advanceRuneThresholds(s, 'spellCast', 11);
+    expect(s.spellBonus?.attack ?? 0, 'nothing at 11 — the threshold is 12').toBe(0);
+    advanceRuneThresholds(s, 'spellCast', 1);
+    expect([s.spellBonus?.attack, s.spellBonus?.health], 'spell power rises by the printed +6/+6').toEqual([6, 6]);
+    // ONCE: a further 24 casts must not pay again, and the meter stays at its cap so the x/12 readout doesn't
+    // reset and imply another payout is coming.
+    advanceRuneThresholds(s, 'spellCast', 24);
+    expect(s.spellBonus?.attack, 'it must never pay twice').toBe(6);
+    const t = s.runeThresholds!.find((x) => x.sourceId === 'rune_bubble_crown')!;
+    expect([t.tick, t.per], 'the counter parks at its cap').toEqual([12, 12]);
+  });
+
+  it('War Drum gives ONE Shout +2 triggers per turn, and the charge comes back next turn', () => {
+    const s = armed('rune_war_drum');
+    expect(s.runeWarDrum).toBe(2);
+    expect(s.runeWarDrumUsedThisTurn, 'the charge starts available (the readout reads 1)').toBeFalsy();
+  });
+
+  it('the Baller escalates AND alternates: +1 Attack, then +2 Health, then +3 Attack', () => {
+    const s = armed('rune_baller');
+    s.board = [minion('m', 'stray', 1, 1)];
+    const body = () => [s.board[0]!.attack, s.board[0]!.health];
+    fireOnSell(s, minion('sold1', 'stray'));
+    expect(body(), 'sale 1 → +1 Attack').toEqual([2, 1]);
+    fireOnSell(s, minion('sold2', 'stray'));
+    expect(body(), 'sale 2 → +2 Health').toEqual([2, 3]);
+    fireOnSell(s, minion('sold3', 'stray'));
+    expect(body(), 'sale 3 → +3 Attack').toEqual([5, 3]);
+  });
+
+  it('Wishbone is offered ONLY to heroes whose power can actually repeat', () => {
+    // `requiresDoublePower` is what hides it — a rune offered to a hero it silently does nothing for is worse
+    // than one offered less often, which is why the gate is the ACTIVE half of the owner's roster.
+    // `requiresDoublePower` is the field `runeforgePool` filters on; the roster itself lives in
+    // DOUBLEABLE_POWERS (reducer), deliberately the ACTIVE half of the owner's list — the ten PASSIVE powers
+    // are excluded until each learns to repeat at its own fire site.
+    expect(RUNE_INDEX['rune_wishbone']!.requiresDoublePower).toBe(true);
+    expect(armed('rune_wishbone').runeWishbone, 'buying it arms the doubler').toBe(true);
+  });
+
+  it('the Herding Horn is a combat flag, so it counts Rallies the way the game defines them', () => {
+    const s = armed('rune_herding_horn');
+    expect(s.questFlags?.runeHerdingHorn, 'armed as a combat mod, read by the sim’s bumpRally').toBe(true);
   });
 });

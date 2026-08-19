@@ -5,10 +5,9 @@
  * Three groups of dials, matching the DEV tuner (`EndTurnTuner.tsx`, opened from the Dev Tuning Menu):
  *   - POSITION + SCALE — px offsets from the stage-pinned base point (× --scale, resolution-independent, same
  *     pinning scheme as the hero power) and an overall scale factor.
- *   - GLOW — the diamond-shaped highlight hugging the button, shown ON HOVER ONLY (owner note 2026-07-16).
- *     Implemented as a duplicate of the button art with a stacked drop-shadow filter (the shadow follows the
- *     image's alpha, so the glow IS the diamond silhouette), whose OPACITY breathes while hovered
- *     (compositor-only — the filter itself is static, per the perf rule).
+ *   - GLOW — the ice-blue halo around the gem, shown ON HOVER ONLY. A stacked drop-shadow applied directly on
+ *     the gem (copied from the Freeze gem, owner 2026-08-19): it radiates from behind the gem, over the housing,
+ *     so it reads as below the gem / above the base. Blur, strength and colour are the dials here.
  *   - LIGHTNING — little arcs crackling along the diamond's edges AND across its face on a small canvas
  *     overlay. Speed = spawn cadence, scale = arc length, magnitude = jitter amplitude.
  *
@@ -32,24 +31,10 @@ export interface EndTurnConfig {
   gemS: number;
   /** Gem — brightness multiplier while the button is hovered (×). */
   gemHoverBright: number;
-  /** Glow — blur radius (px) of each drop-shadow pass. */
+  /** Glow — blur radius (px) of each drop-shadow pass (copied from the Freeze gem). */
   glowBlur: number;
-  /** Glow — peak opacity of the glow layer (0–1). 0 disables the glow entirely. */
-  glowAlpha: number;
   /** Glow — how many times the drop-shadow is stacked. 1 = soft halo, higher = hot rim. */
   glowStrength: number;
-  /** Glow — breathing speed: one full pulse cycle in seconds. 0 = steady (no pulse). */
-  glowPulse: number;
-  /** Glow — how deep the breath dips: the glow eases between peak and peak×(1−depth). */
-  glowPulseDepth: number;
-  /** Glow — ALIGNMENT nudge x (px of the 128-wide design box, × --u). Fixes the halo sitting off the gem. */
-  glowX: number;
-  /** Glow — alignment nudge y (px, × --u). */
-  glowY: number;
-  /** Glow — width fit (×). Small corrections so the halo hugs the gem's sides; use blur/strength for SIZE. */
-  glowW: number;
-  /** Glow — height fit (×). */
-  glowH: number;
   /** Glow — colour (hex). */
   glowColor: string;
   /** Sheen — the ambient glare sweep's full cycle (seconds): one sweep then a rest, repeating. */
@@ -123,16 +108,10 @@ const DEFAULTS: EndTurnConfig = {
   gemY: -3,
   gemS: 1.03,
   gemHoverBright: 1.53,
-  glowBlur: 1,
-  glowAlpha: 0.32,
-  glowStrength: 6,
-  glowPulse: 0.7,
-  glowPulseDepth: 0.11,
-  glowX: 0,
-  glowY: -1.5,
-  glowW: 0.98,
-  glowH: 0.925,
-  glowColor: '#38b6ff',
+  // Gem hover glow copied from the Freeze gem (owner 2026-08-19): 4× blur-8 ice-blue drop-shadow.
+  glowBlur: 8,
+  glowStrength: 4,
+  glowColor: '#78c8ff',
   sheenCycle: 3.2,
   sheenAlpha: 0.4,
   boltRate: 0,
@@ -177,20 +156,13 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   gemS: [0.3, 2, 0.01],
   gemHoverBright: [1, 2.2, 0.01],
   glowBlur: [0, 48, 1],
-  glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
-  glowPulse: [0, 6, 0.1],
-  glowPulseDepth: [0, 1, 0.01],
   boltRate: [0, 20, 0.5],
   boltScale: [0.05, 1, 0.01],
   boltMag: [0, 30, 0.5],
   boltWidth: [0.5, 6, 0.25],
   boltLife: [60, 900, 10],
   boltAlpha: [0, 1, 0.01],
-  glowX: [-24, 24, 0.5],
-  glowY: [-24, 24, 0.5],
-  glowW: [0.85, 1.15, 0.005],
-  glowH: [0.85, 1.15, 0.005],
   sheenCycle: [1, 12, 0.1],
   sheenAlpha: [0, 1, 0.01],
   strikeBolts: [0, 20, 1],
@@ -221,12 +193,9 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   gemY: 'Nudge the gem overlay vertically onto the baked gem (design px).',
   gemS: 'Gem overlay fit (× the default seat).',
   gemHoverBright: 'Gem brightness while hovered (×).',
-  glowBlur: 'Diamond glow softness — blur radius (px) of each drop-shadow pass.',
-  glowAlpha: 'Diamond glow peak opacity. 0 turns the glow off.',
-  glowStrength: 'Glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
-  glowPulse: 'Breathing speed — seconds per full pulse cycle. 0 = steady glow.',
-  glowPulseDepth: 'Breathing depth — how far the glow dips each cycle (0 = none, 1 = fully out).',
-  glowColor: 'Diamond glow colour.',
+  glowBlur: 'Gem glow softness — blur radius (px) of each drop-shadow pass.',
+  glowStrength: 'Gem glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
+  glowColor: 'Gem glow colour.',
   boltRate: 'Lightning — arcs spawned per second. 0 disables lightning.',
   boltScale: 'Lightning — arc length as a fraction of a diamond edge.',
   boltMag: 'Lightning — jitter magnitude (px): how violently the arc deviates from the edge.',
@@ -234,10 +203,6 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   boltLife: 'Lightning — each arc’s lifetime (ms) before it fades.',
   boltAlpha: 'Lightning — arc opacity.',
   boltColor: 'Lightning — arc colour.',
-  glowX: 'Glow alignment — nudge the halo horizontally (design px) so it sits square on the gem.',
-  glowY: 'Glow alignment — nudge the halo vertically (design px).',
-  glowW: 'Glow fit — halo width (× the gem). Small corrections only; use blur/strength for overall size.',
-  glowH: 'Glow fit — halo height (× the gem).',
   sheenCycle: 'Sheen — seconds per glare sweep cycle (one sweep, then a rest). Lower = livelier.',
   sheenAlpha: 'Sheen — glare strength. 0 = no sweep.',
   strikeBolts: 'Strike — how many lightning arcs burst out the instant the button is hit.',
@@ -300,22 +265,16 @@ export function applyEndTurnVars(): void {
   root.setProperty('--etb-gem-y', String(cfg.gemY));
   root.setProperty('--etb-gem-s', String(cfg.gemS));
   root.setProperty('--etb-gem-hover', String(cfg.gemHoverBright));
-  // Glow alignment — unitless design-px (the CSS multiplies by --u) + fit scale factors.
-  root.setProperty('--etb-glow-x', String(cfg.glowX));
-  root.setProperty('--etb-glow-y', String(cfg.glowY));
-  root.setProperty('--etb-glow-w', String(cfg.glowW));
-  root.setProperty('--etb-glow-h', String(cfg.glowH));
   // Ambient sheen sweep — alpha 0 hides it; the cycle keeps its floor so the animation never divides by zero.
   root.setProperty('--etb-sheen-cycle', `${Math.max(0.5, cfg.sheenCycle)}s`);
   root.setProperty('--etb-sheen-alpha', String(cfg.sheenAlpha));
-  root.setProperty('--etb-glow-alpha', String(cfg.glowAlpha));
-  // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
-  root.setProperty('--etb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));
-  root.setProperty('--etb-glow-pulse', `${cfg.glowPulse > 0 ? cfg.glowPulse : 9999}s`);
-  // The glow filter — a drop-shadow stacked `glowStrength` times (composed here because CSS can't repeat a
-  // filter a variable number of times). STATIC: only the glow layer's opacity animates.
-  const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
-  root.setProperty('--etb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
+  // Gem hover glow (copied from the Freeze gem, owner 2026-08-19) — a drop-shadow stacked `glowStrength` times
+  // (composed here because CSS can't repeat a filter a variable number of times), at 0.95 alpha like Freeze.
+  // Applied directly on `.etb-gem` on hover (styles.css), so it radiates from behind the gem, above the base.
+  const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 0.95)})`;
+  root.setProperty('--etb-gemglow', cfg.glowStrength > 0
+    ? Array(Math.round(cfg.glowStrength)).fill(one).join(' ')
+    : 'none');
   root.setProperty('--etb-flash-ms', `${Math.max(1, cfg.strikeFlash)}ms`);
   // Hover tip — plain px, NOT scaled by --u: the pill is UI chrome (like the shop buttons it borrows its
   // look from), so it should read at a constant size rather than growing with the board.

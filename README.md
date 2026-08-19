@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **End Turn gem glow matches the Freeze gem** — the End Turn diamond's hover glow now sits behind the gem and above the bronze base (a drop-shadow on the gem itself), copied from the Freeze gem, instead of floating over the housing on a separate layer.
+
 - **The locked third rune slot wears chains** — most runs only get 2 runes (forge turns 6 & 9), so the third slot shows chains from the start as "not possible yet." When a hero/rune unlocks a 3rd (Runesmith, Guardian, Rune of the Epic Forge, Rune of Duplication), the chains **shatter** 1000ms later with a burst-and-shockwave FX. Position/size tunable in the 💠 Rune Sheen tuner.
 
 - **Set 2 Dragon batch.** Eight new Dragons (a Shout-retrigger line — Embercrest, Broodfire, Roarcollector — and a spell-cast line — Flamebeat, Warflame — plus Cinderchef, River Drake, Flutterdrake) and two new spells (**Dragonflame**, **Flutter**), alongside eight archives and a round of rebalances (Karwind, Fel Spikes, Earthbreaker, Transcendant→Ward+Engrave, and more). Fixed a bug so **Fel Spikes**' echo correctly counts as its Demon dealing damage (proccing the demon-damage payoffs on every landed hit).

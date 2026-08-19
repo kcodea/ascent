@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-18 — Fix: misplaced grounding shadow on Compendium cards
+
+The Compendium's plated cards showed a dark, blurred oval smudge sitting on top of each stone plate — a
+"misplaced shadow" (owner report). Root cause: the frame's **grounding shadow** (`.cshadow`, a `brightness(0)
+blur` copy of the oval/square/heater frame, offset down 5px at opacity 0.8) is meant to ground an **un-plated**
+card on the dark board. On a plated card the frame subtree lives in `.archbox` (`position:relative; z-index:1`),
+so it paints **above** the `z-index:0` stone plate, dropping that dark oval onto the lit stone. In the hand it's
+invisible against the dark board and the drag-lift version is a wanted feel effect, but in the Compendium's
+large, static gallery it read as a shadow in the wrong place.
+
+**Fix (CSS only):** drop the frame's contact shadow inside the grid — the plate is the card's grounding body
+there. Scoped to `.book-grid .card.plated .cframe.cshadow, .book-grid .card.plated .tframe.cshadow { display:
+none }` so the hand's resting look and the drag-lift shadow are completely untouched. Verified live via the
+running dev server (all 132 plated cards' shadows now `display:none` in the grid, with the diagnostic style
+removed) and against typecheck + lint + build:web.
+
 ## 2026-08-18 — `consume-pull` particles replace the placeholder `consume-bands`
 
 The consume's particle layer is now the owner's workshop-authored **`consume-pull`** def: smoke gathers at the
@@ -60,6 +76,7 @@ look are owner-run in the FX workshop.
 Follow-ups: the owner authors the real `consume-bands` def in the workshop (the committed one is a placeholder,
 duration-matched to `durationMs`); `holdFodderGains`' stat-reveal timing (~90ms — the beat where the eater's
 buffed stats commit) may want re-aligning once the final `durationMs` is locked in.
+
 ## 2026-08-18 — Combat auto-ramp: tune the shipped defaults for a gentler curve
 
 Owner feel pass on the auto-ramp curve (the live Speed Ramp tuner). Updated `COMBAT_RAMP_DEFAULTS`

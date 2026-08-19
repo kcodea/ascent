@@ -60,8 +60,8 @@ export const SET2_DWARVES: CardDef[] = [
     name: 'Wardkeeper',
     tribe: 'dwarf',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 6,
+    health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpellPowerRun', params: { attack: 1, health: 0 } }],
     text: '**Shout:** your **Shop spells** gain **+1 Attack**.',
@@ -93,21 +93,6 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Cleave**.',
   },
   {
-    // Rides the existing "on spell cast, buff N random of a tribe" channel — the Dwarves' reward for the
-    // Dragon/spell half of set 2.
-    id: 'dw_runekeg',
-    name: 'Runekeg',
-    tribe: 'dwarf',
-    tier: 3,
-    attack: 2,
-    health: 4,
-    keywords: [],
-    // `excludeSelf` (owner 2026-07-31): "Other Dwarves" — the keg fuels the crew, never itself.
-    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'dwarf', count: 2, attack: 2, health: 1, excludeSelf: true } }], // owner balance 2026-08-04: +2/+2 → +2/+1
-    text: 'When you cast a **Shop spell**, give **2 random other** friendly **Dwarves +2/+1**.',
-    goldenText: 'When you cast a **Shop spell**, give **2 random** friendly **Dwarves +4/+2**.',
-  },
-  {
     // Targeted Shout: the target arrives on the payload via `applyBattlecryTarget`. Its magnitude is live, so
     // shopping BEFORE playing it is the play — and the printed number has to fold that in (see `cardText`).
     id: 'dw_dorrin',
@@ -135,20 +120,6 @@ export const SET2_DWARVES: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
     text: '**End of Turn:** give your **left-most Dwarf +1/+2** per card played this turn.',
     goldenText: '**End of Turn:** give your **left-most Dwarf +2/+4** per card played this turn.',
-  },
-  {
-    // The buy tally lives on the CARD (`buyTick`), like every other cards-bought effect, which is what makes
-    // "carries over through combat" true without extra wiring.
-    id: 'dw_chirurgeon',
-    name: 'Ayves', // renamed from Chirurgeon (owner 2026-07-31); the id stays — saved runs store ids
-    tribe: 'dwarf',
-    tier: 5,
-    attack: 5,
-    health: 5,
-    keywords: [],
-    effects: [{ on: 'cardsBought', do: 'cardsBoughtGrantRandomSpell', params: { every: 3, count: 1 } }],
-    text: 'Every **3 cards** you buy, get a random **Shop spell**.',
-    goldenText: 'Every **3 cards** you buy, get **2** random **Shop spells**.',
   },
   {
     // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.
@@ -298,13 +269,43 @@ export const SET2_DWARVES: CardDef[] = [
     name: 'Mountainbond',
     tribe: 'dwarf',
     tribe2: 'kobold',
-    tier: 6,
+    tier: 5, // owner rework 2026-08-18: T6 → T5
     attack: 7,
     health: 6,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 2, tribe: 'kobold' } }],
-    text: 'When you spend **8 Gold**, get **2 Rubies** and play a **Ruby** on your **Kobolds**.',
-    goldenText: 'When you spend **8 Gold**, get **4 Rubies** and play **2 Rubies** on your **Kobolds**.',
+    // Owner rework 2026-08-18: the hand-mint half is dropped and the board half now hits ALL your minions
+    // (`tribe: 'all'`, `count: 0` = mint nothing). `every` still metered per-instance by `applyGoldSpent`.
+    effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 0, play: 1, tribe: 'all' } }],
+    text: 'When you spend **8 Gold**, play a **Ruby** on your minions.',
+    goldenText: 'When you spend **8 Gold**, play **2 Rubies** on your minions.',
+  },
+  {
+    // Set 2 — Billings (owner add 2026-08-18): every 5 Gold spent, two random Dwarves get a big +5/+5. The
+    // recipient count is fixed; golden doubles the STAT (+10/+10).
+    id: 'dw_billings',
+    name: 'Billings',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 5, tribe: 'dwarf', count: 2, attack: 5, health: 5 } }],
+    text: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +5/+5**.',
+    goldenText: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +10/+10**.',
+  },
+  {
+    // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
+    // granted minion, a minted Ruby) buffs your left-most Dwarf. Golden doubles the grant.
+    id: 'dw_gangplank',
+    name: 'Gangplank',
+    tribe: 'dwarf',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onGainCard', do: 'onGainCardBuffTribe', params: { tribe: 'dwarf', attack: 1, health: 2 } }],
+    text: 'When a card is added to your hand, give a friendly **Dwarf +1/+2**.',
+    goldenText: 'When a card is added to your hand, give a friendly **Dwarf +2/+4**.',
   },
 ];
 
@@ -417,21 +418,17 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     goldenText: 'When you cast **8 Shop spells**, trigger **both adjacent Shouts**.',
   },
   {
-    // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
-    // each rep re-rolling its target (owner ruling) so a long brew sprays the line instead of spiking one body.
-    // Unlike Bucky this is buyable, not forge-only, and it reads the shop phase that just ended — see the note on
-    // `scBuffRandomTribePerAle` for why the underlying read is still called "last turn". Live text folds in the
-    // actual rep count (`cardText.ts`), so it never prints the base rate alone.
-    id: 'dw_oaf',
-    name: 'Drunken Oaf',
+    // Owner add 2026-08-19. The steal package's body: a Shout that hands over a Deep Delve Writ (steal a random
+    // Dwarf from the Shop). Reuses the trigger-agnostic `battlecryGrantSpell`; golden hands over two.
+    id: 'dw_sharpshooter',
+    name: 'Dwarven Sharpshooter',
     tribe: 'dwarf',
     tier: 4,
-    attack: 5,
+    attack: 4,
     health: 5,
-    keywords: ['SC'],
-    // Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.
-    effects: [{ on: 'startOfCombat', do: 'scBuffRandomTribePerAle', params: { tribe: 'dwarf', attack: 3, health: 3 } }],
-    text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
-    goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'deepdelvewrit', count: 1 } }],
+    text: '**Shout:** get a **Deep Delve Writ**.',
+    goldenText: '**Shout:** get **2 Deep Delve Writs**.',
   },
 ];

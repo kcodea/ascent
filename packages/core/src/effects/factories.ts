@@ -71,7 +71,7 @@ export function castInCombat(ctx: CombatContext, self: Minion, body: () => void)
  *  "plays a Ruby" in combat must come through here: a hand-rolled `ctx.buff` with Ruby-shaped stats misses
  *  the Deepdelve multiplier, the target's `onRubyPlayed` listeners, the Spellstone cast-count and the
  *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
-export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
+export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number, permanent = false): void {
   if (per <= 0) return;
   // RUNE OF BATTLE REFRACTION: living Prismcasters repeat Rubies played during combat, exactly as they repeat
   // hand-played Rubies in the shop (`rubyExtraCast`). Folded into `per` at this single chokepoint, so every
@@ -82,7 +82,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
-  applyRubyStats(ctx, self, target, a, h);
+  applyRubyStats(ctx, self, target, a, h, permanent);
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
   // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.
@@ -94,7 +94,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       for (let b = 0; b < bounces; b++) {
         const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
         if (others.length === 0) break;
-        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h);
+        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, permanent);
       }
     }
   }
@@ -156,7 +156,7 @@ function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
   return [...before, ...after];
 }
 
-function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number): void {
+function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number, permanent = false): void {
   ctx.buff(target, a, h, self.uid, true); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
@@ -169,6 +169,13 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
   // recipient. `permaRuby` stays as the LABEL for the Engraved share, so the carry-back split (Ruby vs the
   // rest, simulate ~2405) keeps attributing correctly — it must only accrue when the gain actually persists.
   if (target.keywords.includes('EG')) {
+    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
+  } else if (permanent) {
+    // A card that explicitly prints "permanently" (Kobe / Boulderdash / Blazer): accrue BOTH permaGain (so the
+    // carry-back filter at settle picks it up — ctx.buff only accrues permaGain for Engraved bodies) AND
+    // permaRuby (so the carry-back split labels it a Ruby rather than a generic gift). This is the `permanent`
+    // hook the applyRubyStats reversal note (2026-07-31) reserved for exactly this case.
+    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
     target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
   }
 }
@@ -400,6 +407,22 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }
 
+/** Trigger a minion's Echo (Deathrattle) WITHOUT it dying — the shared body for Echohorn Stag / Hawkus / Spots.
+ *  The Echo fires as many times as a real death would (every Echo multiplier the side has — Sylus, Uron,
+ *  Funeral Engine…), then `self`'s gild DOUBLES that whole count. Logs a `rally` cue per proc (the "trigger
+ *  this Deathrattle" visual). ANY `onDeath` effect counts, not just ids that start with "deathrattle". */
+export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): void {
+  const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
+  for (let r = 0; r < procs; r++) {
+    ctx.log({ type: 'rally', source: self.uid, target: target.uid });
+    ctx.countDeathrattle?.(target.side);
+    for (const effect of target.effects) {
+      if (effect.on !== 'onDeath') continue;
+      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+    }
+  }
+}
+
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
  *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
  *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
@@ -485,6 +508,29 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
         if (t) { ctx.buff(t, a + sp.attack, h + sp.health, self.uid); did = true; }
         break;
       }
+      // Dragonflame — buff `base` + (# friendly `tribe`) random living friendlies (with replacement, so more
+      // buffs than bodies simply stacks). The per-buff value is the spell's flat +4/+4 + spell power.
+      case 'spellBuffRandomPerTribe': {
+        const tribe = str(eff.params?.tribe);
+        const count = alive().filter((m) =>
+          !tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe).length;
+        const reps = num(eff.params?.base, 1) + count;
+        for (let i = 0; i < reps; i++) {
+          const pool = alive();
+          if (pool.length === 0) break;
+          ctx.buff(pool[ctx.rng.int(pool.length)]!, a + sp.attack, h + sp.health, self.uid);
+        }
+        did = true; break;
+      }
+      // Flutter — the chosen minion gains +Health (+ spell power); a Dragon also gets Flurry.
+      case 'spellBuffHealthGrantFlurryDragon': {
+        for (const t of chosen()) {
+          ctx.buff(t, sp.attack, num(eff.params?.health, 10) + sp.health, self.uid);
+          const isDragon = t.tribe === 'dragon' || t.tribe2 === 'dragon' || !!ctx.getCard(t.cardId)?.universalTribe;
+          if (isDragon && !t.keywords.includes('W')) t.keywords.push('W');
+        }
+        did = true; break;
+      }
       case 'spellBuffTargetEscalating': {
         // Attack and Health escalate INDEPENDENTLY, each stat's step compounding its own spell power — the
         // same arithmetic the shop half runs. The stats are temporary; the IMPROVEMENT is permanent and
@@ -539,7 +585,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
-  'spellGainRandomMinion', 'spellGrantTopTypeMinion',
+  'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
@@ -548,6 +594,23 @@ export function combatCastable(def: CardDef): boolean {
   if (!def.spell) return false;
   if (def.discoverOnPlay) return true;
   return def.effects.some((e) => e.on === 'cast' && COMBAT_CASTABLE_SPELL_DOS.has(e.do));
+}
+
+/** Shared "this minion casts a NAMED spell mid-combat" path (Flamebeat's Rally, Warflame's on-Dragon-attack).
+ *  A real cast via `castInCombat` + `resolveCombatSpellCast` — counts, fires spell watchers, golden = two casts.
+ *  A targeted spell picks a seeded random living friendly; an untargeted one resolves its own targeting. A spell
+ *  with no combat implementation (or nothing to aim at) fizzles without counting. */
+export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId: string): void {
+  const def = spellId ? ctx.getCard(spellId) : undefined;
+  if (!def?.spell || self.dead || !combatCastable(def)) return;
+  castInCombat(ctx, self, () => {
+    const friends = ctx.living(self.side);
+    const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
+    if (def.target && (!targets || targets.length === 0)) return;
+    if (resolveCombatSpellCast(ctx, self, def, targets)) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+    }
+  });
 }
 
 /** Scavvers ↔ Echohorn recursion guard — see `deathrattleTriggerAdjacentRally`. */
@@ -752,6 +815,63 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);
     });
+  },
+
+  /** Set 2 — Cinderchef (Rally): on its OWN attack, gain +atk/+hp. Golden doubles. */
+  rallyBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.buff(self, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
+  },
+
+  /** Set 2 — Flamebeat Drake (Rally): on its OWN attack, cast a NAMED spell (Dragonflame) in combat. A genuine
+   *  cast through `castInCombat` + `resolveCombatSpellCast`, so it counts and fires spell watchers; golden = two
+   *  casts. Untargeted spells resolve their own random targeting inside the resolver. */
+  rallyCastNamedSpell: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    castNamedSpellInCombat(ctx, self, str(params.spellId));
+  },
+
+  /** Set 2 — Warflame (combat): whenever a friendly minion of `tribe` attacks, cast a NAMED spell (Dragonflame).
+   *  Any qualifying ally's swing fires it (Windfury → per swing); the caster's own swing counts too. */
+  onTribeAttackCastNamedSpell: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const tribe = str(params.tribe);
+    if (tribe && !(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    castNamedSpellInCombat(ctx, self, str(params.spellId));
+  },
+
+  /** Set 2 — Roarcollector (Rally): on its OWN attack, add a random SHOUT minion (one with a real `onPlay`) to
+   *  your hand, tier-capped by the run pool — carried back after combat like every combat hand-grant. Golden = 2. */
+  rallyGrantRandomShoutMinion: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.grantRandomMinion(mul(self), undefined, self.side, undefined, self.uid, undefined, true);
+  },
+
+  /** Set 2 — Embercrest (Rally): on its OWN attack, re-trigger the Shouts of your other `tribe` (Dragon) minions.
+   *  Routed through the SAME machinery every Shout re-trigger uses (`replayCombatBattlecry` for the effect, then
+   *  the `battlecryTriggered` emit so Karwind / Bane / Embermouth watchers proc) — see
+   *  `deathrattleReplayAdjacentBattlecry`. Economy-only Shouts defer to settle. Embercrest's own trigger is an
+   *  attack, not an `onPlay`, so it can never recurse. */
+  rallyTriggerTribeShouts: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe);
+    const reps = mul(self); // golden re-triggers each Shout twice
+    for (const m of [...ctx.living(self.side)]) {
+      if (m === self) continue;
+      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      if (!m.effects.some((e) => e.on === 'onPlay')) continue;
+      for (let r = 0; r < reps; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${m.name}'s Shout` });
+        replayCombatBattlecry(ctx, m);
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      }
+    }
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
@@ -3211,22 +3331,29 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       (m) => m !== self && m.effects.some((e) => e.on === 'onDeath'),
     );
     if (!target) return;
-    // The proc'd Echo fires as many times as a REAL death would — every Echo multiplier the side has (Sylus,
-    // Uron, Elderhorn's Ritual, Funeral Engine, Grave Contract) — and the Stag's own gild then DOUBLES that
-    // whole count, multiplicatively, the same shape `deathrattleReplayAdjacentBattlecry` uses for Drakko.
-    //
-    // This loop used to be `mul(self)` alone: it consulted NO multiplier, so Sylus contributed exactly ZERO
-    // through the Stag (owner report 2026-08-06 — the Echohorn → Dawnclaw → Drakko → Sylus chain came out at
-    // half its stated value, and every count was byte-identical with 0, 1, 2 or gilded Sylus on board).
-    const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
-    for (let r = 0; r < procs; r++) {
-      ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-      ctx.countDeathrattle?.(target.side);
-      for (const effect of target.effects) {
-        if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-      }
-    }
+    triggerEcho(ctx, self, target); // fires the Echo as many times as a real death would; gild doubles it
+  },
+
+  /** Set 2 — Hawkus (T5 Beast): whenever a Rally is triggered — i.e. any friendly minion with the Rally keyword
+   *  attacks — trigger your LEFT-MOST friendly Echo (it stays alive), reusing the Echohorn Stag machinery. The
+   *  attacker having `RL` is what makes it a Rally (an ordinary swing is not), the same guard Mineral Master uses.
+   *  Golden triggers the Echo twice per Rally. */
+  onRallyProcLeftmostEcho: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    if (!minion.keywords.includes('RL')) return; // an ally swing is not a Rally
+    const target = ctx.living(self.side).find((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'));
+    if (target) triggerEcho(ctx, self, target);
+  },
+
+  /** Set 2 — Spots (T6 Beast, Start of Combat): trigger your `count` (2) LEFT-MOST friendly Echoes, board order.
+   *  Each stays alive. Golden doubles each trigger (via `triggerEcho`'s `mul(self)`). */
+  scTriggerLeftmostEchoes: (ctx, self, params) => {
+    if (self.dead) return;
+    const targets = ctx.living(self.side)
+      .filter((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'))
+      .slice(0, num(params.count, 2));
+    for (const t of targets) triggerEcho(ctx, self, t);
   },
 
   /** Set 2 — Imp Wrangler (Start of Combat) / Errand Fiend (Rally): summon `count` Imps. `keyword` optionally
@@ -3435,6 +3562,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
   },
 
+  /** Set 2 — Malphas (Echo half): when THIS minion dies, permanently buff every minion in the Shop. The Shout
+   *  half is the recruit `buffShopPermanent`; this is its combat twin, carried back through `gainTavernBuy`
+   *  exactly like Demon Horse's Rally — a recruit factory would never fire on a combat death. Golden doubles. */
+  deathrattleBuffShopPermanent: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (minion !== self) return; // own Echo only — the bus broadcasts every death
+    ctx.gainTavernBuy(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
+  },
+
   /** Ashen Broodlord (owner rework 2026-07-31) — Rally: CAST A STAFF OF GUEL. A real spell cast, so it
    *  follows the Taragosa pattern exactly: the run's spell power folds into the grant (`spellPowerFor`, so an
    *  enemy Broodlord scales with the OPPONENT's), and `ctx.castSpell` fires the cast so per-spell payoffs
@@ -3459,6 +3595,94 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Traveling Skald: whenever ANOTHER friendly minion of `tribe` attacks, give IT +atk/+hp. The
    *  payload's attacker is the target; the Skald's OWN swing never buffs itself (owner ruling 2026-08-01 —
    *  the printed text says "another"). Golden doubles. */
+  /** Set 2 — Impossible Todd / Leech / Axeman: react whenever a FRIENDLY Demon deals combat damage
+   *  (attack, retaliation, or incidental; a Ward-absorbed 0-damage hit never fires the event). Gains `attack`/
+   *  `health` on self, and optionally grants your Imps `impAttack`/`impHealth` run-wide (`grantImpBuff` carries
+   *  back to RunState.impBuff — "this game"). The emit already guaranteed the dealer is a Demon; we just
+   *  confirm it's on our side. `self` MAY be the dealer (a Demon reacting to its own damage counts). */
+  onFriendlyDemonDamageBuffSelf: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a || h) {
+      ctx.buff(self, a, h, self.uid);
+      // PERMANENT: carry the gain back to the run board like an Engraved minion (owner 2026-08-18: these gains
+      // are permanent). `ctx.buff` only auto-accrues permaGain for EG/Transcendant bodies, so add it here for
+      // the rest. Carry-back only reads PLAYER minions with a sourceUid, so an enemy copy is harmless.
+      if (!self.keywords.includes('EG')) {
+        self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: (self.permaGain?.health ?? 0) + h };
+      }
+    }
+    const ia = num(params.impAttack, 0) * mul(self);
+    const ih = num(params.impHealth, 0) * mul(self);
+    if (ia || ih) ctx.grantImpBuff(ia, ih, self.side);
+  },
+
+  /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
+   *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
+   *  run board (see `applyRubyStats`); golden doubles `count`. */
+  scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
+    if (self.dead) return;
+    const per = num(params.count, 1) * mul(self);
+    const permanent = params.permanent === true;
+    const tribe = str(params.tribe);
+    playRubyOn(ctx, self, self, per, permanent);
+    for (const adj of livingNeighbours(ctx, self)) {
+      if (tribe && adj.tribe !== tribe && adj.tribe2 !== tribe && !ctx.getCard(adj.cardId)?.universalTribe) continue;
+      playRubyOn(ctx, self, adj, per, permanent);
+    }
+  },
+
+  /** Set 2 — Boulderdash (Rally): each time THIS minion attacks, play `count` PERMANENT Rubies on itself.
+   *  Fires on its own attack (Flurry → per hit); golden doubles `count`. */
+  rallyPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    playRubyOn(ctx, self, self, num(params.count, 1) * mul(self), params.permanent === true);
+  },
+
+  /** Set 2 — Blazer (Rally): each time THIS minion attacks, play `count` PERMANENT Rubies on EVERY friendly
+   *  minion. Fires on its own attack (Flurry → per hit); golden doubles `count`. */
+  rallyPlayRubiesAll: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const per = num(params.count, 1) * mul(self);
+    const permanent = params.permanent === true;
+    for (const m of ctx.living(self.side)) playRubyOn(ctx, self, m, per, permanent);
+  },
+
+  /** Set 2 — Fel Spikes (Echo): deal `amount` to EVERY minion on BOTH sides EXCEPT friendly minions of
+   *  `exceptTribe` (Demons). The exclusion is FRIENDLY-only — an ENEMY Demon is still hit — which is why this
+   *  can't route through the tribe-agnostic `deathrattleDamageAll`.
+   *
+   *  Golden fires the whole spray `mul(self)` times as SEPARATE triggers (owner 2026-08-18: "deal 4 twice", not
+   *  "deal 8 once") — so each pass shows independently and procs the demon-damage reactors on its own, exactly
+   *  like an Echo multiplier (Sylus) firing the Deathrattle again. */
+  deathrattleDamageAllExceptTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const amount = num(params.amount, 1);
+    if (amount <= 0) return;
+    const exc = str(params.exceptTribe);
+    for (let pass = 0; pass < mul(self); pass++) {
+      // Each pass is one WAVE: wrap it so all its damage + the reactor buffs those hits fire land together as a
+      // single volley moment, with a short pause before the next pass (owner ask 2026-08-19). Purely presentation
+      // pacing — the loop, the damage, the reactor procs and their order are all unchanged.
+      ctx.wave(() => {
+        for (const sideKey of ['player', 'enemy'] as Side[]) {
+          for (const m of [...ctx.living(sideKey)]) {
+            if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+            // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
+            // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
+            // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
+            ctx.damage(m, amount, false, false, self);
+          }
+        }
+      });
+    }
+  },
+
   onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
     if (self.dead) return;
     const { minion } = payload as MinionPayload;
@@ -3578,12 +3802,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = str(params.tribe);
     if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
     // Rune of the Zoo scales the grant by the running combat-summon ordinal (1× on the 1st summon, 2× on the
-    // 2nd, …). Off the rune it returns 1, so Beardsley is a plain +6/+6. Stacks across Beardsleys (each fires)
-    // and composes with golden (`mul`).
+    // 2nd, …). Off the rune it returns 1. Stacks across Beardsleys (each fires) and composes with golden (`mul`).
     const g = mul(self) * (ctx.zooReps?.(self.side) ?? 1);
-    const a = num(params.attack, 6) * g;
-    const h = num(params.health, 6) * g;
+    // Escalating variant (Beardsley 2026-08-18): +`improve` per stat every `every` tribe summons this combat,
+    // tracked on a per-instance counter. Absent `improve` → the plain flat grant, unchanged.
+    const improve = num(params.improve, 0);
+    const every = Math.max(1, num(params.every, 1));
+    const step = improve > 0 ? Math.floor((self.summonBonus ?? 0) / every) : 0;
+    const a = (num(params.attack, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
+    if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1; // count this Beast toward the next step
   },
 
   /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).
@@ -3607,8 +3836,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
+    // Owner fix 2026-08-18: cap at the summoner's current tier — a low-tier Menagerie Mammoth must not roll a
+    // Tier-6 Beast.
+    const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && (!params.excludeSelf || c.id !== self.cardId)
+      (c) => !c.token && !c.spell && c.tier <= maxTier && (!params.excludeSelf || c.id !== self.cardId)
         && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
@@ -3623,8 +3855,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonRandomTribeSetStats: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe);
+    // Owner fix 2026-08-18: cap at the summoner's current tier (Bullseye must not roll a Tier-6 body).
+    const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+      (c) => !c.token && !c.spell && c.tier <= maxTier && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * mul(self);

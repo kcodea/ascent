@@ -14,8 +14,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Chipwick Prospector',
     tribe: 'kobold',
     tier: 1,
-    attack: 1,
-    health: 2,
+    attack: 3,
+    health: 1,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'getRubies', params: { count: 2 } }],
     text: '**Shout:** Get 2 Rubies.',
@@ -25,27 +25,13 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_deepvein',
     name: 'Deepvein Tender',
     tribe: 'kobold',
-    tier: 3,
-    attack: 2,
-    health: 3,
+    tier: 2,
+    attack: 1,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }],
     text: '**Shout:** Your Rubies gain **+1 Health**.',
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
-  },
-  {
-    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
-    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
-    id: 'k_frenzied',
-    name: 'Frenzied Excavator',
-    tribe: 'kobold',
-    tier: 4,
-    attack: 4,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
   },
   {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
@@ -57,9 +43,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 10,
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
-    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
-    text: '**Avenge (2):** Play **2 Rubies** on your minions.',
-    goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+    // Owner balance 2026-08-18: now Kobolds-only.
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2, tribe: 'kobold' } }],
+    text: '**Avenge (2):** Play **2 Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Play **4 Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -71,11 +58,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    // `battlecryGrantSpell` isn't Shout-specific — the recruit factories are event-agnostic, so the same
-    // grant works off End of Turn without a near-duplicate factory.
-    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
-    text: '**End of Turn:** get a **Veinstorm**.',
-    goldenText: '**End of Turn:** get **2 Veinstorms**.',
+    // Owner rework 2026-08-18: End of Turn → Start of Turn, and it now ALSO improves your Rubies. The combined
+    // grant-spell + rubyStatGain lives in one Start-of-Turn factory; golden doubles both halves.
+    effects: [{ on: 'startOfTurn', do: 'startOfTurnGetSpellImproveRubies', params: { spellId: 'veinstorm', count: 1, attack: 1, health: 1 } }],
+    text: '**Start of Turn:** get a **Veinstorm** and improve your Rubies **+1/+1**.',
+    goldenText: '**Start of Turn:** get **2 Veinstorms** and improve your Rubies **+2/+2**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -130,21 +117,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Rally:** give your Rubies **+2/+2**.',
   },
   {
-    // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby
-    // branch reading `rubyExtraCast`). No `effects` — it's a board aura like Money Bot's mana.
-    id: 'k_prismcaster',
-    name: 'Prismcaster',
-    tribe: 'kobold',
-    tier: 5,
-    attack: 5,
-    health: 7,
-    keywords: [],
-    effects: [],
-    rubyExtraCast: 1,
-    text: 'Rubies played from hand cast an extra time.',
-    goldenText: 'Rubies played from hand cast 2 extra times.',
-  },
-  {
     // Echo (owner change 2026-07-25, was an onDamaged trigger) → raise your Ruby strength for the rest of the
     // run. `deathrattleRubyStatGain` carries the gain back out of combat, so dying in the fight still pays.
     id: 'k_faultline',
@@ -159,17 +131,19 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** your Rubies gain **+2 Attack**.',
   },
   {
-    // Taunt + onDamaged (combat) → get a Ruby, capped 2×/fight (per-instance rubyRecvTick on the combat minion).
-    id: 'k_candleback',
-    name: 'Candleback Bulwark',
+    // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
     tribe: 'kobold',
-    tier: 1,
-    attack: 1,
+    tier: 4,
+    attack: 4,
     health: 3,
-    keywords: ['T'],
-    effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }],
-    text: 'Taunt. Get a Ruby when this takes damage. (2 times per turn)',
-    goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** play a Ruby on all of your minions.',
+    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
   },
   {
     // Echo (combat Deathrattle): summon a Gemheart Golem that is a 1/1 PLUS the Rubies played on THIS minion —
@@ -278,39 +252,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** get **2 Veinstorms**.',
   },
   {
-    // "When you GET a Ruby" trigger (fires in mintRubies) — casts a Ruby on a random friendly Kobold.
-    // Owner rework 2026-08-07 (T5 → T6): Resonance Idol's bounce, globalised — EVERY Ruby played on your
-    // side (by you or by a minion, either phase) bounces its stats to 1 more random friendly minion. The
-    // bounce is stats-only, the same no-rebounce guard the Idol uses. `rubyPlayedAnywhere` is a passive
-    // marker the two ruby paths scan for; it is never dispatched through the bus.
-    id: 'k_candleconduit',
-    name: 'Candle Conduit',
-    tribe: 'kobold',
-    tier: 6,
-    attack: 7,
-    health: 7,
-    keywords: [],
-    // Owner rework 2026-08-11: from a Ruby-bounce passive to a ruby-gain reactor. `rubyGainedCast` (no tribe
-    // filter) casts a Ruby on ONE random friendly minion each time you get a Ruby; golden casts 2.
-    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
-    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
-    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
-  },
-  {
-    // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework
-    // 2026-07-27: Ward, and random targets instead of the two neighbours (so position no longer gates it).
-    id: 'k_resonance',
-    name: 'Resonance Idol',
-    tribe: 'kobold',
-    tier: 4,
-    attack: 4,
-    health: 6,
-    keywords: ['DS'], // Ward
-    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2, random: 2 } }],
-    text: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions.',
-    goldenText: '**Ward.** Rubies cast on this minion bounce to **2 random** friendly minions **twice**.',
-  },
-  {
     // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
     // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
     // with the run's Ruby strength.
@@ -321,8 +262,79 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 7,
     health: 9,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { tribe: 'kobold', rubies: 2 } }],
-    text: 'When you trigger a **Rally**, play **2 Rubies** on your Kobolds.',
-    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your Kobolds.',
+    // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
+    text: 'When you trigger a **Rally**, play **2 Rubies** on your **minions**.',
+    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your **minions**.',
+  },
+  {
+    // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the
+    // run's buyable pool. `avengeRubyStatGain` + `avengeGrantRandomTribeMinion` both already exist.
+    id: 'k_portsmith',
+    name: 'Gem Portsmith',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    effects: [
+      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
+      { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 1 } },
+    ],
+    text: '**Avenge (3):** improve your Rubies **+1/+1** and get a random **Kobold**.',
+    goldenText: '**Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
+  },
+  {
+    // Start of Combat: play PERMANENT Rubies on this and its living same-tribe neighbours (carry back to the
+    // run board). Golden doubles the count.
+    id: 'k_kobe',
+    name: 'Kobe',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 5,
+    health: 6,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 2, permanent: true } }],
+    text: '**Start of Combat:** play **2 permanent Rubies** on this and adjacent **Kobolds**.',
+    goldenText: '**Start of Combat:** play **4 permanent Rubies** on this and adjacent **Kobolds**.',
+  },
+  {
+    // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
+    id: 'k_boulderdash',
+    name: 'Boulderdash',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 7,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 3, permanent: true } }],
+    text: '**Rally:** play **3 permanent Rubies** on this.',
+    goldenText: '**Rally:** play **6 permanent Rubies** on this.',
+  },
+  {
+    // A cheap Ruby payout on sale — get Rubies when this leaves the board for Gold. Golden doubles.
+    id: 'k_beggy',
+    name: 'Beggy',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 2 } }],
+    text: 'When you **sell** this, get **2 Rubies**.',
+    goldenText: 'When you **sell** this, get **4 Rubies**.',
+  },
+  {
+    // Flurry + Rally: every attack (twice, with Flurry) plays a PERMANENT Ruby on your whole board.
+    id: 'k_blazer',
+    name: 'Blazer',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 3,
+    health: 8,
+    keywords: ['W', 'RL'],
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
+    text: '**Flurry.** **Rally:** play a **Ruby** on your minions.',
+    goldenText: '**Flurry.** **Rally:** play **2 Rubies** on your minions.',
   },
 ];

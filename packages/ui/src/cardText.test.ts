@@ -229,12 +229,13 @@ describe('cardText helpers', () => {
   });
 
   it('summonFlatZooText shows Beardsley’s NEXT-summon grant under Rune of the Zoo', () => {
-    // Ordinal scaling: (summons so far + 1) × base 6 × golden. Null without the rune (undefined zooSummons),
-    // so the printed +6/+6 stands everywhere the rune isn't live.
+    // Ordinal scaling: (summons so far + 1) × base 3 × golden. (Beardsley's base dropped from 6 → 3 in the
+    // 2026-08-18 escalating rework; this helper reads params.attack, so its Zoo arithmetic follows.) Null
+    // without the rune (undefined zooSummons), so the printed +3/+3 stands everywhere the rune isn't live.
     expect(summonFlatZooText('b2_beardsley', false, undefined)).toBeNull();
-    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+6/+6}}');   // next summon is the 1st
-    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+18/+18}}'); // next summon is the 3rd
-    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+24/+24}}');  // gilded ×2 × ordinal 2
+    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+3/+3}}');   // next summon is the 1st
+    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+9/+9}}');   // next summon is the 3rd
+    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+12/+12}}');  // gilded ×2 × ordinal 2
     expect(summonFlatZooText('sandbag', false, 2)).toBeNull(); // not a flat summon-buff card
   });
 
@@ -319,7 +320,7 @@ describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => 
 
   it('gates on cards that actually SUMMON an Imp', () => {
     expect(cardSummonsImp('dm_wrangler')).toBe(true);   // startOfCombat summonImps
-    expect(cardSummonsImp('dm_shepherd')).toBe(true);   // deathrattleImpsOverflowGrant
+    expect(cardSummonsImp('dm_shepherd')).toBe(true);   // deathrattleSummon tokenId impscrap (rework 2026-08-18)
     expect(cardSummonsImp('dm_errand')).toBe(true);     // rallySummonImpBuffImps
     expect(cardSummonsImp('impking')).toBe(true);       // deathrattleSummon tokenId impscrap
     expect(cardSummonsImp('dm_broodwright')).toBe(false); // REACTS to summons, doesn't summon
@@ -338,9 +339,11 @@ describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => 
     expect(t.match(/\{\{\(2\/2\)\}\}/g)?.length, 'exactly one annotation').toBe(1);
   });
 
-  it('handles plural summons ("summon 4 Imps")', () => {
-    const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.text, aura);
-    expect(t).toContain('summon **4 Imps {{(2/2)}}**');
+  it('handles plural summons ("Summon 2 Imps")', () => {
+    // dm_shepherd's rework (2026-08-18) made its base text summon a single Imp; the plural lives on the golden
+    // text ("Summon 2 Imps"), which is what exercises the plural branch of the annotation regex.
+    const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.goldenText!, aura);
+    expect(t).toContain('Summon **2 Imps {{(2/2)}}**');
   });
 
   it('shows the 1/1 base with no Imp Aura, and leaves non-summoners alone', () => {

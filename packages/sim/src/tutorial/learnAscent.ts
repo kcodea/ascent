@@ -111,7 +111,6 @@ const CARD_IDS = {
   packstrider: 'b2_packstrider', // T1 Beast 2/2, Rally
   trex: 'b2_trex', // T2 Beast, Echo (Deathrattle summon)
   wolvie: 'b2_wolvie', // T2 Beast
-  candleback: 'k_candleback', // T1 Kobold, Taunt
   butcher: 'dm_butcher', // T2 Demon — "Shout: give minions in the Shop +1/+1" (teaches Shout, visible on play)
   wrangler: 'dm_wrangler', // T1 Demon — "Start of Combat: summon an Imp" (teaches Start of Combat)
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)

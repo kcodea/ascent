@@ -31,6 +31,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'click-puff': ['Recruit.tsx'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
+  'consume-pull': ['Recruit.tsx'],
   'damage-burst': ['Recruit.tsx', 'useCombatReplay.ts'],
   'death-dissolve': ['useCombatReplay.ts'],
   'freeze-blast': ['FreezeButton.tsx'],
@@ -42,6 +43,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
   'ruby-gem-apply': ['choreo/score.ts'],
+  'shop-buff-aura': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
   'strike-impact': ['choreo/channels/impact.ts'],
   'watcher-pulse': ['useCombatReplay.ts'],

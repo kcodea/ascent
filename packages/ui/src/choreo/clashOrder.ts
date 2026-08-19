@@ -31,7 +31,12 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
       const nonBuff: CombatEvent[] = [];
       const buffs: CombatEvent[] = [];
       let seenBuff = false;
-      while (i < events.length && (RESULT_TYPES.has(events[i]!.type) || events[i]!.type === 'buff')) {
+      // Never slide a buff across a WAVE boundary (multi-pass echo — Fel Spikes): a wave's events must stay
+      // contiguous so `compileMoments` groups each pass as one moment. Confine the run to a single wave id
+      // (undefined for ordinary combat, so this is a no-op there). A wave's own reactor buffs still defer to
+      // that wave's tail, which is harmless — the whole wave folds into one frame regardless.
+      const w0 = events[i]!.wave;
+      while (i < events.length && events[i]!.wave === w0 && (RESULT_TYPES.has(events[i]!.type) || events[i]!.type === 'buff')) {
         if (events[i]!.type === 'buff') { buffs.push(events[i]!); seenBuff = true; }
         else { nonBuff.push(events[i]!); if (seenBuff) changed = true; } // a result after a buff → order moved
         i++;
@@ -44,7 +49,7 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
       // beat advances early (its next beat is the buff, not the lead-carrying summon) so a dying ATTACKER is
       // dropped from the DOM before its skull fires at `landed`. Keeping order results→deaths→summons→buffs
       // restores both. (Summons still commute with the buff: a token vs a stat gain on a — usually dead — unit.)
-      if (buffs.length) while (i < events.length && events[i]!.type === 'summon') { out.push(events[i]!); i++; }
+      if (buffs.length) while (i < events.length && events[i]!.wave === w0 && events[i]!.type === 'summon') { out.push(events[i]!); i++; }
       out.push(...buffs);
     } else {
       out.push(events[i]!);

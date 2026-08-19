@@ -26,6 +26,7 @@ import { SPEC as CardPlateSpec } from './CardPlateTuner';
 import { SPEC as CardTextSpec } from './CardTextTuner';
 import { SPEC as ChargeGlyphSpec } from './ChargeGlyphTuner';
 import { SPEC as CleaveFxSpec } from './CleaveFxTuner';
+import { SPEC as ConsumeFxSpec } from './ConsumeFxTuner';
 import { SPEC as CritFxSpec } from './CritFxTuner';
 import { SPEC as DragSpec } from './DragTuner';
 import { SPEC as EndTurnSpec } from './EndTurnTuner';
@@ -78,6 +79,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   CardTextSpec,
   ChargeGlyphSpec,
   CleaveFxSpec,
+  ConsumeFxSpec,
   CritFxSpec,
   DragSpec,
   EndTurnSpec,

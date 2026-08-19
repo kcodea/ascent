@@ -228,9 +228,9 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Echo:** summon a random **Beast** and set its stats to **14/14**.',
   },
   {
-    // Owner add 2026-08-12 (owner 2026-08-12: now BOTH phases). Whenever you summon a Beast — in the shop or in
-    // combat — give it +6/+6 flat (`onSummonTribeBuffFlat` is wired in both the recruit and combat factories).
-    // Golden gives +12/+12. Rune of the Zoo scales the COMBAT half by the running summon count.
+    // Owner rework 2026-08-18: an ESCALATING summon buff — whenever you summon a Beast give it +3/+3, and the
+    // grant improves +3/+3 every 3 Beasts summoned (per-instance tally in `summonBonus`, both phases). Golden
+    // doubles both the grant and the step. The live grant is folded into the printed text.
     id: 'b2_beardsley',
     name: 'Beardsley',
     tribe: 'beast',
@@ -238,9 +238,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 6, health: 6 } }],
-    text: 'Whenever you summon a **Beast**, give it **+6/+6**.',
-    goldenText: 'Whenever you summon a **Beast**, give it **+12/+12**.',
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 3, health: 3, improve: 3, every: 3 } }],
+    text: 'Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.',
+    goldenText: 'Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
   },
   {
     // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets
@@ -262,7 +262,7 @@ export const SET2_BEASTS: CardDef[] = [
     id: 'b2_armadiyo',
     name: 'Armadiyo',
     tribe: 'beast',
-    tier: 4,
+    tier: 3,
     attack: 5,
     health: 3,
     keywords: ['T'],
@@ -276,7 +276,7 @@ export const SET2_BEASTS: CardDef[] = [
     id: 'b2_dunkey',
     name: 'Dunkey',
     tribe: 'beast',
-    tier: 5,
+    tier: 4,
     attack: 4,
     health: 6,
     keywords: [],
@@ -298,5 +298,35 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'manasaber', count: 1 } }],
     text: '**Echo:** summon a **Void Panther**.',
     goldenText: '**Echo:** summon **2 Void Panthers**.',
+  },
+
+  // ── Owner add 2026-08-18: the Echo-trigger pair ──────────────────────────────────────────────────────────
+  {
+    // Reacts to EVERY Rally you trigger (any friendly minion with the Rally keyword swinging) by re-firing your
+    // left-most Echo — a Rally board becomes an Echo engine. Golden triggers the Echo twice per Rally.
+    id: 'b2_hawkus',
+    name: 'Hawkus',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onRallyProcLeftmostEcho', params: {} }],
+    text: 'When a **Rally** is triggered, trigger your **left-most Echo**.',
+    goldenText: 'When a **Rally** is triggered, trigger your **left-most Echo** **twice**.',
+  },
+  {
+    // A one-shot burst of the same idea: fire your two left-most Echoes as the fight opens. Golden triggers each
+    // twice.
+    id: 'b2_spots',
+    name: 'Spots',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scTriggerLeftmostEchoes', params: { count: 2 } }],
+    text: '**Start of Combat:** trigger your **2 left-most Echoes**.',
+    goldenText: '**Start of Combat:** trigger your **2 left-most Echoes** **twice** each.',
   },
 ];

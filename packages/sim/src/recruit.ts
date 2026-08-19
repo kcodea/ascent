@@ -1070,6 +1070,12 @@ export function implosionCasts(state: RunState): number {
   return 1 + state.board.filter((c) => isTribe(c, 'demon')).length;
 }
 
+/** Dragonflame's repeat count: the base buff plus one more per Dragon you control (1 + your Dragons). Drives the
+ *  ×N badge so the card shows how many minions it will hit, based on the live board. */
+export function dragonflameCasts(state: RunState): number {
+  return 1 + state.board.filter((c) => isTribe(c, 'dragon')).length;
+}
+
 /**
  * Buff the SHOP by +attack/+health from a run-level source (a quest reward), through the same `tavernBuyBonus`
  * channel the Staff of Guel and Contract Butcher use — so "a quest buffs the shop" and "a card buffs the shop"
@@ -1507,6 +1513,7 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // golden Spell Warden's copies must yield to a card being discovered). `reservedHandSlots` counts the open
   // prompt plus anything queued behind it, so a chain of Discovers each keeps one.
   const cap = handCap(state) - reservedHandSlots(state);
+  let added = 0;
   for (let i = 0; i < reps && (overflow || state.hand.length < cap); i++) {
     const def = pool[rng.int(pool.length)]!;
     const cb = cardBuff(state, def.id);
@@ -1520,8 +1527,13 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
       golden: false,
     });
     takeFromPool(state, def.id);
+    added++;
   }
   state.rngCursor = rng.state();
+  // Gangplank: fire once per card actually conjured into hand (Ale, Shop spell, granted minion). After the
+  // cursor is settled so a watcher that re-rolls RNG can't perturb this conjure's stream. No recursion — the
+  // watcher adds no card.
+  for (let a = 0; a < added; a++) fireOnGainCard(state);
 }
 
 /** The Ruby token id (set 2). A Ruby minted into hand carries the run's live strength baked in. */
@@ -1575,6 +1587,8 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   // Set 2 — Candle Conduit: "when you get a Ruby" fires once per Ruby actually minted. A reaction only PLAYS a
   // Ruby (never mints), so this can't recurse.
   for (let r = 0; r < minted; r++) fireOnRubyGained(state);
+  // Gangplank: a minted Ruby is a card added to hand. Watchers add no card, so no recursion.
+  for (let r = 0; r < minted; r++) fireOnGainCard(state);
 }
 
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
@@ -2007,6 +2021,38 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
 
+  /** Set 2 — Gemline Martyr (Start of Turn): get `count` copies of `spellId` (Veinstorm) AND improve your
+   *  Rubies +attack/+health. Both halves reuse the established `battlecryGrantSpell` grant + `rubyStatGain`
+   *  Ruby-power raise; golden (baked in each via `gold(self)`) doubles both. Fired by `applyStartOfTurn`. */
+  startOfTurnGetSpellImproveRubies: (ctx, self, params) => {
+    const g = gold(self);
+    // Get the spell (Veinstorm) — same grant-to-hand path Storm Chaser / the old Gemline Martyr used.
+    const def = CARD_INDEX[str(params.spellId)];
+    if (def) {
+      for (let i = 0; i < num(params.count, 1) * g && ctx.state.hand.length < handCap(ctx.state); i++) {
+        ctx.state.hand.push({
+          uid: `b${ctx.state.uidSeq++}`,
+          cardId: def.id,
+          tribe: def.tribe,
+          attack: def.attack,
+          health: def.health,
+          keywords: [...def.keywords],
+          golden: false,
+        });
+      }
+    }
+    // Improve the run's Ruby strength (+ every Ruby still in hand) — the `rubyStatGain` core.
+    const a = num(params.attack, 1) * g;
+    const h = num(params.health, 1) * g;
+    if (a !== 0 || h !== 0) {
+      const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+      ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+      for (const card of ctx.state.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+      }
+    }
+  },
+
   /** Coinfire Forewoman (Gold spent): your minions of `tribe` gain +attack. The `every` threshold is applied by
    *  `applyGoldSpent` itself, so this only has to do the buff. */
   goldSpentBuffTribeAttack: (ctx, self, params) => {
@@ -2017,6 +2063,67 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (tribe && !isTribe(c, tribe as never)) continue;
       addBuff(c, nameOf(self), a, 0);
     }
+  },
+
+  /** Set 2 — Billings (Gold spent): give `count` RANDOM friendly minions of `tribe` +attack/+health. The
+   *  `every` threshold is applied by `applyGoldSpent`; this does the buff. `count` is the number of recipients
+   *  (NOT gold-doubled — golden doubles the STAT, matching "give 2 random Dwarves +10/+10"). Seeded off the
+   *  shared cursor so it stays replay-faithful; buffs fewer than `count` only if you field fewer Dwarves. */
+  goldSpentBuffRandomTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 5) * gold(self);
+    const h = num(params.health, 5) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const avail = [...pool];
+    const n = num(params.count, 2);
+    for (let k = 0; k < n && avail.length > 0; k++) {
+      const idx = rng.int(avail.length);
+      addBuff(avail.splice(idx, 1)[0]!, nameOf(self), a, h);
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Set 2 — Gangplank (a card was added to hand): give ONE friendly minion of `tribe` +attack/+health. Left-most
+   *  recipient (deterministic — arrange your line), and it may be Gangplank itself ("a friendly Dwarf" includes
+   *  it). Fired by `fireOnGainCard` off the conjure/grant path; golden doubles the grant. */
+  onGainCardBuffTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const target = ctx.state.board.find((c) => !tribe || isTribe(c, tribe as never));
+    if (!target) return;
+    addBuff(target, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self));
+  },
+
+  /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, this Demon consumes the
+   *  right-most Shop minion (golden: the 2 right-most). The tally is per-instance (`soldProgress`, the same
+   *  meter Runic Archivist uses) and carries round to round. Fired board-wide by `fireOnMinionSold`. */
+  minionSoldConsumeRightmost: (ctx, self, params) => {
+    const every = Math.max(1, num(params.count, 3));
+    const progress = (self.soldProgress ?? 0) + 1;
+    self.soldProgress = progress % every;
+    if (progress < every) return;
+    const eats = Math.floor(progress / every) * gold(self);
+    for (let e = 0; e < eats; e++) {
+      const i = rightmostShopMinion(ctx.state);
+      if (i < 0) return;
+      consumeShopMinion(ctx.state, self, i, 1);
+    }
+  },
+
+  /** Set 2 — Enigma (this consumed a minion): give minions in the Shop +attack/+health PERMANENTLY, via the same
+   *  `tavernBuyBonus` channel Contract Butcher / Staff of Guel use (a lasting buff on everything you buy from
+   *  here on, Fodder included). Guarded to THIS body's consume (`payload.minion === self`), matching Ashen
+   *  Broodlord's "when this consumes". Golden doubles. */
+  onConsumeBuffShop: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard } | undefined)?.minion !== self) return;
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    if (a === 0 && h === 0) return;
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
+    buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
   },
 
   /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
@@ -2089,9 +2196,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = (1 + rb.attack) * per;
     const h = (1 + rb.health) * per;
     if (a <= 0 && h <= 0) return;
+    // `tribe: 'all'` plays on EVERY friendly minion (Mountainbond's 2026-08-18 rework — "play a Ruby on your
+    // minions"); any other value filters by that tribe (the default `'kobold'` when the param is omitted).
     const tribe = str(params.tribe) || 'kobold';
     for (const c of [...state.board]) {
-      if (!isTribe(c, tribe as never)) continue;
+      if (tribe !== 'all' && !isTribe(c, tribe as never)) continue;
       addBuff(c, 'Ruby', a, h);
       fireOnRubyPlayed(state, c, a, h);
     }
@@ -2373,9 +2482,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const g = gold(self);
-    const a = num(params.attack, 6) * g;
-    const h = num(params.health, 6) * g;
+    // Escalating variant (Beardsley 2026-08-18): +`improve` per stat every `every` tribe summons, tracked on a
+    // per-instance counter. Absent `improve` → the plain flat grant, unchanged.
+    const improve = num(params.improve, 0);
+    const every = Math.max(1, num(params.every, 1));
+    const step = improve > 0 ? Math.floor((self.summonBonus ?? 0) / every) : 0;
+    const a = (num(params.attack, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
+    if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
   },
 
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {
@@ -2768,6 +2883,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     gainGold(ctx.state, num(params.amount, 6) * gold(self));
   },
 
+  /** Set 2 — Beggy (Sell): mint `count` Rubies to hand when this is sold (golden doubles). Fired by the sell
+   *  case via `fireOnSell`. `mintRubies` bakes the run's live Ruby strength in, like every other Ruby gain. */
+  onSellGetRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 2) * gold(self));
+  },
+
   /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
    *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
    *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
@@ -2796,6 +2917,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-BORN (Echo family, owner ruling): a borrowed Blaster damages YOUR board.
   deathrattleDamageAll: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleDamageAll(shopArena(ctx.state, self), params);
+  },
+  /** Set 2 — Fel Spikes (Echo), SHOP half: a borrowed / shop-fired Echo damages YOUR board (there is no enemy
+   *  in the shop, same ruling as Blaster) EXCEPT your minions of `exceptTribe`. Bodies taken to 0 die here too,
+   *  their own Echoes firing — mirroring the shop `damageAll`. */
+  deathrattleDamageAllExceptTribe: (ctx, self, params) => {
+    const amount = num(params.amount, 1) * gold(self);
+    if (amount <= 0) return;
+    const exc = str(params.exceptTribe);
+    for (const c of [...ctx.state.board]) {
+      if (exc && isTribe(c, exc as never)) continue;
+      c.health -= amount;
+    }
+    const dead = ctx.state.board.filter((c) => c.health <= 0);
+    for (const d of dead) {
+      const idx = ctx.state.board.indexOf(d);
+      if (idx >= 0) ctx.state.board.splice(idx, 1);
+    }
+    for (const d of dead) fireRecruitDeathrattles(makeContext(ctx.state), d);
   },
   // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
   deathrattleSummonOverflowBuff: (ctx, self, params) => {
@@ -4802,13 +4941,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    // Spell power applies ONCE to the grant, exactly like every other stat-granting spell (`spellBuffTarget`).
-    // It was missing entirely (owner report 2026-07-26): a Spellbinder's +0/+1 did nothing here, and the
-    // printed text matched the broken behaviour. Deliberately not multiplied by the Dragon count — no other
-    // spell scales spell power by anything, and doing so here would make Hoardflame silently the best
-    // spell-power payoff in the game.
-    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + per * dragons;
-    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + per * dragons;
+    // Owner 2026-08-18: spell power now scales the PER-DRAGON increment as well (reversing the once-only
+    // 2026-07-26 ruling), and the per-Dragon rate is asymmetric (`perAttack`/`perHealth`, default `per`). The
+    // base still takes spell power once, so with 0 Dragons the grant is base + spell power (e.g. 4/4 + 1/0 = 5/4).
+    void per;
+    const perA = num(params.perAttack, num(params.per, 1)) + spellAttackBonus(ctx.state);
+    const perH = num(params.perHealth, num(params.per, 1)) + spellHealthBonus(ctx.state);
+    const a = num(params.attack, 4) + spellAttackBonus(ctx.state) + perA * dragons;
+    const h = num(params.health, 4) + spellHealthBonus(ctx.state) + perH * dragons;
     addBuff(self, str(params._source) || 'Hoardflame', a, h);
   },
 
@@ -5248,6 +5388,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of picks) addBuff(t, 'Ale', attack, health);
   },
 
+  /** Set 2 — Dragonflame (shop cast): buff `base` + (# friendly `tribe`, Dragons) random friendlies by +atk/+hp,
+   *  WITH replacement — more buffs than bodies simply stacks. Spell power folds in like every stat spell. */
+  spellBuffRandomPerTribe: (ctx, _self, params) => {
+    const board = ctx.state.board;
+    if (board.length === 0) return;
+    const tribe = str(params.tribe) as Tribe;
+    const dragons = tribe ? board.filter((c) => isTribe(c, tribe)).length : 0;
+    const reps = num(params.base, 1) + dragons;
+    let attack = num(params.attack, 4);
+    let health = num(params.health, 4);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let i = 0; i < reps; i++) addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health);
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Set 2 — Flutter (shop cast): the targeted minion (`self`) gains +Health; a Dragon also gains Flurry. */
+  spellBuffHealthGrantFlurryDragon: (ctx, self, params) => {
+    let attack = 0;
+    let health = num(params.health, 10);
+    if (health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    addBuff(self, nameOf(self), attack, health);
+    if (isTribe(self, 'dragon') && !self.keywords.includes('W')) self.keywords.push('W');
+  },
+
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
    *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
    *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
@@ -5302,7 +5473,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
     // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
     // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
-    for (let i = 0; i < gold(self); i++) {
+    // Opt-in multicast (Rope Wrangler 2026-08-18): `perGold` grants +1 cast per that much Gold spent this turn,
+    // and `maxCasts` is a hard cap on the total. Absent → plain gold-scaled casting, unchanged.
+    const perGold = num(params.perGold, 0);
+    const maxCasts = num(params.maxCasts, 0);
+    let n = (perGold > 0 ? 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / perGold) : 1) * gold(self);
+    if (maxCasts > 0) n = Math.min(maxCasts, n);
+    for (let i = 0; i < n; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
       applyCastEffects(ctx, spellDef, target);
@@ -5887,13 +6064,22 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
   if (def.id === 'hoardflame') {
+    const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
+    const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number; per?: number } | undefined;
+    const baseA = Number(p?.attack ?? 4), baseH = Number(p?.health ?? 4);
+    const perAttack = Number(p?.perAttack ?? p?.per ?? 1), perHealth = Number(p?.perHealth ?? p?.per ?? 1);
     const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
       return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
     }).length;
-    const a = 4 + bonusA + dragons;
-    const h = 4 + bonusH + dragons;
-    return a > 4 || h > 4 ? def.text.replace('+4/+4', `{{+${a}/+${h}}}`) : def.text;
+    // Spell power folds into BOTH the base and the per-Dragon rate (owner 2026-08-18). Green the base total AND
+    // the live per-Dragon rate so the card always states what it will grant right now.
+    const perA = perAttack + bonusA, perH = perHealth + bonusH;
+    const a = baseA + bonusA + perA * dragons, h = baseH + bonusH + perH * dragons;
+    let t = def.text;
+    if (a > baseA || h > baseH) t = t.replace(`+${baseA}/+${baseH}`, `{{+${a}/+${h}}}`);
+    if (bonusA > 0 || bonusH > 0) t = t.replace(`+${perAttack}/+${perHealth}`, `{{+${perA}/+${perH}}}`);
+    return t;
   }
   // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
   // the same value the cast actually grants (see the gainEmbers override above). Handled before the
@@ -5958,6 +6144,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
     if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
     return def.text;
+  }
+  // Dragonflame: its per-buff "+A/+B" folds spell power (the repeat count is relational, not greened).
+  const dragonflame = def.effects.find((e) => e.do === 'spellBuffRandomPerTribe');
+  if (dragonflame) {
+    const pa = Number((dragonflame.params as { attack?: number } | undefined)?.attack ?? 4);
+    const ph = Number((dragonflame.params as { health?: number } | undefined)?.health ?? 4);
+    return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+  }
+  // Flutter: its "+N Health" becomes the full live "+A/+H" pair once spell power is up (like the Ales above).
+  const flutter = def.effects.find((e) => e.do === 'spellBuffHealthGrantFlurryDragon');
+  if (flutter) {
+    const ph = Number((flutter.params as { health?: number } | undefined)?.health ?? 10);
+    return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
   }
   // Beefy: its "+A/+B" lands on the target AND both neighbours, and every grant picks up spell power — so the
   // printed number must too (the live-text rule; the spell-power audit test pins it).
@@ -6081,6 +6280,25 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   for (const eff of def.effects) {
     if (eff.on !== 'onSell') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
+/**
+ * Set 2 — tell every BOARD minion that a card was ADDED TO HAND (Gangplank). Fired from the shared conjure /
+ * grant chokepoint (`conjureToHand`) and the Ruby mint (`mintRubies`) — the "grant to hand" paths — so an Ale,
+ * a conjured spell, a granted minion or a minted Ruby all count. Deliberately NOT hooked into every raw
+ * `hand.push` (a bought minion, a Discover pick): those are direct player actions, not the grant path the card
+ * reacts to. Watcher effects add no card, so this can't recurse.
+ */
+export function fireOnGainCard(state: RunState): void {
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def || !def.effects.some((e) => e.on === 'onGainCard')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'onGainCard') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
   }
 }
 
@@ -7258,6 +7476,24 @@ export function applyEndOfTurn(state: RunState): void {
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+}
+
+/**
+ * Set 2 — fire every board minion's `startOfTurn` effects as a shop turn opens (Gemline Martyr). The symmetric
+ * twin of `applyEndOfTurn`, dispatched from `advanceCombat` alongside the Start-of-Turn rune rewards. Kept
+ * deliberately simple (no Chronos/beat repeats) — the one card that uses it wants a single per-turn tick, and
+ * the simpler Start-of-Turn rune handlers next to it dispatch the same way.
+ */
+export function applyStartOfTurn(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'startOfTurn') continue;
+      RECRUIT_FACTORIES[effect.do]?.(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
 }
 
 /** Record that a quest/rune End-of-Turn reward TRIGGERED a specific unit, so the UI can draw a gold tendril

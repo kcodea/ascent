@@ -111,6 +111,7 @@ export type GameEvent =
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
+  | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Axeman. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
   | 'onLoseDivineShield'
   | 'onConsume'
   | 'onKill'
@@ -127,7 +128,9 @@ export type GameEvent =
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
-  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
+  | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
+  | 'onGainCard' // recruit phase: a card was added to your hand via the conjure/grant path (Gangplank)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'rubyPlayedAnywhere' // Candle Conduit: a Ruby was played on ANY friendly minion (passive marker — the ruby paths scan for it; never dispatched through the bus)
   | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
@@ -251,6 +254,16 @@ export type EffectFactoryId =
   | 'scGrantRightmostEcho'         // Set 2 — Endless Overseer: graft an Imp-summoning Echo onto your right-most minion
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
+  | 'deathrattleBuffShopPermanent' // Set 2 — Malphas Echo: death buffs Shop minions permanently
+  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp
+  | 'rallyCastNamedSpell' // Set 2 — Flamebeat Drake: Rally casts a named spell (Dragonflame)
+  | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
+  | 'rallyGrantRandomShoutMinion' // Set 2 — Roarcollector: Rally adds a random Shout minion to hand
+  | 'rallyTriggerTribeShouts' // Set 2 — Embercrest: Rally re-triggers your Dragon Shouts
+  | 'spellBuffRandomPerTribe' // Set 2 — Dragonflame: buff a friendly, repeat per Dragon (random)
+  | 'spellBuffHealthGrantFlurryDragon' // Set 2 — Flutter: +Health; a Dragon also gains Flurry
+  | 'onRallyProcLeftmostEcho' // Set 2 — Hawkus: any friendly Rally triggers your left-most Echo
+  | 'scTriggerLeftmostEchoes' // Set 2 — Spots: Start of Combat triggers your N left-most Echoes
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
@@ -279,6 +292,17 @@ export type EffectFactoryId =
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
+  | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
+  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (Start of Combat): play N permanent Rubies on self + adjacent same-tribe
+  | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
+  | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
+  | 'onSellGetRubies' // Set 2 — Beggy (onSell): get N Rubies when this is sold
+  | 'startOfTurnGetSpellImproveRubies' // Set 2 — Gemline Martyr (Start of Turn): get a Veinstorm + improve your Rubies
+  | 'goldSpentBuffRandomTribe' // Set 2 — Billings (goldSpent): give N random friendly tribe minions +atk/+hp
+  | 'onGainCardBuffTribe' // Set 2 — Gangplank (onGainCard): a card added to hand buffs a friendly tribe minion
+  | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
+  | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when this consumes a minion, buff Shop minions permanently
+  | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
   | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion
@@ -1878,7 +1902,14 @@ export type CombatEvent = (
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
-) & { step?: number; avenge?: true; key?: string; srcCard?: string };
+) & { step?: number; avenge?: true; key?: string; srcCard?: string; wave?: number };
+// `wave` (Fel Spikes / multi-pass echo pacing): a stable presentation tag marking which AoE PASS ("wave") an
+// event belongs to. Unlike `step` — which deaths bump mid-pass (`killOrReborn` calls `nextStep`) — a wave id
+// stays constant across a whole pass, so all of a pass's damage + its synchronous reactor buffs + resulting
+// deaths share one id. The replay groups a contiguous same-`wave` run into ONE moment (a simultaneous volley),
+// and a change in `wave` id splits the moment (a short pause between passes). Opt-in: only an effect that wraps
+// a pass in `ctx.wave(fn)` stamps it, so untagged combat is byte-identical. Pure presentation metadata like
+// `step` — never read by resolution, never affects outcomes.
 // `key`/`srcCard` (CHOREOGRAPHER PR 23): the registry key of the minion EFFECT that emitted this event
 // (`factory:<do>:<on>`) and the card that ran it — stamped by the simulator's dispatch context, exactly like
 // `step`/`avenge`. Pure presentation metadata: never read by resolution, so outcomes cannot depend on it.
@@ -2263,6 +2294,8 @@ export interface CombatContext {
    *  1/1 (the run's `rubyBonus`). Player-authoritative today; the enemy side is zero. */
   rubyBonusFor(side: Side): { attack: number; health: number };
   /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
+  /** This side's live tavern tier — used to cap random-minion generation (e.g. Bullseye / Menagerie Mammoth). */
+  tierFor(side: Side): number;
   spellsThisTurnFor(side: Side): number;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */
@@ -2399,7 +2432,7 @@ export interface CombatContext {
    *  Battlecry re-fired in combat (Ryme → Sea Urchin). Player-only. Picks the actual minion(s) now from the
    *  buyable pool (≤ tavern tier, active tribes, tribe-filtered, excluding `exclude`) and routes each through
    *  `grantToHand`, so the real card animates in. `sourceUid` is the granting minion. */
-  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number): void;
+  grantRandomMinion(count: number, tribe: string | undefined, side: Side, exclude?: string, sourceUid?: string, fixedTier?: number, shoutOnly?: boolean): void;
   /** A minion casts a spell mid-combat (Taragosa's Growth). Tallies the cast (the running per-side count
    *  is reported in the `spellCast` event payload so Guel scales) and, for the player, carries it back via
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
@@ -2486,10 +2519,18 @@ export interface CombatContext {
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;
-  /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
-  damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
+  /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). `source` credits the
+   *  damaging minion — pass it so effects keyed on "a friendly Demon dealt damage" (and kill attribution) see
+   *  it (e.g. Fel Spikes' Echo attributing each hit to itself). */
+  damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean, source?: Minion): void;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
    *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
    *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */
   armBleed(minion: Minion, everyN: number, targets: number): void;
+  /** Run `fn` inside a fresh presentation WAVE: every event emitted during `fn` (its direct damage, the
+   *  synchronous reactor buffs those hits fire, and any deaths they resolve) is stamped with one stable `wave`
+   *  id, so the replay shows them as a single simultaneous volley and inserts a short pause before the next
+   *  wave. Used by multi-pass AoE echoes (Fel Spikes) to pace each pass. Purely presentational — it changes no
+   *  resolution order or outcome; nesting is supported (an inner wave shadows the outer for its duration). */
+  wave<T>(fn: () => T): T;
 }

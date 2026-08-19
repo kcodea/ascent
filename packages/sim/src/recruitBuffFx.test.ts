@@ -87,20 +87,20 @@ describe('recruitBuffFx capture (source → target)', () => {
     // the ONLY thing touching it. That isolates the reaction's source.
     const pennycat: BoardCard = { uid: 'pc', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     // A SECOND Dragon, deliberately NOT adjacent to Karwind. Since the 2026-08-07 rework there is no adjacency
-    // clause at all, so this now pins the opposite rule: distance makes no difference, both take the same +4/+4.
+    // clause at all, so this now pins the opposite rule: distance makes no difference, both take the same +3/+3.
     const farDragon: BoardCard = { uid: 'far', cardId: 'frontdrake', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false };
     const s: RunState = { ...createRun(1), board: [karwind, dragon, pennycat, farDragon] };
 
     playCard(s, pennycat); // a Battlecry fires → Karwind reacts
 
-    // One coalesced source→target reaction event per Dragon (owner balance 2026-08-18: a flat +4/+4, the 20%
+    // One coalesced source→target reaction event per Dragon (owner balance 2026-08-18: a flat +3/+3, the 20%
     // double-trigger clause removed). What this pins is that the two Dragons get the SAME thing.
     const drFx = s.recruitBuffFx.filter((e) => e.targetUid === 'dr');
     const farFx = s.recruitBuffFx.filter((e) => e.targetUid === 'far');
     expect(drFx.length).toBe(1);              // one coalesced reaction event, no duplicate
     expect(drFx[0]!.sourceUid).toBe('kw');    // Karwind, not the played Pennycat
     expect(drFx[0]!.sourceCardId).toBe('karwind');
-    expect(drFx[0]!.attack, 'the flat +4/+4 grant').toBe(4);
+    expect(drFx[0]!.attack, 'the flat +3/+3 grant').toBe(3);
     expect(drFx[0]!.health).toBe(drFx[0]!.attack);
     expect(farFx.length, 'distance no longer changes anything').toBe(1);
     expect(farFx[0]!.attack, 'not adjacent → the SAME grant now').toBe(drFx[0]!.attack);

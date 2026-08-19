@@ -777,15 +777,6 @@ export const RUNES: RuneDef[] = [
   },
 
   {
-    id: 'rune_flooded_vault',
-    name: 'Rune of the Flooded Vault',
-    cost: 5,
-    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
-    previewCards: ['d2_curator'],
-    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_unbroken_vein',
     name: 'Rune of the Unbroken Vein',
     cost: 5,
@@ -803,15 +794,6 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Market Tormentor**. Your **Market Tormentors** also enchant the **left-most** Shop slot.',
     previewCards: ['dm_tormentor'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_tormentor'] }, { kind: 'runeDisplayCase' }] },
-    sets: ['set2'],
-  },
-  {
-    id: 'rune_wrangler',
-    name: 'Rune of the Wrangler',
-    cost: 3,
-    text: 'Get an **Imp Wrangler**. Imps summoned by your **Imp Wranglers** have **Ward** and **Taunt**.',
-    previewCards: ['dm_wrangler'],
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_wrangler'] }, { kind: 'combatFlag', flag: 'runeWrangler' }] },
     sets: ['set2'],
   },
   {
@@ -1583,17 +1565,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Chimerus**.',
     reward: { kind: 'grant', cards: ['chimerus'] },
   },
-  {
-    // Owner addition 2026-08-07. Hands over Quil, whose Start of Combat re-casts your left-most held spell
-    // every fight — so the rune's value is whatever spell you choose to park on the left of your hand.
-    id: 'rune_wildscript',
-    name: 'Rune of the Wildscript',
-    cost: 5,
-    epic: true,
-    text: 'Get a **Quil**.',
-    previewCards: ['b2_quil'], // text names it — the forge hover shows the card
-    reward: { kind: 'grant', cards: ['b2_quil'] },
-  },
   // ── the 2026-08-07 owner Epic batch (14 runes) ──
   {
     id: 'rune_enchantment',
@@ -1809,17 +1780,6 @@ export const EPIC_RUNES: RuneDef[] = [
   },
 
   {
-    id: 'rune_broodmaster',
-    name: 'Rune of the Broodmaster',
-    cost: 5,
-    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
-    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
-    epic: true,
-    reward: { kind: 'runeBroodmaster' },
-    sets: ['set2'],
-  },
-
-  {
     id: 'rune_moonhowl',
     name: 'Rune of Moonhowl',
     cost: 5,
@@ -1838,16 +1798,6 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['d2_mirrorwing'],
     epic: true,
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_mirrorwing'] }, { kind: 'runeSharedReflection' }] },
-    sets: ['set2'],
-  },
-  {
-    id: 'rune_battle_refraction',
-    name: 'Rune of Battle Refraction',
-    cost: 6,
-    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
-    previewCards: ['k_prismcaster'],
-    epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
     sets: ['set2'],
   },
   {
@@ -1991,6 +1941,59 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
+  {
+    // ARCHIVED 2026-08-18 (owner). Was an Epic rune. Quil (b2_quil) itself stays in the pool.
+    id: 'rune_wildscript',
+    name: 'Rune of the Wildscript',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Quil**.',
+    previewCards: ['b2_quil'],
+    reward: { kind: 'grant', cards: ['b2_quil'] },
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) — Water Dragon archived
+    id: 'rune_flooded_vault',
+    name: 'Rune of the Flooded Vault',
+    cost: 5,
+    text: "When **Water Dragon’s** Avenge triggers, also cast the **left-most spell** in your hand without consuming it.",
+    previewCards: ['d2_curator'],
+    reward: { kind: 'combatFlag', flag: 'runeFloodedVault' },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Imp Wrangler (dm_wrangler).
+    id: 'rune_wrangler',
+    name: 'Rune of the Wrangler',
+    cost: 3,
+    text: 'Get an **Imp Wrangler**. Imps summoned by your **Imp Wranglers** have **Ward** and **Taunt**.',
+    previewCards: ['dm_wrangler'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_wrangler'] }, { kind: 'combatFlag', flag: 'runeWrangler' }] },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Broodwright (dm_broodwright).
+    id: 'rune_broodmaster',
+    name: 'Rune of the Broodmaster',
+    cost: 5,
+    text: 'Whenever a **Broodwright** buffs an Imp, it also gains those stats.',
+    previewCards: ['dm_broodwright', 'impscrap'], // text names the Imp too
+    epic: true,
+    reward: { kind: 'runeBroodmaster' },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-08-18 (owner) alongside Prismcaster (k_prismcaster).
+    id: 'rune_battle_refraction',
+    name: 'Rune of Battle Refraction',
+    cost: 6,
+    text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
+    previewCards: ['k_prismcaster'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeBattleRefraction' },
+    sets: ['set2'],
+  },
   // ── 2026-08-12 owner archive batch (each retired alongside its subject minion, except Spellhide) ─────────
   {
     // Archived 2026-08-12 (owner) alongside Groveweaver.

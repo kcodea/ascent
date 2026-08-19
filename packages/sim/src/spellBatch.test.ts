@@ -161,7 +161,9 @@ describe('spell batch — tranche B2 (shop / economy)', () => {
   it('Sigil of Kinship: refreshes the shop with minions of the chosen minion’s type (board OR a shop offer)', () => {
     const base = createRun(3);
     const tribe = base.tribes[0]!; // an ACTIVE tribe (its cards have pool copies)
-    let s: RunState = { ...base, board: [{ uid: 'm1', cardId: 'sandbag', tribe, attack: 2, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'sigilkinship')] };
+    // Tier 6 so the chosen tribe is guaranteed offerable cards — after the 2026-08-18 archive, set 2's demon
+    // line has no tier-1 card, so a tier-1 refresh would legitimately come back empty (not what this probes).
+    let s: RunState = { ...base, tier: 6, board: [{ uid: 'm1', cardId: 'sandbag', tribe, attack: 2, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'sigilkinship')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
     expect(s.shop.length).toBeGreaterThan(0);
     expect(s.shop.every((o) => { const d = CARD_INDEX[o.cardId]!; return d.tribe === tribe || d.tribe2 === tribe; })).toBe(true);
@@ -331,7 +333,7 @@ describe('spell batch — tranche C (Discover-based)', () => {
 
   it('Funeral on Loan: a borrowed minion also fires its SHOUT — it is played, then destroyed', () => {
     // Owner 2026-07-24: only the Echo used to fire, so a Discovered minion carrying BOTH silently lost half
-    // its text. Imp Overseer has both — Shout: your Imps get +2/+2; Echo: summon an Imp.
+    // its text. Imp Overseer has both — Shout: your Imps get +2/+1 (2026-08-18); Echo: summon an Imp.
     const imp: BoardCard = { uid: 'i1', cardId: 'impscrap', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false };
     const borrowed: BoardCard = { uid: 'b', cardId: 'impoverseer', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, borrowed: true };
     let s: RunState = { ...createRun(1), board: [imp], hand: [borrowed] };
@@ -340,7 +342,7 @@ describe('spell batch — tranche C (Discover-based)', () => {
     s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
 
     const survivor = s.board.find((c) => c.uid === 'i1')!;
-    expect([survivor.attack - a0, survivor.health - h0]).toEqual([2, 2]); // the SHOUT fired
+    expect([survivor.attack - a0, survivor.health - h0]).toEqual([2, 1]); // the SHOUT fired (+2/+1)
     expect(s.board.filter((c) => c.cardId === 'impscrap').length).toBe(2); // the ECHO fired (one summoned)
     expect(s.board.some((c) => c.cardId === 'impoverseer')).toBe(false); // still never boarded
     expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // still consumed
@@ -514,7 +516,7 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 1, 1)], hand: [mkSpell('sp', 'hoardflame')], playedThisTurn: ['emissary', 'cinder'] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
     const m = s.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1
+    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1 = +6/+6
   });
 
   it('Hoardflame live text folds in dragons played this turn', () => {

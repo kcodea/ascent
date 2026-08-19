@@ -56,111 +56,58 @@ describe('Grobbus — Avenge (3) grants a random Demon', () => {
   });
 });
 
-// ── TRANSCENDANT (T4 Dragon 4/5, Ward) — adjacent Dragons are Engraved; SoC buffs your Dragons ──────────────
-// Owner respec 2026-08-17: the Engrave is no longer a one-shot Start-of-Combat grant, it is a LIVE ADJACENCY
-// AURA evaluated as stats are gained (`auraEngraved` in simulate.ts). Its OWN +3/+3 still ends up engraved for
-// the neighbours — Transcendant is trivially alive when its own SoC resolves — so the cases below read the same
-// as they did before the respec. What is new is the third `it`: the aura engraves gains from ANY source.
-describe('Transcendant — adjacent Dragons are Engraved, and Start of Combat buffs the flight', () => {
-  // Layout: Dragon | Transcendant | Beast. The left neighbour is a Dragon (engraved + buffed), the right one
-  // is not (buffed by nothing — it isn't a Dragon — and never engraved).
+// ── TRANSCENDANT (T4 Dragon 3/4, Ward) — adjacent Dragons are Engraved ───────────────────────────────────────
+// Owner respec 2026-08-18: Transcendant NO LONGER provides a buff of its own — its Start-of-Combat grant is gone,
+// its keywords are just Ward (['DS'], no 'SC' pill), and effects is []. All it does now is the LIVE ADJACENCY
+// AURA (unchanged in the engine): an adjacent Dragon keeps its IN-COMBAT stat-gains (carried back via
+// `playerPermaBuffs`, `.engraved === true`), a far one does not. Because Transcendant supplies no gains itself,
+// the coverage below drives the aura with an EXTERNAL in-combat gain source: `d2_cinderchef` (Rally: +1/+1 on
+// each swing) placed adjacent to vs. far from a living Transcendant.
+describe('Transcendant — adjacent Dragons are Engraved (aura only, no self-buff)', () => {
+  // Layout: Cinderchef(adjacent) | Transcendant | Beast spacer | Cinderchef(far). Both chefs are Dragons that
+  // swing every turn and gain +1/+1 via Rally; only the adjacent one's gains are Engraved. The enemy is a giant
+  // 0-attack sandbag: it never dies (combat runs to the iteration guard) and never mutates the fight, so both
+  // chefs rack up many identical Rally gains.
   const fight = (golden = false) => simulate(
     [
-      bm('d2_orivax', 'L', 0, 9999),
-      bm('d2_transcendence', 'T', 0, 9999, golden ? { golden: true } : {}),
-      bm('pack', 'R', 0, 9999),
-      bm('d2_orivax', 'F', 0, 9999), // a far-away Dragon: buffed, NOT engraved
+      bm('d2_cinderchef', 'CA', 3, 40000, { keywords: ['RL'] }),                       // adjacent to Transcendant
+      bm('d2_transcendence', 'T', 0, 40000, golden ? { golden: true, keywords: ['DS'] } : { keywords: ['DS'] }),
+      bm('pack', 'SP', 0, 40000),                                                       // a Beast spacer
+      bm('d2_cinderchef', 'CF', 3, 40000, { keywords: ['RL'] }),                        // far from Transcendant
     ],
     [{ cardId: 'sandbag', attack: 0, health: 40000 }],
     makeRng(5), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
   );
 
-  it('the card is a T4 3/4 Dragon with Ward', () => {
+  it('the card is a T4 3/4 Dragon with Ward only — no buff of its own', () => {
     const def = CARD_INDEX['d2_transcendence']!;
     expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 3, 4, 'dragon']); // owner balance 2026-08-18
-    expect(def.keywords, 'Ward + the Start-of-Combat pill').toEqual(['DS', 'SC']);
+    expect(def.keywords, 'Ward only — the Start-of-Combat pill is gone').toEqual(['DS']);
+    expect(def.effects ?? [], 'Transcendant no longer PROVIDES any effect of its own').toEqual([]);
     expect(poolFor('set2').all.some((c) => c.id === 'd2_transcendence'), 'buyable in set 2').toBe(true);
   });
 
-  it('every OTHER Dragon gets +2/+3 — the Beast gets nothing', () => {
-    // The sim renumbers minions by board position (m0 = L, m1 = Transcendence, m2 = R, m3 = F); only the
-    // carry-back fields keep the authored `sourceUid`. (owner balance 2026-08-18: +3/+3 → +2/+3, excludeSelf)
-    const buffs = fight().events.filter((e) => e.type === 'buff') as
-      { target: string; source: string; attack: number; health: number }[];
-    const from = (uid: string) => buffs.filter((b) => b.source === 'm1' && b.target === uid);
-    expect(from('m0').some((b) => b.attack === 2 && b.health === 3), 'the adjacent Dragon was not buffed').toBe(true);
-    expect(from('m3').some((b) => b.attack === 2 && b.health === 3), 'the far Dragon was not buffed').toBe(true);
-    expect(from('m2').length, 'the adjacent Beast must not be buffed — Dragons only').toBe(0);
-  });
-
-  it('only the ADJACENT Dragon keeps its gains — Engrave is the difference', () => {
-    // `playerPermaBuffs` is the carry-back for combat gains that stick; the aura is what earns an entry.
+  it('only the ADJACENT Dragon keeps its combat gains — Engrave is the difference', () => {
+    // `playerPermaBuffs` is the carry-back for combat gains that stick; the aura is what earns an entry. Both
+    // chefs gain the same +1/+1 per swing; only the one standing next to Transcendant carries it back.
     const perma = fight().playerPermaBuffs ?? [];
-    const kept = new Set(perma.map((p) => p.sourceUid));
-    expect(kept.has('L'), 'the adjacent Dragon should have been Engraved').toBe(true);
-    expect(kept.has('F'), 'a far Dragon is buffed but NOT Engraved — it keeps nothing').toBe(false);
-    expect(kept.has('R'), 'the Beast neighbour is off-tribe — never Engraved').toBe(false);
+    const kept = new Map(perma.map((p) => [p.sourceUid, p]));
+    expect(kept.has('CA'), 'the adjacent chef should have been Engraved').toBe(true);
+    expect(kept.get('CA')!.attack, 'it kept real Rally gains').toBeGreaterThan(0);
+    expect(kept.get('CA')!.engraved, 'the carry-back entry is flagged Engraved').toBe(true);
+    expect(kept.has('CF'), 'the far chef gained the same +1/+1 but keeps nothing').toBe(false);
   });
 
-  it('the aura engraves gains from ANY source, not just its own Start of Combat', () => {
-    // This is the respec in one assertion. A SECOND Transcendant sits far from `L` and buffs the whole flight;
-    // `L` keeps that buff too, purely because it is standing next to a living Transcendant when the buff lands.
-    // Under the old one-shot rule the neighbour carried the EG keyword and would have kept it either way, so
-    // the difference shows in `F`: it is buffed by BOTH Transcendants and adjacent to NEITHER, and keeps nothing.
-    const r = simulate(
-      [
-        bm('d2_transcendence', 'T2', 0, 9999),
-        bm('d2_orivax', 'L', 0, 9999),      // flanked by both Transcendants
-        bm('d2_transcendence', 'T1', 0, 9999),
-        bm('pack', 'B', 0, 9999),           // a Beast spacer, so F touches no Transcendant
-        bm('d2_orivax', 'F', 0, 9999),
-      ],
-      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
-      makeRng(6), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
-    );
-    const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
-    // Both Transcendants buff every Dragon, so `L` keeps +4/+6 — two separate grants, both engraved by the aura.
-    expect(kept.get('L')?.attack, 'the neighbour should keep BOTH Start-of-Combat buffs').toBe(4);
-    expect(kept.get('L')?.engraved, 'the carry-back entry must be flagged Engraved').toBe(true);
-    expect(kept.has('F'), 'F is buffed twice but adjacent to neither — it keeps nothing').toBe(false);
-  });
-
-  it('an ALL-TYPES neighbour is a Dragon for the aura too', () => {
-    // Paragon counts as every tribe, so it is a Dragon for every other Dragon check in the engine — it must be
-    // buffed AND engraved like one (owner 2026-08-17; the first cut compared tribes directly and missed it).
-    const paragon = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && !d.token)!;
-    const r = simulate(
-      [bm(paragon.id, 'P', 0, 9999), bm('d2_transcendence', 'T', 0, 9999)],
-      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
-      makeRng(7), CARD_INDEX, combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }),
-    );
-    const kept = new Map((r.playerPermaBuffs ?? []).map((p) => [p.sourceUid, p]));
-    expect(kept.get('P')?.attack, 'Paragon should keep the +2/+3 like any adjacent Dragon').toBe(2);
-    expect(kept.get('P')?.engraved).toBe(true);
-  });
-
-  it('GOLDEN also doubles every combat stat-gain its adjacent Dragons receive', () => {
-    // Same upgrade golden Taurus gets (`gainMult`), and worded the same on the card — but live rather than
-    // stamped, so it applies to whatever lands while Transcendant is alive beside them.
-    const layout = (golden: boolean) => simulate(
-      [bm('d2_orivax', 'L', 0, 9999), bm('d2_transcendence', 'T', 0, 9999, golden ? { golden: true } : {})],
-      [{ cardId: 'sandbag', attack: 0, health: 40000 }],
-      makeRng(8), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }),
-    );
-    // Plain: +2/+3 lands as +2/+3. Golden: the grant is +4/+6 AND the neighbour's gains are doubled → +8 atk.
-    const keptOf = (g: boolean) => (layout(g).playerPermaBuffs ?? []).find((p) => p.sourceUid === 'L');
-    expect(keptOf(false)?.attack, 'plain Transcendant grants +2/+3').toBe(2);
-    expect(keptOf(true)?.attack, 'golden: +4/+6 doubled again by the 2x aura').toBe(8);
-  });
-
-  it('golden doubles the buff and its neighbours gains, but never widens the Engrave', () => {
-    const buffs = fight(true).events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number }[];
-    // The FAR Dragon shows the raw golden grant: +4/+6. The adjacent one is inside the 2x aura, so the same
-    // grant lands on it as +8 atk — the two upgrades compose exactly as the card text reads.
-    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm3' && b.attack === 4), 'golden should give +4/+6').toBe(true);
-    expect(buffs.some((b) => b.source === 'm1' && b.target === 'm0' && b.attack === 8), 'doubled again for a neighbour').toBe(true);
-    const kept = new Set((fight(true).playerPermaBuffs ?? []).map((p) => p.sourceUid));
-    expect(kept.has('F'), 'golden must not widen the Engrave beyond the neighbours').toBe(false);
+  it('GOLDEN doubles every combat stat-gain its adjacent Dragon receives', () => {
+    // Golden Transcendant doubles its adjacent Dragons' gains (the same `gainMult` golden Taurus grants), live
+    // rather than stamped. Same rng + attack in both runs → identical swing count, so the kept total is exactly 2x.
+    const plainKept = (fight(false).playerPermaBuffs ?? []).find((p) => p.sourceUid === 'CA')!;
+    const goldenKept = (fight(true).playerPermaBuffs ?? []).find((p) => p.sourceUid === 'CA')!;
+    expect(plainKept.attack, 'plain: each +1/+1 kept at face value').toBeGreaterThan(0);
+    expect(goldenKept.attack, 'golden: the adjacent chef’s gains are doubled').toBe(plainKept.attack * 2);
+    expect(goldenKept.engraved).toBe(true);
+    // The doubling never widens WHO is engraved — the far chef still keeps nothing.
+    expect((fight(true).playerPermaBuffs ?? []).some((p) => p.sourceUid === 'CF'), 'golden must not widen the Engrave').toBe(false);
   });
 });
 
@@ -180,10 +127,10 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
     (r.events.filter((e) => e.type === 'buff') as { source?: string; attack: number; health: number }[])
       .filter((b) => b.source === 'm0' && b.attack === per && b.health === per);
 
-  it('the card is a T4 5/5 Dwarf', () => {
+  it('the card is a T4 5/5 Dwarf (archived 2026-08-19 — out of the pool, still resolvable)', () => {
     const def = CARD_INDEX['dw_oaf']!;
     expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 5, 5, 'dwarf']); // owner balance 2026-08-18
-    expect(poolFor('set2').all.some((c) => c.id === 'dw_oaf'), 'buyable in set 2').toBe(true);
+    expect(poolFor('set2').all.some((c) => c.id === 'dw_oaf'), 'archived — not in the set').toBe(false);
   });
 
   it('a dry turn still pays once — the base grant is not gated on Ales', () => {

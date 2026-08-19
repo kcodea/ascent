@@ -1100,7 +1100,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 });
   });
 
-  it('Imp Overseer Battlecry gives your Imps +2/+2 run-wide (board Imps + the impBuff carry for future ones)', () => {
+  it('Imp Overseer Battlecry gives your Imps +2/+1 run-wide (board Imps + the impBuff carry for future ones)', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'recruit',
@@ -1109,8 +1109,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'o' });
     const imp = s.board.find((c) => c.uid === 'i1')!;
-    expect([imp.attack, imp.health]).toEqual([3, 3]); // 1/1 Imp + 2/2
-    expect(s.impBuff).toEqual({ attack: 2, health: 2 }); // run-wide, so Imps made later inherit it
+    expect([imp.attack, imp.health]).toEqual([3, 2]); // 1/1 Imp + 2/1 (2026-08-18: imp buff is now +2/+1)
+    expect(s.impBuff).toEqual({ attack: 2, health: 1 }); // run-wide, so Imps made later inherit it
   });
 
   it('Rope Wrangler — End of Turn casts Lasso, stealing a tavern minion into hand', () => {
@@ -1312,8 +1312,8 @@ describe('run loop (@game/sim)', () => {
 
   it('Karwind buffs your Dragons whenever a Battlecry triggers', () => {
     // Play Hoard Cleric (Dragon Battlecry +3/+3 to dragons) with Karwind on board: the Cleric's
-    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons a flat +4/+4
-    // (owner balance 2026-08-18: the 20% double-trigger clause was removed).
+    // Battlecry buffs Karwind +3/+3, then the battlecry-triggered proc gives Dragons a flat +3/+3
+    // (owner balance 2026-08-18: Karwind → Tier 5, proc dropped +4/+4 → +3/+3).
     let s: RunState = {
       ...createRun(1),
       embers: 0,
@@ -1323,8 +1323,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // 2/12 + 3/3 (Cleric) + 4/4 (Karwind flat proc) = 9/19
-    expect([k.attack, k.health], 'Karwind flat +4/+4 proc').toEqual([9, 19]);
+    // 2/12 + 3/3 (Cleric) + 3/3 (Karwind flat proc) = 8/18
+    expect([k.attack, k.health], 'Karwind flat +3/+3 proc').toEqual([8, 18]);
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -1340,10 +1340,10 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +4/+4.
+    // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +3/+3.
     // What this test PINS is the proc COUNT (two fires, not one), so assert the gain is 2 procs' worth.
     const gain = k.attack - 2 - 6; // strip the base and the Cleric's own +6
-    expect(gain, 'two Karwind procs at flat +4 each').toBe(8);
+    expect(gain, 'two Karwind procs at flat +3 each').toBe(6);
     expect(k.health - 12 - 6).toBe(gain); // symmetric grant
   });
 
@@ -5884,14 +5884,13 @@ describe('Undead quests — combat-objective completion + reward application', (
   it('Crypt Broker Battlecry: conjures a random Echo minion and triggers its Echo — damage included', () => {
     // Playing Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
     // combat — so the run Deathrattle tally rises even though nothing was in combat.
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [], hand: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }] };
+    // Broker given plenty of Health so it survives whatever Echo the seed conjures (a damaging Echo would
+    // otherwise chip it) — the point here is that the conjured Echo FIRES out of combat, seed-agnostically.
+    // (Was pinned to Blaster's AoE Echo, which is now archived, 2026-08-18.)
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [], hand: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 3, health: 30, keywords: [], golden: false }] };
     const drBefore = s.deathrattlesTriggered;
     s = reduce(s, { type: 'play', uid: 'cb' });
-    // This seed conjures BLASTER — whose triggered Echo now damages YOUR board (owner ruling 2026-08-04:
-    // shop-fired Echoes are real). The 3-health Broker eats 3 and dies to its own find, which is the ruling
-    // working consistently: "trigger its Echo now" means the whole Echo, damage included.
-    expect(s.board.some((c) => c.cardId === 'cryptbroker'), 'the Broker died to the Blaster Echo it triggered').toBe(false);
-    expect(s.hand.length).toBe(1); // the conjured Echo minion (Blaster) is in hand
+    expect(s.hand.length).toBe(1); // the conjured Echo minion is in hand
     expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
     expect(s.deathrattlesTriggered).toBeGreaterThanOrEqual(drBefore + 1); // its Echo fired (tallied) out of combat
   });

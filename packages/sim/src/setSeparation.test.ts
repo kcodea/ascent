@@ -107,13 +107,13 @@ describe('set separation — combat random picks respect the run’s set', () =>
   });
 
   it('a RECRUIT Discover is already set-scoped — Sea Urchin was not a leak', () => {
-    // The owner also reported Sea Urchin Discovering a Mushy. That one is CORRECT: Sea Urchin is
-    // opted into set 2, and Scalefeather is a Dragon/BEAST, so it's a legal Beast Discover in a set-2 run.
+    // Sea Urchin is opted into set 2, so any Mushy it Discovers is a legal set-2 pick.
     // Recruit picks have always gone through `poolOf(state).buyable`. Pinned here so the claim is checkable
     // rather than a note in a chat log.
+    // 2026-08-18: Mushy (d2_scalefeather) dropped `tribe2: 'beast'` — it is now a pure Dragon.
     const urchin = CARD_INDEX['seaurchin']!;
     expect(urchin.effects.some((e) => e.do === 'battlecryDiscoverMinion')).toBe(true);
-    expect(CARD_INDEX['d2_scalefeather']!.tribe2, 'Scalefeather really is a Beast').toBe('beast');
+    expect(CARD_INDEX['d2_scalefeather']!.tribe2, 'Scalefeather is now a pure Dragon').toBeUndefined();
     expect(poolFor('set2').all.some((c) => c.id === 'seaurchin'), 'and Sea Urchin really is in set 2').toBe(true);
 
     // The actual guarantee: a set-1 run's Discover can only offer set-1 cards.

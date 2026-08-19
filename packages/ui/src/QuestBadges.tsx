@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getHero, type RunState } from '@game/sim';
@@ -8,6 +8,8 @@ import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
+import { playDef } from './fx/playDef';
+import { sfx } from './sfx';
 import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
 
 // Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s).
@@ -59,11 +61,48 @@ function canReachThirdRune(run: RunState): boolean {
   return THIRD_RUNE_UNLOCKERS.some((id) => owned.includes(id));
 }
 
+/** The chains shatter this long AFTER the 3rd-rune condition is met (owner ask 2026-08-19: 1000ms). */
+const RUNE_CHAINS_BREAK_MS = 1000;
+
+// The break is a ONE-TIME event per run, persisted so a resume doesn't replay the shatter (FX + sound). Keyed
+// by the run identity (`seed:heroId`, the same key that remounts the StatusBar), so a NEW run shows the chains
+// again while a reloaded broken run stays broken. Survives page reload; a plain in-memory flag would not.
+const CHAINS_BROKEN_KEY = 'ascent.runechainsbroken';
+function readRuneChainsBroken(runKey: string): boolean {
+  try { return localStorage.getItem(`${CHAINS_BROKEN_KEY}:${runKey}`) === '1'; } catch { return false; }
+}
+function writeRuneChainsBroken(runKey: string): void {
+  try { localStorage.setItem(`${CHAINS_BROKEN_KEY}:${runKey}`, '1'); } catch { /* ignore */ }
+}
+
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
   const completedNow = useGame((s) => s.combatCompletedQuests);
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise) // ids that JUST completed mid-replay (pre-settle)
+  // The chains show at the start of EVERY run (even for a hero that will get a 3rd rune) and BREAK once, 1000ms
+  // after the 3rd-rune condition is met — a runeforge hero at run start, or the moment an enabling rune is
+  // picked (owner ask 2026-08-19). `chainsBroken` is per-run (localStorage keyed by `runKey`), so it persists a
+  // resume without re-shattering, and resets for a new run (StatusBar remounts on `runKey`).
+  const runKey = `${run.seed}:${run.heroId}`;
+  const canThird = canReachThirdRune(run);
+  const [chainsBroken, setChainsBroken] = useState(() => readRuneChainsBroken(runKey));
+  useEffect(() => {
+    if (!canThird || chainsBroken) return;
+    const t = window.setTimeout(() => {
+      // Shatter FX at the locked slot (the chains' own screen position), then remove the chains.
+      const el = document.querySelector('.questbadges .rune-chains');
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('rune-slot-break', { source: at, target: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index: 0 });
+      }
+      sfx.runeChainBreak();
+      writeRuneChainsBroken(runKey);
+      setChainsBroken(true);
+    }, RUNE_CHAINS_BREAK_MS);
+    return () => window.clearTimeout(t);
+  }, [canThird, chainsBroken, runKey]);
   // Show a badge once a quest has activated — a one-shot flips `completed`; a REPEATABLE (Hoard Spark, Imp Census,
   // …) never does but bumps `completionCount` on each re-fire, so include those too (they pulse on every re-fire).
   // Also surface quests that complete MID-COMBAT this replay (`completedNow`) — their node appears + lights up the
@@ -77,10 +116,9 @@ export function QuestBadges() {
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
-  // Chains on the LOCKED third rune slot — shown from the very start of the run (not just once a rune is owned),
-  // and lifted only when the slot could actually be filled: a 3rd rune is reachable, or already earned. So the
-  // badge row must render for the chains alone, even with no quests and no runes yet.
-  const showChains = runes.length < 3 && !canReachThirdRune(run);
+  // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
+  // The badge row renders for the chains alone, even with no quests and no runes yet.
+  const showChains = !chainsBroken;
   if (nodes.length === 0 && runes.length === 0 && !showChains) return null;
   const isDone = (aq: (typeof nodes)[number]): boolean =>
     aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId);

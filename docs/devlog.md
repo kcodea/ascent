@@ -8,17 +8,23 @@ unreachable. It now wears **chains** to read as "not possible yet" (owner ask). 
 `QuestBadges` on the same 3rd-node anchor + counter-scale as the rune sheen so it stays glued to the slot
 through the Quest-nodes Scale slider.
 
-The chains show from the **very start of the run** — the badge row renders for the chains even with no quests
-or runes yet, and a `hasrunelock` modifier reserves one rune-row's height so the (bottom-anchored) row can't
-grow and slide the chains as the first two runes arrive. They lift, via `canReachThirdRune(run)`, only once the
-run can actually reach a 3rd rune: a runeforge-native hero (**Runesmith** `runeforge` turn 5, **Guardian**
-`epicRuneforge` turn 8) or owning a rune that enables one — **Rune of the Epic Forge** (extra turn-8 epic
-visit) or **Rune of Duplication** (`THIRD_RUNE_UNLOCKERS`, owner ask: Duplication counts). This hero/rune state
-flip is the hook the coming "chains unlock" pixi effect will animate. Placement is tunable — **x / y / size**
-dials under a "Chains (3rd slot)" group in the 💠 Rune Sheen tuner (`--rch-*` vars with styles.css fallbacks,
-same DEV-localStorage / prod-CSS architecture as the sheen).
+The chains show from the **very start of every run**, for EVERY hero (even one that will get a 3rd rune) — the
+badge row renders for the chains even with no quests or runes yet, and a `hasrunelock` modifier reserves one
+rune-row's height so the (bottom-anchored) row can't grow and slide the chains as the first two runes arrive.
 
-Verified: typecheck + lint + build green; full suite green.
+They **break** once, **1000ms after** the 3rd-rune condition is met (owner ask 2026-08-19): a shatter pixi FX
+(`rune-slot-break` — burst shards + shockwave, owner-authored) at the slot, then the chains are removed, plus a
+`sfx.runeChainBreak()` hook (silent until `audio/rune-chain-break.mp3` is dropped in). The trigger is
+`canReachThirdRune(run)` — a runeforge-native hero (**Runesmith** turn 5 / **Guardian** turn 8), so the break
+plays at run start; or owning an enabling rune — **Rune of the Epic Forge** or **Rune of Duplication**
+(`THIRD_RUNE_UNLOCKERS`; owner ask: Duplication now counts) — so it plays 1000ms after the rune is picked. The
+break is one-time per run, persisted in localStorage keyed by `runKey` (`seed:heroId`) so a resume doesn't
+re-shatter, and reset for a new run (StatusBar remounts on `runKey`). Placement is tunable — **x / y / size**
+dials under a "Chains (3rd slot)" group in the 💠 Rune Sheen tuner (`--rch-*` vars + styles.css fallbacks,
+owner-locked at x 127 / y -3 / size 54).
+
+Verified: typecheck + lint + build green; full suite green (fx def-registry validates the new def, direct-call
+golden + playDefUids exemption + audio-config category updated).
 
 ## 2026-08-19 — Hawkus gets a beat: the watcher pulse every other reaction card uses
 

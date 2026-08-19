@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
+
+The whole feature specced in [`replay-v2-handoff.md`](replay-v2-handoff.md) is built, on the same PR as the
+spec. Five commits, one per phase, built by parallel agents off the spec and integrated + live-verified at the
+end. **Playback is a pure renderer** — no `reduce()`, no `simulate()` — so what you watch is what happened, by
+construction, and old replays survive every future content change.
+
+- **Phase A — capture** (`packages/sim/src/replayV2.ts` + store hooks). `ShopView = Omit<RunState, denylist>`
+  (the audit's inverted projection — new RunState fields are captured by default), `nextFoe` pinned at capture
+  (closing the one §2-class drift hole the audit found), a frame per action at the `commitResolvedAction`
+  chokepoint, a combat frame per fight (the whole `lastCombat`, deep-cloned; `oddsInput` stripped), delta
+  encoding (keyframe per turn, `{changed, removed}` per action — a full bot run measured **337 KB / 59
+  frames**, ~0.43 MB projected for a human run; capture cost ~0.15 ms per action). Uploaded as
+  `run_telemetry.replay.v2` beside the v1 fields (balance re-derivation still reads those); frames are NOT
+  autosaved (localStorage quota) — a resumed run uploads `partial: true`.
+- **Phase B — playback** (`packages/ui/src/replay/`). `ReplayPlayer` (the killed v1 API names, no engine),
+  `synthRunFromShopView`, the salvaged transport bar re-pointed at it, and the **round rail** — click round 8,
+  seek to round 8's shop opening. FX-on-seek solved with one lever: every seek bumps `replaySeekEpoch`, folded
+  into Recruit's mount key, so all ~40 FX sequence-diff refs re-init at the target frame (normal stepping keeps
+  its FX — buys/welds replay visually). Scrub-into-combat renders the fight's RESOLVED world; the final combat
+  plays from the top so the ending stays watchable. Input fully inert (dispatch + presentation-tx + `flushSave`
+  — that last one so a tab-hide mid-replay can't overwrite the player's real autosave). “Rewatch Last Game” on
+  the end screen + title.
+- **Phase C — entry points.** RecentGames rows grew a **▶ Watch** (extending the shipped feed rather than
+  resurrecting the killed overlay); the leaderboard got the salvaged per-row Watch pill. Fetch is a light list
+  (a `replay->v2->version` probe, one scalar per row) + the full payload only on click.
+- **Phase D — the metrics drawer.** Hover a rail row → slides out (transform/opacity only) with exactly the
+  three owner-locked numbers: **Gold spent / Actions / Shop tier at start** (`rollupRounds`, computed once per
+  replay); click pins it and it tracks playback.
+
+**Live end-to-end verification** (the exact check v1 failed): drove a throwaway 16-wave lobby run through the
+real store in the browser, rewatched it — recruit screen rendered from the synthetic run, rail click on R8
+landed on wave 8's exact shop opening with the drawer reading Gold spent 9 / Actions 3 / Tier 1, and the
+recorded placement (2nd) matched reality. A nice fidelity detail: the last SHOP frame shows Leech 21/4 while
+the gameover board read 22/4 — correct, the +1 landed DURING the final combat, which plays back showing it.
+
+**One real bug found live and fixed**: the transport bar mapped raw `tMs` proportionally, so an idle gap in the
+capture (AFK mid-run; my test capture had a 31 s setup gap) compressed all actual play into a sliver —
+right-edge clicks seeked to frame 0. The bar now maps through the **clamped timeline** (each delta through the
+same 350/900/5000 ms pacing the playback clock uses), so bar position ≡ actual watch time; seeks map fraction
+→ clamped time → frame index (`seekReplayIndex`). The round rail keeps exact-`tMs` seeks (its marks are real
+frame times).
+
+Known polish (Phase E, deferred): the shop timer ticks visually during playback (its expiry dispatch is
+swallowed — harmless, reads oddly); `result.finalBoard` reuses the leaderboard's pre-fight-board convention.
+
+Gates: typecheck ✅ lint ✅ (0 errors) ✅ 5817 tests / 361 files ✅ build:web ✅, plus the live browser pass above.
+
 ## 2026-08-19 — Replay v2 spec: the round rail + the per-turn stats panel
 
 Docs only — no code. Owner ask: a left-hand round scrub ("click round 8, it seeks to the start of round 8") and

@@ -44,6 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Replay system (v2, state replay).** Watch any player's full game back — exact by construction (playback renders recorded frames, never re-simulates). Round rail on the left (click a round, jump to its shop opening), a slide-out drawer with per-round Gold spent / Actions / Shop tier, play/pause/speed/scrub, ▶ Watch buttons on the leaderboard + Recent Games, and Rewatch Last Game on the end screen.
 - **Rune of Refreshments** — every Demon you play buys another look at the Shop.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.
 - **Rune art wired (24 pieces)** plus the Baller's live "next payout" pill, reworks to the Wild Hunt, the Burrow and the Tip Jar, and a new **Summoning Bulwark** spell.

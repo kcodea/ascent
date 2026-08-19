@@ -18,10 +18,11 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * (pixiFx.impactDust) at the gem.
  *
  * Layered so every effect follows the DIAMOND silhouette and stays cheap:
- *   - `.etb-glow` — the GEM-ONLY cut of the art (end_button_gem.webp) with a STATIC stacked drop-shadow
- *     filter (`--etb-glow-filter`); drop-shadow follows the image alpha, so the halo hugs the blue diamond
- *     itself — not the bronze housing (owner note 2026-07-16). Hover-only; its breathing animates the
- *     layer's OPACITY only (compositor-only loop — the paint-property perf rule holds).
+ *   - Hover glow — a stacked ice-blue drop-shadow applied DIRECTLY on `.etb-gem` (styles.css → `--etb-gemglow`),
+ *     copied from the Freeze gem (owner ask 2026-08-19). Because the gem overlay sits above the base housing,
+ *     the shadow radiates from behind the gem, over the housing — below the gem, above the base — the way
+ *     Freeze does it. Hover-only, static filter with a cheap `filter` transition. (This replaced an earlier
+ *     separate `.etb-glow` halo layer that floated above everything.)
  *   - `.etb-bolts` — a small canvas crackling lightning arcs along the diamond's four edges. The rAF loop
  *     reads `getEndTurnConfig()` live each frame (tuner slider moves apply instantly) and self-gates: it
  *     draws nothing (and skips clearing) while there are no live arcs and spawning is off/pressed.
@@ -235,11 +236,9 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       aria-label={combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
-      {/* Hover glow — the GEM-ONLY cut of the art (end_button_gem, owner note 2026-07-16), so the stacked
-          drop-shadow halo hugs the blue diamond itself, not the bronze housing. Sits ABOVE the art, and a
-          CSS mask cuts the SOURCE gem pixels back out of the layer — only the halo paints, so the tuner's
-          offset/fit dials move the glow alone, never a copied diamond (owner note, round 4). */}
-      <img className="etb-glow" src={`${F}end_button_gem.webp`} alt="" draggable={false} aria-hidden="true" />
+      {/* Hover glow is now a drop-shadow ON the gem itself (styles.css `.etb-gem` hover → `--etb-gemglow`),
+          copied from the Freeze gem so it sits below the gem and above the base — the old separate `.etb-glow`
+          halo layer was retired (owner ask 2026-08-19). */}
       {/* All arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
           src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
           (pressed2 by default; pressed3 — the cracked gem — via the tuner's variant switch) holds through

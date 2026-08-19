@@ -1033,6 +1033,10 @@ export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
+  // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
+  // real count — which is what makes the multicast modifier show while the rune is armed.
+  for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
@@ -1143,10 +1147,15 @@ export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCas
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
+    // `once` (Bubble Crown): a ONE-SHOT threshold. Stop ticking entirely once it has paid, so the meter parks
+    // at its cap rather than rolling over — which is also what makes its x/N counter stop at N instead of
+    // resetting to 0 and implying another payout is coming.
+    if (t.once && t.spent) continue;
     t.tick += amount;
     while (t.tick >= t.per) {
       t.tick -= t.per;
       if (t.oncePerTurn && t.usedThisTurn) continue; // banked but not paid — the cap is per turn, not per run
+      if (t.once) { t.spent = true; t.tick = t.per; payRuneThreshold(state, t); break; } // pay once, then park
       t.usedThisTurn = true;
       payRuneThreshold(state, t);
     }
@@ -1174,7 +1183,18 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   const b = t.buff;
   if (!b) return;
   if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  // `spells` (Bubble Crown): raise the run's SPELL POWER, the same channel Cinderwing Matron feeds — so every
+  // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
+  else if (b.target === 'spells') {
+    state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + b.attack, health: (state.spellBonus?.health ?? 0) + b.health };
+  }
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
+  // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
+  // across every roll this turn and is gone at the rollover. Not `applyRunShopBuff`, which is permanent.
+  else if (b.target === 'shopTurn') {
+    const cur = (state.tavernBuyBonusTurn ??= { atk: 0, hp: 0 });
+    state.tavernBuyBonusTurn = { atk: cur.atk + b.attack, hp: cur.hp + b.health };
+  }
   else {
     // `shopRightmost` (Rune of the Showcase) is now PERMANENT across refreshes (owner 2026-08-11): accumulate
     // into state.rightmostSlotBuff — the same running total Market Tormentor uses — and land the increment on
@@ -3200,20 +3220,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Bob Blart (2026-08-14): consume the RIGHT-most Shop minion. Golden doubles the stats gained
    *  ("and gain double its stats"), not the number eaten.
    *
-   *  Rune of Blart rides HERE now. It used to live in `endOfTurnGainRightmostShopStats`, which is where Blart's
-   *  effect was before the 2026-08-14 rework — leaving it there would have turned a 6-cost epic into "get a Bob
-   *  Blart" and nothing else, since no card points at that factory any more. It follows the card: the rune's
-   *  clause is a second EAT (the left-most offer) rather than a second stat-copy, and the rune's text says so. */
+   *  Rune of Blart rides HERE (it follows the card, not the factory Blart's effect used to live on). Owner
+   *  rework 2026-08-19: the clause is no longer a second EAT — the meal's stats are SHARED SIDEWAYS to the
+   *  eater's neighbours. Read the offer BEFORE the eat (the row shifts, and the offer is gone afterwards),
+   *  and read adjacency at eat time so re-seating between meals re-aims it. */
   consumeShopRightmost: (ctx, self, params) => {
     const times = num(params.times, 1) * (self.golden ? 2 : 1);
     const i = rightmostShopMinion(ctx.state);
     if (i < 0) return;
+    const meal = ctx.state.runeBlart ? offerBuyStats(ctx.state, ctx.state.shop[i]!) : null;
     consumeShopMinion(ctx.state, self, i, times);
-    if (!ctx.state.runeBlart) return;
-    // Re-find the left-most AFTER the right-most is eaten: the row just shifted, and on a one-minion shop the
-    // two indices were the same offer — which would double-eat a corpse.
-    const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (l >= 0) consumeShopMinion(ctx.state, self, l, times);
+    if (!meal) return;
+    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    for (const nb of [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]) {
+      if (nb) addBuff(nb, 'Rune of Blart', meal.attack * times, meal.health * times);
+    }
   },
 
   /** Set 2 — Appetite Agent (targeted Shout): the TARGET minion consumes `count` Shop minions — not this one.
@@ -3330,14 +3351,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const { attack, health } = offerBuyStats(ctx.state, ctx.state.shop[i]!);
     const times = num(params.times, 1) * gold(self);
     addBuff(self, nameOf(self), attack * times, health * times);
-    // Rune of Blart: also gain the LEFT-most Shop minion's stats (a different offer than the right-most).
-    if (ctx.state.runeBlart) {
-      const l = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-      if (l >= 0 && l !== i) {
-        const ls = offerBuyStats(ctx.state, ctx.state.shop[l]!);
-        addBuff(self, nameOf(self), ls.attack * times, ls.health * times);
-      }
-    }
+    // NB: Rune of Blart no longer rides this factory (owner rework 2026-08-19). Its text names Bob Blarts, and
+    // this is Hellrider's copy-don't-eat path — the rune touching it was the clause outliving the 2026-08-14
+    // card rework that moved Blart off here.
   },
 
   /** Set 2 — Hellrider (owner rework 2026-08-14): every `every` refreshes, gain the RIGHT-most Shop minion's
@@ -5256,6 +5272,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.fleetingVigor.health += num(params.health, 1) + spellHealthBonus(ctx.state);
   },
 
+  /** Summoning Bulwark — cast: the first N minions you summon in the NEXT combat gain Taunt. Banked on the
+   *  run (not on a body) because the recipients do not exist yet; `faceOmen` hands the count to the player's
+   *  combat side and the turn rollover clears whatever went unspent. */
+  spellTauntNextSummons: (ctx, _self, params) => {
+    ctx.state.summonTauntsNextCombat = (ctx.state.summonTauntsNextCombat ?? 0) + num(params.count, 2);
+  },
+
   /** Field Maneuvers / Last Stand / Executioner's Edge — cast on a friendly minion: bank a keyword grant for
    *  the NEXT combat only (`faceOmen` stamps it onto that minion's combat instance, then clears the bank). For
    *  Critical Strike (`CR`), `critChance` seeds the per-swing double-damage probability the combat sim rolls. */
@@ -5495,6 +5518,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
    *  Turn this minion has seen (escalating). Per-instance `eotTick` counts turns on board (like Frontdrake);
    *  a Chronos replay rides the same tick without advancing it. Golden doubles the number of casts. */
+  /** Arnold — End of Turn: cast a named spell ON THIS MINION. Golden casts twice. Deliberately NOT the
+   *  escalating sibling below: the count is flat, and the target is ALWAYS self (the escalating one aims at the
+   *  biggest other friend), which is what makes a self-Beefy a Dwarf capstone rather than a board pump. */
+  endOfTurnCastSpellOnSelf: (ctx, self, params) => {
+    const spellDef = CARD_INDEX[str(params.spellId)];
+    if (!spellDef || spellDef.singleCast) return;
+    const times = num(params.times, 1) * gold(self);
+    for (let i = 0; i < times; i++) {
+      applyCastEffects(ctx, spellDef, self);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
+  },
+
   endOfTurnCastSpellEscalating: (ctx, self, params, payload) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return;
@@ -5683,6 +5720,20 @@ export function applyCardsPlayed(state: RunState, count: number): void {
   if (count <= 0) return;
   state.cardsPlayedTotal = (state.cardsPlayedTotal ?? 0) + count;
   advanceRuneThresholds(state, 'cardsPlayed', count); // Rune of Mountain Trade: every 6 cards played, Ruby the board
+  // Rune of the Glider: every card you play pumps a Dragon. Random among your Dragons (seeded off the run
+  // cursor like every other random pick) and wrapped for FX so the gain descends onto the body rather than the
+  // number jumping. A no-op with no Dragon out — the rune simply waits for one.
+  const glider = state.runeGlider;
+  if (glider) {
+    for (let i = 0; i < count; i++) {
+      const dragons = state.board.filter((c) => isTribe(c, 'dragon'));
+      if (dragons.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const pick = dragons[rng.int(dragons.length)]!;
+      state.rngCursor = rng.state();
+      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Glider', glider.attack, glider.health));
+    }
+  }
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -6273,11 +6324,43 @@ function applyDenMarker(state: RunState, minion: BoardCard): void {
  */
 export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   fire(makeContext(state), 'onSummon', { minion });
+  // RUNE OF THE CHIPPER STICKER: playing a Demon makes ANOTHER friendly Demon eat a Shop minion — Chipper's
+  // own shape as a run-wide rune. "Another" is load-bearing: the eater is picked from the OTHER Demons, so the
+  // minion you just played never feeds itself (that is Chipper's `self: true`, a different card).
+  // RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired at the same play chokepoint as the
+  // Chipper Sticker, and BEFORE its early return, so the two Demon-play runes are independent — holding one
+  // must not silently gate the other.
+  if (state.runeRefreshments && isTribe(minion, 'demon')) state.freeRolls += 1;
+  if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
+  const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
+  if (eaters.length === 0) return;
+  const edible = state.shop
+    .map((_, i) => i)
+    .filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+  if (edible.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const eater = eaters[rng.int(eaters.length)]!;
+  const pick = edible[rng.int(edible.length)]!;
+  state.rngCursor = rng.state();
+  consumeShopMinion(state, eater, pick);
 }
 
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
  *  the card is removed from the board/hand; its effects act via the shared recruit context. */
 export function fireOnSell(state: RunState, card: BoardCard): void {
+  // RUNE OF THE BALLER: each sale pumps your whole board, ALTERNATING stat, and the magnitude climbs every
+  // SECOND sale (owner rework 2026-08-19) — +1 Atk, +1 Hp, +2 Atk, +2 Hp, … so each size is paid on both axes
+  // before the step rises. The tally lives on the rune (not the card) so it survives the body leaving the
+  // board, which is the whole point of a sell payoff.
+  const baller = state.runeBaller;
+  if (baller) {
+    baller.sales += 1;
+    const amount = baller.step * Math.ceil(baller.sales / 2);
+    const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of state.board) addBuff(c, 'Rune of the Baller', toAttack ? amount : 0, toAttack ? 0 : amount);
+    });
+  }
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onSell')) return;
   const ctx = makeContext(state);
@@ -6509,6 +6592,12 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
     }
     // Legacy Warm Embers charge (the `shoutDouble` reward), while any remain.
     if ((state.shoutDoubleCharges ?? 0) > 0) { state.shoutDoubleCharges! -= 1; n += 1; }
+    // RUNE OF THE WAR DRUM: ONE Shout each turn triggers `runeWarDrum` extra times. Its own per-turn latch
+    // (not Warm Embers') so the two stack, and so the charge readout can say 1 or 0 independently.
+    if (state.runeWarDrum && !state.runeWarDrumUsedThisTurn) {
+      state.runeWarDrumUsedThisTurn = true;
+      n += state.runeWarDrum;
+    }
   }
   // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
   // fire Shouts from more than one path (a play PLUS an Echoing Roar re-trigger). Assigning meant the last
@@ -6814,6 +6903,18 @@ export function applyShopRefreshed(state: RunState): void {
     const i = rightmostShopMinion(state);
     if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
   }
+  // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
+  // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
+  // number came from and the buy bakes it in through the same path every other slot enchant uses. It runs
+  // AFTER Market Tormentor's slot buff, deliberately: the doubling should include that turn's enchant, which
+  // is the same "the right-most must be the BUFFED body" ordering the Hellrider ruling established.
+  if (state.runeEmbers) {
+    const i = rightmostShopMinion(state);
+    if (i >= 0) {
+      const cur = offerBuyStats(state, state.shop[i]!).health;
+      if (cur > 0) addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur);
+    }
+  }
   // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
   const lslot = state.leftmostSlotBuff;
   if (lslot) {
@@ -6917,8 +7018,11 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   if (!def) return { attack: 0, health: 0 };
   const cb = cardBuff(state, def.id);
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
-  const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0);
-  const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0);
+  // The PERMANENT run-wide shop bonus, plus the Merchant's Chorus THIS-TURN layer. Same Fodder exclusion for
+  // both, for the same reason: Fodder carries the enchant through its own run-wide channel, so adding it here
+  // would pay it twice.
+  const staffA = fodder ? 0 : (state.tavernBuyBonus?.atk ?? 0) + (state.tavernBuyBonusTurn?.atk ?? 0);
+  const staffH = fodder ? 0 : (state.tavernBuyBonus?.hp ?? 0) + (state.tavernBuyBonusTurn?.hp ?? 0);
   // Veinstorm's run-wide RUBY grant rides the same rails as the Staff bonus (same Fodder exclusion, for the
   // same reason) — it just bakes in under the `Ruby` source at buy, so Ruby readers can see it.
   // Veinstorm's Rubies need no line here: they are REAL per-offer buffs, already inside `offer.atk/hp`.
@@ -7296,14 +7400,26 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const sr = improveReps(state);
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }
-  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +2/+2 (owner 2026-08-11; was
-  // left-most only, +3/+3). Wrapped for FX so the gain descends onto the minion instead of the number jumping.
-  // On a one-minion board the two ends are the same body, so buff it once (not twice).
+  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance
+  // 2026-08-19; was +2/+2, and before that left-most only at +3/+3). Wrapped for FX so the gain descends onto
+  // the minion instead of the number jumping. On a one-minion board the two ends are the same body, so buff it
+  // once (not twice).
+  // RUNE OF MIGHT: every Shop spell you cast ALSO casts Might of Aeon. A real cast through `applyCastEffects`,
+  // so it picks up spell power and the spell counters see it — but guarded against recursion, since the cast it
+  // triggers would otherwise re-enter this same hook forever.
+  if (state.runeMight && !state.runeMightCasting) {
+    const might = CARD_INDEX['mightofaeon'];
+    if (might) {
+      state.runeMightCasting = true;
+      try { applyCastEffects(makeContext(state), might, undefined); }
+      finally { state.runeMightCasting = false; }
+    }
+  }
   if (state.runeKindling && state.board.length > 0) {
     const ends = state.board.length === 1
       ? [state.board[0]!]
       : [state.board[0]!, state.board[state.board.length - 1]!];
-    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 2, 2); });
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4, 6); });
   }
   // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
   // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.
@@ -7608,9 +7724,10 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length > 0) step(() => conjureToHand(state, ales, effect === 'grantAles3' ? 3 : 2)); // Double Fisting pours 3
   } else if (effect === 'triggerLeftmostEcho') {
-    // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
-    const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
+    // Rune of the Reliquary: fire your TWO left-most Echoes (Deathrattles) out of combat (owner 2026-08-19;
+    // was one). Board order, so seating decides which two — deterministic, and no RNG consumed.
+    const echoes = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath')).slice(0, 2);
+    for (const echo of echoes) { stampQuestTendril(state, effect, echo.uid); fireRecruitDeathrattles(makeContext(state), echo); }
   } else if (effect === 'demonEatsRightmostShop') {
     // Rune of Hunger: your LEFT-most Demon eats the right-most Shop minion. Reuses `rightmostShopMinion` +
     // `consumeShopMinion`, so the eater gains exactly what a card-driven Consume would give it.

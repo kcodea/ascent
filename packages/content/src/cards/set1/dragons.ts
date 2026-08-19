@@ -71,12 +71,12 @@ export const DRAGONS: CardDef[] = [
     tier: 5, // owner balance 2026-08-18: T6 → T5
     attack: 4,
     health: 12,
-    keywords: [],
+    keywords: ['DS'],
     // Owner rework 2026-08-07: the adjacency clause is GONE — a flat grant to every Dragon.
     // Owner balance 2026-08-18: +4/+4 then dialled back to +3/+3, and dropped the 20%-chance-of-double clause.
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: 'Whenever a **Shout** triggers, give your Dragons **+3/+3**.',
-    goldenText: 'Whenever a **Shout** triggers, give your Dragons **+3/+3** twice.',
+    text: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+3/+3**.',
+    goldenText: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+3/+3** twice.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Shout *fire* on your board permanently enchants your IMPS +3/+3

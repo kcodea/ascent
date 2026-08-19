@@ -154,8 +154,11 @@ export const RUNES: RuneDef[] = [
     id: 'rune_infernal_ink',
     name: 'Rune of Infernal Ink',
     cost: 3, // owner balance 2026-08-07
-    text: 'Every **3 Shop spells** you cast, give minions in the **Shop +3/+3**.',
-    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 3, buff: { target: 'shop', attack: 3, health: 3 } },
+    // Owner rework 2026-08-19: EVERY cast (`per: 1`) rather than every third, at +1/+1. The `shop` buff target
+    // writes `tavernBuyBonus`, which is the run-wide "minions in the Shop everywhere" the owner asked for —
+    // every future roll inherits it, not just the row on screen.
+    text: 'Whenever you cast a **Shop Spell**, give minions in the **Shop +1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
   },
   {
     id: 'rune_cindergem',
@@ -180,10 +183,12 @@ export const RUNES: RuneDef[] = [
     id: 'rune_merchants_chorus',
     name: "Rune of the Merchant's Chorus",
     cost: 3,
-    // Owner 2026-08-11: every 2 Shouts (cumulative, no once-per-turn cap) grants the Shop a small PERMANENT
-    // +1/+1 — the `shop` target writes into tavernBuyBonus, which every future shop inherits.
-    text: 'After you trigger **2 Shouts**, give minions in the **Shop +1/+1** permanently.',
-    reward: { kind: 'runeThreshold', meter: 'shout', per: 2, buff: { target: 'shop', attack: 1, health: 1 } },
+    // Owner rework 2026-08-19: EVERY Shout (`per: 1`) grants +3/+3, and the grant is scoped to THIS TURN —
+    // the `shopTurn` target banks it in `tavernBuyBonusTurn`, which accumulates across every roll you make this
+    // turn (so a Shout-heavy turn really does spike the row) and is wiped at the rollover. Deliberately NOT the
+    // `shop` target: that one is permanent, which is what the rune used to be.
+    text: 'When you trigger a **Shout**, give minions in the **Shop +3/+3** for this turn.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 1, buff: { target: 'shopTurn', attack: 3, health: 3 } },
   },
   {
     // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
@@ -326,7 +331,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_kindling',
     name: 'Rune of Kindling',
     cost: 4, // owner balance 2026-08-07
-    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +2/+2**.', // owner 2026-08-11
+    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +4/+6**.', // owner balance 2026-08-19
     reward: { kind: 'runeKindling' },
   },
   {
@@ -493,13 +498,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeTrophy' },
   },
   // ── the 2026-08-07 owner batch (16 Basic runes) ──
-  {
-    id: 'rune_tip_jar',
-    name: 'Rune of the Tip Jar',
-    cost: 6,
-    text: 'Gain **3 Gold** and increase your **maximum Gold** by **3**.',
-    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 3, immediate: true }, { kind: 'gainMaxGold', amount: 3 }] },
-  },
   {
     id: 'rune_coffers',
     name: 'Rune of the Coffers',
@@ -871,13 +869,175 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeShopkeep' },
   },
   {
-    // Owner add 2026-08-12. Combat flag: the first friendly Beast WITH an Echo that dies each combat comes back
-    // (stripped of that Echo, so it can't re-loop the resummon). Read in `simulate` at the death chokepoint.
+    // Owner rework 2026-08-19: no longer a resummon — triggering a Beast's Echo banks a FREE REFRESH. Read in
+    // `simulate` at the `asEcho` chokepoint, so a forced Echo (Hawkus / Spots / the Reliquary) pays too.
     id: 'rune_burrow',
     name: 'Rune of the Burrow',
-    cost: 4,
-    text: 'The first friendly **Beast** with **Echo** that dies each combat is **resummoned** without Echo.',
+    cost: 1, // owner rework 2026-08-19
+    text: "Whenever you trigger a **Beast's Echo**, get a **free refresh**.",
     reward: { kind: 'combatFlag', flag: 'runeBurrow' },
+  },
+
+  // ── 2026-08-19 owner rune batch: BASIC ────────────────────────────────────────────────────────────────
+  {
+    id: 'rune_refraction',
+    name: 'Rune of Refraction',
+    cost: 4,
+    text: 'Get a **Reflector**.',
+    previewCards: ['n2_reflector'],
+    reward: { kind: 'grant', cards: ['n2_reflector'] },
+    sets: ['set2'],
+  },
+  {
+    // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
+    // ONLY way to obtain one. Deliberate, and the exception to the archive rule in `cards/archive.ts` that a
+    // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
+    // `CARD_INDEX`, so the grant works.
+    id: 'rune_ruby_resonance',
+    name: 'Rune of Ruby Resonance',
+    cost: 3,
+    text: 'Get a **Resonance Idol**.',
+    previewCards: ['k_resonance'],
+    reward: { kind: 'grant', cards: ['k_resonance'] },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_dwarf',
+    name: 'Rune of Basic Dwarves',
+    cost: 3,
+    text: 'Get a **Dwarve**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_dragon',
+    name: 'Rune of Basic Dragons',
+    cost: 3,
+    text: 'Get a **Dragon**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dragon', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_beast',
+    name: 'Rune of Basic Beasts',
+    cost: 3,
+    text: 'Get a **Beast**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'beast', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_demon',
+    name: 'Rune of Basic Demons',
+    cost: 3,
+    text: 'Get a **Demon**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'demon', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_basic_kobold',
+    name: 'Rune of Basic Kobolds',
+    cost: 3,
+    text: 'Get a **Kobold**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 1 },
+    sets: ['set2'],
+  },
+  {
+    // The multicast rides `runeSpellDouble`, which `spellCasts` reads — so the card's x N badge shows the
+    // doubled count while the rune is armed, rather than the rune being invisible until you cast.
+    id: 'rune_hoardflame',
+    name: 'Rune of Hoardflame',
+    cost: 2,
+    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    previewCards: ['hoardflame'],
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
+  },
+  {
+    id: 'rune_glider',
+    name: 'Rune of the Glider',
+    cost: 1,
+    text: 'Whenever you play a card, give a **Dragon +4/+4**.',
+    reward: { kind: 'runeGlider', attack: 4, health: 4 },
+  },
+  {
+    // `shoutEdgeBuff` already existed in the engine with no rune using it — this is its first consumer.
+    id: 'rune_drake_skull',
+    name: 'Rune of the Drake Skull',
+    cost: 3,
+    text: 'Whenever you trigger a **Shout**, give your **left and right-most minions +5/+5**.',
+    reward: { kind: 'shoutEdgeBuff', attack: 5, health: 5 },
+  },
+  {
+    id: 'rune_catacomb',
+    name: 'Rune of the Catacomb',
+    cost: 3,
+    text: 'Discover an **Echo** minion. Your first **Echo** triggered in combat triggers **twice**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'discover', filter: 'deathrattle' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }] },
+  },
+  {
+    id: 'rune_pendant',
+    name: 'Rune of the Pendant',
+    cost: 3,
+    text: '**Start of Turn:** make a random friendly minion **Tier 4 or below Gilded**.',
+    reward: { kind: 'runePendant', maxTier: 4 },
+  },
+  {
+    // `scheduleRuneforge` carries the Gold, so this is one reward rather than a `multi`. `onWave` is resolved
+    // at acquire time as "next turn" — see the reducer branch — which is what MOVES the Epic forge earlier
+    // rather than adding a second one.
+    id: 'rune_ornate_clock',
+    name: 'Rune of the Ornate Clock',
+    cost: 2,
+    text: 'Gain **2 Gold**. Visit the **Epic Runeforge** next turn instead of turn 9.',
+    reward: { kind: 'scheduleRuneforge', forge: 'epic', gold: 2 },
+  },
+
+  // ── 2026-08-19 owner rune batch (second wave) ─────────────────────────────────────────────────────────
+  {
+    // Hooked into the sim's own `bumpRally`, so it counts exactly what the `rally` quest objective counts —
+    // every fire, doubler re-fires included — rather than drifting from the game's definition of "a Rally".
+    id: 'rune_herding_horn',
+    name: 'Rune of the Herding Horn',
+    cost: 2,
+    text: 'Whenever you trigger a **Rally**, gain a **free refresh**.',
+    reward: { kind: 'combatFlag', flag: 'runeHerdingHorn' },
+  },
+  {
+    // `once` parks the meter at its cap after paying, so the x/12 counter reads 12/12 rather than resetting
+    // and implying another payout is coming. The `spells` target feeds the run's spell power.
+    id: 'rune_bubble_crown',
+    name: 'Rune of the Bubble Crown',
+    cost: 1,
+    text: 'When you cast **12 spells**, your **spells gain +6/+6**. (Once)',
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 12, once: true, buff: { target: 'spells', attack: 6, health: 6 } },
+  },
+  {
+    // Its own per-turn latch rather than Warm Embers' — so the two stack, and so the charge readout can say
+    // 1 or 0 for this rune independently.
+    id: 'rune_war_drum',
+    name: 'Rune of the War Drum',
+    cost: 2,
+    text: 'One **Shout** triggers **2 extra times** per turn.',
+    reward: { kind: 'runeWarDrum', extra: 2 },
+  },
+  {
+    // The tally lives on the RUNE, not on a card — a sell payoff whose counter died with the body it was
+    // stored on would reset every time you cashed one in, which is the opposite of what it rewards.
+    id: 'rune_baller',
+    name: 'Rune of the Baller',
+    cost: 4,
+    text: 'When you **sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **2 sales**.',
+    reward: { kind: 'runeBaller', step: 1 },
+  },
+  {
+    // `requiresDoublePower` hides it for a hero whose power cannot express "twice" — the gate is
+    // `DOUBLEABLE_POWERS` in the reducer, which carries the owner's roster and the reason it is the ACTIVE
+    // half of it. Machinery reused from the retired Rune of Empowerment, which nothing had used since.
+    id: 'rune_wishbone',
+    name: 'Rune of the Wishbone',
+    cost: 2,
+    text: 'Your **Hero Power** triggers **twice**.',
+    requiresDoublePower: true,
+    reward: { kind: 'runeWishbone' },
   },
 ];
 
@@ -905,7 +1065,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Reliquary',
     cost: 3,
     epic: true,
-    text: '**End of Turn:** trigger your left-most **Echo**.',
+    text: '**End of Turn:** trigger your **2 left-most Echoes**.', // owner 2026-08-19: was one
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
   },
   // ── Batch 3: combat runes (Start of Combat + Avenge) ──
@@ -1446,15 +1606,17 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
-    // The Health-only, board-wide sibling of The Old Hunt — and its step GROWS, where the quest's does not.
+    // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
+    // quest's does not.
     id: 'rune_wild_hunt',
     name: 'Rune of the Wild Hunt',
     cost: 3,
     epic: true,
-    // Owner rebalance 2026-08-02: 3 -> 1 Health per attack. `amount` is BOTH the grant and the escalation
-    // step (see the wildHunt block in simulate), so one number moves both halves together.
-    text: 'When a **Beast** attacks, give your minions **+1 Health** and improve this by **1** permanently.',
-    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 1 },
+    // Owner rework 2026-08-19: the grant went from board-wide +Health to the ATTACKER's own +Attack, at +2 a
+    // swing. `amount` is BOTH the grant and the escalation step (see the wildHunt block in simulate), so one
+    // number moves both halves together.
+    text: 'When a **Beast** attacks, give it **+2 Attack** and improve this by **2** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 2 },
   },
   {
     // Grafts Exgalloper's exact-copy Echo (NOT Rise — Rise resummons the printed body, so a grown shard came
@@ -1601,6 +1763,48 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeGemGolem' },
     sets: ['set2'], // Rubies
+  },
+  {
+    // Owner add 2026-08-19. The Demon board's Shop-economy payoff: a wide Demon curve turns every play into
+    // another look at the row. Rides the same play chokepoint as the Chipper Sticker (`fireSummonBuffs`).
+    id: 'rune_refreshments',
+    name: 'Rune of Refreshments',
+    cost: 1,
+    epic: true,
+    text: 'When you play a **Demon**, gain a **free refresh**.',
+    reward: { kind: 'runeRefreshments' },
+  },
+  {
+    // Owner add 2026-08-19. A refresh-paced Health faucet on the slot the Shop's eaters and copiers already
+    // fight over (Hellrider, Bob Blart, Market Tormentor), so it compounds with them rather than sitting apart.
+    id: 'rune_embers',
+    name: 'Rune of the Embers',
+    cost: 4,
+    epic: true,
+    text: 'When you **refresh**, **double** the Health of the **right-most** minion in the Shop.',
+    reward: { kind: 'runeEmbers' },
+  },
+  {
+    // Owner rework 2026-08-19: was a BASIC 6-Gold rune for 3 Gold / +3 max. Promoted to Epic at 0 Gold for
+    // 4 / +4 — a free Epic that pays for itself the turn you take it. Promoting a rune is an ARRAY move
+    // (`RUNES` -> `EPIC_RUNES`), not a flag flip: `runeforgePool` reads membership, and `epic` is the kicker.
+    id: 'rune_tip_jar',
+    name: 'Rune of the Tip Jar',
+    cost: 0,
+    epic: true,
+    text: 'Gain **4 Gold** and increase your **maximum Gold** by **4**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 4, immediate: true }, { kind: 'gainMaxGold', amount: 4 }] },
+  },
+  {
+    // Owner add 2026-08-19. The Menagerie payoff as a rune: a full house of every active type, cashed once at
+    // Start of Combat. Three bodies picked WITHOUT replacement, each doubled at its CURRENT stats — so it pays
+    // more the later the board is built, and rewards holding a wide board rather than a single-tribe stack.
+    id: 'rune_stoked_menagerie',
+    name: 'Rune of the Stoked Menagerie',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** if you control all **5 minion types**, **double** the stats of **3 random minions**.',
+    reward: { kind: 'combatFlag', flag: 'runeStokedMenagerie' },
   },
   {
     id: 'rune_dragonscale',
@@ -1822,17 +2026,6 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    id: 'rune_blart',
-    name: 'Rune of Blart',
-    cost: 6,
-    epic: true,
-    // Retext 2026-08-14 with Blart's rework: he EATS now, so the rune's second offer is eaten too, not copied.
-    text: 'Get a **Bob Blart**. Your **Bob Blarts** Consume both the **left and right-most** Shop minions.',
-    previewCards: ['dm_gourmand'],
-    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_sylus',
     name: 'Rune of Sylus',
     cost: 5,
@@ -1931,6 +2124,162 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['b2_beardsley'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['b2_beardsley'] }, { kind: 'combatFlag', flag: 'runeZoo' }] },
     sets: ['set2'],
+  },
+
+  // ── 2026-08-19 owner rune batch: EPIC ─────────────────────────────────────────────────────────────────
+  // The Epic tribe faucets are the Basic ones at DOUBLE rate (owner correction 2026-08-19 — the two lists
+  // reading identically was a typo). Same cost, twice the bodies.
+  {
+    id: 'rune_epic_dwarf',
+    name: 'Rune of Epic Dwarves',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Dwarves**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_dragon',
+    name: 'Rune of Epic Dragons',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Dragons**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'dragon', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_beast',
+    name: 'Rune of Epic Beasts',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Beasts**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'beast', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_demon',
+    name: 'Rune of Epic Demons',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Demons**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'demon', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_epic_kobold',
+    name: 'Rune of Epic Kobolds',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Kobolds**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 2 },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_dragon_breath',
+    name: 'Rune of Dragon Breath',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['sp_dragonflame'] }, { kind: 'runeSpellDouble', spellId: 'sp_dragonflame' }] },
+    sets: ['set2'],
+  },
+  {
+    // Rides the `friendlyDemonDealtDamage` emit, so it counts exactly what the Demon-damage minions count: a
+    // LANDED hit (a Ward-absorbed one never reaches the emit). Combat-only — the gains carry back only for a
+    // body that is Engraved, the standing rule for every combat stat gain.
+    id: 'rune_ruins',
+    name: 'Rune of Ruins',
+    cost: 6,
+    epic: true,
+    text: 'When a friendly **Demon** deals damage, give your minions **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeRuins' },
+    sets: ['set2'], // Demons + the Demon-damage trigger
+  },
+  {
+    id: 'rune_engraving_gems',
+    name: 'Rune of Engraving Gems',
+    cost: 4,
+    epic: true,
+    text: 'Your **Rubies** applied in combat are **permanent**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
+    // is +2 triggers rather than a new flag. Rune of the Choir is the +1 version at a lower cost.
+    id: 'rune_blasting_voices',
+    name: 'Rune of Blasting Voices',
+    cost: 6,
+    epic: true,
+    text: 'Your **Shouts** trigger **2 extra times** in combat.',
+    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
+  },
+
+  // ── 2026-08-19 owner rune batch (third wave) ──────────────────────────────────────────────────────────
+  {
+    // BACK to Epic 2026-08-19 (owner) — the def moves between arrays, since `runeforgePool` reads membership.
+    // Reworked with it: the clause is no longer a second EAT but the meal SHARED SIDEWAYS to the neighbours.
+    id: 'rune_blart',
+    name: 'Rune of Blart',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Bob Blart**. Whenever your **Bob Blarts** trigger, grant the stats to **adjacent minions**, too.',
+    previewCards: ['dm_gourmand'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dm_gourmand'] }, { kind: 'runeBlart' }] },
+    sets: ['set2'],
+  },
+  {
+    // Budgeted at 2 per combat in the sim — re-granting Rise on a Rise is otherwise unbounded, since each
+    // return would arm the next forever.
+    id: 'rune_deathtouched_apple',
+    name: 'Rune of the Deathtouched Apple',
+    cost: 4,
+    epic: true,
+    text: 'When a minion **Rises**, give it **Rise**. (2 uses per combat)',
+    reward: { kind: 'combatFlag', flag: 'runeDeathtouchedApple' },
+  },
+  {
+    id: 'rune_held_strength',
+    name: 'Rune of Held Strength',
+    cost: 3,
+    epic: true,
+    text: 'Give your **left and right-most minions** the stats of the **left-most card in your hand**.',
+    reward: { kind: 'runeHeldStrength' },
+  },
+  {
+    // Chipper's own shape as a run-wide rune. "ANOTHER" is load-bearing — the Demon you just played never
+    // feeds itself (that is Chipper's `self: true`, a different card).
+    id: 'rune_chipper_sticker',
+    name: 'Rune of the Chipper Sticker',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you play a **Demon**, another friendly **Demon** Consumes a minion in the Shop.',
+    reward: { kind: 'runeChipperSticker' },
+    sets: ['set2'], // Consume-from-the-Shop
+  },
+  {
+    id: 'rune_rising_echoes',
+    name: 'Rune of Rising Echoes',
+    cost: 4,
+    epic: true,
+    text: 'Discover an **Echo** minion. Give it **Rise** and **Taunt**. Your first **Echo** triggers an additional time in combat.',
+    reward: { kind: 'multi', rewards: [
+      { kind: 'discover', filter: 'deathrattle', grantKeywords: ['R', 'T'] },
+      { kind: 'echoRepeat', scope: 'firstEachCombat' },
+    ] },
+  },
+  {
+    // The triggered cast is a REAL cast (spell power, the spell counters) but latched against re-entry — the
+    // cast it fires would otherwise re-enter the hook that cast it.
+    id: 'rune_might',
+    name: 'Rune of Might',
+    cost: 6,
+    epic: true,
+    text: 'Whenever you cast a spell, cast **Might of Aeon**.',
+    previewCards: ['mightofaeon'],
+    reward: { kind: 'runeMight' },
   },
 ];
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyGoldSpent, applyStartOfTurn, conjureToHand, consumeShopMinion } from './recruit';
+import { applyGoldSpent, applyStartOfTurn, conjureToHand, consumeShopMinion, applyEndOfTurn } from './recruit';
 
 /**
  * SET 2 — the 2026-08-18 minion batch (owner add): behavioural coverage for the NEW mechanics, not just their
@@ -140,12 +140,14 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(rubyCount(s), 'the on-sell payout minted 2 Rubies').toBe(2);
   });
 
-  it('Gemline Martyr: Start of Turn gets a Veinstorm and improves the run’s Rubies', () => {
+  it('Gemline Martyr: END of Turn gets a Veinstorm, and no longer touches Rubies (owner rework 2026-08-19)', () => {
     const s = recruit({ board: [recruitBody('k_gemline', 'gm')], hand: [], shop: [] });
     const before = s.rubyBonus ?? { attack: 0, health: 0 };
     applyStartOfTurn(s);
+    expect(s.hand.length, 'the Start-of-Turn shape is gone').toBe(0);
+    applyEndOfTurn(s);
     expect(s.hand.some((c) => c.cardId === 'veinstorm'), 'a Veinstorm was granted to hand').toBe(true);
-    expect(s.rubyBonus, 'the run’s Ruby strength improved +1/+1').toEqual({ attack: before.attack + 1, health: before.health + 1 });
+    expect(s.rubyBonus ?? { attack: 0, health: 0 }, 'the Ruby-improvement half was dropped').toEqual(before);
   });
 
   it('Fel Conjurer: Start of Turn gets a Quick Study (owner add 2026-08-19)', () => {

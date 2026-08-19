@@ -164,6 +164,11 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
     state.runeforgeOffer.forEach((id, i) => { const v = runeScore(id, state); if (v > bestV) { bestV = v; bestI = i; } });
     return bestI >= 0 ? { type: 'buyRune', index: bestI } : { type: 'skipRuneforge' };
   }
+  // The scout overlay owns the screen exactly like the other modals (`modalOpen` counts it), so every other
+  // action — INCLUDING `faceOmen` — is refused while it is up. A bot that never closes it is hard-softlocked
+  // for the rest of the run (found 2026-08-19: a seed shift walked lobby seed 5 into a scouted turn and the
+  // whole run stalled in `recruit`). Dismiss it and re-decide on the next call.
+  if (state.scoutedNextOpponent?.length) return { type: 'closeScout' };
   if (state.phase === 'combat') return { type: 'resolveCombat' };
   if (state.phase !== 'recruit') return { type: 'faceOmen' };
 

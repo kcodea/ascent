@@ -102,6 +102,9 @@ The five buckets below are ordered by when we intend to act, not by size:
   Reuses the Leaderboard's view-another-player path; needs the `run_history` cross-user read policy (else the
   career opens empty). Details in the devlog.
 - **In-run UI editor (dev-only) — SHIPPED 2026-08-13.** Direct-manipulation editor for in-run DOM UI — move/resize/restyle, image swap, Approach-A override stylesheet, copyable summary. Details in the devlog.
+- **Rune batch (6 reworks + 27 new runes) + Might of Aeon — SHIPPED 2026-08-19.** Tribe faucets (basic + epic),
+  Wishbone doubling every hero power on the roster, and a bot softlock fix (the scout overlay blocked `faceOmen`).
+  Details in the devlog.
 - **20 new runes + 2 new minions — SHIPPED 2026-08-12.** Herzog + Kobebes; six grant-a-minion+flag runes;
   twelve shop/economy runes (Window Shopping, Bargain Bin, Restocking, Trade-In, Collector, Shopkeep, Seller's
   Market, Open Enrollment, Strange Caravan, Fresh Pages, Lassoing, Old Pack). Art wired. Herzog was renamed to

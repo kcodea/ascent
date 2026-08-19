@@ -15,9 +15,10 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
   return reduce(s, { type: 'buyRune', index: 0 }) as RunState;
 }
 
-describe('the 16 defs exist at sheet costs', () => {
+describe('the 15 remaining defs exist at sheet costs', () => {
   const want: [string, number][] = [
-    ['rune_tip_jar', 6], ['rune_coffers', 5], ['rune_vault', 2], ['rune_altar', 1], ['rune_lorekeeping', 3],
+    // rune_tip_jar left the sheet on 2026-08-19 — promoted to a 0-Gold EPIC (asserted in runeBatchAug19).
+    ['rune_coffers', 5], ['rune_vault', 2], ['rune_altar', 1], ['rune_lorekeeping', 3],
     ['rune_thrift', 3], ['rune_engraving', 3], ['rune_wheel', 4], ['rune_flagship', 3], ['rune_brew', 4],
     ['rune_underdog', 4], ['rune_top_hat', 3], ['rune_evolution', 3], ['rune_transcription', 4],
     ['rune_treasure_map', 2], ['rune_golden_splinter', 3],

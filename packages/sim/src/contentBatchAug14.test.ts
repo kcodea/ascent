@@ -172,26 +172,34 @@ describe('Rune of Blart — its clause moved with the card (2026-08-14)', () => 
     expect(s.shop.map((o) => o.uid)).toEqual(['s0', 's1']);
   });
 
-  it('with the rune, he eats BOTH ends of the row', () => {
-    const s: RunState = { ...base(), runeBlart: true };
+  it('with the rune, the meal is SHARED to the eater’s neighbours (owner rework 2026-08-19)', () => {
+    // The clause is no longer a second EAT: the row loses only the right-most, and the eaten stats also land
+    // on whoever is standing either side of Blart.
+    const s: RunState = {
+      ...base(), runeBlart: true,
+      board: [minion('l', 'alley', 1, 1), minion('g', 'dm_gourmand', 6, 5), minion('r', 'alley', 1, 1)],
+    };
+    const eaten = CARD_INDEX['stray']!; // the right-most offer is what Blart eats
     applyEndOfTurn(s);
-    expect(s.shop.map((o) => o.uid), 'the left- and right-most offers should both be gone').toEqual(['s1']);
-    expect(s.shopMinionsEaten, 'both eats count as real Consumes').toBe(2);
+    expect(s.shop.map((o) => o.uid), 'only the right-most is eaten now').toEqual(['s0', 's1']);
+    expect(s.shopMinionsEaten, 'exactly one Consume').toBe(1);
+    const l = s.board.find((c) => c.uid === 'l')!, r = s.board.find((c) => c.uid === 'r')!;
+    expect([l.attack, l.health], 'left neighbour shares the meal').toEqual([1 + eaten.attack, 1 + eaten.health]);
+    expect([r.attack, r.health], 'right neighbour too').toEqual([1 + eaten.attack, 1 + eaten.health]);
   });
 
-  it('a one-minion shop is eaten once, not twice — no double-eating a corpse', () => {
-    // The left-most is re-found AFTER the right-most is eaten; on a single-offer row there is nothing left.
+  it('a lone Blart with no neighbours still eats — the share is a clean no-op', () => {
     const s: RunState = { ...base(), runeBlart: true, shop: shop('sandbag') };
     applyEndOfTurn(s);
     expect(s.shop.length).toBe(0);
     expect(s.shopMinionsEaten).toBe(1);
   });
 
-  it("the rune's printed text says Consume, matching what the card now does", () => {
+  it("the rune's printed text describes the sideways share (owner rework 2026-08-19)", () => {
     // The card-text rule cuts both ways: a rune that describes a mechanic the card no longer has is as wrong
-    // as a stale number. It said "gain the stats of" while Blart copied; it must say Consume now.
+    // as a stale number. The clause is now "share the stats sideways", not a second Consume.
     const rune = [...EPIC_RUNES, ...RUNES].find((r) => r.id === 'rune_blart')!;
-    expect(rune.text).toContain('Consume');
+    expect(rune.text).toContain('adjacent minions');
     expect(rune.text, 'the copy-shape wording must be gone').not.toContain('gain the stats');
   });
 });

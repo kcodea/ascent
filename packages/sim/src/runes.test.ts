@@ -97,7 +97,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(104); // 106 → 105 → 104 on 2026-08-18: two Basic runes archived (ARCHIVED_RUNES)
+    expect(RUNES.length).toBe(121); // 122 → 121 on 2026-08-19: the Tip Jar was PROMOTED to EPIC_RUNES
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -526,19 +526,19 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(s.recruitFxSeq).toBeGreaterThan(0); // seq bumped → the UI replays the descends
   });
 
-  it('Rune of Kindling: casting a spell descends +2/+2 onto the left AND right-most minions (owner rework 2026-08-11)', () => {
+  it('Rune of Kindling: casting a spell descends +4/+6 onto the left AND right-most minions (owner balance 2026-08-19)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeKindling: true,
       board: [mkAlley('a'), mkAlley('b')],
       hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'sp1' }); // casting a spell fires the Kindling buff on both ends
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (left-most)
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (right-most)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 7]); // 1/1 + 2/2 (left-most)
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([5, 7]); // 1/1 + 2/2 (right-most)
     const fxA = s.recruitBuffFx.filter((e) => e.targetUid === 'a' && e.sourceUid === undefined);
     const fxB = s.recruitBuffFx.filter((e) => e.targetUid === 'b' && e.sourceUid === undefined);
     expect(fxA.length).toBe(1);
-    expect([fxA[0]!.attack, fxA[0]!.health]).toEqual([2, 2]);
+    expect([fxA[0]!.attack, fxA[0]!.health]).toEqual([4, 6]);
     expect(fxB.length).toBe(1);
-    expect([fxB[0]!.attack, fxB[0]!.health]).toEqual([2, 2]);
+    expect([fxB[0]!.attack, fxB[0]!.health]).toEqual([4, 6]);
   });
 
   it('Rune of Scales: casting a spell descends +4/+5 onto each board Dragon (Beasts untouched)', () => {
@@ -695,13 +695,13 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
 describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge scheduling', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('Rune of Kindling: each spell cast gives the left AND right-most minions +2/+2 (owner rework 2026-08-11)', () => {
+  it('Rune of Kindling: each spell cast gives the left AND right-most minions +4/+6 (owner balance 2026-08-19)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeKindling: true,
       board: [mkAlley('lead'), mkAlley('other')],
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' }); // cast a spell
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (left-most)
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // 1/1 + 2/2 (right-most)
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 7]); // 1/1 + 2/2 (left-most)
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([5, 7]); // 1/1 + 2/2 (right-most)
   });
 
   it('Rune of the Pair: conjures 2 random Tier-4 minions', () => {

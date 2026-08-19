@@ -272,12 +272,13 @@ export const SET2_DWARVES: CardDef[] = [
     tier: 5, // owner rework 2026-08-18: T6 → T5
     attack: 7,
     health: 6,
-    keywords: [],
+    keywords: ['DS', 'CR'],
+    critChance: 0.5,
     // Owner rework 2026-08-18: the hand-mint half is dropped and the board half now hits ALL your minions
     // (`tribe: 'all'`, `count: 0` = mint nothing). `every` still metered per-instance by `applyGoldSpent`.
     effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 0, play: 1, tribe: 'all' } }],
-    text: 'When you spend **8 Gold**, play a **Ruby** on your minions.',
-    goldenText: 'When you spend **8 Gold**, play **2 Rubies** on your minions.',
+    text: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, play a **Ruby** on your minions.',
+    goldenText: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, play **2 Rubies** on your minions.',
   },
   {
     // Set 2 — Billings (owner add 2026-08-18): every 5 Gold spent, two random Dwarves get a big +5/+5. The
@@ -430,5 +431,20 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'deepdelvewrit', count: 1 } }],
     text: '**Shout:** get a **Deep Delve Writ**.',
     goldenText: '**Shout:** get **2 Deep Delve Writs**.',
+  },
+  {
+    // Owner add 2026-08-19. A Dwarf capstone that grows ITSELF rather than the board: Beefy hits the target and
+    // both neighbours, so a centre Arnold pays three ways off one cast. Distinct from `endOfTurnCastSpellEscalating`
+    // (which climbs and picks the biggest OTHER friend) — this one is a flat once-per-turn cast, aimed at self.
+    id: 'dw_arnold',
+    name: 'Arnold',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 9,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellOnSelf', params: { spellId: 'sp_beefy' } }],
+    text: '**End of Turn:** cast **Beefy** on this.',
+    goldenText: '**End of Turn:** cast **Beefy** on this **twice**.',
   },
 ];

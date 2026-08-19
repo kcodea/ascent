@@ -1,5 +1,212 @@
 # ASCENT — development log
 
+## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
+
+**Rune art: full re-wire (2026-08-19).** Re-copied every rune's master from `Ascent Art/Runes` and re-ran
+`optimize-art`, rather than only filling the gaps — the owner had revised some already-wired pieces. **257 of
+262 runes now carry art.** Seven existing pieces changed (Badger, Foundry, Groveweaver, Matriarch, Set-2
+Menagerie, Remains, Tip Jar) and eleven newly landed (Bubble Crown, Catacomb, Chipper Sticker, Deathtouched
+Apple, Drake Skull, Embers, Engraving Gems, Held Strength, Might, Refreshments, Rising Echoes). The rest
+re-encoded byte-identical, which is the useful signal: WebP output here is deterministic, so a full re-wire
+shows exactly what actually moved.
+
+Three needed a hand-mapping the name-normaliser could not reach, all flagged rather than silently guessed:
+`RuneOfScale.png` → `rune_scale` (the id matches the filename; the rune's NAME is Bulk Order),
+`SpellOfPillaging.png` → `rune_pillaging`, and `RuneOfTheCaravan.png` → `rune_strange_caravan`.
+
+**Still missing art:** only Rune of Wild Memory (archived). Six
+source files match no live rune — `RuneOfEchoingCry`, `RuneOfGilding`, `RuneOfTheAftermath`,
+`RuneOfTheFinalVerse`, `RuneOfTheGolems`, `RuneoftheMotherload` — plus one UUID-named file.
+
+**Seventh wave (same PR): Rune of Refreshments + the Baller's new cadence.**
+
+- **Rune of Refreshments** (Epic, 1) — playing a **Demon** banks a **free refresh**. It hangs off the same play
+  chokepoint (`fireSummonBuffs`) as the Chipper Sticker, and deliberately fires BEFORE that rune's early
+  return: the Sticker bails when it finds no second Demon to eat with, and holding both runes must not let one
+  silently swallow the other. Pinned by a test.
+- **Rune of the Baller** → the step now climbs every **2 sales**: +1 Atk, +1 Hp, +2 Atk, +2 Hp, … Each size is
+  paid on both axes before the magnitude rises (it used to climb every single sale). The tally pill, the
+  payout and the printed text all moved together, and a test sells four times to check the pill's promise
+  against what actually lands.
+
+**Sixth wave (same PR): Gemline Martyr, Arnold, Rune of the Embers.**
+
+- **Gemline Martyr** → back to **End of Turn: get a Veinstorm**, with the Ruby-improvement half dropped. It is a
+  plain spell faucet again, so it rides the trigger-agnostic `battlecryGrantSpell` rather than needing its own
+  End-of-Turn factory; the now-unused `startOfTurnGetSpellImproveRubies` policy entry came out with it (the
+  registry's ghost tripwire catches a stale key as readily as a missing one).
+- **Arnold** — new T6 Dwarf 9/10: End of Turn, cast **Beefy** on itself; gilded casts twice. New factory
+  `endOfTurnCastSpellOnSelf`, deliberately NOT the escalating sibling: the count is flat and the target is
+  always self, where `endOfTurnCastSpellEscalating` climbs and aims at the biggest OTHER friend. Because Beefy
+  is target-and-neighbours, a centre Arnold pays three ways off one cast.
+- **Rune of the Embers** (Epic, 4) — every refresh **doubles the right-most Shop minion's Health**. Applied as
+  an offer buff equal to the body's current Health rather than a stat rewrite, so the shop card shows where the
+  number came from and the buy bakes it in through the same path every other slot enchant uses. It runs AFTER
+  Market Tormentor's slot buff on purpose — the doubling should include that turn's enchant, the same "the
+  right-most must be the BUFFED body" ordering the Hellrider ruling established — and it compounds across
+  refreshes.
+
+**Rune of Time was NOT built — it already exists.** `Rune of the Conductor` (Epic, 4) is the same card word for
+word: "Your **End of Turn** effects trigger **2 more times**", riding the `endOfTurnExtra` counter. Flagged
+rather than shipped as a duplicate.
+
+**Fifth wave (same PR): the Baller pill, 3 reworks, 1 new spell, and 24 rune arts wired.**
+
+- **Rune of the Baller** now shows its NEXT payout as its pill — `+2 Atk`, `+3 Hp` — instead of nothing. It has
+  no threshold (every sale pays), so an `x/N` counter would be meaningless; what the player could not see is
+  WHICH stat is up next and how big. A test pins the pill against the payout so the two can't drift.
+- **Rune of the Wild Hunt** → the ATTACKING Beast gains **+2 Attack**, improving +2 permanently per Beast
+  attack. It was a board-wide +Health drip; it is now a single-body Attack snowball, so it rewards one Beast
+  swinging often rather than a wide board. The permanent escalation and its cross-combat carry-back are
+  unchanged.
+- **Rune of the Burrow** → 1 Gold, and the resummon is gone: triggering a **Beast's Echo** banks a **free
+  refresh**. It rides the `asEcho` chokepoint rather than the death site, so a FORCED Echo (Hawkus, Spots, the
+  Reliquary) pays exactly like one that came from dying. `asEcho` gained an optional source-minion argument to
+  make that possible — four call sites, all of which had the body in hand already.
+- **Rune of the Tip Jar** → promoted from a **Basic 6-Gold** rune (3 Gold / +3 max) to a **0-Gold Epic**
+  (4 Gold / +4 max), per the owner's spec for a rune of that name. It did not exist twice: this is the same def
+  moved `RUNES` → `EPIC_RUNES` and re-costed, because two runes sharing a name is a defect. The `RuneDef`
+  schema's `cost` bound relaxed from `positive()` to `nonnegative()` — a FREE rune is a real design point and
+  only that bound said otherwise.
+- **Summoning Bulwark** — new T3 3-Gold Shop Spell: the first 2 minions you summon in combat gain Taunt. The
+  count is banked on the RUN (`summonTauntsNextCombat`) rather than on a body, because the recipients do not
+  exist yet; it rides into the player's combat side as `questMods.summonTaunts`, is spent at the single
+  summon-entry chokepoint (decremented on the GRANT, so a body that already has Taunt doesn't burn one), and
+  lapses at the turn rollover whether or not it was used.
+
+**Rune art: 24 wired** (Refraction, Ruby Resonance, all five Basic + five Epic tribe faucets, Hoardflame,
+Glider, Pendant, Ornate Clock, Herding Horn, War Drum, Baller, Wishbone, Dragon Breath, Ruins, Blasting Voices,
+Gem Dividend) through the standard PNG → `optimize-art` → WebP path. **11 live runes still have no art:**
+Basic — Drake Skull, Catacomb, Bubble Crown. Epic — Stoked Menagerie, Engraving Gems, Deathtouched Apple,
+Held Strength, Chipper Sticker, Rising Echoes, Might, Tip Jar (its `RuneOfTheTIpJar.png` exists but is the art
+for the OLD basic card — re-wire once the Epic art lands).
+
+**Fourth wave (same PR): 10 keyword grants + 1 Epic rune.**
+
+Ward (`DS`) to Impossible Todd, Gem Portsmith, Karwind, Beardsley, Hellrider and Mountainbond; Taunt (`T`) to
+Kobe and Knocked; Critical Strike (`CR`) to Axeman, Warflame and Mountainbond. Every `CR` grant ships with an
+explicit `critChance: 0.5` — the pill alone is a badge that never rolls, since `simulate` gates the per-swing
+roll on the number, not the keyword. Each card's printed text now leads with the keyword it gained.
+
+**Rune of the Stoked Menagerie** (Epic, 5) — Start of Combat, if you control all 5 minion types, double the
+stats of 3 random minions. "All 5" reads the SIDE's own active tribe list rather than a hardcoded 5, so a set
+with a different tribe count still asks for a full house; a universal-tribe body counts as every type at once.
+The three are picked **without replacement** ("3 random minions" is three bodies, not three rolls that can
+collide) and each doubles its CURRENT stats, so the rune pays more the later the board is built.
+
+**Rune of the Warding Drakes was NOT built — it already exists.** `Rune of Dragonscale` (Epic, 4) is
+character-for-character the same card: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat",
+live in `EPIC_RUNES` with the allowance decremented on the GRANT rather than the attack. Flagged rather than
+shipped as a duplicate.
+
+**Third wave (same PR): 2 reworks, 5 Epic runes, 1 Shop Spell.**
+
+- **Rune of the Reliquary** → End of Turn, trigger your **2 left-most Echoes** (was one).
+- **Rune of Blart** → back to **Epic**, and the clause changed shape: it no longer eats a second offer. Blart's
+  one Consume now also **grants the meal's stats to his adjacent minions**. Demoting/promoting a rune is still
+  an array move (`EPIC_RUNES` ↔ `RUNES`), not a flag flip.
+- **Rune of the Deathtouched Apple** (4) — when a minion Rises, give it Rise, twice per combat. The budget is
+  per-combat and re-arms Rise on the risen body, so it is a bounded chain, not an infinite one.
+- **Rune of Held Strength** (3) — your left- and right-most minions take the stats of the left-most card in hand.
+- **Rune of the Chipper Sticker** (5) — playing a Demon makes ANOTHER friendly Demon consume a Shop minion. It
+  was first registered as a combat flag; the wiring audit caught it immediately ("granted but nothing reads it")
+  because it is consumed in RECRUIT — it now has its own reward kind + `RunState` flag, bucketed `:recruit`.
+- **Rune of Rising Echoes** (4) — Discover an Echo minion with Rise and Taunt; your first Echo triggers an extra
+  time in combat. The grant half needed new `discover.grantKeywords` support alongside the existing `filter`.
+- **Rune of Might** (6) — every spell you cast also casts **Might of Aeon**, behind a re-entry latch so the
+  rune's own cast can't recurse.
+- **Might of Aeon** — a new T3 2-Gold Shop Spell (3 random friendly minions +2/+3), offered normally.
+
+A seed shift from adding the spell to the pool exposed a **pre-existing bot softlock**: the scout overlay counts
+as `modalOpen`, which refuses `faceOmen` too, and `DEFAULT_BOT` never dispatched `closeScout` — lobby seed 5
+stalled in `recruit` forever. The bot now dismisses it like the other modals.
+
+**Second wave (same PR): 5 more basic runes.** Herding Horn (2 — every Rally banks a free refresh), Bubble
+Crown (1 — at 12 spells, spell power +6/+6, ONCE), War Drum (2 — one Shout triggers 2 extra times per turn),
+Baller (4 — each sale buffs the board, climbing and alternating Attack/Health), Wishbone (2 — Hero Power
+triggers twice).
+
+Notable reuse: **Wishbone's entire mechanism already existed and nothing used it** — the `runeEmpowerment`
+reward (which sets `reps = 2` on the hero power), the `requiresDoublePower` rune field, and the
+`DOUBLEABLE_POWERS` gate that hides the rune from heroes it cannot help. The retired Rune of Empowerment left
+all of it behind.
+
+New engine: a `spells` threshold buff target (raises run spell power, the Cinderwing channel), a `once`
+threshold that PARKS its meter at the cap after paying — so the x/12 counter reads 12/12 rather than resetting
+and implying another payout — the War Drum's own per-turn latch (separate from Warm Embers' so the two stack
+and the 1/0 charge readout is independent), and `runeBaller`, whose tally lives on the RUNE rather than a card
+(a sell payoff counting on a card would reset every time you cashed one in).
+
+**Wishbone now doubles all 20 heroes on the owner's roster.** The first pass gated it to the powers whose
+branch was assumed to read `reps` — an audit then showed only FOUR sites in the whole reducer ever did
+(`scalingGold`, `dynamiteDig`, `dragonTamer`, `gainMaxMana`). Eight of the gated eleven were being offered a
+rune that did nothing for them. Every one is now implemented:
+
+- **Active** (their branch runs `reps` times): Albus steps the Discover TWO tiers — its pick REPLACES the
+  targeted offer, so a second Discover would have nothing to land on · Auctioneer replays the Battlecry twice
+  · Harlan takes two consecutive Shops (take, reroll, take again) · Hunch and Merrin hand over two cards ·
+  Jensen and Tiff open two Discovers · Nadja banks +2 max Gold · Quillen banks the type twice · Underdweller
+  queues a second Discover behind the first rather than overwriting it · Xerox makes two copies, each needing
+  its own board slot · Braum banks two counts.
+- **Passive** (never reaches the activation switch, so each doubles at its OWN fire site through the new
+  `wishboneReps` helper): Cia's prize pays twice · Emerald Warden hands over 2 on a tavern-up · Emissary's
+  Start-of-Combat grant pays double · Gorr makes another copy, RE-ROLLED among the same three ("not
+  necessarily the same") · Juggler pays 2 Coins · Keshi banks the purchase's tier twice · Odelle's Exhibition
+  pays twice · Re-Pete makes 2 copies.
+
+Quillen's overflow rule forced a real fix: the bucket used to CLEAR the whole tally, so a doubled archive
+would have thrown its 4th count away. It now consumes exactly three and keeps the remainder — identical for
+an undoubled Quillen, which can never bank more than three.
+
+**Flash (`firstOrLast`) is IN, by owner ruling** (2026-08-19; the first pass had excluded him). His power arms
+a MARK, and a mark set twice is the same mark — so the doubling can't live on the recruit action. It rides the
+payout instead: the marked claim grants **2 copies** for either choice, via a `questMods.flashCopies` combat
+mod that `simulate` loops on at both claim sites (first-swing and last-kill).
+
+
+**Reworks.** **Rune of Blart** → basic at 4 Gold. Demoting a rune means MOVING the def between arrays, not
+just dropping `epic: true` — `runeforgePool` reads `s.runeforgeEpic ? EPIC_RUNES : RUNES`, so the flag is
+presentation (the card's kicker) and membership is the pool. **Rune of Kindling** → +4/+6 (its magnitude was
+hardcoded behind a boolean flag). **Rune of Infernal Ink** → every Shop Spell (`per: 1`) for +1/+1; the `shop`
+buff target already writes `tavernBuyBonus`, which is the run-wide "minions in the Shop everywhere" the owner
+asked for. **Rune of the Merchant's Chorus** → every Shout, +3/+3 **for this turn**.
+
+That last one needed a genuinely new layer. The existing `shop` target is PERMANENT, so "for this turn" got its
+own `shopTurn` target writing `tavernBuyBonusTurn` — read by `offerBuyStats` beside the permanent bonus (same
+Fodder exclusion, for the same reason), accumulating across every roll within the turn, and cleared at the
+rollover alongside the other per-turn tallies.
+
+**22 new runes.** Basic: Refraction, Ruby Resonance, five tribe faucets, Hoardflame, Glider, Drake Skull,
+Catacomb, Pendant, Ornate Clock. Epic: five tribe faucets, Dragon Breath, Ruins, Engraving Gems, Blasting
+Voices.
+
+Most of the value came from primitives that already existed: **`shoutEdgeBuff`** was implemented with no rune
+using it (Drake Skull is its first consumer), `echoRepeat: firstEachCombat` and `discoverFilter('deathrattle')`
+gave Catacomb, `scheduleRuneforge` already carried its own Gold for the Ornate Clock, and `shoutRepeat` stacks
+by design — so Blasting Voices is two stacked grants rather than a new flag.
+
+New engine: `runeTribeDrip` (the `runeDeep` turn-setup faucet, tribe-filtered and tavern-tier capped; an ARRAY
+so several tribe runes stack), `runeSpellDouble` (a CARD-scoped multicast — and because `spellCasts` is what the
+UI's ×N badge previews, the multicast modifier shows automatically while it is armed, which is what the owner
+asked for), `runeGlider`, `runePendant`, and three combat flags: `runeRuins` (rides the `friendlyDemonDealtDamage`
+emit — so it counts a LANDED hit exactly as the Demon-damage minions do), `runeEngravingGems` (forced at the
+single `playRubyOn` chokepoint, so EVERY combat Ruby source becomes permanent together rather than per-caller
+opt-in), and a reserved `runeGolems`.
+
+**Two owner calls during the build.** The Basic/Epic tribe runes were written identically — confirmed a typo,
+so the Epic ones grant **2**. And **Resonance Idol is archived**: the owner chose to keep it archived and let
+the rune be its only source, which is a deliberate exception to the archive rule that a reward must not name an
+archived id (noted at the rune).
+
+**Rune of the Golems was NOT added** — `Rune of the Gem Golem` already exists (Epic, 4 Gold, "When a friendly
+Kobold dies in combat, summon a token with stats equal to its Ruby bonuses"), which is the same effect. Flagged
+rather than shipping a duplicate.
+
+**Verified:** typecheck (pkgs + web), lint (0 errors), `build:web`, full suite green. New coverage in
+`runeBatchAug19.test.ts` pins what data alone can't: Blart's ARRAY move, Infernal Ink paying on the first cast,
+the Chorus buff stacking across rolls but never touching the permanent bonus and vanishing at the rollover, the
+1-vs-2 tribe drip, the card-scoped multicast (named spell doubles, others untouched), the Glider's no-op with no
+Dragon out, and Blasting Voices resolving to +2 triggers through the real buy path.
 ## 2026-08-19 — End Turn gem glow copied from the Freeze gem (and re-seated below the gem)
 
 Owner ask: the End Turn diamond's hover glow floated over the bronze housing on its own top layer, unlike the

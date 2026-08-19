@@ -68,6 +68,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
   'factory:battlecryGrantShoutExtra:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemline Martyr -> Veinstorm
+  'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -199,7 +201,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
   'factory:onSellGetRubies:onSell': { policy: 'ownBeat', family: 'economy' }, // Beggy
-  'factory:startOfTurnGetSpellImproveRubies:startOfTurn': { policy: 'ownBeat', family: 'startOfTurn' }, // Gemline Martyr
   'factory:goldSpentBuffRandomTribe:goldSpent': { policy: 'foldedCue', family: 'economyReact' }, // Billings
   'factory:onGainCardBuffTribe:onGainCard': { policy: 'foldedCue', family: 'economyReact' }, // Gangplank
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
@@ -348,6 +349,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellGildTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGoldIfLostLast:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantKeywordNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellTauntNextSummons:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantTopTypeMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantTribeAttack:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellLayaway:cast': { policy: 'ownBeat', family: 'spellCast' },
@@ -418,6 +420,39 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_chef:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_chimerus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_choir:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // 2026-08-19 owner rune batch.
+  'rune:rune_chipper_sticker:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_deathtouched_apple:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_held_strength:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_might:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_rising_echoes:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_baller:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_bubble_crown:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_herding_horn:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_war_drum:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_wishbone:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_basic_beast:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_basic_demon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_basic_dragon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_basic_dwarf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_basic_kobold:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_blasting_voices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_catacomb:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_dragon_breath:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_drake_skull:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_epic_beast:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_epic_demon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_epic_dragon:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_epic_dwarf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_epic_kobold:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_glider:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_hoardflame:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_ornate_clock:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_pendant:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_engraving_gems:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_ruins:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_refraction:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_ruby_resonance:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_chorus:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_cinder_ledger:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_cindergem:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -582,6 +617,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_twin_gilding:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_unbroken_vein:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_underdog:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_stoked_menagerie:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_embers:recruit': { policy: 'foldedCue', family: 'shopEconomy' },
+  'rune:rune_refreshments:recruit': { policy: 'foldedCue', family: 'shopEconomy' },
   'rune:rune_undertow:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vanguard:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_vault:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

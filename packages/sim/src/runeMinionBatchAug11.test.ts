@@ -14,7 +14,7 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
       ['rune_display_case', 4], ['rune_wrangler', 3], ['rune_living_geode', 4], ['rune_open_enrollment', 5],
       ['rune_strange_caravan', 3], ['rune_lassoing', 2], ['rune_restocking', 3], ['rune_trade_in', 2],
       ['rune_window_shopping', 3], ['rune_fresh_pages', 3], ['rune_collector', 4], ['rune_shopkeep', 5],
-      ['rune_dawnclaw', 5], ['rune_blart', 6], ['rune_bargain_bin', 7], ['rune_sylus', 5], ['rune_kobold_bebes', 6],
+      ['rune_dawnclaw', 5], ['rune_blart', 4], ['rune_bargain_bin', 7], ['rune_sylus', 5], ['rune_kobold_bebes', 6],
       ['rune_sellers_market', 3], ['rune_old_pack', 6], ['rune_herzog', 5],
     ];
     for (const [id, cost] of want) {

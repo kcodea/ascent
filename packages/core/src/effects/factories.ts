@@ -82,7 +82,11 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
   const a = (1 + rb.attack) * per * mult;
   const h = (1 + rb.health) * per * mult;
-  applyRubyStats(ctx, self, target, a, h, permanent);
+  // RUNE OF ENGRAVING GEMS: every Ruby applied in combat carries back to the run board. Forced at this single
+  // chokepoint (like Battle Refraction above), so EVERY combat Ruby source becomes permanent together rather
+  // than each caller having to opt in — a per-source opt-in is exactly how one would get missed.
+  const engraved = permanent || !!ctx.rubiesPermanentFor?.(self.side);
+  applyRubyStats(ctx, self, target, a, h, engraved);
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
   // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.

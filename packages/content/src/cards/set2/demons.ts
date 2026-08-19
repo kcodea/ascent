@@ -157,13 +157,13 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 6,
     attack: 6,
     health: 6,
-    keywords: [],
+    keywords: ['DS'],
     // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
     // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
     // cheap one eats the row, the Tier-6 one farms it without shrinking your options.
     effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 4, times: 1 } }],
-    text: "Every **4 refreshes**, gain the **right-most** Shop minion's stats.",
-    goldenText: "Every **4 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
+    text: "**Ward.** Every **4 refreshes**, gain the **right-most** Shop minion's stats.",
+    goldenText: "**Ward.** Every **4 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
   },
   {
     // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
@@ -224,10 +224,10 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 6,
     attack: 7,
     health: 8,
-    keywords: [],
+    keywords: ['DS'],
     effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 4, health: 4, impAttack: 2, impHealth: 2 } }],
-    text: 'When a friendly **Demon** deals damage, gain **+4/+4** permanently and give your **Imps +2/+2** this game.',
-    goldenText: 'When a friendly **Demon** deals damage, gain **+8/+8** permanently and give your **Imps +4/+4** this game.',
+    text: '**Ward.** When a friendly **Demon** deals damage, gain **+4/+4** permanently and give your **Imps +2/+2** this game.',
+    goldenText: '**Ward.** When a friendly **Demon** deals damage, gain **+8/+8** permanently and give your **Imps +4/+4** this game.',
   },
   {
     // Set 2 — Knocked (owner add 2026-08-18): a cheap Echo Imp-maker. Golden summons 2.
@@ -237,10 +237,10 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 1,
     attack: 2,
     health: 2,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } }],
-    text: '**Echo:** summon an **Imp**.',
-    goldenText: '**Echo:** summon **2 Imps**.',
+    text: '**Taunt.** **Echo:** summon an **Imp**.',
+    goldenText: '**Taunt.** **Echo:** summon **2 Imps**.',
   },
   {
     // Set 2 — Grevlin & Co. (owner add 2026-08-18): a sell-fed eater. Every 3 minions sold, it consumes the
@@ -306,9 +306,10 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 4,
     attack: 4,
     health: 4,
-    keywords: [],
+    keywords: ['CR'],
+    critChance: 0.5,
     effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 3 } }],
-    text: 'When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
-    goldenText: 'When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
+    text: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
+    goldenText: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
   },
 ];

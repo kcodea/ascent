@@ -30,6 +30,8 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe']);
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
+/** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
+const RUNE_RUINS_BUFF = 2;
 const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another); one queue item per token — a deferred summon strikes inline in the same drain step
 
 /**
@@ -204,8 +206,6 @@ export function simulate(
     nextSummonBuffs[side] = nextSummonBuffs[side].filter((b) => !matches(b)); // spent on this one body
     ctx.buff(minion, a, h, 'Wolvie');
   }
-  /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
-  const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
    *  side's final value carries back into the run). Seeded from the run-persisted level (default 2). */
   const beastialLevel: Record<Side, number> = {
@@ -391,7 +391,18 @@ export function simulate(
   // enemy-death sites so a Rise's real death counts exactly like an ordinary one.
   let firstKill: string | undefined;
   let lastKill: string | undefined;
+  // Rune of the Deathtouched Apple: 2 re-arms per COMBAT per side. A budget rather than a flag because
+  // re-granting Rise on a Rise is otherwise unbounded — each return would arm the next forever.
+  const appleBudget: Record<Side, { left: number } | null> = {
+    player: modsFor('player').runeDeathtouchedApple ? { left: 2 } : null,
+    enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 } : null,
+  };
+  const appleUsesFor = (side: Side): { left: number } | null => appleBudget[side];
   const flashPick = playerState.questMods?.flashPick;
+  // Rune of the Wishbone on Flash: the claim grants TWO copies (owner ruling 2026-08-19 — "2 copies of the
+  // minion for either choice"). The mark itself is unchanged; what doubles is the payout, which is the only
+  // thing about this power that CAN double — arming a mark twice is the same mark.
+  const flashCopies = Math.max(1, playerState.questMods?.flashCopies ?? 1);
   let flashDone = false;
   const noteKill = (cardId: string, uid: string): void => {
     firstKill ??= cardId;
@@ -401,7 +412,7 @@ export function simulate(
     if (flashPick === 'first' && !flashDone) {
       flashDone = true;
       const def = cards[cardId];
-      if (def && !def.spell && !def.ruby) ctx.grantToHand(cardId, 'player', uid);
+      if (def && !def.spell && !def.ruby) for (let i = 0; i < flashCopies; i++) ctx.grantToHand(cardId, 'player', uid);
     }
   };
 
@@ -495,6 +506,10 @@ export function simulate(
     if (n <= 0) return;
     playerRallies += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+    // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
+    // rather than at each Rally site so it counts exactly what the `rally` quest objective counts — every
+    // fire, doubler re-fires included — instead of drifting from the game's own definition of "a Rally".
+    if (modsFor('player').runeHerdingHorn) ctx.grantFreeRolls(n, 'player');
     checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
@@ -588,6 +603,8 @@ export function simulate(
       spellEscalationGain[side].health += health;
     },
     tierFor: (side) => (side === 'player' ? playerState : enemyState).tier,
+    rubiesPermanentFor: (side) => !!modsFor(side).runeEngravingGems, // Rune of Engraving Gems
+
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -1305,7 +1322,18 @@ export function simulate(
    * counter, collects Emberline's bank, can be Second Litter's first Beast, and takes Savagery / Jungle /
    * Wolvie — exactly like any other body entering play.
    */
+  /** Summoning Bulwark: the first N bodies each side summons this combat gain Taunt. Decremented on the GRANT
+   *  (a body that already has Taunt does not burn one), so the spell delivers N Taunts, not N attempts. */
+  const summonTauntsLeft: Record<Side, number> = {
+    player: playerState.questMods?.summonTaunts ?? 0,
+    enemy: enemyState.questMods?.summonTaunts ?? 0,
+  };
   function summonEntryEffects(minion: Minion, side: Side): void {
+    if (summonTauntsLeft[side] > 0 && !minion.dead && !minion.keywords.includes('T')) {
+      summonTauntsLeft[side] -= 1;
+      minion.keywords.push('T');
+      emit({ type: 'keyword', target: minion.uid, keyword: 'T' });
+    }
     summonOrdinal[side] += 1; // before onSummon fires, so Rune of the Zoo reads THIS summon's ordinal
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
@@ -1380,9 +1408,13 @@ export function simulate(
   // of 2026-08-03: Aftershocks stopped reading it in the 2026-07-21 rework (it buffs on TRIGGER now, not on
   // summon), Undertow moved to all combat summons, and the Hatchery rework removed its last reader. Rather
   // than leave a counter nothing consults, it is deleted; the wrapper still exists for the Aftershocks grant.
-  const asEcho = (side: Side, run: () => void): void => {
+  const asEcho = (side: Side, run: () => void, source?: Minion): void => {
     {
       run();
+      // RUNE OF THE BURROW (owner rework 2026-08-19): triggering a BEAST's Echo banks a free Shop refresh.
+      // It rides the echo chokepoint rather than the death site, so an Echo fired by Hawkus / Spots / the
+      // Reliquary — no death involved — pays exactly like one that came from dying.
+      if (source && modsFor(side).runeBurrow && isBeast(source)) ctx.grantFreeRolls(1, side);
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -1526,7 +1558,7 @@ export function simulate(
       // watcher, and a watcher reacting to someone else's death (Brood Matron, Endless Overseer) is not its
       // own Echo firing — wrapping those made Aftershocks pay once per rattle-body per death.
       const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;
-      if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)));
+      if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)), minion);
       else withEffect(minion, effect, () => fn(ctx, minion, params, payload));
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
@@ -1682,7 +1714,7 @@ export function simulate(
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })));
+        asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })), minion);
       }
     };
     fireOnce();
@@ -1763,6 +1795,16 @@ export function simulate(
         minion.keywords = minion.keywords.filter((k) => k !== 'R');
         minion.health = 1;
         minion.maxHealth = 1;
+      }
+      // RUNE OF THE DEATHTOUCHED APPLE: a minion that Rises gets Rise BACK, so it can go again. Budgeted per
+      // combat (2 uses) — without a budget this is an infinite loop, since each Rise would re-arm the next.
+      // Re-armed AFTER the strip above, which is what clears `R` in both branches.
+      const apple = appleUsesFor(minion.side);
+      if (apple && apple.left > 0) {
+        apple.left -= 1;
+        if (!minion.keywords.includes('R')) minion.keywords.push('R');
+        minion.rebornAvailable = true;
+        emit({ type: 'keyword', target: minion.uid, keyword: 'R' });
       }
       // Granted blessings shed with the granted keywords: a golden-Taurus ×2 (`gainMult`) doesn't survive
       // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
@@ -1907,18 +1949,6 @@ export function simulate(
         for (const m of beasts) ctx.buff(m, n, n, 'Rune of Beastial Swarm');
       }
     }
-    // RUNE OF THE BURROW: the FIRST friendly Beast with an Echo to die each combat is resummoned WITHOUT its
-    // Echo (a def clone with its onDeath effects stripped, so it can't loop the resummon). Base stats.
-    if (dyingIsBeast && modsFor(minion.side).runeBurrow && !burrowUsed[minion.side]
-        && minion.effects.some((e) => e.on === 'onDeath')) {
-      const def = cards[minion.cardId];
-      if (def) {
-        burrowUsed[minion.side] = true;
-        fireTrigger('runeBurrow', minion.side);
-        const noEcho: CardDef = { ...def, effects: def.effects.filter((e) => e.on !== 'onDeath') };
-        summonMinion(minion.side, noEcho, minion.uid, minion.keywords.filter((k) => k !== 'R'), !!minion.golden, false);
-      }
-    }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
@@ -2001,7 +2031,7 @@ export function simulate(
           if (effect.on !== 'onDeath') continue;
           withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
         }
-      });
+      }, minion);
     }
     // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
     // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
@@ -2125,6 +2155,12 @@ export function simulate(
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
     if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {
       bus.emit('friendlyDemonDealtDamage', { minion: poisoner, side: poisoner.side });
+      // RUNE OF RUINS: the same landed hit pumps that side's whole board. Run-wide (no minion source), so it
+      // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
+      // body that is Engraved, which is the standing rule for every combat stat gain.
+      if (modsFor(poisoner.side).runeRuins) {
+        for (const m of living(poisoner.side)) ctx.buff(m, RUNE_RUINS_BUFF, RUNE_RUINS_BUFF, 'Rune of Ruins');
+      }
     }
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was
@@ -2339,14 +2375,14 @@ export function simulate(
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
-      // Rune of the Wild Hunt: a Beast attacking gives your WHOLE board +N Health and improves N permanently.
-      // Distinct from The Old Hunt, which pumps the Beast-only aura symmetrically — this one is Health-only,
-      // board-wide, and its step GROWS, so it is tracked per side rather than read from a static mod.
+      // Rune of the Wild Hunt (owner rework 2026-08-19): the ATTACKING Beast gains +N Attack, and N improves
+      // permanently with every Beast attack. It used to be a board-wide Health drip; it is now a single-body
+      // Attack snowball, so it rewards one Beast swinging often rather than a wide board. The grown step
+      // carries back across combats (`playerWildHuntGrown`), which is what "permanently" buys.
       const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
-      if (wildStep > 0 && isBeast(attacker)) {
+      if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
-        const n = wildHuntGrown[attacker.side];
-        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0) ctx.buff(m, 0, n, 'Rune of the Wild Hunt');
+        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
@@ -2371,7 +2407,7 @@ export function simulate(
               if (effect.on !== 'onDeath') continue;
               withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
             }
-          });
+          }, echo);
         }
       }
       // A Rally (RL minion attacking) re-runs this attacker's OWN on-attack effects once per additive doubler
@@ -3035,6 +3071,28 @@ export function simulate(
         for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
       }
     }
+    if (rmods.runeStokedMenagerie) {
+      // Rune of the Stoked Menagerie: controlling EVERY active minion type doubles 3 random minions. "All 5"
+      // is read off the side's OWN active tribe list rather than a hardcoded 5, so a set with a different tribe
+      // count still asks for a full house (the same rule `uncontrolled` uses for the Menagerie payoffs).
+      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const onBoard = new Set<string>();
+      for (const m of living) {
+        const def = cards[m.cardId];
+        for (const t of [def?.tribe, def?.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+        // A universal-tribe body (Amalgam-likes) counts as every active type at once.
+        if (def?.universalTribe) for (const t of ctx.activeTribesFor(rside)) if (t !== 'neutral') onBoard.add(t);
+      }
+      const wanted = ctx.activeTribesFor(rside).filter((t) => t !== 'neutral');
+      if (wanted.length > 0 && wanted.every((t) => onBoard.has(t)) && living.length > 0) {
+        // Pick 3 WITHOUT replacement — "3 random minions" is three bodies, not three rolls that can collide.
+        const pool = living.slice();
+        const picked: typeof pool = [];
+        for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
+        nextStep(); fireTrigger('runeStokedMenagerie', rside);
+        for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+      }
+    }
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {
@@ -3475,7 +3533,8 @@ export function simulate(
     const lastDef = cards[lastKill];
     if (lastDef && !lastDef.spell && !lastDef.ruby) {
       flashDone = true;
-      ctx.grantToHand(lastKill, 'player', boards.player.find((m) => !m.dead)?.uid);
+      const holder = boards.player.find((m) => !m.dead)?.uid;
+      for (let i = 0; i < flashCopies; i++) ctx.grantToHand(lastKill, 'player', holder);
     }
   }
 

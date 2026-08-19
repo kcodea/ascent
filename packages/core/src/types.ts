@@ -458,6 +458,7 @@ export type EffectFactoryId =
   | 'spellBuffShop' // cast: buff every tavern offer +atk/+hp (Staff of Guel)
   | 'gainMaxMana' // cast: raise max Mana permanently (Mana Font)
   | 'grantFreeRolls' // cast: bank N free rerolls (Refreshing Texts)
+  | 'spellTauntNextSummons' // cast: the first N minions summoned in the NEXT combat gain Taunt (Summoning Bulwark)
   | 'spellGainOfTargetTribe' // cast: conjure a random minion of the target's tribe to hand (Tribes Choice)
   | 'spellGainRandomMinion' // cast: conjure a random buyable minion of a tier to hand (Summon Stone)
   | 'spellGildTarget' // cast: make the target Golden if its tier ≤ targetMaxTier (Eyes of Aresmar)
@@ -530,6 +531,7 @@ export type EffectFactoryId =
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
+  | 'endOfTurnCastSpellOnSelf' // Arnold: EoT casts a named spell aimed at this minion (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
   | 'battlecryGrantMinion' // Attachment Mechanic: Battlecry adds a specific minion (Money Bot) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
@@ -882,6 +884,34 @@ export type QuestReward =
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
   | { kind: 'recurringGrant'; cards: string[] }
+  // ── 2026-08-19 owner rune batch ────────────────────────────────────────────────────────────────────────
+  /** Rune of Basic/Epic <tribe>: every turn setup, conjure `count` random minions of `tribe` (the `runeDeep`
+   *  shape, tribe-filtered instead of tier-filtered). Basic grants 1, Epic 2. */
+  | { kind: 'runeTribeDrip'; tribe: Tribe; count: number }
+  /** Rune of Hoardflame / Dragon Breath: THIS spell id casts an extra time. Card-scoped rather than global
+   *  (the Ancient Runes / Spell Thesis shape), so only the granted spell multiplies — and because `spellCasts`
+   *  is what the UI's ×N badge reads, the multicast modifier shows automatically while it is armed. */
+  | { kind: 'runeSpellDouble'; spellId: string }
+  /** Rune of the Glider: whenever you play a card, give a Dragon +atk/+hp. */
+  | { kind: 'runeGlider'; attack: number; health: number }
+  /** Rune of the Pendant: each turn setup, gild a random friendly minion of `maxTier` or below. */
+  | { kind: 'runePendant'; maxTier: number }
+  /** Rune of the War Drum: ONE Shout each turn triggers `extra` additional times (a per-turn charge). */
+  | { kind: 'runeWarDrum'; extra: number }
+  /** Rune of the Baller: each minion sold buffs your board, the magnitude climbing +`step` per sale and
+   *  ALTERNATING Attack / Health (sale 1 = +1 Atk, sale 2 = +2 Health, sale 3 = +3 Atk, …). */
+  | { kind: 'runeBaller'; step: number }
+  | { kind: 'runeEmbers' }
+  | { kind: 'runeRefreshments' }
+  /** Rune of the Wishbone: your Hero Power triggers twice (gated to the powers that can express it). */
+  | { kind: 'runeWishbone' }
+  /** Rune of Might: every Shop spell you cast also casts Might of Aeon. */
+  | { kind: 'runeMight' }
+  /** Rune of Held Strength: your left- and right-most minions gain the stats of your left-most hand card. */
+  | { kind: 'runeHeldStrength' }
+  /** Rune of the Chipper Sticker: playing a Demon makes ANOTHER friendly Demon eat a Shop minion. A RECRUIT
+   *  effect (the play happens in the shop), so it is its own reward rather than a `combatFlag`. */
+  | { kind: 'runeChipperSticker' }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -932,7 +962,9 @@ export type QuestReward =
    */
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost'; attack: number; health: number };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells'; attack: number; health: number };
+      /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
+      once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
@@ -1125,7 +1157,7 @@ export type QuestReward =
   | { kind: 'gainMaxGold'; amount: number }
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
-  | { kind: 'discover'; tier?: number }
+  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
   // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
   | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
@@ -1167,6 +1199,13 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal'
   // Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back).
   | 'runeSoulTaxes'
+  // 2026-08-19 rune batch: Ruins = a friendly Demon dealing damage buffs your minions (combat-only unless the
+  // body is Engraved); Golems = a dying friendly Kobold summons a Gemheart Golem carrying its Rubies;
+  // EngravingGems = Rubies applied in combat carry back to the run board.
+  | 'runeRuins' | 'runeGolems' | 'runeEngravingGems'
+  | 'runeHerdingHorn' // every Rally triggered banks a free Shop refresh
+  | 'runeDeathtouchedApple' // a minion that Rises gets Rise back (2 per combat)
+  | 'runeStokedMenagerie' // SoC: controlling every active type doubles 3 random minions
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
   | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
@@ -1256,6 +1295,8 @@ export interface QuestCombatMods {
    *  materialising at resolution. `first` grants on the opening kill; `last` can only be known once the fight
    *  ends, so it grants at the final step — still within the replay, so it animates like any other grant. */
   flashPick?: 'first' | 'last';
+  /** Rune of the Wishbone on Flash: how many copies the claim grants (2 while armed, else 1). */
+  flashCopies?: number;
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
@@ -1503,6 +1544,16 @@ export interface QuestCombatMods {
   beastialSwarmLevel?: number;
   /** Rune of the Zoo — your Beardsleys' summon buff scales with the running combat-summon count. */
   runeZoo?: boolean;
+  // 2026-08-19 rune batch.
+  runeRuins?: boolean;
+  runeGolems?: boolean;
+  runeEngravingGems?: boolean;
+  runeHerdingHorn?: boolean;
+  runeDeathtouchedApple?: boolean;
+  /** Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions. */
+  runeStokedMenagerie?: boolean;
+  /** Summoning Bulwark: how many of the minions summoned in combat still get Taunt (the spell banks 2). */
+  summonTaunts?: number;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;
@@ -2462,6 +2513,8 @@ export interface CombatContext {
   floodedVaultFor?(side: Side): boolean;
   /** Rune of Battle Refraction — extra combat-Ruby repeats this side's living Prismcasters grant. */
   battleRefractionRepsFor?(side: Side): number;
+  /** Rune of Engraving Gems: this side's combat Rubies carry back to the run board (see `playRubyOn`). */
+  rubiesPermanentFor?(side: Side): boolean;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */

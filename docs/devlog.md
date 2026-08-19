@@ -25,6 +25,25 @@ Two follow-up fixes the same day:
 
 Verified: typecheck + lint (0 errors) + build + the consume transform/config tests green.
 
+## 2026-08-18 — Fix: Compendium description panel floated above the card (and revert the wrong first attempt)
+
+The real "misplaced shadow" in the Compendium was the **`.descbox`** — the dark `desc-backbox.webp` panel behind
+each card's description. It is `position:absolute; top:-184px` anchored to its `.drawer`, but the Compendium
+renders the drawer `position:static` (so the text sits in flow and rows self-size). With a static parent the
+descbox escaped to a higher positioning ancestor and floated ~184px **above** the card — a dark panel hanging in
+the grid gaps, "way above" where it belongs (owner report). In the hand the drawer isn't static, so it always
+seated correctly there.
+
+**Fix:** make the Compendium drawer `position: relative; inset: auto` instead of `static`. `relative` is still
+in normal flow (row self-sizing is unchanged) but re-establishes the drawer as the positioning context, so the
+descbox anchors to it and seats on the card exactly as in the hand. Scoped to `.book-grid`; the hand/live game is
+untouched.
+
+**Also reverts the earlier wrong fix (#1096).** That PR misdiagnosed this as the frame's oval *grounding shadow*
+(`.cshadow`) and hid it in the grid; the grounding shadow was never the problem, so this restores it to its
+normal `translateY(5px)` resting state in the Compendium. Verified live on the dev server (descbox re-seated onto
+the card; grounding shadow back to normal) and against typecheck + lint + build:web.
+
 ## 2026-08-18 — Consume "gulp" SFX + final tuner defaults
 
 Also lands the owner's **final Consume FX tuner defaults** (a snappier eat): durationMs 530, shakePhase 0.76,

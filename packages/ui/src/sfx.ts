@@ -334,6 +334,12 @@ const chord = (freqs: number[], opts: Omit<ToneOpts, 'freq' | 'delay'>, step = 0
  *  gets room to land first (a slight overlap is intended). Tune by ear. */
 const SUMMON_VOICE_LEAD = 0.3;
 
+// The consume "eat" cue is de-duplicated across callers: several minions can be consumed on ONE beat (or one
+// eater devours several fodder), each firing `playFodderEat` separately — the owner wants that to read as a
+// SINGLE gulp, not a stack. A short cooldown collapses any consumes within one beat/frame into one play.
+let lastConsumeAt = -Infinity;
+const CONSUME_SFX_COOLDOWN_MS = 140;
+
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
@@ -385,6 +391,16 @@ export const sfx = {
   roll: () => {
     if (playSample('roll', 'roll')) return;
     [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d, category: 'roll' }));
+  },
+  // A shop minion (or Tavern Fodder) is CONSUMED — the sourced "consume" clip; low synth gulp fallback until it
+  // decodes / if absent. Drop the clip at `packages/ui/src/audio/consume.mp3`. De-duped by a short cooldown so
+  // several consumes on one beat play a SINGLE gulp (owner ask 2026-08-18) — see `CONSUME_SFX_COOLDOWN_MS`.
+  consume: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastConsumeAt < CONSUME_SFX_COOLDOWN_MS) return; // simultaneous consumes → one gulp
+    lastConsumeAt = now;
+    if (playSample('consume', 'consume')) return;
+    tone({ freq: 200, dur: 0.16, type: 'triangle', vol: 0.13, slideTo: 80, category: 'consume' });
   },
   // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
   // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.

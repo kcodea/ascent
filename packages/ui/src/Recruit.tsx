@@ -3553,6 +3553,9 @@ export function Recruit() {
         return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
+      // The consume "gulp" — fired ONCE per consume action (not per ghost), and `sfx.consume` itself de-dupes
+      // across actions on one beat via a short cooldown, so several simultaneous consumes play a single gulp.
+      sfx.consume();
       // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
       // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
       // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-

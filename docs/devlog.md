@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-18 — Consume "gulp" SFX (de-duped so simultaneous consumes play once)
+
+A sound now plays when a shop minion (or Tavern Fodder) is consumed: the owner's `consume.mp3`, dropped at
+`packages/ui/src/audio/consume.mp3` (globbed + keyed `consume`, like every other top-level clip). New audio
+category `consume` (bus `ui`, gain 0.5 — tunable in the dev SFX desk); a `sfx.consume()` method plays the
+sourced clip with a low synth-gulp fallback until it decodes.
+
+**De-dup:** the owner wants several consumes on one beat (one eater devouring multiple fodder, or multiple
+eaters resolving together) to read as a SINGLE gulp. `playFodderEat` fires `sfx.consume()` once per consume
+action (not per ghost), and `sfx.consume` itself guards on a short cooldown (`CONSUME_SFX_COOLDOWN_MS` = 140ms)
+so any consumes within one beat/frame collapse to one play.
+
+Verified: typecheck + lint + build green; audio config tests pass (the config test iterates `CATEGORY_GAINS`,
+so the new category is covered). The auto-generated `sfx-manifest.md` was intentionally NOT regenerated here —
+it is stale for many already-shipped clips and a full regen belongs in its own pass, not this feature.
+
 ## 2026-08-18 — `consume-pull` particles replace the placeholder `consume-bands`
 
 The consume's particle layer is now the owner's workshop-authored **`consume-pull`** def: smoke gathers at the

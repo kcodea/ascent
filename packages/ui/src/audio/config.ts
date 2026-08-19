@@ -20,7 +20,7 @@ export interface AudioConfig {
  *  alongside masterGain → 0.61). `buff` is a synth-only cue so its gain is inert (see buildCategories) but kept
  *  to match the exported config. */
 export const CATEGORY_GAINS: Record<string, number> = {
-  buy: 0.5, sell: 0.27, consume: 0.5, smack: 0.33, crit: 0.34, attack: 0.29, death: 0.26, shield: 0.37, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
+  buy: 0.5, sell: 0.27, consume: 0.5, runeBreak: 0.35, smack: 0.33, crit: 0.34, attack: 0.29, death: 0.26, shield: 0.37, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
   reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.45,
   gemapply: 0.35, clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
@@ -31,7 +31,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
 export const CATEGORY_BUS: Record<string, BusName> = {
-  buy: 'ui', sell: 'ui', consume: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', inspect: 'ui',
+  buy: 'ui', sell: 'ui', consume: 'ui', runeBreak: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', inspect: 'ui',
   clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui',
   cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui',
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',

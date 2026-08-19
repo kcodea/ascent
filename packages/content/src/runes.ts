@@ -499,13 +499,6 @@ export const RUNES: RuneDef[] = [
   },
   // ── the 2026-08-07 owner batch (16 Basic runes) ──
   {
-    id: 'rune_tip_jar',
-    name: 'Rune of the Tip Jar',
-    cost: 6,
-    text: 'Gain **3 Gold** and increase your **maximum Gold** by **3**.',
-    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 3, immediate: true }, { kind: 'gainMaxGold', amount: 3 }] },
-  },
-  {
     id: 'rune_coffers',
     name: 'Rune of the Coffers',
     cost: 5,
@@ -876,12 +869,12 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeShopkeep' },
   },
   {
-    // Owner add 2026-08-12. Combat flag: the first friendly Beast WITH an Echo that dies each combat comes back
-    // (stripped of that Echo, so it can't re-loop the resummon). Read in `simulate` at the death chokepoint.
+    // Owner rework 2026-08-19: no longer a resummon — triggering a Beast's Echo banks a FREE REFRESH. Read in
+    // `simulate` at the `asEcho` chokepoint, so a forced Echo (Hawkus / Spots / the Reliquary) pays too.
     id: 'rune_burrow',
     name: 'Rune of the Burrow',
-    cost: 4,
-    text: 'The first friendly **Beast** with **Echo** that dies each combat is **resummoned** without Echo.',
+    cost: 1, // owner rework 2026-08-19
+    text: "Whenever you trigger a **Beast's Echo**, get a **free refresh**.",
     reward: { kind: 'combatFlag', flag: 'runeBurrow' },
   },
 
@@ -1613,15 +1606,17 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
-    // The Health-only, board-wide sibling of The Old Hunt — and its step GROWS, where the quest's does not.
+    // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
+    // quest's does not.
     id: 'rune_wild_hunt',
     name: 'Rune of the Wild Hunt',
     cost: 3,
     epic: true,
-    // Owner rebalance 2026-08-02: 3 -> 1 Health per attack. `amount` is BOTH the grant and the escalation
-    // step (see the wildHunt block in simulate), so one number moves both halves together.
-    text: 'When a **Beast** attacks, give your minions **+1 Health** and improve this by **1** permanently.',
-    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 1 },
+    // Owner rework 2026-08-19: the grant went from board-wide +Health to the ATTACKER's own +Attack, at +2 a
+    // swing. `amount` is BOTH the grant and the escalation step (see the wildHunt block in simulate), so one
+    // number moves both halves together.
+    text: 'When a **Beast** attacks, give it **+2 Attack** and improve this by **2** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 2 },
   },
   {
     // Grafts Exgalloper's exact-copy Echo (NOT Rise — Rise resummons the printed body, so a grown shard came
@@ -1768,6 +1763,17 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeGemGolem' },
     sets: ['set2'], // Rubies
+  },
+  {
+    // Owner rework 2026-08-19: was a BASIC 6-Gold rune for 3 Gold / +3 max. Promoted to Epic at 0 Gold for
+    // 4 / +4 — a free Epic that pays for itself the turn you take it. Promoting a rune is an ARRAY move
+    // (`RUNES` -> `EPIC_RUNES`), not a flag flip: `runeforgePool` reads membership, and `epic` is the kicker.
+    id: 'rune_tip_jar',
+    name: 'Rune of the Tip Jar',
+    cost: 0,
+    epic: true,
+    text: 'Gain **4 Gold** and increase your **maximum Gold** by **4**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'gainGold', amount: 4, immediate: true }, { kind: 'gainMaxGold', amount: 4 }] },
   },
   {
     // Owner add 2026-08-19. The Menagerie payoff as a rune: a full house of every active type, cashed once at

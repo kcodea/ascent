@@ -330,6 +330,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffNextShop',
   'spellPendingSCBuff',
   'spellGrantKeywordNextCombat',
+  'spellTauntNextSummons',
   'spellNextSellBonus',
   'spellRefreshToTribe',
   'spellRefreshTierUp',
@@ -774,7 +775,9 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
 export const RuneDefSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  cost: z.number().int().positive(),
+  // Non-negative, not positive: a FREE rune is a real design point (Rune of the Tip Jar, 2026-08-19 — 0 Gold
+  // for 4 Gold and +4 max). The Runeforge already handles a 0 cost; only this bound said otherwise.
+  cost: z.number().int().nonnegative(),
   text: z.string().min(1),
   reward: QuestRewardSchema,
   epic: z.boolean().optional(),

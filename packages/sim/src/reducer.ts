@@ -3771,6 +3771,7 @@ function advanceCombat(s: RunState): void {
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
+  s.summonTauntsNextCombat = undefined; // Summoning Bulwark is for the NEXT combat only — spent or not, it lapses
   s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   // Batch-4 per-turn gates (Shared Pour / Aftermarket / Hoardcalling all read "the first … each turn").
@@ -5298,6 +5299,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeEngraving: f?.runeEngraving,         // Rune of Engraving: Avenge (3) — Rubies permanently +1 Health
     runeUnderdog: f?.runeUnderdog,           // Rune of the Underdog: SoC — double the two lowest-Attack minions
     runeStokedMenagerie: f?.runeStokedMenagerie, // Rune of the Stoked Menagerie: SoC — all types → double 3 at random
+    summonTaunts: s.summonTauntsNextCombat,  // Summoning Bulwark: the first N summons this combat gain Taunt
     runeGemGolem: f?.runeGemGolem,           // Rune of the Gem Golem: a dying Kobold leaves a token of its Rubies
     runeRuins: f?.runeRuins,                 // Rune of Ruins: a friendly Demon's landed hit buffs that board
     runeGolems: f?.runeGolems,               // Rune of the Golems (reserved — see the Gem Golem note in runes.ts)

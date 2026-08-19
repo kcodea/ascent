@@ -458,6 +458,7 @@ export type EffectFactoryId =
   | 'spellBuffShop' // cast: buff every tavern offer +atk/+hp (Staff of Guel)
   | 'gainMaxMana' // cast: raise max Mana permanently (Mana Font)
   | 'grantFreeRolls' // cast: bank N free rerolls (Refreshing Texts)
+  | 'spellTauntNextSummons' // cast: the first N minions summoned in the NEXT combat gain Taunt (Summoning Bulwark)
   | 'spellGainOfTargetTribe' // cast: conjure a random minion of the target's tribe to hand (Tribes Choice)
   | 'spellGainRandomMinion' // cast: conjure a random buyable minion of a tier to hand (Summon Stone)
   | 'spellGildTarget' // cast: make the target Golden if its tier ≤ targetMaxTier (Eyes of Aresmar)
@@ -1548,6 +1549,8 @@ export interface QuestCombatMods {
   runeDeathtouchedApple?: boolean;
   /** Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions. */
   runeStokedMenagerie?: boolean;
+  /** Summoning Bulwark: how many of the minions summoned in combat still get Taunt (the spell banks 2). */
+  summonTaunts?: number;
   /** Rune of the Crucible: how many left-most minions to sacrifice at Start of Combat (the printed 3). */
   runeCrucible?: number;
   runeHerald?: boolean;

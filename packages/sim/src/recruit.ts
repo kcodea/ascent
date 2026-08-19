@@ -5272,6 +5272,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.fleetingVigor.health += num(params.health, 1) + spellHealthBonus(ctx.state);
   },
 
+  /** Summoning Bulwark — cast: the first N minions you summon in the NEXT combat gain Taunt. Banked on the
+   *  run (not on a body) because the recipients do not exist yet; `faceOmen` hands the count to the player's
+   *  combat side and the turn rollover clears whatever went unspent. */
+  spellTauntNextSummons: (ctx, _self, params) => {
+    ctx.state.summonTauntsNextCombat = (ctx.state.summonTauntsNextCombat ?? 0) + num(params.count, 2);
+  },
+
   /** Field Maneuvers / Last Stand / Executioner's Edge — cast on a friendly minion: bank a keyword grant for
    *  the NEXT combat only (`faceOmen` stamps it onto that minion's combat instance, then clears the bank). For
    *  Critical Strike (`CR`), `critChance` seeds the per-swing double-damage probability the combat sim rolls. */

@@ -983,6 +983,8 @@ export interface RunState {
   /** Rune of the Baller: `step` is the per-sale climb; `sales` is how many minions have been sold since it was
    *  taken, which decides both the magnitude (step x sales) and which stat it lands on (odd = Attack). */
   runeBaller?: { step: number; sales: number };
+  /** Summoning Bulwark: minions-summoned-gain-Taunt banked for the NEXT combat. Cleared at the turn rollover. */
+  summonTauntsNextCombat?: number;
   /** Rune of the Wishbone: the Hero Power triggers twice (gated to `DOUBLEABLE_POWERS`). */
   runeWishbone?: boolean;
   /** Rune of Rising Echoes: keywords the NEXT Discover pick arrives carrying (consumed with the pick). */

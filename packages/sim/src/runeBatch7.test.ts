@@ -29,7 +29,10 @@ describe("Rune of Blood and Coin — deaths bank Gold", () => {
   });
 });
 
-describe("Rune of the Wild Hunt — the Health grant escalates", () => {
+describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rework 2026-08-19)", () => {
+  // Reworked from a board-wide +Health drip to a single-body +Attack snowball: the swinging Beast is the only
+  // one paid, and the step still grows permanently. The tests below moved with the card rather than being
+  // deleted, so the escalation + carry-back guarantees keep their coverage.
   const beasts: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 300 }, { cardId: 'pack', attack: 3, health: 300 }];
   const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 400 }];
   const hunts = (mods: object) => sim(beasts, enemy, mods).events
@@ -39,21 +42,27 @@ describe("Rune of the Wild Hunt — the Health grant escalates", () => {
     expect(hunts({}).length, 'baseline should never fire').toBe(0);
     const events = hunts({ runeWildHunt: 3 });
     expect(events.length, 'the rune never fired').toBeGreaterThan(0);
-    // First Beast attack grants 3; a later one must grant strictly more, or the "improve permanently" half is dead.
-    const healths = events.map((e) => e.health);
-    expect(healths[0]).toBe(3);
-    expect(Math.max(...healths), 'the grant never escalated').toBeGreaterThan(3);
+    const attacks = events.map((e) => e.attack);
+    expect(attacks[0]).toBe(3);
+    expect(Math.max(...attacks), 'the grant never escalated').toBeGreaterThan(3);
   });
 
-  it("the DEF ships at 1 Health per attack (owner rebalance 2026-08-02)", () => {
+  it("the DEF ships at 2 Attack per attack (owner rework 2026-08-19)", () => {
     // The engine tests above pass an explicit mod value, so they can't catch a def drift — this pins the
     // shipped number. `amount` is both the grant and the escalation step.
     const r = byName('Rune of the Wild Hunt')!.reward as { amount?: number };
-    expect(r.amount).toBe(1);
+    expect(r.amount).toBe(2);
   });
 
-  it("grants Health only, never Attack", () => {
-    for (const e of hunts({ runeWildHunt: 3 })) expect(e.attack).toBe(0);
+  it("grants Attack only, never Health", () => {
+    for (const e of hunts({ runeWildHunt: 3 })) expect(e.health).toBe(0);
+  });
+
+  it("pays only the SWINGING Beast, never the board", () => {
+    // The whole point of the rework: a bystander Beast standing next to the attacker gets nothing.
+    const targets = new Set(hunts({ runeWildHunt: 3 }).map((e) => e.target));
+    expect(targets.size, 'more than one body was paid for a single attacker').toBeLessThanOrEqual(beasts.length);
+    for (const e of hunts({ runeWildHunt: 3 })) expect(e.target).toBeDefined();
   });
 
   it("the escalation is PERMANENT: the next combat resumes where the last left off (owner fix 2026-08-01)", () => {
@@ -68,7 +77,7 @@ describe("Rune of the Wild Hunt — the Health grant escalates", () => {
     const grants = second.events
       .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt');
     expect(grants.length).toBeGreaterThan(0);
-    expect(grants[0]!.health, 'the first grant must continue from the carried escalation').toBe(grown + 3);
+    expect(grants[0]!.attack, 'the first grant must continue from the carried escalation').toBe(grown + 3);
     expect(second.playerWildHuntGrown ?? 0, 'the carry-out keeps accumulating').toBeGreaterThan(grown);
   });
 });

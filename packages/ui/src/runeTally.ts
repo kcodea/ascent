@@ -62,6 +62,13 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // END-OF-TURN ACCUMULATORS (audit 2026-08-12, from the Lapidary report): "for every card you played / Gold
   // spent this turn" runes bank silently all turn — the badge shows the count they will pay out on. A plain
   // count (like Bucky's Ales), not `x/N`: there is no threshold, every unit is worth another payout.
+  // RUNE OF THE BALLER (owner ask 2026-08-19): it has no threshold — every sale pays — but WHICH stat and HOW
+  // MUCH both move, so the pill shows the NEXT payout rather than a count. `sales` is what has already been
+  // paid, so the next sale is `sales + 1`: odd = Attack, even = Health, at `step x sale`.
+  if (runeId === 'rune_baller' && run.runeBaller) {
+    const next = run.runeBaller.sales + 1;
+    return `+${run.runeBaller.step * next} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
+  }
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;
     return `${n} card${n === 1 ? '' : 's'}`;

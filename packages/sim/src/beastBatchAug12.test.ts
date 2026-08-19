@@ -144,15 +144,18 @@ describe('Rune of the Jungle — a summoned Beast doubles its Health', () => {
 });
 
 // ── Rune of the Burrow (first Echo-Beast death is resummoned without its Echo) ────────────────────────────
-describe('Rune of the Burrow — first Echo-Beast is resummoned without Echo', () => {
-  it('resummons the dying Echo-Beast once, and the copy has no Echo', () => {
-    // Void Panther (manasaber) has an Echo (summon 2 cubs). With Burrow it is resummoned when it dies — the
-    // resummon is a summon of manasaber sourced from the dying body's uid. Exactly once (once-per-combat).
+describe('Rune of the Burrow — a Beast Echo banks a free refresh (owner rework 2026-08-19)', () => {
+  it('no longer resummons anything — it pays a refresh instead', () => {
+    // Void Panther (manasaber) has an Echo. Under the OLD rune it came back once per combat; the rune is now
+    // a Shop-economy payoff, so the dying body stays dead and a free roll rides out on `playerFreeRolls`.
     const r = sim([bm('manasaber', 'VP', 4, 1)], { runeBurrow: true });
     const resummons = summonsBy(r, uidOf(r, 'manasaber')).filter((e) => e.minion.cardId === 'manasaber');
-    expect(resummons.length, 'Burrow resummoned the Void Panther exactly once').toBe(1);
-    const without = sim([bm('manasaber', 'VP', 4, 1)]);
-    expect(summonsBy(without, uidOf(without, 'manasaber')).filter((e) => e.minion.cardId === 'manasaber').length).toBe(0);
+    expect(resummons.length, 'the resummon shape is gone').toBe(0);
+    expect(r.playerFreeRolls ?? 0, 'triggering the Beast Echo banked a refresh').toBeGreaterThan(0);
+  });
+
+  it('unarmed, the same Echo pays no refresh', () => {
+    expect(sim([bm('manasaber', 'VP', 4, 1)]).playerFreeRolls ?? 0).toBe(0);
   });
 });
 

@@ -206,8 +206,6 @@ export function simulate(
     nextSummonBuffs[side] = nextSummonBuffs[side].filter((b) => !matches(b)); // spent on this one body
     ctx.buff(minion, a, h, 'Wolvie');
   }
-  /** Rune of the Burrow: has the once-per-combat Echo-Beast resummon fired, per side? */
-  const burrowUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
    *  side's final value carries back into the run). Seeded from the run-persisted level (default 2). */
   const beastialLevel: Record<Side, number> = {
@@ -1324,7 +1322,18 @@ export function simulate(
    * counter, collects Emberline's bank, can be Second Litter's first Beast, and takes Savagery / Jungle /
    * Wolvie — exactly like any other body entering play.
    */
+  /** Summoning Bulwark: the first N bodies each side summons this combat gain Taunt. Decremented on the GRANT
+   *  (a body that already has Taunt does not burn one), so the spell delivers N Taunts, not N attempts. */
+  const summonTauntsLeft: Record<Side, number> = {
+    player: playerState.questMods?.summonTaunts ?? 0,
+    enemy: enemyState.questMods?.summonTaunts ?? 0,
+  };
   function summonEntryEffects(minion: Minion, side: Side): void {
+    if (summonTauntsLeft[side] > 0 && !minion.dead && !minion.keywords.includes('T')) {
+      summonTauntsLeft[side] -= 1;
+      minion.keywords.push('T');
+      emit({ type: 'keyword', target: minion.uid, keyword: 'T' });
+    }
     summonOrdinal[side] += 1; // before onSummon fires, so Rune of the Zoo reads THIS summon's ordinal
     if (side === 'player') {
       bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
@@ -1399,9 +1408,13 @@ export function simulate(
   // of 2026-08-03: Aftershocks stopped reading it in the 2026-07-21 rework (it buffs on TRIGGER now, not on
   // summon), Undertow moved to all combat summons, and the Hatchery rework removed its last reader. Rather
   // than leave a counter nothing consults, it is deleted; the wrapper still exists for the Aftershocks grant.
-  const asEcho = (side: Side, run: () => void): void => {
+  const asEcho = (side: Side, run: () => void, source?: Minion): void => {
     {
       run();
+      // RUNE OF THE BURROW (owner rework 2026-08-19): triggering a BEAST's Echo banks a free Shop refresh.
+      // It rides the echo chokepoint rather than the death site, so an Echo fired by Hawkus / Spots / the
+      // Reliquary — no death involved — pays exactly like one that came from dying.
+      if (source && modsFor(side).runeBurrow && isBeast(source)) ctx.grantFreeRolls(1, side);
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -1545,7 +1558,7 @@ export function simulate(
       // watcher, and a watcher reacting to someone else's death (Brood Matron, Endless Overseer) is not its
       // own Echo firing — wrapping those made Aftershocks pay once per rattle-body per death.
       const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;
-      if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)));
+      if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)), minion);
       else withEffect(minion, effect, () => fn(ctx, minion, params, payload));
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
@@ -1701,7 +1714,7 @@ export function simulate(
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })));
+        asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })), minion);
       }
     };
     fireOnce();
@@ -1936,18 +1949,6 @@ export function simulate(
         for (const m of beasts) ctx.buff(m, n, n, 'Rune of Beastial Swarm');
       }
     }
-    // RUNE OF THE BURROW: the FIRST friendly Beast with an Echo to die each combat is resummoned WITHOUT its
-    // Echo (a def clone with its onDeath effects stripped, so it can't loop the resummon). Base stats.
-    if (dyingIsBeast && modsFor(minion.side).runeBurrow && !burrowUsed[minion.side]
-        && minion.effects.some((e) => e.on === 'onDeath')) {
-      const def = cards[minion.cardId];
-      if (def) {
-        burrowUsed[minion.side] = true;
-        fireTrigger('runeBurrow', minion.side);
-        const noEcho: CardDef = { ...def, effects: def.effects.filter((e) => e.on !== 'onDeath') };
-        summonMinion(minion.side, noEcho, minion.uid, minion.keywords.filter((k) => k !== 'R'), !!minion.golden, false);
-      }
-    }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
     // stamping an effect onto each body, so Kobolds summoned mid-combat carry it too. Grants through the same
     // carry-back channel every hand grant uses.
@@ -2030,7 +2031,7 @@ export function simulate(
           if (effect.on !== 'onDeath') continue;
           withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
         }
-      });
+      }, minion);
     }
     // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
     // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
@@ -2374,14 +2375,14 @@ export function simulate(
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
-      // Rune of the Wild Hunt: a Beast attacking gives your WHOLE board +N Health and improves N permanently.
-      // Distinct from The Old Hunt, which pumps the Beast-only aura symmetrically — this one is Health-only,
-      // board-wide, and its step GROWS, so it is tracked per side rather than read from a static mod.
+      // Rune of the Wild Hunt (owner rework 2026-08-19): the ATTACKING Beast gains +N Attack, and N improves
+      // permanently with every Beast attack. It used to be a board-wide Health drip; it is now a single-body
+      // Attack snowball, so it rewards one Beast swinging often rather than a wide board. The grown step
+      // carries back across combats (`playerWildHuntGrown`), which is what "permanently" buys.
       const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
-      if (wildStep > 0 && isBeast(attacker)) {
+      if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
-        const n = wildHuntGrown[attacker.side];
-        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0) ctx.buff(m, 0, n, 'Rune of the Wild Hunt');
+        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
@@ -2406,7 +2407,7 @@ export function simulate(
               if (effect.on !== 'onDeath') continue;
               withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
             }
-          });
+          }, echo);
         }
       }
       // A Rally (RL minion attacking) re-runs this attacker's OWN on-attack effects once per additive doubler

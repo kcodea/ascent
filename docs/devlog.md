@@ -2,6 +2,37 @@
 
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
+**Fifth wave (same PR): the Baller pill, 3 reworks, 1 new spell, and 24 rune arts wired.**
+
+- **Rune of the Baller** now shows its NEXT payout as its pill — `+2 Atk`, `+3 Hp` — instead of nothing. It has
+  no threshold (every sale pays), so an `x/N` counter would be meaningless; what the player could not see is
+  WHICH stat is up next and how big. A test pins the pill against the payout so the two can't drift.
+- **Rune of the Wild Hunt** → the ATTACKING Beast gains **+2 Attack**, improving +2 permanently per Beast
+  attack. It was a board-wide +Health drip; it is now a single-body Attack snowball, so it rewards one Beast
+  swinging often rather than a wide board. The permanent escalation and its cross-combat carry-back are
+  unchanged.
+- **Rune of the Burrow** → 1 Gold, and the resummon is gone: triggering a **Beast's Echo** banks a **free
+  refresh**. It rides the `asEcho` chokepoint rather than the death site, so a FORCED Echo (Hawkus, Spots, the
+  Reliquary) pays exactly like one that came from dying. `asEcho` gained an optional source-minion argument to
+  make that possible — four call sites, all of which had the body in hand already.
+- **Rune of the Tip Jar** → promoted from a **Basic 6-Gold** rune (3 Gold / +3 max) to a **0-Gold Epic**
+  (4 Gold / +4 max), per the owner's spec for a rune of that name. It did not exist twice: this is the same def
+  moved `RUNES` → `EPIC_RUNES` and re-costed, because two runes sharing a name is a defect. The `RuneDef`
+  schema's `cost` bound relaxed from `positive()` to `nonnegative()` — a FREE rune is a real design point and
+  only that bound said otherwise.
+- **Summoning Bulwark** — new T3 3-Gold Shop Spell: the first 2 minions you summon in combat gain Taunt. The
+  count is banked on the RUN (`summonTauntsNextCombat`) rather than on a body, because the recipients do not
+  exist yet; it rides into the player's combat side as `questMods.summonTaunts`, is spent at the single
+  summon-entry chokepoint (decremented on the GRANT, so a body that already has Taunt doesn't burn one), and
+  lapses at the turn rollover whether or not it was used.
+
+**Rune art: 24 wired** (Refraction, Ruby Resonance, all five Basic + five Epic tribe faucets, Hoardflame,
+Glider, Pendant, Ornate Clock, Herding Horn, War Drum, Baller, Wishbone, Dragon Breath, Ruins, Blasting Voices,
+Gem Dividend) through the standard PNG → `optimize-art` → WebP path. **11 live runes still have no art:**
+Basic — Drake Skull, Catacomb, Bubble Crown. Epic — Stoked Menagerie, Engraving Gems, Deathtouched Apple,
+Held Strength, Chipper Sticker, Rising Echoes, Might, Tip Jar (its `RuneOfTheTIpJar.png` exists but is the art
+for the OLD basic card — re-wire once the Epic art lands).
+
 **Fourth wave (same PR): 10 keyword grants + 1 Epic rune.**
 
 Ward (`DS`) to Impossible Todd, Gem Portsmith, Karwind, Beardsley, Hellrider and Mountainbond; Taunt (`T`) to

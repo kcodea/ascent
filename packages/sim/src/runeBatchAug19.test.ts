@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+
+const bm = (cardId: string, uid: string, attack: number, health: number): BoardMinion =>
+  ({ cardId, attack, health, sourceUid: uid, keywords: [] });
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
+import { applyCardsPlayed, applyCastEffects, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
+import { runeTally } from '../../ui/src/runeTally';
 
 /**
  * The 2026-08-19 owner rune batch: 4 reworks + 22 new runes.
@@ -246,8 +250,6 @@ describe('Rune of the Stoked Menagerie', () => {
   const TRIBE_BODY: Record<string, string> = {
     beast: 'trailforager', undead: 'footman', mech: 'beatboxer', dragon: 'mauron', demon: 'godfodder',
   };
-  const bm = (cardId: string, uid: string, attack: number, health: number): BoardMinion =>
-    ({ cardId, attack, health, sourceUid: uid, keywords: [] });
   // One body per active tribe, all identical 2/2s so a doubling is unmistakable, against a wall that cannot
   // kill anything before Start of Combat resolves.
   const fight = (tribes: string[], armed = true) => simulate(
@@ -279,5 +281,142 @@ describe('Rune of the Stoked Menagerie', () => {
   it('the rune is a live EPIC — membership, not the flag, is what the pool reads', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_stoked_menagerie'), 'must live in EPIC_RUNES').toBe(true);
     expect(RUNES.some((r) => r.id === 'rune_stoked_menagerie'), 'and not in the basic pool').toBe(false);
+  });
+});
+
+// ── WAVE 5 — Baller pill, Wild Hunt / Burrow / Tip Jar reworks, Summoning Bulwark ────────────────────────────
+describe('Rune of the Baller — the pill names its NEXT payout', () => {
+  // The rune has no threshold (every sale pays), so a x/N counter would be meaningless. What the player cannot
+  // see is WHICH stat is up next and how big it is, which is exactly what the pill now carries.
+  const armed = (sales: number): RunState => ({ ...createRun(1), runeBaller: { step: 1, sales } } as RunState);
+
+  it('alternates Attack / Health and climbs, one sale ahead', () => {
+    expect(runeTally(armed(0), 'rune_baller'), 'first sale').toBe('+1 Atk');
+    expect(runeTally(armed(1), 'rune_baller'), 'second').toBe('+2 Hp');
+    expect(runeTally(armed(2), 'rune_baller'), 'third').toBe('+3 Atk');
+    expect(runeTally(armed(3), 'rune_baller'), 'fourth').toBe('+4 Hp');
+  });
+
+  it('the pill matches what the sale actually hands out', () => {
+    // The read and the payout must not drift: sell with the rune armed and compare the board's real gain to
+    // what the pill promised beforehand.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', runeBaller: { step: 1, sales: 1 },
+      board: [{ uid: 'a', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    } as RunState;
+    expect(runeTally(s, 'rune_baller')).toBe('+2 Hp');
+    fireOnSell(s, { uid: 'x', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } as BoardCard);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the promised +2 Health landed').toEqual([1, 3]);
+  });
+
+  it('unarmed, there is no pill at all', () => {
+    expect(runeTally(createRun(1), 'rune_baller')).toBeNull();
+  });
+});
+
+describe('Rune of the Wild Hunt — the ATTACKER snowballs (owner rework 2026-08-19)', () => {
+  // One Beast against an unkillable 0-attack wall, so it swings many times and nothing else moves.
+  const fight = () => simulate(
+    [bm('trailforager', 'B', 3, 40000), bm('godfodder', 'F', 0, 40000)],
+    [{ cardId: 'sandbag', attack: 0, health: 40000 }],
+    makeRng(3), CARD_INDEX,
+    combatSide({ tier: 6, tribes: ['beast', 'demon'], questMods: { runeWildHunt: 2 } }), combatSide({ tier: 1 }),
+  );
+  const hunt = (r: ReturnType<typeof fight>) =>
+    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Rune of the Wild Hunt') as
+      { target: string; attack: number; health: number }[];
+
+  it('only the attacking Beast is buffed — never the board', () => {
+    const bs = hunt(fight());
+    expect(bs.length, 'the Beast swung and the rune paid').toBeGreaterThan(0);
+    // Combat uids are positional (`m0`, `m1`, …), so the Beast at seat 0 is `m0` and the bystander is `m1`.
+    expect(new Set(bs.map((b) => b.target)), 'the non-Beast bystander must get nothing').toEqual(new Set(['m0']));
+  });
+
+  it('it is Attack, and the step climbs +2 per swing', () => {
+    const bs = hunt(fight());
+    expect(bs.map((b) => b.attack).slice(0, 3), 'an escalating +2 per Beast attack').toEqual([2, 4, 6]);
+    for (const b of bs) expect(b.health, 'the Health half is gone').toBe(0);
+  });
+
+  it('the rune text names the new numbers', () => {
+    expect(RUNE_INDEX['rune_wild_hunt']!.text).toContain('+2 Attack');
+  });
+});
+
+describe('Rune of the Burrow — a Beast Echo banks a refresh (owner rework 2026-08-19)', () => {
+  const fight = (armed: boolean, cardId: string) => simulate(
+    [bm(cardId, 'E', 0, 1)],
+    [{ cardId: 'sandbag', attack: 60, health: 40000 }],
+    makeRng(4), CARD_INDEX,
+    combatSide({ tier: 6, tribes: ['beast', 'demon'], questMods: armed ? { runeBurrow: true } : {} }),
+    combatSide({ tier: 1 }),
+  );
+
+  it('a Beast Echo pays a free refresh', () => {
+    expect(fight(true, 'b2_wolvie').playerFreeRolls ?? 0).toBeGreaterThan(0);
+  });
+
+  it('a NON-Beast Echo pays nothing', () => {
+    expect(fight(true, 'dm_knocked').playerFreeRolls ?? 0).toBe(0);
+  });
+
+  it('unarmed, the same Beast Echo pays nothing', () => {
+    expect(fight(false, 'b2_wolvie').playerFreeRolls ?? 0).toBe(0);
+  });
+
+  it('it costs 1 Gold and no longer promises a resummon', () => {
+    const r = RUNE_INDEX['rune_burrow']!;
+    expect(r.cost).toBe(1);
+    expect(r.text).toContain('free refresh');
+    expect(r.text, 'the old resummon wording must be gone').not.toContain('resummoned');
+  });
+});
+
+describe('Rune of the Tip Jar — promoted to Epic (owner rework 2026-08-19)', () => {
+  it('it is a free EPIC now, at 4 / +4', () => {
+    const r = RUNE_INDEX['rune_tip_jar']!;
+    expect([r.cost, r.epic]).toEqual([0, true]);
+    expect(r.text).toContain('4 Gold');
+  });
+
+  it('membership moved with it — the pool reads the ARRAY, not the flag', () => {
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_tip_jar')).toBe(true);
+    expect(RUNES.some((r) => r.id === 'rune_tip_jar')).toBe(false);
+  });
+});
+
+describe('Summoning Bulwark — the first 2 summons gain Taunt', () => {
+  it('the spell is a real T3 3-Gold Shop spell', () => {
+    const def = CARD_INDEX['summoningbulwark']!;
+    expect([def.tier, def.cost, def.spell]).toEqual([3, 3, true]);
+    expect(poolFor('set2').all.some((c) => c.id === 'summoningbulwark'), 'buyable').toBe(true);
+  });
+
+  it('casting banks 2 for the next combat', () => {
+    const s: RunState = { ...createRun(1), phase: 'recruit' } as RunState;
+    applyCastEffects(makeContext(s), CARD_INDEX['summoningbulwark']!);
+    expect(s.summonTauntsNextCombat).toBe(2);
+  });
+
+  it('exactly the first 2 summoned bodies get Taunt', () => {
+    // Three Echo bodies each summon an Imp: the first two arrivals are Taunted, the third is not.
+    const r = simulate(
+      [bm('dm_knocked', 'K1', 0, 1), bm('dm_knocked', 'K2', 0, 1), bm('dm_knocked', 'K3', 0, 1)],
+      [{ cardId: 'sandbag', attack: 60, health: 40000 }],
+      makeRng(6), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['demon'], questMods: { summonTaunts: 2 } }), combatSide({ tier: 1 }),
+    );
+    const granted = r.events.filter((e) => e.type === 'keyword' && (e as { keyword: string }).keyword === 'T');
+    expect(granted.length, 'the bank is 2, so 2 Taunts — not one per summon forever').toBe(2);
+  });
+
+  it('with no spell cast, no summon is Taunted', () => {
+    const r = simulate(
+      [bm('dm_knocked', 'K1', 0, 1), bm('dm_knocked', 'K2', 0, 1)],
+      [{ cardId: 'sandbag', attack: 60, health: 40000 }],
+      makeRng(6), CARD_INDEX, combatSide({ tier: 6, tribes: ['demon'] }), combatSide({ tier: 1 }),
+    );
+    expect(r.events.filter((e) => e.type === 'keyword' && (e as { keyword: string }).keyword === 'T').length).toBe(0);
   });
 });

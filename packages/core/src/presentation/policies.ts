@@ -348,6 +348,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellGildTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGoldIfLostLast:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantKeywordNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellTauntNextSummons:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantTopTypeMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellGrantTribeAttack:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellLayaway:cast': { policy: 'ownBeat', family: 'spellCast' },

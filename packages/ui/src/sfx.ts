@@ -402,6 +402,10 @@ export const sfx = {
     if (playSample('consume', 'consume')) return;
     tone({ freq: 200, dur: 0.16, type: 'triangle', vol: 0.13, slideTo: 80, category: 'consume' });
   },
+  // The locked 3rd rune slot's chains SHATTER (a hero/rune enabled a 3rd rune). Sourced `rune-chain-break` clip;
+  // SILENT until the owner drops `packages/ui/src/audio/rune-chain-break.mp3` (no synth fallback — a placeholder
+  // tone under a shatter FX reads worse than nothing while the take is pending).
+  runeChainBreak: () => { playSample('rune-chain-break', 'runeBreak'); },
   // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
   // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.
   cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, 'cardVoice'); },

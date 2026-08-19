@@ -1,12 +1,15 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { getHero, type RunState } from '@game/sim';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useGame, type CombatQuestDelta } from './store';
+import { playDef } from './fx/playDef';
+import { sfx } from './sfx';
 import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
 
 // Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s).
@@ -40,11 +43,66 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
  * (or its tribe emblem as a fallback), and hovering floats the reward's LIVE ongoing state — Warm Embers'
  * Shouts remaining, Trail Rations' repeat countdown, else the reward it granted.
  */
+/** Runes that unlock a THIRD rune — Rune of the Epic Forge (schedules an extra turn-8 epic visit) and Rune of
+ *  Duplication (a 3rd badge off the turn-9 epic). Owning either lifts the chains (owner ask 2026-08-19). */
+const THIRD_RUNE_UNLOCKERS = ['rune_epic_forge', 'rune_duplication'];
+
+/**
+ * Can this run reach a THIRD rune? Most runs get exactly 2 (universal basic forge turn 6 + epic turn 9), so
+ * the 3rd slot is LOCKED and wears the chains from the very start of the run. The chains lift only once the run
+ * can actually earn a 3rd: a runeforge-native HERO — Runesmith (`runeforge`, turn 5) or Guardian
+ * (`epicRuneforge`, turn 8) — or owning a RUNE that enables one (see `THIRD_RUNE_UNLOCKERS`). This is the state
+ * flip the "chains unlock" FX will hook.
+ */
+function canReachThirdRune(run: RunState): boolean {
+  const kind = getHero(run.heroId).power.kind;
+  if (kind === 'runeforge' || kind === 'epicRuneforge') return true;
+  const owned = run.ownedRunes ?? [];
+  return THIRD_RUNE_UNLOCKERS.some((id) => owned.includes(id));
+}
+
+/** The chains shatter this long AFTER the 3rd-rune condition is met (owner ask 2026-08-19: 1000ms). */
+const RUNE_CHAINS_BREAK_MS = 1000;
+
+// The break is a ONE-TIME event per run, persisted so a resume doesn't replay the shatter (FX + sound). Keyed
+// by the run identity (`seed:heroId`, the same key that remounts the StatusBar), so a NEW run shows the chains
+// again while a reloaded broken run stays broken. Survives page reload; a plain in-memory flag would not.
+const CHAINS_BROKEN_KEY = 'ascent.runechainsbroken';
+function readRuneChainsBroken(runKey: string): boolean {
+  try { return localStorage.getItem(`${CHAINS_BROKEN_KEY}:${runKey}`) === '1'; } catch { return false; }
+}
+function writeRuneChainsBroken(runKey: string): void {
+  try { localStorage.setItem(`${CHAINS_BROKEN_KEY}:${runKey}`, '1'); } catch { /* ignore */ }
+}
+
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
   const completedNow = useGame((s) => s.combatCompletedQuests);
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise) // ids that JUST completed mid-replay (pre-settle)
+  // The chains show at the start of EVERY run (even for a hero that will get a 3rd rune) and BREAK once, 1000ms
+  // after the 3rd-rune condition is met — a runeforge hero at run start, or the moment an enabling rune is
+  // picked (owner ask 2026-08-19). `chainsBroken` is per-run (localStorage keyed by `runKey`), so it persists a
+  // resume without re-shattering, and resets for a new run (StatusBar remounts on `runKey`).
+  const runKey = `${run.seed}:${run.heroId}`;
+  const canThird = canReachThirdRune(run);
+  const [chainsBroken, setChainsBroken] = useState(() => readRuneChainsBroken(runKey));
+  useEffect(() => {
+    if (!canThird || chainsBroken) return;
+    const t = window.setTimeout(() => {
+      // Shatter FX at the locked slot (the chains' own screen position), then remove the chains.
+      const el = document.querySelector('.questbadges .rune-chains');
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('rune-slot-break', { source: at, target: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index: 0 });
+      }
+      sfx.runeChainBreak();
+      writeRuneChainsBroken(runKey);
+      setChainsBroken(true);
+    }, RUNE_CHAINS_BREAK_MS);
+    return () => window.clearTimeout(t);
+  }, [canThird, chainsBroken, runKey]);
   // Show a badge once a quest has activated — a one-shot flips `completed`; a REPEATABLE (Hoard Spark, Imp Census,
   // …) never does but bumps `completionCount` on each re-fire, so include those too (they pulse on every re-fire).
   // Also surface quests that complete MID-COMBAT this replay (`completedNow`) — their node appears + lights up the
@@ -58,11 +116,17 @@ export function QuestBadges() {
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
-  if (nodes.length === 0 && runes.length === 0) return null;
+  // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
+  // The badge row renders for the chains alone, even with no quests and no runes yet.
+  const showChains = !chainsBroken;
+  if (nodes.length === 0 && runes.length === 0 && !showChains) return null;
   const isDone = (aq: (typeof nodes)[number]): boolean =>
     aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId);
   return (
-    <div className="questbadges">
+    // `hasrunelock` reserves the rune-row height so the chains sit at a STABLE spot from turn 1 (empty row) all
+    // the way to two runes — the row is bottom-anchored and would otherwise grow (and shift the chains) as
+    // badges appear.
+    <div className={`questbadges${showChains ? ' hasrunelock' : ''}`}>
       {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
       {runes.map((id, i) => {
         const rune = RUNE_INDEX[id]!;
@@ -234,6 +298,13 @@ export function QuestBadges() {
       {runes.length > 0 && [1, 2, 3].map((n) => (
         <img key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
       ))}
+      {/* CHAINS on the LOCKED third rune slot (owner ask 2026-08-19): shown once the rune row is up but the 3rd
+          slot is empty AND out of reach — most runs only ever get 2 (basic forge turn 6, epic turn 9). It clears
+          the instant the slot could be filled (a runeforge-native hero / Rune of the Epic Forge) or actually is
+          (a 3rd owned rune, e.g. via Duplication). Placement from the 💠 Rune Sheen tuner (`--rch-*`). */}
+      {showChains && (
+        <img className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
+      )}
     </div>
   );
 }

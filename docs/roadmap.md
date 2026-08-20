@@ -412,6 +412,17 @@ offsets in `styles.css`).
 
 ## Next
 
+### Minion mechanic-icon (medallion `mechIcon` glyph) fixes — audited 2026-08-19
+Findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md). **64% of cards show the generic tribe
+symbol, not a mechanic glyph**, and the biggest cause is a rename desync: `triggerPill` (Card.tsx) matches the
+old raw words `battlecry`/`deathrattle`, but ~51 cards' text was renamed to `Shout`/`Echo`, silently dropping
+their trigger glyph to the tribe fallback. Queued work, in priority order: (1) fix the rename desync (match
+both forms, ideally driven from `terms.ts` or a structured trigger field); (2) decide how text-only
+Start-of-Combat/Slaughter/Rally resolve (require the keyword tag or detect from text); (3) resolve the three
+glyph collisions (`eye` = ST/demon, `anvil` = EG/dwarf, `skull` = undead/Avenge). **Owner decision needed**
+first: should the medallion fall back to the tribe symbol at all, or show a glyph only when there's a real
+mechanic? That ruling shapes fixes 1–3.
+
 ### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
 Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
 steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared

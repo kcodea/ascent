@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-19 — Audit: minion mechanic-icon (medallion `mechIcon` glyph)
+
+Investigation only — no code change. Full findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md),
+produced by running all 445 cards through Card.tsx's verbatim `mechIcon` resolution (trigger → keyword → tribe).
+Headline: **287/445 cards (64%) show the generic tribe symbol rather than a mechanic glyph**, 94 of them while
+naming a real mechanic in their text. Root cause of the bulk: a **rename desync** — `triggerPill` matches the
+pre-rename raw words `battlecry`/`deathrattle`, but ~51 cards' text now uses the player-facing renames
+`Shout`/`Echo` (34 Shout vs 15 Battlecry; 17 Echo vs 17 Deathrattle), so their trigger glyph silently drops to
+the tribe fallback (the "Knocked shows a Demon eye" report that started this). Also found: text-only
+Start-of-Combat/Slaughter mechanics that aren't keyword-tagged, three glyph collisions (`eye` ST/demon, `anvil`
+EG/dwarf, `skull` undead/Avenge), and four never-surfacing keyword icons. Fixes are queued in the roadmap under
+Next, gated on an owner ruling about whether the medallion should fall back to the tribe at all.
+
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
 **Rune art: full re-wire (2026-08-19).** Re-copied every rune's master from `Ascent Art/Runes` and re-ran

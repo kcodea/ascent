@@ -433,6 +433,13 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Decide: should ALL-TYPES cards appear in every tribe-grant pool?** (raised 2026-08-20) Quillen's Archive
+  now counts `universalTribe` cards via the new `defIsTribe`, which is what makes an off-set archive (Undead /
+  Mech) pay out at all. But ~10 OTHER def-level pool filters still use the blind `c.tribe === t || c.tribe2
+  === t` pair — "get a random Beast", the tribe-faucet runes, Discover-by-tribe, etc. Routing them through
+  `defIsTribe` too would be consistent, but it also means Paragon / Standard Bearer become possible results of
+  every tribal grant in the game, diluting each tribe's pool. Bug fix vs balance change — owner's call.
+
 - **The itch WEB zip now exceeds itch.io's 1000-file cap — DEPRIORITISED by the owner 2026-08-20** ("not an
   important factor as we will likely use the exe repack from now on"). Recorded so nobody re-discovers it as a
   mystery; revisit only if the browser build becomes a distribution target again.

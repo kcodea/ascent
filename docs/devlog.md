@@ -1,5 +1,26 @@
 # ASCENT — development log
 
+## 2026-08-20 — Quillen's Archive sees All-types cards (owner report)
+
+"i ate an undead, beast, and dwarf and this was my discover at tier 5" — and only TWO cards came back.
+
+Archive banks each archived minion's TYPE and pays one Discover per banked type, filtering the pool with a
+hand-rolled `c.tribe === t || c.tribe2 === t`. That check **cannot see an ALL-TYPES card**. Set 2 carries no
+Undead and no Mech, so an off-set archive matched nothing at all and its pick silently vanished — while
+Paragon (T5) and Standard Bearer (T3), which genuinely count as every type, sat in the pool unreachable.
+
+Fixed with a shared `defIsTribe(def, tribe)` in `recruit.ts` — the DEF-level twin of the existing instance-level
+`isTribe`, carrying the same `universalTribe` rule — and routed Archive's filter through it.
+
+**This is a CLASS bug, only partly fixed.** ~10 other pool filters across `recruit.ts` / `reducer.ts` use the
+same hand-rolled pair and are equally blind (`boardFeatures.ts` is the one place that already got it right).
+The rest were deliberately NOT changed here, because making every tribe-grant able to hand out Paragon /
+Standard Bearer is a BALANCE decision, not a bug fix — owner's call, listed in the roadmap.
+
+Coverage: `quillenAllTypes.test.ts` reproduces the owner's exact board (two banked types + an archived Undead
+at Tier 5) and asserts three picks with at least one All-types card. All four cases verified RED before the fix.
+Gates: typecheck ✅ lint 0 errors ✅ 6288 tests / 385 files ✅ build:web ✅.
+
 ## 2026-08-20 — the owner's correction pass on the Aug-20 batch: Night Market this TURN, Skybound in real time, a new Arcane Behemoth, tribe runes pay on purchase
 
 Four owner reports against the rune batch that shipped the same day. Each is a different kind of miss — wrong

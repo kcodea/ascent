@@ -494,6 +494,22 @@ export function captureBuffFx(
  * tribe; the second lives on the CardDef, so this consults `CARD_INDEX`. The DRY form of the
  * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
  */
+/**
+ * The DEF-level twin of `isTribe` — "does this CARD DEFINITION count as `tribe`?" — for the pool filters that
+ * pick from `poolOf(state).buyable` before any instance exists.
+ *
+ * The rule that matters: an **All-types** card (`universalTribe` — Paragon, Standard Bearer) counts as EVERY
+ * tribe, exactly as `isTribe` already says for instances. The hand-rolled `c.tribe === t || c.tribe2 === t`
+ * filters scattered across the pool pickers all missed that, which is why Quillen's Archive on an off-set
+ * tribe (Undead / Mech) silently returned NOTHING instead of offering the two cards that genuinely count as
+ * those types (owner report 2026-08-20: "i ate an undead, beast, and dwarf" → only two picks came back).
+ */
+export function defIsTribe(def: CardDef | undefined, tribe: Tribe): boolean {
+  if (!def) return false;
+  if (tribe !== 'neutral' && def.universalTribe) return true;
+  return def.tribe === tribe || def.tribe2 === tribe;
+}
+
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && (CARD_INDEX[card.cardId]?.universalTribe || card.allTribes)) return true; // Anomaly Reactor: "All" types
   if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;

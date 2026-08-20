@@ -2358,6 +2358,14 @@ body.modalup .app { z-index: auto; }
 .inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #b7a98f; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
+/* Keyword definition panel (KeywordDefs) — a column of word-led boxes beside the enlarged card on the hover
+   reveal and the right-click Inspect. Mirrors the .inspect-buffs glass chrome so the two side panels read as
+   one family. Static DOM only — no animated paint. */
+.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(240px, 42vw); max-height: min(72vh, 560px); overflow-y: auto; }
+.kwdefs::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.kwbox { background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); }
+.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 10.5px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: #b7a98f; font-style: normal; font-weight: 600; font-size: 8.5px; }

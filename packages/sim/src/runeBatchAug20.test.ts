@@ -574,16 +574,16 @@ describe('Rune of the Deepening Vein — Engraving + Gemstorm in one Avenge', ()
   });
 });
 
-describe('Rune of Lasting Cadence — the board-wide Rune of Rallying', () => {
-  it('arms as a combat flag and reaches the mods', () => {
+describe('Rune of Lasting Cadence — the board-wide Rune of Rallying, now at End of Turn', () => {
+  it('arms as a run flag (not a combat flag — it pays out in the shop)', () => {
     const s = armed('rune_lasting_cadence');
-    expect(s.questFlags?.runeLastingCadence).toBe(true);
-    expect(questCombatMods(s).runeLastingCadence).toBe(true);
+    expect(s.runeLastingCadence).toBe(true);
+    expect(RUNE_INDEX['rune_lasting_cadence']!.text).toContain('End of Turn');
   });
 
-  it('EVERY rally-capable body fires, where Rune of Rallying fires only the left-most', () => {
-    // Three Sunmane Heralds (Rally) at ZERO Attack against a zero-Attack wall: nothing ever swings, so every
-    // `Rally` marker in the log is a Start-of-Combat free rally and nothing else.
+  it('the Start-of-Combat path is gone — an armed run fires no free rally in the fight', () => {
+    // Three Sunmane Heralds (Rally) at ZERO Attack against a zero-Attack wall: nothing ever swings, so any
+    // `Rally` marker in the log could only be a free rally. There is no longer a rune that produces one here.
     const board = () => [bm('b2_sunmane', 'r1', 0, 20, ['RL']), bm('b2_sunmane', 'r2', 0, 20, ['RL']), bm('b2_sunmane', 'r3', 0, 20, ['RL'])];
     const rallies = (mods: QuestCombatMods) => {
       const r = simulate(
@@ -594,8 +594,8 @@ describe('Rune of Lasting Cadence — the board-wide Rune of Rallying', () => {
       );
       return r.events.filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Rally').length;
     };
-    expect(rallies({ runeRallying: true }), 'the left-most only').toBe(1);
-    expect(rallies({ runeLastingCadence: true }), 'all three').toBe(3);
+    expect(rallies({ runeRallying: true }), 'Rune of Rallying still fires the left-most').toBe(1);
     expect(rallies({}), 'unarmed, none').toBe(0);
+    // Lasting Cadence's own coverage now lives in `rallyDispatch.test.ts` (End of Turn + one beat per rally).
   });
 });

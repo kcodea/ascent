@@ -431,8 +431,21 @@ offsets in `styles.css`).
 
 ## Next
 
-### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
-Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
+### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout + RALLY DONE)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md).
+
+**Progress 2026-08-20 — the RALLY family + its Step-4 dispatcher shipped, resumed on demand exactly as the
+park below says.** Its consumer is **Rune of Lasting Cadence**, which the owner wants to read "End of Turn:
+trigger all your Rally effects" and could not, because Rally is an `onAttack` COMBAT trigger with no recruit
+dispatch. 40 `onAttack` bodies migrated (ratchet floor 60 → 100, every combat duplicate deleted);
+`fireShopRally` / `fireRallies` are the shop dispatcher; each rally emits its own source-attributed beat so
+the choreographer allots it real animation time. Enemy-facing rallies no-op by MEMBERSHIP (`enemies()` is
+empty in the shop), not by a phase check. Details in the devlog.
+
+**Still unmigrated: End of Turn and Start of Combat** (spec Step 3 item 4's other two families) — same park
+rule: migrate when a card or rune actually needs the cross-phase dispatch, using the Rally family's motion.
+
+**Progress 2026-08-04 (PRs #865–#867, #871):**
 steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared
 arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
 `COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a

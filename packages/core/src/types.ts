@@ -1121,6 +1121,7 @@ export type QuestReward =
   | { kind: 'runeEnchantment' } // per Shop-spell cast: your minions +1/+1 (combat casts give +2/+2)
   | { kind: 'runeCrown'; per: number; attack: number; health: number } // after `per` casts, spells give +A/+H extra
   | { kind: 'runeLapidary' } // End of Turn: a Ruby on one friendly minion of each type
+  | { kind: 'runeLastingCadence' } // End of Turn: trigger ALL your Rally effects (one beat each)
   | { kind: 'runeDeep'; tier: number } // each turn: a random minion of `tier`
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
@@ -1328,8 +1329,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // graveRefreshment = every 2 friendly Echoes triggered banks a free Shop refresh;
   // shiftingFacets = Avenge (3) improves your Rubies on ONE axis, alternating every turn;
   // deepeningVein = Avenge (3) improves your Rubies +1/+1 AND plays a Ruby on every friendly Kobold;
-  // lastingCadence = Start of Combat, every rally-capable body fires its Rally once.
-  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein' | 'runeLastingCadence';
+  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1493,7 +1493,6 @@ export interface QuestCombatMods {
   runeDeepeningVein?: boolean;
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
-  runeLastingCadence?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

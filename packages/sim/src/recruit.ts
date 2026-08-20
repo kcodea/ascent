@@ -213,8 +213,82 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
         if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
       }
     },
+
+    // ── RALLY FAMILY verbs (Step 3 item 4) ──────────────────────────────────────────────────────────────
+    //
+    // The shop has no enemies and nobody is being hit, so the two enemy-facing Rallies fall out of their own
+    // "nothing to target" guard: `enemies()` is empty and the dispatcher supplies no `params.target`. That is
+    // the whole no-op mechanism — no body asks what phase it is in, and neither verb below is reachable.
+    enemies: () => [],
+    damage: () => {}, // unreachable: only ever applied to a body from `enemies()`, which is empty here
+    stripKeyword: (t, kw) => { const c = t as BoardCard; c.keywords = c.keywords.filter((k) => k !== kw); },
+    spellPower: () => ({ attack: spellAttackBonus(state), health: spellHealthBonus(state) }),
+    castRepeat: (spellId, body) => {
+      // The shop's cast ritual: one GENUINE cast per repetition, each counted through `noteSpellCast` so every
+      // per-spell watcher (Guel, Groveweaver, the spell runes, the quest tallies) sees it — the same contract
+      // `castInCombat` gives the combat half. Golden = two real casts, never one doubled cast.
+      const def = spellId ? CARD_INDEX[spellId] : undefined;
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) {
+        if (def) noteSpellCast(state, def);
+        body();
+      }
+    },
+    castNamedSpell: (spellId) => {
+      const def = spellId ? CARD_INDEX[spellId] : undefined;
+      if (!def?.spell) return;
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
+    },
+    cardDef: (id) => CARD_INDEX[id],
+    gainShopBuff: (a, h) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; },
+    grantUndeadAura: (a, h) => {
+      // The Lantern channel. In the shop this run-wide aura is folded into every Undead's displayed stats
+      // already, so raising it IS the whole grant — a board loop on top would double-apply it.
+      state.undeadAttackBonus += a;
+      state.undeadHealthBonus += h;
+    },
+    grantRubies: (count) => { mintRubies(state, count); },
+    grantRandomShoutMinion: (count) => {
+      const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.effects.some((e) => e.on === 'onPlay'));
+      conjureToHand(state, pool, count);
+    },
+    hasEffect: (t, on, doId) => instanceEffects(t as BoardCard).some((e) => e.on === on && (!doId || e.do === doId)),
+    replayShout: (t) => { replayBattlecry(state, t as BoardCard); },
+    hasEcho: (t, strict) => instanceEffects(t as BoardCard)
+      .some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
+    triggerEchoOn: (t, strict) => {
+      // `fireRecruitDeathrattles` is the shop's whole Echo ritual: it applies Sylus/Uron's extra fires and the
+      // `deathrattlesTriggered` tally itself, so the body only says "fire it, once per gild".
+      const c = t as BoardCard;
+      const override = strict
+        ? instanceEffects(c).filter((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'))
+        : undefined;
+      if (strict && (!override || override.length === 0)) return;
+      const ctx = makeContext(state);
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) fireRecruitDeathrattles(ctx, c, override);
+    },
+    graftEffect: (t, effect) => {
+      const c = t as BoardCard;
+      (c.grantedEffects ??= []).push(effect);
+    },
+    improveAttachments: (a, h) => {
+      for (const card of [...state.board, ...state.hand]) {
+        if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+      }
+      state.magneticBuyAtk = (state.magneticBuyAtk ?? 0) + a;
+      state.magneticBuyHp = (state.magneticBuyHp ?? 0) + h;
+    },
     rng: () => cursorRng,
   };
+}
+
+/** Every effect a BOARD INSTANCE carries: its printed def, a Gravetwin's copied Echo, and anything GRAFTED
+ *  onto this body at runtime (Sunmane Herald's spreading Rally). The shop's answer to combat's per-instance
+ *  `Minion.effects` list — read by the arena's `hasEffect`/`hasEcho` and by the recruit Rally dispatcher, so a
+ *  grafted trigger is as real in the shop as a printed one. */
+export function instanceEffects(card: BoardCard): EffectDef[] {
+  const printed = CARD_INDEX[card.cardId]?.effects ?? [];
+  if (!card.copiedEcho?.length && !card.grantedEffects?.length) return [...printed];
+  return [...printed, ...(card.copiedEcho ?? []), ...(card.grantedEffects ?? [])];
 }
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
@@ -1851,6 +1925,170 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+
+  // ── RALLY FAMILY — the SHOP half (Step 3 item 4 + Step 4) ────────────────────────────────────────────
+  //
+  // One body each, shared with combat (`ARENA_EFFECTS`); these wrappers are dispatch only. `fireRallies`
+  // (Rune of Lasting Cadence, End of Turn) hands each entry `{ minion }` = the body whose Rally is firing,
+  // exactly as combat's `onAttack` payload does — so an own-attack Rally checks `minion !== self` and an
+  // ally-attack watcher takes `minion` as its attacker, with the same code on both sides of the seam.
+  //
+  // The two ENEMY-FACING members are wired here like everything else and no-op by membership: `enemies()` is
+  // empty in the shop and no `target` rides the payload, so `rallyDamageRandomEnemy` and
+  // `onAttackStripKeywords` return before they touch state (they are NOT special-cased out of the dispatch —
+  // that would be the "hand-select the methods" the arena exists to end).
+  rallyBuff: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuff(shopArena(ctx.state, self), params);
+  },
+  rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGiveHealthToDragons(shopArena(ctx.state, self));
+  },
+  rallyGrantSpell: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSpell(shopArena(ctx.state, self));
+  },
+  rallyGrantMagnetic: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantMagnetic(shopArena(ctx.state, self), params);
+  },
+  rallyTriggerTribeShouts: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyTriggerTribeShouts(shopArena(ctx.state, self), params);
+  },
+  rallyTribeAuraGrowing: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyTribeAuraGrowing(shopArena(ctx.state, self), params);
+  },
+  rallySummonImpBuffImps: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallySummonImpBuffImps(shopArena(ctx.state, self), params);
+  },
+  rallySpreadTribeBuff: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallySpreadTribeBuff(shopArena(ctx.state, self), params);
+  },
+  rallyRubyStatGain: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyRubyStatGain(shopArena(ctx.state, self), params);
+  },
+  rallyProcLeftmostEcho: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyProcLeftmostEcho(shopArena(ctx.state, self));
+  },
+  rallyProcDeathrattle: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyProcDeathrattle(shopArena(ctx.state, self));
+  },
+  rallyPlayRubiesSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyPlayRubiesSelf(shopArena(ctx.state, self), params);
+  },
+  rallyPlayRubiesAll: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyPlayRubiesAll(shopArena(ctx.state, self), params);
+  },
+  rallyGrantSpellPower: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSpellPower(shopArena(ctx.state, self), params);
+  },
+  rallyGrantSelfCopy: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSelfCopy(shopArena(ctx.state, self));
+  },
+  rallyGrantRandomShoutMinion: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantRandomShoutMinion(shopArena(ctx.state, self));
+  },
+  rallyGiveAttackToOthers: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGiveAttackToOthers(shopArena(ctx.state, self), params);
+  },
+  rallyGetRubies: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGetRubies(shopArena(ctx.state, self), params);
+  },
+  rallyDoubleSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyDoubleSelf(shopArena(ctx.state, self), params);
+  },
+  rallyDamageRandomEnemy: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyDamageRandomEnemy(shopArena(ctx.state, self), params); // no enemies here — inert
+  },
+  rallyCastTribeAttack: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastTribeAttack(shopArena(ctx.state, self), params);
+  },
+  rallyCastSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastSpell(shopArena(ctx.state, self), params);
+  },
+  rallyCastShopBuffSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastShopBuffSpell(shopArena(ctx.state, self), params);
+  },
+  rallyCastNamedSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastNamedSpell(shopArena(ctx.state, self), params);
+  },
+  rallyBuffShopPermanent: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffShopPermanent(shopArena(ctx.state, self), params);
+  },
+  rallyBuffSelfPerTribe: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffSelfPerTribe(shopArena(ctx.state, self), params);
+  },
+  rallyBuffSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffSelf(shopArena(ctx.state, self), params);
+  },
+  rallyBuffAttachments: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffAttachments(shopArena(ctx.state, self), params);
+  },
+  /** No own-attack guard — the alignment gate is this one's whole condition (the combat half has none either). */
+  rallyBuffCelestials: (ctx, self, params) => {
+    ARENA_EFFECTS.rallyBuffCelestials(shopArena(ctx.state, self), params);
+  },
+  onRallyBuffOnePerTribe: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyBuffOnePerTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onRallyProcLeftmostEcho: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyProcLeftmostEcho(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onRallyPlayRubiesTribe: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyPlayRubiesTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyTribeAttackBuffSelf: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyTribeAttackBuffSelf(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyAttackCastGrowth(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyAttackBuffAll: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyAttackBuffAll(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onTribeAttackCastNamedSpell: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onTribeAttackCastNamedSpell(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
+    if (payload.minion === self) return; // "another friendly" — the combat guard, mirrored
+    ARENA_EFFECTS.onTribeAttackBuffAttacker(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onImpAttackBuffImps: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onImpAttackBuffImps(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onFriendlyAttackBuffTribe: (ctx, self, params, payload) => {
+    if (payload.minion === self) return; // excludes self — a support body, not a self-ramp
+    ARENA_EFFECTS.onFriendlyAttackBuffTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAttackStripKeywords: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.onAttackStripKeywords(shopArena(ctx.state, self), params); // no defender here — inert
+  },
   /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
@@ -2401,7 +2639,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight
    *  delegation — the guard params only matter in combat, where the payload says who died. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
-  combatGrantAle: (ctx, self, params) => {
+  combatGrantAle: (ctx, self, params, payload) => {
+    // The same guard the combat wrapper keeps. It matters now that the shop DISPATCHES Rallies: `fireShopRally`
+    // offers the event to every board body, so a Dwarf whose Ale is a Rally must check the trigger is its own —
+    // otherwise it pours a round for somebody else's rally. ('attacker' — Slaughter — has no shop dispatch.)
+    const guard = str(params.guard) || 'self';
+    if ((guard === 'rally' || guard === 'self') && payload?.minion !== self) return;
     ARENA_EFFECTS.combatGrantAle(shopArena(ctx.state, self), params);
   },
 
@@ -3897,15 +4140,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onBattlecryBuffFodder(shopArena(ctx.state, self), params);
   },
 
-
-  /** Errand Fiend (owner rework 2026-08-04), recruit half — a shop-fired Rally (future disruptors): summon
-   *  an Imp and enchant your Imps +1/+1 run-wide, exactly the combat half's ritual. */
-  rallySummonImpBuffImps: (ctx, self, params) => {
-    const imp = CARD_INDEX['impscrap'];
-    if (imp) for (let i = 0; i < gold(self); i++) ctx.summon(imp, self.uid);
-    const n = num(params.amount, 1) * gold(self);
-    buffImpsRunWide(ctx.state, n, n, nameOf(self));
-  },
 
   /** Rope Wrangler (owner add 2026-08-04), recruit half — a shop-fired Echo (Ryme / Funeral on Loan): a
    *  random minion moves HAND → BOARD (it keeps its uid, buffs and gilding — the same card, summoned).
@@ -7879,6 +8113,81 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k)); // keep only the keywords the spell added
 }
 
+/**
+ * ── THE SHOP-SIDE RALLY DISPATCHER (Effect Arena, Step 4) ──────────────────────────────────────────────
+ *
+ * Rally is an `onAttack` trigger, which is why "trigger your Rallies" was combat-only at any price: nothing
+ * in the shop ever dispatched `onAttack`. With the family migrated onto the arena (`ARENA_EFFECTS`, Step 3
+ * item 4) both halves are the SAME body, so a shop dispatch is now just this — a caller.
+ *
+ * `canRallyInShop` is the recruit twin of combat's `canRally`: the `RL` keyword plus a real `onAttack` effect
+ * (a card with the badge and nothing behind it is not "a Rally to trigger"), OR a welded Mech/spell rally
+ * (Better Bot / Perfect Core), which is exactly what combat's `fireFreeRally` also pays out.
+ *
+ * `fireShopRally` BROADCASTS, the way a real attack does: every board body's `onAttack` effects are offered
+ * the event with the rallier as `payload.minion`. That is what makes the ally-attack watchers — Paragon's
+ * "whenever you trigger a Rally", Hawkus, Mineral Master, Crypt Drake — answer a shop rally the same way
+ * they answer a swing, instead of the rallier's own effect firing into silence.
+ */
+export function canRallyInShop(card: BoardCard): boolean {
+  return (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack'))
+    || (card.rallyMechAtk ?? 0) > 0 || (card.rallySpellWeld ?? 0) > 0;
+}
+
+/** The board bodies that have a Rally to trigger, in board order. */
+export function ralliersOf(state: RunState): BoardCard[] {
+  return state.board.filter(canRallyInShop);
+}
+
+/** Fire ONE board minion's Rally in the shop — the recruit twin of combat's `fireFreeRally`. */
+export function fireShopRally(state: RunState, card: BoardCard): void {
+  if (!state.board.includes(card)) return; // an earlier rally removed it — the beat still keeps its window
+  const ctx = makeContext(state);
+  if (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack')) {
+    for (const watcher of [...state.board]) {
+      const align = alignmentOf(state.board, watcher.uid); // CELESTIAL: gate aligned halves exactly as EoT does
+      for (const effect of instanceEffects(watcher)) {
+        if (effect.on !== 'onAttack') continue;
+        if (!alignAllows(effect, align)) continue;
+        RECRUIT_FACTORIES[effect.do]?.(ctx, watcher, effect.params ?? {}, { minion: card });
+      }
+    }
+  }
+  // The welded rallies, exactly as `fireFreeRally` pays them out.
+  const mechAtk = card.rallyMechAtk ?? 0;
+  if (mechAtk > 0) {
+    for (const m of state.board) if (m !== card && isTribe(m, 'mech')) addBuff(m, 'Better Bot', mechAtk, 0);
+  }
+  const spellWeld = card.rallySpellWeld ?? 0;
+  if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+}
+
+/**
+ * Fire EVERY rally-capable board minion's Rally once — Rune of Lasting Cadence's payout.
+ *
+ * Snapshotted before firing: a Rally may summon, and a body that arrives mid-pass has not "had" a Rally to
+ * trigger (the same rule the combat rune states). The two per-FIGHT counters the family carries (`attackSeen`,
+ * `bredCount`) are scoped to this pass and cleared after it, so a shop rally can never inherit last turn's
+ * progress — Evolving Abomination gets its 2 doublings per End of Turn, not 2 per run.
+ *
+ * Callers own the beats. `applyEndOfTurn` fires one `fireShopRally` PER BEAT so each rally is allotted its
+ * own animation window; this whole-board helper exists for a caller that wants the batch (and for tests).
+ */
+export function fireRallies(state: RunState): void {
+  const ralliers = ralliersOf(state);
+  for (const card of ralliers) {
+    if (!state.board.includes(card)) continue; // a previous rally removed it
+    fireShopRally(state, card);
+  }
+  clearRallyPassCounters(state);
+}
+
+/** Reset the per-pass Rally counters (see `fireRallies`). Exported so the beat-per-rally path in
+ *  `applyEndOfTurn`, which fires them one at a time, can clear once at the end of the whole pass. */
+export function clearRallyPassCounters(state: RunState): void {
+  for (const c of state.board) { delete c.attackSeen; delete c.bredCount; }
+}
+
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
@@ -7988,9 +8297,50 @@ export function applyEndOfTurn(state: RunState): void {
     }
     state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
   }
+  // RUNE OF LASTING CADENCE — "End of Turn: trigger all your Rally effects."
+  //
+  // ONE BEAT PER RALLY, deliberately (owner ask: "make sure there's room for the beat to play and go through
+  // any and all animations"). A single batched beat would resolve five Rallies inside one animation window —
+  // five summons, five Ruby cascades and five stat climbs landing in the same frame. Each rally instead emits
+  // its own source-attributed trigger, so the choreographer allots it a real window and the TRIGGERING MINION
+  // is the beat's source: it pulses, its FX play, and the projection reserves a step for it.
+  for (const card of runeLastingCadenceBeats(state)) {
+    const def = CARD_INDEX[card.cardId];
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: 'endOfTurn',
+        source: beatSource('minion', card.cardId, def?.name ?? card.cardId, card.uid),
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_lasting_cadence:endOfTurn'),
+      },
+      () => { procRuneId(state, 'rune_lasting_cadence'); fireShopRally(state, card); },
+    );
+    fires++;
+  }
+  if (state.runeLastingCadence) clearRallyPassCounters(state);
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+}
+
+/**
+ * The Rune of Lasting Cadence beat list: one entry per RALLY THAT WILL FIRE, in board order, repeated by
+ * Chronos/Parliament like every other End-of-Turn effect.
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the legacy projection)
+ * and `questEndOfTurnBeats` (the UI's beat sequence) — so the three can never disagree about how many beats
+ * there are, which is precisely the drift that used to make an End-of-Turn reward land after the phase flip
+ * with no animation window at all. Empty when the rune isn't armed.
+ */
+export function runeLastingCadenceBeats(state: RunState): BoardCard[] {
+  if (!state.runeLastingCadence) return [];
+  const repeats = endOfTurnRepeats(state);
+  const out: BoardCard[] = [];
+  // Snapshotted before anything fires: a Rally may summon, and a body that arrives mid-pass has not "had" a
+  // Rally to trigger (the combat rune states the same rule).
+  for (const card of ralliersOf(state)) for (let r = 0; r < repeats; r++) out.push(card);
+  return out;
 }
 
 /**
@@ -8435,21 +8785,38 @@ export function projectEndOfTurnSteps(state: RunState): {
       beat(undefined, () => runRecurringEndOfTurn(clone, entry.effect, true));
     }
   }
+  // RUNE OF LASTING CADENCE — one projected step PER RALLY, matching `applyEndOfTurn` and `questEndOfTurnBeats`
+  // 1:1, so the animation actually RESERVES a window for each rally instead of the whole board resolving in a
+  // single frame. Sourced on the TRIGGERING minion (not sourceless like the quest rewards), so its captured
+  // buffs tendril out of the body whose Rally fired and the card pulses on its own beat.
+  for (const card of runeLastingCadenceBeats(clone)) {
+    beat(card, () => fireShopRally(clone, card));
+  }
+  if (clone.runeLastingCadence) clearRallyPassCounters(clone);
   return { steps, fx };
 }
 
 /** The quest/rune recurring End-of-Turn rewards active on the board, in fire order — one entry per
  *  (effect × repeat), matching `projectEndOfTurnSteps`'s trailing steps 1:1 so the recruit-screen beat
- *  sequence can animate each one (see `endTurn` in Recruit.tsx). Empty when none are granted. */
-export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string }> {
+ *  sequence can animate each one (see `endTurn` in Recruit.tsx). Empty when none are granted.
+ *
+ *  `uid` anchors the beat on a SOURCE CARD when the reward has one. Rune of Lasting Cadence is the first that
+ *  does: each of its beats is one minion's Rally, so the flourish belongs on that minion rather than descending
+ *  from nowhere the way a sourceless quest reward does. */
+export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string; uid?: string }> {
   const repeats = endOfTurnRepeats(state);
-  const out: Array<{ effect: string; label: string }> = [];
+  const out: Array<{ effect: string; label: string; uid?: string }> = [];
   for (const eff of recurringEotEffects(state)) {
     for (let r = 0; r < repeats; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
   }
   // Turn-limited recurrences march after the standing ones, mirroring applyEndOfTurn + the projection.
   for (const entry of state.questRecurringLimited ?? []) {
     for (let r = 0; r < repeats; r++) out.push({ effect: entry.effect, label: RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn' });
+  }
+  // Rune of Lasting Cadence: one beat per RALLY, last, exactly as `applyEndOfTurn` and the projection order
+  // them — so each rally gets its own 760ms window on the legacy path too, sourced on the rallying minion.
+  for (const card of runeLastingCadenceBeats(state)) {
+    out.push({ effect: 'runeLastingCadence', label: 'Rune of Lasting Cadence', uid: card.uid });
   }
   return out;
 }

@@ -4532,7 +4532,9 @@ export function Recruit() {
     // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
     // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
     for (const qb of questEndOfTurnBeats(run)) {
-      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
+      // `qb.uid` when the reward HAS a source card (Rune of Lasting Cadence: each beat is one minion's Rally,
+      // so the proc flourish + pulse belong on that minion). Sourceless rewards keep '' and descend.
+      beats.push({ uid: qb.uid ?? '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });

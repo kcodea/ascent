@@ -27,7 +27,7 @@ const runeKey = (r: RuneDef): string => {
   // `applyEndOfTurn` is where they emit) but bucketed as `:recruit`, so the key gameplay emits didn't match
   // the key the registry classified. Phase must be TRUTHFUL — an emitter cannot stamp a phase-lie just to
   // find a registry row.
-  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep/i.test(k))) return `rune:${r.id}:endOfTurn`;
+  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep|lastingCadence/i.test(k))) return `rune:${r.id}:endOfTurn`;
   if (kinds.includes('combatFlag')) return `rune:${r.id}:combat`;
   if (kinds.every((k) => k === 'grant' || k === 'gildRandom' || k === 'gold' || k === 'discover')) return `rune:${r.id}:onAcquire`;
   return `rune:${r.id}:recruit`;

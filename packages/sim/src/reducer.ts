@@ -5093,6 +5093,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeEnchantment': s.runeEnchantment = true; break;
     case 'runeCrown': s.runeCrown = { per: r.per, attack: r.attack, health: r.health }; break;
     case 'runeLapidary': s.runeLapidary = true; break;
+    case 'runeLastingCadence': s.runeLastingCadence = true; break;
     case 'runeDeep': s.runeDeep = r.tier; break;
     case 'runeGuidingCandle': s.runeGuidingCandle = { count: r.count, tier: r.tier, left: r.count }; break;
     case 'runeMuster': s.runeMuster = true; break;
@@ -5512,7 +5513,6 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // printed Health half, odd are Attack, so the fight resolves whatever the shop was advertising.
     runeShiftingFacets: f?.runeShiftingFacets ? ((s.runeShiftingFacetsTick ?? 0) % 2 === 0 ? 'health' : 'attack') : undefined,
     runeDeepeningVein: f?.runeDeepeningVein,   // Avenge (3): Rubies +1/+1 and a Ruby on every friendly Kobold
-    runeLastingCadence: f?.runeLastingCadence, // Start of Combat: every rally-capable friendly fires its Rally
   };
 }
 

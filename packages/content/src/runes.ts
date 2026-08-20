@@ -2508,16 +2508,17 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['d2_ascendant'] },
   },
   {
-    // The board-wide sibling of Rune of Rallying, sharing its `fireFreeRally` primitive. The owner's sheet said
-    // "End of Turn"; there is no recruit-phase Rally dispatch in the engine (Rally is an `onAttack` COMBAT
-    // trigger), so it fires at the very next moment - Start of Combat - and the printed text says so rather
-    // than promising a shop payout that could never render.
+    // END OF TURN, as the owner's sheet always said. It shipped as Start of Combat only because there was no
+    // recruit-phase Rally dispatch in the engine (Rally is an `onAttack` COMBAT trigger). The Effect Arena's
+    // Rally family (Step 3 item 4) put every Rally body on one shared implementation, and `fireRallies` /
+    // `fireShopRally` (Step 4) dispatch them from the shop — so the rune now pays out where it reads, one
+    // BEAT PER RALLY so each has room to animate.
     id: 'rune_lasting_cadence',
     name: 'Rune of Lasting Cadence',
     cost: 5,
     epic: true,
-    text: '**Start of Combat:** trigger **all** your **Rally** effects.',
-    reward: { kind: 'combatFlag', flag: 'runeLastingCadence' },
+    text: '**End of Turn:** trigger **all** your **Rally** effects.',
+    reward: { kind: 'runeLastingCadence' },
   },
   {
     // RENAMED from the owner's "Rune of Living Geodes" (2026-08-20) - Rune of the Living Geode already exists

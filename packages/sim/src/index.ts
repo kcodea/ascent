@@ -33,5 +33,6 @@ export * from './runTelemetry';
 export * from './runDerive';
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
+export { canRallyInShop, ralliersOf, fireShopRally, fireRallies, runeLastingCadenceBeats, instanceEffects } from './recruit'; // the shop-side RALLY dispatcher (Effect Arena Step 4) — a new disruptor is a call, not a wiring project
 export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, CIA_SUIT_TEXT, COMMISSION_TEXT, COMMISSION_NAME, COMMISSION_REWARD, commissionOffer, aegisGrantOf, COMMISSION_DELAY, threeDistinctTypes, stampSableBond, heroOfferPrice, endOfTurnRepeats, isTribe, magnetizeTargets, modalOpen, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, implosionCasts, dragonflameCasts, spellDisplayText, dominantBoardTribe, gildMinion, effectiveTargetTribe, spellStatBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, undeadBuyBonus, type EotStepFx } from './recruit';
 export * from './heroSurface';

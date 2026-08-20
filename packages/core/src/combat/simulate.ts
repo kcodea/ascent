@@ -3208,18 +3208,6 @@ export function simulate(
         fireFreeRally(first, rside);
       }
     }
-    // RUNE OF LASTING CADENCE: the board-wide sibling of Rune of Rallying — EVERY rally-capable body fires its
-    // Rally once, through the same `fireFreeRally` primitive (so the Rally tally, the Author's Hand and the
-    // welded Better Bot / Perfect Core rallies all behave exactly as they do on an attack). Snapshotted before
-    // firing: a Rally may summon, and a body that arrives mid-pass has not "had" a Rally to trigger.
-    if (rmods.runeLastingCadence) {
-      const ralliers = [...boards[rside]].filter((m) => canRally(m));
-      if (ralliers.length > 0) {
-        nextStep();
-        fireTrigger('runeLastingCadence', rside);
-        for (const m of ralliers) if (!m.dead && m.health > 0) fireFreeRally(m, rside);
-      }
-    }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
     // Previously the first friendly death summoned a Gravebody. The grant rides the body (not the position),
     // so it dies with that minion rather than sliding onto whoever is leftmost later.

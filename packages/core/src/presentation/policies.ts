@@ -442,7 +442,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_heavy_payroll:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_held_strength:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_kegheart:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
-  'rune:rune_lasting_cadence:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_living_magic:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_might:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_muckbroker:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -553,6 +552,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_kindling:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_kobold_bebes:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_lapidary:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Rune of Lasting Cadence: ONE BEAT PER RALLY (see `runeLastingCadenceBeats`) — each rally is a real
+  // trigger sourced on the minion whose Rally fires, so it must own its window rather than fold into a cue.
+  'rune:rune_lasting_cadence:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_lassoing:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_last_call:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_last_word:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

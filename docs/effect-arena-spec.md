@@ -138,12 +138,33 @@ disruptable in both phases**, which is the owner's capability, shipped increment
 4. **Rally, End of Turn, Start of Combat families** — pre-work for the disruptors the owner wants to add next.
    These families are single-half TODAY (no dispatcher ever calls them cross-phase), so migrating them is
    pure groundwork: cheap now, required before Step 4 pays out.
+   - **RALLY: DONE 2026-08-20.** 40 bodies migrated (ratchet floor 60 → 100), every combat duplicate deleted,
+     shipped WITH its Step-4 dispatcher and a real consumer — Rune of Lasting Cadence. Two findings worth
+     carrying to the next family: (a) an ENEMY-FACING member no-ops correctly by MEMBERSHIP — the arena grew
+     `enemies()`, empty in the shop, so the body's own "nothing to hit" guard makes it inert without any body
+     asking what phase it is in; and (b) the shop needs a per-instance effect list — `BoardCard.grantedEffects`
+     (read via `instanceEffects`) is the shop's answer to combat's `Minion.effects`, which is what lets a
+     GRAFTED trigger (Sunmane Herald) be as real in the shop as a printed one.
+   - **End of Turn / Start of Combat: still unmigrated**, same on-demand rule.
 5. **Everything else** as touched, tracked by the ratchet.
 
 Estimate honestly: the full sweep is the largest line item, on the order of 2–3 weeks of PR-batched mechanical
 work spread across sessions. Family slices mean it never blocks anything and pays out at every step.
 
 ## Step 4 — cross-phase dispatchers (~3–4 days) · per family, after that family migrates
+
+**RALLY dispatcher shipped 2026-08-20** — `canRallyInShop` / `ralliersOf` / `fireShopRally` / `fireRallies` in
+`sim/src/recruit.ts`, consumer: Rune of Lasting Cadence. Two rules the next dispatcher should copy: it
+BROADCASTS like a real trigger (every board body is offered the event and self-filters on the payload, exactly
+as the combat bus does — otherwise the "whenever you trigger a Rally" watchers never answer), which in turn
+means any shared factory distinguishing its triggers by a `guard` param needs that guard on the SHOP wrapper
+too. And per-FIGHT counters a family carries (`attackSeen`, `bredCount`) must be scoped to one dispatch pass
+and cleared, or a shop trigger silently inherits last turn's progress.
+
+**Beats are part of a dispatcher, not a follow-up.** A batched payout compiles to ONE beat and resolves the
+whole board inside a single animation window. Emit one source-attributed trigger PER fire from a SINGLE list
+shared by the commit, the projection and the UI beat list (`runeLastingCadenceBeats` is the model), classify
+it `ownBeat`, and assert the compiled TIMELINE grows with the count — enumeration is not the same as room.
 
 The shop-side dispatcher that lets a card SAY "fire your Start of Combats now" / "trigger your leftmost Rally"
 — currently impossible at any price for five trigger families. Dispatchers are a capability, not a behaviour

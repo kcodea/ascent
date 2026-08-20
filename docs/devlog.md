@@ -1,5 +1,67 @@
 # ASCENT — development log
 
+## 2026-08-20 — the RALLY FAMILY reaches the shop (Effect Arena Steps 3.4 + 4), and Rune of Lasting Cadence pays out where it reads
+
+**The whole Rally family is one implementation now.** 40 `onAttack` bodies (across 44 cards) moved out of
+`FACTORIES` and into `ARENA_EFFECTS`, joining the 60 Shout/Echo bodies already there — the arena ratchet floor
+goes 60 → 100. Every combat-side entry that used to hold a body is now a one-line delegation with only its
+PAYLOAD GUARD left behind (whose attack is this? an own-swing Rally checks `minion !== self`; an ally-attack
+watcher takes the attacker and threads it on as `params.attacker`, the same convention `summonBuffSelfTribe`
+uses for `arriver`). No duplicate survived the move — the one pre-existing hand-wired shop half
+(`rallySummonImpBuffImps`) was deleted rather than left to drift, which is the spec's actual bar for this work.
+
+**Permanence, stated per body.** Every buff is a plain `arena.buff` — temporary in combat (unchanged; that
+side is a pure refactor) and permanent in the shop, because a shop buff is permanent by definition. Where a
+card promises permanence in BOTH phases the body now says so explicitly rather than relying on which registry
+it happened to live in: Paragon's "permanently" is `buffPermanent`, Boulderdash/Blazer take the `permanent`
+flag on `playRubiesOn` (a real bug found on the way — the combat adapter's `playRubiesOn` was dropping the
+flag, so a migrated Boulderdash stopped carrying its Rubies home; the existing test caught it), and everything
+that moves a RUN channel — Ruby power, spell power, the Undead aura, the Staff-of-Guel shop enchant, the Imp
+aura, the Attachment enchant — goes through that channel in both phases.
+
+**Enemy-facing Rallies no-op by MEMBERSHIP, not by a phase check.** The arena grew `enemies()`, which returns
+the other side in combat and `[]` in the shop. Philippe's "deal its Attack to a random enemy" therefore
+returns on the guard it already had (`if (targets.length === 0) return`) BEFORE it draws, so it cannot even
+drift the run's shared RNG cursor; Tauntbreaker's keyword strip reads `params.target`, which only a real
+attack supplies. Neither is special-cased out of the dispatch — an allowlist is exactly the thing the arena
+exists to end — and both still count as ralliers.
+
+**Step 4: the shop-side dispatcher.** `canRallyInShop` / `ralliersOf` / `fireShopRally` / `fireRallies` are the
+recruit twins of combat's `canRally` / `fireFreeRally`, including the welded Better Bot / Perfect Core
+rallies. `fireShopRally` BROADCASTS the way a real attack does, so the ally-attack watchers — Paragon's
+"whenever you trigger a Rally", Hawkus, Mineral Master, Crypt Drake — answer a shop rally instead of the
+rallier's own effect firing into silence. `BoardCard` gained `grantedEffects` (the shop's answer to combat's
+per-instance `Minion.effects`), so Sunmane Herald's Rally really does graft itself onto the Beasts it feeds in
+the shop too; `attackSeen`/`bredCount` are scoped to one End-of-Turn pass and cleared after it, so Evolving
+Abomination gets its two doublings per turn rather than two per run.
+
+**Rune of Lasting Cadence is an End-of-Turn reward again** (`combatFlag` → `runeLastingCadence`), printing the
+owner's wording: "**End of Turn:** trigger **all** your **Rally** effects." The Start-of-Combat path in
+`simulate.ts` and the combat flag behind it are gone. Rune of Rallying is untouched.
+
+**One beat PER RALLY — the owner's actual requirement was time.** A batched payout would have compiled to one
+beat and resolved five rallies (five summons, five Ruby cascades, five stat climbs) inside a single animation
+window. `runeLastingCadenceBeats` is the single source shared by the commit (`applyEndOfTurn`), the legacy
+projection (`projectEndOfTurnSteps`) and the UI beat list (`questEndOfTurnBeats`), so the three can never
+disagree about how many windows there are. Each beat is sourced on the MINION whose Rally fires — so it
+pulses and its FX play — which meant `questEndOfTurnBeats` had to start carrying a `uid` (the first recurring
+reward that has a source card at all). Classified `ownBeat` in the policy registry under
+`rune:rune_lasting_cadence:endOfTurn`; the surface bucketing follows the reward kind, so the tripwire keeps
+itself honest with no hand-listing.
+
+Verified: `npm run typecheck` (pkgs + web), `npm run lint` (0 errors), full `npm test`, `npm run build:web`,
+`npm run harness` (combat determinism). New coverage in `packages/sim/src/rallyDispatch.test.ts` (20 tests:
+the gate, armed/unarmed, the graceful enemy-facing no-ops, per-pass counter scoping, N rallies → N beats, and
+the authoritative batch emitting one source-attributed `ownBeat` each) plus four compiler-level tests in
+`packages/ui/src/choreographer/realBatch.test.ts` proving the compiled TIMELINE grows with the rally count —
+the animation is genuinely allotted room, not merely enumerated. Combat behaviour is unchanged: the existing
+combat Rally tests are the guard and all stayed green.
+
+Follow-ups: a shop rally does not advance the combat-only Rally quest tallies (`playerRallies` is a
+`CombatResult` channel; there is no recruit-side equivalent) — an owner call, not a wiring gap. And a shop
+`rallyDoubleSelf` / `rallyTribeAuraGrowing` compounding permanently each turn is a real power question the
+rune now raises; flagged for balance, not changed here.
+
 ## 2026-08-20 — 30 RUNES for the Aug-20 batch (the forge entries for the 16 rune-only minions)
 
 The other half of the batch above: twenty Basic runes and ten Epic ones, `RUNES.length` 121 → 141. Fifteen of

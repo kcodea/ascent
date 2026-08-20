@@ -97,6 +97,15 @@ export interface FxBinding {
    * the substitution.
    */
   critDef?: string;
+  /**
+   * PROJECTILE DELIVERY (Fel Spikes' Echo). When true, this `damage`-moment effect is NOT played on the damage
+   * beat: instead the projectile LAUNCHES a beat earlier — the instant the source unit dies, alongside its Echo
+   * skull, from the still-visible body — and the damage beat is HELD (a travel lead) so the numbers, health
+   * drops and kills all land when the spike connects, not before it. The fan-out still runs on the damage beat
+   * to CLAIM its victims (suppressing the stock hit-burst the spike replaces); only the play is relocated. The
+   * launch, the lead, and the suppression all key off this one flag (see `useCombatReplay` death handling +
+   * beat clock, and the `fxDef` fan-out). Requires `fanOut: 'struck'`/`'damaged'`. */
+  launchOnDeath?: boolean;
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed'];
@@ -196,10 +205,15 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.critDef must be a non-empty string — dropped.`);
     return null;
   }
+  if (v.launchOnDeath !== undefined && typeof v.launchOnDeath !== 'boolean') {
+    devError(`[fx] bindings.json: ${where}.launchOnDeath must be a boolean — dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
   if (v.critDef !== undefined) out.critDef = v.critDef;
+  if (v.launchOnDeath === true) out.launchOnDeath = true;
   return out;
 }
 

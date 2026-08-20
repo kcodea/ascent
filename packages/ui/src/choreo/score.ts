@@ -613,14 +613,20 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             console.info(`[fx] '${cardId ?? moment.kind}' → '${binding.def}' ×${claimed.length}`, claimed);
           }
         }
-        at(cue, () => {
-          // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
-          // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
-          claimed.forEach((uid, i) => {
-            const fanAnchors = anchorsForUnits(source, uid);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
-          })
-        });
+        // `launchOnDeath` (Fel Spikes' Echo): the claim above still suppresses the stock burst on this damage
+        // beat, but the projectile itself is NOT played here — it launched a beat earlier from the dying body
+        // (see `useCombatReplay`'s death handling), and this beat is held back so the damage lands when it
+        // connects. So only SCHEDULE the play for the ordinary same-beat case.
+        if (!binding.launchOnDeath) {
+          at(cue, () => {
+            // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
+            // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
+            claimed.forEach((uid, i) => {
+              const fanAnchors = anchorsForUnits(source, uid);
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
+            });
+          });
+        }
       } else if (binding.fanOut === 'selfBuffed') {
         at(cue, () => {
           // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`

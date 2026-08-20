@@ -124,7 +124,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   // which the score cannot anchor to — see that file's header). Same path, three times, not a new kind of
   // caller: each resolves a binding and plays its `def`.
   it('has no dynamic call site outside the binding resolvers', () => {
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts']);
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

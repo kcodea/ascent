@@ -35,6 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { bindingFor } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -774,6 +775,68 @@ function pulledHomeAttackerHold(
   return 0;
 }
 
+// ── PROJECTILE-DELIVERED ECHO (Fel Spikes) ──────────────────────────────────────────────────────────────
+// A `launchOnDeath` binding (see `choreo/bindings`) fires its spike VOLLEY from the dying body a beat before
+// its Echo damage lands, and the damage beat is HELD (a travel lead) so the numbers/health/kills land when the
+// spikes connect. These three pure helpers answer the questions the death handler + the beat clock ask.
+
+/** The ms into `defId` at which its impact reaches the TARGET — the largest `at` among its target-anchored
+ *  layers. Drives the damage beat's travel lead, derived from the def so retuning the beam keeps them in sync.
+ *  0 if the def has no target layers (nothing to wait for). */
+function projectileImpactMs(defId: string): number {
+  const def = getDef(defId);
+  if (!def) return 0;
+  let at = 0;
+  for (const l of def.layers) if (l.anchor === 'target') at = Math.max(at, l.at ?? 0);
+  return at;
+}
+
+/** Every `wave` that `dyingUid` sprays after its death at `deathIdx`, each with the distinct units it struck
+ *  (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the wave by its
+ *  shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single entry. */
+export function echoWaves(events: CombatEvent[], dyingUid: string, deathIdx: number): { uids: string[]; wave: number }[] {
+  const mine = new Set<number>();
+  for (let j = deathIdx + 1; j < events.length; j++) {
+    const ev = events[j];
+    if (ev?.wave !== undefined && ev.type === 'dmg' && ev.source === dyingUid) mine.add(ev.wave);
+  }
+  if (mine.size === 0) return [];
+  const byWave = new Map<number, { uids: string[]; seen: Set<string> }>();
+  const order: number[] = [];
+  for (let j = deathIdx + 1; j < events.length; j++) {
+    const ev = events[j];
+    if (ev?.wave === undefined || !mine.has(ev.wave)) continue;
+    if (ev.type !== 'dmg' && ev.type !== 'shield') continue;
+    const t = ev.target;
+    if (typeof t !== 'string') continue;
+    let entry = byWave.get(ev.wave);
+    if (!entry) { entry = { uids: [], seen: new Set() }; byWave.set(ev.wave, entry); order.push(ev.wave); }
+    if (!entry.seen.has(t)) { entry.seen.add(t); entry.uids.push(t); }
+  }
+  return order.map((w) => ({ uids: byWave.get(w)!.uids, wave: w }));
+}
+
+/** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
+ *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
+function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
+  if (!shown || next.primary.wave === undefined) return 0; // not a wave beat
+  // The sprayer = the source of the wave's damage (scanned, so a leading ward pop doesn't hide it).
+  let src: string | null = null;
+  for (let i = next.start; i < next.end; i++) {
+    const ev = events[i];
+    if (ev?.type === 'dmg' && typeof ev.source === 'string') { src = ev.source; break; }
+  }
+  if (!src) return 0;
+  const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
+  if (!binding?.launchOnDeath) return 0;
+  // …and only if that sprayer actually DIED in the shown beat, so its volley launched from there.
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'death' && e.target === src) return projectileImpactMs(binding.def);
+  }
+  return 0;
+}
+
 /**
  * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
  * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
@@ -1293,7 +1356,13 @@ export function useCombatReplay(
     const atkUid = attackerOfImpact(beats, beatIdx - 1);
     // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
     // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
-    const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events, cardIds));
+    const lead = Math.max(
+      deathConsequenceLead(shown, next, events, cardIds, atkUid),
+      pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+      // A Fel-Spikes-style Echo whose spike volley launched from the death in `shown`: HOLD its damage beat
+      // for the beam's travel, so the numbers/health/kills land as the spikes connect (owner ask 2026-08-20).
+      echoDeliveryLead(shown, next, events, cardIds),
+    );
     if (lead) d += lead / combatSpeedRef.current;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -1721,6 +1790,23 @@ export function useCombatReplay(
       }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
+      // Fel Spikes' Echo: LAUNCH the spike volley from the dying body now — with the skull, while it is still on
+      // screen — toward every unit its upcoming spray will strike. A beat before the damage lands (the beat
+      // clock holds that beat for the beam's travel, `echoDeliveryLead`). The stock hit-burst on the damage
+      // beat is still claimed + suppressed by the fxDef fan-out; only the projectile is relocated to here.
+      // Golden sprays TWICE → both waves fire in one continuous cascade (`index` keeps climbing) = quick
+      // succession, not the long inter-pass pause.
+      const echoBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
+      if (r && echoBinding?.launchOnDeath && canPlayDefs()) {
+        let n = 0;
+        for (const wv of echoWaves(events, e.target, i)) {
+          for (const uid of wv.uids) {
+            const a = anchorsForUnits(e.target, uid);
+            if (a) playDef(echoBinding.def, a, { uids: { source: e.target, target: uid }, index: n });
+            n++;
+          }
+        }
+      }
     }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));

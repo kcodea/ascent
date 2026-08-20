@@ -71,6 +71,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // moment cue: the combat score can only anchor to board units, so a rune badge is unreachable from it (see
   // `runeTriggerFx.ts`'s header) and this resolves its binding directly instead.
   'runeTriggerFx.ts': 1,
+  // The death handler's projectile-Echo launch — one `playDef(echoBinding.def, …)` firing Fel Spikes' spike
+  // volley from the dying body a beat before its damage lands (a `launchOnDeath` binding). Not a moment cue:
+  // it deliberately fires OFF the damage beat, so it resolves its binding directly here (see `echoWaves`).
+  'useCombatReplay.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

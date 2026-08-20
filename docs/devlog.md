@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-20 — Fel Spikes' Echo: the spike is a real projectile — fire → travel → hit → THEN damage
+
+Owner: the damage was landing as the Echo beat fired, before the spike arrived. It needs to fire, hit, and
+*then* the target reacts. Re-choreographed the Echo as a genuine projectile delivery:
+
+- **New `launchOnDeath` binding flag** (`choreo/bindings`) marks Fel Spikes' `damage` binding as
+  projectile-delivered. Three consumers key off it.
+- **The volley LAUNCHES from the dying body**, a beat before the damage, alongside the Echo skull — added to
+  `useCombatReplay`'s death handler (`echoWaves` finds the upcoming spray's struck units from the wave tags;
+  the spikes fly from the still-visible Fel Spikes to each). The `fxDef` fan-out no longer plays the def on the
+  damage beat for a `launchOnDeath` binding — but it STILL claims the victims there, so the stock hit-burst the
+  spike replaces stays suppressed.
+- **The damage beat is HELD for the beam's travel** (`echoDeliveryLead` + the beat clock) so the numbers,
+  health drops and kills all land as the spikes connect — the travel time derived from the def's target-layer
+  `at` (`projectileImpactMs`), so retuning the beam keeps them in sync.
+- **Golden sprays twice in quick succession**: each `ctx.wave` is its own entry from `echoWaves`, fired as one
+  continuous `index` cascade (no long inter-pass pause).
+
+Verified: `echoWaves` unit tests (single wave incl. warded, golden double-spray, dedupe, unrelated-wave,
+plain-death); the `fxDef` fan-out score tests updated to the new claim-but-don't-play behaviour; direct-call
+census updated for the new `playDef` site. typecheck + lint (0 errors) + `npm test` (5931 passed) + build:web
+green. NOTE: the live timing is unverified in-browser — for the owner to eyeball; the attacker-death case (Fel
+Spikes dying mid-lunge) still launches from the immediate path only — follow-up if it reads wrong.
+
 ## 2026-08-20 — Fel Spikes' Echo fires the `fel-spike` volley from the dying body to every target
 
 Owner ask: wire the workbench `fel-spike` def (a source→target spike — ribbon beam + muzzle burst at the

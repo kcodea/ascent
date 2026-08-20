@@ -33,6 +33,32 @@ plus a ceiling assertion against per-effect multiplication. **Verified RED befor
 four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
+
+A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.
+
+- **Choose One options wear the card plate.** The Choose One picker rendered its two `<Card>`s without `plated`,
+  so they showed the bare oval frame instead of the carved stone plate they have in hand / the Compendium. Pass
+  `plated`, and reserve the plate's overhang as margin in the `.disc-slot` flex row (same allowance `.cardref`
+  and `.book-grid` make) so the wider plated cards don't overlap.
+- **Removed the outdated offer-slot glow.** The tribe-coloured ring + `kwglow`-animated bloom on `.disc-slot`
+  read as a squared glow behind the cards (worse behind a plate, whose silhouette it doesn't match). Stripped it
+  from ALL offer overlays (Choose One, Discover, Scouted); a plated card keeps its own plate-shaped hover glow.
+- **One hover tick per offer card.** The card's plate img is `pointer-events:none`, so hovering its overhang
+  resolved to the `.disc-slot` while the frame resolved to the inner `.card[role="button"]` — both match the
+  hover-SFX selector, so crossing between them double-ticked. The delegated `pointerover` handler now collapses
+  any match inside a `.disc-slot` to the slot, so each option ticks once.
+- **New "discover select" cue.** Committing a choice from any offer — a Discover pick, a Rune bought, a Choose
+  One option — plays a dedicated `discover-select` clip (new `discoverSelect` mixer category, bus ui, gain
+  0.375). Wired once in the reducer's action switch (`discover` / `chooseOne` / `buyRune`), replacing the old
+  `sfx.buy()` on the Discover pick.
+- **Ward plays the shield cue in the shop.** Mirroring the Taunt handling: a minion that arrives WITH Ward
+  (`'DS'`) on play, or is GIVEN Ward on the board in the shop, now fires the same `sfx.shield()` combat uses
+  when Ward is applied.
+
+Verified: typecheck + full test suite + build:web green; live on the dev server (plate/glow/hover confirmed by
+the owner; sounds owner-listened, select cue dropped 25% to taste).
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the
@@ -40,6 +66,7 @@ StatusBar and board furniture (`z-index: 40`). Since the Freeze gem / Reroll / G
 the gem was covering the big damage number (owner report). Raised the tally to `z-index: 2000/2001` — the same
 tier as the sibling lobby damage float, above the board + replay bar but still below the dev menu (9990). CSS
 only.
+
 ## 2026-08-19 — Remove the Set 2 launch banner from the title screen
 
 Owner ask: pull the "Welcome to Set 2's Launch!" glass card off the title screen entirely. Deleted the
@@ -787,6 +814,7 @@ rather than shipping a duplicate.
 the Chorus buff stacking across rolls but never touching the permanent bonus and vanishing at the rollover, the
 1-vs-2 tribe drip, the card-scoped multicast (named spell doubles, others untouched), the Glider's no-op with no
 Dragon out, and Blasting Voices resolving to +2 triggers through the real buy path.
+
 ## 2026-08-19 — End Turn gem glow copied from the Freeze gem (and re-seated below the gem)
 
 Owner ask: the End Turn diamond's hover glow floated over the bronze housing on its own top layer, unlike the

@@ -181,17 +181,25 @@ Split along the **simulation ↔ presentation** seam; meet only at the package e
 - **Shared boundary (coordinate before changing):** `packages/core/src/types.ts` (combat event vocab,
   `CombatEvent`/`CombatResult`), the package public entrypoints, and any new card-data ↔ UI contract.
 
-## Dev log & roadmap (KEEP CURRENT — do this every commit)
+## Documentation — update it when its CONTRACT changes, not on every commit
 
-Two living docs track history and queue. **Every commit must update them:**
+The old rule was "every commit must update devlog + roadmap + README." It was replaced on 2026-08-20 because
+it cost more than it bought: it produced churn on trivial commits, and — since every devlog entry prepended to
+the same line of one file — it made a merge conflict *inevitable* between any two same-day sessions. Update
+each doc when the thing it describes actually changes:
 
-- **`docs/devlog.md`** — the detailed history. For each commit (or tight group), prepend a dated entry: the
-  subject, a detailed description of *what changed and why* (engine/content/UI/balance), how it was verified
-  (tests, harness, live DOM checks), and any follow-ups. Newest first.
-- **`docs/roadmap.md`** — the forward queue (Now / Next / Later / Parked / Public Release). When you finish
-  something, move it out (it's now in the devlog); when you discover new work, add it under the right section.
-- **`README.md`** — keep its **Recent changes** (latest few highlights) and **Short-term roadmap** current, so
-  the repo's front page shows at a glance what just changed and what's next.
+- **`docs/devlog/`** — a NEW FILE per entry (`YYYY-MM-DD-slug.md`; see
+  [`docs/devlog/README.md`](docs/devlog/README.md)). Write one for **meaningful shipped work, migrations,
+  owner decisions, and non-obvious fixes** — what a future session would otherwise re-derive. Not for typos,
+  lint, or dependency bumps. **Never prepend to `docs/devlog.md`** — that file is the archive through
+  2026-08-20, and prepending is exactly what made concurrent work conflict.
+- **`docs/roadmap.md`** — only when priority or status actually moves. Finishing something means deleting it
+  here (the devlog is the history); discovering work means adding it.
+- **`README.md`** — setup, product identity, and major user-facing capabilities. It is **not** a per-commit
+  changelog; keep *Recent changes* to a few genuine headlines and let the devlog carry the rest.
+- **`docs/GAME-RULES.md`** and the architecture docs — whenever player-facing behaviour or an architectural
+  contract changes. This is the one that must never lag: a stale rules doc makes agents wrong, not just
+  uninformed.
+- **Content counts are GENERATED, never hand-maintained** — see [`docs/CONTENT.md`](docs/CONTENT.md).
 
-Order of operations for a commit: make the change → update `docs/devlog.md` + `docs/roadmap.md` + the README
 summary → commit them together.

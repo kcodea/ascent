@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.
+
 - **Rune of Refreshments** — every Demon you play buys another look at the Shop.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.
 - **Rune art wired (24 pieces)** plus the Baller's live "next payout" pill, reworks to the Wild Hunt, the Burrow and the Tip Jar, and a new **Summoning Bulwark** spell.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
+import type { CardDef, QuestReward, Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -8,6 +8,7 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
 import { Icon } from './Icon';
+import { MECHANICS, toMechInput } from './mechanics';
 import { useGame } from './store';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
@@ -128,34 +129,6 @@ const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
  *  to the cards it matches. Terms with no sensible card filter (Gilded) omit it and render inert. */
 type GlossItem = { icon: string; term: string; def: string; match?: (c: CardDef) => boolean };
 
-/** Factories whose name alone fixes the keyword they grant (no param needed). Param-based grants
- *  (battlecryGrantKeyword's `keywords`, summon/spell `keyword`, onConsumeGrantSelfKeyword's `keyword`)
- *  are read off `params` in `grantsKeyword`. */
-const FIXED_GRANT: Record<string, Keyword> = {
-  deathrattleGrantReborn: 'R', // Mumi → Rise
-  deathrattleGrantShield: 'DS', // Selfless Sentinel → Ward
-  scGrantShieldTribe: 'DS',
-  onShieldBreakGrantShield: 'DS', // Shield Capacitor → Ward
-};
-
-/** Does this card's effects *grant* keyword `code` — to a friendly minion (Mumi → Rise, Selfless Sentinel
- *  → Ward, Toxin Tender/Plaguebringer → Execute) or by summoning a body that carries it (the Taunt-token
- *  summoners)? Reads the fixed-keyword granter factories + any `params.keyword` / `params.keywords`, across
- *  top-level and Choose-One effects. Card-fetch grants ("add a Magnetic minion to hand" — Junkyard Titan,
- *  Jouster) are NOT keyword grants and correctly fall through. */
-function grantsKeyword(c: CardDef, code: Keyword): boolean {
-  const effs = [...c.effects, ...(c.chooseOne?.flatMap((o) => o.effects) ?? [])];
-  return effs.some((e) => {
-    if (FIXED_GRANT[e.do] === code) return true;
-    const p = e.params as { keyword?: string; keywords?: string[] } | undefined;
-    return p?.keyword === code || (Array.isArray(p?.keywords) && p.keywords.includes(code));
-  });
-}
-
-/** A keyword-code filter — matches cards that either carry the keyword OR grant it. So clicking "Rise"
- *  surfaces Mumi (which has no Rise itself but hands it out), "Ward" surfaces Selfless Sentinel, etc. */
-const kwMatch = (code: Keyword) => (c: CardDef): boolean => c.keywords.includes(code) || grantsKeyword(c, code);
-
 /** Build a text predicate from the raw search-box value. Two modes:
  *  - **Quoted** (`"Imp"`) → WHOLE-WORD match, so it hits "Imp" / "Imp King" but NOT "Improve" / "Imps" / "Impala".
  *  - **Unquoted** (`Imp`) → case-insensitive substring (the loose default).
@@ -176,47 +149,33 @@ function makeSearchMatcher(raw: string): (text: string) => boolean {
 }
 
 /** The glossary — every keyword + trigger the cards use, one rule apiece. Grouped by when-it-fires
- *  (Triggers), what-it-does-in-combat (Combat), and shop/build terms. Icons + names mirror the card
- *  pills (KW_LABEL / KW_ICON + triggerPill in Card.tsx) so the codex and the cards speak one language.
- *  Each `match` predicate mirrors what the card actually shows — keyword codes read `c.keywords`, the
- *  event triggers read `c.effects` — so clicking a term surfaces exactly the minions that carry it. */
+ *  (Triggers), what-it-does-in-combat (Combat), and shop/build terms. It is REBUILT from the shared
+ *  `MECHANICS` registry (`mechanics.ts`) by id, so the codex glyph/name/def and the card medallion
+ *  (`mechIcon.ts`) can never drift — a `mechIcon.test.ts` drift test guards `GLOSSARY_MECHANIC_IDS`.
+ *  Each row's `match` predicate is the registry `detect` run over the card, so clicking a term surfaces
+ *  exactly the minions that carry (or grant) it. Non-mechanic rows with no card filter (Gilded) are
+ *  appended by hand. */
+const byId = Object.fromEntries(MECHANICS.map((m) => [m.id, m]));
+const row = (id: string): GlossItem => {
+  const m = byId[id]!;
+  return { icon: m.glyph, term: m.term, def: m.def, match: (c: CardDef) => m.detect(toMechInput(c)) };
+};
+
+/** The registry ids the glossary renders, in section+display order. Exported for the drift test. */
+export const GLOSSARY_MECHANIC_IDS = [
+  'shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne',
+  'taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher',
+  'attachment', 'consume', 'fodder', 'engraved', 'discover',
+] as const;
+
 const GLOSSARY: { title: string; items: GlossItem[] }[] = [
-  {
-    title: 'Triggers',
-    items: [
-      { icon: 'battlecry', term: 'Shout', def: 'Fires when you play this minion from your hand.', match: (c) => c.effects.some((e) => e.on === 'onPlay') },
-      { icon: 'echo', term: 'Echo', def: 'Fires when this minion dies.', match: (c) => c.effects.some((e) => e.on === 'onDeath') },
-      { icon: 'fist', term: 'Start of Combat', def: 'Fires once, the moment the battle begins.', match: kwMatch('SC') },
-      { icon: 'sc', term: 'End of Turn', def: 'Fires at the end of each recruit turn, before you fight.', match: (c) => c.effects.some((e) => e.on === 'endOfTurn') },
-      { icon: 'skull', term: 'Avenge (N)', def: 'Fires after every N of your minions die in a combat.', match: (c) => c.effects.some((e) => e.on === 'avenge') },
-      { icon: 'sword', term: 'Rally', def: 'Fires each time this minion attacks.', match: kwMatch('RL') },
-      { icon: 'slaughter', term: 'Slaughter', def: 'Fires each time this minion kills an enemy minion.', match: kwMatch('SL') },
-      { icon: 'poison', term: 'Bleed', def: 'Marks enemies at Start of Combat; every few attacks in the fight, they each take this minion\'s Attack.', match: (c) => c.effects.some((e) => e.do === 'scArmBleed') },
-      { icon: 'choose1', term: 'Choose One', def: 'Pick one of two effects as you play the minion.', match: (c) => !!c.chooseOne },
-    ],
-  },
-  {
-    title: 'Combat keywords',
-    items: [
-      { icon: 'taunt', term: 'Taunt', def: 'Enemies must attack this minion first.', match: kwMatch('T') },
-      { icon: 'shield', term: 'Ward', def: 'Blocks the first hit it would take, then breaks.', match: kwMatch('DS') },
-      { icon: 'execute', term: 'Execute', def: 'Destroys any minion it damages — spent after one hit.', match: kwMatch('V') },
-      { icon: 'windfury', term: 'Flurry', def: 'Attacks twice each turn.', match: kwMatch('W') },
-      { icon: 'target', term: 'Critical Strike', def: 'Each attack has a chance to deal double damage.', match: kwMatch('CR') },
-      { icon: 'rise', term: 'Rise', def: 'The first time it dies, it returns once with 1 Health.', match: kwMatch('R') },
-      { icon: 'cleave', term: 'Cleave', def: 'Also damages the minions beside its target.', match: kwMatch('C') },
-      { icon: 'eye', term: 'Stealth', def: "Can't be attacked until it has attacked once.", match: kwMatch('ST') },
-      { icon: 'immune', term: 'Immune', def: "Can't take damage.", match: kwMatch('IMM') },
-    ],
-  },
+  { title: 'Triggers', items: ['shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne'].map(row) },
+  { title: 'Combat keywords', items: ['taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher'].map(row) },
   {
     title: 'Build & shop',
     items: [
-      { icon: 'magnetic', term: 'Attachment', def: 'Play it onto a friendly minion to merge its stats and keywords in.', match: kwMatch('M') },
-      { icon: 'consume', term: 'Consume', def: 'Devours your Fodder to grow.', match: kwMatch('CN') },
-      { icon: 'fodder', term: 'Fodder', def: 'A cheap token your minions consume for stats.', match: kwMatch('FD') },
-      { icon: 'anvil', term: 'Engraved', def: 'Stat gains during combat carry back to your board.', match: kwMatch('EG') },
-      { icon: 'star', term: 'Discover', def: 'Peek at three cards and add one to your hand.', match: (c) => c.effects.some((e) => /discover/i.test(e.do)) },
+      ...['attachment', 'consume', 'fodder', 'engraved', 'discover'].map(row),
+      // Non-mechanic row (a shop/fusion term, not a card-detectable mechanic): no `match`, renders inert.
       { icon: 'crown', term: 'Gilded', def: 'Collect three copies to fuse one doubled-stat Gilded minion.' },
     ],
   },

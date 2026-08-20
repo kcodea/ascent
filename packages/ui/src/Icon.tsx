@@ -109,6 +109,16 @@ const ICONS: Record<string, ReactNode> = {
   ),
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,
   anvil: <path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z" />,
+  // Engraved — a rune mark (angular strokes), replacing the anvil for the Engraved keyword.
+  engrave: (
+    <g fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v18M12 3l-4 4M12 3l4 4M12 12l-4 4M12 12l4 4" />
+    </g>
+  ),
+  // Stealth — a hood/cowl silhouette (freed off the eye, which is now Watcher).
+  stealth: (
+    <path fill="currentColor" d="M12 3c-4 0-7 3.4-7 8v9h3v-4c0-2.4 1.8-4 4-4s4 1.6 4 4v4h3v-9c0-4.6-3-8-7-8zm0 4a3 3 0 013 3c0 1-3 2-3 2s-3-1-3-2a3 3 0 013-3z" />
+  ),
   refresh: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M20 11a8 8 0 10-1 5M20 4v5h-5" />,
   freeze: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 2v20M4 7l16 10M20 7L4 17" />,
   up: <path fill="currentColor" d="M12 3l9 10h-6v8H9v-8H3z" />,

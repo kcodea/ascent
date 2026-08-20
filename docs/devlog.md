@@ -1,5 +1,52 @@
 # ASCENT — development log
 
+## 2026-08-19 — Minion medallion glyph resolver rewritten: no more tribe fallback
+
+**The bug:** the medallion glyph (the small icon on a minion's card) was resolved by
+`trigger?.icon ?? keywords[0] ?? tribe` — a brittle text-prefix check on a card's trigger pill, falling back to
+the first keyword, falling back to the **tribe** symbol. An audit found **64% of minions** were showing a
+generic tribe glyph instead of anything about what the card actually does, and a Shout/Echo rename desync
+could silently drop a trigger glyph entirely (the text-prefix match just stopped matching).
+
+**The fix: structured detection through one shared registry.** New `packages/ui/src/mechanics.ts` holds the
+`MECHANICS` registry — one entry per mechanic (Shout, Echo, Start of Combat, End of Turn, Avenge, Rally,
+Slaughter, Bleed, Choose One, Taunt, Ward, Execute, Flurry, Critical Strike, Rise, Cleave, Immune, Stealth,
+Attachment, Consume, Fodder, Engraved, Discover, and the new Watcher) — each with a `detect` predicate over the
+card's real effect data (`on`/`do`/`params`), keywords, and `chooseOne`, plus its medallion glyph and glossary
+text. `packages/ui/src/mechIcon.ts`'s `resolveMechIcon(view)` looks the card up in `CARD_INDEX` (a `CardView`
+carries no `effects`), filters the registry to the mechanics the card **itself has**, and returns the
+**first-mentioned** one's glyph — ties broken by text position, then keyword order, then a global order. **No
+recognised mechanic → `null` → a blank badge**, never the tribe. `Card.tsx` now renders the medallion icon
+conditionally on that `null` and the old `triggerPill`/`KW_ICON`/`TRIBE_ICON` maps are deleted (their only
+consumer is gone).
+
+**New this pass:** a **Watcher** mechanic (eye glyph) for effects that fire in response to another minion or
+your actions — reactive `on:` triggers (`onSummon`, `onGainAttack`, `onDamaged`, `onFriendDeath`, `onGainCard`,
+`onGetRuby`, `onRubyPlayed`) plus ally-only `onAttack`/`onKill` (no self `RL`/`SL` keyword). **Stealth** gets
+its own glyph, freed off the eye it used to borrow. **Engraved** gets a new runic glyph, off the anvil it used
+to share with other things. **Choose One** now shows on the medallion at all (`choose1` glyph). Both new
+glyphs (`engrave`, `stealth`) are placeholder-but-real SVGs in `Icon.tsx` — deliberately not final art.
+
+**The Compendium glossary now reads the SAME registry** (`MinionBook.tsx`'s `GLOSSARY` is built from
+`MECHANICS` by id, in the existing three section groupings), so the medallion and the glossary can no longer
+drift apart — a `GLOSSARY_MECHANIC_IDS` export plus a drift test pin every glossary row to a real registry
+entry. Adds a Watcher row to the glossary; Engraved and Stealth pick up their new icons automatically.
+
+**Ruby is NOT a medallion mechanic** — Spells/Rubies never had a medallion and still don't; the resolver only
+runs from `Card.tsx`'s minion branch.
+
+**Verified:** new unit tests for the registry (per-mechanic detection over real cards), the resolver
+(ordering, `null`, the `CARD_INDEX` lookup path), a **no-minion-shows-a-tribe-glyph invariant** that sweeps
+every card in `ALL_CARDS` and asserts the result is either `null` or a real registry glyph, and the
+glossary↔registry drift test. Full suite **5894 tests pass**; `typecheck` + `lint` + `build:web` all green.
+
+**Deliberately out of scope for this PR** (follow-ups, not regressions):
+- No glyph yet for Orbit, Start of Turn, Improve, Rush, Ascend, or spend-Gold mechanics.
+- Re-tagging Engraved cards that carry the mechanic but lack the `EG` keyword (Tara/Taragosa) — they still
+  resolve correctly today via other means, but aren't caught by the `engraved` predicate.
+- **No live visual check was done in this pass** — that is the owner's follow-up: tune the placeholder
+  `engrave`/`stealth` glyph art in `Icon.tsx` against the real board, and rule on whether trigger-multiplier
+  auras (Sylus, Uron) and a few borderline reactive triggers should read as Watcher.
 ## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
 
 Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a

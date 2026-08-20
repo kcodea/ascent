@@ -32,6 +32,16 @@ Verified live: Standard Bearer / Paragon / Lab Experiment read ALL on the gem wi
 Gangplank, Arnold and Beardsley still read Dwarf / Dwarf / Beast — and Deepdelve Paragon (a different card
 whose name merely contains "Paragon") correctly stays Kobold.
 
+**…and the "Counts as all tribes." clause comes OUT of the rules text** (owner: it is assumed from the ALL
+pill). Seven strings across four cards — Paragon, Standard Bearer, Perfect Core, Chaos Attachment — each of
+which was spending a line of the text box restating what the pill now states. Their remaining text is just
+what they DO: "Rally: give a minion of each type +2/+3 permanently."
+
+**The Anomaly Reactor spell keeps its wording** and is exempt by design: it GRANTS the all-types state to a
+target rather than having it, and a spell has no tribe pill to say it on its behalf. A test pins both halves —
+no universal-tribe MINION may restate the clause, and the exemption is written down so the next sweep doesn't
+"tidy" the spell too.
+
 **Art wired**: `dw_arnold`, `summoningbulwark`, `mightofaeon` — the only live cards that were missing it. An
 audit of every card found just those three plus the Set-3 scaffold (`c3_*`, not shipped) and a test fixture.
 

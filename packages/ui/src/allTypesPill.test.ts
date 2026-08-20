@@ -22,6 +22,16 @@ describe('the "All types" cards are flagged in DATA', () => {
     }
   });
 
+  it('and none of them RESTATE it in their text — the pill already says it', () => {
+    // Owner ruling 2026-08-20: the "Counts as all tribes." clause is redundant beside an ALL pill, and it was
+    // eating a line of rules text on every one of these cards. The ANOMALY REACTOR spell is deliberately
+    // exempt (it GRANTS the state to a target, and a spell has no tribe pill to say it for them).
+    for (const c of universal) {
+      expect(c.text ?? '', `${c.id} restates its own pill`).not.toMatch(/counts as all tribes/i);
+      expect(c.goldenText ?? '', `${c.id} (golden) restates its own pill`).not.toMatch(/counts as all tribes/i);
+    }
+  });
+
   it('every All-type card would be misread without the flag — they are all `neutral` in data', () => {
     // This is WHY the pill matters: without it these read as Neutral, the one label that implies the opposite.
     for (const c of universal) expect(c.tribe, `${c.id}`).toBe('neutral');

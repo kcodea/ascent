@@ -93,8 +93,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: [],
     universalTribe: true,
     effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 4, health: 4 } }],
-    text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
-    goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
+    text: 'Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
+    goldenText: 'Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
     // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that snowballs one minion
@@ -108,8 +108,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: ['RL'],
     universalTribe: true,
     effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 2, health: 3 } }],
-    text: 'Counts as all tribes. **Rally:** give a minion of **each type** **+2/+3** permanently.',
-    goldenText: 'Counts as all tribes. **Rally:** give a minion of **each type** **+4/+6** permanently.',
+    text: '**Rally:** give a minion of **each type** **+2/+3** permanently.',
+    goldenText: '**Rally:** give a minion of **each type** **+4/+6** permanently.',
   },
   {
     // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). Two branches, deliberately

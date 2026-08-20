@@ -2,6 +2,24 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Fourth follow-up (same day): dock header + a REAL wire-format bug (the stuck Runeforge).**
+
+- **The dock has a labeled header** — "Gold / Acts / Tier" as an in-flow row, with a matching "Round" cell on
+  the rail so data rows stay level across the seam. The first attempt (icons absolutely positioned above the
+  plate) was silently clipped by the dock's `overflow: hidden`, which is why the owner's screenshot had no
+  header at all.
+- **The stuck-Runeforge bug was a delta-encoding wire-format hole, not a UI bug.** The reducer clears a spent
+  forge with `s.runeforgeOffer = undefined` — an explicit undefined, which the delta encoder was putting INSIDE
+  `changed`. `JSON.stringify` silently drops undefined values, so the uploaded payload lost the clear and the
+  forge overlay never closed in playback (an in-memory Rewatch was unaffected, which is why it slipped past the
+  earlier live checks). Explicitly-undefined keys now travel as REMOVALS (`removed: ['runeforgeOffer']`),
+  which serialization cannot drop. Pinned by a regression test that JSON round-trips the frames — the exact
+  upload→fetch path — and live-verified: rail-click to the forge round, the overlay opens on the shop frame
+  and closes the moment the recorded pick plays. The same hole would have hit EVERY reducer field cleared to
+  undefined, not just the forge — this was the general class, found through its first symptom.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5844 tests / 362 files ✅ build:web ✅, plus the live browser pass.
+
 **Third follow-up (same day): the metrics DOCK + the rail in the dev tuner.**
 
 - **The per-round hover drawer is gone; the metrics live in a DOCK** (owner rework: "a dock that slides

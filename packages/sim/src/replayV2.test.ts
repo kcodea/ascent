@@ -4,6 +4,7 @@ import { DEFAULT_BOT } from './bots/index';
 import type { RunState } from './state';
 import { runRecord } from './state';
 import { createLobbyRun, playerLobbySeat } from './lobby/runLobby';
+import { createRun } from './state';
 import {
   SHOP_VIEW_EXCLUDED_KEYS,
   combatFrameOf,
@@ -351,5 +352,25 @@ describe('the inspect trail — appendInspectEvent coalescing (owner ask 2026-08
     appendInspectEvent(trail2, close(3000), 4);
     expect(trail2).toHaveLength(5);
     expect(trail2[4]!.inspect).toBeNull();
+  });
+});
+
+describe('a key cleared to undefined survives the JSON round trip (Runeforge bug, found live 2026-08-19)', () => {
+  it('the clear travels as a REMOVAL, so serialization cannot drop it', () => {
+    const base = createRun(3, 'runesmith');
+    const withForge: RunState = { ...base, phase: 'recruit', runeforgeOffer: ['rune_altar'] } as RunState;
+    // The reducer clears a spent forge with `s.runeforgeOffer = undefined` (an explicit undefined, not a delete).
+    const cleared: RunState = { ...withForge, runeforgeOffer: undefined } as RunState;
+    const key = shopFrameOf(withForge, 'turnStart', 0);
+    const { frame } = deltaShopFrameOf(key.view, cleared, 'buyRune', 100);
+    expect(frame.removed, 'the clear must be a removal').toContain('runeforgeOffer');
+    expect('runeforgeOffer' in frame.changed, 'and never an undefined inside changed').toBe(false);
+    // The trap being guarded: JSON round-trip the frames (exactly what upload → fetch does), then expand.
+    const wire = JSON.parse(JSON.stringify([key, frame])) as ReplayFrame[];
+    const views = expandFrames(wire);
+    const v0 = views[0] as { view: { runeforgeOffer?: unknown } };
+    const v1 = views[1] as { view: { runeforgeOffer?: unknown } };
+    expect(v0.view.runeforgeOffer, 'open on the keyframe').toBeDefined();
+    expect(v1.view.runeforgeOffer, 'CLOSED after the pick').toBeUndefined();
   });
 });

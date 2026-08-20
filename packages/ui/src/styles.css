@@ -8120,6 +8120,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-row:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .roundrail-row.active { background: rgba(196, 160, 92, 0.2); color: #fff; box-shadow: inset 0 0 0 1px var(--acc); }
 .roundrail-num { letter-spacing: 0.03em; }
+.roundrail-head { padding: 4px 8px; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
 .roundrail-verdict { font-weight: 800; text-align: center; }
 .roundrail-verdict.win { color: #9fd98a; }
 .roundrail-verdict.loss { color: #e88a7a; }
@@ -8139,9 +8141,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   transform: translateX(-14px); opacity: 0; pointer-events: none;
   transition: transform 180ms ease-out, opacity 180ms ease-out; }
 .rounddock.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
-.rounddock-head { position: absolute; top: -20px; left: 14px; right: 10px; display: grid;
-  grid-template-columns: repeat(3, 30px); gap: 8px; justify-items: center; font-size: 11px;
-  filter: saturate(0.4); opacity: 0.8; }
+.rounddock-head { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; justify-items: center;
+  padding: 4px 0; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
 .rounddock-row { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; align-items: center;
   padding: 4px 0; border-radius: 7px; font-weight: 700; font-size: 12px; line-height: 16px;
   color: rgba(255, 255, 255, 0.78); }

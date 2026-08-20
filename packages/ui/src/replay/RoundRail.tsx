@@ -79,15 +79,18 @@ export function RoundRail(): JSX.Element | null {
   return (
     <div className="roundrail-wrap">
       <nav className="roundrail" aria-label="Replay rounds">
+        {/* The header row is IN FLOW in both grids (an earlier absolutely-positioned header was clipped by
+            the dock's overflow) — the rail gets a matching cell so data rows stay level across the seam. */}
+        <div className="roundrail-head">Round</div>
         {marks.map((m) => (
           <RailRow key={m.wave} mark={m} active={m.wave === session.round} onPick={onPick} />
         ))}
       </nav>
       <aside className={`rounddock${dockOpen ? ' open' : ''}`} aria-hidden={!dockOpen} aria-label="Round metrics">
-        <div className="rounddock-head" aria-hidden>
-          <span title="Gold spent">🪙</span>
-          <span title="Actions this turn">⚡</span>
-          <span title="Shop tier at start">⛰</span>
+        <div className="rounddock-head">
+          <span title="Gold spent this round">Gold</span>
+          <span title="Actions this turn">Acts</span>
+          <span title="Shop tier at the start of the turn">Tier</span>
         </div>
         {marks.map((m) => {
           const s = byWave.get(m.wave);

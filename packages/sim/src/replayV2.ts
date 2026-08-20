@@ -179,6 +179,11 @@ export function deltaShopFrameOf(
   const changed: Record<string, unknown> = {};
   const removed: string[] = [];
   for (const k of Object.keys(cur)) {
+    // A key EXPLICITLY set to undefined must travel as a REMOVAL, never inside `changed` — JSON serialization
+    // silently drops undefined values, so an uploaded replay would lose the clear and the old value would
+    // survive the merge forever. Found live 2026-08-19: the reducer clears a spent Runeforge with
+    // `s.runeforgeOffer = undefined`, and the forge overlay never closed in playback.
+    if (cur[k] === undefined) { if (k in prev && prev[k] !== undefined) removed.push(k); continue; }
     if (!(k in prev) || !jsonEqual(prev[k], cur[k])) changed[k] = cur[k];
   }
   for (const k of Object.keys(prev)) if (!(k in cur)) removed.push(k);

@@ -11,6 +11,7 @@ import { CardArtEditor } from './CardArtEditor';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
+import { resolveMechIcon } from './mechIcon';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -81,6 +82,8 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
+import { KeywordDefs } from './KeywordDefs';
+import { detectCardKeywords } from './detectCardKeywords';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -198,14 +201,6 @@ const plateSrcFor = (tribe: Tribe | undefined): string =>
 const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
 let cardPlateAvailable = true;
 
-// (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
-//  KW_ICON survives: it still drives the medallion glyph. Player-facing keyword NAMES are not this file's
-//  job — `terms.ts` owns the renames, with per-surface copies in MinionBook / questText / float / the
-//  combat log. #625's Toxin→Execute rename touched all of those; this map was a ninth copy with no reader.)
-const KW_ICON: Record<Keyword, string> = {
-  T: 'taunt', DS: 'shield', V: 'execute', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
-  CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
-};
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
   celestial: 'Celestial',
@@ -308,23 +303,6 @@ const statCls = (cur: number, base?: number, floor?: number): string => {
   if (floor !== undefined) return cur < floor ? ' down' : base !== undefined && cur > base ? ' up' : '';
   return base === undefined || cur === base ? '' : cur > base ? ' up' : ' down';
 };
-
-/**
- * Trigger abilities (Battlecry / Deathrattle / Avenge / End of Turn) aren't keywords
- * in the data model — they read from the text prefix and get their own pill (matching
- * Start / Consume), so every card's keyword row lands in the same place and the
- * description starts on a fixed line. Tolerates leading markdown/space ("**Battlecry:**").
- */
-const triggerPill = (text: string): { label: string; icon: string } | null =>
-  /^\W*battlecry/i.test(text)
-    ? { label: 'Shout', icon: 'battlecry' }
-    : /^\W*deathrattle/i.test(text)
-      ? { label: 'Echo', icon: 'echo' }
-      : /^\W*avenge/i.test(text)
-        ? { label: 'Avenge', icon: 'skull' }
-        : /^\W*end of turn/i.test(text)
-          ? { label: 'End of Turn', icon: 'sc' }
-          : null;
 
 /** The one standardized card — identical size/shape in shop, warband, and hand.
  *  Memoized: during a drag the parent re-renders on every pointermove, but a card whose
@@ -634,11 +612,6 @@ export const Card = memo(function Card({
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from
     pixiFx.spellPower(r.left + r.width / 2, r.top + r.height / 2, getStepProcFxConfig());
   }, [stepCur, stepTotal]);
-  // The card's trigger (Battlecry / Deathrattle, derived from the text). The keyword PILL ROW that used to
-  // sit under the name was removed (owner 2026-07-21) — keywords already read from the art-layer cues (Ward
-  // dome, Toxin drip, Flurry rings, the Taunt frame) and from the bolded rules text, so the row was a third
-  // restatement costing a line of panel height. `trigger` survives because the medallion glyph derives from it.
-  const trigger = triggerPill(card.text);
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
   // The rules HTML, memoized on the text it renders (perf audit 2026-08-06). Unmemoized, every Card render
@@ -646,9 +619,9 @@ export const Card = memo(function Card({
   // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
   // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
   const rulesHtml = useMemo(() => descTemp(descUp(mdBold(shownText))), [shownText]);
-  // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
-  // (Battlecry / Deathrattle / …) if any, else its first keyword, else the tribe symbol.
-  const mechIcon = trigger?.icon ?? (card.keywords[0] ? KW_ICON[card.keywords[0]] : TRIBE_ICON[card.tribe]);
+  // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
+  // mechIcon.ts). `null` → a blank badge. Never the tribe.
+  const mechIcon = resolveMechIcon(card);
   // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
@@ -677,7 +650,13 @@ export const Card = memo(function Card({
       // popups off the right edge and let tall ones run off the bottom.
       const plateScale = getCardPlateConfig().scale;
       const cardW = r.width * zoom * plateScale;
-      const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
+      // The keyword definition column (KeywordDefs) is part of the cluster too — up to `min(144px, 25vw)` wide,
+      // zoomed like the cards. Fold it into the width estimate so the flip/clamp keeps the WHOLE cluster on
+      // screen: without it a card + referenced card + defs runs off the right edge and laps the hovered tile
+      // and the right-side UI. 0 when the card references no keyword defs.
+      const nDefs = detectCardKeywords(card).length;
+      const defsW = nDefs > 0 ? gap + Math.min(144, window.innerWidth * 0.25) * zoom : 0;
+      const tipW = cardW * n + (n - 1) * gap + defsW; // cards laid left→right, plus the defs column
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
@@ -1081,7 +1060,7 @@ export const Card = memo(function Card({
               <span className="value">{shownHealth}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mechIcon && <Icon name={mechIcon} />}</span>
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the
@@ -1201,9 +1180,14 @@ export const Card = memo(function Card({
       {refPos && hasPopup && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
+            {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
+                the defs go on the far (outward) side, so the column never laps back over the source. Opening
+                right, it's the reverse: cards first, defs on the far right. */}
+            {refPos.origin === 'right' && <KeywordDefs card={card} />}
             {popupCards.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
+            {refPos.origin === 'left' && <KeywordDefs card={card} />}
           </div>
         </div>,
         document.body,

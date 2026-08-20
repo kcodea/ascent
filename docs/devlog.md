@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-19 — The last three End-of-Turn runes burst (Recollection, Quick Study, Recurrence)
+
+The non-unit-targeting `recurringEndOfTurn` runes the quest-tendril path misses, now stamped: Recollection
+(copyFirstSpell), Quick Study (quickStudy), Recurrence (recastFirstSpell) — each a `procRuneId` past its own
+gate (Recollection/Recurrence only when a spell was actually cast this turn). Sits in a branch
+`projectEndOfTurnSteps` runs on a clone, so the preview bump is discarded and only the real commit bursts.
+
+Verified: typecheck + lint (0 errors) + the sim/choreo suites green (5805 across the full run earlier). This
+closes the recurring-EoT gap; every rune with a discrete trigger now bursts.
+
 ## 2026-08-19 — Comprehensive rune-trigger FX: ~60 more runes now burst on their badge
 
 Swept the ENTIRE rune roster (six parallel research agents over 104 uncovered runes) and wired the burst on

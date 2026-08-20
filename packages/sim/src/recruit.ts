@@ -7761,6 +7761,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     }
   } else if (effect === 'quickStudy') {
     // Rune of Quick Study: a Gold Font (`manafont`) + 2 random Shop spells, every turn.
+    procRuneId(state, 'rune_quick_study');
     const font = CARD_INDEX['manafont'];
     if (font) step(() => conjureToHand(state, [font], 1, true));
     const spells = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
@@ -7803,13 +7804,14 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
     // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.
     const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
-    if (def?.spell) step(() => conjureToHand(state, [def], 1, true));
+    if (def?.spell) { procRuneId(state, 'rune_recollection'); step(() => conjureToHand(state, [def], 1, true)); }
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped
     // when no spell was cast this turn (or an aimed spell finds an empty board).
     const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
     if (def?.spell) {
+      procRuneId(state, 'rune_recurrence');
       // TWICE (owner sheet 2026-07-31). An aimed spell re-rolls its target per cast, matching the single-cast
       // owner ruling that it lands on a seeded-random friendly.
       for (let rep = 0; rep < 2; rep++) {

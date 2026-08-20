@@ -11,6 +11,15 @@
  * `heroTips.test.ts` reports which heroes are uncovered so the gap stays visible instead of going unnoticed.
  */
 
+/**
+ * Whether the hero card shows the TIP line under the difficulty pill.
+ *
+ * OFF by owner call 2026-08-20: the pills ship, the tips stay written but hidden until we decide to turn them
+ * on. Deliberately a flag rather than deleted copy — the 47 tips are authored, tested and covered, so hiding
+ * them is a one-line flip in both directions instead of a re-write. The difficulty pill is unaffected.
+ */
+export const SHOW_HERO_TIPS = false;
+
 /** How demanding the hero is to PILOT — not how strong it is. */
 export type HeroDifficulty = 'Easy' | 'Medium' | 'Hard';
 

@@ -4172,8 +4172,11 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big .hcbelow { position: relative; min-height: 92px; width: 100%; }
 .herocard.big .hcbelow > * { position: absolute; inset: 0; }
 /* Resting face — visible until the card is hovered. */
+/* Centred vertically in the reserved box, not top-aligned: the box height is owned by the HOVER face (the
+   power text), so with tips hidden (`SHOW_HERO_TIPS`) a top-aligned pill would hang off the top of a tall
+   empty gap. Centring reads as deliberate with the pill alone AND with the tip restored under it. */
 .herocard.big .hcmeta {
-  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
   opacity: 1; transition: opacity 0.28s ease;
 }
 .herocard.big:hover .hcmeta { opacity: 0; }

@@ -53,8 +53,15 @@ title and board, which the graduation screen has not got. It now has its own `.t
 **Advanced** mode card used a bare `cursor: default`, dropping the app's custom gauntlet cursor; it now uses the
 same `url(...) , default` every other disabled element uses.
 
-**Hero select — difficulty pill + strategy tip** (owner copy). Under the portrait, a coloured difficulty pill
-(Easy/Medium/Hard) with a one-line tip; hovering crossfades both out and the hero-power text in. Both faces live
+**Hero select — difficulty pill** (owner copy). Under the portrait, a colour-coded difficulty pill
+(Easy/Medium/Hard); hovering crossfades it out and the hero-power text in.
+
+> **The TIP line is authored but hidden** (owner call, same day: "keep the difficulty pills, but hide the tips
+> for now... until we want to enable them"). Gated behind `SHOW_HERO_TIPS = false` rather than deleted, so
+> turning them on later is a one-line flip instead of a re-write — all 47 tips stay written, tested and
+> covered, and a test pins both the flag state and that the copy survives being hidden. With the tip gone the
+> pill is centred in the reserved box rather than top-aligned: the box height belongs to the HOVER face (the
+> power text), so a top-aligned pill would have hung off the top of a tall empty gap. Both faces live
 in one `.hcbelow` box that owns the reserved height, so the swap can never reflow the row. Data lives in its own
 `heroTips.ts` rather than on `HeroDef` — `heroes.ts` is a two-dev chokepoint and this is advisory copy with no
 engine meaning. Coverage is OPTIONAL by design: **47 of 51 heroes are covered**; Djinni, Chaos, Chronos and

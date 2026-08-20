@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { mdBold } from './Card';
-import { getHero, activeRift, heroTip } from '@game/sim';
+import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
@@ -92,7 +92,7 @@ export function HeroSelect() {
                     {tip && (
                       <div className="hcmeta" aria-hidden={false}>
                         <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
-                        <span className="hctip">{tip.tip}</span>
+                        {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
                       </div>
                     )}
                     <div className="hcpw">

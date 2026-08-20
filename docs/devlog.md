@@ -1,5 +1,38 @@
 # ASCENT — development log
 
+## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
+
+Owner report: "rune of aftershocks is only triggering when an echo minion dies. it should trigger when an echo
+is triggered, so things like echohorn, hawkus etc."
+
+Nothing was wrong with the rune — it was never told. `asEcho` in `simulate.ts` is the echo-TRIGGER chokepoint
+(Aftershocks' +4/+4 and Rune of the Burrow's free refresh both hang off it), and a real death reaches it four
+ways. But every FORCED trigger fired the target's `onDeath` factories **directly** and bypassed it entirely:
+
+- **`triggerEcho`** in `effects/factories.ts` — the shared body behind **Echohorn Stag / Hawkus / Spots**.
+- **Rune of the Herald** — its own inline board-wide loop in `simulate.ts`.
+- **Rune of Dawnclaw** — fires a Dawnclaw's adjacent-Shout Echo directly.
+
+(The Bone Throne and Echoing Coop were already fine — they route through `fireOwnDeathrattles`, which wraps.)
+
+**The fix is one chokepoint, not four patches.** `CombatContext` gained `asEcho?(side, fn, source)`; `simulate`
+publishes its own `asEcho` on the ctx, and all three bypassing sites now route through it — wrapping ONE
+TRIGGER each (never one effect: a body with two Echo effects is still one trigger, the exact multiplication
+this rune shipped twice before). `triggerEcho` falls back to a bare run when no chokepoint is supplied, so a
+context without one behaves as it always did.
+
+**Rune of the Burrow is fixed by the same change** — its "a Beast Echo banks a free refresh" had the identical
+hole. Its comment claimed Hawkus/Spots/the Reliquary already paid; that was wrong on both counts and is now
+corrected in place: the forced paths only reach the chokepoint as of today, and the **Reliquary is not among
+them at all** — its trigger is an End-of-Turn RECRUIT effect, while both runes are combat-scoped ("this
+combat").
+
+Coverage: five new cases in `runeAftershocks.test.ts` drive a real forced trigger with an unkillable 0-attack
+wall (so every grant is provably from a trigger, never a death) for Echohorn, Hawkus, Spots and the Herald,
+plus a ceiling assertion against per-effect multiplication. **Verified RED before the fix** — exactly those
+four fail on the old code and pass on the new.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
 ## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
 
 A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.
@@ -43,6 +76,28 @@ styles.css (the `.titlebanner*` rules, the `bannerpop` entrance keyframe, and th
 
 Verified: typecheck + lint (Title.tsx clean) + test (364 files, 5875 passing) + build:web green; no `titlebanner`
 / `bannerpop` / launch-copy references remain anywhere in packages or apps.
+## 2026-08-20 — Gangplank picks a RANDOM Dwarf, not the left-most
+
+Owner report: "gangplank is only targeting left-most dwarf for some reason when it should be random."
+
+Confirmed — `onGainCardBuffTribe` selected with `.find(...)`, which is the first match in board order. So the
+left-most Dwarf soaked EVERY grant for the entire run: a seating decision the card never claimed to make, and
+one that quietly turned a spread-the-love buff into a single-target snowball. Now a seeded random pick over the
+eligible bodies, using the run-cursor pattern every other random recruit pick uses (Rune of the Glider, the
+Chipper Sticker), so it stays deterministic and replayable — no `Math.random`, which is ESLint-banned in `sim`
+anyway.
+
+Gangplank is the ONLY consumer of this factory, so the change is contained to it.
+
+**Card text updated to match** (the hard rule — text says what the card does): "give a **random** friendly
+**Dwarf** +1/+2", golden likewise.
+
+Coverage: the existing left-most assertion was rewritten to measure the board TOTAL (one Dwarf gains +1/+2,
+without asserting which), plus two new cases — 40 conjures across a three-Dwarf line must SPREAD (the left-most
+soaking all of them is precisely the bug), and the same starting state replayed twice must produce an identical
+board (proving the pick consumes the seeded cursor). **Verified RED before the fix.**
+
+Gates: typecheck ✅ lint 0 errors ✅ 5907 tests / 368 files ✅ build:web ✅.
 
 ## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
 

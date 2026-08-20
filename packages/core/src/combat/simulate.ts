@@ -852,6 +852,10 @@ export function simulate(
       if (side !== 'player') return; // enemies have no economy
       bonusGoldGain += amount;
     },
+    // The echo-trigger chokepoint, exposed so the FORCED-trigger factories (Echohorn / Hawkus / Spots)
+    // pay the same "an Echo fired" runes a real death does. Lazily referenced — `asEcho` is declared below
+    // this literal and is only ever invoked long after.
+    asEcho: (side, fn, source) => { asEcho(side, fn, source); },
     grantFreeRolls: (count, side) => {
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
@@ -1419,8 +1423,12 @@ export function simulate(
     {
       run();
       // RUNE OF THE BURROW (owner rework 2026-08-19): triggering a BEAST's Echo banks a free Shop refresh.
-      // It rides the echo chokepoint rather than the death site, so an Echo fired by Hawkus / Spots / the
-      // Reliquary — no death involved — pays exactly like one that came from dying.
+      // It rides the echo chokepoint rather than the death site, so an Echo forced by Echohorn / Hawkus /
+      // Spots / Rune of the Herald — no death involved — pays exactly like one that came from dying. (Those
+      // forced paths reached this chokepoint only from 2026-08-20; before that they fired the `onDeath`
+      // factories directly. The Reliquary is NOT among them — its trigger is an End-of-Turn recruit effect,
+      // and this rune, like Aftershocks, is combat-scoped.) `fireTrigger` bursts the rune's badge (#1102) —
+      // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
@@ -3041,11 +3049,15 @@ export function simulate(
         for (const target of echoes) {
           const procs = 1 + (rside === 'player' ? playerEchoExtras(target) : 0);
           for (let r = 0; r < procs; r++) {
-            ctx.countDeathrattle?.(target.side);
-            for (const effect of target.effects) {
-              if (effect.on !== 'onDeath') continue;
-              withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
-            }
+            // ONE wrap per proc: each re-fire is its own Echo TRIGGER, and everything hanging off `asEcho`
+            // (Aftershocks, Burrow) must see a Herald-forced Echo exactly like a death-fired one.
+            asEcho(rside, () => {
+              ctx.countDeathrattle?.(target.side);
+              for (const effect of target.effects) {
+                if (effect.on !== 'onDeath') continue;
+                withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
+              }
+            }, target);
           }
         }
       }
@@ -3054,7 +3066,10 @@ export function simulate(
     if (rmods.runeDawnclaw) {
       for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'b2_dawnclaw')) {
         nextStep(); fireTrigger('runeDawnclaw', rside);
-        FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+        // A Dawnclaw firing its own Echo without dying is still an Echo TRIGGER (see `asEcho`).
+        asEcho(rside, () => {
+          FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+        }, m);
       }
     }
     // Rune of Sylus: your Sylus double their own Health at Start of Combat.

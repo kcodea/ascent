@@ -110,7 +110,12 @@ export function Game() {
     let last: Element | null = null;
     const onOver = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return;                 // hover is a mouse/pen affordance only
-      const el = (e.target as Element | null)?.closest?.(SEL) ?? null;
+      let el = (e.target as Element | null)?.closest?.(SEL) ?? null;
+      // An offer option (Choose One / Discover) is a `.card[role="button"]` wrapped in a `.disc-slot` — BOTH
+      // match SEL. The card's plate img is `pointer-events:none`, so its overhang resolves to the SLOT while the
+      // frame resolves to the inner CARD; crossing between them double-ticked one option (owner report
+      // 2026-08-19). Collapse any match sitting inside a slot to the slot itself, so each option ticks once.
+      if (el) el = el.closest('.disc-slot') ?? el;
       if (el === last) return;                               // still within the same target (or still on nothing)
       last = el;
       if (!el || el.closest(SKIP) || (el as HTMLButtonElement).disabled) return;

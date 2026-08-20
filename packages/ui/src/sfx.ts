@@ -435,6 +435,12 @@ export const sfx = {
     if (playSample('discover', 'discover')) return;
     chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1, category: 'discover' }, 0.05);
   },
+  // A choice is COMMITTED from any offer — a Discover pick, a Rune bought, a Choose One option (owner ask
+  // 2026-08-19). Sourced `discover-select` clip; a soft synth confirm chord falls back until it decodes.
+  discoverSelect: () => {
+    if (playSample('discover-select', 'discoverSelect')) return;
+    chord([659, 988, 1319], { dur: 0.14, type: 'triangle', vol: 0.09, category: 'discoverSelect' }, 0.04);
+  },
   // A friendly minion is GIVEN Taunt — the sourced "taunt" clip; synth thunk until it decodes / if absent.
   taunt: () => {
     if (playSample('taunt', 'taunt')) return;
@@ -665,7 +671,7 @@ export function setSampleVolume(key: string, v: number): void {
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
-  discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
+  discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   uihover: sfx.uiHover,
   combatStart: sfx.combatStart,

@@ -76,6 +76,28 @@ styles.css (the `.titlebanner*` rules, the `bannerpop` entrance keyframe, and th
 
 Verified: typecheck + lint (Title.tsx clean) + test (364 files, 5875 passing) + build:web green; no `titlebanner`
 / `bannerpop` / launch-copy references remain anywhere in packages or apps.
+## 2026-08-20 — Gangplank picks a RANDOM Dwarf, not the left-most
+
+Owner report: "gangplank is only targeting left-most dwarf for some reason when it should be random."
+
+Confirmed — `onGainCardBuffTribe` selected with `.find(...)`, which is the first match in board order. So the
+left-most Dwarf soaked EVERY grant for the entire run: a seating decision the card never claimed to make, and
+one that quietly turned a spread-the-love buff into a single-target snowball. Now a seeded random pick over the
+eligible bodies, using the run-cursor pattern every other random recruit pick uses (Rune of the Glider, the
+Chipper Sticker), so it stays deterministic and replayable — no `Math.random`, which is ESLint-banned in `sim`
+anyway.
+
+Gangplank is the ONLY consumer of this factory, so the change is contained to it.
+
+**Card text updated to match** (the hard rule — text says what the card does): "give a **random** friendly
+**Dwarf** +1/+2", golden likewise.
+
+Coverage: the existing left-most assertion was rewritten to measure the board TOTAL (one Dwarf gains +1/+2,
+without asserting which), plus two new cases — 40 conjures across a three-Dwarf line must SPREAD (the left-most
+soaking all of them is precisely the bug), and the same starting state replayed twice must produce an identical
+board (proving the pick consumes the seeded cursor). **Verified RED before the fix.**
+
+Gates: typecheck ✅ lint 0 errors ✅ 5907 tests / 368 files ✅ build:web ✅.
 
 ## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
 

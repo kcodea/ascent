@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import { claimDamageFx, damagedUidsIn, isDamageFxClaimed, resetDamageFxClaims } from './cardFx';
+import { claimDamageFx, damagedUidsIn, struckUidsIn, isDamageFxClaimed, resetDamageFxClaims } from './cardFx';
 
 describe('damagedUidsIn', () => {
   const dmg = (target: string, step?: number): CombatEvent => ({ type: 'dmg', target, amount: 1, step }) as CombatEvent;
@@ -44,6 +44,27 @@ describe('damagedUidsIn', () => {
 
   it('is empty when nothing was damaged', () => {
     expect(damagedUidsIn([cast(1), cast(1)], 0, 2)).toEqual([]);
+  });
+});
+
+describe('struckUidsIn — damaged OR ward-blocked', () => {
+  const dmg = (target: string, step?: number): CombatEvent => ({ type: 'dmg', target, amount: 1, step }) as CombatEvent;
+  const ward = (target: string, step?: number): CombatEvent => ({ type: 'shield', target, step }) as CombatEvent;
+  const cast = (step?: number): CombatEvent => ({ type: 'sc', source: 'a', text: 'x', cast: true, step }) as CombatEvent;
+
+  it('includes a unit whose Ward absorbed the hit (no `dmg`, just `shield`)', () => {
+    const events = [cast(7), ward('warded', 7), dmg('hit', 7)];
+    expect(struckUidsIn(events, 0, 1)).toEqual(['warded', 'hit']);
+  });
+
+  it('de-dupes a unit that both popped a Ward and took a later hit in one step', () => {
+    const events = [cast(1), ward('u', 1), dmg('u', 1)];
+    expect(struckUidsIn(events, 0, 1)).toEqual(['u']);
+  });
+
+  it('stops at the step boundary like damagedUidsIn', () => {
+    const events = [cast(7), ward('u1', 7), dmg('later', 8)];
+    expect(struckUidsIn(events, 0, 1)).toEqual(['u1']);
   });
 });
 

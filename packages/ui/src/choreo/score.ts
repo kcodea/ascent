@@ -19,7 +19,7 @@ import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
+import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
 
 /**
@@ -575,7 +575,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // two lookups of the same key are two chances to disagree.
       const binding = bindingFor(cardId, moment.kind);
       if (!binding) continue;                    // nothing bound at this kind/card → nothing to schedule
-      if (binding.fanOut === 'damaged') {
+      if (binding.fanOut === 'damaged' || binding.fanOut === 'struck') {
         // Claim the stock hit-burst for the units this binding will cover, SYNCHRONOUSLY — before `at()`
         // defers anything. Moments are scheduled in log order and the `damage` moment follows its own cast,
         // so the claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the
@@ -583,7 +583,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // Scanned ONCE and then reused by the deferred play, for the same reason the binding is resolved once:
         // the claim suppresses the stock burst for exactly this set, so a second scan that disagreed would
         // silence one set of units while the def played at another — silently, and only in the divergent case.
-        const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
+        // `struck` also covers a WARD-blocked victim (Fel Spikes' spike flies at it and the Ward shatters);
+        // those carry a `shield` event, not a `dmg`, so they never had a stock burst to suppress — claiming
+        // them is a harmless no-op that keeps one code path for both fan-outs.
+        const claimed = binding.fanOut === 'struck'
+          ? struckUidsIn(ctx.events, moment.start, moment.end)
+          : damagedUidsIn(ctx.events, moment.start, moment.end);
         claimDamageFx(moment.primary.step, claimed);
         // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
         // silent — the effect simply doesn't appear and the stock burst does, which is indistinguishable
@@ -593,7 +598,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           if (claimed.length === 0) {
             console.warn(
               `[fx] '${cardId ?? moment.kind}' → '${binding.def}' matched at '${moment.kind}' but found NO ` +
-                `damaged units in step ${String(moment.primary.step)} — nothing will play.`,
+                `target units in step ${String(moment.primary.step)} — nothing will play.`,
             );
           } else {
             console.info(`[fx] '${cardId ?? moment.kind}' → '${binding.def}' ×${claimed.length}`, claimed);

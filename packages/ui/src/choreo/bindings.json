@@ -88,7 +88,7 @@
     "dm_felspikes": {
       "damage": {
         "def": "fel-spike",
-        "fanOut": "damaged"
+        "fanOut": "struck"
       }
     },
     "dm_tormentor": {

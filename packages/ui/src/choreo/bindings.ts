@@ -64,13 +64,16 @@ export interface FxBinding {
    * - `damaged`: once per distinct unit damaged in the same resolution step. A cast's own event frequently
    *   carries NO target (Bloodbinder emits one targetless `sc`, then a `dmg` per marked enemy), so a
    *   travelling effect bound to it would have nowhere to go and would collapse onto the source.
+   * - `struck`: like `damaged`, but also fires at a unit whose WARD absorbed the hit (a `shield` pop). The
+   *   projectile connects and the Ward shatters even though no damage landed — Fel Spikes' spike volley
+   *   (owner ruling 2026-08-20).
    * - `selfBuffed`: once per unit that buffed ITSELF in this moment. A self-buff has no pair to travel
    *   between and a moment can carry several at once.
    * - `buffed`: once per unit this moment's source buffed SOMEONE ELSE (the cross-buff targets — Karwind
    *   pumping every Dragon). The mirror of `selfBuffed`: `groupBuffCasts` already collects exactly these
    *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
    */
-  fanOut?: 'primary' | 'damaged' | 'selfBuffed' | 'buffed';
+  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed';
   /**
    * A sound to fire alongside the def, named from {@link BINDING_SFX}.
    *
@@ -96,7 +99,7 @@ export interface FxBinding {
   critDef?: string;
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'buffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed'];
 
 /**
  * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of

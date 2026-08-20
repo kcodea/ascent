@@ -686,18 +686,19 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
   });
 
   // The wave can LEAD with a sourceless Divine Shield pop (first target had a Ward). `momentUnits` reads no
-  // source off that primary, so the fallback scan of the moment's `dmg` events is what recovers the dealer —
-  // and the warded unit, taking no damage, gets no spike.
-  it('recovers the dealer from the dmg events when the wave primary is a Ward pop', () => {
+  // source off that primary, so the fallback scan of the moment's `dmg` events recovers the dealer — and with
+  // `struck` the spike flies at the WARDED unit too (the spike connects, the Ward shatters), not only the
+  // damaged one.
+  it('flies at a WARD-blocked victim too, recovering the dealer from a Ward-pop primary (struck)', () => {
     const events: CombatEvent[] = [
       { type: 'shield', target: 'e1', step: 9 } as CombatEvent,
       { type: 'dmg', target: 'e2', amount: 4, remainingHp: 1, source: 'fs', step: 9 } as CombatEvent,
     ];
     const ctx = baseCtx(events, withCard('fs', 'dm_felspikes'));
     runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
-    expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e2');
-    expect(mockAnchors).not.toHaveBeenCalledWith('fs', 'e1');
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e1'); // warded → spike still flies, Ward shatters
+    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e2'); // damaged
   });
 });
 

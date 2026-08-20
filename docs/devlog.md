@@ -22,10 +22,13 @@ because a Deathrattle AoE is **sourceless and dead** by the time it lands — un
   the beat window in which it is still the SOURCE of damage — it lingers exactly for its volley and is gone the
   next beat. Sourceless damage retains nothing, so ordinary trades and the resting end-frame are untouched.
 
-Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'damaged' } }`. The saved `fel-spike.json` also
-gets `fieldPhase: 0.5` on its three turbulent bursts (it fires many-at-once — the exact case the new Field
-Variation knob solves), so the spikes don't all swirl identically. A warded target takes no damage, so it gets
-no spike (the ward visibly blocked it) — flagged for the owner in case a spike-anyway is wanted.
+Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'struck' } }`. The `struck` fan-out is new — like
+`damaged`, but it also fires at a unit whose **Ward absorbed the hit** (a `shield` pop, no `dmg`): the spike
+connects and the Ward shatters even though no damage landed (owner ruling 2026-08-20). It shares one code path
+with `damaged` (Bloodbinder's `ruby-lance` still uses `damaged`, unchanged); a warded target has no stock burst
+to suppress, so claiming it is a harmless no-op. The saved `fel-spike.json` also gets `fieldPhase: 0.5` on its
+three turbulent bursts (it fires many-at-once — the exact case the new Field Variation knob solves), so the
+spikes don't all swirl identically.
 
 Verified: new tests for the source stamp (`simulate.test.ts`, on the Echo's `wave`), the fan-out + Ward-pop
 fallback (`score.test.ts`), the dead-dealer retention (`computeFrame.purity.test.ts`), and the binding table

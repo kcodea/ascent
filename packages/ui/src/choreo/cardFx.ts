@@ -48,6 +48,32 @@ export function damagedUidsIn(events: readonly CombatEvent[], start: number, end
 }
 
 /**
+ * Like {@link damagedUidsIn}, but also counts a unit whose WARD ABSORBED the hit (a `shield` pop) — every unit
+ * the source STRUCK, whether or not damage landed. Fel Spikes' spike still flies at a warded victim: the spike
+ * connects, the Ward eats the damage, and the Ward shatters (owner ruling 2026-08-20). Same step-scan bounds
+ * and distinct/order-preserving guarantees as `damagedUidsIn` — a `shield` and a `dmg` on one unit in one step
+ * collapse to a single entry, so the volley fires one spike per victim.
+ */
+export function struckUidsIn(events: readonly CombatEvent[], start: number, end: number): string[] {
+  const step = events[start]?.step;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const take = (e: CombatEvent | undefined): void => {
+    if (e?.type !== 'dmg' && e?.type !== 'shield') return;
+    const uid = e.target;
+    if (typeof uid !== 'string' || seen.has(uid)) return;
+    seen.add(uid);
+    out.push(uid);
+  };
+  if (step === undefined) {
+    for (let i = start; i < end; i++) take(events[i]);
+    return out;
+  }
+  for (let i = start; i < events.length && events[i]?.step === step; i++) take(events[i]);
+  return out;
+}
+
+/**
  * The units an authored per-card effect has CLAIMED for this resolution step, so the stock `damageFx`
  * hit-burst skips them and the authored impact plays instead of on top of the generic one.
  *

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.
+
 - **Replay system (v2, state replay).** Watch any player's full game back — exact by construction (playback renders recorded frames, never re-simulates). Round rail on the left (click a round, jump to its shop opening), a slide-out drawer with per-round Gold spent / Actions / Shop tier, play/pause/speed/scrub, ▶ Watch buttons on the leaderboard + Recent Games, and Rewatch Last Game on the end screen.
 - **Rune of Refreshments** — every Demon you play buys another look at the Shop.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.

@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-20 — Fel Spikes' Echo: damage waits for the LAST volley, all waves land together
+
+Owner: the damage came a touch early, and for a gilded spray the deaths mid-volley should wait for the final
+spike, then all die at once. `echoDeliveryLead` now holds the death beat until the LAST of the N sprays connects
+(launch + (N−1) tap-gaps + travel + a `ECHO_IMPACT_BUFFER_MS` read buffer), and a golden spray's subsequent
+wave beats land near-instant (`ECHO_SUBSEQUENT_HOLD_MS`) so every wave's damage/deaths read as landing together.
+typecheck + build green. KNOWN GAP: this is the TIMING half — a unit the sim kills on the first volley still
+takes only its 4 and dies (shows 4, not the full N×4); the "one combined number, hit but not killed until the
+last volley" is the accumulate SIM change (Kevin's seam) still pending the owner's go-ahead.
+
 ## 2026-08-20 — Fel Spikes' Echo: land the damage ON the spike's strike (not a base-hold later)
 
 Owner: the numbers showed up a sizable beat after the spike connected. The Echo lead was being ADDED to the

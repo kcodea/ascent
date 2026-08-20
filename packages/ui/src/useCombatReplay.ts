@@ -829,13 +829,20 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   if (!src) return 0;
   const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
   if (!binding?.launchOnDeath) return 0;
-  // …and only if that sprayer actually DIED in the shown beat, so its volley launched from there. The hold is
-  // the launch delay (skull → volley) PLUS the beam's travel, so the damage lands as the spike connects.
+  // FIRST wave — the sprayer DIED in `shown`, so its whole volley launched from there. Hold until the LAST of
+  // its N sprays connects (launch + the (N-1) inter-tap gaps + the beam travel) plus a read buffer, so NO
+  // damage lands before the final spike and all of it lands together AFTER the volleys (owner ask 2026-08-20:
+  // deaths mid-volley wait for the last one, then all die at once).
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def);
+    if (e?.type === 'death' && e.target === src) {
+      const n = echoWaves(events, src, i).length;
+      return ECHO_LAUNCH_DELAY_MS + Math.max(0, n - 1) * ECHO_PASS_GAP_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
+    }
   }
-  return 0;
+  // A SUBSEQUENT wave of the same golden spray (the sprayer died in an EARLIER beat): land it right on the
+  // heels of the first wave, so every wave's damage + deaths read as landing AT ONCE, not spread across beats.
+  return ECHO_SUBSEQUENT_HOLD_MS;
 }
 
 /** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a breath so the skull reads first
@@ -844,6 +851,12 @@ const ECHO_LAUNCH_DELAY_MS = 100;
 /** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
  *  than one merged cascade (owner report 2026-08-20). */
 const ECHO_PASS_GAP_MS = 240;
+/** Extra hold (ms, 1× speed) past the beam's spawn `at` before the damage lands — the moment the spike visibly
+ *  CONNECTS reads a touch after the impact burst spawns, so the numbers wait for it (owner: damage felt early). */
+const ECHO_IMPACT_BUFFER_MS = 150;
+/** Hold (ms, 1× speed) for a golden spray's SUBSEQUENT wave beat — near-instant, so all waves' damage lands
+ *  together as "all die at once" rather than one wave-beat apart. */
+const ECHO_SUBSEQUENT_HOLD_MS = 40;
 
 /** Schedule the spike volley(s) a dying `launchOnDeath` unit throws: one per `echoWaves` wave, each launched a
  *  breath after the skull (`ECHO_LAUNCH_DELAY_MS`), and each golden pass a `ECHO_PASS_GAP_MS` after the last so

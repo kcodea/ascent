@@ -6036,15 +6036,15 @@ svg { width: 18px; height: 18px; }
 .modecard[data-mp] { width: auto; padding: 0; }
 .modecard[data-mp='play'] {
   width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px);
-  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 115px)) scale(var(--mp-play-s, 0.84));
+  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 18px)) scale(var(--mp-play-s, 0.84));
 }
 .modecard[data-mp='learn'] {
   width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 187px)) scale(var(--mp-learn-s, 1));
+  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 82px)) scale(var(--mp-learn-s, 1));
 }
 .modecard[data-mp='practice'] {
   width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
-  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -170px)) scale(var(--mp-practice-s, 0.84));
+  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
 }
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
@@ -6058,7 +6058,7 @@ svg { width: 18px; height: 18px; }
 .mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
-.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, 59px)) scale(var(--mp-title-s, 1)); }
+.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
 
 /* DevMenu-hosted tuners float via useDraggablePanel (z 600+), above the mode picker (z 400) — no extra z hook
    needed. The Play Mode Screen tuner lives in the Dev tuning menu now, not an inline pill. */

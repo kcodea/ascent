@@ -38,3 +38,26 @@ describe('Buffs panel — the Fodder row is set-aware', () => {
     expect(rows.find((r) => r.key === 'fodder')?.value, 'set 1 keeps its Fodder row').toBe('+5/+5');
   });
 });
+
+describe('Buffs panel — Veinstorm Stats + Shop Stats rename', () => {
+  it('shows the Veinstorm Stats row from the veinstormRubies bank (per-offer stamp)', () => {
+    const rows = gatherRunBuffs(run({ veinstormRubies: { atk: 2, hp: 2 } }));
+    const row = rows.find((r) => r.key === 'veinstorm');
+    expect(row, 'a Veinstorm Stats row exists').toBeTruthy();
+    expect(row!.label).toBe('Veinstorm Stats');
+    expect(row!.value).toBe('+2/+2');
+  });
+
+  it('has no Veinstorm row when the bank is absent or zero', () => {
+    expect(gatherRunBuffs(run({})).some((r) => r.key === 'veinstorm')).toBe(false);
+    expect(gatherRunBuffs(run({ veinstormRubies: { atk: 0, hp: 0 } })).some((r) => r.key === 'veinstorm')).toBe(false);
+  });
+
+  it('renames the tavern buy-bonus row to "Shop Stats"', () => {
+    const rows = gatherRunBuffs(run({ tavernBuyBonus: { atk: 1, hp: 1 } }));
+    const row = rows.find((r) => r.key === 'tavern');
+    expect(row, 'the tavern buy-bonus row exists').toBeTruthy();
+    expect(row!.label).toBe('Shop Stats');
+    expect(row!.value).toBe('+1/+1');
+  });
+});

@@ -159,7 +159,7 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;
-  if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Tavern buys', value: `+${tav.atk}/+${tav.hp}` });
+  if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Shop Stats', value: `+${tav.atk}/+${tav.hp}` });
 
   // Permanent SHOP-SLOT enchants (Market Tormentor / Feastmaster Vhal / Right Hand Hank -> right-most; Rune of
   // the Display Case -> left-most). These are run-long accumulators re-landed on every fresh roll, so they are
@@ -170,8 +170,10 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const lms = run.leftmostSlotBuff;
   if (lms && (lms.attack > 0 || lms.health > 0)) rows.push({ key: 'shopleft', label: 'Left-most Shop slot', value: `+${lms.attack}/+${lms.health}` });
 
-  // (Veinstorm has no row here: it plays real Rubies onto the tavern minions in front of you rather than
-  // running a run-wide channel, so its value is visible ON those offers — see `spellBuffShopByRuby`.)
+  // Veinstorm's banked Ruby stamp — the +atk/+hp each shop offer carries, re-landed on every fresh roll by
+  // `spellBuffShopByRuby` (the bank in `run.veinstormRubies`). Owner ask 2026-08-20: surface it as its own row.
+  const vein = run.veinstormRubies;
+  if (vein && (vein.atk > 0 || vein.hp > 0)) rows.push({ key: 'veinstorm', label: 'Veinstorm Stats', value: `+${vein.atk}/+${vein.hp}` });
 
   // Permanent max-Gold gained (Soulsman's Avenge) — the actual Gold gained this run, golden-aware (matches the
   // "Gained X Gold" the card itself shows). `soulsmanGold` is the tracked total; the natural per-wave curve is

@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { CARD_INDEX, recurringEotOwner } from '@game/content';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -39,7 +39,8 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
+  *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
 ) => void;
 
@@ -212,8 +213,122 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
         if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
       }
     },
+
+    // ── RALLY FAMILY verbs (Step 3 item 4) ──────────────────────────────────────────────────────────────
+    //
+    // The shop has no enemies and nobody is being hit, so the two enemy-facing Rallies fall out of their own
+    // "nothing to target" guard: `enemies()` is empty and the dispatcher supplies no `params.target`. That is
+    // the whole no-op mechanism — no body asks what phase it is in, and neither verb below is reachable.
+    enemies: () => [],
+    damage: () => {}, // unreachable: only ever applied to a body from `enemies()`, which is empty here
+    stripKeyword: (t, kw) => { const c = t as BoardCard; c.keywords = c.keywords.filter((k) => k !== kw); },
+    spellPower: () => ({ attack: spellAttackBonus(state), health: spellHealthBonus(state) }),
+    castRepeat: (spellId, body) => {
+      // The shop's cast ritual: one GENUINE cast per repetition, each counted through `noteSpellCast` so every
+      // per-spell watcher (Guel, Groveweaver, the spell runes, the quest tallies) sees it — the same contract
+      // `castInCombat` gives the combat half. Golden = two real casts, never one doubled cast.
+      const def = spellId ? CARD_INDEX[spellId] : undefined;
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) {
+        if (def) noteSpellCast(state, def);
+        body();
+      }
+    },
+    castNamedSpell: (spellId) => {
+      const def = spellId ? CARD_INDEX[spellId] : undefined;
+      if (!def?.spell) return;
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
+    },
+    cardDef: (id) => CARD_INDEX[id],
+    gainShopBuff: (a, h) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; },
+    grantUndeadAura: (a, h) => {
+      // The Lantern channel. In the shop this run-wide aura is folded into every Undead's displayed stats
+      // already, so raising it IS the whole grant — a board loop on top would double-apply it.
+      state.undeadAttackBonus += a;
+      state.undeadHealthBonus += h;
+    },
+    grantRubies: (count) => { mintRubies(state, count); },
+    grantRandomShoutMinion: (count) => {
+      const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.effects.some((e) => e.on === 'onPlay'));
+      conjureToHand(state, pool, count);
+    },
+    hasEffect: (t, on, doId) => instanceEffects(t as BoardCard).some((e) => e.on === on && (!doId || e.do === doId)),
+    replayShout: (t) => { replayBattlecry(state, t as BoardCard); },
+    hasEcho: (t, strict) => instanceEffects(t as BoardCard)
+      .some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
+    triggerEchoOn: (t, strict) => {
+      // `fireRecruitDeathrattles` is the shop's whole Echo ritual: it applies Sylus/Uron's extra fires and the
+      // `deathrattlesTriggered` tally itself, so the body only says "fire it, once per gild".
+      const c = t as BoardCard;
+      const override = strict
+        ? instanceEffects(c).filter((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'))
+        : undefined;
+      if (strict && (!override || override.length === 0)) return;
+      const ctx = makeContext(state);
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) fireRecruitDeathrattles(ctx, c, override);
+    },
+    graftEffect: (t, effect) => {
+      const c = t as BoardCard;
+      (c.grantedEffects ??= []).push(effect);
+    },
+    improveAttachments: (a, h) => {
+      for (const card of [...state.board, ...state.hand]) {
+        if (card.keywords.includes('M')) addBuff(card, nameOf(self), a, h);
+      }
+      state.magneticBuyAtk = (state.magneticBuyAtk ?? 0) + a;
+      state.magneticBuyHp = (state.magneticBuyHp ?? 0) + h;
+    },
+
+    // ── START-OF-COMBAT FAMILY verbs (Step 3 item 4) ────────────────────────────────────────────────────
+    //
+    // The combat-only concepts no-op HERE, on the verb, never inside a body — the `addTribeAura` class.
+    // Each no-op leaves the trigger's diff empty, so the dispatcher's `discardIfEmpty` drops the beat.
+    armBleed: () => {}, // a mark on enemies that don't exist, ticked by attacks that won't happen
+    grantSpellCastExtra: () => {}, // a combat-cast channel; the real Start of Combat re-arms it moments later
+    fodderConsumed: () => state.fodderConsumedThisTurn ?? { attack: 0, health: 0 },
+    alesLastTurn: () => state.alesCastThisTurn ?? 0,
+    engraveNeighbours: () => {}, // Engrave = "keep your combat gains"; every shop gain is already permanent
+    engraveBoard: () => {},
+    castLeftmostHandSpellOnAdjacent: (tribe) => {
+      // Quil's shop half: cast the leftmost hand Shop Spell on the adjacent `tribe` neighbours — the STAT
+      // family of the combat resolver, mirrored (buffs + spell power), each repetition a REAL counted cast
+      // through `noteSpellCast` so Guel / Spirit Pup / the spell runes all see it. Anything outside the stat
+      // family is pure tavern work from this body's seat and fizzles WITHOUT counting, exactly as the combat
+      // ruling has it. The hand card is not consumed in either phase.
+      const handSpell = state.hand.find((c) => CARD_INDEX[c.cardId]?.spell);
+      const def = handSpell ? CARD_INDEX[handSpell.cardId] : undefined;
+      if (!def?.spell) return;
+      const i = state.board.findIndex((c) => c.uid === self.uid);
+      if (i < 0) return;
+      const targets = [state.board[i - 1], state.board[i + 1]]
+        .filter((m): m is BoardCard => !!m && isTribe(m, tribe as Tribe));
+      if (targets.length === 0) return;
+      const eff = def.effects.find((e) => e.on === 'cast' && (e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
+      if (!eff) return;
+      const growthPlus = def.id === 'growth' ? (state.growthBonus ?? 0) : 0; // Rune of Living Growth, as combat folds it
+      for (let rep = 0; rep < (self.golden ? 2 : 1); rep++) {
+        noteSpellCast(state, def);
+        const a = num(eff.params?.attack, 0) + growthPlus + spellAttackBonus(state);
+        const h = num(eff.params?.health, 0) + growthPlus + spellHealthBonus(state);
+        const recipients = eff.do === 'spellBuffAll' ? state.board : targets;
+        for (const t of recipients) addBuff(t, def.name, a, h);
+      }
+    },
+    echoEffectsOf: (t) => instanceEffects(t as BoardCard)
+      .filter((e) => e.on === 'onDeath')
+      .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
+
     rng: () => cursorRng,
   };
+}
+
+/** Every effect a BOARD INSTANCE carries: its printed def, a Gravetwin's copied Echo, and anything GRAFTED
+ *  onto this body at runtime (Sunmane Herald's spreading Rally). The shop's answer to combat's per-instance
+ *  `Minion.effects` list — read by the arena's `hasEffect`/`hasEcho` and by the recruit Rally dispatcher, so a
+ *  grafted trigger is as real in the shop as a printed one. */
+export function instanceEffects(card: BoardCard): EffectDef[] {
+  const printed = CARD_INDEX[card.cardId]?.effects ?? [];
+  if (!card.copiedEcho?.length && !card.grantedEffects?.length) return [...printed];
+  return [...printed, ...(card.copiedEcho ?? []), ...(card.grantedEffects ?? [])];
 }
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
@@ -258,6 +373,22 @@ export function stampSableBond(state: RunState): void {
   SABLE_MIRRORING = false;
 }
 
+/**
+ * RUNE OF SHARED SPOILS (2026-08-20): "whenever your LEFT-MOST Dwarf gains stats, give your RIGHT-MOST Dwarf
+ * the same stats." Stamped exactly like Sable's bond above, and for the same reason: `addBuff` is the ONE
+ * chokepoint every recruit-phase stat gain passes through, and it has no state in scope. Wiring the rune into
+ * the dozen sites that grant stats instead would guarantee missing one.
+ *
+ * Which body is left/right-most is resolved AT THE GAIN, not stamped, so re-ordering the board mid-action is
+ * honoured. `MIRRORING` is the same one-hop guard — the mirrored grant re-enters `addBuff`.
+ */
+let SPOILS: BoardCard[] | null = null;
+let SPOILS_MIRRORING = false;
+export function stampSharedSpoils(state: RunState): void {
+  SPOILS = state.runeSharedSpoils ? state.board : null;
+  SPOILS_MIRRORING = false;
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
@@ -269,6 +400,17 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     if (partner) {
       SABLE_MIRRORING = true;
       try { addBuff(partner, 'Soulbind', attack, health, count); } finally { SABLE_MIRRORING = false; }
+    }
+  }
+  // Rune of Shared Spoils: the LEFT-most Dwarf's gain is copied onto the RIGHT-most Dwarf. Same one-hop shape
+  // as the bond above; a single Dwarf on the board is both ends, so it must not pay itself.
+  if (SPOILS && !SPOILS_MIRRORING && (attack !== 0 || health !== 0)) {
+    const dwarves = SPOILS.filter((c) => isTribe(c, 'dwarf'));
+    const head = dwarves[0];
+    const tail = dwarves[dwarves.length - 1];
+    if (head && tail && head.uid !== tail.uid && card.uid === head.uid) {
+      SPOILS_MIRRORING = true;
+      try { addBuff(tail, 'Rune of Shared Spoils', attack, health, count); } finally { SPOILS_MIRRORING = false; }
     }
   }
   // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
@@ -1146,7 +1288,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1174,6 +1316,24 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
+  // a full hand — the same rule every quest/rune grant follows.
+  for (const id of t.grantCards ?? []) {
+    const def = CARD_INDEX[id];
+    if (def) grantMinionToHandOrBoard(state, def, false, true);
+  }
+  // Rune of the Gilded Ledger: CAST a random stat-granting Shop spell — a real cast, so spell power, the cast
+  // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
+  // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
+  if (t.castStatSpell) {
+    const pool = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      castSpell(state, pick, undefined);
+    }
+  }
   // Rune of the Gem Dividend: Gold banked into NEXT turn's opening rather than paid now — the sheet's
   // "gain 3 Gold next turn". Rides the same channel Bounty Bot's next-shop Gold uses.
   if (t.grantGoldNextTurn) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + t.grantGoldNextTurn;
@@ -1189,7 +1349,21 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   }
   const b = t.buff;
   if (!b) return;
-  if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  // ESCALATION (Rune of Compounding Wages): the payout improves itself. Applied AFTER this payout so the
+  // printed "give +1/+1 and improve this by +1/+1" pays 1, then 2, then 3 — not 2 on the first trip. The
+  // buff object is the run's own clone (see the reducer), so growing it never writes through to the rune def.
+  const grow = (): void => { if (b.step) { b.attack += b.step.attack; b.health += b.step.health; } };
+  if (b.target === 'imps') { buffImpsRunWide(state, b.attack, b.health, 'Rune'); grow(); }
+  // `tribe`: "your <tribe> +A/+H" wherever they are (board + hand) — the Flagship/Scales shape on a meter.
+  else if (b.target === 'tribe') {
+    const tribe = b.tribe;
+    if (tribe) {
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const c of [...state.board, ...state.hand]) if (isTribe(c, tribe)) addBuff(c, 'Rune', b.attack, b.health);
+      });
+    }
+    grow();
+  }
   // `spells` (Bubble Crown): raise the run's SPELL POWER, the same channel Cinderwing Matron feeds — so every
   // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
   else if (b.target === 'spells') {
@@ -1334,11 +1508,17 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
-  // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change),
-  // and "gives stats" = the buff family — the same set the combat resolver calls the stat family.
-  if (state.runeThrift && def?.effects.some((e) => e.on === 'cast' &&
-    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do))) n += 2;
+  // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
+  if (state.runeThrift && isStatSpell(def)) n += 2;
   return n;
+}
+
+/** "Gives stats" — the buff family, the same set the combat resolver calls the stat family. Shared by Rune of
+ *  Thrift (which discounts them) and Rune of the Gilded Ledger (which casts one), so the two can never
+ *  disagree about what a stat spell IS. */
+export function isStatSpell(def: CardDef | undefined): boolean {
+  return !!def?.effects.some((e) => e.on === 'cast' &&
+    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do));
 }
 
 /**
@@ -1547,6 +1727,9 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // golden Spell Warden's copies must yield to a card being discovered). `reservedHandSlots` counts the open
   // prompt plus anything queued behind it, so a chain of Discovers each keeps one.
   const cap = handCap(state) - reservedHandSlots(state);
+  // WHICH cards landed, in order — `onGainCard` watchers that filter on the arriving card (Kegheart Dwarf on a
+  // Dwarven Ale) need the id, and a mixed pool can hand over a different card on each rep.
+  const addedIds: string[] = [];
   let added = 0;
   for (let i = 0; i < reps && (overflow || state.hand.length < cap); i++) {
     const def = pool[rng.int(pool.length)]!;
@@ -1561,13 +1744,14 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
       golden: false,
     });
     takeFromPool(state, def.id);
+    addedIds.push(def.id);
     added++;
   }
   state.rngCursor = rng.state();
   // Gangplank: fire once per card actually conjured into hand (Ale, Shop spell, granted minion). After the
   // cursor is settled so a watcher that re-rolls RNG can't perturb this conjure's stream. No recursion — the
   // watcher adds no card.
-  for (let a = 0; a < added; a++) fireOnGainCard(state);
+  for (let a = 0; a < added; a++) fireOnGainCard(state, addedIds[a]);
 }
 
 /** The Ruby token id (set 2). A Ruby minted into hand carries the run's live strength baked in. */
@@ -1598,7 +1782,16 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
-export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID, statOverride?: { attack: number; health: number }): void {
+export function mintRubies(
+  state: RunState,
+  count: number,
+  rubyId: string = RUBY_ID,
+  statOverride?: { attack: number; health: number },
+  /** Skip the `onGetRuby` round for these Rubies. Set ONLY by a mint that is itself an `onGetRuby` reaction
+   *  (Gem Sage's duplicate) — without it, "when you get a Ruby, get another" recurses without end. The
+   *  `onGainCard` round still fires: a duplicate really is a card arriving in hand. */
+  silent = false,
+): void {
   const def = CARD_INDEX[rubyId];
   if (!def) return;
   // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
@@ -1620,9 +1813,9 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   }
   // Set 2 — Candle Conduit: "when you get a Ruby" fires once per Ruby actually minted. A reaction only PLAYS a
   // Ruby (never mints), so this can't recurse.
-  for (let r = 0; r < minted; r++) fireOnRubyGained(state);
+  if (!silent) for (let r = 0; r < minted; r++) fireOnRubyGained(state);
   // Gangplank: a minted Ruby is a card added to hand. Watchers add no card, so no recursion.
-  for (let r = 0; r < minted; r++) fireOnGainCard(state);
+  for (let r = 0; r < minted; r++) fireOnGainCard(state, rubyId);
 }
 
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
@@ -1678,16 +1871,34 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
-  // Sylus (stacking) + Uron (best-copy), from card data. The dying minion is excluded — a Sylus that is
-  // itself the one dying doesn't re-fire its own Echo.
+  // THE Echo-multiplier set, unified with combat (`playerEchoExtras`) through `foldEchoExtraFires` — owner
+  // principle 2026-08-20: trigger multipliers follow the trigger to whatever phase it fires in. A shop Echo
+  // now fires extra times for:
+  //   - Sylus (stacking) + Uron (best copy), from card data. The dying minion is excluded — a Sylus that is
+  //     itself the one dying doesn't re-fire its own Echo (already the shop rule; combat filters the dead).
+  //   - Elderhorn's Beast Ritual (`beastRitualExtra`) — a BEAST Echo only, matching combat's tribe gate.
+  //   - Funeral Engine's permanent `echoExtraAlways`.
+  //   - Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, scoped to the FIRST shop Echo
+  //     each TURN (the shop analogue of combat's per-fight `firstEchoDone`; the two pools are independent —
+  //     combat still pays its own first Echo of every fight).
   const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
-  for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
+  const beastRitualExtra = isTribe(minion, 'beast') ? ctx.state.beastRitualExtra ?? 0 : 0;
+  let firstEchoBonus = 0;
+  if (hasDR && (ctx.state.echoFirstEachCombat ?? 0) > 0 && !ctx.state.echoFirstUsedThisTurn) {
+    ctx.state.echoFirstUsedThisTurn = true;
+    firstEchoBonus = ctx.state.echoFirstEachCombat ?? 0;
+    procRuneId(ctx.state, 'rune_catacomb'); // pulse the badge, as combat's fireTrigger('runeCatacomb') does
+  }
+  const extra = hasDR
+    ? foldEchoExtraFires({ reaperExtras: reaper, beastRitualExtra, echoExtraAlways: ctx.state.echoExtraAlways ?? 0, firstEchoBonus })
+    : 0;
+  for (let r = 0; r < extra; r++) fireOnce(); // re-fires read the same tally (value at death)
   if (hasDR) {
-    ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
-    // Record the Echo triggers (base + Sylus re-fires) so the reducer's `deathrattle` quest tick counts this
+    ctx.state.deathrattlesTriggered += extra; // …then the extra triggers count for the quest/Grim tally
+    // Record the Echo triggers (base + every extra fire) so the reducer's `deathrattle` quest tick counts this
     // out-of-combat Echo like a combat one (Grave Contract / Ossuary Rite / Author's Hand, …). Accumulates across
     // multiple fires in one action (e.g. several Gravetwins on turn-open).
-    ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + reaper;
+    ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + extra;
   }
 }
 
@@ -1772,6 +1983,244 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+
+  // ── RALLY FAMILY — the SHOP half (Step 3 item 4 + Step 4) ────────────────────────────────────────────
+  //
+  // One body each, shared with combat (`ARENA_EFFECTS`); these wrappers are dispatch only. `fireRallies`
+  // (Rune of Lasting Cadence, End of Turn) hands each entry `{ minion }` = the body whose Rally is firing,
+  // exactly as combat's `onAttack` payload does — so an own-attack Rally checks `minion !== self` and an
+  // ally-attack watcher takes `minion` as its attacker, with the same code on both sides of the seam.
+  //
+  // The two ENEMY-FACING members are wired here like everything else and no-op by membership: `enemies()` is
+  // empty in the shop and no `target` rides the payload, so `rallyDamageRandomEnemy` and
+  // `onAttackStripKeywords` return before they touch state (they are NOT special-cased out of the dispatch —
+  // that would be the "hand-select the methods" the arena exists to end).
+  rallyBuff: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuff(shopArena(ctx.state, self), params);
+  },
+  rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGiveHealthToDragons(shopArena(ctx.state, self));
+  },
+  rallyGrantSpell: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSpell(shopArena(ctx.state, self));
+  },
+  rallyGrantMagnetic: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantMagnetic(shopArena(ctx.state, self), params);
+  },
+  rallyTriggerTribeShouts: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyTriggerTribeShouts(shopArena(ctx.state, self), params);
+  },
+  rallyTribeAuraGrowing: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyTribeAuraGrowing(shopArena(ctx.state, self), params);
+  },
+  rallySummonImpBuffImps: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallySummonImpBuffImps(shopArena(ctx.state, self), params);
+  },
+  rallySpreadTribeBuff: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallySpreadTribeBuff(shopArena(ctx.state, self), params);
+  },
+  rallyRubyStatGain: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyRubyStatGain(shopArena(ctx.state, self), params);
+  },
+  rallyProcLeftmostEcho: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyProcLeftmostEcho(shopArena(ctx.state, self));
+  },
+  rallyProcDeathrattle: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyProcDeathrattle(shopArena(ctx.state, self));
+  },
+  rallyPlayRubiesSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyPlayRubiesSelf(shopArena(ctx.state, self), params);
+  },
+  rallyPlayRubiesAll: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyPlayRubiesAll(shopArena(ctx.state, self), params);
+  },
+  rallyGrantSpellPower: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSpellPower(shopArena(ctx.state, self), params);
+  },
+  rallyGrantSelfCopy: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantSelfCopy(shopArena(ctx.state, self));
+  },
+  rallyGrantRandomShoutMinion: (ctx, self, _params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantRandomShoutMinion(shopArena(ctx.state, self));
+  },
+  rallyGiveAttackToOthers: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGiveAttackToOthers(shopArena(ctx.state, self), params);
+  },
+  rallyGetRubies: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGetRubies(shopArena(ctx.state, self), params);
+  },
+  rallyDoubleSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyDoubleSelf(shopArena(ctx.state, self), params);
+  },
+  rallyDamageRandomEnemy: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyDamageRandomEnemy(shopArena(ctx.state, self), params); // no enemies here — inert
+  },
+  rallyCastTribeAttack: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastTribeAttack(shopArena(ctx.state, self), params);
+  },
+  rallyCastSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastSpell(shopArena(ctx.state, self), params);
+  },
+  rallyCastShopBuffSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastShopBuffSpell(shopArena(ctx.state, self), params);
+  },
+  rallyCastNamedSpell: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastNamedSpell(shopArena(ctx.state, self), params);
+  },
+  rallyBuffShopPermanent: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffShopPermanent(shopArena(ctx.state, self), params);
+  },
+  rallyBuffSelfPerTribe: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffSelfPerTribe(shopArena(ctx.state, self), params);
+  },
+  rallyBuffSelf: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffSelf(shopArena(ctx.state, self), params);
+  },
+  rallyBuffAttachments: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyBuffAttachments(shopArena(ctx.state, self), params);
+  },
+  /** No own-attack guard — the alignment gate is this one's whole condition (the combat half has none either). */
+  rallyBuffCelestials: (ctx, self, params) => {
+    ARENA_EFFECTS.rallyBuffCelestials(shopArena(ctx.state, self), params);
+  },
+  onRallyBuffOnePerTribe: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyBuffOnePerTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onRallyProcLeftmostEcho: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyProcLeftmostEcho(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onRallyPlayRubiesTribe: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onRallyPlayRubiesTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyTribeAttackBuffSelf: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyTribeAttackBuffSelf(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyAttackCastGrowth: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyAttackCastGrowth(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAllyAttackBuffAll: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onAllyAttackBuffAll(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onTribeAttackCastNamedSpell: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onTribeAttackCastNamedSpell(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
+    if (payload.minion === self) return; // "another friendly" — the combat guard, mirrored
+    ARENA_EFFECTS.onTribeAttackBuffAttacker(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onImpAttackBuffImps: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onImpAttackBuffImps(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onFriendlyAttackBuffTribe: (ctx, self, params, payload) => {
+    if (payload.minion === self) return; // excludes self — a support body, not a self-ramp
+    ARENA_EFFECTS.onFriendlyAttackBuffTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
+  onAttackStripKeywords: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.onAttackStripKeywords(shopArena(ctx.state, self), params); // no defender here — inert
+  },
+
+  // ── START-OF-COMBAT FAMILY — the SHOP half (Step 3 item 4 + Step 4) ──────────────────────────────────
+  //
+  // One body each, shared with combat (`ARENA_EFFECTS`); these wrappers are dispatch only, fired by
+  // `fireShopStartOfCombat` under Rune of Combat Prowess. Start of Combat is a PER-BODY trigger (no
+  // watchers listen for "a Start of Combat happened"), so unlike the Rally broadcast there is no payload
+  // guard to keep — each wrapper fires its own card's effect and nothing else.
+  //
+  // The two ENEMY-FACING members (scDamage, scGrantEnemyTaunt) are wired like everything else and no-op by
+  // membership (`enemies()` is empty here); the combat-only channels (scArmBleed, scGrantSpellCastExtra,
+  // the Engraves) no-op on their VERB, leaving an empty diff the dispatcher discards.
+  scDamage: (ctx, self, params) => {
+    ARENA_EFFECTS.scDamage(shopArena(ctx.state, self), params); // no enemies here — inert, zero RNG drift
+  },
+  scArmBleed: (ctx, self, params) => {
+    ARENA_EFFECTS.scArmBleed(shopArena(ctx.state, self), params); // combat mark — the verb no-ops here
+  },
+  scEngraveNeighbor: (ctx, self, params) => {
+    ARENA_EFFECTS.scEngraveNeighbor(shopArena(ctx.state, self), params); // nothing to keep — shop gains are permanent
+  },
+  scEngraveAll: (ctx, self, params) => {
+    ARENA_EFFECTS.scEngraveAll(shopArena(ctx.state, self), params);
+  },
+  scCastLeftmostHandSpell: (ctx, self, params) => {
+    ARENA_EFFECTS.scCastLeftmostHandSpell(shopArena(ctx.state, self), params);
+  },
+  scBuffAlliesPctSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffAlliesPctSelf(shopArena(ctx.state, self), params);
+  },
+  scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.scPlayRubiesSelfAndAdjacentTribe(shopArena(ctx.state, self), params);
+  },
+  scGrantSpellCastExtra: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantSpellCastExtra(shopArena(ctx.state, self), params); // combat-cast channel — inert
+  },
+  scGainKeyword: (ctx, self, params) => {
+    ARENA_EFFECTS.scGainKeyword(shopArena(ctx.state, self), params);
+  },
+  scGrantReborn: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantReborn(shopArena(ctx.state, self), params);
+  },
+  scGrantEnemyTaunt: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantEnemyTaunt(shopArena(ctx.state, self), params); // no enemies here — inert
+  },
+  scBuffSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffSelf(shopArena(ctx.state, self), params);
+  },
+  scSummonCopy: (ctx, self, params) => {
+    ARENA_EFFECTS.scSummonCopy(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffPerSpellImproving: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffPerSpellImproving(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffPerAle: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffPerAle(shopArena(ctx.state, self), params);
+  },
+  scBuffRandomTribePerAle: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffRandomTribePerAle(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffImproving: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffImproving(shopArena(ctx.state, self), params);
+  },
+  scGainFodderStats: (ctx, self, params) => {
+    ARENA_EFFECTS.scGainFodderStats(shopArena(ctx.state, self), params);
+  },
+  scBeastAura: (ctx, self, params) => {
+    ARENA_EFFECTS.scBeastAura(shopArena(ctx.state, self), params); // the later-arrivals aura half is combat-only
+  },
+  scTriggerLeftmostEchoes: (ctx, self, params) => {
+    ARENA_EFFECTS.scTriggerLeftmostEchoes(shopArena(ctx.state, self), params); // pays the recruit Echo tallies
+  },
+  copyLeftmostEcho: (ctx, self, params) => {
+    ARENA_EFFECTS.copyLeftmostEcho(shopArena(ctx.state, self), params); // the shop graft is permanent (family rule)
+  },
   /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
@@ -2322,7 +2771,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brewer (Echo): get a Dwarven Ale. `grantRandomAle` is already trigger-agnostic, so this is a straight
    *  delegation — the guard params only matter in combat, where the payload says who died. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
-  combatGrantAle: (ctx, self, params) => {
+  combatGrantAle: (ctx, self, params, payload) => {
+    // The same guard the combat wrapper keeps. It matters now that the shop DISPATCHES Rallies: `fireShopRally`
+    // offers the event to every board body, so a Dwarf whose Ale is a Rally must check the trigger is its own —
+    // otherwise it pours a round for somebody else's rally. ('attacker' — Slaughter — has no shop dispatch.)
+    const guard = str(params.guard) || 'self';
+    if ((guard === 'rally' || guard === 'self') && payload?.minion !== self) return;
     ARENA_EFFECTS.combatGrantAle(shopArena(ctx.state, self), params);
   },
 
@@ -2623,9 +3077,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = num(params.tier, 0); // 0 = any tier ≤ the current tavern tier
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
     const reps = num(params.count, 1) * gold(self);
+    // `filter: 'shout'` narrows to minions with a real Battlecry (Muckslinger). A CLASS filter rather than a
+    // tribe one — the same axis the rune rewards' `randomFilter` uses — so it composes with `tier`/`tribe`
+    // instead of duplicating this pool build in a near-identical factory.
+    const filter = str(params.filter);
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (tier > 0 ? c.tier === tier : c.tier <= ctx.state.tier) &&
+        (filter !== 'shout' || hasBattlecry(c)) &&
         (tribe
           ? c.tribe === tribe || c.tribe2 === tribe
           : c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
@@ -2672,7 +3131,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const uncontrolled = raw === 'uncontrolled';
     const tribes = uncontrolled ? uncontrolledTribes(ctx.state) : undefined;
     const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
-    const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
+    // `tierOffset` (Clockwork Assistant): EXACTLY the Shop's tier plus N, clamped to the run's own ceiling —
+    // `hasTier7Access` / `maxTierFor`, so Tier 7 is reachable only on a Summit run. Resolved into `fixed`, so
+    // it shares the exact-tier branch below rather than adding a third shape.
+    const offset = num(params.tierOffset, 0);
+    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    const fixed = offset > 0
+      ? Math.min(ceiling, ctx.state.tier + offset)
+      : num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     let spec: DiscoverSpec = fixed > 0
       ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, tribes, exclude: self.cardId }
@@ -3807,15 +4273,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
 
-  /** Errand Fiend (owner rework 2026-08-04), recruit half — a shop-fired Rally (future disruptors): summon
-   *  an Imp and enchant your Imps +1/+1 run-wide, exactly the combat half's ritual. */
-  rallySummonImpBuffImps: (ctx, self, params) => {
-    const imp = CARD_INDEX['impscrap'];
-    if (imp) for (let i = 0; i < gold(self); i++) ctx.summon(imp, self.uid);
-    const n = num(params.amount, 1) * gold(self);
-    buffImpsRunWide(ctx.state, n, n, nameOf(self));
-  },
-
   /** Rope Wrangler (owner add 2026-08-04), recruit half — a shop-fired Echo (Ryme / Funeral on Loan): a
    *  random minion moves HAND → BOARD (it keeps its uid, buffs and gilding — the same card, summoned).
    *  Board full or no minion in hand → clean no-op; golden summons 2. */
@@ -4106,16 +4563,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleBuffAll(shopArena(ctx.state, self), params);
   },
 
-  /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
+  /** Deathrattle: buff all friends of `tribe` (+atk/+hp) — Grim / Mushy. A LIVING self is a member too:
+   *  the hand-written shop half excluded `c !== self`, so a Grim proc'd without dying (Spots at End of Turn
+   *  under Rune of Combat Prowess, a rally-proc'd Echo under Lasting Cadence) buffed every Beast but itself,
+   *  disagreeing with combat (owner report 2026-08-20). A genuinely dying Grim is off the board before its
+   *  rattle fires (every shop death path splices first), so it still never buffs a corpse. */
+  // ── ARENA-MIGRATED (2026-08-20): one body in arena.ts serves both phases.
   deathrattleBuffTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack) * gold(self);
-    const h = num(params.health) * gold(self);
-    for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) {
-        addBuff(c, nameOf(self), a, h);
-      }
-    }
+    ARENA_EFFECTS.deathrattleBuffTribe(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: buff the carry (+atk/+hp) — "random" friend out of combat. */
@@ -5695,7 +6150,232 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastBuffUndeadAttack: (ctx, self, params) => {
     ARENA_EFFECTS.spellCastBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  // RUNE-ONLY MINION BATCH (2026-08-20). Every card that reaches these is `token: true` — forge-only, so
+  // none of them can appear in a shop roll. The factories themselves are ordinary primitives.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** GEM SAGE — "Whenever you get a Ruby, get an additional copy." (golden: two extra).
+   *
+   *  Minted through `mintRubies` with `silent: true`, which is the whole design note: the normal mint fires
+   *  `onGetRuby` for every Ruby it makes, and this factory IS an `onGetRuby` handler — a plain mint would
+   *  recurse forever (and two Sages would recurse twice as fast). The duplicate still fires `onGainCard`
+   *  (Gangplank sees a card arrive), it just doesn't re-open the Ruby-gained round. */
+  onGetRubyDuplicate: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), RUBY_ID, undefined, true);
+  },
+
+  /** ANCIENT WANDERER — "Has +1/+1 for every 3 Gold you have spent this run."
+   *
+   *  A HAS, not a gains: the body is worth the run's whole spend the moment you own it, not just the spend it
+   *  witnessed. So this is not a per-threshold grant (the `goldSpent` meter shape every other Gold card uses)
+   *  — it's a SYNC. `syncGoldSpentScalers` recomputes the target total from `state.goldSpent` and lands only
+   *  the delta under a fixed buff source, which makes it idempotent, itemized in the inspect breakdown, and —
+   *  crucially — a REAL stored buff, so combat, snapshots and saves need no new plumbing.
+   *
+   *  Declared `on: 'passive'`: nothing dispatches it through the bus (the sync reads the effect off the card),
+   *  matching Deepdelve Paragon's contract. The body here is the sync for one card, so a re-trigger path that
+   *  does fire it is harmless. */
+  goldSpentScaleSelf: (ctx, self, params) => {
+    syncGoldSpentScaler(ctx.state, self, params);
+  },
+
+  /** NIGHT MARKET HORROR — "After you buy a card, give minions in the CURRENT Shop +2/+2."
+   *
+   *  THIS shop, not every future one: `addOfferBuff` rides each offer's own `atk`/`hp`, so the gift survives a
+   *  freeze and dies on a refresh. That's the exact vocabulary split Contract Butcher's note spells out — "the
+   *  Shop" is the permanent `tavernBuyBonus` channel, "the CURRENT Shop" is the row in front of you.
+   *  Spells and Rubies in the row are skipped: they have no stat line to raise. Golden doubles. */
+  buffCurrentShopOffers: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const offer of ctx.state.shop) {
+      const d = CARD_INDEX[offer.cardId];
+      if (!d || d.spell || d.ruby) continue;
+      addOfferBuff(offer, nameOf(self), a, h);
+    }
+  },
+
+  /** TRAVELING SALESMAN — "When you SELL this, Discover a minion you control EXACTLY ONE copy of."
+   *
+   *  A `pool` Discover over the ids on your board that appear exactly once — a real "finish the pair" tool
+   *  rather than a generic offer. Fired by `fireOnSell` AFTER the Salesman has left the board, so it can never
+   *  offer itself. Ids only (not uids): two copies of the same card is what "one copy" is counting, and a
+   *  Golden already IS three, so a gilded body is excluded (it can't be tripled again). Golden Discovers twice. */
+  onSellDiscoverSingleton: (ctx, self) => {
+    const counts = new Map<string, number>();
+    for (const c of ctx.state.board) {
+      const d = CARD_INDEX[c.cardId];
+      if (!d || d.spell || d.ruby) continue;
+      counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + (c.golden ? 3 : 1));
+    }
+    const ids = [...counts.entries()].filter(([, n]) => n === 1).map(([id]) => id);
+    if (ids.length === 0) return;
+    const spec: DiscoverSpec = { kind: 'pool', ids };
+    queueDiscover(ctx.state, spec);
+    if (self.golden) queueDiscover(ctx.state, spec);
+  },
+
+  /** KEGHEART DWARF — "Whenever you get a Dwarven Ale, gain +3/+3." (golden +6/+6).
+   *
+   *  Rides `onGainCard`, the shared conjure/grant chokepoint, and filters on the arriving card being one of
+   *  the five `wo_*` Ales — so Brunni's Shout, the Tapkeeper's End of Turn, a Gold-spent Ale and Rune of Last
+   *  Call all pay it, without any of them needing to know Kegheart exists. `payload.cardId` is what makes the
+   *  filter possible: the event used to carry only "a card arrived". */
+  onGainAleBuffSelf: (ctx, self, params, payload) => {
+    if (!ALE_IDS.includes(payload.cardId ?? '')) return;
+    addBuff(self, nameOf(self), num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self));
+  },
+
+  /** NINEFOLD BROKER — "After you buy a minion, get a random Shop spell OF THE SAME TIER. Can trigger 9 times."
+   *
+   *  The charge counter is PER-RUN and PER-INSTANCE: it rides `buyTick`, the existing buy-meter field on the
+   *  BoardCard, which nothing else on this card touches (`applyCardsBought` only advances it for cards that
+   *  carry a `cardsBought` effect, and `stepProgress` only reads it for those too). Being a BoardCard field it
+   *  saves, restores and survives combat like any other per-instance accrual — which is what "per run" needs.
+   *  Golden doubles the charges, not the payout: nine is the card's identity.
+   *
+   *  "Of the same tier" reads the BOUGHT minion's tier, not the tavern tier — buying down still pays out at
+   *  what you bought. If the pool has no spell at that tier the trigger is spent on nothing rather than
+   *  silently sliding to another tier (the card promises a tier, and a run whose set has no T5 spell should
+   *  show that honestly). */
+  onBuyGrantSpellSameTier: (ctx, self, params, payload) => {
+    const charges = num(params.charges, 9) * gold(self);
+    const used = self.buyTick ?? 0;
+    if (used >= charges) return;
+    const tier = CARD_INDEX[payload.minion.cardId]?.tier;
+    if (typeof tier !== 'number') return;
+    self.buyTick = used + 1; // the charge is spent on the TRIGGER, even if the tier has no spell to give
+    const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    if (pool.length === 0) return;
+    conjureToHand(ctx.state, pool, num(params.count, 1));
+  },
+
+  /** STONEHORN ARCHIVIST — "At the end of every SECOND turn, get a plain copy of the LEFT-MOST card in your hand."
+   *
+   *  Bellringer Voss's cadence, aimed at the HAND instead of the board — same `eotTick` discipline, which is
+   *  the part that's easy to get wrong: the tick advances ONCE per turn (on proc 0), so a Chronos repeat pays
+   *  an extra copy on the cadence turn without speeding the count up, and a Djinn replay lands on the turn it
+   *  would naturally fire. "Plain" = a fresh card from the index, so buffs and golden are deliberately dropped.
+   *  A Ruby in slot 0 is skipped — its whole value is the stats baked in at mint, which a plain copy wouldn't
+   *  carry — and the scan falls through to the first ordinary card. Golden copies the two left-most. */
+  endOfTurnCopyLeftmostHandCard: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 2));
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1;
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
+    const defs = ctx.state.hand
+      .map((c) => CARD_INDEX[c.cardId])
+      .filter((d): d is CardDef => !!d && !d.ruby)
+      .slice(0, gold(self));
+    for (const d of defs) conjureToHand(ctx.state, [d], 1);
+  },
+
+  /** SKYBOUND ASCENDANT — "End of Turn: transform the minion to the LEFT into a random minion from ONE TIER
+   *  HIGHER, up to Tier 7."
+   *
+   *  Strange Revision's transform (base swaps, gained stats ride along), stepped UP a tier and clamped to the
+   *  run's own ceiling — `maxTierFor` / `hasTier7Access`, so Tier 7 is only ever reachable on a Summit run and
+   *  a non-Summit board tops out at 6. A neighbour already at the ceiling re-rolls at the ceiling rather than
+   *  doing nothing, which keeps the effect a reroll at the top of the curve instead of a dead line.
+   *  Golden walks the two minions to the left. */
+  endOfTurnTransformLeftTierUp: (ctx, self) => {
+    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    const i = ctx.state.board.indexOf(self);
+    if (i <= 0) return;
+    for (let n = 0; n < gold(self); n++) {
+      const target = ctx.state.board[i - 1 - n];
+      if (!target) return;
+      const oldDef = CARD_INDEX[target.cardId];
+      if (!oldDef) return;
+      const want = Math.min(ceiling, oldDef.tier + 1);
+      const pool = poolOf(ctx.state).buyable.filter(
+        (c) => c.tier === want && c.id !== target.cardId && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+      );
+      if (pool.length === 0) continue;
+      const rng = makeRng(ctx.state.rngCursor);
+      const newDef = pool[rng.int(pool.length)]!;
+      ctx.state.rngCursor = rng.state();
+      const bonusA = target.attack - oldDef.attack; // whatever it had gained above its old base rides along
+      const bonusH = target.health - oldDef.health;
+      target.cardId = newDef.id;
+      target.tribe = newDef.tribe;
+      target.attack = newDef.attack + bonusA;
+      target.health = newDef.health + bonusH;
+    }
+  },
+
+  /** ARCANE BEHEMOTH — "After you cast 3 Shop spells, Consume the RIGHT-MOST minion in the Shop."
+   *
+   *  Mykel's per-instance spell meter (`spellProgress`, carrying the remainder past each payout) driving Bob
+   *  Blart's eat. Per-instance is deliberate and is the house ruling for these meters: three spells means
+   *  three since THIS body arrived, so a Behemoth bought on turn 9 doesn't immediately cash in the run's
+   *  history. Golden eats two. */
+  spellCastConsumeShopRightmost: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    while ((me.spellProgress ?? 0) >= every) {
+      me.spellProgress = (me.spellProgress ?? 0) - every;
+      for (let e = 0; e < gold(self); e++) {
+        const i = rightmostShopMinion(ctx.state);
+        if (i < 0) break;
+        consumeShopMinion(ctx.state, me, i, 1);
+      }
+    }
+  },
 };
+
+/**
+ * ANCIENT WANDERER's sync — see `goldSpentScaleSelf`.
+ *
+ * Recomputes ONE body's "+A/+H per N Gold spent this run" and lands only the difference, so calling it twice
+ * is a no-op. Keyed on a fixed buff source (the card's name) so `addBuff`'s per-source accumulator IS the
+ * record of what has already been granted — no extra per-instance field to persist.
+ */
+function syncGoldSpentScaler(state: RunState, card: BoardCard, params: Record<string, unknown>): void {
+  const per = Math.max(1, num(params.per, 3));
+  const steps = Math.floor(Math.max(0, state.goldSpent) / per);
+  const wantA = steps * num(params.attack, 1) * gold(card);
+  const wantH = steps * num(params.health, 1) * gold(card);
+  const source = nameOf(card);
+  const had = card.buffs?.find((b) => b.source === source);
+  const dA = wantA - (had?.attack ?? 0);
+  const dH = wantH - (had?.health ?? 0);
+  if (dA === 0 && dH === 0) return;
+  // `count` 1 the first time, 0 after: this is ONE standing enchant being resized, not a new stack each spend,
+  // so the inspect breakdown reads "Ancient Wanderer +12/+12" rather than a wall of identical rows.
+  addBuff(card, source, dA, dH, had ? 0 : 1);
+}
+
+/**
+ * Bring every `goldSpentScaleSelf` body on the board up to the run's current spend. Called from the two
+ * moments its value can change: a Gold spend (`applyGoldSpent`) and a minion ARRIVING (`fire`'s `onSummon`),
+ * which is what makes the card read "for every 3 Gold you HAVE spent" rather than "since it arrived".
+ */
+export function syncGoldSpentScalers(state: RunState): void {
+  for (const card of state.board) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+    if (eff) syncGoldSpentScaler(state, card, eff.params ?? {});
+  }
+}
+
+/**
+ * ANCIENT WANDERER's live value — the number its text has to print (the hard live-text rule). Exported from
+ * sim so the UI's `cardText` chain can read it without duplicating the formula. `goldSpent` is the RUN total.
+ */
+export function goldSpentScalerValue(cardId: string, goldSpent: number, golden = false): { bonus: number; per: number; toNext: number } | null {
+  const eff = CARD_INDEX[cardId]?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+  if (!eff) return null;
+  const per = Math.max(1, num(eff.params?.per, 3));
+  const g = Math.max(0, goldSpent);
+  return { bonus: Math.floor(g / per) * num(eff.params?.attack, 1) * (golden ? 2 : 1), per, toNext: per - (g % per) };
+}
 
 /**
  * Fire `goldSpent` effects (Acid, Banksly) when the player spends Gold. Each board card with a `goldSpent`
@@ -5732,6 +6412,9 @@ export function applyGoldSpent(state: RunState, amount: number): void {
       fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
+  // Ancient Wanderer: a "HAS +A/+H per N Gold spent" body is re-synced to the new run total. Not a threshold
+  // handler (it isn't a `goldSpent` effect at all) — see `syncGoldSpentScalers`.
+  syncGoldSpentScalers(state);
 }
 
 /**
@@ -6336,6 +7019,9 @@ function fire(
   // Den Marker (run-wide quest aura): a Beast entering play gains the current buff, which then climbs every `per`.
   // Runs after the card auras so it stacks on top of a real Den Mother; only on summon (matches Den Mother).
   if (event === 'onSummon' && ctx.state.denMarker) applyDenMarker(ctx.state, payload.minion);
+  // Ancient Wanderer: an ARRIVING body catches up to the run's whole spend ("for every 3 Gold you HAVE spent"),
+  // rather than starting from zero the way a witnessed-threshold card would.
+  if (event === 'onSummon') syncGoldSpentScalers(ctx.state);
 }
 
 /** Apply the run-wide Den Marker aura to a Beast entering play: +attack/+health now, then climb the magnitude by
@@ -6411,14 +7097,23 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * `hand.push` (a bought minion, a Discover pick): those are direct player actions, not the grant path the card
  * reacts to. Watcher effects add no card, so this can't recurse.
  */
-export function fireOnGainCard(state: RunState): void {
+export function fireOnGainCard(state: RunState, cardId?: string): void {
+  // RUNE OF HEAVY PAYROLL: a DWARF arriving in hand pays your left-most minion. Rides this chokepoint — the
+  // shared "a card was granted to hand" hook — rather than the buy path, because "get" is the grant verb in
+  // this game (a conjured / rewarded / drip-fed Dwarf all count; a purchase is `applyOnBuy`).
+  const payroll = state.runeHeavyPayroll;
+  const gained = cardId ? CARD_INDEX[cardId] : undefined;
+  if (payroll && gained && (gained.tribe === 'dwarf' || gained.tribe2 === 'dwarf' || gained.universalTribe) && state.board.length > 0) {
+    procRuneId(state, 'rune_heavy_payroll');
+    captureBuffFx(state, undefined, 'spell', () => addBuff(state.board[0]!, 'Rune of Heavy Payroll', payroll.attack, payroll.health));
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def || !def.effects.some((e) => e.on === 'onGainCard')) continue;
     const ctx = makeContext(state);
     for (const eff of def.effects) {
       if (eff.on !== 'onGainCard') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, cardId });
     }
   }
 }
@@ -7429,6 +8124,17 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  // RUNE OF LIVING MAGIC (1 use) / RUNE OF PERFECT RECALL (2 uses): after a Shop-spell cast, a COPY lands in
+  // hand. ONE budget for both runes — holding both raises the ceiling to 3 rather than the two firing
+  // independently, the same way the Mage-Pup teach cap is shared. The budget is spent BEFORE the conjure so a
+  // copy that itself gets cast this turn can only draw from what is left. `NO_COPY_SPELLS` and the `token`
+  // early-return above are what keep an uncopyable spell (or a reward token) out of the loop.
+  const echo = state.runeSpellEcho;
+  if (echo && echo.used < echo.uses && !NO_COPY_SPELLS.has(spellDef.id)) {
+    echo.used += 1;
+    procRuneId(state, echo.uses >= 2 ? 'rune_perfect_recall' : 'rune_living_magic');
+    conjureToHand(state, [spellDef], 1);
+  }
   // RUNESNOUT ARCHIVIST's journal: the FIRST Shop spell of each turn, and only on turns an Archivist is
   // actually on the board — so the card records what it witnessed rather than inheriting a history that
   // predates it. `rememberedThisTurn` is the once-per-turn latch (cleared at `faceOmen` with the other
@@ -7535,6 +8241,436 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   offer.atk = temp.attack - after.attack;
   offer.hp = temp.health - after.health;
   offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k)); // keep only the keywords the spell added
+}
+
+/**
+ * ── THE SHOP-SIDE RALLY DISPATCHER (Effect Arena, Step 4) ──────────────────────────────────────────────
+ *
+ * Rally is an `onAttack` trigger, which is why "trigger your Rallies" was combat-only at any price: nothing
+ * in the shop ever dispatched `onAttack`. With the family migrated onto the arena (`ARENA_EFFECTS`, Step 3
+ * item 4) both halves are the SAME body, so a shop dispatch is now just this — a caller.
+ *
+ * `canRallyInShop` is the recruit twin of combat's `canRally`: the `RL` keyword plus a real `onAttack` effect
+ * (a card with the badge and nothing behind it is not "a Rally to trigger"), OR a welded Mech/spell rally
+ * (Better Bot / Perfect Core), which is exactly what combat's `fireFreeRally` also pays out.
+ *
+ * `fireShopRally` BROADCASTS, the way a real attack does: every board body's `onAttack` effects are offered
+ * the event with the rallier as `payload.minion`. That is what makes the ally-attack watchers — Paragon's
+ * "whenever you trigger a Rally", Hawkus, Mineral Master, Crypt Drake — answer a shop rally the same way
+ * they answer a swing, instead of the rallier's own effect firing into silence.
+ */
+export function canRallyInShop(card: BoardCard): boolean {
+  // `combatOnly` (Sunmane Herald): an effect scoped out of the shop is not "a Rally to trigger" here at all —
+  // no beat, no rally tally (owner ruling 2026-08-20; its viral graft loops under Lasting Cadence).
+  return (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack' && !e.combatOnly))
+    || (card.rallyMechAtk ?? 0) > 0 || (card.rallySpellWeld ?? 0) > 0;
+}
+
+/** The board bodies that have a Rally to trigger, in board order. */
+export function ralliersOf(state: RunState): BoardCard[] {
+  return state.board.filter(canRallyInShop);
+}
+
+/** Fire ONE board minion's Rally in the shop — the recruit twin of combat's `fireFreeRally`. */
+export function fireShopRally(state: RunState, card: BoardCard): void {
+  if (!state.board.includes(card)) return; // an earlier rally removed it — the beat still keeps its window
+  const ctx = makeContext(state);
+  // PRESENTATION: each (watcher × effect) dispatch is its OWN nested trigger, carrying the watcher as source
+  // and the effect's registry identity — exactly what a played Shout does (`withPlayTrigger` stamps
+  // `factory:<do>:onPlay`). Without this, everything a rally did in the shop collapsed under the rune's single
+  // outer `sourceTrigger` with no per-effect identity, so the compiled batch had NOTHING for the per-minion
+  // authored FX / watcher pulses to bind to — Echohorn's sparkle, Hawkus's reaction and every other authored
+  // def played in combat but not on the End-of-Turn rally beats (owner report 2026-08-20). With NO collector
+  // capturing (`fireRallies` in tests, the legacy projection) `withRecruitTrigger` is a bare call, so
+  // gameplay is byte-identical.
+  const rallySource = (m: BoardCard): TriggerSourceRef =>
+    ({ kind: 'minion', id: m.cardId, uid: m.uid, side: 'player', label: CARD_INDEX[m.cardId]?.name });
+  if (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack' && !e.combatOnly)) {
+    for (const watcher of [...state.board]) {
+      const align = alignmentOf(state.board, watcher.uid); // CELESTIAL: gate aligned halves exactly as EoT does
+      for (const effect of instanceEffects(watcher)) {
+        if (effect.on !== 'onAttack') continue;
+        if (effect.combatOnly) continue; // Sunmane Herald's class: scoped out of the shop at the data level
+        if (!alignAllows(effect, align)) continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (!fn) continue;
+        // `discardIfEmpty`: the broadcast offers this rally to EVERY board body, and each wrapper's own
+        // guard (`payload.minion !== self` for an own-attack Rally) decides inside the scope — a guarded-out
+        // no-op must not leave an empty beat that falsely pulses a bystander.
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: rallySource(watcher), trigger: 'onAttack', ...beatIdentity(`factory:${effect.do}:onAttack`) },
+          () => fn(ctx, watcher, effect.params ?? {}, { minion: card }),
+          { discardIfEmpty: true },
+        );
+      }
+    }
+  }
+  // The welded rallies, exactly as `fireFreeRally` pays them out — one nested trigger on the rallying card.
+  const mechAtk = card.rallyMechAtk ?? 0;
+  const spellWeld = card.rallySpellWeld ?? 0;
+  if (mechAtk > 0 || spellWeld > 0) {
+    withRecruitTrigger(
+      ctx,
+      { phase: 'endOfTurn', source: rallySource(card), trigger: 'onAttack', ...beatIdentity('system:shopRally:weld') },
+      () => {
+        if (mechAtk > 0) {
+          for (const m of state.board) if (m !== card && isTribe(m, 'mech')) addBuff(m, 'Better Bot', mechAtk, 0);
+        }
+        if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+      },
+      { discardIfEmpty: true }, // Better Bot with no other Mech on the board changes nothing — no beat
+    );
+  }
+  // A SHOP rally is a Rally TRIGGER (owner ruling 2026-08-20) — it advances the `rally` quest objective and
+  // the Author's Hand rally half exactly like a combat one. Counted HERE, at the single chokepoint every
+  // shop rally passes through, for the same reason combat hooks everything at `bumpRally`: one definition of
+  // "a Rally", never two drifting ones. The reducer consumes `lastRallyFires` per action (the
+  // `lastShoutFires` pattern); Rune of the Herding Horn pays inline, as its combat half does.
+  state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
+  if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += 1; }
+}
+
+/**
+ * Fire EVERY rally-capable board minion's Rally once — Rune of Lasting Cadence's payout.
+ *
+ * Snapshotted before firing: a Rally may summon, and a body that arrives mid-pass has not "had" a Rally to
+ * trigger (the same rule the combat rune states). The two per-FIGHT counters the family carries (`attackSeen`,
+ * `bredCount`) are scoped to this pass and cleared after it, so a shop rally can never inherit last turn's
+ * progress — Evolving Abomination gets its 2 doublings per End of Turn, not 2 per run.
+ *
+ * Callers own the beats. `applyEndOfTurn` fires one `fireShopRally` PER BEAT so each rally is allotted its
+ * own animation window; this whole-board helper exists for a caller that wants the batch (and for tests).
+ */
+export function fireRallies(state: RunState): void {
+  const ralliers = ralliersOf(state);
+  for (const card of ralliers) {
+    if (!state.board.includes(card)) continue; // a previous rally removed it
+    fireShopRally(state, card);
+  }
+  clearRallyPassCounters(state);
+}
+
+/** Reset the per-pass Rally counters (see `fireRallies`). Exported so the beat-per-rally path in
+ *  `applyEndOfTurn`, which fires them one at a time, can clear once at the end of the whole pass. */
+export function clearRallyPassCounters(state: RunState): void {
+  for (const c of state.board) { delete c.attackSeen; delete c.bredCount; }
+}
+
+/**
+ * ── THE SHOP-SIDE START-OF-COMBAT DISPATCHER (Effect Arena, Step 4) ────────────────────────────────────
+ *
+ * The Rally dispatcher's motion, applied to the second family. Start of Combat is a PER-BODY trigger — no
+ * card watches "a Start of Combat happened" — so unlike `fireShopRally` this does NOT broadcast: each fire
+ * is one (body × effect), offered to that body's own wrapper only.
+ *
+ * `socBoardEffects` is the eligibility scan: every `startOfCombat` effect a board INSTANCE carries
+ * (printed + grafted, via `instanceEffects`), alignment-gated exactly as the combat pass gates it, and
+ * filtered to effects a shop wrapper exists for (today that is all of them — the filter is the same
+ * no-hand-selection guard `fireShopRally` gets from the registry lookup). SNAPSHOTTED before anything
+ * fires: a body summoned mid-pass (Mirrorhide's copy) has not "had" a Start of Combat to fire — the same
+ * rule combat states by not re-firing SC on combat summons. The family carries no per-fight counters
+ * (`attackSeen`/`bredCount` are Rally's), so there is nothing to scope or clear here.
+ *
+ * COMBAT MULTIPLIERS FOLLOW THE TRIGGER (owner reversal 2026-08-20, superseding the ship ruling): Rune of
+ * Twilight and Uron's trigger multiplier apply to the End-of-Turn replay too — a trigger multiplier follows
+ * the trigger to whatever phase it fires in. The scan itself stays multiplier-free; the fire COUNT lives in
+ * `runeCombatProwessBeats`, which folds `socTwilightExtraFires` (the same definition combat's Twilight pass
+ * consults) and `extraTriggerFires('startOfCombat', …)` (the same card-data fold combat's `scReps` uses), so
+ * each fire is its own beat and the two phases can never drift.
+ */
+export function socBoardEffects(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
+  const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
+  for (const card of state.board) {
+    const align = alignmentOf(state.board, card.uid); // CELESTIAL: gate aligned halves exactly as combat's SC pass does
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'startOfCombat') continue;
+      if (effect.combatOnly) continue; // the Sunmane rule, applied family-wide: combatOnly never dispatches in the shop
+      if (!alignAllows(effect, align)) continue;
+      if (!RECRUIT_FACTORIES[effect.do]) continue;
+      out.push({ card, effect });
+    }
+  }
+  return out;
+}
+
+/** Fire ONE board minion's ONE Start-of-Combat effect in the shop — the recruit twin of the combat SC pass. */
+export function fireShopStartOfCombat(state: RunState, card: BoardCard, effect: EffectDef): void {
+  if (!state.board.includes(card)) return; // removed since the snapshot — the beat still keeps its window
+  const ctx = makeContext(state);
+  const fn = RECRUIT_FACTORIES[effect.do];
+  if (!fn) return;
+  // PRESENTATION (the shop-rally lesson, 2026-08-20): the dispatch is its OWN nested trigger, sourced on the
+  // acting minion and carrying the effect's `factory:<do>:startOfCombat` registry identity — what the
+  // authored FX and pulses bind to. `discardIfEmpty` drops the scope when a guarded/inert body (an
+  // enemy-facing strike, a combat-only channel) changes nothing, so no bystander beat falsely pulses.
+  const source: TriggerSourceRef = { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name };
+  withRecruitTrigger(
+    ctx,
+    {
+      phase: 'endOfTurn',
+      source,
+      trigger: 'startOfCombat',
+      ...beatIdentity(`factory:${effect.do}:startOfCombat`),
+    },
+    () => fn(ctx, card, effect.params ?? {}, { minion: card }),
+    { discardIfEmpty: true },
+  );
+}
+
+/**
+ * Fire EVERY board Start-of-Combat effect once — Rune of Combat Prowess's payout, batched (for tests and
+ * any caller that wants the whole pass; `applyEndOfTurn` fires one per BEAT instead, so each effect is
+ * allotted its own animation window).
+ */
+export function fireStartOfCombats(state: RunState): void {
+  for (const { card, effect } of socBoardEffects(state)) {
+    fireShopStartOfCombat(state, card, effect);
+  }
+}
+
+/**
+ * ── RUNE / QUEST START-OF-COMBAT REPLAYS (Rune of Combat Prowess, owner ruling 2026-08-20) ─────────────
+ *
+ * "Needs to work with ALL Start of Combat effects including runes/quests etc." — the run-level SoC blocks
+ * `simulate()` fires (the `rmods.…` / `smods.…` section) replay at End of Turn too, with SHOP semantics:
+ * every grant is PERMANENT, membership-based effects no-op gracefully on an empty membership, random picks
+ * draw the run's seeded `rngCursor`, and each replay is its own beat sourced on the OWNING rune/quest badge
+ * (no minion is the actor).
+ *
+ * GENUINELY COMBAT-ONLY, each with its reason (deliberate no-ops — they are simply absent from this list):
+ *   - `weakenTargets` (Weaken)      — enemy-facing; the shop has no enemies (membership no-op).
+ *   - `runeFoodChain`               — arms a combat summon-inheritance bank; nothing consumes it in a shop.
+ *   - `runeSpellhide`               — the remembered spell already really resolved in the shop when it was
+ *                                     cast; the rune's whole payoff is repeating it in COMBAT. An End-of-Turn
+ *                                     re-cast would re-count a cast the player never made.
+ *   - `runeCrucible`                — sacrifices bodies into a last-death resummon bank; its payoff event
+ *                                     (your final minion dying) cannot happen in the shop.
+ *   - `emptyGraves`                 — a per-FIGHT grant to the combat-time leftmost (`emptyGravesRally` is a
+ *                                     combat-instance flag); a permanent shop grant would stack on top of the
+ *                                     grant combat still makes every fight.
+ *   - `runeFirstClaws` / Forthcoming's attack half / Shared Circuit's break-transfer / the Reclaimer +
+ *     Closed Casket marks / Blood Trail's kill-watcher — forced attacks, shield breaks, death banks: combat
+ *     machinery with no shop meaning.
+ *
+ * COMPOUNDING WARNING (flagged for balance review — implemented per the owner's "all" ruling): the stat
+ * blocks below are PERMANENT and re-fire EVERY turn while Combat Prowess is held. Warding (health ×3/turn),
+ * Sylus (own health ×2/turn), Underdog + Stoked Menagerie (stat doubling), Umbral Energy + United Front
+ * (per-spells-cast, a growing scalar), Five Banners, Tempered Time, Possession and Rulebreaker's Crown all
+ * snowball run-scale numbers fast.
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the projection) and
+ * `questEndOfTurnBeats` (the UI beat sequence) — the Lasting Cadence single-list rule. Chronos/Parliament
+ * repeats apply (the caller multiplies); combat's SC multipliers (Twilight/Uron) do NOT — in combat they
+ * multiply only the MINION SC pass, never the rune blocks, and the shop mirrors that boundary exactly.
+ */
+export interface SocRuneReplay {
+  /** Owning content id — the badge the beat is sourced on (`procRuneId` pulses a rune's rail badge). */
+  id: string;
+  kind: 'rune' | 'quest' | 'hero';
+  label: string;
+  /** `true` when `fire` opens its OWN nested `withRecruitTrigger`s (Rune of Rallying → `fireShopRally`) —
+   *  the caller must then use a PLAIN scope, or every consequence would emit twice (the Lasting Cadence
+   *  double-emission rule). */
+  nested?: boolean;
+  fire: (state: RunState) => void;
+}
+
+export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
+  const f = state.questFlags;
+  const out: SocRuneReplay[] = [];
+  const grantKw = (c: BoardCard, kw: Keyword): void => { if (!c.keywords.includes(kw)) c.keywords = [...c.keywords, kw]; };
+  // The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always
+  // collect; every other body claims the FIRST type nobody has claimed yet — one banner per body.
+  const bannerRecipients = (st: RunState): BoardCard[] => {
+    const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
+    const taken = new Set<string>();
+    for (const m of st.board) {
+      const def = CARD_INDEX[m.cardId];
+      if (def?.universalTribe) continue;
+      for (const t of [def?.tribe, def?.tribe2]) {
+        if (!t || t === 'neutral' || taken.has(t)) continue;
+        taken.add(t);
+        if (!recipients.includes(m)) recipients.push(m);
+        break;
+      }
+    }
+    return recipients;
+  };
+  // Rulebreaker's Crown: the leftmost minion gains +Attack equal to its Attack (permanent here). COMPOUNDING.
+  if (f?.doubleLeftmostAttack) out.push({ id: 'doubleLeftmostAttack', kind: 'quest', label: "Rulebreaker's Crown", fire: (st) => {
+    const lead = st.board[0];
+    if (lead && lead.attack > 0) addBuff(lead, "Rulebreaker's Crown", lead.attack, 0);
+  } });
+  // Atrius's Possession: leftmost gains the rightmost's Attack, rightmost gains the leftmost's Health —
+  // simultaneous (both read the pre-buff values), needs 2+ bodies. COMPOUNDING.
+  if (getHero(state.heroId).power.kind === 'possession') out.push({ id: state.heroId, kind: 'hero', label: 'Possession', fire: (st) => {
+    if (st.board.length < 2) return;
+    const first = st.board[0]!, last = st.board[st.board.length - 1]!;
+    const gainAtk = last.attack, gainHp = first.health;
+    if (gainAtk > 0) addBuff(first, 'Possession', gainAtk, 0);
+    if (gainHp > 0) addBuff(last, 'Possession', 0, gainHp);
+  } });
+  // Umbral Energy: every Dragon +3/+3 per spell cast this game. COMPOUNDING (per-turn, growing scalar).
+  if (f?.umbralEnergy) out.push({ id: 'umbralEnergy', kind: 'quest', label: 'Umbral Energy', fire: (st) => {
+    const amt = 3 * st.spellsCast;
+    if (amt <= 0) return;
+    for (const m of st.board) if (isTribe(m, 'dragon')) addBuff(m, 'Umbral Energy', amt, amt);
+  } });
+  // Contract Rewrite: the rightmost Demon gains the Warded-Imps Echo — a PERMANENT graft here (the family's
+  // shop-permanence rule), idempotent so it doesn't stack a copy every turn.
+  if (f?.contractRewrite) out.push({ id: 'contractRewrite', kind: 'quest', label: 'Contract Rewrite', fire: (st) => {
+    const demon = [...st.board].reverse().find((m) => isTribe(m, 'demon'));
+    if (!demon) return;
+    const already = instanceEffects(demon).some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon' && (e.params as { tokenId?: string } | undefined)?.tokenId === 'impscrap');
+    if (already) return;
+    (demon.grantedEffects ??= []).push({ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } });
+  } });
+  // Rune of the Warden: if the board has room, summon a Spear Warden (a real, permanent board card).
+  if (f?.runeWarden) out.push({ id: 'rune_warden', kind: 'rune', label: 'Rune of the Warden', fire: (st) => {
+    const knit = CARD_INDEX['knit'];
+    if (knit && st.board.length < CONFIG.boardMax) makeContext(st).summon(knit, ''); // no anchor -> appended rightmost
+  } });
+  // Rune of the Mirror March: if the board has room, an EXACT copy of the leftmost minion, to its right.
+  if (f?.runeMirrorMarch) out.push({ id: 'rune_mirror_march', kind: 'rune', label: 'Rune of the Mirror March', fire: (st) => {
+    const lead = st.board[0];
+    const def = lead ? CARD_INDEX[lead.cardId] : undefined;
+    if (!lead || !def || st.board.length >= CONFIG.boardMax) return;
+    const copy = makeContext(st).summon(def, lead.uid);
+    if (!copy) return;
+    copy.attack = lead.attack; copy.health = lead.health;
+    copy.golden = lead.golden; copy.keywords = [...lead.keywords];
+  } });
+  // Shared Circuit: up to N leftmost unshielded Mechs gain Ward (permanent; the break-transfer half is
+  // combat-only — shields don't break in a shop).
+  if ((state.sharedCircuitWard ?? 0) > 0) out.push({ id: 'sharedCircuit', kind: 'quest', label: 'Shared Circuit', fire: (st) => {
+    let left = st.sharedCircuitWard ?? 0;
+    for (const m of st.board) {
+      if (left <= 0) break;
+      if (m.keywords.includes('DS') || !isTribe(m, 'mech')) continue;
+      grantKw(m, 'DS');
+      left--;
+    }
+  } });
+  // Rune of the Five Banners: one friendly of each type +6/+6. COMPOUNDING (per-turn permanent).
+  if (f?.runeFiveBanners) out.push({ id: 'rune_five_banners', kind: 'rune', label: 'Rune of the Five Banners', fire: (st) => {
+    for (const m of bannerRecipients(st)) addBuff(m, 'Rune of the Five Banners', 6, 6);
+  } });
+  // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
+  // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
+  if (getHero(state.heroId).power.kind === 'unitedFront') out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
+    const n = st.spellsCast * (st.runeWishbone ? 2 : 1); // wishboneReps, inlined (a reducer import would cycle)
+    if (n <= 0) return;
+    for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);
+  } });
+  // Rune of the Centerline: ends of DIFFERENT (primary, non-neutral) types → the middle gains Crit + Ward.
+  if (f?.runeCenterline) out.push({ id: 'rune_centerline', kind: 'rune', label: 'Rune of the Centerline', fire: (st) => {
+    if (st.board.length < 3) return;
+    const left = st.board[0]!, right = st.board[st.board.length - 1]!;
+    const mid = st.board[Math.floor(st.board.length / 2)]!;
+    const typeOf = (m: BoardCard): string | undefined => (m.tribe && m.tribe !== 'neutral' ? m.tribe : undefined);
+    const lt = typeOf(left), rt = typeOf(right);
+    if (lt && rt && lt !== rt) { grantKw(mid, 'CR'); grantKw(mid, 'DS'); }
+  } });
+  // Rune of Tempered Time: +Health equal to HALF each minion's Attack (floored). COMPOUNDING.
+  if (f?.runeTemperedTime) out.push({ id: 'rune_tempered_time', kind: 'rune', label: 'Rune of Tempered Time', fire: (st) => {
+    for (const m of st.board) {
+      const gain = Math.floor(m.attack / 2);
+      if (gain > 0) addBuff(m, 'Rune of Tempered Time', 0, gain);
+    }
+  } });
+  // Rune of the Herald: trigger EVERY Echo (bodies stay alive) — the shared shop Echo ritual pays the
+  // tallies and every unified multiplier (Sylus/Uron/Elderhorn/Funeral Engine/first-Echo).
+  if (f?.runeHerald) out.push({ id: 'rune_herald', kind: 'rune', label: 'Rune of the Herald', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+    }
+  } });
+  // Rune of Dawnclaw: your Dawnclaws fire their adjacent-Shout Echo (they don't die) — an Echo TRIGGER,
+  // through the shared ritual so it tallies exactly like combat's `asEcho` wrap.
+  if (f?.runeDawnclaw) out.push({ id: 'rune_dawnclaw', kind: 'rune', label: 'Rune of Dawnclaw', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (m.cardId === 'b2_dawnclaw') fireRecruitDeathrattles(ctx, m, [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }]);
+    }
+  } });
+  // Rune of Sylus: your Sylus double their own Health. SEVERE COMPOUNDING (exponential per turn).
+  if (f?.runeSylus) out.push({ id: 'rune_sylus', kind: 'rune', label: 'Rune of Sylus', fire: (st) => {
+    for (const m of st.board) if (m.cardId === 'sylus') addBuff(m, 'Rune of Sylus', 0, m.health);
+  } });
+  // Rune of the Underdog: double the stats of the TWO lowest-Attack minions (board-order ties). SEVERE COMPOUNDING.
+  if (f?.runeUnderdog) out.push({ id: 'rune_underdog', kind: 'rune', label: 'Rune of the Underdog', fire: (st) => {
+    const lowest = st.board.slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
+    for (const m of lowest) addBuff(m, 'Rune of the Underdog', m.attack, m.health);
+  } });
+  // Rune of the Stoked Menagerie: controlling every active type doubles 3 random minions (seeded, without
+  // replacement). SEVERE COMPOUNDING.
+  if (f?.runeStokedMenagerie) out.push({ id: 'rune_stoked_menagerie', kind: 'rune', label: 'Rune of the Stoked Menagerie', fire: (st) => {
+    const onBoard = new Set<string>();
+    for (const m of st.board) {
+      const def = CARD_INDEX[m.cardId];
+      for (const t of [def?.tribe, def?.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+      if (def?.universalTribe) for (const t of st.tribes) if (t !== 'neutral') onBoard.add(t);
+    }
+    const wanted = st.tribes.filter((t) => t !== 'neutral');
+    if (wanted.length === 0 || !wanted.every((t) => onBoard.has(t)) || st.board.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const pool = st.board.slice();
+    const picked: BoardCard[] = [];
+    for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
+    st.rngCursor = rng.state();
+    for (const m of picked) addBuff(m, 'Rune of the Stoked Menagerie', m.attack, m.health);
+  } });
+  // Rune of the Vanguard: your 3 leftmost gain Critical Strike + Ward (permanent, idempotent).
+  if (f?.runeVanguard) out.push({ id: 'rune_vanguard', kind: 'rune', label: 'Rune of the Vanguard', fire: (st) => {
+    for (const m of st.board.slice(0, 3)) { grantKw(m, 'CR'); grantKw(m, 'DS'); }
+  } });
+  // Rune of Warding: the rightmost gains Ward and TRIPLE Health. SEVERE COMPOUNDING (health ×3 per turn).
+  if (f?.runeWarding) out.push({ id: 'rune_warding', kind: 'rune', label: 'Rune of Warding', fire: (st) => {
+    const lead = st.board[st.board.length - 1];
+    if (!lead) return;
+    grantKw(lead, 'DS');
+    addBuff(lead, 'Rune of Warding', 0, lead.health * 2);
+  } });
+  // Echoing Coop: trigger every minion's Echo once, without killing the body (the shared shop ritual).
+  if (f?.echoingCoop) out.push({ id: 'echoingCoop', kind: 'quest', label: 'Echoing Coop', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+    }
+  } });
+  // Rune of Rallying: trigger the LEFT-MOST Rally — a real shop Rally (tallies, Herding Horn, nested beats).
+  if (f?.runeRallying) out.push({ id: 'rune_rallying', kind: 'rune', label: 'Rune of Rallying', nested: true, fire: (st) => {
+    const first = ralliersOf(st)[0];
+    if (first) fireShopRally(st, first);
+  } });
+  // Rune of Forthcoming: the leftmost gains Ward (permanent). Its attack half is combat-only (forced attack).
+  if (f?.runeForthcoming) out.push({ id: 'rune_forthcoming', kind: 'rune', label: 'Rune of Forthcoming', fire: (st) => {
+    const front = st.board[0];
+    if (front) grantKw(front, 'DS');
+  } });
+  // Rune of Rebirth: a random eligible minion PERMANENTLY gains the exact-copy Echo (seeded pick; the
+  // eligibility filter keeps it from stacking a second copy on the same body).
+  if (f?.runeRebirth) out.push({ id: 'rune_rebirth', kind: 'rune', label: 'Rune of Rebirth', fire: (st) => {
+    const eligible = st.board.filter((m) => !instanceEffects(m).some((e) => e.do === 'echoSummonCopyNoEcho'));
+    if (eligible.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const m = eligible[rng.int(eligible.length)]!;
+    st.rngCursor = rng.state();
+    (m.grantedEffects ??= []).push({ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} });
+  } });
+  // Rune of Rising Graves: the two leftmost Undead without Rise gain it (permanent, idempotent).
+  if (f?.runeRisingGraves) out.push({ id: 'rune_rising_graves', kind: 'rune', label: 'Rune of Rising Graves', fire: (st) => {
+    let given = 0;
+    for (const m of st.board) {
+      if (given >= 2) break;
+      if (m.keywords.includes('R') || !isTribe(m, 'undead')) continue;
+      grantKw(m, 'R');
+      given++;
+    }
+  } });
+  return out;
 }
 
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
@@ -7646,9 +8782,121 @@ export function applyEndOfTurn(state: RunState): void {
     }
     state.questRecurringLimited = limited.filter((e) => e.turnsLeft > 0);
   }
+  // RUNE OF LASTING CADENCE — "End of Turn: trigger all your Rally effects."
+  //
+  // ONE BEAT PER RALLY, deliberately (owner ask: "make sure there's room for the beat to play and go through
+  // any and all animations"). A single batched beat would resolve five Rallies inside one animation window —
+  // five summons, five Ruby cascades and five stat climbs landing in the same frame. Each rally instead emits
+  // its own source-attributed trigger, so the choreographer allots it a real window and the TRIGGERING MINION
+  // is the beat's source: it pulses, its FX play, and the projection reserves a step for it.
+  for (const card of runeLastingCadenceBeats(state)) {
+    const def = CARD_INDEX[card.cardId];
+    // A PLAIN trigger scope (no consequence diff): `fireShopRally` now opens one NESTED `withRecruitTrigger`
+    // per (watcher × effect) — the per-effect identities the authored FX bind to — and those nested scopes
+    // emit every consequence. Diffing here as well would emit each delta TWICE (once per nesting level) and
+    // the projection would double-climb. On the NOOP collector `withTrigger` is a bare call, so gameplay is
+    // untouched.
+    collector.withTrigger(
+      {
+        phase: 'endOfTurn',
+        source: beatSource('minion', card.cardId, def?.name ?? card.cardId, card.uid),
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_lasting_cadence:endOfTurn'),
+      },
+      () => { procRuneId(state, 'rune_lasting_cadence'); fireShopRally(state, card); },
+    );
+    fires++;
+  }
+  if (state.runeLastingCadence) clearRallyPassCounters(state);
+  // RUNE OF COMBAT PROWESS — "your Start of Combat effects also trigger at End of Turn."
+  //
+  // The Lasting Cadence pattern, applied to the second family: ONE BEAT PER (body × effect), each an
+  // own-beat trigger sourced on the ACTING minion (owner's room-for-the-beat requirement), with the real
+  // per-effect identity emitted by the NESTED trigger `fireShopStartOfCombat` opens — a plain scope here
+  // (no consequence diff) for exactly the double-emission reason the Lasting Cadence block documents.
+  for (const { card, effect } of runeCombatProwessBeats(state)) {
+    const def = CARD_INDEX[card.cardId];
+    collector.withTrigger(
+      {
+        phase: 'endOfTurn',
+        source: beatSource('minion', card.cardId, def?.name ?? card.cardId, card.uid),
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_combat_prowess:endOfTurn'),
+      },
+      () => { procRuneId(state, 'rune_combat_prowess'); fireShopStartOfCombat(state, card, effect); },
+    );
+    fires++;
+  }
+  // RUNE / QUEST START-OF-COMBAT REPLAYS (owner ruling 2026-08-20: "all Start of Combat effects, including
+  // runes/quests") — after the warband's own SC effects, mirroring combat's order (minion SC pass first,
+  // then the rune section). One beat per (replay x Chronos repeat), sourced on the OWNING rune/quest badge —
+  // no minion is the actor. A `nested` replay (Rune of Rallying -> fireShopRally) gets a PLAIN scope for the
+  // double-emission reason the Lasting Cadence block documents; everything else diffs its own consequences,
+  // with `discardIfEmpty` so a membership no-op (Warden on a full board) leaves no false beat.
+  if (state.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(state)) {
+      for (let r = 0; r < repeats; r++) {
+        const spec = {
+          phase: 'endOfTurn' as const,
+          source: beatSource(replay.kind, replay.id, replay.label),
+          trigger: 'endOfTurn',
+          ...beatIdentity('rune:rune_combat_prowess:endOfTurn'),
+          repeatIndex: r, repeatCount: repeats,
+        };
+        const go = (): void => { procRuneId(state, 'rune_combat_prowess'); replay.fire(state); };
+        if (replay.nested) collector.withTrigger(spec, go);
+        else withRecruitTrigger(ctx, spec, go, { discardIfEmpty: true });
+        fires++;
+      }
+    }
+  }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+}
+
+/**
+ * The Rune of Combat Prowess beat list: one entry per START-OF-COMBAT EFFECT FIRE, board order, repeated by
+ * Chronos/Parliament like every other End-of-Turn effect AND by the Start-of-Combat trigger multipliers —
+ * Rune of Twilight (via `socTwilightExtraFires`, the definition combat's extra pass consults; owner reversal
+ * 2026-08-20: the two runes STACK) and Uron's card-data multiplier (via the same `extraTriggerFires` fold
+ * combat's `scReps` uses). Each fire is its own beat (the room-for-the-beat rule).
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the legacy projection)
+ * and `questEndOfTurnBeats` (the UI's beat sequence) — the Lasting Cadence single-list rule, so the three
+ * can never disagree about how many beats there are. Empty when the rune isn't armed. Snapshotted before
+ * anything fires: a body summoned mid-pass (Mirrorhide's copy) has no Start of Combat to fire.
+ */
+export function runeCombatProwessBeats(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
+  if (!state.runeCombatProwess) return [];
+  const repeats = endOfTurnRepeats(state);
+  // Per-effect fire count = base + Uron (card data) + Twilight — multiplicative with the Chronos repeats
+  // (each repeat is a full End-of-Turn replay, and within each the SC multipliers apply, mirroring combat).
+  const perFire = 1
+    + extraTriggerFires('startOfCombat', state.board, (id) => CARD_INDEX[id])
+    + socTwilightExtraFires({ runeTwilight: state.questFlags?.runeTwilight });
+  const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
+  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats * perFire; r++) out.push(entry);
+  return out;
+}
+
+/**
+ * The Rune of Lasting Cadence beat list: one entry per RALLY THAT WILL FIRE, in board order, repeated by
+ * Chronos/Parliament like every other End-of-Turn effect.
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the legacy projection)
+ * and `questEndOfTurnBeats` (the UI's beat sequence) — so the three can never disagree about how many beats
+ * there are, which is precisely the drift that used to make an End-of-Turn reward land after the phase flip
+ * with no animation window at all. Empty when the rune isn't armed.
+ */
+export function runeLastingCadenceBeats(state: RunState): BoardCard[] {
+  if (!state.runeLastingCadence) return [];
+  const repeats = endOfTurnRepeats(state);
+  const out: BoardCard[] = [];
+  // Snapshotted before anything fires: a Rally may summon, and a body that arrives mid-pass has not "had" a
+  // Rally to trigger (the combat rune states the same rule).
+  for (const card of ralliersOf(state)) for (let r = 0; r < repeats; r++) out.push(card);
+  return out;
 }
 
 /**
@@ -8093,21 +9341,63 @@ export function projectEndOfTurnSteps(state: RunState): {
       beat(undefined, () => runRecurringEndOfTurn(clone, entry.effect, true));
     }
   }
+  // RUNE OF LASTING CADENCE — one projected step PER RALLY, matching `applyEndOfTurn` and `questEndOfTurnBeats`
+  // 1:1, so the animation actually RESERVES a window for each rally instead of the whole board resolving in a
+  // single frame. Sourced on the TRIGGERING minion (not sourceless like the quest rewards), so its captured
+  // buffs tendril out of the body whose Rally fired and the card pulses on its own beat.
+  for (const card of runeLastingCadenceBeats(clone)) {
+    beat(card, () => fireShopRally(clone, card));
+  }
+  if (clone.runeLastingCadence) clearRallyPassCounters(clone);
+  // RUNE OF COMBAT PROWESS — one projected step PER (body × effect), matching `applyEndOfTurn` and
+  // `questEndOfTurnBeats` 1:1, sourced on the acting minion (the Lasting Cadence pattern).
+  for (const { card, effect } of runeCombatProwessBeats(clone)) {
+    beat(card, () => fireShopStartOfCombat(clone, card, effect));
+  }
+  // RUNE / QUEST SoC replays under Combat Prowess — one projected step per (replay x repeat), matching
+  // `applyEndOfTurn` + `questEndOfTurnBeats` 1:1. Sourceless (the badge is the actor): captured buffs replay
+  // as descends onto the gaining minions, like the quest rewards above.
+  if (clone.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(clone)) {
+      for (let r = 0; r < repeats; r++) beat(undefined, () => replay.fire(clone));
+    }
+  }
   return { steps, fx };
 }
 
 /** The quest/rune recurring End-of-Turn rewards active on the board, in fire order — one entry per
  *  (effect × repeat), matching `projectEndOfTurnSteps`'s trailing steps 1:1 so the recruit-screen beat
- *  sequence can animate each one (see `endTurn` in Recruit.tsx). Empty when none are granted. */
-export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string }> {
+ *  sequence can animate each one (see `endTurn` in Recruit.tsx). Empty when none are granted.
+ *
+ *  `uid` anchors the beat on a SOURCE CARD when the reward has one. Rune of Lasting Cadence is the first that
+ *  does: each of its beats is one minion's Rally, so the flourish belongs on that minion rather than descending
+ *  from nowhere the way a sourceless quest reward does. */
+export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string; uid?: string }> {
   const repeats = endOfTurnRepeats(state);
-  const out: Array<{ effect: string; label: string }> = [];
+  const out: Array<{ effect: string; label: string; uid?: string }> = [];
   for (const eff of recurringEotEffects(state)) {
     for (let r = 0; r < repeats; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
   }
   // Turn-limited recurrences march after the standing ones, mirroring applyEndOfTurn + the projection.
   for (const entry of state.questRecurringLimited ?? []) {
     for (let r = 0; r < repeats; r++) out.push({ effect: entry.effect, label: RECURRING_EOT_LABEL[entry.effect] ?? 'End of Turn' });
+  }
+  // Rune of Lasting Cadence: one beat per RALLY, last, exactly as `applyEndOfTurn` and the projection order
+  // them — so each rally gets its own 760ms window on the legacy path too, sourced on the rallying minion.
+  for (const card of runeLastingCadenceBeats(state)) {
+    out.push({ effect: 'runeLastingCadence', label: 'Rune of Lasting Cadence', uid: card.uid });
+  }
+  // Rune of Combat Prowess: one beat per Start-of-Combat EFFECT, after the rallies, mirroring
+  // `applyEndOfTurn` + the projection — sourced on the acting minion for the pulse/flourish.
+  for (const { card } of runeCombatProwessBeats(state)) {
+    out.push({ effect: 'runeCombatProwess', label: 'Rune of Combat Prowess', uid: card.uid });
+  }
+  // …then the rune/quest SoC replays, sourceless (the owning badge is named by the label), matching the
+  // commit + projection order 1:1.
+  if (state.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(state)) {
+      for (let r = 0; r < repeats; r++) out.push({ effect: 'runeCombatProwess', label: replay.label });
+    }
   }
   return out;
 }
@@ -8285,6 +9575,9 @@ function withRecruitTrigger(
   ctx: RecruitContext,
   spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrenceKey?: string },
   run: () => void,
+  /** `discardIfEmpty`: drop the trigger from the batch if the effect recorded NOTHING — for broadcast
+   *  dispatches (the shop rally) where the effect's own guard decides after the scope is already open. */
+  opts?: { discardIfEmpty?: boolean },
 ): void {
   const collector = ctx.collector;
   if (!collector.enabled) { run(); return; }
@@ -8305,10 +9598,11 @@ function withRecruitTrigger(
   const eatenBefore = (state.fodderEaten ?? []).length;
   const shopEatenBefore = (state.shopEaten ?? []).length;
   const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-  collector.withTrigger(
-    // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
-    { ...spec },
-    () => {
+  // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
+  // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
+  const handle = collector.beginTrigger({ ...spec });
+  try {
+    (() => {
       run();
       for (const [uid, was] of before) {
         const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
@@ -8338,10 +9632,13 @@ function withRecruitTrigger(
       }
       // Minions this trigger summoned to the BOARD (Moira re-firing a summoner's Shout) — the board sibling of
       // the hand-grant loop above. Without this, an End-of-Turn summon snapped onto the board only at commit.
-      for (const c of state.board) {
-        if (boardBefore.has(c.uid)) continue;
-        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
-      }
+      // `index` = the slot the body actually occupies (the shop summons ADJACENT to the summoner), so the
+      // projection renders the arrival in its true slot from the first frame instead of appending it
+      // right-most and letting the commit "correct" it (owner report 2026-08-20).
+      state.board.forEach((c, bi) => {
+        if (boardBefore.has(c.uid)) return;
+        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
+      });
       // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
       // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
       for (const c of state.board) {
@@ -8402,8 +9699,11 @@ function withRecruitTrigger(
           deliveryKey: 'consume.depart',
         });
       }
-    },
-  );
+    })();
+  } finally {
+    collector.endTrigger(handle);
+    if (opts?.discardIfEmpty) collector.discardIfEmpty(handle);
+  }
 }
 
 /**
@@ -8444,6 +9744,36 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
 export function playCard(state: RunState, played: BoardCard): void {
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
+  // ── 2026-08-20 rune batch: the three PLAY-A-MINION runes. All fired here, the single "played from hand"
+  // chokepoint, so a summoned token / a welded Magnetic / a Discover pick sitting in hand can't trip them.
+  //
+  // SEASONED LEDGER: the played body gains the current grant, then the grant improves every `per` plays. The
+  // buff lands BEFORE the Shout fires, so a Shout that reads its own stats reads the buffed line.
+  const ledger = state.runeSeasonedLedger;
+  if (ledger && (ledger.attack > 0 || ledger.health > 0)) {
+    procRuneId(state, 'rune_seasoned_ledger');
+    addBuff(played, 'Rune of the Seasoned Ledger', ledger.attack, ledger.health);
+    ledger.played += 1;
+    if (ledger.per > 0 && ledger.played % ledger.per === 0) {
+      const step = improveReps(state); // "Improves" — ×2 under Rune of Mastery, like every other Improve
+      ledger.attack += step;
+      ledger.health += step;
+    }
+  }
+  // DRAGON'S PANTRY: a Dragon played is one tick of the `playDragon` meter. The threshold engine owns the
+  // banking, so "progress carries between turns" is free.
+  if (isTribe(played, 'dragon')) advanceRuneThresholds(state, 'playDragon', 1);
+  // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not
+  // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
+  // Gravetwin / the Reliquary use, so nothing about it is bespoke.
+  const arrival = state.runeEchoedArrival;
+  if (arrival && CARD_INDEX[played.cardId]?.effects.some((e) => e.on === 'onDeath')) {
+    arrival.tick += 1;
+    if (arrival.per > 0 && arrival.tick % arrival.per === 0) {
+      procRuneId(state, 'rune_echoed_arrival');
+      fireRecruitDeathrattles(makeContext(state), played);
+    }
+  }
   fire(ctx, 'onSummon', { minion: played });
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you

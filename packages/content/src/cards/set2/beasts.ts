@@ -65,11 +65,15 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
+    // COMBAT-ONLY (owner ruling 2026-08-20): a shop-fired Sunmane under Rune of Lasting Cadence loops the
+    // game away — every grant mints new PERMANENT ralliers that rally again next End of Turn, compounding
+    // without bound. `combatOnly` scopes the effect out of the shop dispatch at the data level (it is not a
+    // rallier in the shop at all — no beat, no rally tally, no graft).
+    effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 }, combatOnly: true }],
     // The plain wording is the ACCURATE one: nothing doubles anything, the growth is just the buff compounding
     // as it spreads (owner 2026-07-25). The live value is folded in by `rallySpreadText` on the combat card.
-    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**.',
-    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**, **only in combat**.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**, **only in combat**.',
   },
   {
     // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat
@@ -328,5 +332,23 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'startOfCombat', do: 'scTriggerLeftmostEchoes', params: { count: 2 } }],
     text: '**Start of Combat:** trigger your **2 left-most Echoes**.',
     goldenText: '**Start of Combat:** trigger your **2 left-most Echoes** **twice** each.',
+  },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // STONEHORN ARCHIVIST - Bellringer Voss aimed at the HAND instead of the board, which makes it a very
+    // different card: what it copies is whatever you choose to LEAVE in hand, so holding a bomb is now a
+    // decision with an upside. A Ruby in the left slot is skipped (its whole value is the stats baked in at
+    // mint, which a plain copy wouldn't carry) and the scan falls through to the first ordinary card.
+    id: 'b2_stonehorn',
+    name: 'Stonehorn Archivist',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyLeftmostHandCard', params: { every: 2 } }],
+    text: '**Every 2 turns:** get a plain copy of the **left-most** card in your hand.',
+    goldenText: '**Every 2 turns:** get a plain copy of the **2 left-most** cards in your hand.',
   },
 ];

@@ -73,6 +73,33 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     grantRandomFromPool: () => {},
     grantNamedCard: () => {},
     grantRandomSpells: () => {},
+    // SC-family verbs (Step 3 item 4) — inert in this stub; coverage lives in socDispatch.test.ts.
+    armBleed: () => {},
+    grantSpellCastExtra: () => {},
+    fodderConsumed: () => ({ attack: 0, health: 0 }),
+    alesLastTurn: () => 0,
+    engraveNeighbours: () => {},
+    engraveBoard: () => {},
+    castLeftmostHandSpellOnAdjacent: () => {},
+    echoEffectsOf: () => [],
+    // Rally-family verbs (Step 3 item 4) — inert in this stub; the family's own coverage lives in rally.test.ts.
+    enemies: () => [],
+    damage: () => {},
+    stripKeyword: () => {},
+    spellPower: () => ({ attack: 0, health: 0 }),
+    castRepeat: (_id, body) => body(),
+    castNamedSpell: () => {},
+    cardDef: () => undefined,
+    gainShopBuff: () => {},
+    grantUndeadAura: () => {},
+    grantRubies: () => {},
+    grantRandomShoutMinion: () => {},
+    hasEffect: () => false,
+    replayShout: () => {},
+    hasEcho: () => false,
+    triggerEchoOn: () => {},
+    graftEffect: () => {},
+    improveAttachments: () => {},
     rng: () => rng,
   };
   return { arena, granted };
@@ -140,7 +167,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 60; // +BuffMagnetics + the Elderhorn pair (new magneticBuy / beastExtra channels)
+  const MIGRATED_FLOOR = 122; // 60 (Shout/Echo) + 40 Rally + 21 SoC (Step 3 item 4) + deathrattleBuffTribe (Grim membership fix, 2026-08-20)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

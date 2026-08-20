@@ -36,6 +36,396 @@ dev-gated). Both halves moved together; all 46 knobs verified against the owner'
 
 Verified: typecheck + build:web green.
 
+## 2026-08-20 — the six live-pass rulings: Grim's membership, Twilight stacks, Elderhorn in the shop, rune SoC replays, blue Rebirth, Sunmane combat-only
+
+Six owner rulings from the live Rune of Combat Prowess + Lasting Cadence pass, plus the establishing
+principle behind two of them: **a trigger MULTIPLIER follows the trigger to whatever phase it fires in.**
+
+**1. Grim buffs itself from a shop-fired Echo (root cause: hand-written shop membership).** Combat's
+`deathrattleBuffTribe` buffs `ctx.living(side)` — a proc'd-not-dead Grim included — while the recruit-side
+copy excluded `c !== self`. Fixed by MIGRATING the body into `ARENA_EFFECTS` (ratchet floor 121 → 122, the
+`tribes`-plural Mushy path preserved): membership is `friends()`, which includes a living self in both
+phases; a genuinely dying shop Grim is already off the board before its rattle fires (every shop death path
+splices first), so it still never self-buffs posthumously. Combat is a pure delegation — zero golden churn.
+
+**2. Rune of Twilight (and Uron) STACK with Combat Prowess (owner reversal of the ship ruling).** The count
+lives in one place now: `socTwilightExtraFires` (core) is consulted by BOTH combat's extra-SC pass (the `if`
+became a count loop — byte-identical events) and `runeCombatProwessBeats`, which multiplies each card SoC
+effect by (1 + Twilight + Uron-via-`extraTriggerFires`) per Chronos repeat — each fire its own beat.
+
+**3. The Echo-multiplier set follows the trigger into the shop.** `foldEchoExtraFires` (core) is THE fold:
+combat's `playerEchoExtras` and the shop's `fireRecruitDeathrattles` both feed it Sylus/Uron (card data),
+**Elderhorn's Beast Ritual** (tribe-gated), **Funeral Engine's** `echoExtraAlways`, and the **first-Echo
+bonus** (Grave Contract / Last Rites / Catacomb) — shop scope = first shop Echo each TURN (transient
+`echoFirstUsedThisTurn`, reset at wave open), independent of combat's per-fight pool. Every extra fire pays
+`lastEchoFires` + the Grim tally exactly like combat's. (Flagged: Catacomb's printed "in combat" is now
+narrower than what it does; and the RALLY multiplier set — Law of Teeth, Infinite Assembly, Spark Permit,
+Elderhorn's Hunt — was deliberately NOT brought along, pending an owner call.)
+
+**4. Combat Prowess replays RUNE/QUEST Start-of-Combat effects.** `socRuneReplaysOf` (recruit.ts) — THE
+single list shared by `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats` — replays ~19 of
+the run-level SoC blocks with shop semantics (permanent grants, seeded RNG, one beat per replay sourced on
+the owning rune/quest badge, `discardIfEmpty`). Combat-only, each documented in the list header: Weaken
+(enemy-facing), Food Chain, Spellhide, Crucible, Empty Graves, First Claws / Forthcoming's attack half /
+Shared Circuit's break-transfer / Reclaimer + Closed Casket. **COMPOUNDING flagged for balance review**:
+Warding (health ×3/turn), Sylus (×2/turn), Underdog + Stoked Menagerie (doubling), Umbral Energy + United
+Front (growing scalar), Five Banners, Tempered Time, Possession, Rulebreaker's Crown — all permanent, every
+turn, per the owner's "all" ruling.
+
+**5. Rune of Rebirth prints blue "Rebirth" on every minion.** New `[[…]]` markup token → `.descrune` (blue,
+static color) beside the green `{{…}}` / gold `((…))`; appended in `liveCardText` (minions only, both
+variants), so every surface — shop/board/hand/Discover/end screen AND combat `Unit.tsx` — carries it while
+the rune is held. The Recruit `live` memo's dep array gained `questFlags?.runeRebirth` (the tag stayed stale
+without it — caught live).
+
+**6. Sunmane Herald is combat-only.** New data-level `EffectDef.combatOnly` (types + schema): the shop
+dispatchers skip such effects entirely — `canRallyInShop` no longer counts it as a rally, `fireShopRally`'s
+watcher loop and `socBoardEffects` skip it, and the viral graft carries the flag too. Text now reads
+"…and this **Rally**, **only in combat**." Under Lasting Cadence a Sunmane board ends the turn finitely with
+zero rally fires, zero grafts, zero spread — verified live and by test.
+
+**Verification.** `prowessCadenceFixes20260820.test.ts` (26 tests: both Grim phases incl. the owner's exact
+Spots-under-Prowess scenario end-to-end through `faceOmen`; Twilight/Uron counts + real double-fires;
+all four Echo multipliers + the per-turn first-Echo consumption; Warding/Warden/Underdog/Herald replays,
+beat labels, no-Prowess and combat-only negatives; the dead Sunmane loop over three turns + combat
+untouched) + `rebirthTag.test.ts` (4 tests). Live in the real UI (throwaway run, real End Turn control):
+Grim 7/1 → 15/9 carrying its own "Grim +8/+8"; blue "Rebirth" rendered rgb(47,111,208) on the card;
+Warding's replay tripled the rightmost (2/3 → 2/9 + Ward, badge proc'd); the Sunmane board resolved
+instantly with nothing moved. Gates: typecheck (pkgs + web) ✅ lint 0 errors ✅ 6250 tests / 382 files ✅
+build:web ✅ harness deterministic ✅ — ZERO combat golden updates (both #2/#3 are shop-side additions).
+
+## 2026-08-20 — Rune of Combat Prowess: the START-OF-COMBAT family migrates + the second cross-phase dispatcher
+
+**Rune of Combat Prowess** (Epic, 5 Gold): *"Your Start of Combat effects also trigger at End of Turn."* The
+second cross-phase dispatcher rune, built deliberately on the Rally family's motion (Lasting Cadence is the
+template; both presentation lessons from the owner's live pass are applied from day one).
+
+**Engine (Effect Arena Step 3 item 4 + Step 4).** All 21 `startOfCombat` bodies used by `CARD_INDEX` migrated
+into `ARENA_EFFECTS` (ratchet floor 100 → 121); every combat `FACTORIES` entry is now a one-line delegation —
+no duplicate bodies remain. 15 more `sc*` ids exist in the combat registry but are referenced by NO card in
+content (schema-whitelisted only) — left unmigrated per the on-demand rule. New arena verbs: `armBleed`,
+`grantSpellCastExtra`, `fodderConsumed`, `alesLastTurn`, `engraveNeighbours`, `engraveBoard`,
+`castLeftmostHandSpellOnAdjacent`, `echoEffectsOf`, plus `narrate(text, cast?)` and live-flag/maxHealth opts
+on `summonToken` (Mirrorhide's copy). Graceful no-ops, each documented on the shop adapter verb (the
+`addTribeAura` class, never a phase check in a body): Bleed marks (nothing to bleed), the extra-combat-cast
+grant (the real Start of Combat re-arms it moments later — arming at End of Turn too would double it), and
+both Engraves (every shop gain is already permanent — nothing to keep). Enemy-facing bodies (`scDamage`,
+`scGrantEnemyTaunt`) no-op by MEMBERSHIP — empty `enemies()` — with zero RNG-cursor drift. Quil's shop half
+mirrors the combat resolver's STAT family through real counted casts (`noteSpellCast`); pure tavern work
+fizzles uncounted there too, per the standing combat ruling.
+
+**Dispatcher.** `socBoardEffects` (eligibility: printed + grafted via `instanceEffects`, alignment-gated like
+the combat SC pass) → `fireShopStartOfCombat` (one body × effect per fire, nested `withRecruitTrigger` with
+the `factory:<do>:startOfCombat` identity + `discardIfEmpty`) → `fireStartOfCombats` (the batch). SC is a
+per-body trigger, so unlike `fireShopRally` there is no broadcast and no watcher guards. Snapshot rule kept:
+a body summoned mid-pass (Mirrorhide's copy) has no SC to fire. No per-pass counters — the family carries
+none.
+
+**The rune.** `rune_combat_prowess` in `EPIC_RUNES`; `RunState.runeCombatProwess` flag reward; ONE BEAT PER
+(body × effect) in `applyEndOfTurn`, sourced on the acting minion, classified
+`rune:rune_combat_prowess:endOfTurn` (ownBeat); `runeCombatProwessBeats` is THE single list shared by the
+commit, `projectEndOfTurnSteps` and `questEndOfTurnBeats`. Chronos/Parliament repeats apply like every other
+End-of-Turn effect. **Interaction rulings made here, flagged for review:** Rune of Twilight / Uron's SC
+multipliers are COMBAT flags and do NOT double the End-of-Turn replay (matches the Rally precedent — no
+Elderhorn extras in the shop); a shop-fired Spots pays `lastEchoFires` and the Echo quest tallies (the
+2026-08-20 quest-tally ruling) via the shared `triggerEchoOn` ritual; a Grave Body graft at End of Turn is
+PERMANENT (the family's shop-permanence rule).
+
+**Verification.** `socDispatch.test.ts` (24 tests, mirrored on `rallyDispatch.test.ts`): dispatcher fires
+every body once; unarmed fires nothing; enemy-facing no-ops with zero cursor drift; nested per-effect
+identities + no-empty-beat discard in the authoritative batch; the Wrangler's summon stamps committed index 1;
+Echo tallies advance; capture-on/off state identical; permanence across the action boundary. Red-checked: 11
+of them fail with the beat list disabled. Full suite green with ZERO golden updates (combat byte-identity),
+plus a live pass in the real UI (throwaway run, real End Turn control): four source-attributed beats play,
+the Imp lands adjacent from the committed index, Speed Demon / Kennelmaster / Lastlight-via-Spots grants all
+land as permanent labeled buffs. Gates: typecheck ✅ lint 0 errors ✅ 6200 tests / 378 files ✅ build:web ✅
+harness deterministic ✅.
+
+## 2026-08-20 — shop-rally presentation: per-effect FX identities + summons land in their true slot
+
+Owner report on the live Lasting Cadence pass: mechanically right, but (1) "none of the minion animations
+fire, like echohorn, watcher effects" and (2) a rally-summoned Imp flashed into the RIGHT-MOST slot during the
+End-of-Turn animation, then corrected before combat.
+
+**(1)** `fireShopRally` dispatched every watcher's `onAttack` effect BARE, so everything a rally did collapsed
+under the rune's single outer beat with no per-effect identity — the compiled timeline had one beat per rally
+and zero nested beats, so the authored FX / watcher pulses had nothing to bind to. Each (watcher × effect)
+dispatch is now its own nested `withRecruitTrigger` sourced on the WATCHER with the same `factory:<do>:onAttack`
+identity combat uses; the outer rune beat became a plain scope so consequences emit exactly once. A new
+`discardIfEmpty` collector flag keeps a guarded-out no-op (the wrapper's own `minion !== self` filter) from
+leaving an empty beat that would falsely pulse a bystander.
+
+**(2)** `cardSummoned` carried no insertion index, so the UI projection could only APPEND the ghost while the
+committed state splices at `summoner + 1`. The index is now stamped from the committed board and honoured all
+the way down (`CardSummonedConsequence` → `ProjectedCardGrant` → `eotSummons` → `displayBoard` splice);
+index-less legacy batches still append.
+
+Live-verified through the real End Turn control: Paragon's medallion pulse fires mid-rally-beat, and the
+mid-animation board shows both summons adjacent to their summoners from the first frame, identical to the
+committed combat board (no snap-correction). Three new tests, each red on the pre-fix code. Gates: typecheck
+✅ lint 0 errors ✅ 6146 tests / 372 files ✅ build:web ✅.
+
+## 2026-08-20 — a SHOP Rally is a Rally TRIGGER (owner ruling)
+
+The Rally-family migration flagged that a shop rally (Rune of Lasting Cadence) did not advance the Rally quest
+tallies — no recruit-side channel existed. Owner ruling: "it should progress these."
+
+Wired via the exact pattern the codebase already uses for the other two trigger families: `fireShopRally` (the
+ONE chokepoint every shop rally passes through) bumps a transient `lastRallyFires`, and the reducer's per-action
+quest tick consumes it — the `lastShoutFires` / `lastEchoFires` pattern, zeroed per action beside them. It
+advances the `rally` objective (Overclocked Core), the Author's Hand rally half, and — for the same reason
+combat hooks everything at `bumpRally` — **Rune of the Herding Horn pays its free refresh on a shop rally
+too**: its combat comment promises it "counts exactly what the rally quest objective counts", and one
+definition of "a Rally" beats two drifting ones.
+
+Coverage: three end-to-end cases in `rallyDispatch.test.ts` driving the REAL `faceOmen` action (not a helper),
+verified RED without the wiring. Gates: typecheck ✅ lint 0 errors ✅ 6143 tests / 372 files ✅ build:web ✅.
+
+## 2026-08-20 — the RALLY FAMILY reaches the shop (Effect Arena Steps 3.4 + 4), and Rune of Lasting Cadence pays out where it reads
+
+**The whole Rally family is one implementation now.** 40 `onAttack` bodies (across 44 cards) moved out of
+`FACTORIES` and into `ARENA_EFFECTS`, joining the 60 Shout/Echo bodies already there — the arena ratchet floor
+goes 60 → 100. Every combat-side entry that used to hold a body is now a one-line delegation with only its
+PAYLOAD GUARD left behind (whose attack is this? an own-swing Rally checks `minion !== self`; an ally-attack
+watcher takes the attacker and threads it on as `params.attacker`, the same convention `summonBuffSelfTribe`
+uses for `arriver`). No duplicate survived the move — the one pre-existing hand-wired shop half
+(`rallySummonImpBuffImps`) was deleted rather than left to drift, which is the spec's actual bar for this work.
+
+**Permanence, stated per body.** Every buff is a plain `arena.buff` — temporary in combat (unchanged; that
+side is a pure refactor) and permanent in the shop, because a shop buff is permanent by definition. Where a
+card promises permanence in BOTH phases the body now says so explicitly rather than relying on which registry
+it happened to live in: Paragon's "permanently" is `buffPermanent`, Boulderdash/Blazer take the `permanent`
+flag on `playRubiesOn` (a real bug found on the way — the combat adapter's `playRubiesOn` was dropping the
+flag, so a migrated Boulderdash stopped carrying its Rubies home; the existing test caught it), and everything
+that moves a RUN channel — Ruby power, spell power, the Undead aura, the Staff-of-Guel shop enchant, the Imp
+aura, the Attachment enchant — goes through that channel in both phases.
+
+**Enemy-facing Rallies no-op by MEMBERSHIP, not by a phase check.** The arena grew `enemies()`, which returns
+the other side in combat and `[]` in the shop. Philippe's "deal its Attack to a random enemy" therefore
+returns on the guard it already had (`if (targets.length === 0) return`) BEFORE it draws, so it cannot even
+drift the run's shared RNG cursor; Tauntbreaker's keyword strip reads `params.target`, which only a real
+attack supplies. Neither is special-cased out of the dispatch — an allowlist is exactly the thing the arena
+exists to end — and both still count as ralliers.
+
+**Step 4: the shop-side dispatcher.** `canRallyInShop` / `ralliersOf` / `fireShopRally` / `fireRallies` are the
+recruit twins of combat's `canRally` / `fireFreeRally`, including the welded Better Bot / Perfect Core
+rallies. `fireShopRally` BROADCASTS the way a real attack does, so the ally-attack watchers — Paragon's
+"whenever you trigger a Rally", Hawkus, Mineral Master, Crypt Drake — answer a shop rally instead of the
+rallier's own effect firing into silence. `BoardCard` gained `grantedEffects` (the shop's answer to combat's
+per-instance `Minion.effects`), so Sunmane Herald's Rally really does graft itself onto the Beasts it feeds in
+the shop too; `attackSeen`/`bredCount` are scoped to one End-of-Turn pass and cleared after it, so Evolving
+Abomination gets its two doublings per turn rather than two per run.
+
+**Rune of Lasting Cadence is an End-of-Turn reward again** (`combatFlag` → `runeLastingCadence`), printing the
+owner's wording: "**End of Turn:** trigger **all** your **Rally** effects." The Start-of-Combat path in
+`simulate.ts` and the combat flag behind it are gone. Rune of Rallying is untouched.
+
+**One beat PER RALLY — the owner's actual requirement was time.** A batched payout would have compiled to one
+beat and resolved five rallies (five summons, five Ruby cascades, five stat climbs) inside a single animation
+window. `runeLastingCadenceBeats` is the single source shared by the commit (`applyEndOfTurn`), the legacy
+projection (`projectEndOfTurnSteps`) and the UI beat list (`questEndOfTurnBeats`), so the three can never
+disagree about how many windows there are. Each beat is sourced on the MINION whose Rally fires — so it
+pulses and its FX play — which meant `questEndOfTurnBeats` had to start carrying a `uid` (the first recurring
+reward that has a source card at all). Classified `ownBeat` in the policy registry under
+`rune:rune_lasting_cadence:endOfTurn`; the surface bucketing follows the reward kind, so the tripwire keeps
+itself honest with no hand-listing.
+
+Verified: `npm run typecheck` (pkgs + web), `npm run lint` (0 errors), full `npm test`, `npm run build:web`,
+`npm run harness` (combat determinism). New coverage in `packages/sim/src/rallyDispatch.test.ts` (20 tests:
+the gate, armed/unarmed, the graceful enemy-facing no-ops, per-pass counter scoping, N rallies → N beats, and
+the authoritative batch emitting one source-attributed `ownBeat` each) plus four compiler-level tests in
+`packages/ui/src/choreographer/realBatch.test.ts` proving the compiled TIMELINE grows with the rally count —
+the animation is genuinely allotted room, not merely enumerated. Combat behaviour is unchanged: the existing
+combat Rally tests are the guard and all stayed green.
+
+Follow-ups: a shop rally does not advance the combat-only Rally quest tallies (`playerRallies` is a
+`CombatResult` channel; there is no recruit-side equivalent) — an owner call, not a wiring gap. And a shop
+`rallyDoubleSelf` / `rallyTribeAuraGrowing` compounding permanently each turn is a real power question the
+rune now raises; flagged for balance, not changed here.
+
+## 2026-08-20 — 30 RUNES for the Aug-20 batch (the forge entries for the 16 rune-only minions)
+
+The other half of the batch above: twenty Basic runes and ten Epic ones, `RUNES.length` 121 → 141. Fifteen of
+them exist purely to hand over one of yesterday's forge-only bodies, so they are bare `grant` rewards and the
+Runeforge hover comes free. The other fifteen needed machinery — and the shape of this entry is which of them
+DIDN'T.
+
+**Three renames (owner decision).** "Rune of the Muster", "Rune of Living Geodes" and "Rune of Evolution" are
+already taken by three live, unrelated runes (`rune_muster`, `rune_living_geode`, `rune_evolution`), and
+`validateRunes` rejects a duplicate name inside a set. The new ones ship as **Rune of the Muster General**,
+**Rune of the Deepening Vein** and **Rune of the Abomination**; the existing three are untouched, and the test
+file pins both halves of each pair so a future rename can't quietly swap them.
+
+**Reuse first, and it went further than expected.** Eleven of the fifteen "get a X" runes are `grant`. Five
+more ride the **existing `runeThreshold` engine**, which now takes four small knobs rather than five new
+reward kinds: `grantCards` (the Deep Feast's "every 25 Gold, a Deepwater Chef" — a named body was the one
+payout the palette couldn't express), `castStatSpell` (the Gilded Ledger CASTS rather than grants, so spell
+power and every on-cast watcher see it), a `playDragon` meter (the Dragon's Pantry — "progress carries between
+turns" is just what a banked threshold already does), and `buff.target: 'tribe'` + `buff.step` (Compounding
+Wages' "give your Dwarves +1/+1 and improve this by +1/+1" — escalation as data). The x/N badge came free for
+all five, and the escalating one prints its CURRENT grant beside the meter per the live-value rule.
+
+**The every-2-turns cadence is ONE field, not three flags.** `recurringGrant` gained `everyTurns`; absent means
+every turn, which is what every existing user wants. NB it could not reuse `recurringEndOfTurn`'s `turns`,
+which means something else entirely (how many times before it stops) — overloading that name was the trap.
+Armed rewards land in a new `runeCadenceGrants` list beside the flat one, each carrying its own tick, so
+Clockwork Promotion, the Muckbroker and Rare Goods share one reader and each gets its own countdown badge.
+
+**Living Magic and Perfect Recall are one budget.** They are the same mechanism at 1 vs 2 uses per turn, so
+they ship as one parameterised reward (`runeSpellEcho { uses }`) writing into one shared `{ uses, used }`
+counter — holding both raises the ceiling to 3 rather than firing two independent budgets, the same rule the
+Mage-Pup teach cap uses. It rides `noteSpellCast`, so the `token` early-return there already keeps reward
+cards (Goldcrafter, Implosion, the Triple Reward) uncopyable, and `NO_COPY_SPELLS` covers the rest.
+
+**Rune of Shared Spoils rides `addBuff`.** "Whenever your left-most Dwarf gains stats" needed the one
+chokepoint every recruit-phase stat gain passes through — the same stateless hook Sable's Soulbind uses, with
+the same one-hop re-entrancy guard and the same "stamp from the post-clone draft" rule. Wiring it into the
+dozen sites that grant stats would have guaranteed missing one.
+
+**Five new combat flags, each on an existing dispatcher.** The Returning Pack counts Beast summons at the
+single `summonEntryEffects` chokepoint and pays through `grantRandomMinion` → `playerHandGrants`; Grave
+Refreshment counts Echo TRIGGERS at the `asEcho` chokepoint (so a forced Echo pays like a death) and banks
+through `ctx.grantFreeRolls` → `playerFreeRolls` — both carry-backs that already existed. Shifting Facets and
+the Deepening Vein are registrations on `runeAvenge`, reusing `gainRubyBonus` and `playRubyOn`. Lasting
+Cadence is Rune of Rallying's `fireFreeRally` block, board-wide instead of left-most-only.
+
+For both threshold flags the reward's `amount` is a THRESHOLD, not a magnitude, so a duplicate copy assigns
+rather than accumulates — two Returning Packs meaning "every 12 Beasts" would be strictly worse than one.
+
+**Shifting Facets carries a value, not a boolean.** "Avenge (3): improve your Rubies by +1 Health, alternating
+each turn" means the axis in force has to reach combat, so `QuestCombatMods.runeShiftingFacets` is
+`'attack' | 'health'`, derived from the parity of a turn-setup tick rather than separately stored — nothing can
+drift out of step with what the badge is advertising.
+
+**One judgement call, flagged.** The owner's sheet gave Lasting Cadence as "End of Turn: trigger ALL your Rally
+effects". There is no recruit-phase Rally dispatch in the engine — Rally is an `onAttack` COMBAT trigger, and
+firing `onAttack` through `RECRUIT_FACTORIES` would have found almost nothing implemented — so it fires at the
+very next moment instead, Start of Combat, and the printed text says so rather than promising a shop payout
+that could never render. Easy to move if the owner wants the literal wording.
+
+Verified: `packages/sim/src/runeBatchAug20.test.ts` (96 cases — pool membership + `epic` flag + cost for all
+30, every grant landing its body, every meter paying at its threshold and NOT before, the escalators
+escalating, the per-turn caps capping and refilling, and the three renames not displacing their namesakes),
+plus the existing rune audits: `runeWiringAudit` (every flag has a reader and is threaded into the mods),
+`runePreview` (every named card is on the hover), `presentationPolicies` (30 new registry entries, no ghosts)
+and `tallyCoverage` (every new meter has a badge or a documented exemption). `npm run typecheck`,
+`npm run lint`, `npm test` and `npm run build:web` all green.
+
+**Follow-ups:** owner balance pass on the 30 costs; art for the bodies they hand out (still pending from the
+minion batch).
+
+## 2026-08-20 — 16 RUNE-ONLY minions (the Runeforge batch)
+
+Owner add: sixteen new minions, every one of them **forge-only** — `token: true`, the `dw_baal` treatment, so
+they ride set 2's pool for resolution but can never appear in a shop roll, a conjure or a minion Discover.
+They live in their tribe's `cards/set2/` file (the Trooper goes with the tokens), so set 1's seeds are
+untouched.
+
+**The roster.** Deepwater Chef (N5 4/3, Shout: a random T1 + T3 + T5), Gem Sage (K4 3/7, every Ruby you get
+arrives doubled), Ancient Wanderer (N5 1/1, +1/+1 per 3 Gold spent this RUN), Clockwork Assistant (N4 3/3,
+Shout: Discover one tier above the Shop), Night Market Horror (D5 4/4, a buy pumps the current Shop row),
+Muckslinger (N4 5/5, Shout: a random Shout minion), Traveling Salesman (N4 4/4, sell → Discover among cards
+you hold exactly one of), Kegheart Dwarf (Dw4 4/5, +3/+3 per Dwarven Ale gained), Ninefold Broker (N6 9/9, a
+buy grants a same-tier Shop spell, nine times a run), Echo Mimic (N5 4/7, combat: each friendly death grafts
+that minion's Echo onto it), Muster General (N5 6/6, Avenge (3): an immediately-striking Trooper that improves
+permanently) with its **Trooper** token, Stonehorn Archivist (B5 6/6, every 2 turns copies your left-most HAND
+card), Skybound Ascendant (Dr5 5/7, EoT transforms its left neighbour one tier up), Evolving Abomination (N6
+6/6, ALL-type, Rally doubles its stats twice a combat) and Arcane Behemoth (D6 6/10, every 3 Shop spells
+Consumes the right-most Shop minion).
+
+**Four of them needed no new code at all.** Deepwater Chef is three `battlecryGainRandomMinion` rows with
+pinned tiers; Muckslinger and Clockwork Assistant each took a *param* on an existing primitive rather than a
+near-duplicate factory (`filter: 'shout'` on the conjure, `tierOffset` on the Discover — the latter clamped to
+the run's own ceiling via `hasTier7Access`, so a non-Summit board is promised Tier 6, not a Tier 7 it can never
+reach); the Trooper is data. Twelve new primitives cover the rest — nine recruit, three combat — and each was
+added only after the search for an existing one came up empty.
+
+**Ancient Wanderer is the interesting one.** "HAS +1/+1 for every 3 Gold you have spent this run" is not the
+`goldSpent`-threshold shape every other Gold card uses: a Wanderer bought on turn 12 is paid for the whole run
+*behind* it. So `goldSpentScaleSelf` is a **synced enchant** — `syncGoldSpentScalers` recomputes the target
+total from `RunState.goldSpent` and lands only the delta under one fixed buff source, called from the two
+moments the value can move (a Gold spend, and a body arriving via `onSummon`). Being a real stored buff means
+combat, snapshots and saves needed no new plumbing, and re-running the sync is a no-op. Its printed number is
+live on every surface per the hard rule: `goldSpentScalerValue` (sim) feeds `ancientWandererText` (UI), wired
+into both chains — `liveCardText`/`instView` for shop/board/hand/Discover/end screen, and `Unit.tsx` for
+combat — through a new run-lifetime `goldSpentRun` param (deliberately distinct from the per-turn `goldSpent`
+every other helper reads). Muster General's Trooper line and Arcane Behemoth's threshold got the same
+treatment, since both print numbers that move.
+
+**Recursion, charges and caps.** Gem Sage's duplicate is minted *silently* — a Ruby-gained reaction that
+itself gains a Ruby is the one shape here that can loop, so the extra copy does not re-open the `onGetRuby`
+round (it still fires `onGainCard`, so Gangplank sees it). Ninefold Broker's nine charges ride `buyTick`, an
+existing per-instance BoardCard field nothing else on that card touches, so they persist across combats and
+saves and a second Broker brings its own nine. Evolving Abomination's twice-per-combat cap rides `bredCount`,
+a combat-only `Minion` field that resets with each fresh body — no carry-back, no snapshot wiring. Its
+doubling compounds (6/6 → 12/12 → 24/24) and its gild raises the CAP rather than the multiplier.
+
+Per the 2026-08-20 ruling, Evolving Abomination sets `universalTribe` and lets the ALL pill speak — its text
+is the Rally and nothing else. **`onGainCard` now carries the arriving card's id**, which is what lets Kegheart
+filter for an Ale; the event previously said only "a card arrived".
+
+Verified: `packages/sim/src/runeMinionsAug20.test.ts` (55 cases — data shape + `token`/non-buyable for all 16,
+every effect firing, the per-run and per-combat caps holding, and Ancient Wanderer's live value at two
+different Gold totals) plus two new `instView.test.ts` cases pinning the actual UI text chain. Three set-2
+roster counts and the art-coverage sweep were updated for the new members; art is deliberately pending, so the
+batch sits in that test's explicit `ART_PENDING` list until it lands. `npm run typecheck`, `npm run lint`,
+`npm test` (5973 passing) and `npm run build:web` all green.
+
+**Follow-ups:** art for all 16; the Runeforge entries that actually hand them out; owner tuning pass on the
+stat lines and on Ancient Wanderer's 3-Gold step.
+
+## 2026-08-20 — "All types" cards print ALL, not Neutral; art for Arnold + the two new spells
+
+Owner report: "lab experiment, paragon, and standard bearer are 'all types' not neutral — their tribe pill
+should say 'All'."
+
+**The pill logic was already right; six projections dropped the flag.** An All-type card carries
+`tribe: 'neutral'` in DATA with `universalTribe: true` beside it, and `Card.tsx` prints ALL when the CardView
+says so — but the flag has to survive the trip. Six builders never passed it: the **Compendium**
+(`MinionBook.toView`), **Career**, **Leaderboard**, the **quest-** and **rune-reward previews**, and the
+sandbox editor. Recruit and `instView` did, which is why the board looked fine and the browsing surfaces did
+not.
+
+Rather than patch six call sites and let the seventh forget again, `Card` now DERIVES it:
+`card.universalTribe ?? CARD_INDEX[card.cardId]?.universalTribe`. Any projection — present or future — renders
+ALL by construction. The view still WINS when it sets the flag, which preserves the INSTANCE-level case
+(`allTribes`, an Anomaly-Reactor'd body no def knows about). The same derived value feeds `tribePlated`, so a
+plated All-type card can't fall back to a tribe plate either.
+
+Five cards are affected: **Lab Experiment**, **Paragon**, **Standard Bearer**, plus **Perfect Core** and
+**Chaos Attachment** (tokens the owner hadn't spotted, misreading the same way).
+
+**Follow-up the same day — ALL now sits on the PLATE GEM, where every other tribe prints.** The first pass
+made the label correct but left it in the wrong place: "★ All" rendered inside the text drawer while every
+neighbouring card printed its tribe on the plate's bottom diamond (owner: "why is the 'all' tribe not in the
+right spot?"). The cause was a `&& !universalTribe` exclusion on `tribePlated`, which existed ONLY because the
+gem printed `TRIBE_LABEL[card.tribe]` — reading NEUTRAL for exactly these cards. With the flag now derived,
+the gem prints **ALL** instead and the exclusion is obsolete, so an All-type card is plated like any other and
+its label sits where the eye already looks. Unplated surfaces keep the drawer pill, same as every tribe does.
+Verified live: Standard Bearer / Paragon / Lab Experiment read ALL on the gem with no drawer pill, while
+Gangplank, Arnold and Beardsley still read Dwarf / Dwarf / Beast — and Deepdelve Paragon (a different card
+whose name merely contains "Paragon") correctly stays Kobold.
+
+**…and the "Counts as all tribes." clause comes OUT of the rules text** (owner: it is assumed from the ALL
+pill). Seven strings across four cards — Paragon, Standard Bearer, Perfect Core, Chaos Attachment — each of
+which was spending a line of the text box restating what the pill now states. Their remaining text is just
+what they DO: "Rally: give a minion of each type +2/+3 permanently."
+
+**The Anomaly Reactor spell keeps its wording** and is exempt by design: it GRANTS the all-types state to a
+target rather than having it, and a spell has no tribe pill to say it on its behalf. A test pins both halves —
+no universal-tribe MINION may restate the clause, and the exemption is written down so the next sweep doesn't
+"tidy" the spell too.
+
+**Art wired**: `dw_arnold`, `summoningbulwark`, `mightofaeon` — the only live cards that were missing it. An
+audit of every card found just those three plus the Set-3 scaffold (`c3_*`, not shipped) and a test fixture.
+
+Coverage: a new `allTypesPill.test.ts` pins that the three named cards carry the flag and that EVERY
+universal-tribe card is `neutral` in data (which is exactly why the pill matters — Neutral implies the
+opposite of what the card does), plus an art-coverage test asserting no live card falls back to the tribe
+sprite. Verified live in the browser: all three read **All** and all three arts load, with the probe
+deliberately passing `tribe: 'neutral'` to prove the derivation rather than the input.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5915 tests / 369 files ✅ build:web ✅.
 ## 2026-08-20 — Buffs panel: new default geometry (owner tuning pass)
 
 Owner feel pass via the 🧪 Buffs Panel tuner. Updated `BuffDrawerConfig` DEFAULTS

@@ -372,7 +372,7 @@ export const NEUTRAL: CardDef[] = [
     // Gold less (handled in the reducer's spell-buy cost, via spellCostReduction). Golden → 2 less.
     id: 'lazarus',
     name: 'Lazarus',
-    tribe: 'neutral',
+    tribe: 'undead',
     tier: 4,
     attack: 5,
     health: 4,

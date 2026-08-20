@@ -1109,7 +1109,7 @@ export interface RunState {
   runeVaultkeeper?: boolean;
   // ── Aug-11 economy runes ──
   runeSellersMarket?: boolean;   // sell → board +4/+3
-  runeFreshPages?: boolean;      // Start of Turn: Discover a Shop spell
+  runeFreshPages?: boolean;      // Discover a Shop spell, repeated every Start of Turn
   runeStrangeCaravan?: boolean;  // Start of Turn: a random minion from an uncontrolled type
   runeWindowShopping?: boolean;  // first 3 Refreshes each turn are free
   runeOpenEnrollment?: boolean;  // after a Refresh, offer an extra dominant-type minion

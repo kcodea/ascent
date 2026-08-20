@@ -854,7 +854,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_fresh_pages',
     name: 'Rune of Fresh Pages',
     cost: 3,
-    text: '**Start of Turn:** Discover a **Shop Spell**.',
+    text: 'Discover a **Shop Spell**. Repeat at **Start of Turn**.',
     reward: { kind: 'runeFreshPages' },
   },
   {

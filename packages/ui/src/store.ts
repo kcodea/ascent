@@ -689,6 +689,21 @@ function warmLobbyDrivers(run: RunState): void {
  *  (combat carry-backs already baked in), with each minion enriched by the same live view the end screen shows
  *  — final Attack/Health incl. run-wide auras + the live, scaling rule text — so the static leaderboard/Career
  *  cards read the end-of-run magnitude rather than the printed base. Null for an empty board. */
+/**
+ * Stamp a snapshot minion with the card's NAME and TRIBE from the CAPTURING build's index.
+ *
+ * A stored board is read back by whatever build opens the Career/Leaderboard, which is not necessarily the one
+ * that wrote it (server-fetched history + two devs on divergent content branches). The writer always knows the
+ * card; the reader may not. Anything the reader would look up must therefore travel with the row — see
+ * `storedBoardView.ts`. Idempotent, and leaves a minion alone when the identity is already baked.
+ */
+function bakeIdentity(m: BoardMinion): BoardMinion {
+  if (m.name && m.tribe) return m;
+  const def = CARD_INDEX[m.cardId];
+  if (!def) return m; // nothing to add — the writer does not know it either (a token id, say)
+  return { ...m, ...(m.name ? {} : { name: def.name }), ...(m.tribe ? {} : { tribe: def.tribe }) };
+}
+
 function endStateBoard(run: RunState): BoardSnapshot | null {
   if (run.board.length === 0) return null;
   const snap = snapshotBoard(run);
@@ -702,6 +717,11 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
       health: view.health,
       ...(view.text ? { text: view.text } : {}),
       ...(view.goldenText ? { goldenText: view.goldenText } : {}),
+      // Bake the IDENTITY too, not just the rule text (2026-08-20). This snapshot is read back by whatever
+      // build opens the Career/Leaderboard — which is not necessarily the build that wrote it — so anything
+      // the reader would otherwise look up in its own CARD_INDEX has to travel with the row.
+      ...(view.name ? { name: view.name } : {}),
+      ...(view.tribe ? { tribe: view.tribe } : {}),
     };
   });
   snap.power = snap.minions.reduce((sum, m) => sum + m.attack + m.health, 0);
@@ -724,7 +744,9 @@ function combatStartBoard(run: RunState): BoardSnapshot | null {
   // append any SoC-summoned minions beyond the recruit board.
   const merged: BoardMinion[] = base.minions.map((m, i) => (soc[i] ? { ...m, attack: soc[i]!.attack, health: soc[i]!.health, keywords: soc[i]!.keywords } : m));
   for (let i = base.minions.length; i < soc.length; i++) merged.push(soc[i]!);
-  base.minions = merged;
+  // The appended SoC-summoned bodies come straight from combat, so they never passed through `endStateBoard`'s
+  // bake — stamp every minion here so a summoned body is as identifiable as a recruited one.
+  base.minions = merged.map(bakeIdentity);
   base.power = merged.reduce((sum, m) => sum + m.attack + m.health, 0);
   return base;
 }

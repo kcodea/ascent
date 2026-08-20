@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Fixed: stored boards showed raw card ids** — Career/Leaderboard history is server-fetched, so a board written by one build could be read by another that lacks the card, rendering `d2_transcendence` / NEUTRAL / no art. Snapshots now bake the card's name and tribe alongside its rule text, and an unidentifiable card reads as "Unknown Card" instead of leaking an internal id.
+
 - **Tutorial coaching pass** — every buy/play step now draws the drag it is asking for, steps that mention Health light it up, the Discover overlay is inside its own spotlight, and a hero-power reminder sits before every combat. Fixed: a positioning step that could be completed by clicking, a highlight that measured a card mid-animation, and the next step being readable below the board during combat. **Hero select** gained a difficulty pill under each portrait that crossfades to the hero-power text on hover.
 - **Play-mode screen repositioned** — the Play / Learn / Practice mode cards and the MODE title sit at the owner's tuned positions (cards re-seated vertically, title larger and lifted).
 

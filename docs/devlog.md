@@ -1,5 +1,57 @@
 # ASCENT — development log
 
+## 2026-08-20 — stored boards are now self-describing (Career/Leaderboard showed raw card ids + NEUTRAL)
+
+**Owner report:** Career boards rendering as `d2_transcendence`, tribe NEUTRAL, placeholder art — "why are these
+boards showing no art/wrong names?"
+
+**Diagnosis.** Career + Leaderboard history is fetched from the **SERVER** (`fetchRunHistory` → Supabase
+`run_history`; owner call 2026-08-03), and a stored board keeps only the `cardId`. Both screens resolved the
+card out of the **reader's** `CARD_INDEX` and fell through to `name: def?.name ?? m.cardId`, `tribe: … ??
+'neutral'`. Art is keyed by id against locally-bundled assets, so it missed identically → the placeholder.
+
+The fingerprint that identified it: the **rule text rendered correctly** (including the golden variant) beside a
+wrong name. `text`/`goldenText` were already baked into the snapshot at capture (`endStateBoard`), so correct
+text + wrong name can ONLY mean "the def is missing but the row is intact".
+
+Why the def goes missing: a row is written by one build and read by another. Two devs on divergent content
+branches share one database, and a packaged build lags the branch that played the run. Confirmed concretely —
+content on `main` is unchanged since 2026-08-19 (diffed `CARD_INDEX` across `b7eea10f`…`HEAD`: 448 ids both
+sides, **zero added, zero removed**), while the `content/rune-batch-2026-08-20` worktree carries **16 ids main
+does not have** (`b2_stonehorn`, `d2_ascendant`, `dm_behemoth`, `dm_nightmarket`, `dw_kegheart`, `k_gemsage`,
+`n2_abomination`, `n2_clockwork`, `n2_deepchef`, `n2_echomimic`, `n2_muckslinger`, `n2_muster`, `n2_ninefold`,
+`n2_salesman`, `n2_trooper`, `n2_wanderer`). Any run played there and synced renders as placeholders on `main`.
+
+**Fix — bake the identity, not just the text.** `BoardMinion` gains display-only `name` + `tribe`, stamped at
+capture beside `text`/`goldenText`. The rule this encodes: *anything the reader would otherwise look up in its
+own `CARD_INDEX` must travel with the row.* Resolution order is now **live def → baked value → placeholder**;
+the def is still preferred so a card this build DOES have picks up renames and re-tribes rather than freezing
+whatever an old row recorded.
+
+Also closed an adjacent hole: `combatStartBoard` appends **SoC-summoned** bodies straight from combat, which
+never passed through the bake — every minion is now stamped via a shared `bakeIdentity`, so a summoned body is
+as identifiable as a recruited one.
+
+**Extracted `storedBoardView.ts`.** `Career.tsx` and `Leaderboard.tsx` carried **byte-identical** copies of the
+resolver, which is precisely how one bug came to live in two places. One definition now, imported by both, with
+the read-back contract documented on it. A card that resolves to nothing at all (a row written before the bake,
+by a build we do not have) is labelled **"Unknown Card"** rather than leaking an internal id at the player.
+
+**What this does NOT fix, deliberately:** art. `artFor` is keyed by card id against locally-bundled assets, so a
+card this build does not ship still shows the placeholder illustration — which is honest, since the build
+genuinely has not got the picture. That is also why an unidentifiable card is labelled rather than left bare.
+Existing rows stay as they are; the bake only helps rows written from here on.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5970/5972 tests
+pass**. New `storedBoardView.test.ts` (9 cases) reproduces the build split directly — it asserts against a real
+divergent id (`n2_ninefold`, present on the rune branch, absent on main) and pins that the id never reaches the
+UI, that the live def still wins over a stale bake, and that a pre-bake row degrades to "Unknown Card" while
+still showing whatever it did manage to store.
+
+**Adjacent gap found while auditing (not fixed here):** 27 of 448 cards have no art — 23 are Set-3 Celestials
+(`c3_*`, not in play) plus `hm_test_squire` and two spells, but **Arnold (`dw_arnold`) is a live Set-2 card with
+no art wired**. Worth a pass; deliberately left out of this fix so the diff stays on the reported bug.
+
 ## 2026-08-20 — tutorial coaching pass, hero-select difficulty pill + tips, Indy recharge meter fix
 
 **Owner tutorial pass (16 items).** Step numbers below are the player-visible walk (foundation panels +

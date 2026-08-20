@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **The 16 rune-only minions now have their Runeforge entries — ART is what is left** (rune batch built
+  2026-08-20, see the devlog). The 30 runes that hand them out shipped, so every one of those bodies is
+  reachable in play. Remaining: (1) art for all 16 — they are the current contents of `ART_PENDING` in
+  `packages/ui/src/allTypesPill.test.ts`, and each id comes OUT of that list as its art lands; (2) an owner
+  balance pass on the 30 rune costs and on the minion stat lines (Ancient Wanderer's 3-Gold step in
+  particular), now that both halves are reachable together.
 
 - **Combat speed auto-ramp — SHIPPED 2026-08-18.** Each combat replay now holds at the Speed-slider value for
   an opening grace, eases up to a ceiling mid-fight, then eases back down for the finish (default ON, toggle
@@ -439,8 +445,29 @@ offsets in `styles.css`).
   - **Owner live-pass**: tune the placeholder `engrave`/`stealth` glyph art against the real board, and rule on
     whether trigger-multiplier auras (Sylus, Uron) and a few borderline reactive triggers deserve the eye.
 
-### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
-Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
+### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout + RALLY DONE)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md).
+
+**Progress 2026-08-20 — the RALLY family + its Step-4 dispatcher shipped, resumed on demand exactly as the
+park below says.** Its consumer is **Rune of Lasting Cadence**, which the owner wants to read "End of Turn:
+trigger all your Rally effects" and could not, because Rally is an `onAttack` COMBAT trigger with no recruit
+dispatch. 40 `onAttack` bodies migrated (ratchet floor 60 → 100, every combat duplicate deleted);
+`fireShopRally` / `fireRallies` are the shop dispatcher; each rally emits its own source-attributed beat so
+the choreographer allots it real animation time. Enemy-facing rallies no-op by MEMBERSHIP (`enemies()` is
+empty in the shop), not by a phase check. Details in the devlog.
+
+**Progress 2026-08-20 (later) — the START-OF-COMBAT family + its Step-4 dispatcher shipped**, on demand for
+**Rune of Combat Prowess** (Epic 5g: "Your Start of Combat effects also trigger at End of Turn"). 21
+`startOfCombat` bodies migrated (ratchet floor 100 → 121, every combat duplicate deleted);
+`fireShopStartOfCombat` / `fireStartOfCombats` dispatch per (body × effect) — SC has no watchers, so no
+broadcast — one source-attributed beat per effect, nested `factory:<do>:startOfCombat` identities for the
+authored FX, summon indices stamped. Enemy-facing bodies no-op by membership; combat-only channels (Bleed,
+extra combat casts, Engrave) no-op on the adapter verb. Details in the devlog.
+
+**Still unmigrated: End of Turn** (spec Step 3 item 4's last family) — same park
+rule: migrate when a card or rune actually needs the cross-phase dispatch, using the Rally family's motion.
+
+**Progress 2026-08-04 (PRs #865–#867, #871):**
 steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared
 arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
 `COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a

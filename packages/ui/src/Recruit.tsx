@@ -538,6 +538,9 @@ interface ShopViewOpts {
   fodderConsumed?: { attack: number; health: number };
   /** Gold spent this turn — Patch Job's live total. */
   goldSpent?: number;
+  /** Gold spent across the whole RUN — Ancient Wanderer's live "+A/+H" (a different meter from the per-turn
+   *  `goldSpent` above; the card names which one it means). */
+  goldSpentRun?: number;
   /** Rune of Pillaging's raised Gold Pouch payout — the pouch shows its live value. */
   goldPouchValue?: number;
   /** Card ids played this turn — Pack Leader / Spirit Worgen per-play scaling. */
@@ -577,7 +580,7 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     frontToBackBonus: run.frontToBackBonus + (run.fxEscalationPreview?.attack ?? 0),
     growthBonus: run.growthBonus,
     frontToBackBonusH: run.frontToBackBonusH + (run.fxEscalationPreview?.health ?? 0),
-    goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
+    goldSpent: run.goldSpentThisTurn, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
     squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn,
     lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
     firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
@@ -595,7 +598,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura, rubyCasts: o.rubyCasts,
-    goldSpent: o.goldSpent ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff, alesThisTurn: o.alesThisTurn,
+    goldSpent: o.goldSpent ?? 0, goldSpentRun: o.goldSpentRun ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff, alesThisTurn: o.alesThisTurn,
     lastSpellName: o.lastSpellName, firstSpellThisTurnName: o.firstSpellThisTurnName, lastSpellThisTurnName: o.lastSpellThisTurnName, topTribe: o.topTribe, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
   };
 }
@@ -1398,7 +1401,7 @@ export function Recruit() {
   const gambleHand = gambleHold ? run.hand.filter((c) => c.uid !== gambleHold) : run.hand;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
-  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string }[]>([]);
+  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
   // Keywords gained on board minions during End-of-Turn playback — overlaid so the pip shows on the beat.
   const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
@@ -2373,12 +2376,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth } }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.questFlags?.runeRebirth, run.impBuff],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -2391,13 +2394,18 @@ export function Recruit() {
       if (!add || add.size === 0 || [...add].every((k) => m.keywords.includes(k as Keyword))) return m;
       return { ...m, keywords: [...new Set([...m.keywords, ...add])] as Keyword[] };
     });
-    const synthetic: BoardCard[] = eotSummons
-      .filter((s) => !run.board.some((c) => c.uid === s.uid)) // once committed, the real card takes over
-      .map((s) => {
-        const def = CARD_INDEX[s.cardId];
-        return { uid: s.uid, cardId: s.cardId, tribe: def?.tribe ?? 'neutral', attack: def?.attack ?? 0, health: def?.health ?? 0, keywords: [...(def?.keywords ?? [])], golden: false } as BoardCard;
-      });
-    return [...withKw, ...synthetic];
+    // SPLICED at each summon's committed slot (an Imp arrives ADJACENT to its summoner) rather than appended —
+    // appending flashed every arrival right-most, then the commit "corrected" it (owner report 2026-08-20).
+    // Summons arrive in delivery order carrying their committed board index, so sequential splices reproduce
+    // the committed order; a summon without an index (legacy batch) still appends.
+    const out: BoardCard[] = [...withKw];
+    for (const s of eotSummons) {
+      if (run.board.some((c) => c.uid === s.uid)) continue; // once committed, the real card takes over
+      const def = CARD_INDEX[s.cardId];
+      const ghost = { uid: s.uid, cardId: s.cardId, tribe: def?.tribe ?? 'neutral', attack: def?.attack ?? 0, health: def?.health ?? 0, keywords: [...(def?.keywords ?? [])], golden: false } as BoardCard;
+      out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
+    }
+    return out;
   }, [run.board, eotSummons, eotKeywords]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -4442,7 +4450,7 @@ export function Recruit() {
         // Hand grants (conjures) preview in the hand; board summons (Moira re-firing a summoner) inject onto
         // the board — split by zone so a summon no longer wrongly shows as a hand card.
         setEotGrants(p.grantedCards.filter((g) => g.zone === 'hand').map((g) => g.cardId));
-        setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId })));
+        setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId, index: g.index })));
         setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
       },
       onComplete: () => {
@@ -4529,7 +4537,9 @@ export function Recruit() {
     // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
     // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
     for (const qb of questEndOfTurnBeats(run)) {
-      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
+      // `qb.uid` when the reward HAS a source card (Rune of Lasting Cadence: each beat is one minion's Rally,
+      // so the proc flourish + pulse belong on that minion). Sourceless rewards keep '' and descend.
+      beats.push({ uid: qb.uid ?? '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });
@@ -5773,7 +5783,7 @@ export function Recruit() {
                 const lt = liveCardText(c.id, {
                   ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
                   runeMammoth: !!run.questFlags?.runeMammoth,
-                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
                   maxTier: maxTierFor(run.rift),
                 });
                 return (

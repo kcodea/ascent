@@ -387,4 +387,23 @@ export const SET2_DRAGONS: CardDef[] = [
     text: '**Shout:** get a **Flutter**.',
     goldenText: '**Shout:** get **2 Flutters**.',
   },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // SKYBOUND ASCENDANT - a tier-up machine pointed at ONE slot, so the decision is who you seat to its left.
+    // Strange Revision's transform stepped a tier UP: the neighbour keeps whatever it had gained above its old
+    // base, so a heavily-buffed body is upgraded rather than reset. The ceiling is the RUN's own
+    // (`hasTier7Access`), so Tier 7 only appears on a Summit run; a neighbour already at the ceiling re-rolls
+    // there instead of doing nothing.
+    id: 'd2_ascendant',
+    name: 'Skybound Ascendant',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 7,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnTransformLeftTierUp' }],
+    text: '**End of Turn:** transform the minion to the **left** into a random minion **one Tier higher** (up to **Tier 7**).',
+    goldenText: '**End of Turn:** transform the **2 minions** to the **left** into random minions **one Tier higher** (up to **Tier 7**).',
+  },
 ];

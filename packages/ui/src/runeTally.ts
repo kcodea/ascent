@@ -34,6 +34,12 @@ const METER_SUFFIX: Record<string, string> = {
 export function runeTally(run: RunState, runeId: string): string | null {
   // Threshold runes (Gemspam, Spending, Action, …) — `sourceId` is stamped when the meter is armed.
   const t = run.runeThresholds?.find((x) => x.sourceId === runeId);
+  // RUNE OF COMPOUNDING WAGES (2026-08-20) escalates, so the countdown alone under-sells it: the badge names
+  // the SIZE of the next payout beside the meter. Read before the generic branch below, which would otherwise
+  // answer first with the bare `x/N`.
+  if (runeId === 'rune_compounding_wages' && t?.buff) {
+    return `${Math.min(t.tick, t.per)}/${t.per}g · +${t.buff.attack}/+${t.buff.health}`;
+  }
   if (t && t.per > 0) {
     // `oncePerTurn` runes that already paid out this turn read as full rather than as a fresh 0 — the meter
     // is banked, it just can't fire again until next turn.
@@ -108,6 +114,32 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_scale' && run.runeScale?.per) {
     return `${Math.min(run.runeScale.tick ?? 0, run.runeScale.per)}/${run.runeScale.per}g`;
   }
+  // ── the 2026-08-20 batch ────────────────────────────────────────────────────────────────────────────────
+  // The CADENCED grants (Clockwork Promotion / the Muckbroker / Rare Goods): turns until the next body. The
+  // meter lives in a LIST (several can be held), so it is matched on the rune that armed it, not by index.
+  const cadence = run.runeCadenceGrants?.find((g) => g.sourceId === runeId);
+  if (cadence) return `${Math.min(cadence.tick, cadence.everyTurns)}/${cadence.everyTurns} turns`;
+  // LIVING MAGIC / PERFECT RECALL share one budget, so the badge shows COPIES LEFT rather than an x/N —
+  // "1 left" is the number that decides whether your next cast pays.
+  if ((runeId === 'rune_living_magic' || runeId === 'rune_perfect_recall') && run.runeSpellEcho) {
+    return `${Math.max(0, run.runeSpellEcho.uses - run.runeSpellEcho.used)} left`;
+  }
+  // THE SEASONED LEDGER escalates: the live grant AND the countdown to the next step, per the live-text rule.
+  const ledger = run.runeSeasonedLedger;
+  if (runeId === 'rune_seasoned_ledger' && ledger) {
+    return `+${ledger.attack}/+${ledger.health} · ${ledger.played % ledger.per}/${ledger.per}`;
+  }
+  // ECHOED ARRIVAL: Echo minions played toward the next free Echo.
+  const arrival = run.runeEchoedArrival;
+  if (runeId === 'rune_echoed_arrival' && arrival) {
+    return `${arrival.tick % arrival.per}/${arrival.per}`;
+  }
+  // SHIFTING FACETS: no threshold in the shop — what the player cannot see is WHICH half the next Avenge
+  // improves, which flips every turn. Even ticks are the printed Health half. (Its Avenge cadence itself is
+  // covered by `runeCombatTally`, like every other Avenge rune.)
+  if (runeId === 'rune_shifting_facets' && run.questFlags?.runeShiftingFacets) {
+    return (run.runeShiftingFacetsTick ?? 0) % 2 === 0 ? '+1 Hp' : '+1 Atk';
+  }
   return null;
 }
 
@@ -131,6 +163,8 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_blood_and_coin: 5, rune_engraving: 3, // Blood and Coin: Avenge (5) — owner 2026-08-11; Engraving: Avenge (3)
   rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
   rune_beastial_swarm: 2, // Beastial Swarm: Avenge (2) — raises the per-death buff amount
+  // 2026-08-20 batch — both Avenge (3), both improving Rubies.
+  rune_shifting_facets: 3, rune_deepening_vein: 3,
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

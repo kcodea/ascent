@@ -30,18 +30,18 @@ describe('a card this build does NOT have (the reported bug)', () => {
   // An id from a divergent content branch. `n2_ninefold` is real on `content/rune-batch-2026-08-20` and
   // absent from main — exactly the class of row that produced the report.
   const foreign = () => minion({
-    cardId: 'n2_ninefold', name: 'Ninefold Chorus', tribe: 'dragon',
+    cardId: 'zz_divergent_probe', name: 'Ninefold Chorus', tribe: 'dragon',
     text: 'Some baked rule text.', attack: 57, health: 40, golden: true,
   });
 
   it('is not in this build — the premise of the test', () => {
-    expect(CARD_INDEX['n2_ninefold'], 'main gained this id; pick another divergent id').toBeUndefined();
+    expect(CARD_INDEX['zz_divergent_probe'], 'main gained this id; pick another divergent id').toBeUndefined();
   });
 
   it('renders its baked NAME, never the raw card id', () => {
     const v = storedCardView(foreign());
     expect(v.name).toBe('Ninefold Chorus');
-    expect(v.name, 'an internal id leaked into the UI').not.toBe('n2_ninefold');
+    expect(v.name, 'an internal id leaked into the UI').not.toBe('zz_divergent_probe');
   });
 
   it('renders its baked TRIBE, not a NEUTRAL fallback', () => {
@@ -63,7 +63,7 @@ describe('a card this build does NOT have (the reported bug)', () => {
 });
 
 describe('a row written BEFORE the identity bake shipped', () => {
-  const legacy = () => minion({ cardId: 'n2_ninefold', text: 'Baked text only.' });
+  const legacy = () => minion({ cardId: 'zz_divergent_probe', text: 'Baked text only.' });
 
   it('is labelled Unknown rather than showing its id', () => {
     expect(storedCardView(legacy()).name).toBe(UNKNOWN_CARD_NAME);

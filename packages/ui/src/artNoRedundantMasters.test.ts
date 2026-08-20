@@ -38,8 +38,11 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // here catches the trend long before a package is built and rejected. Raise it deliberately if the card
     // pool genuinely grows — but a jump of a hundred usually means un-optimized masters crept back in.
     const total = artDirs().reduce((n, d) => n + readdirSync(join(ART, d)).length, 0);
+    // Budget raised 960 → 985 on 2026-08-20: the 16 rune-only minions + Arnold + 2 spells + 24 rune arts
+    // landed. 985 keeps a real margin under the hard 1000 cap — next raise should force the conversation
+    // about splitting art out of the zip instead.
     // Budget raised 900 → 960 on 2026-08-18 as the Set 2 pool grew (Dragon batch + Hawkus/Spots art). Still a
     // ~40-file margin under itch's 1000 cap — a redundant-master regression would blow well past it.
-    expect(total, `art files: ${total} — itch's whole-zip cap is 1000`).toBeLessThan(960);
+    expect(total, `art files: ${total} — itch's whole-zip cap is 1000`).toBeLessThan(985);
   });
 });

@@ -29,6 +29,9 @@ export interface ProjectedCardGrant {
   zone: 'hand' | 'board';
   /** The consequence that produced it, so a presenter can anchor the arrival animation. */
   eventId: string;
+  /** Board summons only: the slot the minion was inserted at (from the emitted consequence), so the ghost
+   *  renders adjacent to its summoner during playback instead of appended right-most. Absent = append. */
+  index?: number;
 }
 
 export interface PresentationProjection {
@@ -127,9 +130,10 @@ export function applyConsequenceToProjection(
       };
     case 'cardSummoned':
       // A summon is a BOARD arrival — tagged so the UI shows it on the board, not in the hand preview.
+      // `index` rides through so the ghost renders in its committed slot (adjacent to its summoner).
       return {
         ...base,
-        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'board', eventId: c.id }],
+        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'board', eventId: c.id, ...(c.index !== undefined ? { index: c.index } : {}) }],
       };
     case 'cardDestroyed': {
       const gone = new Set(projection.destroyedUids);

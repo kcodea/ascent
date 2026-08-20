@@ -35,6 +35,11 @@ export interface PresentationCollector {
   endTrigger(handle: TriggerHandle): void;
   /** Run `fn` inside a trigger scope (auto-closes even if `fn` throws). */
   withTrigger<T>(spec: BeginTriggerSpec, fn: () => T): T;
+  /** Drop a just-CLOSED trigger that recorded nothing — no consequences, no child triggers. For dispatch
+   *  sites that must open a scope before the effect's own guard decides whether it does anything (the shop
+   *  rally broadcast: every board body is offered every rally, and an own-attack Rally no-ops on someone
+   *  else's swing). Without this, the batch carries empty beats that falsely pulse bystanders. */
+  discardIfEmpty(handle: TriggerHandle): void;
   /** Emit a consequence, attributed to the active trigger scope. */
   emit(draft: ConsequenceDraft): void;
   /** Advance the resolution step manually (for boundaries not tied to a trigger). */
@@ -53,6 +58,7 @@ export const NOOP_COLLECTOR: PresentationCollector = {
   beginTrigger: (spec) => ({ id: '', step: 0, source: spec.source }),
   endTrigger: () => {},
   withTrigger: (_spec, fn) => fn(),
+  discardIfEmpty: () => {},
   emit: () => {},
   nextStep: () => 0,
   currentStep: () => 0,
@@ -130,11 +136,20 @@ export function makeCollector(actionId: string, phase: PresentationPhase): Prese
     events.push(ev);
   };
 
+  const discardIfEmpty = (handle: TriggerHandle): void => {
+    // Anything recorded under it — a consequence or a child trigger — keeps it. Removing the event leaves a
+    // gap in the sequence/step numbering, which is fine: consumers order by the values, never by contiguity.
+    if (events.some((e) => e.parentId === handle.id)) return;
+    const i = events.findIndex((e) => e.id === handle.id);
+    if (i >= 0) events.splice(i, 1);
+  };
+
   return {
     enabled: true,
     beginTrigger,
     endTrigger,
     withTrigger,
+    discardIfEmpty,
     emit,
     nextStep: () => (step += 1),
     currentStep: () => step,

@@ -6,6 +6,7 @@ import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  ancientWandererText, behemothProgressText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
 
@@ -43,6 +44,11 @@ export interface LiveTextParams {
   squirlScoutBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
+  /** Gold spent across the WHOLE RUN (`RunState.goldSpent`) — Ancient Wanderer's "+1/+1 per 3 Gold spent this
+   *  run" prints the bonus it is actually carrying. Deliberately separate from `goldSpent` above, which is the
+   *  per-TURN meter every other helper here reads: the two say different things and a card names which it
+   *  means. Player-only in combat (an enemy snapshot carries no run), like the other run-scoped scalers. */
+  goldSpentRun?: number;
   /** Rune of Pillaging's raised Gold Pouch payout — the pouch's text shows its live value ("Gain 2 Gold."). */
   goldPouchValue?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
@@ -149,6 +155,9 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
+            ancientWandererText(c.id, p.goldSpentRun ?? 0, p.golden) ?? // Ancient Wanderer: the +A/+H it HAS right now
+            musterTrooperText(c.id, p.summonBonus ?? 0, p.golden) ?? // Muster General: the Trooper's live stat line
+            behemothProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // Arcane Behemoth: spells left until it eats
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
             castSpellPerGoldText(c.id, p.goldSpent ?? 0, p.golden) ?? // Rope Wrangler: live Lasso cast count
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
@@ -178,7 +187,16 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
   const impText = withImpStats(cardId, noted, p.impAura);
   const impGolden = notedGolden !== undefined ? withImpStats(cardId, notedGolden, p.impAura) : undefined;
-  return { text: impText + metric, goldenText: impGolden !== undefined ? impGolden + metric : undefined };
+  // RUNE OF REBIRTH (owner ask 2026-08-20): while the rune is held, every MINION card's text carries the word
+  // "Rebirth" in BLUE — the `[[…]]` marker (Card renders `.descrune`). Minions only (never spells/Rubies/the
+  // Discover token), on every surface this chain feeds: shop, board, hand, Discover, end screen AND combat
+  // (`Unit.tsx` calls this same function). Both variants carry it, appended after the metric so it reads as
+  // its own granted rule rather than part of the printed sentence.
+  const rebirthTag = p.runeFlags?.rebirth && !c.spell && !c.ruby && c.id !== 'discoverspell' ? ' [[Rebirth]]' : '';
+  return {
+    text: impText + metric + rebirthTag,
+    goldenText: impGolden !== undefined ? impGolden + metric + rebirthTag : undefined,
+  };
 }
 
 /**
@@ -204,7 +222,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -217,7 +235,7 @@ export function instView(
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast, rubyCasts: live?.rubyCasts,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs, impAura: live?.impAura,
-    goldSpent: live?.goldSpent ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,
+    goldSpent: live?.goldSpent ?? 0, goldSpentRun: live?.goldSpentRun ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
@@ -308,7 +326,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     {
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
       improveReps: run.runeMastery ? 2 : 1, impAura: run.impBuff,
-      goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue,
+      goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
@@ -316,7 +334,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
     },
   );
 }

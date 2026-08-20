@@ -359,15 +359,24 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'runeThreshold': {
-      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume' };
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', playDragon: 'Dragons you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume' };
       const parts: string[] = [];
       if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
       if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
       if (r.grantRuby) parts.push(r.grantRuby === 1 ? 'get a Ruby' : `get ${r.grantRuby} Rubies`);
+      for (const id of r.grantCards ?? []) parts.push(`get a ${CARD_INDEX[id]?.name ?? id}`);
+      if (r.castStatSpell) parts.push(r.castStatSpell === 1 ? 'cast a random stat-granting Shop spell' : `cast ${r.castStatSpell} random stat-granting Shop spells`);
       if (r.grantGoldNextTurn) parts.push(`gain ${r.grantGoldNextTurn} Gold next turn`);
       if (r.buff) {
-        const who = r.buff.target === 'imps' ? 'your Imps' : r.buff.target === 'shop' ? 'minions in the Shop' : 'the right-most minion in the Shop';
-        parts.push(`give ${who} ${statPhrase(r.buff.attack, r.buff.health)}`);
+        const b = r.buff;
+        const who = b.target === 'imps' ? 'your Imps'
+          : b.target === 'shop' || b.target === 'shopTurn' ? 'minions in the Shop'
+          : b.target === 'spells' ? 'your spells'
+          : b.target === 'tribe' ? `your ${b.tribe ? TRIBE_PLURAL[b.tribe] : 'minions'}`
+          : 'the right-most minion in the Shop';
+        // `step` escalates, so the printed rule has to name the improvement as well as the current grant —
+        // the live-accuracy rule, applied to the generated text too.
+        parts.push(`give ${who} ${statPhrase(b.attack, b.health)}${b.step ? ` and improve this by ${statPhrase(b.step.attack, b.step.health)}` : ''}`);
       }
       return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
     }

@@ -1,5 +1,63 @@
 # ASCENT — development log
 
+## 2026-08-20 — the six live-pass rulings: Grim's membership, Twilight stacks, Elderhorn in the shop, rune SoC replays, blue Rebirth, Sunmane combat-only
+
+Six owner rulings from the live Rune of Combat Prowess + Lasting Cadence pass, plus the establishing
+principle behind two of them: **a trigger MULTIPLIER follows the trigger to whatever phase it fires in.**
+
+**1. Grim buffs itself from a shop-fired Echo (root cause: hand-written shop membership).** Combat's
+`deathrattleBuffTribe` buffs `ctx.living(side)` — a proc'd-not-dead Grim included — while the recruit-side
+copy excluded `c !== self`. Fixed by MIGRATING the body into `ARENA_EFFECTS` (ratchet floor 121 → 122, the
+`tribes`-plural Mushy path preserved): membership is `friends()`, which includes a living self in both
+phases; a genuinely dying shop Grim is already off the board before its rattle fires (every shop death path
+splices first), so it still never self-buffs posthumously. Combat is a pure delegation — zero golden churn.
+
+**2. Rune of Twilight (and Uron) STACK with Combat Prowess (owner reversal of the ship ruling).** The count
+lives in one place now: `socTwilightExtraFires` (core) is consulted by BOTH combat's extra-SC pass (the `if`
+became a count loop — byte-identical events) and `runeCombatProwessBeats`, which multiplies each card SoC
+effect by (1 + Twilight + Uron-via-`extraTriggerFires`) per Chronos repeat — each fire its own beat.
+
+**3. The Echo-multiplier set follows the trigger into the shop.** `foldEchoExtraFires` (core) is THE fold:
+combat's `playerEchoExtras` and the shop's `fireRecruitDeathrattles` both feed it Sylus/Uron (card data),
+**Elderhorn's Beast Ritual** (tribe-gated), **Funeral Engine's** `echoExtraAlways`, and the **first-Echo
+bonus** (Grave Contract / Last Rites / Catacomb) — shop scope = first shop Echo each TURN (transient
+`echoFirstUsedThisTurn`, reset at wave open), independent of combat's per-fight pool. Every extra fire pays
+`lastEchoFires` + the Grim tally exactly like combat's. (Flagged: Catacomb's printed "in combat" is now
+narrower than what it does; and the RALLY multiplier set — Law of Teeth, Infinite Assembly, Spark Permit,
+Elderhorn's Hunt — was deliberately NOT brought along, pending an owner call.)
+
+**4. Combat Prowess replays RUNE/QUEST Start-of-Combat effects.** `socRuneReplaysOf` (recruit.ts) — THE
+single list shared by `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats` — replays ~19 of
+the run-level SoC blocks with shop semantics (permanent grants, seeded RNG, one beat per replay sourced on
+the owning rune/quest badge, `discardIfEmpty`). Combat-only, each documented in the list header: Weaken
+(enemy-facing), Food Chain, Spellhide, Crucible, Empty Graves, First Claws / Forthcoming's attack half /
+Shared Circuit's break-transfer / Reclaimer + Closed Casket. **COMPOUNDING flagged for balance review**:
+Warding (health ×3/turn), Sylus (×2/turn), Underdog + Stoked Menagerie (doubling), Umbral Energy + United
+Front (growing scalar), Five Banners, Tempered Time, Possession, Rulebreaker's Crown — all permanent, every
+turn, per the owner's "all" ruling.
+
+**5. Rune of Rebirth prints blue "Rebirth" on every minion.** New `[[…]]` markup token → `.descrune` (blue,
+static color) beside the green `{{…}}` / gold `((…))`; appended in `liveCardText` (minions only, both
+variants), so every surface — shop/board/hand/Discover/end screen AND combat `Unit.tsx` — carries it while
+the rune is held. The Recruit `live` memo's dep array gained `questFlags?.runeRebirth` (the tag stayed stale
+without it — caught live).
+
+**6. Sunmane Herald is combat-only.** New data-level `EffectDef.combatOnly` (types + schema): the shop
+dispatchers skip such effects entirely — `canRallyInShop` no longer counts it as a rally, `fireShopRally`'s
+watcher loop and `socBoardEffects` skip it, and the viral graft carries the flag too. Text now reads
+"…and this **Rally**, **only in combat**." Under Lasting Cadence a Sunmane board ends the turn finitely with
+zero rally fires, zero grafts, zero spread — verified live and by test.
+
+**Verification.** `prowessCadenceFixes20260820.test.ts` (26 tests: both Grim phases incl. the owner's exact
+Spots-under-Prowess scenario end-to-end through `faceOmen`; Twilight/Uron counts + real double-fires;
+all four Echo multipliers + the per-turn first-Echo consumption; Warding/Warden/Underdog/Herald replays,
+beat labels, no-Prowess and combat-only negatives; the dead Sunmane loop over three turns + combat
+untouched) + `rebirthTag.test.ts` (4 tests). Live in the real UI (throwaway run, real End Turn control):
+Grim 7/1 → 15/9 carrying its own "Grim +8/+8"; blue "Rebirth" rendered rgb(47,111,208) on the card;
+Warding's replay tripled the rightmost (2/3 → 2/9 + Ward, badge proc'd); the Sunmane board resolved
+instantly with nothing moved. Gates: typecheck (pkgs + web) ✅ lint 0 errors ✅ 6250 tests / 382 files ✅
+build:web ✅ harness deterministic ✅ — ZERO combat golden updates (both #2/#3 are shop-side additions).
+
 ## 2026-08-20 — Rune of Combat Prowess: the START-OF-COMBAT family migrates + the second cross-phase dispatcher
 
 **Rune of Combat Prowess** (Epic, 5 Gold): *"Your Start of Combat effects also trigger at End of Turn."* The

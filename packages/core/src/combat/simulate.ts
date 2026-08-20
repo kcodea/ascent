@@ -16,7 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
+import { ALE_IDS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, SILENT_ONPLAY } from '../effects/factories';
@@ -1701,20 +1701,21 @@ export function simulate(
   // the fight. Enemy echoes only see Sylus (quest mods are player-only). Consumes the first-echo bonus (once per
   // combat), so call ONLY for a minion that actually has a Deathrattle.
   function playerEchoExtras(minion: Minion): number {
-    let bonus = 0;
-    // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
-    // hardcoded id, so a new multiplier is a card field and not another branch in this function.
-    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    // Sylus (stacking) + Uron (best-copy) — resolved from card DATA rather than a hardcoded id, so a new
+    // multiplier is a card field and not another branch in this function.
+    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
-    if (isTribeOf(minion, 'beast', cards)) {
-      bonus += (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
-        + beastExtraGain[minion.side].ritual; // a mid-fight Elderhorn re-fire counts from now on
-    }
+    const beastRitualExtra = isTribeOf(minion, 'beast', cards)
+      ? (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
+        + beastExtraGain[minion.side].ritual // a mid-fight Elderhorn re-fire counts from now on
+      : 0;
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
-    bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
-    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); bonus += first; firstEchoDone[minion.side] = true; }
-    return bonus;
+    let firstEchoBonus = 0;
+    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); firstEchoBonus = first; firstEchoDone[minion.side] = true; }
+    // The SAME fold the recruit-side Echo path uses (`fireRecruitDeathrattles`) — one definition of the
+    // Echo-multiplier set across both phases (owner principle 2026-08-20).
+    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus });
   }
 
   // How many EXTRA times a player minion's Rally (on-attack effects) fires beyond the base trigger — every
@@ -2888,9 +2889,13 @@ export function simulate(
         });
       }
     }
-    // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — a second SoC pass for this board.
-    if (rmods.runeTwilight) {
-      let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
+    // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — extra SoC pass(es) for this
+    // board. The pass count comes from `socTwilightExtraFires`, THE shared definition the shop End-of-Turn
+    // replay (Rune of Combat Prowess) also consults — owner reversal 2026-08-20: the two runes STACK, so the
+    // count must have one home. One extra pass today; the loop keeps this byte-identical while letting the
+    // definition grow.
+    let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
+    for (let twPass = 0; twPass < socTwilightExtraFires(rmods); twPass++) {
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0) continue;
         for (const effect of minion.effects) {

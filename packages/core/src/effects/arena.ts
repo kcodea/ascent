@@ -515,6 +515,42 @@ export const ARENA_EFFECTS = {
     }
   },
 
+  /** Grim / Mushy — Echo: buff all living friends of `tribe` (+atk/+hp, golden doubles) and register a
+   *  rest-of-combat aura at that magnitude ("wherever they are" — bodies summoned later inherit it; the shop
+   *  adapter's `addTribeAura` is a documented no-op, since every shop gain is already permanent and the shop
+   *  summons nothing later). `tribes` (plural) buffs SEVERAL tribes in one pass — Mushy's "Beasts & Dragons" —
+   *  as one aura per tribe, with each dual-type body buffed ONCE.
+   *
+   *  MEMBERSHIP is `friends()`, which INCLUDES a still-living self: a Grim whose Echo is proc'd WITHOUT dying
+   *  (Spots, Echohorn, Rune of the Herald — or the same procs replayed at End of Turn under Rune of Combat
+   *  Prowess / Lasting Cadence) is a living Beast and gains its own buff, in BOTH phases (owner report
+   *  2026-08-20: the hand-written shop half excluded `self`, so a shop-proc'd Grim buffed everyone but
+   *  itself). A Grim that actually DIED is already out of `friends()` in either phase — combat filters the
+   *  dead, and every shop death path removes the body from the board before its rattle fires. */
+  // ── ARENA-MIGRATED (2026-08-20): one body in arena.ts serves both phases.
+  deathrattleBuffTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = gold(arena);
+    const a = num(params.attack) * g;
+    const h = num(params.health) * g;
+    const many = Array.isArray(params.tribes) ? (params.tribes as string[]) : null;
+    if (many) {
+      const hit = new Set<ArenaBody>();
+      for (const t of many) {
+        arena.addTribeAura(t, a, h);
+        for (const f of arena.friends()) {
+          if (arena.isTribe(f, t) && !hit.has(f)) hit.add(f);
+        }
+      }
+      for (const f of hit) arena.buff(f, a, h);
+      return;
+    }
+    const tribe = str(params.tribe) || 'any';
+    arena.addTribeAura(tribe, a, h);
+    for (const f of arena.friends()) {
+      if (tribe === 'any' || arena.isTribe(f, tribe)) arena.buff(f, a, h);
+    }
+  },
+
   /** Echo: permanently buff every copy of a card type, run-wide (golden doubles). `cardId` defaults to
    *  the dying minion's own type. */
   deathrattleBuffCardTypeRunWide(arena: EffectArena, params: Record<string, unknown>): void {
@@ -1222,7 +1258,9 @@ export const ARENA_EFFECTS = {
     const tribe = str(params.tribe) || 'beast';
     const value = num(params.attack, 0) * gold(arena) + (arena.self.rallySpreadAtk ?? 0);
     if (value <= 0) return;
-    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}), attack: 0 } };
+    // `combatOnly` rides the graft too (owner ruling 2026-08-20): a carrier's spread-Rally is as shop-inert
+    // as the printed Sunmane one — the loop this scopes out must not re-enter through a grafted copy.
+    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}), attack: 0 }, combatOnly: true };
     for (const m of arena.friends()) {
       if (m.uid === arena.self.uid || !arena.isTribe(m, tribe)) continue; // never the attacker — see above
       arena.buff(m, value, 0);

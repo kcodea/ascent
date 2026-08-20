@@ -846,35 +846,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.summonBuffSelfTribe(combatArena(ctx, self), { ...params, arriver: minion });
   },
 
-  /** Deathrattle: buff all living friends of `tribe` (+atk/+hp). */
+  /** Deathrattle: buff all living friends of `tribe` (+atk/+hp) — Grim / Mushy. Membership (a living,
+   *  proc'd-not-dead body buffs ITSELF too) is the arena body's contract, shared with the shop. */
+  // ── ARENA-MIGRATED (2026-08-20): one body in arena.ts serves both phases.
   deathrattleBuffTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    // `tribes` (plural) buffs SEVERAL tribes in one pass — Mushy's "Beasts & Dragons". Done as one
-    // aura per tribe rather than two copies of this effect on the card, so a Beast/Dragon dual-type is buffed
-    // ONCE rather than twice. Falls back to the single `tribe` param every other card uses.
-    const many = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : null;
-    if (many) {
-      const a = num(params.attack) * mul(self);
-      const h = num(params.health) * mul(self);
-      const hit = new Set<Minion>();
-      for (const t of many) {
-        ctx.addTribeAura(self.side, t, a, h, self.uid);
-        for (const m of ctx.living(self.side)) {
-          if ((m.tribe === t || m.tribe2 === t || ctx.getCard(m.cardId)?.universalTribe) && !hit.has(m)) hit.add(m);
-        }
-      }
-      for (const m of hit) ctx.buff(m, a, h, self.uid);
-      return;
-    }
-    const tribe = str(params.tribe) as Tribe | 'any';
-    const attack = num(params.attack) * mul(self);
-    const health = num(params.health) * mul(self);
-    // "For the rest of combat": register a persistent aura so friends summoned *after* this gain it too…
-    ctx.addTribeAura(self.side, tribe, attack, health, self.uid);
-    // …then buff the friends already on the board.
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, attack, health, self.uid);
-    }
+    ARENA_EFFECTS.deathrattleBuffTribe(combatArena(ctx, self), params);
   },
 
   /** Wolvie (owner add 2026-08-12) — Echo: queue a one-shot buff for the NEXT `tribe` minion you summon this

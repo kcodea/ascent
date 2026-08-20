@@ -223,6 +223,10 @@ export const mdBold = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
 /** A ((…)) marker → a gold "temporary" span, parentheses kept visible (next-combat spell grants). */
 const descTemp = (s: string): string => s.replace(/\(\((.+?)\)\)/g, '<span class="desctemp">($1)</span>');
+/** A [[…]] marker → a BLUE "rune-granted" span (Rune of Rebirth's "Rebirth" on every minion, owner ask
+ *  2026-08-20). Blue, not green: green means "a modified value of this card's own rule"; blue is a rule a
+ *  held rune ADDS to the card. */
+const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class="descrune">$1</span>');
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
@@ -618,7 +622,7 @@ export const Card = memo(function Card({
   // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
   // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
   // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
-  const rulesHtml = useMemo(() => descTemp(descUp(mdBold(shownText))), [shownText]);
+  const rulesHtml = useMemo(() => descRune(descTemp(descUp(mdBold(shownText)))), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
   const mechIcon = resolveMechIcon(card);

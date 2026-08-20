@@ -76,6 +76,33 @@ export function extraTriggerFires(
   return summed + best;
 }
 
+/**
+ * Rune of Twilight's extra Start-of-Combat passes — how many ADDITIONAL times each Start-of-Combat effect
+ * fires beyond the base (+ Uron's card-data multiplier, which `extraTriggerFires` owns). THE single
+ * definition consulted by BOTH the combat SC pass in `simulate` and the shop End-of-Turn replay under Rune
+ * of Combat Prowess (owner reversal 2026-08-20: the two runes STACK — a trigger multiplier follows the
+ * trigger to whatever phase it fires in), so the two counts can never drift.
+ */
+export function socTwilightExtraFires(mods: { runeTwilight?: boolean } | undefined): number {
+  return mods?.runeTwilight ? 1 : 0;
+}
+
+/**
+ * THE Echo-multiplier set (owner principle 2026-08-20: trigger multipliers follow the trigger to whatever
+ * phase it fires in). Both phases fold the SAME inputs additively — combat's `playerEchoExtras` and the
+ * recruit-side `fireRecruitDeathrattles` each gather their phase's values and call this, so "how many extra
+ * times does an Echo fire" has ONE definition:
+ *   - `reaperExtras`  — Sylus (stacking) + Uron (best copy), from card data via `extraTriggerFires`;
+ *   - `beastRitualExtra` — Elderhorn's Beast Ritual, for a BEAST echo only (caller gates the tribe);
+ *   - `echoExtraAlways`  — Funeral Engine's permanent extra trigger;
+ *   - `firstEchoBonus`   — Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, already
+ *      gated + consumed by the caller for its own scope (per combat in a fight, per turn in the shop).
+ */
+export interface EchoExtraFireInputs { reaperExtras: number; beastRitualExtra: number; echoExtraAlways: number; firstEchoBonus: number }
+export function foldEchoExtraFires(i: EchoExtraFireInputs): number {
+  return i.reaperExtras + i.beastRitualExtra + i.echoExtraAlways + i.firstEchoBonus;
+}
+
 /** Shop tiers. 7 exists ONLY under the Summit rift — see `maxTierFor` in @game/sim, which is the
  *  single gate on whether a run can ever reach it. */
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -630,6 +657,15 @@ export interface EffectDef {
    * branch — which is the whole reason the gate lives on the effect instead of on a pair of card fields.
    */
   align?: 'dawn' | 'dusk';
+  /**
+   * COMBAT-ONLY gate (owner ruling 2026-08-20, Sunmane Herald): this effect fires in COMBAT only — the shop
+   * dispatchers (`fireShopRally` / `socBoardEffects`) skip it entirely, so it never gets an End-of-Turn beat
+   * and never counts as "a Rally/SoC to trigger" in the shop. Data-level, not a phase check inside a body:
+   * Sunmane's viral Rally graft loops unboundedly under Rune of Lasting Cadence (every grant mints new
+   * permanent ralliers), so the card is scoped out of the shop at the definition. Absent = fires in both
+   * phases, so every existing card is unaffected.
+   */
+  combatOnly?: boolean;
 }
 
 /** Does an effect gated on `align` fire for a minion currently holding `have`? Eclipse counts as both sides;

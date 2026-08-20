@@ -3823,6 +3823,7 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  s.echoFirstUsedThisTurn = false; // Grave Contract's first-SHOP-Echo bonus re-arms each turn (see state.ts)
   // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
   // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back
   // to hand and replayed, and a stale count would eat its first proc next turn.

@@ -167,7 +167,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 121; // 60 (Shout/Echo) + 40 Rally + the START-OF-COMBAT family: 21 bodies, Step 3 item 4
+  const MIGRATED_FLOOR = 122; // 60 (Shout/Echo) + 40 Rally + 21 SoC (Step 3 item 4) + deathrattleBuffTribe (Grim membership fix, 2026-08-20)
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

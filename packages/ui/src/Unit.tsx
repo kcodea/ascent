@@ -104,7 +104,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         runeMammoth: foe ? undefined : !!run.questFlags?.runeMammoth,
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

@@ -65,11 +65,15 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 } }],
+    // COMBAT-ONLY (owner ruling 2026-08-20): a shop-fired Sunmane under Rune of Lasting Cadence loops the
+    // game away — every grant mints new PERMANENT ralliers that rally again next End of Turn, compounding
+    // without bound. `combatOnly` scopes the effect out of the shop dispatch at the data level (it is not a
+    // rallier in the shop at all — no beat, no rally tally, no graft).
+    effects: [{ on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe: 'beast', attack: 3 }, combatOnly: true }],
     // The plain wording is the ACCURATE one: nothing doubles anything, the growth is just the buff compounding
     // as it spreads (owner 2026-07-25). The live value is folded in by `rallySpreadText` on the combat card.
-    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**.',
-    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**.',
+    text: '**Rally:** give your Beasts **+3 Attack** and this **Rally**, **only in combat**.',
+    goldenText: '**Rally:** give your Beasts **+6 Attack** and this **Rally**, **only in combat**.',
   },
   {
     // A summon payoff: everything you summon mid-fight lands bigger. Reworked 2026-07-25 (owner) from a flat

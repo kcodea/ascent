@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { CARD_INDEX, recurringEotOwner } from '@game/content';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -1871,16 +1871,34 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
-  // Sylus (stacking) + Uron (best-copy), from card data. The dying minion is excluded — a Sylus that is
-  // itself the one dying doesn't re-fire its own Echo.
+  // THE Echo-multiplier set, unified with combat (`playerEchoExtras`) through `foldEchoExtraFires` — owner
+  // principle 2026-08-20: trigger multipliers follow the trigger to whatever phase it fires in. A shop Echo
+  // now fires extra times for:
+  //   - Sylus (stacking) + Uron (best copy), from card data. The dying minion is excluded — a Sylus that is
+  //     itself the one dying doesn't re-fire its own Echo (already the shop rule; combat filters the dead).
+  //   - Elderhorn's Beast Ritual (`beastRitualExtra`) — a BEAST Echo only, matching combat's tribe gate.
+  //   - Funeral Engine's permanent `echoExtraAlways`.
+  //   - Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, scoped to the FIRST shop Echo
+  //     each TURN (the shop analogue of combat's per-fight `firstEchoDone`; the two pools are independent —
+  //     combat still pays its own first Echo of every fight).
   const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
-  for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
+  const beastRitualExtra = isTribe(minion, 'beast') ? ctx.state.beastRitualExtra ?? 0 : 0;
+  let firstEchoBonus = 0;
+  if (hasDR && (ctx.state.echoFirstEachCombat ?? 0) > 0 && !ctx.state.echoFirstUsedThisTurn) {
+    ctx.state.echoFirstUsedThisTurn = true;
+    firstEchoBonus = ctx.state.echoFirstEachCombat ?? 0;
+    procRuneId(ctx.state, 'rune_catacomb'); // pulse the badge, as combat's fireTrigger('runeCatacomb') does
+  }
+  const extra = hasDR
+    ? foldEchoExtraFires({ reaperExtras: reaper, beastRitualExtra, echoExtraAlways: ctx.state.echoExtraAlways ?? 0, firstEchoBonus })
+    : 0;
+  for (let r = 0; r < extra; r++) fireOnce(); // re-fires read the same tally (value at death)
   if (hasDR) {
-    ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
-    // Record the Echo triggers (base + Sylus re-fires) so the reducer's `deathrattle` quest tick counts this
+    ctx.state.deathrattlesTriggered += extra; // …then the extra triggers count for the quest/Grim tally
+    // Record the Echo triggers (base + every extra fire) so the reducer's `deathrattle` quest tick counts this
     // out-of-combat Echo like a combat one (Grave Contract / Ossuary Rite / Author's Hand, …). Accumulates across
     // multiple fires in one action (e.g. several Gravetwins on turn-open).
-    ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + reaper;
+    ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + extra;
   }
 }
 
@@ -4545,16 +4563,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleBuffAll(shopArena(ctx.state, self), params);
   },
 
-  /** Deathrattle: buff all friends of `tribe` (+atk/+hp). */
+  /** Deathrattle: buff all friends of `tribe` (+atk/+hp) — Grim / Mushy. A LIVING self is a member too:
+   *  the hand-written shop half excluded `c !== self`, so a Grim proc'd without dying (Spots at End of Turn
+   *  under Rune of Combat Prowess, a rally-proc'd Echo under Lasting Cadence) buffed every Beast but itself,
+   *  disagreeing with combat (owner report 2026-08-20). A genuinely dying Grim is off the board before its
+   *  rattle fires (every shop death path splices first), so it still never buffs a corpse. */
+  // ── ARENA-MIGRATED (2026-08-20): one body in arena.ts serves both phases.
   deathrattleBuffTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    const a = num(params.attack) * gold(self);
-    const h = num(params.health) * gold(self);
-    for (const c of ctx.state.board) {
-      if (c !== self && (tribe === 'any' || isTribe(c, tribe as Tribe))) {
-        addBuff(c, nameOf(self), a, h);
-      }
-    }
+    ARENA_EFFECTS.deathrattleBuffTribe(shopArena(ctx.state, self), params);
   },
 
   /** Deathrattle: buff the carry (+atk/+hp) — "random" friend out of combat. */
@@ -8244,7 +8260,9 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
  * they answer a swing, instead of the rallier's own effect firing into silence.
  */
 export function canRallyInShop(card: BoardCard): boolean {
-  return (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack'))
+  // `combatOnly` (Sunmane Herald): an effect scoped out of the shop is not "a Rally to trigger" here at all —
+  // no beat, no rally tally (owner ruling 2026-08-20; its viral graft loops under Lasting Cadence).
+  return (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack' && !e.combatOnly))
     || (card.rallyMechAtk ?? 0) > 0 || (card.rallySpellWeld ?? 0) > 0;
 }
 
@@ -8267,11 +8285,12 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
   // gameplay is byte-identical.
   const rallySource = (m: BoardCard): TriggerSourceRef =>
     ({ kind: 'minion', id: m.cardId, uid: m.uid, side: 'player', label: CARD_INDEX[m.cardId]?.name });
-  if (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack')) {
+  if (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack' && !e.combatOnly)) {
     for (const watcher of [...state.board]) {
       const align = alignmentOf(state.board, watcher.uid); // CELESTIAL: gate aligned halves exactly as EoT does
       for (const effect of instanceEffects(watcher)) {
         if (effect.on !== 'onAttack') continue;
+        if (effect.combatOnly) continue; // Sunmane Herald's class: scoped out of the shop at the data level
         if (!alignAllows(effect, align)) continue;
         const fn = RECRUIT_FACTORIES[effect.do];
         if (!fn) continue;
@@ -8353,10 +8372,12 @@ export function clearRallyPassCounters(state: RunState): void {
  * rule combat states by not re-firing SC on combat summons. The family carries no per-fight counters
  * (`attackSeen`/`bredCount` are Rally's), so there is nothing to scope or clear here.
  *
- * COMBAT MULTIPLIERS DO NOT APPLY, deliberately (mirrors the Rally precedent — `fireShopRally` applies no
- * Elderhorn hunt extras): Rune of Twilight ("trigger an additional time") and Uron's trigger multiplier are
- * COMBAT flags consumed by `simulate()`; the End-of-Turn replay fires each effect once per Chronos repeat
- * like every other End-of-Turn effect, and no more.
+ * COMBAT MULTIPLIERS FOLLOW THE TRIGGER (owner reversal 2026-08-20, superseding the ship ruling): Rune of
+ * Twilight and Uron's trigger multiplier apply to the End-of-Turn replay too — a trigger multiplier follows
+ * the trigger to whatever phase it fires in. The scan itself stays multiplier-free; the fire COUNT lives in
+ * `runeCombatProwessBeats`, which folds `socTwilightExtraFires` (the same definition combat's Twilight pass
+ * consults) and `extraTriggerFires('startOfCombat', …)` (the same card-data fold combat's `scReps` uses), so
+ * each fire is its own beat and the two phases can never drift.
  */
 export function socBoardEffects(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
   const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
@@ -8364,6 +8385,7 @@ export function socBoardEffects(state: RunState): Array<{ card: BoardCard; effec
     const align = alignmentOf(state.board, card.uid); // CELESTIAL: gate aligned halves exactly as combat's SC pass does
     for (const effect of instanceEffects(card)) {
       if (effect.on !== 'startOfCombat') continue;
+      if (effect.combatOnly) continue; // the Sunmane rule, applied family-wide: combatOnly never dispatches in the shop
       if (!alignAllows(effect, align)) continue;
       if (!RECRUIT_FACTORIES[effect.do]) continue;
       out.push({ card, effect });
@@ -8405,6 +8427,250 @@ export function fireStartOfCombats(state: RunState): void {
   for (const { card, effect } of socBoardEffects(state)) {
     fireShopStartOfCombat(state, card, effect);
   }
+}
+
+/**
+ * ── RUNE / QUEST START-OF-COMBAT REPLAYS (Rune of Combat Prowess, owner ruling 2026-08-20) ─────────────
+ *
+ * "Needs to work with ALL Start of Combat effects including runes/quests etc." — the run-level SoC blocks
+ * `simulate()` fires (the `rmods.…` / `smods.…` section) replay at End of Turn too, with SHOP semantics:
+ * every grant is PERMANENT, membership-based effects no-op gracefully on an empty membership, random picks
+ * draw the run's seeded `rngCursor`, and each replay is its own beat sourced on the OWNING rune/quest badge
+ * (no minion is the actor).
+ *
+ * GENUINELY COMBAT-ONLY, each with its reason (deliberate no-ops — they are simply absent from this list):
+ *   - `weakenTargets` (Weaken)      — enemy-facing; the shop has no enemies (membership no-op).
+ *   - `runeFoodChain`               — arms a combat summon-inheritance bank; nothing consumes it in a shop.
+ *   - `runeSpellhide`               — the remembered spell already really resolved in the shop when it was
+ *                                     cast; the rune's whole payoff is repeating it in COMBAT. An End-of-Turn
+ *                                     re-cast would re-count a cast the player never made.
+ *   - `runeCrucible`                — sacrifices bodies into a last-death resummon bank; its payoff event
+ *                                     (your final minion dying) cannot happen in the shop.
+ *   - `emptyGraves`                 — a per-FIGHT grant to the combat-time leftmost (`emptyGravesRally` is a
+ *                                     combat-instance flag); a permanent shop grant would stack on top of the
+ *                                     grant combat still makes every fight.
+ *   - `runeFirstClaws` / Forthcoming's attack half / Shared Circuit's break-transfer / the Reclaimer +
+ *     Closed Casket marks / Blood Trail's kill-watcher — forced attacks, shield breaks, death banks: combat
+ *     machinery with no shop meaning.
+ *
+ * COMPOUNDING WARNING (flagged for balance review — implemented per the owner's "all" ruling): the stat
+ * blocks below are PERMANENT and re-fire EVERY turn while Combat Prowess is held. Warding (health ×3/turn),
+ * Sylus (own health ×2/turn), Underdog + Stoked Menagerie (stat doubling), Umbral Energy + United Front
+ * (per-spells-cast, a growing scalar), Five Banners, Tempered Time, Possession and Rulebreaker's Crown all
+ * snowball run-scale numbers fast.
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the projection) and
+ * `questEndOfTurnBeats` (the UI beat sequence) — the Lasting Cadence single-list rule. Chronos/Parliament
+ * repeats apply (the caller multiplies); combat's SC multipliers (Twilight/Uron) do NOT — in combat they
+ * multiply only the MINION SC pass, never the rune blocks, and the shop mirrors that boundary exactly.
+ */
+export interface SocRuneReplay {
+  /** Owning content id — the badge the beat is sourced on (`procRuneId` pulses a rune's rail badge). */
+  id: string;
+  kind: 'rune' | 'quest' | 'hero';
+  label: string;
+  /** `true` when `fire` opens its OWN nested `withRecruitTrigger`s (Rune of Rallying → `fireShopRally`) —
+   *  the caller must then use a PLAIN scope, or every consequence would emit twice (the Lasting Cadence
+   *  double-emission rule). */
+  nested?: boolean;
+  fire: (state: RunState) => void;
+}
+
+export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
+  const f = state.questFlags;
+  const out: SocRuneReplay[] = [];
+  const grantKw = (c: BoardCard, kw: Keyword): void => { if (!c.keywords.includes(kw)) c.keywords = [...c.keywords, kw]; };
+  // The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always
+  // collect; every other body claims the FIRST type nobody has claimed yet — one banner per body.
+  const bannerRecipients = (st: RunState): BoardCard[] => {
+    const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
+    const taken = new Set<string>();
+    for (const m of st.board) {
+      const def = CARD_INDEX[m.cardId];
+      if (def?.universalTribe) continue;
+      for (const t of [def?.tribe, def?.tribe2]) {
+        if (!t || t === 'neutral' || taken.has(t)) continue;
+        taken.add(t);
+        if (!recipients.includes(m)) recipients.push(m);
+        break;
+      }
+    }
+    return recipients;
+  };
+  // Rulebreaker's Crown: the leftmost minion gains +Attack equal to its Attack (permanent here). COMPOUNDING.
+  if (f?.doubleLeftmostAttack) out.push({ id: 'doubleLeftmostAttack', kind: 'quest', label: "Rulebreaker's Crown", fire: (st) => {
+    const lead = st.board[0];
+    if (lead && lead.attack > 0) addBuff(lead, "Rulebreaker's Crown", lead.attack, 0);
+  } });
+  // Atrius's Possession: leftmost gains the rightmost's Attack, rightmost gains the leftmost's Health —
+  // simultaneous (both read the pre-buff values), needs 2+ bodies. COMPOUNDING.
+  if (getHero(state.heroId).power.kind === 'possession') out.push({ id: state.heroId, kind: 'hero', label: 'Possession', fire: (st) => {
+    if (st.board.length < 2) return;
+    const first = st.board[0]!, last = st.board[st.board.length - 1]!;
+    const gainAtk = last.attack, gainHp = first.health;
+    if (gainAtk > 0) addBuff(first, 'Possession', gainAtk, 0);
+    if (gainHp > 0) addBuff(last, 'Possession', 0, gainHp);
+  } });
+  // Umbral Energy: every Dragon +3/+3 per spell cast this game. COMPOUNDING (per-turn, growing scalar).
+  if (f?.umbralEnergy) out.push({ id: 'umbralEnergy', kind: 'quest', label: 'Umbral Energy', fire: (st) => {
+    const amt = 3 * st.spellsCast;
+    if (amt <= 0) return;
+    for (const m of st.board) if (isTribe(m, 'dragon')) addBuff(m, 'Umbral Energy', amt, amt);
+  } });
+  // Contract Rewrite: the rightmost Demon gains the Warded-Imps Echo — a PERMANENT graft here (the family's
+  // shop-permanence rule), idempotent so it doesn't stack a copy every turn.
+  if (f?.contractRewrite) out.push({ id: 'contractRewrite', kind: 'quest', label: 'Contract Rewrite', fire: (st) => {
+    const demon = [...st.board].reverse().find((m) => isTribe(m, 'demon'));
+    if (!demon) return;
+    const already = instanceEffects(demon).some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon' && (e.params as { tokenId?: string } | undefined)?.tokenId === 'impscrap');
+    if (already) return;
+    (demon.grantedEffects ??= []).push({ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } });
+  } });
+  // Rune of the Warden: if the board has room, summon a Spear Warden (a real, permanent board card).
+  if (f?.runeWarden) out.push({ id: 'rune_warden', kind: 'rune', label: 'Rune of the Warden', fire: (st) => {
+    const knit = CARD_INDEX['knit'];
+    if (knit && st.board.length < CONFIG.boardMax) makeContext(st).summon(knit, ''); // no anchor -> appended rightmost
+  } });
+  // Rune of the Mirror March: if the board has room, an EXACT copy of the leftmost minion, to its right.
+  if (f?.runeMirrorMarch) out.push({ id: 'rune_mirror_march', kind: 'rune', label: 'Rune of the Mirror March', fire: (st) => {
+    const lead = st.board[0];
+    const def = lead ? CARD_INDEX[lead.cardId] : undefined;
+    if (!lead || !def || st.board.length >= CONFIG.boardMax) return;
+    const copy = makeContext(st).summon(def, lead.uid);
+    if (!copy) return;
+    copy.attack = lead.attack; copy.health = lead.health;
+    copy.golden = lead.golden; copy.keywords = [...lead.keywords];
+  } });
+  // Shared Circuit: up to N leftmost unshielded Mechs gain Ward (permanent; the break-transfer half is
+  // combat-only — shields don't break in a shop).
+  if ((state.sharedCircuitWard ?? 0) > 0) out.push({ id: 'sharedCircuit', kind: 'quest', label: 'Shared Circuit', fire: (st) => {
+    let left = st.sharedCircuitWard ?? 0;
+    for (const m of st.board) {
+      if (left <= 0) break;
+      if (m.keywords.includes('DS') || !isTribe(m, 'mech')) continue;
+      grantKw(m, 'DS');
+      left--;
+    }
+  } });
+  // Rune of the Five Banners: one friendly of each type +6/+6. COMPOUNDING (per-turn permanent).
+  if (f?.runeFiveBanners) out.push({ id: 'rune_five_banners', kind: 'rune', label: 'Rune of the Five Banners', fire: (st) => {
+    for (const m of bannerRecipients(st)) addBuff(m, 'Rune of the Five Banners', 6, 6);
+  } });
+  // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
+  // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
+  if (getHero(state.heroId).power.kind === 'unitedFront') out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
+    const n = st.spellsCast * (st.runeWishbone ? 2 : 1); // wishboneReps, inlined (a reducer import would cycle)
+    if (n <= 0) return;
+    for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);
+  } });
+  // Rune of the Centerline: ends of DIFFERENT (primary, non-neutral) types → the middle gains Crit + Ward.
+  if (f?.runeCenterline) out.push({ id: 'rune_centerline', kind: 'rune', label: 'Rune of the Centerline', fire: (st) => {
+    if (st.board.length < 3) return;
+    const left = st.board[0]!, right = st.board[st.board.length - 1]!;
+    const mid = st.board[Math.floor(st.board.length / 2)]!;
+    const typeOf = (m: BoardCard): string | undefined => (m.tribe && m.tribe !== 'neutral' ? m.tribe : undefined);
+    const lt = typeOf(left), rt = typeOf(right);
+    if (lt && rt && lt !== rt) { grantKw(mid, 'CR'); grantKw(mid, 'DS'); }
+  } });
+  // Rune of Tempered Time: +Health equal to HALF each minion's Attack (floored). COMPOUNDING.
+  if (f?.runeTemperedTime) out.push({ id: 'rune_tempered_time', kind: 'rune', label: 'Rune of Tempered Time', fire: (st) => {
+    for (const m of st.board) {
+      const gain = Math.floor(m.attack / 2);
+      if (gain > 0) addBuff(m, 'Rune of Tempered Time', 0, gain);
+    }
+  } });
+  // Rune of the Herald: trigger EVERY Echo (bodies stay alive) — the shared shop Echo ritual pays the
+  // tallies and every unified multiplier (Sylus/Uron/Elderhorn/Funeral Engine/first-Echo).
+  if (f?.runeHerald) out.push({ id: 'rune_herald', kind: 'rune', label: 'Rune of the Herald', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+    }
+  } });
+  // Rune of Dawnclaw: your Dawnclaws fire their adjacent-Shout Echo (they don't die) — an Echo TRIGGER,
+  // through the shared ritual so it tallies exactly like combat's `asEcho` wrap.
+  if (f?.runeDawnclaw) out.push({ id: 'rune_dawnclaw', kind: 'rune', label: 'Rune of Dawnclaw', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (m.cardId === 'b2_dawnclaw') fireRecruitDeathrattles(ctx, m, [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }]);
+    }
+  } });
+  // Rune of Sylus: your Sylus double their own Health. SEVERE COMPOUNDING (exponential per turn).
+  if (f?.runeSylus) out.push({ id: 'rune_sylus', kind: 'rune', label: 'Rune of Sylus', fire: (st) => {
+    for (const m of st.board) if (m.cardId === 'sylus') addBuff(m, 'Rune of Sylus', 0, m.health);
+  } });
+  // Rune of the Underdog: double the stats of the TWO lowest-Attack minions (board-order ties). SEVERE COMPOUNDING.
+  if (f?.runeUnderdog) out.push({ id: 'rune_underdog', kind: 'rune', label: 'Rune of the Underdog', fire: (st) => {
+    const lowest = st.board.slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
+    for (const m of lowest) addBuff(m, 'Rune of the Underdog', m.attack, m.health);
+  } });
+  // Rune of the Stoked Menagerie: controlling every active type doubles 3 random minions (seeded, without
+  // replacement). SEVERE COMPOUNDING.
+  if (f?.runeStokedMenagerie) out.push({ id: 'rune_stoked_menagerie', kind: 'rune', label: 'Rune of the Stoked Menagerie', fire: (st) => {
+    const onBoard = new Set<string>();
+    for (const m of st.board) {
+      const def = CARD_INDEX[m.cardId];
+      for (const t of [def?.tribe, def?.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+      if (def?.universalTribe) for (const t of st.tribes) if (t !== 'neutral') onBoard.add(t);
+    }
+    const wanted = st.tribes.filter((t) => t !== 'neutral');
+    if (wanted.length === 0 || !wanted.every((t) => onBoard.has(t)) || st.board.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const pool = st.board.slice();
+    const picked: BoardCard[] = [];
+    for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
+    st.rngCursor = rng.state();
+    for (const m of picked) addBuff(m, 'Rune of the Stoked Menagerie', m.attack, m.health);
+  } });
+  // Rune of the Vanguard: your 3 leftmost gain Critical Strike + Ward (permanent, idempotent).
+  if (f?.runeVanguard) out.push({ id: 'rune_vanguard', kind: 'rune', label: 'Rune of the Vanguard', fire: (st) => {
+    for (const m of st.board.slice(0, 3)) { grantKw(m, 'CR'); grantKw(m, 'DS'); }
+  } });
+  // Rune of Warding: the rightmost gains Ward and TRIPLE Health. SEVERE COMPOUNDING (health ×3 per turn).
+  if (f?.runeWarding) out.push({ id: 'rune_warding', kind: 'rune', label: 'Rune of Warding', fire: (st) => {
+    const lead = st.board[st.board.length - 1];
+    if (!lead) return;
+    grantKw(lead, 'DS');
+    addBuff(lead, 'Rune of Warding', 0, lead.health * 2);
+  } });
+  // Echoing Coop: trigger every minion's Echo once, without killing the body (the shared shop ritual).
+  if (f?.echoingCoop) out.push({ id: 'echoingCoop', kind: 'quest', label: 'Echoing Coop', fire: (st) => {
+    const ctx = makeContext(st);
+    for (const m of [...st.board]) {
+      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+    }
+  } });
+  // Rune of Rallying: trigger the LEFT-MOST Rally — a real shop Rally (tallies, Herding Horn, nested beats).
+  if (f?.runeRallying) out.push({ id: 'rune_rallying', kind: 'rune', label: 'Rune of Rallying', nested: true, fire: (st) => {
+    const first = ralliersOf(st)[0];
+    if (first) fireShopRally(st, first);
+  } });
+  // Rune of Forthcoming: the leftmost gains Ward (permanent). Its attack half is combat-only (forced attack).
+  if (f?.runeForthcoming) out.push({ id: 'rune_forthcoming', kind: 'rune', label: 'Rune of Forthcoming', fire: (st) => {
+    const front = st.board[0];
+    if (front) grantKw(front, 'DS');
+  } });
+  // Rune of Rebirth: a random eligible minion PERMANENTLY gains the exact-copy Echo (seeded pick; the
+  // eligibility filter keeps it from stacking a second copy on the same body).
+  if (f?.runeRebirth) out.push({ id: 'rune_rebirth', kind: 'rune', label: 'Rune of Rebirth', fire: (st) => {
+    const eligible = st.board.filter((m) => !instanceEffects(m).some((e) => e.do === 'echoSummonCopyNoEcho'));
+    if (eligible.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const m = eligible[rng.int(eligible.length)]!;
+    st.rngCursor = rng.state();
+    (m.grantedEffects ??= []).push({ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} });
+  } });
+  // Rune of Rising Graves: the two leftmost Undead without Rise gain it (permanent, idempotent).
+  if (f?.runeRisingGraves) out.push({ id: 'rune_rising_graves', kind: 'rune', label: 'Rune of Rising Graves', fire: (st) => {
+    let given = 0;
+    for (const m of st.board) {
+      if (given >= 2) break;
+      if (m.keywords.includes('R') || !isTribe(m, 'undead')) continue;
+      grantKw(m, 'R');
+      given++;
+    }
+  } });
+  return out;
 }
 
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
@@ -8561,15 +8827,40 @@ export function applyEndOfTurn(state: RunState): void {
     );
     fires++;
   }
+  // RUNE / QUEST START-OF-COMBAT REPLAYS (owner ruling 2026-08-20: "all Start of Combat effects, including
+  // runes/quests") — after the warband's own SC effects, mirroring combat's order (minion SC pass first,
+  // then the rune section). One beat per (replay x Chronos repeat), sourced on the OWNING rune/quest badge —
+  // no minion is the actor. A `nested` replay (Rune of Rallying -> fireShopRally) gets a PLAIN scope for the
+  // double-emission reason the Lasting Cadence block documents; everything else diffs its own consequences,
+  // with `discardIfEmpty` so a membership no-op (Warden on a full board) leaves no false beat.
+  if (state.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(state)) {
+      for (let r = 0; r < repeats; r++) {
+        const spec = {
+          phase: 'endOfTurn' as const,
+          source: beatSource(replay.kind, replay.id, replay.label),
+          trigger: 'endOfTurn',
+          ...beatIdentity('rune:rune_combat_prowess:endOfTurn'),
+          repeatIndex: r, repeatCount: repeats,
+        };
+        const go = (): void => { procRuneId(state, 'rune_combat_prowess'); replay.fire(state); };
+        if (replay.nested) collector.withTrigger(spec, go);
+        else withRecruitTrigger(ctx, spec, go, { discardIfEmpty: true });
+        fires++;
+      }
+    }
+  }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
 }
 
 /**
- * The Rune of Combat Prowess beat list: one entry per START-OF-COMBAT EFFECT THAT WILL FIRE, board order,
- * repeated by Chronos/Parliament like every other End-of-Turn effect (combat's own multipliers — Rune of
- * Twilight, Uron — are combat flags and deliberately do NOT apply here; see `socBoardEffects`).
+ * The Rune of Combat Prowess beat list: one entry per START-OF-COMBAT EFFECT FIRE, board order, repeated by
+ * Chronos/Parliament like every other End-of-Turn effect AND by the Start-of-Combat trigger multipliers —
+ * Rune of Twilight (via `socTwilightExtraFires`, the definition combat's extra pass consults; owner reversal
+ * 2026-08-20: the two runes STACK) and Uron's card-data multiplier (via the same `extraTriggerFires` fold
+ * combat's `scReps` uses). Each fire is its own beat (the room-for-the-beat rule).
  *
  * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the legacy projection)
  * and `questEndOfTurnBeats` (the UI's beat sequence) — the Lasting Cadence single-list rule, so the three
@@ -8579,8 +8870,13 @@ export function applyEndOfTurn(state: RunState): void {
 export function runeCombatProwessBeats(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
   if (!state.runeCombatProwess) return [];
   const repeats = endOfTurnRepeats(state);
+  // Per-effect fire count = base + Uron (card data) + Twilight — multiplicative with the Chronos repeats
+  // (each repeat is a full End-of-Turn replay, and within each the SC multipliers apply, mirroring combat).
+  const perFire = 1
+    + extraTriggerFires('startOfCombat', state.board, (id) => CARD_INDEX[id])
+    + socTwilightExtraFires({ runeTwilight: state.questFlags?.runeTwilight });
   const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
-  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats; r++) out.push(entry);
+  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats * perFire; r++) out.push(entry);
   return out;
 }
 
@@ -9058,6 +9354,14 @@ export function projectEndOfTurnSteps(state: RunState): {
   for (const { card, effect } of runeCombatProwessBeats(clone)) {
     beat(card, () => fireShopStartOfCombat(clone, card, effect));
   }
+  // RUNE / QUEST SoC replays under Combat Prowess — one projected step per (replay x repeat), matching
+  // `applyEndOfTurn` + `questEndOfTurnBeats` 1:1. Sourceless (the badge is the actor): captured buffs replay
+  // as descends onto the gaining minions, like the quest rewards above.
+  if (clone.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(clone)) {
+      for (let r = 0; r < repeats; r++) beat(undefined, () => replay.fire(clone));
+    }
+  }
   return { steps, fx };
 }
 
@@ -9087,6 +9391,13 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   // `applyEndOfTurn` + the projection — sourced on the acting minion for the pulse/flourish.
   for (const { card } of runeCombatProwessBeats(state)) {
     out.push({ effect: 'runeCombatProwess', label: 'Rune of Combat Prowess', uid: card.uid });
+  }
+  // …then the rune/quest SoC replays, sourceless (the owning badge is named by the label), matching the
+  // commit + projection order 1:1.
+  if (state.runeCombatProwess) {
+    for (const replay of socRuneReplaysOf(state)) {
+      for (let r = 0; r < repeats; r++) out.push({ effect: 'runeCombatProwess', label: replay.label });
+    }
   }
   return out;
 }

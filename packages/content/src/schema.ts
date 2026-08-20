@@ -497,6 +497,9 @@ export const EffectDefSchema = z.object({
   params: z.record(z.unknown()).optional(),
   // CELESTIAL alignment gate — this half only fires while its owner is Dawn / Dusk (Eclipse fires both).
   align: z.enum(['dawn', 'dusk']).optional(),
+  // COMBAT-ONLY gate (Sunmane Herald, owner ruling 2026-08-20): the shop dispatchers skip this effect
+  // entirely — see `EffectDef.combatOnly` in @game/core.
+  combatOnly: z.boolean().optional(),
 }).strict();
 
 // `.strict()`: a typo'd optional key (`goldentext`, `targetTribes`) would otherwise validate silently and

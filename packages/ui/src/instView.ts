@@ -187,7 +187,16 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
   const impText = withImpStats(cardId, noted, p.impAura);
   const impGolden = notedGolden !== undefined ? withImpStats(cardId, notedGolden, p.impAura) : undefined;
-  return { text: impText + metric, goldenText: impGolden !== undefined ? impGolden + metric : undefined };
+  // RUNE OF REBIRTH (owner ask 2026-08-20): while the rune is held, every MINION card's text carries the word
+  // "Rebirth" in BLUE — the `[[…]]` marker (Card renders `.descrune`). Minions only (never spells/Rubies/the
+  // Discover token), on every surface this chain feeds: shop, board, hand, Discover, end screen AND combat
+  // (`Unit.tsx` calls this same function). Both variants carry it, appended after the metric so it reads as
+  // its own granted rule rather than part of the printed sentence.
+  const rebirthTag = p.runeFlags?.rebirth && !c.spell && !c.ruby && c.id !== 'discoverspell' ? ' [[Rebirth]]' : '';
+  return {
+    text: impText + metric + rebirthTag,
+    goldenText: impGolden !== undefined ? impGolden + metric + rebirthTag : undefined,
+  };
 }
 
 /**
@@ -325,7 +334,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
     },
   );
 }

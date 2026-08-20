@@ -1424,6 +1424,11 @@ export interface RunState {
    *  combat (Grave Contract + Last Rites, additive). `boneThroneStep` = every-N-deaths leftmost-Echo trigger. */
   echoExtraAlways?: number;
   echoFirstEachCombat?: number;
+  /** The first-Echo bonus's SHOP scope (owner principle 2026-08-20: trigger multipliers follow the trigger to
+   *  whatever phase it fires in): the first Echo triggered in the SHOP each turn also fires
+   *  `echoFirstEachCombat` extra times. Consumed by `fireRecruitDeathrattles`, reset as each wave's shop
+   *  opens — the shop analogue of combat's per-fight `firstEchoDone`. Transient bookkeeping, not a reward. */
+  echoFirstUsedThisTurn?: boolean;
   boneThroneStep?: number;
   /** Mech/neutral Rally rewards (fold into QuestCombatMods). `rallyExtraAlways` = permanent extra Rally triggers
    *  (Infinite Assembly). `rallyFirstEachCombat` = extra fires for the first Rally each combat (Spark Permit /

@@ -333,14 +333,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      {/* The little note on the right — the Set 2 launch announcement (owner copy 2026-07-31). */}
-      <aside className="titlebanner" role="note">
-        <div className="titlebanner-emoji" aria-hidden>✨</div>
-        <div className="titlebanner-title">Welcome to Set 2's Launch!</div>
-        <div className="titlebanner-sub">Reset your career manually and hop into the game. Runes are active and occur on turns 6 + 9. GL HF.</div>
-        {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
-      </aside>
-
       <div className="titleversion">v{__APP_VERSION__}</div>
     </div>
   );

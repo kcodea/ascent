@@ -31,6 +31,17 @@ distinct seeds → 200 distinct phases, linear in amount, bounded to `[0, SPAN)`
 per-primitive `makeRng` count is still 1 — `fieldPhaseOffset`'s stream lives in `motion.ts`). typecheck + lint
 (0 errors) + `npm test` (5916 passed) + build:web all green.
 
+**Migration — current defs opt in at 0.5.** A no-op default (0) means every existing turbulence effect would
+still swirl in lockstep until hand-edited, so a one-time pass set `fieldPhase: 0.5` (the halfway point) on
+every committed def layer that already runs `turbulence > 0` — 46 layers across 29 defs (rune-burst,
+epic-rune-burst, shop-buff-aura, rune-buff-unit, the ale/consume/spell-sparks stacks, ruby-gem-apply, …). The
+edit is purely additive (a surgical line-insert after each `turbScale`, so the JSON diff is 46 `+` lines and
+nothing reformatted); `defs.test.ts` + the full suite still pass, and the param default stays 0 so the engine
+invariant ("a default contributes exactly zero") is intact — NEW turbulence defs still start synced and opt in
+by raising the slider. Note this is not a strict no-op for the migrated defs: the ~half-dozen that fire
+many-at-once (runes, auras) now visibly decorrelate — which is the point — and the single-cast ones are
+unchanged to the eye (absolute field phase is invisible for one fire).
+
 ## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
 
 Owner report: "rune of aftershocks is only triggering when an echo minion dies. it should trigger when an echo

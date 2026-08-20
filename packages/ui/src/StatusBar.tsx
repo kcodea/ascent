@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -189,9 +189,11 @@ export function StatusBar() {
       { rubyBonus: run.rubyBonus, impAura: run.impBuff, topTribe: null },
     )
     : null;
-  // Indy's Gild recharges after 40 Gold spent since the last use — how much of that 40 is banked so far.
+  // Indy's Gild recharges after INDY_GILD_RECHARGE_GOLD spent since the last use — how much is banked so far.
+  // The literal 40 that used to sit here (three times) was the pre-2026-08-07 value and never followed the
+  // rebalance, so the pill promised a recharge at 40 Gold that the reducer only granted at 75.
   const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
-    ? Math.max(0, Math.min(40, (run.goldSpent ?? 0) - (run.indyGildRearmAt - 40)))
+    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (run.goldSpent ?? 0) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
     : 0;
   // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
   // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
@@ -218,7 +220,7 @@ export function StatusBar() {
     // hero's own counter. Checked before the switch so it wins for every hero that can grant one.
     if (grantQuest && grantQuestDef) return questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed);
     switch (power.kind) {
-      case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
+      case 'gild': return run.heroPowerSpent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD}g` : null; // Indy — recharging
       case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin — ticks live as combat casts resolve (fxSpellsCastPreview)
       case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen — kills
       case 'quest': return run.heroPowerSpent ? null : `${run.drakkoBuys}/5`; // Drakko — fades away when complete
@@ -273,7 +275,7 @@ export function StatusBar() {
           : power.kind === 'gainMaxMana'
             ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
             : power.kind === 'gild'
-              ? `${power.name} · ${run.heroPowerSpent ? `${gildSpent}/40 Gold` : 'ready'}`
+              ? `${power.name} · ${run.heroPowerSpent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD} Gold` : 'ready'}`
               : power.kind === 'scalingGold'
                   ? `${power.name} · ${run.heroPowerSpent ? 'spent' : `+${1 + run.wave} Gold`}`
                   : power.kind === 'dynamiteDig'

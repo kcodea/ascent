@@ -37,6 +37,9 @@ const UI_SELECTORS: Record<string, string> = {
   'lobby-rail': '.lobbyrail',
   'lobby-self': '.lobbyseat.you',
   'lobby-next': '.lobbyseat.foe',
+  // The Discover / Choose-One overlay. Absent unless a pick is open, which the registry already treats as
+  // "no element" — so a step may list it safely on a beat where the modal has not opened yet.
+  discover: '.discover-ov',
   hud: '.bar',
 };
 
@@ -119,8 +122,17 @@ function refsKey(refs: TutorialAnchorRef[]): string {
 
 /**
  * Measure a set of anchors once on mount, again whenever `deps` change or the refs change, and again on window
- * `resize` / `scroll` — throttled through a single rAF so a burst of events collapses to one layout read.
- * NEVER measures in a continuous loop. Returns the index-aligned rect array (nulls for unmounted anchors).
+ * `resize` / `scroll`, and when a CSS transition/animation finishes — throttled through a single rAF so a burst
+ * of events collapses to one layout read. NEVER measures in a continuous loop. Returns the index-aligned rect
+ * array (nulls for unmounted anchors).
+ *
+ * WHY animation-end (owner report 2026-08-20: "step 12's highlight box is not on the packstrider, it's off to
+ * the left and up slightly"): a step often activates in the same commit as the action that satisfied the
+ * PREVIOUS step — "use your power on Packstrider" activates the instant Packstrider is played, while the card
+ * is still gliding into its board slot and the row is still reflowing around it. The single measurement taken
+ * at activation therefore captured the card MID-FLIGHT, and nothing ever corrected it, so the cutout sat at
+ * that stale position for the whole step. Re-measuring when the movement finishes fixes every anchor measured
+ * mid-move, not just that one step, and stays event-driven — no polling loop.
  */
 export function useAnchorRects(refs: TutorialAnchorRef[], deps: unknown[]): (DOMRect | null)[] {
   const [rects, setRects] = useState<(DOMRect | null)[]>(() => measureAnchors(refs).rects);
@@ -148,9 +160,15 @@ export function useAnchorRects(refs: TutorialAnchorRef[], deps: unknown[]): (DOM
     window.addEventListener('resize', schedule);
     // Capture-phase scroll so we catch scrolls in any nested scroller, not just the window.
     window.addEventListener('scroll', schedule, true);
+    // Capture phase so a card's own transition reaches us wherever it sits in the tree. Both events collapse
+    // into the SAME rAF as resize/scroll, so a board of cards finishing together costs one layout read total.
+    window.addEventListener('transitionend', schedule, true);
+    window.addEventListener('animationend', schedule, true);
     return () => {
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('transitionend', schedule, true);
+      window.removeEventListener('animationend', schedule, true);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };

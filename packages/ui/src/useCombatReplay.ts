@@ -420,7 +420,19 @@ export function computeFrame(
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
   for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
   for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
-  return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
+  // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo
+  // sprays the board (Fel Spikes) fires its volley one beat AFTER its body would have left, and a source→target
+  // FX anchored to that body needs it present to launch from. Only the CURRENT beat's damage ([beatStart, upto))
+  // counts, so the body lingers exactly for its own eruption and is gone the next beat. Sourceless damage (no
+  // `source`) retains nothing, so ordinary trades and the resting end-frame (beatStart === upto → empty window)
+  // are untouched.
+  const dealingSources = new Set<string>();
+  for (let i = beatStart; i < Math.min(upto, events.length); i++) {
+    const e = events[i];
+    if (e?.type === 'dmg' && typeof e.source === 'string') dealingSources.add(e.source);
+  }
+  const keep = (u: UnitFrame): boolean => !gone.has(u.uid) || dealingSources.has(u.uid);
+  return { player: player.filter(keep), enemy: enemy.filter(keep) };
 }
 
 // Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `choreo/choreoConfig.ts`,

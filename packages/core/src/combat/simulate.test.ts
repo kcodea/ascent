@@ -67,6 +67,21 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it("Fel Spikes' Echo stamps its damage with Fel Spikes as the source (for the source→target volley FX)", () => {
+    // A dmg event carries no `source` for anonymous hits, but a sourced hit (attacker, AoE caster) now records
+    // it. Fel Spikes' Deathrattle sprays every non-friendly-Demon minion with `self` as the source — which is
+    // what lets presentation fire the spike volley FROM the dying body. Assert it on the DEATHRATTLE wave
+    // specifically (the `wave` tag is unique to it), not on incidental attack damage.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1 }, // Taunt; dies to the first enemy swing
+      { cardId: 'sandbag', attack: 0, health: 50 },     // a non-Demon ally the spray will hit
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined)).toBe(true);
+  });
+
   it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target

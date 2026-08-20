@@ -2170,7 +2170,10 @@ export function simulate(
       return;
     }
     target.health -= amount;
-    emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    // Stamp the dealer's uid when we have one (attacker, poisoner, an AoE caster like Fel Spikes) so a damage
+    // MOMENT can be attributed to its actor for source→target FX. Conditional so genuinely sourceless damage
+    // stays byte-identical (no `source: undefined` key on the event).
+    emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health), ...(poisoner ? { source: poisoner.uid } : {}) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all

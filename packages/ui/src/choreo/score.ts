@@ -534,7 +534,20 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute
       // added for this feature. Combat state knows the answer without any of that.
-      const { source, target } = momentUnits(moment.primary);
+      const primaryUnits = momentUnits(moment.primary);
+      const target = primaryUnits.target;
+      let source = primaryUnits.source;
+      // A damage MOMENT's primary can be sourceless — a Divine Shield pop (`shield`) leads the wave when the
+      // first target has a Ward, so `momentUnits` reads no source though the wave HAS an actor. Fall back to the
+      // first `dmg` event's own `source` (every hit in one wave shares it), so a source→target binding — Fel
+      // Spikes' Echo volley — still attributes to the caster. `dmg.source` is undefined for legacy/sourceless
+      // damage, in which case this stays null and nothing changes.
+      if (source === null) {
+        for (let i = moment.start; i < moment.end; i++) {
+          const e = ctx.events[i];
+          if (e?.type === 'dmg' && typeof e.source === 'string') { source = e.source; break; }
+        }
+      }
       const cardId = ctx.cardIds?.get(source ?? '') ?? null;
       // ale-bubbles (Set 2, Dwarves): a Dwarf that GENERATES a Dwarven Ale in combat — Doubletap Brewer's Echo,
       // Blade Thrower's Rally — emits a `toHand` event whose cardId is an Ale, carrying the generator's uid as

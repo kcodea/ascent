@@ -667,6 +667,38 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
     expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
   });
+
+  // Fel Spikes' Echo: a self-sourced AoE damage MOMENT (no leading `sc` cast — the source lives on the `dmg`
+  // events themselves), whose primary can even be a Ward pop, still attributes to the caster and fans the
+  // volley out to every damaged unit.
+  it('fans a self-sourced damage wave out FROM the dealer to each damaged unit (Fel Spikes)', () => {
+    const events: CombatEvent[] = [
+      { type: 'dmg', target: 'e1', amount: 4, remainingHp: 1, source: 'fs', step: 8 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 4, remainingHp: 2, source: 'fs', step: 8 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('fs', 'dm_felspikes'));
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);
+    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'fel-spike')).toBe(true);
+    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e1');
+    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e2');
+    expect(ctx.onDamageFx).not.toHaveBeenCalled(); // both units claimed → stock burst suppressed
+  });
+
+  // The wave can LEAD with a sourceless Divine Shield pop (first target had a Ward). `momentUnits` reads no
+  // source off that primary, so the fallback scan of the moment's `dmg` events is what recovers the dealer —
+  // and the warded unit, taking no damage, gets no spike.
+  it('recovers the dealer from the dmg events when the wave primary is a Ward pop', () => {
+    const events: CombatEvent[] = [
+      { type: 'shield', target: 'e1', step: 9 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 4, remainingHp: 1, source: 'fs', step: 9 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('fs', 'dm_felspikes'));
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockAnchors).toHaveBeenCalledWith('fs', 'e2');
+    expect(mockAnchors).not.toHaveBeenCalledWith('fs', 'e1');
+  });
 });
 
 /** The self-buff fan-out: one play per unit that buffed ITSELF, both anchors on that unit. */

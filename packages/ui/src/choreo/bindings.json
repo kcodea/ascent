@@ -85,6 +85,12 @@
         "def": "shop-buff-shout"
       }
     },
+    "dm_felspikes": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "damaged"
+      }
+    },
     "dm_tormentor": {
       "shout": {
         "def": "shop-buff-shout"

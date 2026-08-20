@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-20 — Fel Spikes' Echo fires the `fel-spike` volley from the dying body to every target
+
+Owner ask: wire the workbench `fel-spike` def (a source→target spike — ribbon beam + muzzle burst at the
+source, impact bursts at the target) to Fel Spikes' Deathrattle, hitting all its victims at once as a volley.
+
+The engine already had the shape: the Echo (`deathrattleDamageAllExceptTribe`) wraps its whole spray in one
+`ctx.wave` (a single volley moment), and the `damaged` fan-out (what Bloodbinder's `ruby-lance` uses) fires a
+source→target def at every damaged unit while auto-suppressing the stock hit-burst. Two gaps had to close, both
+because a Deathrattle AoE is **sourceless and dead** by the time it lands — unlike a live Start-of-Combat cast:
+
+- **Combat damage now records its dealer.** The `dmg` event carried no `source`, so presentation couldn't
+  attribute the wave to Fel Spikes. Added an optional `source` to the `dmg` event (`packages/core` — the combat
+  event vocabulary, Kevin's engine seam) and stamped the dealer's uid at the one `applyDamage` emit. Conditional,
+  so genuinely sourceless damage stays byte-identical; determinism (self-comparison) and the predicate-based
+  event tests are unaffected. Added `momentUnits` fallback in the score's `fxDef` channel: a wave can LEAD with a
+  sourceless Divine-Shield pop, so when the primary has no source it recovers the dealer from the first `dmg`
+  event's own `source`.
+- **The dying body is kept on screen for its own eruption.** Fel Spikes leaves the board the beat before its
+  Echo fires, so the volley's origin anchor would resolve to nothing. `computeFrame` now retains a dead unit for
+  the beat window in which it is still the SOURCE of damage — it lingers exactly for its volley and is gone the
+  next beat. Sourceless damage retains nothing, so ordinary trades and the resting end-frame are untouched.
+
+Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'damaged' } }`. The saved `fel-spike.json` also
+gets `fieldPhase: 0.5` on its three turbulent bursts (it fires many-at-once — the exact case the new Field
+Variation knob solves), so the spikes don't all swirl identically. A warded target takes no damage, so it gets
+no spike (the ward visibly blocked it) — flagged for the owner in case a spike-anyway is wanted.
+
+Verified: new tests for the source stamp (`simulate.test.ts`, on the Echo's `wave`), the fan-out + Ward-pop
+fallback (`score.test.ts`), the dead-dealer retention (`computeFrame.purity.test.ts`), and the binding table
+(`bindings.test.ts`). typecheck + lint (0 errors) + `npm test` (5922 passed) + build:web all green. NOTE: the
+live look (the volley firing from the lingering body) is unverified in-browser — for the owner to eyeball.
+
 ## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
 
 Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a

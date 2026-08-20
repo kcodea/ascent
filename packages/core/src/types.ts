@@ -1924,7 +1924,7 @@ export interface MinionSnapshot {
 export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
-  | { type: 'dmg'; target: string; amount: number; remainingHp: number }
+  | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }

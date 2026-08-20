@@ -164,13 +164,13 @@ const row = (id: string): GlossItem => {
 /** The registry ids the glossary renders, in section+display order. Exported for the drift test. */
 export const GLOSSARY_MECHANIC_IDS = [
   'shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne',
-  'taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'immune', 'stealth', 'watcher',
+  'taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher',
   'attachment', 'consume', 'fodder', 'engraved', 'discover',
 ] as const;
 
 const GLOSSARY: { title: string; items: GlossItem[] }[] = [
   { title: 'Triggers', items: ['shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne'].map(row) },
-  { title: 'Combat keywords', items: ['taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'immune', 'stealth', 'watcher'].map(row) },
+  { title: 'Combat keywords', items: ['taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher'].map(row) },
   {
     title: 'Build & shop',
     items: [

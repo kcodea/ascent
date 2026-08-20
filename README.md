@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Keyword definitions beside a card** — hovering or inspecting a card now shows a box for each keyword it uses (Ward, Echo, Slaughter, Choose One…), word on top and a one-line definition below.
+
 - **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.
 
 - **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.

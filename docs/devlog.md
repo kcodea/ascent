@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-20 — Keyword definitions beside a card (hover + Inspect)
+
+Hovering or right-click-Inspecting a card now shows a column of definition boxes next to it — one per
+keyword the card actually uses (Ward, Echo, Flurry, Execute, Rise, Shout, Attachment, Critical Strike,
+Gilded, …), word on top and a one-line definition below. Presentation-only; no engine/content/sim changes.
+
+- **`packages/ui/src/keywordGlossary.ts`** — a new 27-entry ordered glossary (`{ id, name, aliases, badge?,
+  def }`) covering ability triggers, combat keywords, and mechanic nouns, keyed on the game's DISPLAYED
+  terms.
+- **`packages/ui/src/detectCardKeywords.ts`** — a pure function: the union of a card's badge `keywords` and
+  a word-boundary, case-sensitive scan of its `renameTerms`-processed text (matching what the player actually
+  sees, including bold markup stripped), returned in fixed glossary order and deduped. Fixed order (not text
+  order) keeps the panel stable for the same card and avoids reflow when the same terms appear in a
+  different sentence order across golden vs. base text.
+- **`packages/ui/src/keywordGlossaryCoverage.test.ts`** — a drift-guard test asserting every glossary term is
+  detected on at least one real card in content, so a renamed/removed keyword can't silently go stale;
+  `gilded` and `stealth` are the two sanctioned exemptions (stealth is a defined keyword no current card
+  uses).
+- **`packages/ui/src/KeywordDefs.tsx`** (+ `.kwdefs`/`.kwbox` CSS) — renders the definition column to the
+  right of the enlarged card, mirroring the `.inspect-buffs` glass chrome; renders nothing when the card uses
+  no glossary terms. Static DOM, no animated paint properties.
+- Wired into both surfaces that enlarge a card: the right-click Inspect overlay (`Inspect.tsx`) and the
+  hover reveal (`Card.tsx`'s `.cardref`).
+
+Verified: unit tests for `detectCardKeywords` (6 cases) plus the coverage guard, and the full gate —
+typecheck, lint (no errors in `packages/ui/src`), `npm test`, and `build:web` — all green (see this commit's
+CI run). Scope discipline: the four pre-existing code→name maps (`Card.tsx`, `float.ts`, `questText.ts`,
+`UnitEditor.tsx`) were left as-is; folding them into the shared glossary is a separate follow-up.
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the

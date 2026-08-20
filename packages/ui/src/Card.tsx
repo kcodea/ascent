@@ -80,6 +80,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
+import { KeywordDefs } from './KeywordDefs';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -1185,6 +1186,7 @@ export const Card = memo(function Card({
             {popupCards.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
+            <KeywordDefs card={card} />
           </div>
         </div>,
         document.body,

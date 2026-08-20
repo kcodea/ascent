@@ -1,5 +1,82 @@
 # ASCENT — development log
 
+## 2026-08-20 — tutorial coaching pass, hero-select difficulty pill + tips, Indy recharge meter fix
+
+**Owner tutorial pass (16 items).** Step numbers below are the player-visible walk (foundation panels +
+order demo + lobby intro + turn steps), which is what the owner was counting — the ids are given so the
+mapping stays checkable.
+
+*Coaching that did not point at what it was talking about:*
+- **Every buy step** now draws the drag it asks for (shop offer → hand), and **every play step** now
+  spotlights the HAND CARD as well as the destination with the drag drawn between them. Applied
+  systematically across all 18 buy/play steps rather than to the three the owner happened to hit
+  ("if there are steps that repeat issues i mentioned, apply them to all steps").
+- **7 `lobby-self`**, **15 `r1-debrief`**, **16 `r2-debrief`** all name Health in their copy but never lit it —
+  they now anchor the Health box too. `combatDebriefStep` gained an optional second anchor for this.
+- **49 `r8-end`** lit a strip of empty board while the Discover overlay the player must act on sat outside the
+  cutout. New `discover` anchor (`.discover-ov`), and the step now covers overlay + hand + warband.
+
+*Copy that was wrong or incomplete:*
+- **9 `r1-gold`** — "it refills every turn" never actually said unspent Gold is LOST. Now it does.
+- **30 `r4-debrief`** — promised "let us add some synergy" and then handed the player a minion with none.
+- **40 `r7-buy`** — dropped "a free extra body mid-fight", which is not what a re-fired Echo always produces.
+- **55 `r10-free`** — the first unguided turn now reminds the player they can raise their Tavern tier.
+- **32 `r5-play`** — gained a payoff beat (`r5-shopbuff`) pointing at the shop the Shout just buffed. The
+  effect lands somewhere the player is not looking, so the lesson was a claim with no visible evidence.
+  A real step, not `resultAnchors` — that field is declared on `TutorialStep` but the controller never
+  implemented it, so authoring it would have been a silent no-op.
+
+*Three real defects:*
+- **43 `r7-position` could be completed by CLICKING.** Its predicate was `{ kind: 'reordered' }`, an EVENT that
+  fires on any drag — including nudging the wrong minion or dropping T-Rex back where it started. New
+  `cardAtSlot` predicate reads STATE (`board[index].cardId`), so the step is satisfied only by T-Rex actually
+  being left-most, which is the lesson.
+- **12 `r1-power`'s highlight sat off to the left and up.** `useAnchorRects` measured once when the step
+  activated and then only re-measured on resize/scroll. That step activates in the same commit as the play
+  that satisfied the previous one — so it measured Packstrider MID-FLIGHT into its board slot and never
+  corrected. Now re-measures on `transitionend`/`animationend` (capture phase, collapsed into the SAME rAF as
+  resize/scroll, so a board of cards finishing together costs one layout read). Fixes every anchor measured
+  mid-move, not just that step, and stays event-driven — no polling loop, per the perf rule.
+- **The next step was readable below the board during combat.** A debrief completes on `returnedToShop`, so it
+  activates the moment the fight STARTS and its panel then sat parked at the bottom for the whole fight.
+  `confirm`-mode panels are now held until `combatSettled`. Scoped to `confirm` deliberately: a `predict` step
+  exists to name what to watch for BEFORE it happens, so hiding those would delete the lesson.
+
+*Hero-power habit (owner ask):* a reminder now sits before **every** guided End Turn (turns 2–9). Its
+completion is "used it **OR** the power is not ready" — **Aster's Preparation recharges every OTHER turn**, so a
+bare `heroPowerUsed` reminder would have sat unsatisfiable and **soft-locked the course** on a recharge turn.
+New `heroPowerReady` predicate backs the escape hatch; a test pins that it cannot lock.
+
+*Two presentation fixes:* the graduation screen's "Tutorial Complete" ran into the final warband — the shared
+`.endscreen .hstitle` has a zero bottom margin because the full end screen puts an `.endboardlabel` between
+title and board, which the graduation screen has not got. It now has its own `.tutgrad` spacing. And the locked
+**Advanced** mode card used a bare `cursor: default`, dropping the app's custom gauntlet cursor; it now uses the
+same `url(...) , default` every other disabled element uses.
+
+**Hero select — difficulty pill** (owner copy). Under the portrait, a colour-coded difficulty pill
+(Easy/Medium/Hard); hovering crossfades it out and the hero-power text in.
+
+> **The TIP line is authored but hidden** (owner call, same day: "keep the difficulty pills, but hide the tips
+> for now... until we want to enable them"). Gated behind `SHOW_HERO_TIPS = false` rather than deleted, so
+> turning them on later is a one-line flip instead of a re-write — all 47 tips stay written, tested and
+> covered, and a test pins both the flag state and that the copy survives being hidden. With the tip gone the
+> pill is centred in the reserved box rather than top-aligned: the box height belongs to the HOVER face (the
+> power text), so a top-aligned pill would have hung off the top of a tall empty gap. Both faces live
+in one `.hcbelow` box that owns the reserved height, so the swap can never reflow the row. Data lives in its own
+`heroTips.ts` rather than on `HeroDef` — `heroes.ts` is a two-dev chokepoint and this is advisory copy with no
+engine meaning. Coverage is OPTIONAL by design: **47 of 51 heroes are covered**; Djinni, Chaos, Chronos and
+Aster have no entry and simply render no pill. `heroTips.test.ts` pins that list so the gap is on the record.
+
+**Indy's Masterwork meter read `0/40g` when the recharge is 75.** The value was rebalanced 40 → 75 on
+2026-08-07 in the reducer only; `StatusBar.tsx` kept the literal `40` in four places, so the pill promised a
+recharge the reducer would not grant. Both sides now read one exported `INDY_GILD_RECHARGE_GOLD`.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5950/5952 tests
+pass**. New `tutorialCoaching.test.ts` (11 cases) pins the coaching SHAPE rather than the copy — it caught two
+gaps while being written: turn 8 had no hero-power reminder, and the Discover step legitimately must not get a
+drag arrow (it opens a modal rather than placing a body). The hero-select pill was verified live in the browser:
+at rest the pill+tip render at opacity 1 with the power text at 0, both in the same 92px box, and all four
+hover/crossfade rules resolve in the CSSOM.
 ## 2026-08-20 — Play-mode screen: bake the owner's tuned card/title positions
 
 Owner Play-Mode-Screen tuner values baked into the shipped defaults. Five knobs moved from where they sat:

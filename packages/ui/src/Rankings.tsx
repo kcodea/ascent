@@ -4,7 +4,8 @@ import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, displayHandle } from './store';
-import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
+import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
+import { startReplay } from './replay/replayPlayer';
 
 /**
  * Rankings — the player Leaderboard (owner request 2026-07-13): the top 10 players by skill rating (the "MMR"),
@@ -18,6 +19,8 @@ export function Rankings() {
   const myId = useGame((s) => s.account.userId);
   const openCareer = useGame((s) => s.openCareer);
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
+  const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
+  const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
 
   useEffect(() => {
     if (!show) return;
@@ -59,6 +62,7 @@ export function Rankings() {
               <span className="ranknum">Rating</span>
               <span className="ranknum">Games</span>
               <span className="rankfav">Favorite hero</span>
+              <span className="rankwatchhead" />
             </div>
             {rows.map((r, i) => {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
@@ -73,12 +77,29 @@ export function Rankings() {
                 sfx.pulse();
                 openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero });
               };
+              // Watch their latest run — fetch that player's newest v2 replay and hand it to the viewer.
+              // `startReplay` closes this overlay; exiting the replay restores it. A player with no
+              // watchable run yet degrades the pill to "No run" rather than opening a broken viewer.
+              const watch = (e: React.MouseEvent): void => {
+                e.stopPropagation();
+                if (!r.userId || watching) return;
+                sfx.pulse();
+                setNoReplay(null);
+                setWatching(r.userId);
+                const name = displayHandle(r.author, r.discriminator, r.userId);
+                void fetchLatestReplayForUser(r.userId)
+                  .then((rep) => { if (rep) startReplay(rep, { authorName: name }); else setNoReplay(r.userId); })
+                  .finally(() => setWatching(null));
+              };
+              // A div[role=button], not a <button> — the row nests the Watch button and a button can't nest a button.
               return (
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   className={`rankrow rankrow-btn${mine ? ' me' : ''}`}
                   key={r.userId || r.author}
                   onClick={openTheirs}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTheirs(); }}
                   title={`View ${displayHandle(r.author, r.discriminator, r.userId)}'s career`}
                 >
                   <span className={`rankrank r${i + 1}`}>{i + 1}</span>
@@ -93,7 +114,16 @@ export function Rankings() {
                       </>
                     ) : <span className="baldim">—</span>}
                   </span>
-                </button>
+                  <button
+                    type="button"
+                    className="rankwatch pressable"
+                    onClick={watch}
+                    disabled={!r.userId || watching === r.userId}
+                    title={noReplay === r.userId ? 'No watchable run yet' : `Watch ${displayHandle(r.author, r.discriminator, r.userId)}'s latest run`}
+                  >
+                    {watching === r.userId ? '…' : noReplay === r.userId ? 'No run' : '▶ Watch'}
+                  </button>
+                </div>
               );
             })}
           </div>

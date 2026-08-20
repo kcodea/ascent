@@ -1,0 +1,73 @@
+import { useGame } from '../store';
+import { pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay, replayEffectiveTimes, replayFrameTimes } from './replayPlayer';
+
+/**
+ * REPLAY VIEWER transport — a floating control bar shown while a recorded run plays back (`replaySession`
+ * set). Salvaged from the killed v1 branch (PR #956) and re-pointed at the v2 state-replay player: progress
+ * and click-to-seek are now proportional to the recorded timeline (`tMs`), not an action index — a seek is
+ * "jump to the frame active at time T", O(log n), no rebuild. Presentation is Mike's seam, so this is a
+ * plain functional shell for him to restyle; it reads the shared glass vars so the UI Theme tuner reaches it.
+ */
+export function ReplayOverlay(): JSX.Element | null {
+  const s = useGame((st) => st.replaySession);
+  if (!s) return null;
+
+  // The CLAMPED timeline, not raw tMs: bar position ≡ actual watch time, so an idle gap in the capture (a
+  // player AFK mid-run) doesn't compress all real play into a sliver of the bar (found live 2026-08-19).
+  const times = replayEffectiveTimes();
+  const duration = times.length > 0 ? times[times.length - 1]! : 0;
+  const cur = times[Math.min(s.index, times.length - 1)] ?? 0;
+  const pct = s.ended ? 100 : duration > 0 ? (cur / duration) * 100 : 0;
+  // The fill GLIDES to the next frame's position over exactly the armed step's remaining window (a long
+  // literal think used to park the bar dead, which read as broken — owner report 2026-08-19). scaleX with a
+  // linear transition: compositor-only, re-derived whenever the session object changes (arm/seek/pause).
+  const nextPct = duration > 0 ? ((times[Math.min(s.index + 1, times.length - 1)] ?? cur) / duration) * 100 : 0;
+  const glideMs = s.playing && s.stepEndsAtReal != null ? Math.max(0, s.stepEndsAtReal - performance.now()) : 0;
+  const fillPct = s.ended ? 100 : glideMs > 0 ? nextPct : pct;
+  const seekFromClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    // Map the bar fraction through the clamped timeline to a frame INDEX (last frame at or before the
+    // target watch-time), then seek by index — a raw-tMs seek would undo the clamping.
+    const target = frac * duration;
+    let lo = 0, hi = times.length - 1, ans = 0;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (times[mid]! <= target) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    // Recover the RAW recorded time of the scrub target (paced deltas are literal above the sanity floor, so
+    // the in-step remainder maps 1:1), for the mid-step inspect-trail apply.
+    const raw = replayFrameTimes();
+    const atTMs = (raw[ans] ?? 0) + Math.max(0, target - times[ans]!);
+    seekReplayIndex(ans, { atTMs });
+  };
+
+  return (
+    <div className="replaybar" role="group" aria-label="Replay controls">
+      <button
+        className="replaybtn pressable"
+        onClick={() => (s.playing ? pauseReplay() : resumeReplay())}
+        title={s.playing ? 'Pause' : 'Play'}
+        aria-label={s.playing ? 'Pause' : 'Play'}
+      >
+        {s.playing ? '❚❚' : '▶'}
+      </button>
+
+      <div className="replayprog" onClick={seekFromClick} role="slider" aria-label="Seek" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} title="Click to seek">
+        <div
+          className="replayprog-fill"
+          style={{
+            transform: `scaleX(${fillPct / 100})`,
+            transition: glideMs > 0 ? `transform ${Math.round(glideMs)}ms linear` : 'none',
+          }}
+        />
+      </div>
+
+      <span className="replayround">{s.authorName ? `${s.authorName} · ` : ''}{s.ended ? 'Final' : `Round ${s.round}`}</span>
+
+      <label className="replayspeed" title="Playback speed">
+        <span>{s.speed}×</span>
+        <input type="range" min={0.5} max={5} step={0.5} value={s.speed} onChange={(e) => setReplaySpeed(Number(e.target.value))} />
+      </label>
+
+      <button className="replaybtn ghost pressable" onClick={endReplay} title="Exit replay" aria-label="Exit replay">✕</button>
+    </div>
+  );
+}

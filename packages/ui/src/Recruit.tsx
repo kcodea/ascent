@@ -36,6 +36,7 @@ import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
+import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -1652,6 +1653,15 @@ export function Recruit() {
     if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
 
+  // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
+  // a spectated fight has finished playing and it's safe to advance to the next frame. During playback the
+  // live `dispatch` is swallowed (the player owns state), so the combat→shop step can't ride the normal
+  // auto-settle path above — this is how the player learns.
+  const spectating = useGame((st) => st.replaying);
+  useEffect(() => {
+    if (spectating) useGame.setState({ combatReplayDone: replay.done });
+  }, [spectating, replay.done]);
+
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
   // snap. `resolveCombat` is deferred to the end of the fade-out so the swap happens under cover of opacity 0.
@@ -2538,6 +2548,9 @@ export function Recruit() {
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       dragIsTouchRef.current = e.pointerType !== 'mouse'; // touch/pen → snap to the finger (see dragIsTouchRef)
+      // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
+      // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
+      if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
       setDrag({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
@@ -2714,6 +2727,7 @@ export function Recruit() {
     }); };
     const onMove = (e: PointerEvent): void => {
       dragPosRef.current = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
+      sampleDragTrace(e.clientX, e.clientY); // replay drag-path capture — self-throttled to ~30 Hz, no layout
       lastMove = e;
       if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
     };
@@ -2724,12 +2738,17 @@ export function Recruit() {
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
       const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
       if (!d || !moved) {
+        cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
         setDrag(null);
         setOverZone(null);
         return;
       }
+      // REPLAY V2 drag-path capture: close the trace at the release point, BEFORE the drop resolves — the
+      // drop's dispatch (same tick, or the magnetic-merge slide ~260 ms later) takes it; a drop that
+      // dispatches nothing just leaves it to go stale (takeDragTrace discards it).
+      endDragTrace(e.clientX, e.clientY);
       // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
       // hero) stay click-through and a card can land on the hand tucked behind them.
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
@@ -2838,6 +2857,7 @@ export function Recruit() {
     const onCtx = (e: MouseEvent): void => {
       if (dragRef.current?.view.spell || dragRef.current?.view.ruby) {
         e.preventDefault();
+        cancelDragTrace(); // an aborted aim never labels a later action
         setDrag(null);
         setOverZone(null);
       }

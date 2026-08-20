@@ -9,7 +9,8 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
-import { fetchRunHistory } from './remoteBoards';
+import { fetchRunHistory, fetchReplayForSeed, historyEntryWatchable } from './remoteBoards';
+import { startReplay } from './replay/replayPlayer';
 
 /** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
 function cardViewOf(m: BoardMinion): CardView {
@@ -137,6 +138,11 @@ export function Career() {
   // the lobby never asks. Owner report 2026-08-08.
   const lobbyMode = stats.lobbyRuns > 0;
   const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
+  // ── Watch (owner ask 2026-08-19): play back a listed run's uploaded v2 replay ────────────────────────────
+  // Index-keyed like `open`; both reset when the entries refetch so a stale index can't point at the wrong run.
+  const [watching, setWatching] = useState<number | null>(null); // row index whose replay is loading
+  const [noReplay, setNoReplay] = useState<number | null>(null); // row index whose fetch came back empty
+  useEffect(() => { setWatching(null); setNoReplay(null); }, [entries]);
 
   // ── Focus: opened from a specific game (a Recent Games row) ────────────────────────────────────────────
   // Expand + scroll to the run the feed row named. Matched once entries land; index -1 = no focus / no match
@@ -175,6 +181,24 @@ export function Career() {
   const highestSeen = viewing
     ? (entries ?? []).reduce((m, e) => Math.max(m, e.ratingAfter ?? 0), 0) || null
     : profile.highestRating;
+
+  // Watch a listed run back: map the row to its uploaded telemetry replay by SEED (the only key the two rows
+  // share — see fetchReplayForSeed) and hand it to the viewer. `startReplay` closes this overlay itself and
+  // restores it on exit (Phase B), so nothing here touches `showCareer`. A row whose fetch comes back empty
+  // (pre-upload loss, deleted row, offline) degrades to "No replay" instead of a broken viewer.
+  const watchRun = (ev: React.MouseEvent, e: RunHistoryEntry, i: number): void => {
+    ev.stopPropagation();
+    if (watching !== null) return;
+    sfx.pulse();
+    setNoReplay(null);
+    setWatching(i);
+    void fetchReplayForSeed(e.seed, { userId: viewing?.userId ?? myId })
+      .then((rep) => {
+        if (rep) startReplay(rep, { authorName: shownName || undefined });
+        else setNoReplay(i);
+      })
+      .finally(() => setWatching(null));
+  };
 
   const favHero = stats.perHero[0];
   const favHeroName = favHero ? getHero(favHero.heroId).name : '—';
@@ -308,13 +332,24 @@ export function Career() {
                     const verdict = runVerdict(e);
                     const wonRun = verdict !== 'defeat'; // the SCORE reads green for a top-4 too
                     const delta = e.ratingDelta;
+                    // Watch is offered only where a replay can actually exist (seed + lobby + post-dates v2
+                    // capture — historyEntryWatchable): rows that can't map get NO button rather than one
+                    // that always answers "No replay". The head is a div[role=button] (not a <button>)
+                    // because a button can't nest the Watch button — same shape as the Recent Games rows.
+                    const watchable = historyEntryWatchable(e);
                     return (
                       <div
                         className={`lbentry carmatch${expanded ? ' open' : ''}${i === focusIndex ? ' carmatch-focus' : ''}`}
                         key={i}
                         ref={i === focusIndex ? focusRef : undefined}
                       >
-                        <button className="carmatch-head" onClick={() => toggle(i)}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="carmatch-head"
+                          onClick={() => toggle(i)}
+                          onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(i); } }}
+                        >
                           <div className="lbportrait">
                             {heroArt(e.heroId) ? <img src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
                           </div>
@@ -346,9 +381,20 @@ export function Career() {
                             {delta !== undefined && (
                               <span className={`carmmr ${delta >= 0 ? 'up' : 'down'}`}>{delta >= 0 ? '+' : ''}{delta}</span>
                             )}
+                            {watchable && (
+                              <button
+                                type="button"
+                                className="matchwatch carwatch pressable"
+                                onClick={(ev) => watchRun(ev, e, i)}
+                                disabled={watching === i}
+                                title={noReplay === i ? 'This replay is unavailable' : 'Watch this run back'}
+                              >
+                                {watching === i ? '…' : noReplay === i ? 'No replay' : '▶ Watch'}
+                              </button>
+                            )}
                             <span className={`carchev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
                           </div>
-                        </button>
+                        </div>
                         {expanded && (
                           <div className="carmatch-body">
                             <div className="carstatstrip">

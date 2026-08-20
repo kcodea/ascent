@@ -10,9 +10,11 @@ import { BOARDS, getBoard, setBoard, type BoardId } from './boardConfig';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
+import { endReplay } from './replay/replayPlayer';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
+  const replaying = useGame((s) => s.replaying);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -97,15 +99,27 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
         </button>
-        <div className="escsec">Run</div>
-        {/* Back to the main menu — the run stays saved (Continue resumes it); it does NOT abandon the run. */}
-        <button
-          className="escbtn pressable"
-          onPointerDown={() => { openTitle(); onClose(); }}
-        >
-          <span className="ebl">Quit back to main menu</span>
-          <span className="ebs">Your run stays saved — Continue resumes it</span>
-        </button>
+        <div className="escsec">{replaying ? 'Replay' : 'Run'}</div>
+        {/* During a REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting to
+            the menu left the replay HUD — rail, dock, transport — floating over the title screen). endReplay
+            restores the snapshot; opening the title AFTER it wins over whatever screen the snapshot restores. */}
+        {replaying ? (
+          <button
+            className="escbtn pressable"
+            onPointerDown={() => { endReplay(); openTitle(); onClose(); }}
+          >
+            <span className="ebl">Leave replay</span>
+            <span className="ebs">Back to the main menu — the replay closes</span>
+          </button>
+        ) : (
+          <button
+            className="escbtn pressable"
+            onPointerDown={() => { openTitle(); onClose(); }}
+          >
+            <span className="ebl">Quit back to main menu</span>
+            <span className="ebs">Your run stays saved — Continue resumes it</span>
+          </button>
+        )}
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

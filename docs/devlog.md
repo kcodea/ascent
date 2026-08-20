@@ -1,5 +1,215 @@
 # ASCENT — development log
 
+## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
+
+**Sixth follow-up: the owner's first real-run audit (2026-08-19 night) — four playback-feel fixes.**
+
+- **"Ending combat seems a bit fast" — accurate, fixed.** Playback advanced 500 ms after the arena finished,
+  discarding the recorded watch/settle gap. The combat exit now waits out whatever of the RECORDED
+  fight-to-settle gap remains after the viewer's arena finishes (their own combat-speed setting drives the
+  arena, so the remainder absorbs the difference), floored at the old beat.
+- **The speed slider froze playback — fixed with a step-progress LEDGER.** Every speed change (and
+  pause/resume) re-armed the current step from zero; under literal pacing a step can be a 30-second think, so
+  dragging the slider through five notches restarted the full think five times. The ledger banks elapsed
+  SOURCE time and every re-arm continues from the remainder. Pinned by two fake-timer tests (speed change
+  mid-step; pause+resume).
+- **Drag time was double-counted.** The recorded step delta already CONTAINS the drag; the ghost flew durMs on
+  top of the full delta. The step is now armed short by the drag's duration — step + flight = the literal
+  recorded delta.
+- **The drag ghost is now the REAL card** (owner: "very small / not what the card actually looks like") — the
+  actual `Card` component at in-game size (`--cw`/`--ch` recipe), with the stats/golden state looked up in the
+  PREVIOUS frame's recorded view, the fist cursor riding it. Verified in-page: the plate renders at true card
+  width with the right card.
+- **The scrub bar GLIDES.** A long literal think used to park the fill dead (which read as broken); the fill
+  now glides to the next frame's position over exactly the armed step's remaining window — `scaleX` with a
+  linear transition, compositor-only, driven by a `stepEndsAtReal` stamp on the session.
+- **Esc menu during a replay shows "Leave replay"** — ends the playback THEN opens the title (owner report:
+  "Quit back to main menu" left the rail/dock/transport floating over the title screen).
+
+Session note: the primary checkout was switched to another session's branch mid-work, so these fixes were
+built in a dedicated worktree (`ascent-replay`) off the PR branch, per docs/concurrency.md — own install, own
+dev server. Gates: typecheck ✅ lint 0 errors ✅ 5868 tests / 363 files ✅ build:web ✅.
+
+**Fifth follow-up (same day): DRAG PATHS — the last gap in the 1:1 vision.**
+
+Every drag (buy / play / sell / reposition / reorder shop / reorder hand) now records its pointer path and
+replays as a GHOST: the dragged card's art + name on a small plate, with the game's closed-gauntlet cursor
+pinned at its hotspot, flying the recorded path over exactly the recorded duration before the frame lands —
+so each drag adds precisely its real time to the literal timeline. Capture hooks ride the REAL drag lifecycle
+in Recruit.tsx (pointerdown → 30 Hz move samples → release), RDP-simplified to viewport-FRACTION coordinates
+(a replay watched at another resolution still tracks the layout): a typical drag is **~100–320 bytes**. The
+path attaches to the frame its drop produced (take-and-clear, 300 ms staleness so an aborted drag can't
+mislabel an unrelated action — the magnetic-merge slide's 260 ms deferral fits inside). The ghost is one WAAPI
+transform animation (compositor-only), never intercepts pointers, and seeks skip it entirely; pause mid-ghost
+lands the frame immediately so the paused world is never a frame behind.
+
+Live-verified with a REAL mouse drag driven in the browser: the buy's path captured onto its frame (cardId +
+duration + simplified points), survived the JSON upload round-trip, and the ghost rendered mid-flight in the
+replayed turn. Gates: typecheck ✅ lint 0 errors ✅ 5866 tests / 363 files ✅ build:web ✅.
+
+**Fourth follow-up (same day): dock header + a REAL wire-format bug (the stuck Runeforge).**
+
+- **The dock has a labeled header** — "Gold / Acts / Tier" as an in-flow row, with a matching "Round" cell on
+  the rail so data rows stay level across the seam. The first attempt (icons absolutely positioned above the
+  plate) was silently clipped by the dock's `overflow: hidden`, which is why the owner's screenshot had no
+  header at all.
+- **The stuck-Runeforge bug was a delta-encoding wire-format hole, not a UI bug.** The reducer clears a spent
+  forge with `s.runeforgeOffer = undefined` — an explicit undefined, which the delta encoder was putting INSIDE
+  `changed`. `JSON.stringify` silently drops undefined values, so the uploaded payload lost the clear and the
+  forge overlay never closed in playback (an in-memory Rewatch was unaffected, which is why it slipped past the
+  earlier live checks). Explicitly-undefined keys now travel as REMOVALS (`removed: ['runeforgeOffer']`),
+  which serialization cannot drop. Pinned by a regression test that JSON round-trips the frames — the exact
+  upload→fetch path — and live-verified: rail-click to the forge round, the overlay opens on the shop frame
+  and closes the moment the recorded pick plays. The same hole would have hit EVERY reducer field cleared to
+  undefined, not just the forge — this was the general class, found through its first symptom.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5844 tests / 362 files ✅ build:web ✅, plus the live browser pass.
+
+**Third follow-up (same day): the metrics DOCK + the rail in the dev tuner.**
+
+- **The per-round hover drawer is gone; the metrics live in a DOCK** (owner rework: "a dock that slides
+  out/extends the rail to the right that houses the gold spent etc info for all rounds at once"). It extends
+  the rail as a second grid — one row per round, aligned to the rail's exact row rhythm so the two read as one
+  table — with three columns (🪙 Gold spent / ⚡ Actions / ⛰ Shop tier at start) and a chevron handle on the
+  edge that collapses/expands it (the handle travels with the dock edge). Open by default; slide is a one-shot
+  transform/opacity transition. The current playback round highlights in BOTH grids.
+- **The "Jump to round N" native tooltip is removed** (it was covering the metrics).
+- **🎞️ Replay Rail dev tuner** — Horizontal / Vertical / Size dials (whole assembly, rail + dock scale
+  together) plus Dock width, on the standard `--rrl-*` CSS-var + localStorage pattern (`replayRailConfig.ts`,
+  DEV-persisted, prod renders DEFAULTS; styles.css fallbacks mirror them).
+
+Live-verified: a captured run replayed with the dock open showing all 12 rounds' numbers; handle collapse/
+expand works and the handle tracks the dock edge (122→246 px); tooltip attribute gone from rail rows; the
+`--rrl-*` vars move (x 14→80) and scale (1→1.4×) the assembly live. Gates: typecheck ✅ lint 0 errors ✅ 5843
+tests / 362 files ✅ build:web ✅.
+
+**Second follow-up (same day): fully literal + hover-inspect + Career Watch + auto-close.**
+
+- **Zero idle condensing** (owner: "i dont want any idle gap condensing at all") — the 8 s idle cap from the
+  first follow-up is GONE; every recorded delta plays back verbatim (50 ms rendering-sanity floor only). A
+  five-minute AFK plays as five minutes at 1×; the speed slider and scrub bar are the viewer's tools for it.
+  **Speed range is now 0.5–5×** (was 0.5–10×).
+- **The replay closes itself** — reaching "Final" lingers 2.5 s then auto-exits (a scrub during the linger
+  cancels it), so leaving a replay never requires hunting for the ✕.
+- **Hover-inspect is captured and replayed** — the recorded player right-click-inspecting a card now shows the
+  SAME panel on the SAME card at the SAME moment in playback. Inspect is store-level UI state (not a reducer
+  action), so it rides its own `inspectTrail` on ReplayV2: full CardView per open (~0.5 KB — it already folds
+  in live card text, so playback re-derives nothing and can never miss a stale target), stamped by the SAME
+  clock as the frames, coalesced (<150 ms blips dropped, same-card re-opens throttled, closes always land),
+  capped at 2000 events. Playback schedules events at their literal in-step offsets; **scrubbing into the
+  middle of an open window restores the open panel** (found live — the bar's index seek landed on frame
+  boundaries, where the panel is always closed, so the overlay now passes the true mid-step target time
+  through to the trail apply).
+- **Career Watch** — the player's own match-history rows now carry ▶ Watch. What unblocked it (Phase C had
+  skipped it): history rows have carried the run SEED since v1, and every uploaded replay carries its seed, so
+  the row→replay mapping is exact — `fetchReplayForSeed` filters `replay->>seed` + `v2->>version = 2` + the
+  owner's user id, and the client re-verifies the payload's seed. Rows that can't map (no seed, non-lobby,
+  pre-v2-capture) get no button at all.
+
+Live-verified in the browser end-to-end: a captured run with a real inspect window replayed showing the panel;
+a mid-window scrub restored it; the run reached Final and closed itself, restoring the viewer's world exactly.
+Gates: typecheck ✅ lint 0 errors ✅ 5843 tests / 362 files ✅ build:web ✅.
+
+**Follow-up (same day): literal 1:1 pacing** (owner ruling: "I want it to be a literal 1:1 experience of when
+a player buys cards, plays cards"). Capture was already exact wall-clock; the CLOCK had inherited v1's
+legibility clamps (every gap squeezed into 350 ms–5 s). The live rule is now `paceStepMs`: **the recorded delta
+plays back verbatim**, floored only at 50 ms rendering sanity and ceilinged only at an 8 s idle cap — a 2.3 s
+think replays as 2.3 s, two buys 100 ms apart replay 100 ms apart; only a genuine AFK gap compresses (nobody
+wants to watch a phone call). The transport bar's timeline uses the same rule, so bar position stays ≡ watch
+time. `clampStepMs` is retired from the live clock but kept for the fixed beats. Judgment call flagged to the
+owner: the 8 s idle cap is the one deliberate departure from "literal" — raise/remove it if wanted.
+
+Also owned in this entry: the anonymous "bravedrake20" row on the shared feed is the live-verification bot run
+this build was tested with (uploaded through the real run-end path, as designed) — cleanup SQL given to the
+owner; a "don't upload from dev builds" guard is listed as an open improvement rather than shipped, since dev
+uploads are also how live testing populates the pool today.
+
+The whole feature specced in [`replay-v2-handoff.md`](replay-v2-handoff.md) is built, on the same PR as the
+spec. Five commits, one per phase, built by parallel agents off the spec and integrated + live-verified at the
+end. **Playback is a pure renderer** — no `reduce()`, no `simulate()` — so what you watch is what happened, by
+construction, and old replays survive every future content change.
+
+- **Phase A — capture** (`packages/sim/src/replayV2.ts` + store hooks). `ShopView = Omit<RunState, denylist>`
+  (the audit's inverted projection — new RunState fields are captured by default), `nextFoe` pinned at capture
+  (closing the one §2-class drift hole the audit found), a frame per action at the `commitResolvedAction`
+  chokepoint, a combat frame per fight (the whole `lastCombat`, deep-cloned; `oddsInput` stripped), delta
+  encoding (keyframe per turn, `{changed, removed}` per action — a full bot run measured **337 KB / 59
+  frames**, ~0.43 MB projected for a human run; capture cost ~0.15 ms per action). Uploaded as
+  `run_telemetry.replay.v2` beside the v1 fields (balance re-derivation still reads those); frames are NOT
+  autosaved (localStorage quota) — a resumed run uploads `partial: true`.
+- **Phase B — playback** (`packages/ui/src/replay/`). `ReplayPlayer` (the killed v1 API names, no engine),
+  `synthRunFromShopView`, the salvaged transport bar re-pointed at it, and the **round rail** — click round 8,
+  seek to round 8's shop opening. FX-on-seek solved with one lever: every seek bumps `replaySeekEpoch`, folded
+  into Recruit's mount key, so all ~40 FX sequence-diff refs re-init at the target frame (normal stepping keeps
+  its FX — buys/welds replay visually). Scrub-into-combat renders the fight's RESOLVED world; the final combat
+  plays from the top so the ending stays watchable. Input fully inert (dispatch + presentation-tx + `flushSave`
+  — that last one so a tab-hide mid-replay can't overwrite the player's real autosave). “Rewatch Last Game” on
+  the end screen + title.
+- **Phase C — entry points.** RecentGames rows grew a **▶ Watch** (extending the shipped feed rather than
+  resurrecting the killed overlay); the leaderboard got the salvaged per-row Watch pill. Fetch is a light list
+  (a `replay->v2->version` probe, one scalar per row) + the full payload only on click.
+- **Phase D — the metrics drawer.** Hover a rail row → slides out (transform/opacity only) with exactly the
+  three owner-locked numbers: **Gold spent / Actions / Shop tier at start** (`rollupRounds`, computed once per
+  replay); click pins it and it tracks playback.
+
+**Live end-to-end verification** (the exact check v1 failed): drove a throwaway 16-wave lobby run through the
+real store in the browser, rewatched it — recruit screen rendered from the synthetic run, rail click on R8
+landed on wave 8's exact shop opening with the drawer reading Gold spent 9 / Actions 3 / Tier 1, and the
+recorded placement (2nd) matched reality. A nice fidelity detail: the last SHOP frame shows Leech 21/4 while
+the gameover board read 22/4 — correct, the +1 landed DURING the final combat, which plays back showing it.
+
+**One real bug found live and fixed**: the transport bar mapped raw `tMs` proportionally, so an idle gap in the
+capture (AFK mid-run; my test capture had a 31 s setup gap) compressed all actual play into a sliver —
+right-edge clicks seeked to frame 0. The bar now maps through the **clamped timeline** (each delta through the
+same 350/900/5000 ms pacing the playback clock uses), so bar position ≡ actual watch time; seeks map fraction
+→ clamped time → frame index (`seekReplayIndex`). The round rail keeps exact-`tMs` seeks (its marks are real
+frame times).
+
+Known polish (Phase E, deferred): the shop timer ticks visually during playback (its expiry dispatch is
+swallowed — harmless, reads oddly); `result.finalBoard` reuses the leaderboard's pre-fight-board convention.
+
+Gates: typecheck ✅ lint ✅ (0 errors) ✅ 5817 tests / 361 files ✅ build:web ✅, plus the live browser pass above.
+
+## 2026-08-19 — Replay v2 spec: the round rail + the per-turn stats panel
+
+Docs only — no code. Owner ask: a left-hand round scrub ("click round 8, it seeks to the start of round 8") and
+an extendable stats panel showing cards played / Gold spent per turn, "so I could see where all the action was."
+
+Both went into [`replay-v2-handoff.md`](replay-v2-handoff.md) as a new §7, and the useful finding is that
+**neither needs new capture** — that falls out of the state-replay decision rather than being luck. Because a
+state replay snapshots the full visible state after *every* action and stamps each frame with the action that
+caused it, the frame list already IS a per-turn event log. The rail is an index over `frames[].wave`; the stats
+panel is a pure `rollup(frames)` fold. So both are buildable last, and work retroactively on replays captured
+before either existed.
+
+Two things the write-up pins down that would otherwise bite at build time:
+
+- **`ShopFrame.cause` is promoted from debug metadata to a data contract.** The panel counts by it, so the
+  `ActionCause` union has to cover every dispatched action or a missing case silently reads as "you played 3
+  cards that turn" when you played 5. Phase A now owes an exhaustiveness check over the `Action` union.
+- **Gross Gold spent is the one thing that is NOT free.** Net flow per round is exact from consecutive
+  `view.gold`, but diffing conflates spend with income, and a single action can do both (Rune of the Tip Jar
+  costs 0 and pays 4). Recommended fix is two optional numbers per frame — `spent` / `earned` — captured where
+  the reducer has the before/after Gold and the action together. Negligible against the combat logs that
+  dominate the payload, and it belongs in Phase A so recordings carry it from day one.
+
+Recommended shape: the rail and the panel are **one widget** — one row per round (number, a bar for the selected
+metric, combat verdict, Resolve delta), click to seek, expand for detail. The "dropdown for fun" is then just
+which metric the bars encode, and each option is one line of the fold. Priority order for the metrics is in
+§7.5; the pick worth calling out is **board power yours-vs-the-board-you-actually-faced**, since both sides are
+already in `CombatFrame.initial` and it shows the exact round you fell behind, which a solo curve cannot.
+
+**Board power: CUT** (owner ruling later the same day: "I don't really care about the score thing"). An earlier
+pass had specced it as a baseline curve; the final scope is exactness of playback, the round rail, and a
+three-number metrics drawer that slides out of the rail — **gold spent / actions this turn / shop tier at the
+start of the turn**, per round. The drawer replaces the earlier bars-and-dropdown panel sketch. The one analysis
+kept from the cut section (as a warning for any future revisit): a MODELED score would have to be captured at
+record time, never computed at playback — today's weights would silently re-score old replays, the same drift
+class v2 exists to kill.
+
+Phase plan updated: the rail lands in Phase B (it is one pass on top of the seek that phase already builds), the
+stats panel becomes its own Phase D, and polish moves to E.
+
 ## 2026-08-19 — Rune batch: 4 reworks + 22 new runes (basic + epic)
 
 **Rune art: full re-wire (2026-08-19).** Re-copied every rune's master from `Ascent Art/Runes` and re-ran

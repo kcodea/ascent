@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-19 — The loss-damage number reads above the board furniture
+
+The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the
+StatusBar and board furniture (`z-index: 40`). Since the Freeze gem / Reroll / Gold now stay up during combat,
+the gem was covering the big damage number (owner report). Raised the tally to `z-index: 2000/2001` — the same
+tier as the sibling lobby damage float, above the board + replay bar but still below the dev menu (9990). CSS
+only.
 ## 2026-08-19 — Remove the Set 2 launch banner from the title screen
 
 Owner ask: pull the "Welcome to Set 2's Launch!" glass card off the title screen entirely. Deleted the

@@ -49,6 +49,13 @@ The hover reveal mirrors this — top-aligned, lifted a FIXED `-14px` (not a per
 which lifted taller 4-tip columns too far while 2-tip ones sat right). Column width 200px in Inspect; box text
 settled at name 10px / def 8.4px.
 
+**Definitions rewritten by the owner** (from a spreadsheet, 2026-08-20): all 27 tooltip definitions replaced
+verbatim with the owner's copy — tighter, more game-specific wording (e.g. Consume "devours a minion from
+shop", Fodder "automatically consumed by a random friendly demon", Attachment "when played to the left of a
+mech", Ruby/Ale as Kobold/Dwarf spells). Names/aliases unchanged, so detection + the coverage guard are
+unaffected. Note: Avenge reads "once (x) friendly minions die" with a literal `(x)` — a static glossary
+placeholder, not a live count.
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the

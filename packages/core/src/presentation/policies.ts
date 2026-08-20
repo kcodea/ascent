@@ -867,6 +867,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic — cf. onFriendDeathSummon
   'factory:avengeSummonAttackImproving:avenge': { policy: 'ownBeat', family: 'avenge' },          // Muster General — cf. avengeSummonAttack
   'factory:rallyDoubleSelf:onAttack': { policy: 'ownBeat', family: 'rally' },                     // Evolving Abomination — cf. rallyBuffSelf
+  // The WELDED rally payout (Better Bot's Mech Attack / Perfect Core's spell conjure) firing inside a SHOP
+  // rally (Rune of Lasting Cadence's End-of-Turn dispatch). A reaction inside the rally's own beat — the
+  // weld claims credit for its buffs/conjure without adding a pause, like combat folds it into the swing.
+  'system:shopRally:weld': { policy: 'foldedCue', family: 'rally' },
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

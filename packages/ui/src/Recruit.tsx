@@ -1401,7 +1401,7 @@ export function Recruit() {
   const gambleHand = gambleHold ? run.hand.filter((c) => c.uid !== gambleHold) : run.hand;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
-  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string }[]>([]);
+  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
   // Keywords gained on board minions during End-of-Turn playback — overlaid so the pip shows on the beat.
   const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
@@ -2394,13 +2394,18 @@ export function Recruit() {
       if (!add || add.size === 0 || [...add].every((k) => m.keywords.includes(k as Keyword))) return m;
       return { ...m, keywords: [...new Set([...m.keywords, ...add])] as Keyword[] };
     });
-    const synthetic: BoardCard[] = eotSummons
-      .filter((s) => !run.board.some((c) => c.uid === s.uid)) // once committed, the real card takes over
-      .map((s) => {
-        const def = CARD_INDEX[s.cardId];
-        return { uid: s.uid, cardId: s.cardId, tribe: def?.tribe ?? 'neutral', attack: def?.attack ?? 0, health: def?.health ?? 0, keywords: [...(def?.keywords ?? [])], golden: false } as BoardCard;
-      });
-    return [...withKw, ...synthetic];
+    // SPLICED at each summon's committed slot (an Imp arrives ADJACENT to its summoner) rather than appended —
+    // appending flashed every arrival right-most, then the commit "corrected" it (owner report 2026-08-20).
+    // Summons arrive in delivery order carrying their committed board index, so sequential splices reproduce
+    // the committed order; a summon without an index (legacy batch) still appends.
+    const out: BoardCard[] = [...withKw];
+    for (const s of eotSummons) {
+      if (run.board.some((c) => c.uid === s.uid)) continue; // once committed, the real card takes over
+      const def = CARD_INDEX[s.cardId];
+      const ghost = { uid: s.uid, cardId: s.cardId, tribe: def?.tribe ?? 'neutral', attack: def?.attack ?? 0, health: def?.health ?? 0, keywords: [...(def?.keywords ?? [])], golden: false } as BoardCard;
+      out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
+    }
+    return out;
   }, [run.board, eotSummons, eotKeywords]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
@@ -4445,7 +4450,7 @@ export function Recruit() {
         // Hand grants (conjures) preview in the hand; board summons (Moira re-firing a summoner) inject onto
         // the board — split by zone so a summon no longer wrongly shows as a hand card.
         setEotGrants(p.grantedCards.filter((g) => g.zone === 'hand').map((g) => g.cardId));
-        setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId })));
+        setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId, index: g.index })));
         setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
       },
       onComplete: () => {

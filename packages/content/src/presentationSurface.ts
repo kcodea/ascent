@@ -135,6 +135,9 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // An End-of-Turn Discover that auto-resolves (Moira re-firing Black Belt Brian) grants its pick on this beat,
   // so it coalesces into the hand during End-of-Turn playback instead of at the combat hand-off.
   { key: 'system:eotDiscover:grant', users: ['blackbelt'] },
+  // A WELDED rally (Better Bot's Mech Attack / Perfect Core's spell conjure) paying out inside a shop rally
+  // (Rune of Lasting Cadence at End of Turn) — folded into the rallying minion's own beat.
+  { key: 'system:shopRally:weld', users: ['better_bot', 'perfect_core'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

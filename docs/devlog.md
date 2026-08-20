@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-20 — shop-rally presentation: per-effect FX identities + summons land in their true slot
+
+Owner report on the live Lasting Cadence pass: mechanically right, but (1) "none of the minion animations
+fire, like echohorn, watcher effects" and (2) a rally-summoned Imp flashed into the RIGHT-MOST slot during the
+End-of-Turn animation, then corrected before combat.
+
+**(1)** `fireShopRally` dispatched every watcher's `onAttack` effect BARE, so everything a rally did collapsed
+under the rune's single outer beat with no per-effect identity — the compiled timeline had one beat per rally
+and zero nested beats, so the authored FX / watcher pulses had nothing to bind to. Each (watcher × effect)
+dispatch is now its own nested `withRecruitTrigger` sourced on the WATCHER with the same `factory:<do>:onAttack`
+identity combat uses; the outer rune beat became a plain scope so consequences emit exactly once. A new
+`discardIfEmpty` collector flag keeps a guarded-out no-op (the wrapper's own `minion !== self` filter) from
+leaving an empty beat that would falsely pulse a bystander.
+
+**(2)** `cardSummoned` carried no insertion index, so the UI projection could only APPEND the ghost while the
+committed state splices at `summoner + 1`. The index is now stamped from the committed board and honoured all
+the way down (`CardSummonedConsequence` → `ProjectedCardGrant` → `eotSummons` → `displayBoard` splice);
+index-less legacy batches still append.
+
+Live-verified through the real End Turn control: Paragon's medallion pulse fires mid-rally-beat, and the
+mid-animation board shows both summons adjacent to their summoners from the first frame, identical to the
+committed combat board (no snap-correction). Three new tests, each red on the pre-fix code. Gates: typecheck
+✅ lint 0 errors ✅ 6146 tests / 372 files ✅ build:web ✅.
+
 ## 2026-08-20 — a SHOP Rally is a Rally TRIGGER (owner ruling)
 
 The Rally-family migration flagged that a shop rally (Rune of Lasting Cadence) did not advance the Rally quest

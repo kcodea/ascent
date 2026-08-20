@@ -8143,23 +8143,52 @@ export function ralliersOf(state: RunState): BoardCard[] {
 export function fireShopRally(state: RunState, card: BoardCard): void {
   if (!state.board.includes(card)) return; // an earlier rally removed it — the beat still keeps its window
   const ctx = makeContext(state);
+  // PRESENTATION: each (watcher × effect) dispatch is its OWN nested trigger, carrying the watcher as source
+  // and the effect's registry identity — exactly what a played Shout does (`withPlayTrigger` stamps
+  // `factory:<do>:onPlay`). Without this, everything a rally did in the shop collapsed under the rune's single
+  // outer `sourceTrigger` with no per-effect identity, so the compiled batch had NOTHING for the per-minion
+  // authored FX / watcher pulses to bind to — Echohorn's sparkle, Hawkus's reaction and every other authored
+  // def played in combat but not on the End-of-Turn rally beats (owner report 2026-08-20). With NO collector
+  // capturing (`fireRallies` in tests, the legacy projection) `withRecruitTrigger` is a bare call, so
+  // gameplay is byte-identical.
+  const rallySource = (m: BoardCard): TriggerSourceRef =>
+    ({ kind: 'minion', id: m.cardId, uid: m.uid, side: 'player', label: CARD_INDEX[m.cardId]?.name });
   if (card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack')) {
     for (const watcher of [...state.board]) {
       const align = alignmentOf(state.board, watcher.uid); // CELESTIAL: gate aligned halves exactly as EoT does
       for (const effect of instanceEffects(watcher)) {
         if (effect.on !== 'onAttack') continue;
         if (!alignAllows(effect, align)) continue;
-        RECRUIT_FACTORIES[effect.do]?.(ctx, watcher, effect.params ?? {}, { minion: card });
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (!fn) continue;
+        // `discardIfEmpty`: the broadcast offers this rally to EVERY board body, and each wrapper's own
+        // guard (`payload.minion !== self` for an own-attack Rally) decides inside the scope — a guarded-out
+        // no-op must not leave an empty beat that falsely pulses a bystander.
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: rallySource(watcher), trigger: 'onAttack', ...beatIdentity(`factory:${effect.do}:onAttack`) },
+          () => fn(ctx, watcher, effect.params ?? {}, { minion: card }),
+          { discardIfEmpty: true },
+        );
       }
     }
   }
-  // The welded rallies, exactly as `fireFreeRally` pays them out.
+  // The welded rallies, exactly as `fireFreeRally` pays them out — one nested trigger on the rallying card.
   const mechAtk = card.rallyMechAtk ?? 0;
-  if (mechAtk > 0) {
-    for (const m of state.board) if (m !== card && isTribe(m, 'mech')) addBuff(m, 'Better Bot', mechAtk, 0);
-  }
   const spellWeld = card.rallySpellWeld ?? 0;
-  if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+  if (mechAtk > 0 || spellWeld > 0) {
+    withRecruitTrigger(
+      ctx,
+      { phase: 'endOfTurn', source: rallySource(card), trigger: 'onAttack', ...beatIdentity('system:shopRally:weld') },
+      () => {
+        if (mechAtk > 0) {
+          for (const m of state.board) if (m !== card && isTribe(m, 'mech')) addBuff(m, 'Better Bot', mechAtk, 0);
+        }
+        if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+      },
+      { discardIfEmpty: true }, // Better Bot with no other Mech on the board changes nothing — no beat
+    );
+  }
   // A SHOP rally is a Rally TRIGGER (owner ruling 2026-08-20) — it advances the `rally` quest objective and
   // the Author's Hand rally half exactly like a combat one. Counted HERE, at the single chokepoint every
   // shop rally passes through, for the same reason combat hooks everything at `bumpRally`: one definition of
@@ -8313,8 +8342,12 @@ export function applyEndOfTurn(state: RunState): void {
   // is the beat's source: it pulses, its FX play, and the projection reserves a step for it.
   for (const card of runeLastingCadenceBeats(state)) {
     const def = CARD_INDEX[card.cardId];
-    withRecruitTrigger(
-      ctx,
+    // A PLAIN trigger scope (no consequence diff): `fireShopRally` now opens one NESTED `withRecruitTrigger`
+    // per (watcher × effect) — the per-effect identities the authored FX bind to — and those nested scopes
+    // emit every consequence. Diffing here as well would emit each delta TWICE (once per nesting level) and
+    // the projection would double-climb. On the NOOP collector `withTrigger` is a bare call, so gameplay is
+    // untouched.
+    collector.withTrigger(
       {
         phase: 'endOfTurn',
         source: beatSource('minion', card.cardId, def?.name ?? card.cardId, card.uid),
@@ -9001,6 +9034,9 @@ function withRecruitTrigger(
   ctx: RecruitContext,
   spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrenceKey?: string },
   run: () => void,
+  /** `discardIfEmpty`: drop the trigger from the batch if the effect recorded NOTHING — for broadcast
+   *  dispatches (the shop rally) where the effect's own guard decides after the scope is already open. */
+  opts?: { discardIfEmpty?: boolean },
 ): void {
   const collector = ctx.collector;
   if (!collector.enabled) { run(); return; }
@@ -9021,10 +9057,11 @@ function withRecruitTrigger(
   const eatenBefore = (state.fodderEaten ?? []).length;
   const shopEatenBefore = (state.shopEaten ?? []).length;
   const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-  collector.withTrigger(
-    // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
-    { ...spec },
-    () => {
+  // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
+  // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
+  const handle = collector.beginTrigger({ ...spec });
+  try {
+    (() => {
       run();
       for (const [uid, was] of before) {
         const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
@@ -9054,10 +9091,13 @@ function withRecruitTrigger(
       }
       // Minions this trigger summoned to the BOARD (Moira re-firing a summoner's Shout) — the board sibling of
       // the hand-grant loop above. Without this, an End-of-Turn summon snapped onto the board only at commit.
-      for (const c of state.board) {
-        if (boardBefore.has(c.uid)) continue;
-        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
-      }
+      // `index` = the slot the body actually occupies (the shop summons ADJACENT to the summoner), so the
+      // projection renders the arrival in its true slot from the first frame instead of appending it
+      // right-most and letting the commit "correct" it (owner report 2026-08-20).
+      state.board.forEach((c, bi) => {
+        if (boardBefore.has(c.uid)) return;
+        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
+      });
       // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
       // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
       for (const c of state.board) {
@@ -9118,8 +9158,11 @@ function withRecruitTrigger(
           deliveryKey: 'consume.depart',
         });
       }
-    },
-  );
+    })();
+  } finally {
+    collector.endTrigger(handle);
+    if (opts?.discardIfEmpty) collector.discardIfEmpty(handle);
+  }
 }
 
 /**

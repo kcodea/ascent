@@ -106,6 +106,12 @@ export interface CardSummonedConsequence extends ConsequenceBase {
   type: 'cardSummoned';
   target: ZoneTargetRef;
   cardId: string;
+  /** The board slot the minion was INSERTED at (0-based, as committed). The shop summons adjacent to the
+   *  summoner (`makeContext().summon` splices at `near + 1`), and without this the projection could only
+   *  APPEND — so an End-of-Turn rally summon flashed in the right-most slot, then "corrected itself" when
+   *  the committed board arrived (owner report 2026-08-20). Optional: a legacy batch without it still plays,
+   *  the ghost just appends. */
+  index?: number;
 }
 export interface CardDestroyedConsequence extends ConsequenceBase {
   type: 'cardDestroyed';

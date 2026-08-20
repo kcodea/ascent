@@ -192,6 +192,68 @@ describe('the AUTHORITATIVE batch — the path the shipped game actually paces o
     expect(new Set(rallies.map((t) => t.policy)), 'ownBeat, never folded into a cue').toEqual(new Set(['ownBeat']));
   });
 
+  it('each effect a rally fires gets its OWN nested identity — what the authored FX bind to', async () => {
+    // Owner report 2026-08-20: the rally beats played, but Echohorn sparkles / watcher pulses did not —
+    // every consequence collapsed under the rune's single sourceTrigger with no per-effect identity, so the
+    // compiled timeline had nothing to hang the per-minion authored FX on. The fix: `fireShopRally` opens a
+    // nested trigger per (watcher × effect), source-attributed to the WATCHER and carrying the same
+    // `factory:<do>:onAttack` registry key combat classifies.
+    const { reduceWithPresentation } = await import('./index');
+    type Trig = { type: string; id: string; parentId?: string; source: { kind: string; id: string; uid?: string }; policyKey?: string; family?: string };
+    type Cons = { type: string; parentId?: string; target?: { uid?: string } };
+    const s = run([bc('a', 'd2_cinderchef'), bc('p', 'n2_paragon')], { runeLastingCadence: true });
+    const { batch } = reduceWithPresentation(s, { type: 'faceOmen' }, true);
+    const events = batch!.events as unknown as (Trig & Cons)[];
+    const trigs = events.filter((e) => e.type === 'sourceTrigger') as Trig[];
+    const rallyBeat = trigs.find((t) => t.policyKey === 'rune:rune_lasting_cadence:endOfTurn')!;
+    const nested = trigs.filter((t) => t.parentId === rallyBeat.id);
+    // Cinderchef's own Rally body AND Paragon's reaction each carry their identity, sourced on the watcher.
+    const self = nested.find((t) => t.policyKey === 'factory:rallyBuffSelf:onAttack');
+    const paragon = nested.find((t) => t.policyKey === 'factory:onRallyBuffOnePerTribe:onAttack');
+    expect(self?.source.uid, 'the rallier’s own effect is its own nested beat').toBe('a');
+    expect(paragon?.source.uid, 'the watcher’s reaction is source-attributed to the watcher').toBe('p');
+    expect(new Set(nested.map((t) => t.family)), 'the combat family rides along').toEqual(new Set(['rally']));
+    // The consequences hang off the NESTED per-effect triggers — and are NOT double-emitted by the outer beat.
+    const stats = events.filter((e) => e.type === 'statsChanged');
+    const nestedIds = new Set(nested.map((t) => t.id));
+    expect(stats.length).toBeGreaterThan(0);
+    for (const c of stats) expect(nestedIds.has(c.parentId ?? ''), 'every stat delta belongs to a per-effect trigger, never the bare rune beat').toBe(true);
+    expect(stats.filter((c) => c.parentId === self!.id).length, 'Cinderchef’s +1/+1 emitted exactly once — no outer-diff double').toBe(1);
+  });
+
+  it('a guarded-out no-op leaves NO empty nested beat — bystander ralliers never falsely pulse', async () => {
+    // The broadcast offers each rally to every board body; an own-attack Rally no-ops on someone else's
+    // swing (`payload.minion !== self`). The empty scope is discarded, so Cinderchef B does not get a
+    // consequence-less beat (= a false medallion pulse) on Cinderchef A's rally.
+    const { reduceWithPresentation } = await import('./index');
+    type Trig = { type: string; id: string; parentId?: string; source: { uid?: string }; policyKey?: string };
+    const s = run([bc('a', 'd2_cinderchef'), bc('b', 'd2_cinderchef')], { runeLastingCadence: true });
+    const { batch } = reduceWithPresentation(s, { type: 'faceOmen' }, true);
+    const trigs = (batch!.events as unknown as Trig[]).filter((e) => e.type === 'sourceTrigger');
+    const rallyBeats = trigs.filter((t) => t.policyKey === 'rune:rune_lasting_cadence:endOfTurn');
+    expect(rallyBeats).toHaveLength(2);
+    for (const beat of rallyBeats) {
+      const children = trigs.filter((t) => t.parentId === beat.id);
+      expect(children.map((c) => c.source.uid), `beat of ${beat.source.uid}: only its OWN effect fires`).toEqual([beat.source.uid]);
+    }
+  });
+
+  it('a rally SUMMON carries its insertion index — the slot adjacent to the summoner', async () => {
+    // Owner report 2026-08-20: the summoned Imp flashed in the RIGHT-MOST slot during the End-of-Turn
+    // animation, then "corrected" to beside its summoner at commit — the projection appended because the
+    // `cardSummoned` consequence carried no index. Errand Fiend (slot 0) summons its Imp at slot 1.
+    const { reduceWithPresentation } = await import('./index');
+    type Summ = { type: string; cardId?: string; index?: number; parentId?: string };
+    const s = run([bc('e', 'dm_errand'), bc('z', 'stray')], { runeLastingCadence: true });
+    const { batch, state } = reduceWithPresentation(s, { type: 'faceOmen' }, true);
+    const summons = (batch!.events as unknown as Summ[]).filter((e) => e.type === 'cardSummoned');
+    expect(summons).toHaveLength(1);
+    expect(summons[0]!.cardId).toBe('impscrap');
+    expect(summons[0]!.index, 'inserted adjacent to Errand Fiend (slot 0), not appended').toBe(1);
+    // The emitted index matches the committed board — the projection and the commit can no longer disagree.
+    expect(state.board.findIndex((c) => c.cardId === 'impscrap')).toBe(1);
+  });
+
   it('capture on or off, the committed state is identical', async () => {
     const { reduce, reduceWithPresentation } = await import('./index');
     const s = run([bc('a', 'd2_cinderchef'), bc('p', 'n2_paragon')], { runeLastingCadence: true });

@@ -829,12 +829,39 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   if (!src) return 0;
   const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
   if (!binding?.launchOnDeath) return 0;
-  // …and only if that sprayer actually DIED in the shown beat, so its volley launched from there.
+  // …and only if that sprayer actually DIED in the shown beat, so its volley launched from there. The hold is
+  // the launch delay (skull → volley) PLUS the beam's travel, so the damage lands as the spike connects.
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    if (e?.type === 'death' && e.target === src) return projectileImpactMs(binding.def);
+    if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def);
   }
   return 0;
+}
+
+/** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a breath so the skull reads first
+ *  (owner ask 2026-08-20: ~100ms). */
+const ECHO_LAUNCH_DELAY_MS = 100;
+/** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
+ *  than one merged cascade (owner report 2026-08-20). */
+const ECHO_PASS_GAP_MS = 240;
+
+/** Schedule the spike volley(s) a dying `launchOnDeath` unit throws: one per `echoWaves` wave, each launched a
+ *  breath after the skull (`ECHO_LAUNCH_DELAY_MS`), and each golden pass a `ECHO_PASS_GAP_MS` after the last so
+ *  two sprays read as two taps. Anchors resolve at FIRE time (inside the timer) so a pulled-home attacker's
+ *  moved rect is honoured and the still-visible body is the launch point. `register` receives each timer id for
+ *  the caller's cleanup. */
+function scheduleEchoVolleys(defId: string, dyingUid: string, deathIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void): void {
+  if (!canPlayDefs()) return;
+  const s = speed > 0 ? speed : 1;
+  echoWaves(events, dyingUid, deathIdx).forEach((wv, w) => {
+    const fire = (): void => wv.uids.forEach((uid, k) => {
+      const a = anchorsForUnits(dyingUid, uid);
+      if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
+    });
+    const delay = (ECHO_LAUNCH_DELAY_MS + w * ECHO_PASS_GAP_MS) / s;
+    if (delay <= 0) fire();
+    else register(window.setTimeout(fire, delay));
+  });
 }
 
 /**
@@ -1790,22 +1817,14 @@ export function useCombatReplay(
       }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
-      // Fel Spikes' Echo: LAUNCH the spike volley from the dying body now — with the skull, while it is still on
-      // screen — toward every unit its upcoming spray will strike. A beat before the damage lands (the beat
-      // clock holds that beat for the beam's travel, `echoDeliveryLead`). The stock hit-burst on the damage
-      // beat is still claimed + suppressed by the fxDef fan-out; only the projectile is relocated to here.
-      // Golden sprays TWICE → both waves fire in one continuous cascade (`index` keeps climbing) = quick
-      // succession, not the long inter-pass pause.
+      // Fel Spikes' Echo: LAUNCH the spike volley from the dying body — a breath after the skull, while it is
+      // still on screen — toward every unit its upcoming spray will strike, a beat before the damage lands (the
+      // beat clock holds that beat for the beam's travel, `echoDeliveryLead`). Golden sprays twice as two quick
+      // taps. The stock hit-burst on the damage beat is still claimed + suppressed by the fxDef fan-out; only
+      // the projectile is relocated here.
       const echoBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
-      if (r && echoBinding?.launchOnDeath && canPlayDefs()) {
-        let n = 0;
-        for (const wv of echoWaves(events, e.target, i)) {
-          for (const uid of wv.uids) {
-            const a = anchorsForUnits(e.target, uid);
-            if (a) playDef(echoBinding.def, a, { uids: { source: e.target, target: uid }, index: n });
-            n++;
-          }
-        }
+      if (r && echoBinding?.launchOnDeath) {
+        scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => timers.push(id));
       }
     }
     return () => {
@@ -1873,6 +1892,14 @@ export function useCombatReplay(
             const rect = rEl ? layoutRectOf(rEl) : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
+            // Fel Spikes killed MID-ATTACK (it swung and died to retaliation) lands here, not the immediate
+            // death loop — so its Echo volley must launch from the pulled-home body here too, or the death
+            // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Fire-and-forget: the
+            // spikes self-expire, and a timer surviving unmount finds no anchor and no-ops.
+            const echoBinding = bindingFor(cardIds.get(impactAtk) ?? null, 'damage');
+            if (echoBinding?.launchOnDeath) {
+              scheduleEchoVolleys(echoBinding.def, impactAtk, i, events, combatSpeedRef.current, () => {});
+            }
           });
         }
       }

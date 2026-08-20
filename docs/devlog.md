@@ -1,5 +1,24 @@
 # ASCENT — development log
 
+## 2026-08-20 — Fel Spikes' Echo: 100ms skull→volley gap, golden double-tap, attacker-death launch
+
+Three follow-ups on the projectile re-choreography, from owner eyeball:
+
+- **Volley launches ~100ms AFTER the skull** (`ECHO_LAUNCH_DELAY_MS`), so the skull reads first — and the
+  damage lead now folds that delay in (`ECHO_LAUNCH_DELAY_MS + projectileImpactMs`) so the numbers still land
+  on the connect.
+- **Golden double-taps.** A gilded Fel Spikes sprays twice; the two volleys were merging into one cascade.
+  They now fire as two distinct taps, one `ECHO_PASS_GAP_MS` after the other (`echoWaves` already returns the
+  two waves separately).
+- **Attacker-death launch.** A Fel Spikes killed MID-ATTACK lands on the pulled-home path, not the immediate
+  death loop, so its volley wasn't firing (owner: a second Fel Spikes didn't trigger). The launch is now on
+  both paths, via a shared `scheduleEchoVolleys` helper.
+
+Verified: typecheck + lint (0 errors) + `npm test` (5931 passed) + build:web green. Live timing for owner
+to eyeball. FOLLOW-UP (owner ask, still open): when Fel Spikes' Echo triggers MULTIPLE times (gilded / Sylus /
+golden Echohorn), all volleys should land before the CUMULATIVE damage is tallied — that is a SIM change (the
+engine currently resolves each volley's deaths before the next), tracked separately.
+
 ## 2026-08-20 — Fel Spikes' Echo: the spike is a real projectile — fire → travel → hit → THEN damage
 
 Owner: the damage was landing as the Echo beat fired, before the spike arrived. It needs to fire, hit, and

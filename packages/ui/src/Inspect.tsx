@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Card } from './Card';
+import { KeywordDefs } from './KeywordDefs';
 import { useGame } from './store';
 
 /**
@@ -50,6 +51,7 @@ export function Inspect() {
             Drop `stepProgress`: the step counter is anchored to the board-token layout, so in this centred
             overlay it lands mid-card (owner 2026-08-15). The counter isn't part of reading the card whole. */}
         <Card card={{ ...inspect, stepProgress: undefined }} forceFull plated />
+        <KeywordDefs card={inspect} />
       </div>
     </div>
   );

@@ -70,6 +70,86 @@ gaps while being written: turn 8 had no hero-power reminder, and the Discover st
 drag arrow (it opens a modal rather than placing a body). The hero-select pill was verified live in the browser:
 at rest the pill+tip render at opacity 1 with the power text at 0, both in the same 92px box, and all four
 hover/crossfade rules resolve in the CSSOM.
+## 2026-08-20 — Play-mode screen: bake the owner's tuned card/title positions
+
+Owner Play-Mode-Screen tuner values baked into the shipped defaults. Five knobs moved from where they sat:
+the three mode cards drop/rise (Play Y 115->18, Learn Y 187->82, Practice Y -170->-266) and the MODE title
+grows and lifts (scale 1->1.23, Y 59->-30). Everything else already matched the shipped look.
+
+Same convention as the other tuners: `MODEPICK_VARS` `def`s in `modePickConfig.ts` are the source of truth, and
+the `.mcframe[data-mp=...]` / `.mptitle` `var(--mp-*, <fallback>)` values in styles.css MUST mirror them (they
+are the production paint — the tuner is dev-only). Both halves moved together for all five, verified against the
+owner's JSON (all 27 knobs match). Presentation-only.
+
+Verified: typecheck + build:web green.
+
+## 2026-08-19 — Audit: minion mechanic-icon (medallion `mechIcon` glyph)
+
+Investigation only — no code change. Full findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md),
+produced by running all 445 cards through Card.tsx's verbatim `mechIcon` resolution (trigger → keyword → tribe).
+Headline: **287/445 cards (64%) show the generic tribe symbol rather than a mechanic glyph**, 94 of them while
+naming a real mechanic in their text. Root cause of the bulk: a **rename desync** — `triggerPill` matches the
+pre-rename raw words `battlecry`/`deathrattle`, but ~51 cards' text now uses the player-facing renames
+`Shout`/`Echo` (34 Shout vs 15 Battlecry; 17 Echo vs 17 Deathrattle), so their trigger glyph silently drops to
+the tribe fallback (the "Knocked shows a Demon eye" report that started this). Also found: text-only
+Start-of-Combat/Slaughter mechanics that aren't keyword-tagged, three glyph collisions (`eye` ST/demon, `anvil`
+EG/dwarf, `skull` undead/Avenge), and four never-surfacing keyword icons. Fixes are queued in the roadmap under
+Next, gated on an owner ruling about whether the medallion should fall back to the tribe at all.
+## 2026-08-20 — Keyword definitions beside a card (hover + Inspect)
+
+Hovering or right-click-Inspecting a card now shows a column of definition boxes next to it — one per
+keyword the card actually uses (Ward, Echo, Flurry, Execute, Rise, Shout, Attachment, Critical Strike,
+Gilded, …), word on top and a one-line definition below. Presentation-only; no engine/content/sim changes.
+
+- **`packages/ui/src/keywordGlossary.ts`** — a new 27-entry ordered glossary (`{ id, name, aliases, badge?,
+  def }`) covering ability triggers, combat keywords, and mechanic nouns, keyed on the game's DISPLAYED
+  terms.
+- **`packages/ui/src/detectCardKeywords.ts`** — a pure function: the union of a card's badge `keywords` and
+  a word-boundary, case-sensitive scan of its `renameTerms`-processed text (matching what the player actually
+  sees, including bold markup stripped), returned in fixed glossary order and deduped. Fixed order (not text
+  order) keeps the panel stable for the same card and avoids reflow when the same terms appear in a
+  different sentence order across golden vs. base text.
+- **`packages/ui/src/keywordGlossaryCoverage.test.ts`** — a drift-guard test asserting every glossary term is
+  detected on at least one real card in content, so a renamed/removed keyword can't silently go stale;
+  `gilded` and `stealth` are the two sanctioned exemptions (stealth is a defined keyword no current card
+  uses).
+- **`packages/ui/src/KeywordDefs.tsx`** (+ `.kwdefs`/`.kwbox` CSS) — renders the definition column to the
+  right of the enlarged card, mirroring the `.inspect-buffs` glass chrome; renders nothing when the card uses
+  no glossary terms. Static DOM, no animated paint properties.
+- Wired into both surfaces that enlarge a card: the right-click Inspect overlay (`Inspect.tsx`) and the
+  hover reveal (`Card.tsx`'s `.cardref`).
+
+Verified: unit tests for `detectCardKeywords` (6 cases) plus the coverage guard, and the full gate —
+typecheck, lint (no errors in `packages/ui/src`), `npm test`, and `build:web` — all green (see this commit's
+CI run). Scope discipline: the four pre-existing code→name maps (`Card.tsx`, `float.ts`, `questText.ts`,
+`UnitEditor.tsx`) were left as-is; folding them into the shared glossary is a separate follow-up.
+
+**Live-tuning polish (same session, owner eyeball):** four fixes after seeing it on a real board.
+(1) The Inspect card's PLATE laps ~25% wider than the card body and was overlapping the defs column — the
+hover reveal already reserves that overhang as margin (`.cardref .card.plated`), so the same rule now applies
+to `.inspect-card .card.plated` (also protects the buffs panel on the left). (2) The defs column got narrower
+(`max-width` 240→144px / 42→25vw) with slightly smaller text (name 12→11px, def 10.5→9.5px). (3) The Inspect
+backdrop blur went 2→8px (plus the `-webkit-` prefix) for a stronger focus. (4) The HOVER reveal's width
+estimate now folds in the defs column, so a card + referenced card + defs that won't fit to the right FLIPS to
+open on the left instead of lapping the hovered tile / right-side UI — and the defs render on the outward side
+when flipped so the column never lands back over the source.
+
+**Inspect layout pass (owner-tuned live):** in the Inspect overlay the defs column is pulled OUT of the flex
+flow — `position: absolute; left: 100%` off the card — so the CARD itself stays perfectly centred on screen
+(before, the card+defs row was centred, shoving the card left). The column is top-anchored to the card
+(`top: -15%`, a fixed fraction of the card height, so the top box sits the same regardless of tooltip count)
+and rolls downward, past the card's bottom if needed. The whole group lifts ~15% (`translateY` on
+`.inspect-card`, with the `inspectpop` entrance keyframe updated to rest at the same spot so there's no snap).
+The hover reveal mirrors this — top-aligned, lifted a FIXED `-14px` (not a percent of the column's own height,
+which lifted taller 4-tip columns too far while 2-tip ones sat right). Column width 200px in Inspect; box text
+settled at name 10px / def 8.4px.
+
+**Definitions rewritten by the owner** (from a spreadsheet, 2026-08-20): all 27 tooltip definitions replaced
+verbatim with the owner's copy — tighter, more game-specific wording (e.g. Consume "devours a minion from
+shop", Fodder "automatically consumed by a random friendly demon", Attachment "when played to the left of a
+mech", Ruby/Ale as Kobold/Dwarf spells). Names/aliases unchanged, so detection + the coverage guard are
+unaffected. Note: Avenge reads "once (x) friendly minions die" with a literal `(x)` — a static glossary
+placeholder, not a live count.
 
 ## 2026-08-19 — Minion medallion glyph resolver rewritten: no more tribe fallback
 

@@ -46,6 +46,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Play-mode screen repositioned** — the Play / Learn / Practice mode cards and the MODE title sit at the owner's tuned positions (cards re-seated vertically, title larger and lifted).
 
+- **Keyword definitions beside a card** — hovering or inspecting a card now shows a box for each keyword it uses (Ward, Echo, Slaughter, Choose One…), word on top and a one-line definition below.
+
 - **Minion medallion icons no longer fall back to the tribe symbol.** The glyph on a minion's card now comes
   from a shared registry that reads the card's real mechanics (was: a brittle text check that showed a generic
   tribe icon on 64% of minions). New eye glyph for reactive **Watcher** effects, and Stealth/Engraved/Choose

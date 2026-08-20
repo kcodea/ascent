@@ -85,7 +85,12 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // RUNE OF ENGRAVING GEMS: every Ruby applied in combat carries back to the run board. Forced at this single
   // chokepoint (like Battle Refraction above), so EVERY combat Ruby source becomes permanent together rather
   // than each caller having to opt in — a per-source opt-in is exactly how one would get missed.
-  const engraved = permanent || !!ctx.rubiesPermanentFor?.(self.side);
+  const runeEngraved = !permanent && !!ctx.rubiesPermanentFor?.(self.side);
+  const engraved = permanent || runeEngraved;
+  // Rune of Engraving Gems bursts on the badge when IT is why this combat Ruby became permanent (not when the
+  // Ruby was already permanent for another reason). `ctx.log` of a questTrigger is the factories-side
+  // equivalent of `fireTrigger` — same channel, no new context hook (see the runeFloodedVault stamp).
+  if (runeEngraved) ctx.log({ type: 'questTrigger', flag: 'runeEngravingGems', side: self.side });
   applyRubyStats(ctx, self, target, a, h, engraved);
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
@@ -419,11 +424,21 @@ export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): v
   const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
   for (let r = 0; r < procs; r++) {
     ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-    ctx.countDeathrattle?.(target.side);
-    for (const effect of target.effects) {
-      if (effect.on !== 'onDeath') continue;
-      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-    }
+    // Route through the ECHO-TRIGGER chokepoint (`ctx.asEcho`), so the "an Echo fired" runes — Aftershocks
+    // (+4/+4 to the board), Burrow (a free refresh on a Beast Echo) — see a FORCED trigger exactly like a
+    // death-fired one. Owner report 2026-08-20: Aftershocks only fired on a real death, because this loop
+    // called the `onDeath` factories directly. ONE wrap per proc (a body with two Echo effects is still one
+    // trigger; each multiplier proc is its own). Falls back to a bare run when no chokepoint is supplied,
+    // so a context without it (tests, the recruit-phase arena) behaves exactly as before.
+    const fire = (): void => {
+      ctx.countDeathrattle?.(target.side);
+      for (const effect of target.effects) {
+        if (effect.on !== 'onDeath') continue;
+        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+      }
+    };
+    if (ctx.asEcho) ctx.asEcho(target.side, fire, target);
+    else fire();
   }
 }
 
@@ -485,6 +500,31 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
       case 'spellBuffAll': {
         for (const t of alive()) ctx.buff(t, a + sp.attack, h + sp.health, self.uid);
         did = true; break;
+      }
+      // BEEFY (owner report 2026-08-19: "not getting spell power buffs"). The id was simply MISSING here, so a
+      // Beefy cast in combat — Sporebat's Echo, Steward / Recaller, Ryme, any hand-spell re-fire — fizzled
+      // outright rather than under-paying. Same failure mode, and the same fix, as Reinforcing Ale above.
+      // Buffs the chosen target and its LIVING neighbours, mirroring the recruit factory (which finds the
+      // target's board index and takes i-1 / i / i+1). `livingNeighbours` walks outward past dead bodies,
+      // which is the combat-correct reading of "its neighbours" mid-fight.
+      // LANTERN LIGHT — found by the same audit, same failure: "+1/+1 per Tavern Tier" had no case here, so a
+      // combat re-fire did nothing. `tierFor` is per-side, so a served enemy scales on ITS tier, not the
+      // player's — matching how every other snapshot-backed scaler reads in combat.
+      case 'spellBuffByTier': {
+        const t = ctx.tierFor(side);
+        for (const m of chosen()) ctx.buff(m, t + sp.attack, t + sp.health, self.uid);
+        did = true; break;
+      }
+      case 'spellBuffTargetAndNeighbours': {
+        const seen = new Set<Minion>();
+        for (const t of chosen()) {
+          for (const m of [t, ...livingNeighbours(ctx, t)]) {
+            if (m.dead || m.health <= 0 || seen.has(m)) continue;
+            seen.add(m);
+            ctx.buff(m, a + sp.attack, h + sp.health, self.uid);
+          }
+        }
+        did = seen.size > 0; break;
       }
       // Reinforcing Ale (owner report 2026-08-08: Sporebat's Echo cast it and nothing happened — the id was
       // simply missing here, so the cast fizzled). "Your most common type" resolves against this side's
@@ -580,7 +620,7 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
 
 /** The targeted spells `resolveCombatSpellCast` can actually execute — Badgington's random pool. Extend BOTH
  *  when a targeted family lands in the resolver. */
-const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEscalating', 'rubyStatGain']);
+const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEscalating', 'rubyStatGain', 'spellBuffTargetAndNeighbours', 'spellBuffByTier']);
 
 /** Every effect id the resolver's switch executes — the PURE half of the resolvability question, so a caller
  *  can decline to cast at all (and never count a cast) when the spell would fizzle. Kept beside the switch:
@@ -590,6 +630,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
   'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
+  'spellBuffTargetAndNeighbours', 'spellBuffByTier', // Beefy + Lantern Light (2026-08-19)
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
@@ -1578,6 +1619,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (ctx.floodedVaultFor?.(self.side)) {
       const def = ctx.getCard(id);
       if (def?.spell && combatCastable(def)) {
+        // Pulse the rune's badge. Emitted through `ctx.log` rather than through a new context hook: a
+        // `questTrigger` IS a `CombatEvent`, so this needs no widening of the effect context — and it lands
+        // on the same channel every other rune trigger uses, so the badge treats it identically.
+        ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
           const pool = ctx.living(self.side);
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;

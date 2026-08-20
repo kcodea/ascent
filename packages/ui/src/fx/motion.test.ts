@@ -1,8 +1,48 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMIT_SHAPES, emissionOffset, spawnVelocity, turbulenceX, turbulenceY,
+  fieldPhaseOffset, FIELD_PHASE_SPAN,
   type EmissionParams, type EmitShape,
 } from './motion';
+
+describe('fieldPhaseOffset', () => {
+  it('is an exact no-op at amount 0 (byte-identical to the old clockSec = 0 start)', () => {
+    for (const seed of [0, 1, 12345, 0x7fffffff, -42, randomish(3), randomish(99)]) {
+      expect(fieldPhaseOffset(seed, 0)).toBe(0);
+      expect(fieldPhaseOffset(seed, -0.5)).toBe(0); // guarded on `amount > 0`
+    }
+  });
+
+  it('is deterministic in the seed — a locked seed replays the same phase', () => {
+    for (const seed of [1, 999, 0x1234abcd, randomish(7)]) {
+      expect(fieldPhaseOffset(seed, 1)).toBe(fieldPhaseOffset(seed, 1));
+      expect(fieldPhaseOffset(seed, 0.5)).toBe(fieldPhaseOffset(seed, 0.5));
+    }
+  });
+
+  it('decorrelates: different seeds give different phases (a crowd of casts spreads out)', () => {
+    const phases = new Set<number>();
+    for (let s = 1; s <= 200; s++) phases.add(fieldPhaseOffset(s, 1));
+    // No collisions across 200 distinct seeds — each simultaneous fire lands on its own field phase.
+    expect(phases.size).toBe(200);
+  });
+
+  it('stays within [0, FIELD_PHASE_SPAN * amount] and scales with amount', () => {
+    for (let s = 1; s <= 300; s++) {
+      const full = fieldPhaseOffset(s, 1);
+      expect(full).toBeGreaterThanOrEqual(0);
+      expect(full).toBeLessThan(FIELD_PHASE_SPAN);
+      // Same seed, half the amount → exactly half the phase (linear in amount).
+      expect(fieldPhaseOffset(s, 0.5)).toBeCloseTo(full * 0.5, 10);
+    }
+  });
+});
+
+/** A cheap deterministic spread of seed inputs for the tests above — not `Math.random`, so the suite stays
+ *  reproducible. */
+function randomish(n: number): number {
+  return (Math.imul(n, 0x9e3779b9) ^ (n << 13)) | 0;
+}
 
 describe('turbulence', () => {
   it('is finite and bounded to ~[-1.5, 1.5] across a wide sample', () => {

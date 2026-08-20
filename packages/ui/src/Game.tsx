@@ -26,6 +26,9 @@ import { PerfHud } from './PerfHud';
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
+import { ReplayOverlay } from './replay/ReplayOverlay';
+import { ReplayDragGhost } from './replay/ReplayDragGhost';
+import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
@@ -60,7 +63,10 @@ export function Game() {
   // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
   // uid-colliding card in the next hero's run). Key it on the run identity — stable within a run (seed +
   // heroId never change mid-run), so it only remounts when the run itself changes.
-  const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}`);
+  // REPLAY VIEWER: the seek epoch is folded in so a replay SEEK remounts the recruit tree — every FX hook's
+  // sequence-diff ref re-inits at the target frame, so a jump across 30 frames can't fire 30 stale effects
+  // (buys/welds still replay during ordinary frame stepping, which never bumps the epoch). 0 outside replays.
+  const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}:${s.replaySeekEpoch}`);
   const [menuOpen, setMenuOpen] = useState(false);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
@@ -104,7 +110,12 @@ export function Game() {
     let last: Element | null = null;
     const onOver = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return;                 // hover is a mouse/pen affordance only
-      const el = (e.target as Element | null)?.closest?.(SEL) ?? null;
+      let el = (e.target as Element | null)?.closest?.(SEL) ?? null;
+      // An offer option (Choose One / Discover) is a `.card[role="button"]` wrapped in a `.disc-slot` — BOTH
+      // match SEL. The card's plate img is `pointer-events:none`, so its overhang resolves to the SLOT while the
+      // frame resolves to the inner CARD; crossing between them double-ticked one option (owner report
+      // 2026-08-19). Collapse any match sitting inside a slot to the slot itself, so each option ticks once.
+      if (el) el = el.closest('.disc-slot') ?? el;
       if (el === last) return;                               // still within the same target (or still on nothing)
       last = el;
       if (!el || el.closest(SKIP) || (el as HTMLButtonElement).disabled) return;
@@ -272,6 +283,13 @@ export function Game() {
       <Career />
       <AvatarPicker />
       <AccountPanel />
+      {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;
+          the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
+      {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the
+          transport chrome — a recorded hand replaying must never cover the viewer's controls. */}
+      <ReplayDragGhost />
+      <RoundRail />
+      <ReplayOverlay />
       {/* Tutorial coaching overlay — self-gates on a `tutorial`-mode run; renders nothing otherwise. Mounted
           at the root (a sibling of `.app`) so its focus mask floats above everything without being z-trapped
           by `.app`'s stacking context. */}

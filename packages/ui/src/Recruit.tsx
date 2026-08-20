@@ -36,6 +36,7 @@ import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
+import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -1165,6 +1166,25 @@ export function Recruit() {
     // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
     // so without it here the shop-wide aura would never fire.
   }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
+  // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
+  // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
+  // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
+  // the card, so its box is only trustworthy after layout. Combat + End-of-Turn rune buffs ride their own paths.
+  useEffect(() => {
+    const uids = run.runeBuffFxUnits;
+    if (!uids || uids.length === 0 || !canPlayDefs()) return;
+    const raf = requestAnimationFrame(() => {
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      for (const uid of uids) {
+        const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+        const at = el ? restingCenterOf(el) : null;
+        if (!at) continue; // minion left the DOM (sold/tripled) before paint
+        playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+    // Only the seq — depending on the uid array would re-run on unrelated renders.
+  }, [run.runeBuffFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -1651,6 +1671,15 @@ export function Recruit() {
   useEffect(() => {
     if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
+
+  // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
+  // a spectated fight has finished playing and it's safe to advance to the next frame. During playback the
+  // live `dispatch` is swallowed (the player owns state), so the combat→shop step can't ride the normal
+  // auto-settle path above — this is how the player learns.
+  const spectating = useGame((st) => st.replaying);
+  useEffect(() => {
+    if (spectating) useGame.setState({ combatReplayDone: replay.done });
+  }, [spectating, replay.done]);
 
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
@@ -2538,6 +2567,9 @@ export function Recruit() {
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       dragIsTouchRef.current = e.pointerType !== 'mouse'; // touch/pen → snap to the finger (see dragIsTouchRef)
+      // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
+      // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
+      if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
       setDrag({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
@@ -2714,6 +2746,7 @@ export function Recruit() {
     }); };
     const onMove = (e: PointerEvent): void => {
       dragPosRef.current = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
+      sampleDragTrace(e.clientX, e.clientY); // replay drag-path capture — self-throttled to ~30 Hz, no layout
       lastMove = e;
       if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
     };
@@ -2724,12 +2757,17 @@ export function Recruit() {
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
       const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
       if (!d || !moved) {
+        cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
         setDrag(null);
         setOverZone(null);
         return;
       }
+      // REPLAY V2 drag-path capture: close the trace at the release point, BEFORE the drop resolves — the
+      // drop's dispatch (same tick, or the magnetic-merge slide ~260 ms later) takes it; a drop that
+      // dispatches nothing just leaves it to go stale (takeDragTrace discards it).
+      endDragTrace(e.clientX, e.clientY);
       // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
       // hero) stay click-through and a card can land on the hand tucked behind them.
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
@@ -2838,6 +2876,7 @@ export function Recruit() {
     const onCtx = (e: MouseEvent): void => {
       if (dragRef.current?.view.spell || dragRef.current?.view.ruby) {
         e.preventDefault();
+        cancelDragTrace(); // an aborted aim never labels a later action
         setDrag(null);
         setOverZone(null);
       }
@@ -4686,6 +4725,17 @@ export function Recruit() {
             },
           );
         }
+        // RUNE-BUFF-UNIT this beat (Spending, Action, Lassoing, …): the sparkle on each minion a rune buffed
+        // at End of Turn, on the beat — like the gems, the action-level cue can't (the board is gone once
+        // `faceOmen` commits). `bfx.runeBuffUnits` is the sim's per-beat source-label diff.
+        if (bfx.runeBuffUnits?.length && canPlayDefs()) {
+          const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          for (const uid of bfx.runeBuffUnits) {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+            const at = el ? restingCenterOf(el) : null;
+            if (at) playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+          }
+        }
         // The RUN-WIDE shop buff this beat produced (Soul Defiler, Display Curator) — the shop-wide aura, on
         // the beat, for the same reason the gems are here: the action-level cue only advances once `faceOmen`
         // commits, by which time the phase has flipped and the shop is gone. `shopBuffAll` is the
@@ -5677,6 +5727,9 @@ export function Recruit() {
                       // drawer is optional detail you can hover for, but here the two texts ARE the decision —
                       // a Choose One with both drawers collapsed is two identical portraits.
                       forceFull
+                      // `plated` so the option wears the same carved stone plate it has in hand / the Compendium
+                      // (owner ask 2026-08-19) — a Choose One is picking the real card, so it should look like one.
+                      plated
                       onClick={() => dispatch({ type: 'chooseOne', index: i })}
                     />
                   </div>

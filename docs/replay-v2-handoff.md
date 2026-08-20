@@ -1,6 +1,6 @@
 # Replay v2 — state-replay: design handoff
 
-> **Status: TABLED (2026-08-11).** The action-replay spectator (branch `feat/replay-driver`, PR #956) was
+> **Status: TABLED (2026-08-11).** Spec extended 2026-08-19 with the round rail + per-turn stats panel (§7). The action-replay spectator (branch `feat/replay-driver`, PR #956) was
 > built end-to-end and then **killed** because the underlying approach cannot produce a *faithful* replay of a
 > real run (evidence below). This document is the durable plan for rebuilding it correctly as **state replay**
 > when the game is more complete. Nothing here is started; it is a spec to pick up cold.
@@ -71,7 +71,7 @@ actual visible state as it happens and the actual combat that was fought, and pl
 - Placement, opponents, and timing are recorded facts, so the other v1 bugs dissolve for free.
 
 The cost is payload size (we store snapshots + combat logs instead of a short action list). It is very
-manageable — see §7.
+manageable — see §8.
 
 ### The lever that makes this cheap: the UI already renders from these exact shapes
 
@@ -123,6 +123,10 @@ export interface ShopFrame {
   cause: ActionCause;       // what produced this frame: 'turnStart' | 'buy' | 'sell' | 'play' | 'roll'
                             //   | 'upgrade' | 'freeze' | 'reposition' | 'reorderShop' | 'discover'
                             //   | 'chooseOne' | 'buyRune' | 'rerollRuneforge' | 'heroPower' | ...
+                            // NOT just debug metadata — the stats panel counts by it (§7.2), so the union must
+                            // cover EVERY dispatched action or per-round counts silently under-report.
+  spent?: number;           // gross Gold this action cost, and gross Gold it paid out. Net is derivable from
+  earned?: number;          //   consecutive `view.gold`, but GROSS is not — one action can do both (§7.3).
   view: ShopView;           // FULL visible recruit-phase state AFTER this action
 }
 
@@ -179,7 +183,7 @@ Design notes:
 ## 5. Capture (live run → frames)
 
 All capture is **UI/store-side** (`packages/ui/src/store.ts`), no engine change. The store's dispatch already
-sees every action and its timing delta (this part of v1 is reusable — see §9).
+sees every action and its timing delta (this part of v1 is reusable — see §10).
 
 - **After each recruit action's reduce:** project a `ShopFrame` from the resulting `run` (`view =
   projectShopView(run)`), stamped with `cause` (the action type) and `tMs` (accumulated real time).
@@ -218,7 +222,118 @@ Input is fully inert during playback (no dispatch), same as v1's `if (replaying)
 
 ---
 
-## 7. Storage & size
+## 7. The round rail + the stats panel
+
+> Owner ask 2026-08-19: "a round scrub on the left hand side … I click round 8 and it auto-scrubs to the start
+> of round 8" plus "a stats panel that shows cards played / gold spent for each individual turn so I could see
+> where all the action was."
+
+**Both are nearly free, and that is a structural consequence of §3, not luck.** Because a state replay records
+the full visible state after *every* action and stamps each frame with the action that caused it, the frame
+list is already a complete, per-turn event log of the run. The rail is an index over it; the stats panel is a
+fold over it. **Neither needs anything captured that Phase A wasn't already capturing** (one small exception,
+below), and both can be built later — including *retroactively over replays already recorded*.
+
+### 7.1 The round rail
+
+Frames carry `wave` and `tMs`, so the index is derived once at load:
+
+```ts
+// The first frame of a wave is its `turnStart` shop frame — "the start of round N" is the shop opening,
+// which is what you actually want to watch, not the combat that ends it.
+export interface RoundMark {
+  wave: number;
+  tMs: number;                 // seek target
+  result?: 'win' | 'loss' | 'draw';   // from that wave's CombatFrame
+  resolveLost?: number;
+}
+export const roundMarks = (frames: ReplayFrame[]): RoundMark[] => { /* one pass */ };
+```
+
+Click round N → `seek(marks[N].tMs)`, which §6 already makes O(log n) and exactly correct. The rail also
+**highlights the current round as playback advances**, so it doubles as the coarse position indicator; keep the
+linear transport bar for fine scrubbing within a round.
+
+### 7.2 The stats panel is a pure fold — no new capture
+
+Every metric the owner named is already implied by the frames:
+
+| Metric | Derivation |
+| --- | --- |
+| Cards played this round | count of `cause === 'play'` frames in that wave |
+| Bought / sold / rolled / upgraded / frozen | same count, by `cause` |
+| Net gold flow | `view.gold` of the wave's last frame minus its first |
+| Gold left unspent | `view.gold` on the wave's last shop frame |
+| Board power at turn end | sum of `attack`/`health` on that frame's `board` |
+| Combat result, damage dealt, Resolve lost | already fields on the `CombatFrame` |
+| Tribe mix over time | `board[].cardId` → tribe, per wave |
+| Purchase log | every `cause === 'buy'` frame: card + wave + price |
+
+So the panel is `rollup(frames) → RoundStat[]`, a pure function with no engine dependency. Two consequences
+worth stating plainly: it **cannot drift from the replay** (the numbers are literally derived from the frames
+being watched), and it **works on old recordings**, because it reads only what state replay already stores.
+
+**This makes `ShopFrame.cause` load-bearing.** It was introduced in §4 for pacing and debugging; the stats panel
+promotes it to a data contract. `ActionCause` must cover *every* dispatched action type or counts silently
+under-report — a missing case reads as "you played 3 cards that turn" when you played 5. Add an exhaustiveness
+check over the `Action` union when Phase A defines it.
+
+### 7.3 The one thing that is NOT free: gross gold spent
+
+Net gold flow per round is exact and free (§7.2). **Gross spend is not.** Diffing `view.gold` conflates
+spending with income — sell refunds, hero powers, quest and rune payouts — and a *single action* can do both
+(buying Rune of the Tip Jar costs 0 and grants 4). Attributing by `cause` recovers most of it but not that case.
+
+**Recommendation: capture `spent` and `earned` on the `ShopFrame` at capture time**, where the reducer has both
+the before/after gold and the action in hand. Two numbers per frame is negligible against the combat logs that
+dominate the payload (§8), and it removes a whole class of "the panel says 14, I counted 11" bugs. This is the
+*only* capture change either feature needs, and it belongs in Phase A so recordings carry it from day one.
+
+### 7.4 The locked UX (owner ruling 2026-08-19): rail + slide-out metrics drawer
+
+> "I want a round panel for scrubbing through rounds, and ideally a metrics pop-out drawer that slides out of
+> the rail to the right that shows gold spent / actions this turn / shop tier at the start of this turn."
+
+The rail is the primary control; the metrics live in a **drawer that slides out of the rail to the right**,
+per round. No charts, no metric dropdown, no dashboard — three numbers per round, exactly:
+
+```
+┌──────────┐ ┌───────────────────────────┐
+│  R6  W   │ │  Round 8                  │
+│  R7  L   │ │  Gold spent          9    │   ← §7.3: capture `spent`, don't diff `view.gold`
+│ ▶R8  W   │◄┤  Actions            12    │   ← count of this wave's non-`turnStart` frames
+│  R9  L   │ │  Shop tier at start  4    │   ← `view.tier` on the wave's `turnStart` frame
+│  …       │ └───────────────────────────┘
+└──────────┘
+```
+
+- **Rail row:** round number + combat verdict; current round highlighted as playback advances. Click → seek to
+  that round's shop opening (§7.1).
+- **Drawer:** opens for the hovered/selected round. All three values are one line each of the §7.2 fold:
+  - *Gold spent* — Σ `spent` over the wave's frames (the §7.3 capture; net-diffing `view.gold` is NOT it).
+  - *Actions this turn* — count of the wave's shop frames with `cause !== 'turnStart'`.
+  - *Shop tier at start* — `view.tier` on the wave's `turnStart` frame.
+- The fold (§7.2) supports far more, and the drawer is the natural home if more is ever wanted — but these
+  three are the shipped set. Anything further is a future owner ask, not scope.
+
+### 7.5 Cut: board power / modeled score
+
+An earlier draft of this section proposed a board-power curve (raw Σ(atk+hp) and/or the fitted
+`predictBoardElo`). **The owner cut it** (2026-08-19: "I don't really care about the score thing") — the
+priorities are exactness of playback, the rail, and the three-number drawer. Do not build a score capture or a
+power chart. If a strength readout is ever revisited, the earlier analysis still holds: any MODELED score must
+be captured at record time, never computed at playback (today's weights would silently re-score old replays —
+the §2 drift class), and raw stat totals are already derivable from recorded frames with no capture change.
+
+### 7.6 Spoilers
+
+The rail necessarily reveals rounds the viewer hasn't watched yet (verdicts per round). Since the scrub bar
+already reveals the ending, **recommend showing everything**, with the current round highlighted. If that reads
+badly in practice, a "hide future rounds" toggle is a two-line change over the same rollup.
+
+---
+
+## 8. Storage & size
 
 - `run_telemetry.replay` is jsonb and opaque — **no migration**. Gate watchable rows on `version === 2`.
 - **Combat event logs dominate.** ~14 combats × ~50–150 events; shop frames are small (a ~7-minion board + a
@@ -230,18 +345,18 @@ Input is fully inert during playback (no dispatch), same as v1's `if (replaying)
 
 ---
 
-## 8. Migration & entry points
+## 9. Migration & entry points
 
 - v1 replays already in `run_telemetry` are unfaithful — abandon them. All v2 replays are faithful, so the v1
   "fidelity gate" (only show reproducible runs) is unnecessary; simply gate on `version === 2`, which also
   hides every pre-v2 row.
-- **Entry-point UX is unchanged** from the killed branch and should be lifted wholesale (see §9): a "Watch"
+- **Entry-point UX is unchanged** from the killed branch and should be lifted wholesale (see §10): a "Watch"
   recent-matches feed on the title, and a per-row "Watch" on the leaderboard. Only the *data* differs — the
   fetch returns v2 replays, playback uses the `ReplayPlayer`.
 
 ---
 
-## 9. Salvage list — lift these from the killed branch (PR #956) before it's gone
+## 10. Salvage list — lift these from the killed branch (PR #956) before it's gone
 
 The branch is being deleted, but the following are directly reusable for v2 (the *entry points and chrome* were
 correct; only the *engine* was wrong). Recover them from the PR #956 diff / the commits listed at the bottom.
@@ -275,7 +390,7 @@ supersede the v1 recording so telemetry isn't carrying both. Revisit at build ti
 
 ---
 
-## 10. Testing strategy (what replaces the determinism test)
+## 11. Testing strategy (what replaces the determinism test)
 
 - **Round-trip test:** play a bot run while capturing v2 frames, then assert that rendering each frame yields
   that frame (guards the `projectShopView` / `synthRun` projections). Trivial by construction, but it locks the
@@ -289,16 +404,22 @@ supersede the v1 recording so telemetry isn't carrying both. Revisit at build ti
 
 ---
 
-## 11. Phased build plan (pick up cold from here)
+## 12. Phased build plan (pick up cold from here)
 
 - **Phase A — capture.** Define `ReplayV2` + `projectShopView(run)` (+ `MinionView`/`CardView` projections).
   Hook the store to emit frames after each recruit action, a combat frame per fight, and `result` at run end.
   Deep-clone. Upload in `replay` jsonb. Ship behind nothing — capture is invisible until a viewer reads it.
 - **Phase B — playback core.** `ReplayPlayer` + `synthRunFromShopView` + the clock + seek. Reuse the transport
   bar. Verify against a freshly-captured v2 run end-to-end (watch a full winning run, confirm the final board
-  and placement match reality — the exact check v1 failed).
-- **Phase C — entry points.** Lift the recent-matches feed + leaderboard Watch (§9), gated on `version === 2`.
-- **Phase D — polish.** Size (delta/gzip) if measured; combat mid-seek behavior; speed edge cases; a "Watch"
+  and placement match reality — the exact check v1 failed). **Include the round rail** (§7.1): it is one pass
+  over `frames[].wave` on top of the seek this phase already builds, and it is the coarse position indicator
+  the transport bar is bad at.
+- **Phase C — entry points.** Lift the recent-matches feed + leaderboard Watch (§10), gated on `version === 2`.
+- **Phase D — the metrics drawer** (§7.2–§7.4). A pure `rollup(frames)` fold plus the slide-out drawer on the
+  rail. Independent of everything above and buildable last, since it reads only recorded frames — it even works
+  on replays captured before it existed. Ships exactly the three numbers in §7.4: gold spent, actions this
+  turn, shop tier at start.
+- **Phase E — polish.** Size (delta/gzip) if measured; combat mid-seek behavior; speed edge cases; a "Watch"
   on Career match cards.
 
 Each phase is independently shippable and testable; A can land and bake (accumulating real v2 recordings)
@@ -306,7 +427,7 @@ before B is built.
 
 ---
 
-## 12. Open questions to settle at build time
+## 13. Open questions to settle at build time
 
 - **Full combat logs vs `initial + seed` re-sim.** Recommend full logs (accuracy + drift-immunity). Only
   reconsider if size is genuinely prohibitive after delta-encoding shop frames.
@@ -315,7 +436,13 @@ before B is built.
   Phase A; it is the load-bearing contract.
 - **Where `ReplayV2` types live.** Recommend `packages/sim` (references `BoardSnapshot` / `CombatEvent` /
   `CombatSideState` from core/sim). Keep them off the reducer hot path.
-- **Seek-into-combat UX.** Start the fight's animation from the top, or show its resolved end state?
+- **Seek-into-combat UX.** Start the fight's animation from the top, or show its resolved end state? The round
+  rail makes this routine rather than rare — every rail click on a mid-combat target hits it.
+- **Gross vs net Gold in the stats panel** (§7.3). Recommend capturing `spent`/`earned` in Phase A so gross is
+  exact; the fallback is showing net flow only, which is free but reads less like "where the action was".
+- **Does the stats panel spoil the run?** (§7.6) Recommend showing all rounds, since the scrub bar already
+  reveals the ending.
+
 
 ---
 
@@ -338,5 +465,5 @@ before B is built.
   - `e4addec9` fidelity gate + author identity + pacing/progress fixes
 - Merged, on main: `71e2a215` (#955) v1 capture (timings + servedBoards) — dormant, harmless.
 - The `packages/sim/src/replayFidelity.test.ts` guard is v1-specific (bot runs only) — it does NOT prove real
-  runs replay, as this investigation showed. v2 replaces it with the tests in §10.
+  runs replay, as this investigation showed. v2 replaces it with the tests in §11.
 ```

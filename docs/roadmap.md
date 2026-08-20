@@ -255,6 +255,12 @@ are points rather than rectangles.
   and the End-of-Turn beat. Any future card or quest that raises the run-wide shop channel animates with no
   extra wiring.
 
+- **Rune-trigger FX — DONE** (2026-08-19). Every rune with any notion of triggering now bursts on its badge in
+  both phases, including the eleven continuous modifiers (owner ruling: burst on each occurrence). The only
+  runes still silent are the one-shot purchase rewards (Scout, Small Fortune, the Pair, Spare Parts,
+  Gemcutting, Top Hat, Menagerie, Altar, Evolution), which fire once at buy and have no repeat moment — the
+  only hook there would be the purchase itself, if it is ever wanted.
+
 - **Ring layers can now be placed** (shipped 2026-08-17, while authoring `shop-buff-aura`): `shockwave` gained
   the `offsetX`/`offsetY` pair the particle primitives already had, so a ring is no longer pinned to its
   resolved anchor. `ribbon` is the remaining primitive with no placement dials — add the same pair there if a
@@ -372,7 +378,14 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
 
 ### Run identity
 The career surface exists; deepen what a finished run *remembers*.
-- **Round-by-round + replay view — TABLED, rebuild as state-replay (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+- **Replay v2 — SHIPPED 2026-08-19** (same PR as the spec): state-replay capture + pure-renderer playback +
+  round rail + metrics drawer + Watch on the leaderboard/Recent Games. Phase E polish deferred: shop timer
+  ticks visually during playback; seek-into-combat renders the resolved world (final fight plays through).
+- **Round-by-round + replay view — was TABLED, now REBUILT as state-replay above (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+  *(Spec extended 2026-08-19: a left-hand ROUND RAIL — click round 8, seek to its shop opening — plus a
+  METRICS DRAWER that slides out of the rail: gold spent / actions this turn / shop tier at start, per round.
+  Board power was considered and CUT. All of it is a fold over the recorded frames — no new capture beyond a
+  per-frame `spent`/`earned`; see §7.)*
   A full action-replay spectator was built (watch any player's run through the live UI, from the leaderboard /
   a recent-matches feed) on branch `feat/replay-driver` and **killed 2026-08-11**: action-replay re-derives the
   run from `{seed,actions}`, and a mid-run combat RNG/uid drift makes real runs diverge completely (a recorded
@@ -412,16 +425,19 @@ offsets in `styles.css`).
 
 ## Next
 
-### Minion mechanic-icon (medallion `mechIcon` glyph) fixes — audited 2026-08-19
-Findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md). **64% of cards show the generic tribe
-symbol, not a mechanic glyph**, and the biggest cause is a rename desync: `triggerPill` (Card.tsx) matches the
-old raw words `battlecry`/`deathrattle`, but ~51 cards' text was renamed to `Shout`/`Echo`, silently dropping
-their trigger glyph to the tribe fallback. Queued work, in priority order: (1) fix the rename desync (match
-both forms, ideally driven from `terms.ts` or a structured trigger field); (2) decide how text-only
-Start-of-Combat/Slaughter/Rally resolve (require the keyword tag or detect from text); (3) resolve the three
-glyph collisions (`eye` = ST/demon, `anvil` = EG/dwarf, `skull` = undead/Avenge). **Owner decision needed**
-first: should the medallion fall back to the tribe symbol at all, or show a glyph only when there's a real
-mechanic? That ruling shapes fixes 1–3.
+- **Minion mechanic-icon (medallion `mechIcon` glyph) fixes — PR-1 SHIPPED 2026-08-19.** The resolver is
+  rewritten: a shared `packages/ui/src/mechanics.ts` registry (structured detection over effect data +
+  keywords + `chooseOne`, one entry per mechanic) drives both the medallion (`resolveMechIcon`, first-mentioned
+  own mechanic wins) and the Compendium glossary, so they can't drift. **No tribe fallback, ever** — an
+  unrecognised mechanic renders a blank badge instead of the old 64%-of-minions tribe-symbol bug. New: a
+  **Watcher** mechanic (eye) for reactive/on-attack/on-summon effects, **Stealth**'s own glyph (off the eye),
+  **Engraved**'s own runic glyph (off the anvil), and **Choose One** now shows on the medallion. Verified by a
+  no-tribe-glyph invariant sweep + a glossary↔registry drift test; full suite 5894 pass. Details in the devlog.
+  Deferred, queued here:
+  - Glyphs for **Orbit / Start of Turn / Improve / Rush / Ascend / spend-Gold** — none exist yet.
+  - **Re-tag Engraved cards missing the `EG` keyword** (Tara/Taragosa) so the `engraved` predicate catches them.
+  - **Owner live-pass**: tune the placeholder `engrave`/`stealth` glyph art against the real board, and rule on
+    whether trigger-multiplier auras (Sylus, Uron) and a few borderline reactive triggers deserve the eye.
 
 ### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
 Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**

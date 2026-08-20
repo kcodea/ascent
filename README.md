@@ -44,10 +44,24 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Minion medallion icons no longer fall back to the tribe symbol.** The glyph on a minion's card now comes
+  from a shared registry that reads the card's real mechanics (was: a brittle text check that showed a generic
+  tribe icon on 64% of minions). New eye glyph for reactive **Watcher** effects, and Stealth/Engraved/Choose
+  One get their own icons; the Compendium glossary reads the same registry so the two can't drift apart.
+
+- **FX workbench: "Field variation" knob** — a new Physics slider (burst / emitter / smoke) that gives each cast its own seeded turbulence-field phase, so many copies of an effect firing at once no longer swirl in lockstep. Defaults to 0 (a no-op that leaves every saved effect unchanged).
+
+- **Choose One / offer polish** — Choose One options now wear the carved card plate; the outdated squared glow behind offer cards (Choose One / Discover / Scouted) is gone; hovering an option ticks once, not twice; committing any offer pick (Discover / rune / Choose One) plays a new "discover select" cue; and playing or being granted **Ward** in the shop now plays the combat shield sound.
+
+- **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.
+- **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.
+
+- **Replay system (v2, state replay).** Watch any player's full game back — exact by construction (playback renders recorded frames, never re-simulates). Round rail on the left (click a round, jump to its shop opening), a slide-out drawer with per-round Gold spent / Actions / Shop tier, play/pause/speed/scrub, ▶ Watch buttons on the leaderboard + Recent Games, and Rewatch Last Game on the end screen.
 - **Rune of Refreshments** — every Demon you play buys another look at the Shop.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.
 - **Rune art wired (24 pieces)** plus the Baller's live "next payout" pill, reworks to the Wild Hunt, the Burrow and the Tip Jar, and a new **Summoning Bulwark** spell.
 - **Big rune batch — 6 reworks + 27 new runes.** Basic and Epic faucets for every tribe, plus Refraction, Ruby Resonance, Hoardflame, Glider, Drake Skull, Catacomb, Pendant, Ornate Clock, Herding Horn, Bubble Crown, War Drum, Baller, Wishbone (your Hero Power triggers twice — now doubling all 20 heroes on the roster, including Flash's mark paying out 2 copies), Deathtouched Apple, Held Strength, Chipper Sticker, Rising Echoes and Might. Reworks: Blart, Kindling, Infernal Ink, Merchant's Chorus, Reliquary. Also adds the **Might of Aeon** Shop Spell.
+
 - **End Turn gem glow matches the Freeze gem** — the End Turn diamond's hover glow now sits behind the gem and above the bronze base (a drop-shadow on the gem itself), copied from the Freeze gem, instead of floating over the housing on a separate layer.
 
 - **The locked third rune slot wears chains** — most runs only get 2 runes (forge turns 6 & 9), so the third slot shows chains from the start as "not possible yet." When a hero/rune unlocks a 3rd (Runesmith, Guardian, Rune of the Epic Forge, Rune of Duplication), the chains **shatter** 1000ms later with a burst-and-shockwave FX. Position/size tunable in the 💠 Rune Sheen tuner.
@@ -68,6 +82,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
+
+- **Runes burst when they trigger, and spells have a real cast effect** — a rune's own flourish now fires on its badge whenever its effect goes off, in the shop as well as in combat, and every tavern spell without a bespoke effect gets `spell-sparks` at the cursor.
 
 - **Ring FX can be nudged off their anchor** — the workbench's ring (shockwave) layers get **Offset X / Offset Y** sliders, matching the pair burst effects already had. Placement only: it moves where a ring sits without touching its size, shape or expansion.
 

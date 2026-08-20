@@ -13,7 +13,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx } from './state';
+import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -45,6 +45,7 @@ function spendGold(s: RunState, amount: number): void {
     s.spellDripTick = (s.spellDripTick ?? 0) + amount;
     while (s.spellDripTick >= s.spellDripPer) {
       s.spellDripTick -= s.spellDripPer;
+      procRuneId(s, 'rune_spellslinging');
       conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
     }
   }
@@ -72,6 +73,9 @@ function spendGold(s: RunState, amount: number): void {
       while (s.runeScale.tick >= s.runeScale.per) { s.runeScale.tick -= s.runeScale.per; payouts += 1; }
       if (payouts === 0) return;
     }
+    // The rune ITSELF fired — its badge bursts on this. AFTER the `payouts === 0` return above, so banking
+    // Gold below the threshold is correctly not a fire; `payouts`, not 1, so 10 Gold at 5-per reads as two.
+    procRune(s, 'runeScale', payouts);
     const rng = makeRng(s.rngCursor);
     const pool = [...s.board];
     // Wrapped for FX so each picked ally gets a descend (sourceless — the rune has no board anchor) rather than
@@ -822,6 +826,7 @@ export function reduce(state: RunState, action: Action): RunState {
         next.typesBoughtThisTurn = [...set];
         if (set.size >= 3) {
           next.collectorUsedThisTurn = true;
+          procRuneId(next, 'rune_collector');
           queueDiscover(next, { kind: 'minion', tier: next.tier, tribes: [...set] });
         }
       }
@@ -850,7 +855,7 @@ export function reduce(state: RunState, action: Action): RunState {
       if (pdef?.keywords.includes('M')) {
         advanceQuests(next, (o) => o.event === 'playAttachment');
         // Rune of Structure: each Attachment you play from hand also conjures a random spell.
-        if (next.runeStructure) conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1);
+        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
@@ -947,6 +952,21 @@ export function reduce(state: RunState, action: Action): RunState {
       next.shopBuffAllFxSeq = (next.shopBuffAllFxSeq ?? 0) + 1;
     }
   }
+  // RUNE-BUFF-UNIT FX: any board/hand minion whose RUNE-sourced buff total ROSE this action gets the
+  // `rune-buff-unit` sparkle (owner ask 2026-08-19). Diffed off `runeBuffMagnitude` — the buff's source label
+  // is on `card.buffs`, so this one place covers every rune that buffs a unit in the shop, with no per-site
+  // wiring. Recruit-phase only: a combat-earned rune buff carried back at settle animates in the fight, and an
+  // End-of-Turn rune buff plays on its own beat — both would double here otherwise.
+  if (next !== state && state.phase === 'recruit' && next.phase === 'recruit') {
+    const before = new Map<string, number>();
+    for (const c of [...state.board, ...state.hand]) before.set(c.uid, runeBuffMagnitude(c));
+    const hit: string[] = [];
+    for (const c of [...next.board, ...next.hand]) if (runeBuffMagnitude(c) > (before.get(c.uid) ?? 0)) hit.push(c.uid);
+    if (hit.length > 0) {
+      next.runeBuffFxUnits = hit;
+      next.runeBuffFxSeq = (next.runeBuffFxSeq ?? 0) + 1;
+    }
+  }
   return next;
 }
 
@@ -1038,7 +1058,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
-        if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
+        if (s.cadenceSpellOff) procRuneId(s, 'rune_cadence');
+      if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
         s.hand.push({
           uid: `b${s.uidSeq++}`,
           cardId: spellDef.id,
@@ -1117,11 +1138,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
+      if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
+      if (tradeInOff) procRuneId(s, 'rune_trade_in');
       if (tradeInOff) s.tradeInTribe = undefined; // spent
       // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
       // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape.
       if (s.runeRestocking && !s.restockUsedThisTurn) {
+        procRune(s, 'runeRestocking');
         const boughtTier = CARD_INDEX[offer.cardId]?.tier;
         const pool = boughtTier ? poolOf(s).buyable.filter((c) => c.tier === boughtTier && !c.spell && !c.ruby) : [];
         if (pool.length > 0) {
@@ -1194,6 +1218,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Transcription: the next N bought minions each come with a free extra copy — counts DOWN and
       // retires at 0. Stacks with the first-buy dupe (they are separate purchases of the same idea).
       if ((s.runeTranscription ?? 0) > 0 && s.hand.length < handCap(s)) {
+        procRune(s, 'runeTranscription');
         s.runeTranscription = (s.runeTranscription ?? 0) - 1;
         if (s.runeTranscription <= 0) s.runeTranscription = undefined;
         conjureToHand(s, CARD_INDEX[card.id] ? [CARD_INDEX[card.id]!] : [], 1);
@@ -1298,6 +1323,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         return s;
       }
@@ -1330,6 +1356,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // silent stat copy. Guarded against a one-minion board, where left-most IS right-most.
           const tail = s.board[s.board.length - 1];
           if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
+            procRuneId(s, 'rune_redirection');
             for (let n = 0; n < casts; n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               fireOnRubyPlayed(s, tail, card.attack, card.health);
@@ -1345,6 +1372,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // minion also casts on your left-most minion: a real Ruby landing (stat buff + the target's own
           // on-Ruby watchers), mirroring the spell path's Distillation echo below.
           const lead = s.runeDistillation ? s.board[0] : undefined;
+          if (lead) procRune(s, 'runeDistillation');
           if (lead) for (let n = 0; n < casts; n++) {
             addBuff(lead, 'Ruby', card.attack, card.health);
             fireOnRubyPlayed(s, lead, card.attack, card.health);
@@ -1358,12 +1386,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
         // Rune of Contraband: the FIRST Ruby cast each turn smuggles back a random Dwarven Ale.
         if (s.runeContraband && !s.contrabandRubyUsed) {
+          procRune(s, 'runeContraband');
           s.contrabandRubyUsed = true;
           const ales = poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id));
           if (ales.length > 0) conjureToHand(s, ales, 1);
         }
         // Rune of Gemscript: the FIRST Ruby cast each turn raises the run's SPELL power +1/+1.
         if (s.runeGemscript && !s.gemscriptRubyUsed) {
+          procRuneId(s, 'rune_gemscript');
           s.gemscriptRubyUsed = true;
           s.spellBonus = { attack: (s.spellBonus?.attack ?? 0) + 1, health: (s.spellBonus?.health ?? 0) + 1 };
         }
@@ -1381,7 +1411,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
         // spend and before the umbrella fire below, and via a narrow counter rather than `noteSpellCast` —
         // that would re-fire the umbrella this path already fires.
-        if (s.runeSpellstone && def) countRubyAsShopSpell(s, def, casts);
+        if (s.runeSpellstone && def) { procRuneId(s, 'rune_spellstone'); countRubyAsShopSpell(s, def, casts); }
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -1462,6 +1492,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // Rune of Distillation: a spell that landed on a SHOP minion also casts on your left-most board
             // minion. A real second cast (same `castSpell` path), so the target's own on-spell watchers see it.
             const lead = s.runeDistillation ? s.board[0] : undefined;
+            if (lead) procRune(s, 'runeDistillation');
             if (lead) for (let n = 0; n < casts; n++) castSpell(s, def, lead);
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
@@ -1473,17 +1504,20 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
         if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
+          procRune(s, 'runeContraband');
           s.contrabandAleUsed = true;
           mintRubies(s, 1);
         }
         // Rune of Gemscript: the FIRST Shop spell cast each turn raises RUBY power +1/+1 (run bonus + held Rubies,
         // the same shape the Veinbreaker burst uses).
         if (s.runeGemscript && !s.gemscriptSpellUsed) {
+          procRuneId(s, 'rune_gemscript');
           s.gemscriptSpellUsed = true;
           const b = s.rubyBonus ?? { attack: 0, health: 0 };
           s.rubyBonus = { attack: b.attack + 1, health: b.health + 1 };
@@ -1549,11 +1583,12 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
           if (s.attachmentsThisTurn === 1) {
             if (s.runeTempering && !target.keywords.includes('DS')) {
+              procRune(s, 'runeTempering');
               target.keywords = [...target.keywords, 'DS'];
             }
             if (s.runeReplication) {
               const leftMech = s.board.find((c) => isTribe(c, 'mech'));
-              if (leftMech) weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0);
+              if (leftMech) { procRuneId(s, 'rune_replication'); weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0); }
             }
           }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
@@ -1599,6 +1634,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const sDef = CARD_INDEX[card.cardId];
             const leftMech = s.board.find((c) => c.uid !== card.uid && isTribe(c, 'mech'));
             if (sDef && leftMech) {
+              procRuneId(s, 'rune_replication');
               weldMagnetic(s, leftMech, {
                 source: `${sDef.name} (Replication)`,
                 attack: card.attack,
@@ -1622,6 +1658,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Rune of Hoardcalling: the first DRAGON Shout each turn hands over a random Shop spell. Gated on
           // the played card being a Dragon, so a turn of Beast Shouts never spends the freebie.
           if (s.runeHoardcalling && !s.hoardcallingUsedThisTurn && isTribe(card, 'dragon')) {
+            procRune(s, 'runeHoardcalling');
             s.hoardcallingUsedThisTurn = true;
             const spells = poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
             if (spells.length > 0) conjureToHand(s, spells, 1, true);
@@ -1631,6 +1668,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const returns = rrng.int(100) < 25;
             s.rngCursor = rrng.state();
             if (returns && s.hand.length < handCap(s)) {
+              procRune(s, 'runeRefrain'); // the 25% roll actually HIT — a miss is not the rune firing
               const idx = s.board.findIndex((c) => c.uid === card.uid);
               if (idx >= 0) {
                 const [ret] = s.board.splice(idx, 1);
@@ -1646,6 +1684,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // already on the board here, so both halves resolve through the same `applyChooseOne` path a picked
         // option uses — each keeps its own golden scaling and buff-FX attribution, in printed order.
         if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') {
+          procRuneId(s, 'rune_unbroken_vein');
           for (const opt of CARD_INDEX[card.cardId]!.chooseOne!) applyChooseOne(s, card, opt.effects);
         } else {
           s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -1712,6 +1751,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
@@ -1826,22 +1866,29 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (sold) {
         // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
         // floated can't drift (they did: the bonus used to be added inline here only).
+        // Rune of Bartering earns its 2 Gold only on a Shout minion — the same condition `sellValueOf`
+        // applies. Stamped HERE and not in that helper: it is a pure display query the sell float also calls,
+        // so a stamp there would fire on every render rather than on the sale.
+        if (s.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(s, 'runeBartering');
         gainGold(s, sellValueWithBonus(sold, s));
         // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
         // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
         // tavern) → nothing to give.
         if (s.runeLiquidation) {
           const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          if (target && (sold.attack > 0 || sold.health > 0)) addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health);
+          if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(s, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health); }
         }
         // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
         if (s.runeSellRubies) {
           s.runeSellRubiesSold = (s.runeSellRubiesSold ?? 0) + 1;
-          if (s.runeSellRubiesSold >= 2) { mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
+          // The badge bursts on the MINT, not on every sale — the first sale of a pair banks toward the
+          // threshold and is not the rune firing (same contract as Bulk Order's `per`).
+          if (s.runeSellRubiesSold >= 2) { procRune(s, 'runeSellRubies'); mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
         }
         // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
       // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
       if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
+        procRune(s, 'runeAftermarket');
         const soldDef = CARD_INDEX[sold.cardId];
         if (soldDef && !soldDef.spell && !soldDef.ruby) {
           s.aftermarketUsedThisTurn = true;
@@ -1857,7 +1904,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (fd.sold >= fd.per) {
             fd.sold -= fd.per;
             const dragons = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon'));
-            if (dragons.length > 0) conjureToHand(s, dragons, 1, true);
+            if (dragons.length > 0) { procRuneId(s, 'rune_foundry'); conjureToHand(s, dragons, 1, true); }
           }
           s.runeFoundry = fd;
         }
@@ -1872,7 +1919,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fireOnMinionSold(s, sold);
       }
       // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-      if (sold && s.runeSellersMarket) for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3);
+      if (sold && s.runeSellersMarket) { procRuneId(s, 'rune_sellers_market'); for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3); }
       // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
       if (sold && s.runeTradeIn && s.soldThisTurn?.length === 1) {
         const t = CARD_INDEX[sold.cardId]?.tribe;
@@ -1894,6 +1941,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.freeRolls > 0) {
         s.freeRolls -= 1;
       } else if (wsFree) {
+        procRuneId(s, 'rune_window_shopping');
         // free — Window Shopping covers it
       } else {
         const rc = refreshCostOf(s); // Tradesman pays 2
@@ -1903,12 +1951,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.frozen = false;
       refreshTavern(s);
       // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0.
-      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; fillBargainBin(s); }
+      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
-      if (s.runeOpenEnrollment) appendDominantTypeOffer(s);
+      if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); appendDominantTypeOffer(s); }
       // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
       if (getHero(s.heroId).power.kind === 'contraband') {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
@@ -1930,6 +1978,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.tier += 1;
       // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
       if (s.runeVault && s.tier >= 5) {
+        procRune(s, 'runeVault');
         s.runeVault = undefined;
         gainGold(s, 10);
       }
@@ -2030,6 +2079,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
       // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
       if (s.runeDuplication && s.runeforgeEpic) {
+        procRune(s, 'runeDuplication');
         s.runeDuplication = undefined;
         applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
         (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
@@ -2126,6 +2176,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
       // only read by those four branches.
       const reps = (s.runeEmpowerment || s.runeWishbone) ? 2 : 1;
+      if (s.runeWishbone) procRuneId(s, 'rune_wishbone');
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -2978,6 +3029,7 @@ function grantGoldenDiscover(s: RunState): void {
   // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
   // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
   if (s.runeCorruptedTome) {
+    procRuneId(s, 'rune_corrupted_tome');
     s.runeCorruptedTome = undefined;
     try { grantGoldenDiscover(s); } finally { s.runeCorruptedTome = true; }
   }
@@ -3614,16 +3666,18 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const grown = result.events.filter((e) =>
       e.type === 'toHand' && e.side === 'player' && e.cardId === 'growth'
       && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
-    if (grown > 0) s.growthBonus = (s.growthBonus ?? 0) + grown;
+    if (grown > 0) { procRuneId(s, 'rune_living_growth'); s.growthBonus = (s.growthBonus ?? 0) + grown; }
   }
   // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
   // no once-per-combat cap. The armed flag just needs to be truthy.
   if (s.questFlags?.runeAshenPayroll) {
+    procRune(s, 'runeAshenPayroll');
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + (result.playerImpsSummoned ?? 0);
   }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     while (s.runeSlayingKills >= 6) {
+      procRune(s, 'runeSlaying'); // one per payout — 12 kills is two fires, and banking below 6 is none
       s.runeSlayingKills -= 6;
       grantTopTypeMinion(s);
     }
@@ -3847,6 +3901,7 @@ function advanceCombat(s: RunState): void {
   if (s.runeTreasureMap) {
     const tm = { ...s.runeTreasureMap, turns: s.runeTreasureMap.turns - 1 };
     if (tm.turns <= 0) {
+      procRune(s, 'runeTreasureMap'); // the countdown REACHED zero — ticking down is not a fire
       gainGold(s, tm.gold);
       s.runeTreasureMap = undefined;
     } else {
@@ -3940,7 +3995,7 @@ function advanceCombat(s: RunState): void {
   // Rune of the Long Shift (owner 2026-08-11): Discover 2 Shop spells at the start of each turn. Queued AFTER
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
-  if (s.runeLongShift) { queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -3993,13 +4048,17 @@ function advanceCombat(s: RunState): void {
   // Feed the Alpha: the recurring end-of-turn grant — conjure each armed card to hand every turn setup for the
   // rest of the run (one Feed the Alpha spell per turn). Hand-cap-safe (conjureToHand no-ops on a full hand).
   if (s.questRecurringGrants?.length) {
-    for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+    for (const id of s.questRecurringGrants) {
+      conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+      if (id === 'hoardflame') procRuneId(s, 'rune_hoardflame');
+      if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
+    }
   }
   // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier. `overflow` so an earned
   // reward is never dropped to a full hand, matching the quest/rune grant rule.
   if (s.runeDeep) {
     const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
-    if (pool.length > 0) conjureToHand(s, pool, 1, true);
+    if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, 1, true); }
   }
   // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier and
   // capped at the tavern tier (a rune must not hand you a card the shop couldn't). `overflow` so an earned
@@ -4007,7 +4066,10 @@ function advanceCombat(s: RunState): void {
   for (const drip of s.runeTribeDrip ?? []) {
     const pool = poolOf(s).all.filter((c) =>
       !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
-    if (pool.length > 0) conjureToHand(s, pool, drip.count, true);
+    if (pool.length > 0) {
+      conjureToHand(s, pool, drip.count, true);
+      procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
+    }
   }
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
@@ -4018,11 +4080,13 @@ function advanceCombat(s: RunState): void {
       const pick = eligible[rng.int(eligible.length)]!;
       s.rngCursor = rng.state();
       gildMinion(pick);
+      procRuneId(s, 'rune_pendant');
     }
   }
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
+  if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');
   if (s.runeCopies) copyRandomBoardMinion(s);
   // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
   // EoT minions + quest/rune recurring rewards, exactly like a real End of Turn (Chronos repeats included).
@@ -4036,13 +4100,15 @@ function advanceCombat(s: RunState): void {
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    if (s.runeSummitTick % 3 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); // every 3rd shop (owner sheet 2026-07-31)
+    // Only the 3rd shop pays; the two in between are the countdown, not the rune firing.
+    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
   applyStartOfTurn(s);
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) {
+    procRune(s, 'runeStrangeCaravan');
     const un = uncontrolledTribes(s);
     if (un.length > 0) {
       const rng = makeRng(s.rngCursor);
@@ -4052,7 +4118,7 @@ function advanceCombat(s: RunState): void {
     }
   }
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
-  if (s.runeFreshPages) queueDiscover(s, { kind: 'spell' });
+  if (s.runeFreshPages) { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -4482,6 +4548,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sour
 
 function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
+  // Every rune reward records which rune installed it, so a trigger site can attribute itself back to the
+  // badge. Harmless for quests (they key their own pulse off `completionCount`) and cheap — one write per
+  // purchase, never on a hot path.
+  //
+  // A `combatFlag` reward is keyed by its FLAG, not by the kind: 29 runes share that one kind, so keying by
+  // kind would credit every combat proc to whichever was bought last. Flags are `runeXxx` and reward kinds
+  // are distinct names, so the two never collide in this map. (`runeThreshold` — the other shared kind —
+  // needs no entry here: those are stored as a list, each carrying its own `sourceId`; see `procRuneId`.)
+  const attrKey = r.kind === 'combatFlag' && typeof (r as { flag?: string }).flag === 'string'
+    ? (r as { flag: string }).flag
+    : r.kind;
+  s.runeIdByKind = { ...(s.runeIdByKind ?? {}), [attrKey]: def.id };
   switch (r.kind) {
     case 'buffBoard':
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);
@@ -5370,6 +5448,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // Rune of the Muster: the armed free refresh is stocked with PLAIN copies of your board instead of a draw.
   // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
   if (s.runeMuster && s.board.length > 0) {
+    procRuneId(s, 'rune_muster');
     s.runeMuster = undefined;
     for (const offer of s.shop) returnToPool(s, offer.cardId);
     s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
@@ -5380,6 +5459,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // reads the lock off the state, so the allowance is spent AFTER the draw — decrementing first made the
   // second refresh see left=0 and go unrestricted (off-by-one, caught by its own test).
   const gc = s.runeGuidingCandle;
+  if (gc && gc.left > 0) procRuneId(s, 'rune_guiding_candle');
   rollShop(s);
   if (gc && gc.left > 0) s.runeGuidingCandle = { ...gc, left: gc.left - 1 };
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.

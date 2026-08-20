@@ -2296,16 +2296,16 @@ body.modalup .app { z-index: auto; }
 .questbadge.runebadge { border: none; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--gl-accent, #a8d8ef); }
-/* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
-   The resting (weakest) glow sits STATICALLY on the slot; the brighter crest lives on a ::before whose
-   OPACITY breathes via kwglow — an animated box-shadow repainted the slot every frame (see performance.md). */
-.disc-slot { position: relative; display: inline-flex; border-radius: var(--arch-radius);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
-.disc-slot::before {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent);
-  animation: kwglow 2s ease-in-out infinite; will-change: opacity;
-}
+/* The slot is a pure layout wrapper now. Its old tribe-coloured ring + bloom (a static box-shadow plus a
+   kwglow-animated `::before`) read as an outdated squared glow behind the offer cards and is removed across
+   ALL offer overlays — Choose One, Discover, Scouted (owner ask 2026-08-19). A card carries its own affordance
+   (plated cards glow on their plate silhouette on hover); the slot no longer paints anything. */
+.disc-slot { position: relative; display: inline-flex; border-radius: var(--arch-radius); }
+/* A PLATED Choose One / Discover option (owner ask 2026-08-19) is wider than its frame — the carved plate
+   overhangs — and that overhang is invisible to the flex row, so two plates would eat through the gap and
+   overlap. Reserve the overhang as margin, exactly as `.cardref` and `.book-grid` do, so the flex gap stays
+   real separation. */
+.disc-slot .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 /* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
    slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),
@@ -3805,14 +3805,14 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */
-.lossdmg { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.lossdmg { position: fixed; z-index: 2000; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); } /* z 2000: above the board furniture + replay bar (the freeze gem etc. now stay up in combat and were covering it), matching the lobby damage float; still below the dev menu (owner report 2026-08-19) */
 .lossdmg-n { font-family: var(--font-ui); font-weight: 900; font-size: 72px; line-height: 1; color: #fff; text-shadow: 0 0 10px var(--threat), 0 0 22px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5); }
 .lossdmg-l { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px; }
 .lossdmg.launch { animation: lossdmglaunch 0.34s ease-in forwards; } /* the DOM number hands off to the Pixi bolt */
 @keyframes lossdmgin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes lossdmglaunch { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.55); } }
 /* A tier number flying from its enemy card (or the opponent intel frame) up into the damage counter. */
-.lossfly { position: fixed; z-index: 31; pointer-events: none; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
+.lossfly { position: fixed; z-index: 2001; pointer-events: none; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
 .lossfly.opp { color: #ffe6a8; text-shadow: 0 0 8px #d6a83e, 0 2px 5px rgba(0, 0, 0, 0.55); } /* the opponent's tavern tier reads gold */
 @keyframes lossflyto {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
@@ -4595,20 +4595,6 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 .titleversion { position: absolute; right: 22px; bottom: 16px; font-family: var(--font-ui); font-weight: 700; font-size: 13px;
   letter-spacing: 0.05em; color: rgba(236, 220, 178, 0.6); }
-/* Announcement banner — a glass card TOP-CENTER of the title screen (the Set 2 launch note; owner sizing
-   2026-07-31: centered, top, larger). One-shot entrance; nothing loops. */
-.titlebanner {
-  zoom: var(--ui-zoom); position: absolute; left: 50%; top: 26px; transform: translateX(-50%); z-index: 2;
-  width: min(560px, 60vw); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-  padding: 26px 32px; border-radius: 22px; background: linear-gradient(180deg, rgba(36, 26, 19, 0.92), rgba(23, 17, 12, 0.92));
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 18px 46px -14px rgba(0, 0, 0, 0.7);
-  animation: bannerpop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.titlebanner-emoji { font-size: 40px; line-height: 1; }
-.titlebanner-title { font-family: var(--font-title, var(--font-ui)), sans-serif; font-weight: 800; font-size: 30px; line-height: 1.2; color: var(--acc, #ff9d4d); }
-.titlebanner-sub { font-family: var(--font-ui), sans-serif; font-weight: 600; font-size: 17px; line-height: 1.5; color: #f4ecdb; }
-@keyframes bannerpop { 0% { opacity: 0; transform: translateX(-50%) scale(0.9); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
-@media (max-width: 900px) { .titlebanner { display: none; } }
 /* Won headline: vertical gold gradient (mockup 2026-07-16) — drop-shadow instead of text-shadow because the
    fill is transparent (background-clip: text); static one-element filter, not animated (perf rule respected). */
 .endscreen.won .hstitle { background: linear-gradient(180deg, #ffeebc 12%, #ffd98a 45%, #eda94f 90%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px rgba(255, 200, 110, 0.3)); }
@@ -5434,7 +5420,7 @@ svg { width: 18px; height: 18px; }
    background"). At rgba(0,0,0,.3) the homescreen's daylit castle read straight through it, so the columns
    that aren't accent-coloured — Games, the hero name, the header labels — washed out against clouds and
    towers. Opaque-enough navy fixes every one of them at once and needs no per-column colour tuning. */
-.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px 104px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
 /* A leaderboard row is a BUTTON now (it opens that player's career). Reset the button chrome so it still
    reads as a table row, and keep the grid from the base rule — a button defaults to inline-block and would
    otherwise collapse the columns. */
@@ -5456,6 +5442,14 @@ svg { width: 18px; height: 18px; }
 .rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
 .rankrow > .rankrank { justify-content: center; }
 .rankrow.me { border-color: var(--acc); background: linear-gradient(rgba(255, 140, 40, 0.16), rgba(255, 140, 40, 0.16)), rgba(8, 13, 26, 0.82); }
+
+/* REPLAY V2 (Phase C) — the per-row Watch pill: spectate that player's latest recorded run. Sits in the
+   .rankrow grid's trailing 104px column; the click is stopped from bubbling to the row (which opens the
+   Career). Salvaged verbatim from the killed v1 branch (PR #956) — only the data behind it changed. */
+.rankwatch { align-self: center; justify-self: end; margin-left: 14px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 12px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; border-radius: 8px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rankwatch:hover:not(:disabled) { filter: brightness(1.08); }
+.rankwatch:disabled { opacity: 0.55; cursor: default; }
+.rankrow.rankhead > .rankwatchhead { color: rgba(255, 255, 255, 0.78); font-size: 11px; }
 .rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.82); }
 .rankrank.r1 { color: #ffcf4a; }
 .rankrank.r2 { color: #d6dde6; }
@@ -5595,6 +5589,16 @@ svg { width: 18px; height: 18px; }
 .matchrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .rgchev { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: rgba(255, 255, 255, 0.4); }
 .matchrow-btn:hover .rgchev { color: var(--acc); }
+
+/* REPLAY V2 (Phase C) — a Recent Games row whose telemetry carries a v2 replay grows a trailing ▶ Watch
+   button, so each template gains one auto column (.haswatch is applied per-row only when the button renders,
+   keeping watchless rows on the base templates). The clickable row is a div[role=button] (a button can't nest
+   a button), so .matchrow-btn's plate/hover chrome applies unchanged. */
+.matchrow.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; }
+.matchrow-btn.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto auto; }
+.matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.matchwatch:hover:not(:disabled) { filter: brightness(1.08); }
+.matchwatch:disabled { opacity: 0.55; cursor: default; }
 .cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 /* The run a Recent-Games click focused — a static accent ring (no animation). */
 .carmatch-focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
@@ -5635,6 +5639,10 @@ svg { width: 18px; height: 18px; }
 .carmatch { padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
 .carmatch.open { border-color: rgba(196, 160, 92, 0.55); }
 .carmatch-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 18px; background: none; border: none; color: inherit; font: inherit; }
+/* The Career row's ▶ Watch — the Recent Games `.matchwatch` chip, sized down a step for the denser match-card
+   head. It sits INSIDE the row's carresult cluster, so the head itself is a div[role=button] (a button can't
+   nest a button — same shape as the Recent Games rows). */
+.carwatch { padding: 6px 12px; font-size: 12px; }
 .carmatch-head:hover { background: rgba(255, 255, 255, 0.04); }
 .carmatch-head .lbinfo { flex: 1; min-width: 0; }
 .carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }
@@ -8064,3 +8072,86 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   .soulbindflash { animation: none; opacity: 0; }
   .soulbindmark { animation: none; }
 }
+
+/* ── REPLAY VIEWER (v2 state replay — Phase B) ─────────────────────────────────────────────────────────── */
+/* Transport bar — floating glass controls while a recorded run plays. Salvaged verbatim from the killed v1
+   branch (PR #956). Presentation is Mike's seam; reads the shared --gl-* vars so the UI Theme tuner reaches it. */
+.replaybar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 560; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-radius: 14px;
+  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.94)), var(--gl-bot, rgba(20, 25, 34, 0.97)));
+  -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
+  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: var(--gl-text, #eef4fb); font-family: var(--font-ui); }
+.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; min-width: 38px; height: 34px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
+.replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+.replayprog { position: relative; width: 260px; height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: hidden; }
+.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; background: var(--gl-accent, #a8d8ef); border-radius: 5px; will-change: transform; }
+.replayround { font-weight: 700; font-size: 13px; min-width: 70px; text-align: center; }
+.replayspeed { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--gl-value, #e6b45a); }
+.replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
+/* Round rail — the left-hand per-round index (click a row → seek to that round's shop opening). Styled to
+   match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey).
+   The FIXED positioning lives on `.roundrail-wrap` so the metrics dock can sit as an absolutely-positioned
+   SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll).
+   Position + size are owner-tunable via the 🎞 Replay Rail dev tuner — the `--rrl-*` vars; these fallbacks
+   MUST mirror the replayRailConfig DEFAULTS. */
+.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 14) * 1px); top: calc(50% + var(--rrl-y, 0) * 1px);
+  transform: translateY(-50%) scale(var(--rrl-s, 1)); transform-origin: left center; z-index: 555; }
+.roundrail {
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
+  background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  font-family: var(--font-ui); position: relative; z-index: 1; }
+.roundrail-row { display: grid; grid-template-columns: 34px 16px auto; align-items: center; gap: 6px; padding: 4px 8px;
+  border: none; border-radius: 7px; background: transparent; color: rgba(255, 255, 255, 0.78); font: inherit;
+  font-weight: 700; font-size: 12px; line-height: 16px; text-align: left; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.roundrail-row:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.roundrail-row.active { background: rgba(196, 160, 92, 0.2); color: #fff; box-shadow: inset 0 0 0 1px var(--acc); }
+.roundrail-num { letter-spacing: 0.03em; }
+.roundrail-head { padding: 4px 8px; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.roundrail-verdict { font-weight: 800; text-align: center; }
+.roundrail-verdict.win { color: #9fd98a; }
+.roundrail-verdict.loss { color: #e88a7a; }
+.roundrail-verdict.draw { color: rgba(255, 255, 255, 0.55); }
+.roundrail-loss { font-size: 11px; color: #e88a7a; opacity: 0.85; }
+/* Metrics DOCK (owner rework 2026-08-19 — replaced the per-round hover drawer): slides out of the rail to
+   the RIGHT and EXTENDS it, one row per round aligned with the rail's rows (same 24px row rhythm: 16px line
+   + 4px×2 padding, 3px gap), showing Gold spent / Actions / Shop tier at start for ALL rounds at once. The
+   tiny icon header hangs ABOVE the plate so data row 1 stays level with rail row R1. Absolutely positioned
+   off the rail's right edge (opening never shifts the rail); the slide is a ONE-SHOT transform/opacity
+   transition — compositor-only, per the no-looping-paint-animation rule. */
+.rounddock { position: absolute; left: calc(100% - 4px); top: 0; bottom: 0; width: var(--rrl-dock-w, 128px); overflow: hidden;
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 8px 14px;
+  border-radius: 0 10px 10px 0; background: #14111c;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  font-family: var(--font-ui); white-space: nowrap;
+  transform: translateX(-14px); opacity: 0; pointer-events: none;
+  transition: transform 180ms ease-out, opacity 180ms ease-out; }
+.rounddock.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.rounddock-head { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; justify-items: center;
+  padding: 4px 0; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.rounddock-row { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; align-items: center;
+  padding: 4px 0; border-radius: 7px; font-weight: 700; font-size: 12px; line-height: 16px;
+  color: rgba(255, 255, 255, 0.78); }
+.rounddock-row.active { background: rgba(196, 160, 92, 0.14); color: #fff; }
+.rounddock-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
+.rounddock-handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 16px; height: 44px; border: none; border-radius: 0 8px 8px 0; background: #14111c;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.7); font-weight: 800; font-size: 13px; line-height: 1;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: left 180ms ease-out; }
+.rounddock-handle.open { left: calc(100% - 4px + var(--rrl-dock-w, 128px)); border-radius: 0 8px 8px 0; }
+.rounddock-handle:hover { color: #fff; }
+
+/* Drag ghost — the recorded card drag replayed as a floating card + closed-fist cursor (owner ask 2026-08-19:
+   "1:1 hands"). The .ghostmover rides ONE Web-Animations transform along the recorded path (compositor-only —
+   the perf rule: never a looping paint-property animation; the flight is a one-shot transform). The layer sits
+   under the transport bar (560) and never intercepts pointer events. The card is centred on the path point via
+   a CHILD transform so the mover's WAAPI transform stays a pure translation. */
+.replay-dragghost { position: fixed; inset: 0; z-index: 540; pointer-events: none; }
+.replay-dragghost .ghostmover { position: absolute; left: 0; top: 0; will-change: transform; }
+.replay-dragghost .ghostcardwrap { position: absolute; transform: translate(-50%, -58%);
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.5)); }
+.replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
+  transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }

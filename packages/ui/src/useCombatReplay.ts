@@ -1895,7 +1895,15 @@ export function useCombatReplay(
   // `triggeredQuests` drives a ONE-SHOT rune-badge burst that cannot be un-fired — a spike there fired every
   // one of the fight's triggers at the instant combat began (owner report 2026-08-19: "it triggers many
   // times when I press End Turn"). Gate that one memo on this.
-  const beatIdxIsStale = seenCombatRef.current !== combat;
+  // TRUE on the one stale render after a new combat arrives. Two signals, because the ref alone is not
+  // enough: `seenCombatRef.current = combat` is a SYNCHRONOUS write in the reset effect, but `resetTo(0)`
+  // (setBeatIdx) is ASYNC — so between the effect and the state flush there is a render where the ref already
+  // says "this combat" yet `beatIdx` still holds the PREVIOUS fight's value. On that render the ref check is
+  // false but `beats[beatIdx - 1]` is undefined, so `processedEnd` fell back to `events.length` and would leak
+  // the whole fight's trigger set at once (owner probe 2026-08-20: Hatchery bursting `0→2→0` at every combat
+  // start). The second clause catches exactly that fallback, derived from the same render values `processedEnd`
+  // uses, so it cannot skew against the ref.
+  const beatIdxIsStale = seenCombatRef.current !== combat || (beatIdx !== 0 && beats[beatIdx - 1] === undefined);
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);

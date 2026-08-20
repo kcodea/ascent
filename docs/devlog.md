@@ -33,6 +33,28 @@ plus a ceiling assertion against per-effect multiplication. **Verified RED befor
 four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+
+## 2026-08-20 — Fix the Hatchery End-Turn burst spike (async ref vs. beatIdx)
+
+Owner probe caught it cold: the rune-badge pulse oscillated `0 → 2 → 0` in ~10ms at every combat start,
+firing the fight's whole trigger set at the instant of the End-Turn click, then resetting — on top of the
+correct per-summon bursts during the replay.
+
+Root cause was a timing bug in the earlier stale-render guard. `beatIdxIsStale` was derived from a ref
+(`seenCombatRef.current !== combat`), and the reset effect updated that ref SYNCHRONOUSLY while `resetTo(0)`
+(setBeatIdx) is ASYNC. So for one render after a new combat's `combat` object arrived, the ref already read
+"this combat" (stale = false) while `beatIdx` still held the previous fight's value — and with the new fight
+shorter, `beats[beatIdx - 1]` was undefined, so `processedEnd` fell back to `events.length` and
+`triggeredQuests` reported every trigger at once. The ref updated exactly one beat too early to catch it.
+
+Fix: derive staleness from the SAME render values `processedEnd` uses, not the ref —
+`beatIdxIsStale = seenCombatRef.current !== combat || (beatIdx !== 0 && beats[beatIdx - 1] === undefined)`. The
+second clause is true precisely when that `events.length` fallback engages, independent of ref timing, so the
+spike is gated to `{}`. A legitimately finished combat is unaffected: `beats[beatIdx - 1]` is defined there.
+
+Verified against the owner's probe record (the `0→2→0` at each combat start is the fallback case the new clause
+catches). typecheck + lint + `npm test` (5905 passed) + build green.
+
 ## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
 
 A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.

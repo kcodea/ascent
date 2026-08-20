@@ -338,4 +338,27 @@ export const SET2_KOBOLDS: CardDef[] = [
     text: '**Flurry.** **Rally:** play a **Ruby** on your minions.',
     goldenText: '**Flurry.** **Rally:** play **2 Rubies** on your minions.',
   },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // GEM SAGE - the Ruby engine's multiplier. Every Ruby source in the set (Chipwick, Motherlode, the
+    // Jeweler, a Kobold Shout) pays double while it is out, which makes it the piece the whole Kobold build
+    // wants to find rather than another body that mints on its own.
+    //
+    // `token: true`, like `dw_baal`: forge-only, never in the tavern.
+    //
+    // The duplicate is minted SILENTLY (see `onGetRubyDuplicate`) - a Ruby-gained reaction that itself gains
+    // a Ruby is the one shape in this system that can recurse, so the extra copy deliberately does not
+    // re-open the `onGetRuby` round. It still counts as a card arriving in hand (Gangplank sees it).
+    id: 'k_gemsage',
+    name: 'Gem Sage',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 3,
+    health: 7,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onGetRuby', do: 'onGetRubyDuplicate', params: { count: 1 } }],
+    text: 'Whenever you get a **Ruby**, get an additional copy.',
+    goldenText: 'Whenever you get a **Ruby**, get **2** additional copies.',
+  },
 ];

@@ -2,6 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExt
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import type { StepProgress } from './cardText';
 import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
@@ -222,6 +223,10 @@ export const mdBold = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
 /** A ((…)) marker → a gold "temporary" span, parentheses kept visible (next-combat spell grants). */
 const descTemp = (s: string): string => s.replace(/\(\((.+?)\)\)/g, '<span class="desctemp">($1)</span>');
+/** A [[…]] marker → a BLUE "rune-granted" span (Rune of Rebirth's "Rebirth" on every minion, owner ask
+ *  2026-08-20). Blue, not green: green means "a modified value of this card's own rule"; blue is a rule a
+ *  held rune ADDS to the card. */
+const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class="descrune">$1</span>');
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
@@ -617,7 +622,7 @@ export const Card = memo(function Card({
   // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
   // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
   // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
-  const rulesHtml = useMemo(() => descTemp(descUp(mdBold(shownText))), [shownText]);
+  const rulesHtml = useMemo(() => descRune(descTemp(descUp(mdBold(shownText)))), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
   const mechIcon = resolveMechIcon(card);
@@ -691,7 +696,19 @@ export const Card = memo(function Card({
   // A plated card whose PRIMARY tribe has its own plate: drop the in-drawer tribe icon+label and print the
   // tribe name on the plate's bottom gem instead (owner 2026-07-25). Only on the plate itself (hand / drag),
   // never on an unplated board card, a spell, or the "All"-tribe case.
-  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !card.universalTribe;
+  // "ALL TYPES" is a property of the CARD DEF, so derive it here rather than trusting each projection to
+  // carry it (owner report 2026-08-20: Lab Experiment / Paragon / Standard Bearer read "Neutral"). SIX
+  // CardView builders dropped the flag — the Compendium, Career, Leaderboard, quest- and rune-reward
+  // previews, and the sandbox editor — and any future one could forget again. Reading the def closes the
+  // class instead of patching each site. The view still WINS when it sets the flag, which is what carries
+  // the INSTANCE-level case (`allTribes` — an Anomaly-Reactor'd body, which no def knows about).
+  const universalTribe = card.universalTribe ?? !!CARD_INDEX[card.cardId]?.universalTribe;
+  // An All-type card is PLATED like any other (owner report 2026-08-20: its "ALL" sat in the drawer while
+  // every neighbouring card printed its tribe on the plate's bottom gem). The old `&& !universalTribe`
+  // exclusion existed only because the gem printed `TRIBE_LABEL[card.tribe]`, which reads NEUTRAL for these
+  // cards — the gem now prints ALL instead, so the exclusion is obsolete and the label sits where the eye
+  // already looks for it.
+  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike;
   const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
@@ -769,8 +786,14 @@ export const Card = memo(function Card({
               instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
           {tribePlated && (
             <div className="plate-tribe" aria-hidden="true">
-              {TRIBE_LABEL[card.tribe]}
-              {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+              {/* ALL replaces the printed tribe for an every-type card — NEUTRAL would say the opposite of
+                  what it does. Plain text, no icon, exactly like every other tribe on this gem. */}
+              {universalTribe ? 'ALL' : (
+                <>
+                  {TRIBE_LABEL[card.tribe]}
+                  {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+                </>
+              )}
             </div>
           )}
         </>
@@ -1071,7 +1094,7 @@ export const Card = memo(function Card({
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}
-            {card.universalTribe ? (
+            {universalTribe ? (
               <><Icon name="star" /> All</>
             ) : (
               <>

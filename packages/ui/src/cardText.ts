@@ -307,7 +307,7 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean; rebirth?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
@@ -499,6 +499,63 @@ export function clingProgressText(cardId: string, enchant: { attack: number; hea
  * High King Mykel — a COUNTDOWN, because the card is a threshold and a bare "when you cast 8" tells you nothing
  * about where you are (owner ask 2026-07-29). `spellProgress` is the per-instance meter the factory advances.
  */
+/**
+ * ANCIENT WANDERER — "Has +1/+1 for every 3 Gold you have spent this run".
+ *
+ * The hardest case of the live-text rule in this batch, because the number IS the card: a Wanderer's printed
+ * "+1/+1" is a RATE, and what the player needs to read is the stat block it is actually carrying right now.
+ * So the printed magnitude is replaced with the live total (green) and the rate moves into a parenthetical,
+ * followed by the countdown to the next step — the same shape `perGoldSpentText` uses for Baby Gastrid.
+ *
+ * `goldSpentRun` is the RUN total (`RunState.goldSpent`), NOT the per-turn `goldSpent` every other helper here
+ * reads: the card says "this run". At 0 spent there is nothing live to fold, so the printed text stands.
+ */
+export function ancientWandererText(cardId: string, goldSpentRun: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+  if (!def || !eff) return null;
+  const p = eff.params as { per?: number; attack?: number; health?: number } | undefined;
+  const per = Math.max(1, Number(p?.per ?? 3));
+  const g = Math.max(0, goldSpentRun);
+  const mul = golden ? 2 : 1;
+  const a = Math.floor(g / per) * Number(p?.attack ?? 1) * mul;
+  const h = Math.floor(g / per) * Number(p?.health ?? 1) * mul;
+  if (a === 0 && h === 0) return null; // nothing spent yet — the printed rate is already the whole truth
+  const toNext = per - (g % per);
+  // Plain parentheses, no `_italics_` — the Card renderer only knows **bold** and the {{…}} / ((…)) markers.
+  return `Has **{{+${a}/+${h}}}** (+${Number(p?.attack ?? 1) * mul}/+${Number(p?.health ?? 1) * mul} per **${per} Gold** spent this run; {{${toNext} more}} to the next).`;
+}
+
+/**
+ * MUSTER GENERAL — its Trooper is a 1/1 only until the first Avenge fires; after that the printed "1/1" is a
+ * stale number, which the live-text rule calls a defect. `summonBonus` is the permanent per-instance accrual
+ * (carried back after each combat), so fold it into BOTH the summoned line and the improve step.
+ */
+export function musterTrooperText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // no Avenge has fired — the printed 1/1 is accurate
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'avengeSummonAttackImproving');
+  if (!def || !eff) return null;
+  const n = 1 + summonBonus;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace('**1/1 Trooper**', `**{{${n}/${n}}} Trooper**`);
+}
+
+/**
+ * ARCANE BEHEMOTH — a threshold card, so it prints the COUNTDOWN rather than the static "3 Shop spells"
+ * (Mykel's rule, and its `spellProgress` meter). Cast magnitude never changes, only the distance to it.
+ */
+export function behemothProgressText(cardId: string, golden: boolean, spellProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'spellCastConsumeShopRightmost');
+  if (!def || !eff) return null;
+  const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
+  const toNext = every - (spellProgress % every);
+  const base = (golden && def.goldenText) || def.text;
+  // PLAIN-string replace, deliberately — see the crash note on `spellThresholdText` below.
+  return base.replace(`**${every} Shop spells**`, `**{{${toNext} more Shop spell${toNext === 1 ? '' : 's'}}}**`);
+}
+
 export function spellThresholdText(cardId: string, golden: boolean, spellProgress: number): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'spellCastTriggerAdjacentShouts');

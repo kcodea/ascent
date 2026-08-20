@@ -82,6 +82,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   // reported case; the sweep in `refPreview.test.ts` found the rest and now guards against a seventh.
   battlecryGrantMinion: 'cardId',              // Commander Warpath -> Brood Whelp, Scrap Herald -> Money Bot
   avengeSummonAttack: 'cardId',                // Moonlit Scavenger -> Ninja Pal, Steadfast -> Knit
+  avengeSummonAttackImproving: 'cardId',       // Muster General -> Trooper
   deathrattleGrantSpell: 'cardId',             // Big Huggies -> Staff of Guel
   deathrattleSummonRubyStats: 'tokenId',       // Gemheart -> Gemheart Shard
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)

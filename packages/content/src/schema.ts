@@ -476,6 +476,19 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
   'rubyStatMultiplier', // Deepdelve Paragon: Rubies applied IN COMBAT are worth 2x (3x Gilded)
   'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  // --- RUNE-ONLY minion batch (2026-08-20) ---
+  'onGetRubyDuplicate',           // Gem Sage
+  'goldSpentScaleSelf',           // Ancient Wanderer
+  'buffCurrentShopOffers',        // Night Market Horror
+  'onSellDiscoverSingleton',      // Traveling Salesman
+  'onGainAleBuffSelf',            // Kegheart Dwarf
+  'onBuyGrantSpellSameTier',      // Ninefold Broker
+  'endOfTurnCopyLeftmostHandCard',// Stonehorn Archivist
+  'endOfTurnTransformLeftTierUp', // Skybound Ascendant
+  'spellCastConsumeShopRightmost',// Arcane Behemoth
+  'onFriendDeathGainEcho',        // Echo Mimic
+  'avengeSummonAttackImproving',  // Muster General
+  'rallyDoubleSelf',              // Evolving Abomination
 ]);
 
 export const EffectDefSchema = z.object({
@@ -484,6 +497,9 @@ export const EffectDefSchema = z.object({
   params: z.record(z.unknown()).optional(),
   // CELESTIAL alignment gate — this half only fires while its owner is Dawn / Dusk (Eclipse fires both).
   align: z.enum(['dawn', 'dusk']).optional(),
+  // COMBAT-ONLY gate (Sunmane Herald, owner ruling 2026-08-20): the shop dispatchers skip this effect
+  // entirely — see `EffectDef.combatOnly` in @game/core.
+  combatOnly: z.boolean().optional(),
 }).strict();
 
 // `.strict()`: a typo'd optional key (`goldentext`, `targetTribes`) would otherwise validate silently and
@@ -585,7 +601,9 @@ export const QuestObjectiveEventSchema = z.enum([
   'consumeShopMinion',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeChef', 'runeCarrionCoin', 'runeFiveBanners', 'runeCenterline', 'runeSecondLitter', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath', 'runeEmberline', 'runeAshenPayroll', 'runeBackbeat', 'runeSpareChair', 'runeAncestralRoar', 'runeRubyShrapnel', 'runeSharedScripture', 'runeMoonhowl', 'runeFloodedVault', 'runeBattleRefraction', 'runeWrangler', 'runeLivingGeode', 'runeDawnclaw', 'runeSylus', 'oldPack', 'runeJungle', 'runeBurrow', 'runeBeastialSwarm', 'runeZoo', 'runeRuins', 'runeGolems', 'runeEngravingGems', 'runeHerdingHorn', 'runeDeathtouchedApple', 'runeStokedMenagerie']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeChef', 'runeCarrionCoin', 'runeFiveBanners', 'runeCenterline', 'runeSecondLitter', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath', 'runeEmberline', 'runeAshenPayroll', 'runeBackbeat', 'runeSpareChair', 'runeAncestralRoar', 'runeRubyShrapnel', 'runeSharedScripture', 'runeMoonhowl', 'runeFloodedVault', 'runeBattleRefraction', 'runeWrangler', 'runeLivingGeode', 'runeDawnclaw', 'runeSylus', 'oldPack', 'runeJungle', 'runeBurrow', 'runeBeastialSwarm', 'runeZoo', 'runeRuins', 'runeGolems', 'runeEngravingGems', 'runeHerdingHorn', 'runeDeathtouchedApple', 'runeStokedMenagerie',
+  // 2026-08-20 rune batch
+  'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -618,7 +636,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     stepAttack: z.number().int().nonnegative(),
     stepHealth: z.number().int().nonnegative(),
   }).strict(),
-  z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1) }).strict(),
+  z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1), everyTurns: z.number().int().positive().optional() }).strict(),
   // 2026-08-19 owner rune batch.
   z.object({ kind: z.literal('runeTribeDrip'), tribe: TribeSchema, count: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('runeSpellDouble'), spellId: z.string().min(1) }).strict(),
@@ -632,6 +650,13 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeMight') }).strict(),
   z.object({ kind: z.literal('runeHeldStrength') }).strict(),
   z.object({ kind: z.literal('runeChipperSticker') }).strict(),
+  // 2026-08-20 owner rune batch.
+  z.object({ kind: z.literal('runeSpellEcho'), uses: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeDraconicCuriosity') }).strict(),
+  z.object({ kind: z.literal('runeSeasonedLedger'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative(), per: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeEchoedArrival'), per: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeSharedSpoils') }).strict(),
+  z.object({ kind: z.literal('runeHeavyPayroll'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('impAura'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal('beastPlayBuff'), attack: z.number().int().positive(), health: z.number().int().positive(), step: z.number().int().nonnegative(), per: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
@@ -648,6 +673,8 @@ z.object({ kind: z.literal('runeCoffers') }).strict(),
 z.object({ kind: z.literal('runeEnchantment') }).strict(),
 z.object({ kind: z.literal('runeCrown'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('runeLapidary') }).strict(),
+z.object({ kind: z.literal('runeLastingCadence') }).strict(),
+z.object({ kind: z.literal('runeCombatProwess') }).strict(),
 z.object({ kind: z.literal('runeDeep'), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('runeGuidingCandle'), count: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('runeMuster') }).strict(),
@@ -683,9 +710,11 @@ z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'shout', 'consume']), per: z.number().int().positive(),
+z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
-  buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells']), attack: z.number().int(), health: z.number().int() }).strict().optional(),
+  grantCards: z.array(z.string().min(1)).min(1).optional(),
+  castStatSpell: z.number().int().positive().optional(),
+  buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
   rubyAll: z.boolean().optional(),
   grantGoldNextTurn: z.number().int().positive().optional(),
   resetEachTurn: z.boolean().optional(),

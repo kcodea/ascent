@@ -89,3 +89,55 @@ describe('a real End-of-Turn batch compiles', () => {
     expect(JSON.stringify(compileReal(s))).toBe(JSON.stringify(compileReal(s)));
   });
 });
+
+/**
+ * RUNE OF LASTING CADENCE — "End of Turn: trigger all your Rally effects."
+ *
+ * The owner's requirement for this rune was explicitly about TIME: "make sure there's room for the beat to
+ * play and go through any and all animations." A batched payout would compile to ONE beat and resolve every
+ * rally inside a single window. These assert the opposite all the way through the real compiler: N rallies →
+ * N compiled beats, each sourced on the minion that rallied, and the timeline grows to make room.
+ */
+describe('Rune of Lasting Cadence — one compiled beat per rally, with room to play', () => {
+  const cadenceRun = (ralliers: number): RunState => {
+    const base = createRun(3, 'warden');
+    return {
+      ...base,
+      phase: 'recruit',
+      board: Array.from({ length: ralliers }, (_, i) => ({
+        uid: `r${i}`, cardId: 'd2_cinderchef', tribe: 'dragon', attack: 1, health: 3,
+        keywords: ['RL'], golden: false,
+      })),
+      runeLastingCadence: true,
+    } as RunState;
+  };
+
+  it('compiles ONE beat per rally, sourced on the rallying minion', () => {
+    const t = compileReal(cadenceRun(3));
+    const beats = t.beats.filter((b) => b.policyKey === 'rune:rune_lasting_cadence:endOfTurn');
+    expect(beats, 'three rallies, three beats').toHaveLength(3);
+    expect(beats.map((b) => b.source.uid)).toEqual(['r0', 'r1', 'r2']);
+    expect(new Set(beats.map((b) => b.source.kind))).toEqual(new Set(['minion']));
+  });
+
+  it('the TIMELINE grows with the rally count — the animation is allotted real time', () => {
+    const one = compileReal(cadenceRun(1));
+    const four = compileReal(cadenceRun(4));
+    expect(one.durationMs, 'a single rally already reserves a window').toBeGreaterThan(0);
+    expect(four.durationMs, 'four rallies reserve strictly more time than one').toBeGreaterThan(one.durationMs);
+  });
+
+  it('no structural diagnostics — the rally beats are well-formed', () => {
+    expect(compileReal(cadenceRun(3)).diagnostics).toEqual([]);
+  });
+
+  it('unarmed, the rune contributes no beats at all', () => {
+    // The same board with the rune off emits NOTHING — no batch, so nothing to compile and no window held.
+    const bare = { ...cadenceRun(3), runeLastingCadence: undefined } as RunState;
+    const { batch } = reduceWithPresentation(bare, faceOmen, true);
+    const rallyTriggers = (batch?.events ?? []).filter(
+      (e) => (e as { policyKey?: string }).policyKey === 'rune:rune_lasting_cadence:endOfTurn',
+    );
+    expect(rallyTriggers).toHaveLength(0);
+  });
+});

@@ -448,4 +448,21 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     text: '**End of Turn:** cast **Beefy** on this.',
     goldenText: '**End of Turn:** cast **Beefy** on this **twice**.',
   },
+  {
+    // KEGHEART DWARF (rune-only, owner batch 2026-08-20) - the Ale build's payoff body. It watches the shared
+    // grant-to-hand chokepoint (`onGainCard`) and filters on the arriving card being one of the five Ales, so
+    // Brunni's Shout, the Tapkeeper's End of Turn, a Gold-spent Ale and Rune of Last Call all feed it without
+    // any of them knowing this card exists. GETTING the Ale is what pays - casting it is a separate reward.
+    id: 'dw_kegheart',
+    name: 'Kegheart Dwarf',
+    tribe: 'dwarf',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onGainCard', do: 'onGainAleBuffSelf', params: { attack: 3, health: 3 } }],
+    text: 'Whenever you get a **Dwarven Ale**, gain **+3/+3**.',
+    goldenText: 'Whenever you get a **Dwarven Ale**, gain **+6/+6**.',
+  },
 ];

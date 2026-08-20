@@ -33,7 +33,12 @@
      Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
   /* `dvh` (dynamic viewport height) instead of `vh` so the stage tracks the mobile browser's shrinking/growing
      address bar and fills the real visible area on phones. */
-  --gw: min(100vw, calc(100dvh * 16 / 9)); --gh: min(100dvh, calc(100vw * 9 / 16));
+  /* PINNED stage cap (owner ask 2026-08-20): the 16:9 stage never grows past 2560×1440 — the tuned reference
+     size. So a window bigger/taller than that stops the board ZOOMING up and just gains backdrop margin around
+     it (nothing moves), while a smaller window still shrinks the whole board uniformly to fit (one locked unit,
+     no drift). `--scale` (= --gh/1440, clamped) therefore tops out at 1.0, its tuned value. Mirrors the old
+     `[data-res="r2560"]` cap, now always-on. Bump both caps together (keep 16:9) to re-pin at a larger size. */
+  --gw: min(100vw, calc(100dvh * 16 / 9), 2560px); --gh: min(100dvh, calc(100vw * 9 / 16), 1440px);
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
@@ -51,6 +56,13 @@
      1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
      button offsets were tuned against. */
   --board-fill: 1;
+  /* The board ART's on-screen size (matches `--_board-w` on `.boardbg`), exposed at :root so the hero panel can
+     anchor to the ART rather than the 16:9 STAGE. The art is board-zoomed ~25% WIDER than the stage, and that
+     overflow scales with `--gh`; anchoring the hero panel (portrait / Health pill / rune chains) to the stage
+     let it slide off its painted frame when the board scaled below 1.0 (short/windowed). `--_arth` = the art
+     HEIGHT (width ÷ intrinsic aspect). See `.statusbar`. */
+  --_artw: calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132));
+  --_arth: calc(var(--_artw) / var(--board-aspect));
   /* Ultrawide side-blend (owner ask 2026-08-18). The 16:9 default board can't fill a window WIDER than 16:9, so
      the bare `--bg` (#8c857a tan) shows in the side margins there — see `.boardbg`, which lays a `--board-edge-col`
      gradient over those margins that fades INTO the art edges so the two meet seamlessly. `--board-edge-col` is
@@ -206,8 +218,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 62px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 9px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -144px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 9px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 65px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 8px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -155px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 9px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -221,7 +233,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
    +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
-.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -144px) + var(--wb-drop, 0px)) * var(--scale)); }
+.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -155px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
@@ -496,7 +508,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    positions — owner report 2026-08-11). The CONTENTS still size off `--u` (which includes the scale) and simply
    `overflow: visible` past the fixed box when scaled up. X/Y offsets use `top/left` on a relative box, which
    never reflowed siblings to begin with. */
-.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -45px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -6px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -1091,8 +1103,8 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    The tuned px is authored at the owner's ~0.745 desktop scale, so `* --scale / 0.745` keeps desktop identical
    while the gap shrinks WITH the cards on a phone (raw px left 22px gaps between ~0.3-scale cards → the 7th
    warband minion fell off the board). */
-.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 20px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
-.row.warband { gap: calc(var(--z-wb-gap, 20px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 16px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.row.warband { gap: calc(var(--z-wb-gap, 16px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
@@ -2758,7 +2770,13 @@ body.modalup .app { z-index: auto; }
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+/* Anchored to the BOARD ART's bottom-left, not the 16:9 stage corner — see `--_artw`/`--_arth`. The coefficients
+   keep the position IDENTICAL to the old `--bar` anchor at the tuned size (--scale 1, --gh 1440, board-zoom 1.25,
+   aspect 1.7919, fill 1): 0.391888 = (1440·8/9 − 16px) ÷ art-width(1440); 0.389444 = (1440/2 − 14px) ÷
+   art-height(1440). Expressed as a fraction of the art, so the panel now tracks the art's overflow at EVERY
+   scale instead of drifting off its frame when the board shrinks below 1.0. If the board zoom/aspect/fill is
+   re-baked, re-derive the two coefficients. */
+.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -2808,7 +2826,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 127) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 129) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -5) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -2931,7 +2949,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
-  transform: var(--hpn-panel-t, translate(calc(54px * var(--scale)), calc(-106px * var(--scale))) scale(3.1)); transform-origin: bottom left;
+  transform: var(--hpn-panel-t, translate(calc(58px * var(--scale)), calc(-109px * var(--scale))) scale(3.1)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
   width: var(--hpn-panel-w, calc(87 * var(--u))); height: var(--hpn-panel-h, calc(89 * var(--u)));

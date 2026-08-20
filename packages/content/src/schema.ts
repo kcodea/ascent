@@ -476,6 +476,19 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
   'rubyStatMultiplier', // Deepdelve Paragon: Rubies applied IN COMBAT are worth 2x (3x Gilded)
   'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  // --- RUNE-ONLY minion batch (2026-08-20) ---
+  'onGetRubyDuplicate',           // Gem Sage
+  'goldSpentScaleSelf',           // Ancient Wanderer
+  'buffCurrentShopOffers',        // Night Market Horror
+  'onSellDiscoverSingleton',      // Traveling Salesman
+  'onGainAleBuffSelf',            // Kegheart Dwarf
+  'onBuyGrantSpellSameTier',      // Ninefold Broker
+  'endOfTurnCopyLeftmostHandCard',// Stonehorn Archivist
+  'endOfTurnTransformLeftTierUp', // Skybound Ascendant
+  'spellCastConsumeShopRightmost',// Arcane Behemoth
+  'onFriendDeathGainEcho',        // Echo Mimic
+  'avengeSummonAttackImproving',  // Muster General
+  'rallyDoubleSelf',              // Evolving Abomination
 ]);
 
 export const EffectDefSchema = z.object({

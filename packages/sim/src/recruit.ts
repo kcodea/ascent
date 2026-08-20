@@ -39,7 +39,8 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
+  *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
 ) => void;
 
@@ -1547,6 +1548,9 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // golden Spell Warden's copies must yield to a card being discovered). `reservedHandSlots` counts the open
   // prompt plus anything queued behind it, so a chain of Discovers each keeps one.
   const cap = handCap(state) - reservedHandSlots(state);
+  // WHICH cards landed, in order — `onGainCard` watchers that filter on the arriving card (Kegheart Dwarf on a
+  // Dwarven Ale) need the id, and a mixed pool can hand over a different card on each rep.
+  const addedIds: string[] = [];
   let added = 0;
   for (let i = 0; i < reps && (overflow || state.hand.length < cap); i++) {
     const def = pool[rng.int(pool.length)]!;
@@ -1561,13 +1565,14 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
       golden: false,
     });
     takeFromPool(state, def.id);
+    addedIds.push(def.id);
     added++;
   }
   state.rngCursor = rng.state();
   // Gangplank: fire once per card actually conjured into hand (Ale, Shop spell, granted minion). After the
   // cursor is settled so a watcher that re-rolls RNG can't perturb this conjure's stream. No recursion — the
   // watcher adds no card.
-  for (let a = 0; a < added; a++) fireOnGainCard(state);
+  for (let a = 0; a < added; a++) fireOnGainCard(state, addedIds[a]);
 }
 
 /** The Ruby token id (set 2). A Ruby minted into hand carries the run's live strength baked in. */
@@ -1598,7 +1603,16 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
-export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID, statOverride?: { attack: number; health: number }): void {
+export function mintRubies(
+  state: RunState,
+  count: number,
+  rubyId: string = RUBY_ID,
+  statOverride?: { attack: number; health: number },
+  /** Skip the `onGetRuby` round for these Rubies. Set ONLY by a mint that is itself an `onGetRuby` reaction
+   *  (Gem Sage's duplicate) — without it, "when you get a Ruby, get another" recurses without end. The
+   *  `onGainCard` round still fires: a duplicate really is a card arriving in hand. */
+  silent = false,
+): void {
   const def = CARD_INDEX[rubyId];
   if (!def) return;
   // Rune of Gemcutting mints at a FIXED line (3/3) instead of the run's 1/1 + rubyBonus.
@@ -1620,9 +1634,9 @@ export function mintRubies(state: RunState, count: number, rubyId: string = RUBY
   }
   // Set 2 — Candle Conduit: "when you get a Ruby" fires once per Ruby actually minted. A reaction only PLAYS a
   // Ruby (never mints), so this can't recurse.
-  for (let r = 0; r < minted; r++) fireOnRubyGained(state);
+  if (!silent) for (let r = 0; r < minted; r++) fireOnRubyGained(state);
   // Gangplank: a minted Ruby is a card added to hand. Watchers add no card, so no recursion.
-  for (let r = 0; r < minted; r++) fireOnGainCard(state);
+  for (let r = 0; r < minted; r++) fireOnGainCard(state, rubyId);
 }
 
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
@@ -2623,9 +2637,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = num(params.tier, 0); // 0 = any tier ≤ the current tavern tier
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
     const reps = num(params.count, 1) * gold(self);
+    // `filter: 'shout'` narrows to minions with a real Battlecry (Muckslinger). A CLASS filter rather than a
+    // tribe one — the same axis the rune rewards' `randomFilter` uses — so it composes with `tier`/`tribe`
+    // instead of duplicating this pool build in a near-identical factory.
+    const filter = str(params.filter);
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (tier > 0 ? c.tier === tier : c.tier <= ctx.state.tier) &&
+        (filter !== 'shout' || hasBattlecry(c)) &&
         (tribe
           ? c.tribe === tribe || c.tribe2 === tribe
           : c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
@@ -2672,7 +2691,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const uncontrolled = raw === 'uncontrolled';
     const tribes = uncontrolled ? uncontrolledTribes(ctx.state) : undefined;
     const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
-    const fixed = num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
+    // `tierOffset` (Clockwork Assistant): EXACTLY the Shop's tier plus N, clamped to the run's own ceiling —
+    // `hasTier7Access` / `maxTierFor`, so Tier 7 is reachable only on a Summit run. Resolved into `fixed`, so
+    // it shares the exact-tier branch below rather than adding a third shape.
+    const offset = num(params.tierOffset, 0);
+    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    const fixed = offset > 0
+      ? Math.min(ceiling, ctx.state.tier + offset)
+      : num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
     // Exclude the source itself — Sea Urchin shouldn't be able to Discover another Sea Urchin.
     let spec: DiscoverSpec = fixed > 0
       ? { kind: 'minion', tier: fixed, exactTier: fixed, tribe, tribes, exclude: self.cardId }
@@ -5695,7 +5721,232 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellCastBuffUndeadAttack: (ctx, self, params) => {
     ARENA_EFFECTS.spellCastBuffUndeadAttack(shopArena(ctx.state, self), params);
   },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  // RUNE-ONLY MINION BATCH (2026-08-20). Every card that reaches these is `token: true` — forge-only, so
+  // none of them can appear in a shop roll. The factories themselves are ordinary primitives.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** GEM SAGE — "Whenever you get a Ruby, get an additional copy." (golden: two extra).
+   *
+   *  Minted through `mintRubies` with `silent: true`, which is the whole design note: the normal mint fires
+   *  `onGetRuby` for every Ruby it makes, and this factory IS an `onGetRuby` handler — a plain mint would
+   *  recurse forever (and two Sages would recurse twice as fast). The duplicate still fires `onGainCard`
+   *  (Gangplank sees a card arrive), it just doesn't re-open the Ruby-gained round. */
+  onGetRubyDuplicate: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), RUBY_ID, undefined, true);
+  },
+
+  /** ANCIENT WANDERER — "Has +1/+1 for every 3 Gold you have spent this run."
+   *
+   *  A HAS, not a gains: the body is worth the run's whole spend the moment you own it, not just the spend it
+   *  witnessed. So this is not a per-threshold grant (the `goldSpent` meter shape every other Gold card uses)
+   *  — it's a SYNC. `syncGoldSpentScalers` recomputes the target total from `state.goldSpent` and lands only
+   *  the delta under a fixed buff source, which makes it idempotent, itemized in the inspect breakdown, and —
+   *  crucially — a REAL stored buff, so combat, snapshots and saves need no new plumbing.
+   *
+   *  Declared `on: 'passive'`: nothing dispatches it through the bus (the sync reads the effect off the card),
+   *  matching Deepdelve Paragon's contract. The body here is the sync for one card, so a re-trigger path that
+   *  does fire it is harmless. */
+  goldSpentScaleSelf: (ctx, self, params) => {
+    syncGoldSpentScaler(ctx.state, self, params);
+  },
+
+  /** NIGHT MARKET HORROR — "After you buy a card, give minions in the CURRENT Shop +2/+2."
+   *
+   *  THIS shop, not every future one: `addOfferBuff` rides each offer's own `atk`/`hp`, so the gift survives a
+   *  freeze and dies on a refresh. That's the exact vocabulary split Contract Butcher's note spells out — "the
+   *  Shop" is the permanent `tavernBuyBonus` channel, "the CURRENT Shop" is the row in front of you.
+   *  Spells and Rubies in the row are skipped: they have no stat line to raise. Golden doubles. */
+  buffCurrentShopOffers: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self);
+    const h = num(params.health, 2) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const offer of ctx.state.shop) {
+      const d = CARD_INDEX[offer.cardId];
+      if (!d || d.spell || d.ruby) continue;
+      addOfferBuff(offer, nameOf(self), a, h);
+    }
+  },
+
+  /** TRAVELING SALESMAN — "When you SELL this, Discover a minion you control EXACTLY ONE copy of."
+   *
+   *  A `pool` Discover over the ids on your board that appear exactly once — a real "finish the pair" tool
+   *  rather than a generic offer. Fired by `fireOnSell` AFTER the Salesman has left the board, so it can never
+   *  offer itself. Ids only (not uids): two copies of the same card is what "one copy" is counting, and a
+   *  Golden already IS three, so a gilded body is excluded (it can't be tripled again). Golden Discovers twice. */
+  onSellDiscoverSingleton: (ctx, self) => {
+    const counts = new Map<string, number>();
+    for (const c of ctx.state.board) {
+      const d = CARD_INDEX[c.cardId];
+      if (!d || d.spell || d.ruby) continue;
+      counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + (c.golden ? 3 : 1));
+    }
+    const ids = [...counts.entries()].filter(([, n]) => n === 1).map(([id]) => id);
+    if (ids.length === 0) return;
+    const spec: DiscoverSpec = { kind: 'pool', ids };
+    queueDiscover(ctx.state, spec);
+    if (self.golden) queueDiscover(ctx.state, spec);
+  },
+
+  /** KEGHEART DWARF — "Whenever you get a Dwarven Ale, gain +3/+3." (golden +6/+6).
+   *
+   *  Rides `onGainCard`, the shared conjure/grant chokepoint, and filters on the arriving card being one of
+   *  the five `wo_*` Ales — so Brunni's Shout, the Tapkeeper's End of Turn, a Gold-spent Ale and Rune of Last
+   *  Call all pay it, without any of them needing to know Kegheart exists. `payload.cardId` is what makes the
+   *  filter possible: the event used to carry only "a card arrived". */
+  onGainAleBuffSelf: (ctx, self, params, payload) => {
+    if (!ALE_IDS.includes(payload.cardId ?? '')) return;
+    addBuff(self, nameOf(self), num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self));
+  },
+
+  /** NINEFOLD BROKER — "After you buy a minion, get a random Shop spell OF THE SAME TIER. Can trigger 9 times."
+   *
+   *  The charge counter is PER-RUN and PER-INSTANCE: it rides `buyTick`, the existing buy-meter field on the
+   *  BoardCard, which nothing else on this card touches (`applyCardsBought` only advances it for cards that
+   *  carry a `cardsBought` effect, and `stepProgress` only reads it for those too). Being a BoardCard field it
+   *  saves, restores and survives combat like any other per-instance accrual — which is what "per run" needs.
+   *  Golden doubles the charges, not the payout: nine is the card's identity.
+   *
+   *  "Of the same tier" reads the BOUGHT minion's tier, not the tavern tier — buying down still pays out at
+   *  what you bought. If the pool has no spell at that tier the trigger is spent on nothing rather than
+   *  silently sliding to another tier (the card promises a tier, and a run whose set has no T5 spell should
+   *  show that honestly). */
+  onBuyGrantSpellSameTier: (ctx, self, params, payload) => {
+    const charges = num(params.charges, 9) * gold(self);
+    const used = self.buyTick ?? 0;
+    if (used >= charges) return;
+    const tier = CARD_INDEX[payload.minion.cardId]?.tier;
+    if (typeof tier !== 'number') return;
+    self.buyTick = used + 1; // the charge is spent on the TRIGGER, even if the tier has no spell to give
+    const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    if (pool.length === 0) return;
+    conjureToHand(ctx.state, pool, num(params.count, 1));
+  },
+
+  /** STONEHORN ARCHIVIST — "At the end of every SECOND turn, get a plain copy of the LEFT-MOST card in your hand."
+   *
+   *  Bellringer Voss's cadence, aimed at the HAND instead of the board — same `eotTick` discipline, which is
+   *  the part that's easy to get wrong: the tick advances ONCE per turn (on proc 0), so a Chronos repeat pays
+   *  an extra copy on the cadence turn without speeding the count up, and a Djinn replay lands on the turn it
+   *  would naturally fire. "Plain" = a fresh card from the index, so buffs and golden are deliberately dropped.
+   *  A Ruby in slot 0 is skipped — its whole value is the stats baked in at mint, which a plain copy wouldn't
+   *  carry — and the scan falls through to the first ordinary card. Golden copies the two left-most. */
+  endOfTurnCopyLeftmostHandCard: (ctx, self, params, payload) => {
+    const every = Math.max(1, num(params.every, 2));
+    const replay = payload.replay === true;
+    if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1;
+    const tick = self.eotTick ?? 0;
+    const due = replay ? (tick + 1) % every === 0 : tick % every === 0;
+    if (!due) return;
+    const defs = ctx.state.hand
+      .map((c) => CARD_INDEX[c.cardId])
+      .filter((d): d is CardDef => !!d && !d.ruby)
+      .slice(0, gold(self));
+    for (const d of defs) conjureToHand(ctx.state, [d], 1);
+  },
+
+  /** SKYBOUND ASCENDANT — "End of Turn: transform the minion to the LEFT into a random minion from ONE TIER
+   *  HIGHER, up to Tier 7."
+   *
+   *  Strange Revision's transform (base swaps, gained stats ride along), stepped UP a tier and clamped to the
+   *  run's own ceiling — `maxTierFor` / `hasTier7Access`, so Tier 7 is only ever reachable on a Summit run and
+   *  a non-Summit board tops out at 6. A neighbour already at the ceiling re-rolls at the ceiling rather than
+   *  doing nothing, which keeps the effect a reroll at the top of the curve instead of a dead line.
+   *  Golden walks the two minions to the left. */
+  endOfTurnTransformLeftTierUp: (ctx, self) => {
+    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    const i = ctx.state.board.indexOf(self);
+    if (i <= 0) return;
+    for (let n = 0; n < gold(self); n++) {
+      const target = ctx.state.board[i - 1 - n];
+      if (!target) return;
+      const oldDef = CARD_INDEX[target.cardId];
+      if (!oldDef) return;
+      const want = Math.min(ceiling, oldDef.tier + 1);
+      const pool = poolOf(ctx.state).buyable.filter(
+        (c) => c.tier === want && c.id !== target.cardId && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+      );
+      if (pool.length === 0) continue;
+      const rng = makeRng(ctx.state.rngCursor);
+      const newDef = pool[rng.int(pool.length)]!;
+      ctx.state.rngCursor = rng.state();
+      const bonusA = target.attack - oldDef.attack; // whatever it had gained above its old base rides along
+      const bonusH = target.health - oldDef.health;
+      target.cardId = newDef.id;
+      target.tribe = newDef.tribe;
+      target.attack = newDef.attack + bonusA;
+      target.health = newDef.health + bonusH;
+    }
+  },
+
+  /** ARCANE BEHEMOTH — "After you cast 3 Shop spells, Consume the RIGHT-MOST minion in the Shop."
+   *
+   *  Mykel's per-instance spell meter (`spellProgress`, carrying the remainder past each payout) driving Bob
+   *  Blart's eat. Per-instance is deliberate and is the house ruling for these meters: three spells means
+   *  three since THIS body arrived, so a Behemoth bought on turn 9 doesn't immediately cash in the run's
+   *  history. Golden eats two. */
+  spellCastConsumeShopRightmost: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    while ((me.spellProgress ?? 0) >= every) {
+      me.spellProgress = (me.spellProgress ?? 0) - every;
+      for (let e = 0; e < gold(self); e++) {
+        const i = rightmostShopMinion(ctx.state);
+        if (i < 0) break;
+        consumeShopMinion(ctx.state, me, i, 1);
+      }
+    }
+  },
 };
+
+/**
+ * ANCIENT WANDERER's sync — see `goldSpentScaleSelf`.
+ *
+ * Recomputes ONE body's "+A/+H per N Gold spent this run" and lands only the difference, so calling it twice
+ * is a no-op. Keyed on a fixed buff source (the card's name) so `addBuff`'s per-source accumulator IS the
+ * record of what has already been granted — no extra per-instance field to persist.
+ */
+function syncGoldSpentScaler(state: RunState, card: BoardCard, params: Record<string, unknown>): void {
+  const per = Math.max(1, num(params.per, 3));
+  const steps = Math.floor(Math.max(0, state.goldSpent) / per);
+  const wantA = steps * num(params.attack, 1) * gold(card);
+  const wantH = steps * num(params.health, 1) * gold(card);
+  const source = nameOf(card);
+  const had = card.buffs?.find((b) => b.source === source);
+  const dA = wantA - (had?.attack ?? 0);
+  const dH = wantH - (had?.health ?? 0);
+  if (dA === 0 && dH === 0) return;
+  // `count` 1 the first time, 0 after: this is ONE standing enchant being resized, not a new stack each spend,
+  // so the inspect breakdown reads "Ancient Wanderer +12/+12" rather than a wall of identical rows.
+  addBuff(card, source, dA, dH, had ? 0 : 1);
+}
+
+/**
+ * Bring every `goldSpentScaleSelf` body on the board up to the run's current spend. Called from the two
+ * moments its value can change: a Gold spend (`applyGoldSpent`) and a minion ARRIVING (`fire`'s `onSummon`),
+ * which is what makes the card read "for every 3 Gold you HAVE spent" rather than "since it arrived".
+ */
+export function syncGoldSpentScalers(state: RunState): void {
+  for (const card of state.board) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+    if (eff) syncGoldSpentScaler(state, card, eff.params ?? {});
+  }
+}
+
+/**
+ * ANCIENT WANDERER's live value — the number its text has to print (the hard live-text rule). Exported from
+ * sim so the UI's `cardText` chain can read it without duplicating the formula. `goldSpent` is the RUN total.
+ */
+export function goldSpentScalerValue(cardId: string, goldSpent: number, golden = false): { bonus: number; per: number; toNext: number } | null {
+  const eff = CARD_INDEX[cardId]?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+  if (!eff) return null;
+  const per = Math.max(1, num(eff.params?.per, 3));
+  const g = Math.max(0, goldSpent);
+  return { bonus: Math.floor(g / per) * num(eff.params?.attack, 1) * (golden ? 2 : 1), per, toNext: per - (g % per) };
+}
 
 /**
  * Fire `goldSpent` effects (Acid, Banksly) when the player spends Gold. Each board card with a `goldSpent`
@@ -5732,6 +5983,9 @@ export function applyGoldSpent(state: RunState, amount: number): void {
       fn(ctx, card, effect.params ?? {}, { minion: card });
     }
   }
+  // Ancient Wanderer: a "HAS +A/+H per N Gold spent" body is re-synced to the new run total. Not a threshold
+  // handler (it isn't a `goldSpent` effect at all) — see `syncGoldSpentScalers`.
+  syncGoldSpentScalers(state);
 }
 
 /**
@@ -6336,6 +6590,9 @@ function fire(
   // Den Marker (run-wide quest aura): a Beast entering play gains the current buff, which then climbs every `per`.
   // Runs after the card auras so it stacks on top of a real Den Mother; only on summon (matches Den Mother).
   if (event === 'onSummon' && ctx.state.denMarker) applyDenMarker(ctx.state, payload.minion);
+  // Ancient Wanderer: an ARRIVING body catches up to the run's whole spend ("for every 3 Gold you HAVE spent"),
+  // rather than starting from zero the way a witnessed-threshold card would.
+  if (event === 'onSummon') syncGoldSpentScalers(ctx.state);
 }
 
 /** Apply the run-wide Den Marker aura to a Beast entering play: +attack/+health now, then climb the magnitude by
@@ -6411,14 +6668,14 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * `hand.push` (a bought minion, a Discover pick): those are direct player actions, not the grant path the card
  * reacts to. Watcher effects add no card, so this can't recurse.
  */
-export function fireOnGainCard(state: RunState): void {
+export function fireOnGainCard(state: RunState, cardId?: string): void {
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def || !def.effects.some((e) => e.on === 'onGainCard')) continue;
     const ctx = makeContext(state);
     for (const eff of def.effects) {
       if (eff.on !== 'onGainCard') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, cardId });
     }
   }
 }

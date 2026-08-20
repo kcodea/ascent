@@ -821,6 +821,20 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Aster the Guide (tutorial-only): an active, targeted +1/+1 — the same shape as Warden's grantWard.
   'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
+  // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
+  'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
+  'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
+  'factory:buffCurrentShopOffers:onBuy': { policy: 'foldedCue', family: 'economyReact' },         // Night Market Horror — cf. buffBoardOnBuy
+  'factory:buffCurrentShopOffers:spellBought': { policy: 'foldedCue', family: 'economyReact' },   // …its "a spell is a card too" half
+  'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover
+  'factory:onGainAleBuffSelf:onGainCard': { policy: 'foldedCue', family: 'economyReact' },        // Kegheart Dwarf — cf. onGainCardBuffTribe
+  'factory:onBuyGrantSpellSameTier:onBuy': { policy: 'ownBeat', family: 'economy' },              // Ninefold Broker — a card arrives, like onSellDiscover
+  'factory:endOfTurnCopyLeftmostHandCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },  // Stonehorn Archivist — cf. endOfTurnCopyNeighbour
+  'factory:endOfTurnTransformLeftTierUp:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },   // Skybound Ascendant
+  'factory:spellCastConsumeShopRightmost:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' }, // Arcane Behemoth — cf. spellCastDemonConsumesShop
+  'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic — cf. onFriendDeathSummon
+  'factory:avengeSummonAttackImproving:avenge': { policy: 'ownBeat', family: 'avenge' },          // Muster General — cf. avengeSummonAttack
+  'factory:rallyDoubleSelf:onAttack': { policy: 'ownBeat', family: 'rally' },                     // Evolving Abomination — cf. rallyBuffSelf
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

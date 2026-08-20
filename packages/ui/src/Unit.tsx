@@ -84,6 +84,10 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? undefined : run.alesCastThisTurn,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
+        // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
+        // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe
+        // side (its STATS are still right; they were baked in the shop).
+        goldSpentRun: foe ? 0 : run.goldSpent,
         lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
         // Runesnout Archivist's journal + Ashen Heir's banked Imp stats, LIVE during the fight: both cards are
         // entirely about a number that moves mid-combat, so the printed text has to move with it (the hard

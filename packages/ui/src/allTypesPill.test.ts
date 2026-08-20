@@ -38,13 +38,25 @@ describe('the "All types" cards are flagged in DATA', () => {
   });
 });
 
+/**
+ * The RUNE-ONLY minion batch (owner add 2026-08-20) — authored ahead of its art, exactly like the Set 3
+ * scaffold below. Listed by id rather than matched by a prefix because these are spread across five tribe
+ * files and share no naming convention; an explicit list is also the thing that shrinks as art lands, so the
+ * exclusion can't quietly outlive the reason for it. Delete an entry the moment its art is wired.
+ */
+const ART_PENDING = new Set([
+  'n2_deepchef', 'k_gemsage', 'n2_wanderer', 'n2_clockwork', 'dm_nightmarket', 'n2_muckslinger',
+  'n2_salesman', 'dw_kegheart', 'n2_ninefold', 'n2_echomimic', 'n2_muster', 'n2_trooper',
+  'b2_stonehorn', 'd2_ascendant', 'n2_abomination', 'dm_behemoth',
+]);
+
 describe('art coverage for live cards', () => {
-  it('every non-token live card has art (Set 3 scaffold excluded — not shipped yet)', () => {
+  it('every non-token live card has art (Set 3 scaffold + the 2026-08-20 rune batch excluded — not shipped yet)', () => {
     const wired = (d: string) => (existsSync(d) ? new Set(readdirSync(d).map((f) => f.replace(/\.(webp|png|jpe?g)$/i, ''))) : new Set<string>());
     const minions = wired('packages/ui/src/art/minions');
     const spells = wired('packages/ui/src/art/spells');
     const missing = Object.values(CARD_INDEX)
-      .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_'))
+      .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
       .filter((c) => !minions.has(c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);
     expect(missing, `these live cards render the tribe-sprite fallback instead of their art`).toEqual([]);

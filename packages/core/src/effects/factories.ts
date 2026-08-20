@@ -3955,6 +3955,84 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       }
     });
   },
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  // RUNE-ONLY MINION BATCH (2026-08-20) — the combat halves. Their cards are all `token: true` (forge-only).
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** ECHO MIMIC — "Whenever another friendly minion dies, gain its Echo THIS COMBAT."
+   *
+   *  Grave Body's graft (`ctx.grantDeathrattle`) on a death watcher instead of a Start of Combat: the dying
+   *  friend's `onDeath` effects are DEEP-copied onto the Mimic and registered, so they fire on the Mimic's own
+   *  death, once, later. It subscribes to the same `onDeath` bus event a Deathrattle does and simply guards the
+   *  other way round (`minion !== self`) — the shape `onFriendDeathSummon` already uses.
+   *
+   *  Copying can't chain: every Deathrattle factory guards `payload.minion === self`, so a grafted Echo lies
+   *  dormant on the Mimic instead of re-firing on the NEXT friendly death — and a second Mimic's own effect
+   *  isn't an `onDeath`-of-self, so mirroring two Mimics into each other is inert rather than recursive.
+   *  A body already carrying a grafted copy of THIS card's Echoes takes another (two deaths, two Echoes) —
+   *  that stacking is the card. Golden grafts each Echo twice. */
+  onFriendDeathGainEcho: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || self.health <= 0) return;
+    if (!minion || minion === self || minion.side !== self.side) return;
+    const echoes = minion.effects.filter((e) => e.on === 'onDeath');
+    if (echoes.length === 0) return;
+    for (let r = 0; r < mul(self); r++) {
+      ctx.grantDeathrattle(self, echoes.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })));
+    }
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} echoes ${minion.name}` });
+  },
+
+  /** MUSTER GENERAL — "Avenge (3): summon a 1/1 Trooper that ATTACKS IMMEDIATELY, then improve future Troopers
+   *  by +1/+1 permanently."
+   *
+   *  `avengeSummonAttack` + `avengeImproveSummon` fused, because the two halves have to share ONE body: the
+   *  improvement must land on the Trooper this trigger summons only AFTER it has been sized, and splitting them
+   *  into two effects would leave their order to the effects-array — an implicit dependency that reads fine and
+   *  breaks silently when someone reorders the list.
+   *
+   *  The accrual rides `summonBonus`, the standard per-instance channel, so it CARRIES BACK to the run board
+   *  after the fight — which is what "permanently" means here — and shows in the inspect breakdown. The token
+   *  strikes out of turn order through the attack-on-summon queue (`ctx.summon`'s `attackNow`), the same one
+   *  Steadfast Champion's Spear Warden and the Whelps use. Golden summons a GOLDEN Trooper and improves twice. */
+  avengeSummonAttackImproving: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
+    const card = ctx.getCard(str(params.cardId));
+    if (!card) return;
+    const token = ctx.summon(self.side, card, self.uid, undefined, self.golden, true);
+    // The accrued improvement, applied to the body that just landed. `ctx.buff` (not a stat write) so the
+    // gain animates and every "when a minion gains Attack" watcher sees it, like any other summon buff.
+    const bonus = self.summonBonus ?? 0;
+    if (token && bonus > 0) ctx.buff(token, bonus, bonus, self.uid);
+    const step = num(params.step, 1) * mul(self);
+    self.summonBonus = bonus + step;
+    ctx.log({ type: 'improve', target: self.uid, amount: step });
+  },
+
+  /** EVOLVING ABOMINATION — "Rally: double this minion's stats. Can trigger twice per combat."
+   *
+   *  The cap is PER COMBAT and per instance: it rides `bredCount`, a combat-only `Minion` field (Brood Matron's
+   *  per-fight breeding cap), so it resets naturally with each fresh combat body and needs no carry-back or
+   *  snapshot wiring. The doubling itself is a `ctx.buff` of the CURRENT stats — so it compounds with anything
+   *  that buffed the body first, and the second trigger doubles the already-doubled line (1/1 → 2/2 → 4/4).
+   *  GOLDEN raises the cap rather than the multiplier: doubling twice as hard isn't a thing, so a gilded
+   *  Abomination doubles FOUR times instead of two. */
+  rallyDoubleSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // rally: this minion's own attack only
+    const cap = Math.max(1, num(params.max, 2)) * mul(self);
+    if ((self.bredCount ?? 0) >= cap) return;
+    self.bredCount = (self.bredCount ?? 0) + 1;
+    // Health is doubled off the CURRENT health, not maxHealth: a wounded body doubles what it has left, which
+    // is what "double this minion's stats" reads as on the board in front of you.
+    if (self.attack <= 0 && self.health <= 0) return;
+    ctx.buff(self, self.attack, self.health, self.uid);
+  },
 };
 
 /**

@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **16 new rune-only minions.** A forge-only batch, spread across all five Set-2 tribes: Deepwater Chef (a T1, T3 and T5 in one Shout), Gem Sage (every Ruby arrives doubled), Ancient Wanderer (+1/+1 for every 3 Gold you have spent this run), Clockwork Assistant, Night Market Horror, Muckslinger, Traveling Salesman, Kegheart Dwarf, Ninefold Broker, Echo Mimic (it inherits the Echo of every friendly that dies), Muster General + its Trooper, Stonehorn Archivist, Skybound Ascendant, Evolving Abomination (Rally: double its stats, twice a fight) and Arcane Behemoth. None can be bought — each waits on the rune that hands it out, and on its art.
+
 - **Choose One / offer polish** — Choose One options now wear the carved card plate; the outdated squared glow behind offer cards (Choose One / Discover / Scouted) is gone; hovering an option ticks once, not twice; committing any offer pick (Discover / rune / Choose One) plays a new "discover select" cue; and playing or being granted **Ward** in the shop now plays the combat shield sound.
 
 - **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.

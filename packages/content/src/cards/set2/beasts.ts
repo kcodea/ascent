@@ -329,4 +329,22 @@ export const SET2_BEASTS: CardDef[] = [
     text: '**Start of Combat:** trigger your **2 left-most Echoes**.',
     goldenText: '**Start of Combat:** trigger your **2 left-most Echoes** **twice** each.',
   },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // STONEHORN ARCHIVIST - Bellringer Voss aimed at the HAND instead of the board, which makes it a very
+    // different card: what it copies is whatever you choose to LEAVE in hand, so holding a bomb is now a
+    // decision with an upside. A Ruby in the left slot is skipped (its whole value is the stats baked in at
+    // mint, which a plain copy wouldn't carry) and the scan falls through to the first ordinary card.
+    id: 'b2_stonehorn',
+    name: 'Stonehorn Archivist',
+    tribe: 'beast',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyLeftmostHandCard', params: { every: 2 } }],
+    text: '**Every 2 turns:** get a plain copy of the **left-most** card in your hand.',
+    goldenText: '**Every 2 turns:** get a plain copy of the **2 left-most** cards in your hand.',
+  },
 ];

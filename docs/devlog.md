@@ -1,5 +1,65 @@
 # ASCENT — development log
 
+## 2026-08-20 — 16 RUNE-ONLY minions (the Runeforge batch)
+
+Owner add: sixteen new minions, every one of them **forge-only** — `token: true`, the `dw_baal` treatment, so
+they ride set 2's pool for resolution but can never appear in a shop roll, a conjure or a minion Discover.
+They live in their tribe's `cards/set2/` file (the Trooper goes with the tokens), so set 1's seeds are
+untouched.
+
+**The roster.** Deepwater Chef (N5 4/3, Shout: a random T1 + T3 + T5), Gem Sage (K4 3/7, every Ruby you get
+arrives doubled), Ancient Wanderer (N5 1/1, +1/+1 per 3 Gold spent this RUN), Clockwork Assistant (N4 3/3,
+Shout: Discover one tier above the Shop), Night Market Horror (D5 4/4, a buy pumps the current Shop row),
+Muckslinger (N4 5/5, Shout: a random Shout minion), Traveling Salesman (N4 4/4, sell → Discover among cards
+you hold exactly one of), Kegheart Dwarf (Dw4 4/5, +3/+3 per Dwarven Ale gained), Ninefold Broker (N6 9/9, a
+buy grants a same-tier Shop spell, nine times a run), Echo Mimic (N5 4/7, combat: each friendly death grafts
+that minion's Echo onto it), Muster General (N5 6/6, Avenge (3): an immediately-striking Trooper that improves
+permanently) with its **Trooper** token, Stonehorn Archivist (B5 6/6, every 2 turns copies your left-most HAND
+card), Skybound Ascendant (Dr5 5/7, EoT transforms its left neighbour one tier up), Evolving Abomination (N6
+6/6, ALL-type, Rally doubles its stats twice a combat) and Arcane Behemoth (D6 6/10, every 3 Shop spells
+Consumes the right-most Shop minion).
+
+**Four of them needed no new code at all.** Deepwater Chef is three `battlecryGainRandomMinion` rows with
+pinned tiers; Muckslinger and Clockwork Assistant each took a *param* on an existing primitive rather than a
+near-duplicate factory (`filter: 'shout'` on the conjure, `tierOffset` on the Discover — the latter clamped to
+the run's own ceiling via `hasTier7Access`, so a non-Summit board is promised Tier 6, not a Tier 7 it can never
+reach); the Trooper is data. Twelve new primitives cover the rest — nine recruit, three combat — and each was
+added only after the search for an existing one came up empty.
+
+**Ancient Wanderer is the interesting one.** "HAS +1/+1 for every 3 Gold you have spent this run" is not the
+`goldSpent`-threshold shape every other Gold card uses: a Wanderer bought on turn 12 is paid for the whole run
+*behind* it. So `goldSpentScaleSelf` is a **synced enchant** — `syncGoldSpentScalers` recomputes the target
+total from `RunState.goldSpent` and lands only the delta under one fixed buff source, called from the two
+moments the value can move (a Gold spend, and a body arriving via `onSummon`). Being a real stored buff means
+combat, snapshots and saves needed no new plumbing, and re-running the sync is a no-op. Its printed number is
+live on every surface per the hard rule: `goldSpentScalerValue` (sim) feeds `ancientWandererText` (UI), wired
+into both chains — `liveCardText`/`instView` for shop/board/hand/Discover/end screen, and `Unit.tsx` for
+combat — through a new run-lifetime `goldSpentRun` param (deliberately distinct from the per-turn `goldSpent`
+every other helper reads). Muster General's Trooper line and Arcane Behemoth's threshold got the same
+treatment, since both print numbers that move.
+
+**Recursion, charges and caps.** Gem Sage's duplicate is minted *silently* — a Ruby-gained reaction that
+itself gains a Ruby is the one shape here that can loop, so the extra copy does not re-open the `onGetRuby`
+round (it still fires `onGainCard`, so Gangplank sees it). Ninefold Broker's nine charges ride `buyTick`, an
+existing per-instance BoardCard field nothing else on that card touches, so they persist across combats and
+saves and a second Broker brings its own nine. Evolving Abomination's twice-per-combat cap rides `bredCount`,
+a combat-only `Minion` field that resets with each fresh body — no carry-back, no snapshot wiring. Its
+doubling compounds (6/6 → 12/12 → 24/24) and its gild raises the CAP rather than the multiplier.
+
+Per the 2026-08-20 ruling, Evolving Abomination sets `universalTribe` and lets the ALL pill speak — its text
+is the Rally and nothing else. **`onGainCard` now carries the arriving card's id**, which is what lets Kegheart
+filter for an Ale; the event previously said only "a card arrived".
+
+Verified: `packages/sim/src/runeMinionsAug20.test.ts` (55 cases — data shape + `token`/non-buyable for all 16,
+every effect firing, the per-run and per-combat caps holding, and Ancient Wanderer's live value at two
+different Gold totals) plus two new `instView.test.ts` cases pinning the actual UI text chain. Three set-2
+roster counts and the art-coverage sweep were updated for the new members; art is deliberately pending, so the
+batch sits in that test's explicit `ART_PENDING` list until it lands. `npm run typecheck`, `npm run lint`,
+`npm test` (5973 passing) and `npm run build:web` all green.
+
+**Follow-ups:** art for all 16; the Runeforge entries that actually hand them out; owner tuning pass on the
+stat lines and on Ancient Wanderer's 3-Gold step.
+
 ## 2026-08-20 — "All types" cards print ALL, not Neutral; art for Arnold + the two new spells
 
 Owner report: "lab experiment, paragon, and standard bearer are 'all types' not neutral — their tribe pill

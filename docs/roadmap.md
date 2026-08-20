@@ -21,6 +21,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **The 16 RUNE-ONLY minions need their Runeforge entries + art** (batch built 2026-08-20 — see the devlog).
+  Every one of them is `token: true`, which means that until a rune actually grants it, the card exists and is
+  fully tested but is reachable by nothing. Two follow-ups, in order: (1) the rune definitions that hand each
+  one out; (2) art for all 16 — they are the current contents of `ART_PENDING` in
+  `packages/ui/src/allTypesPill.test.ts`, and each id comes OUT of that list as its art lands. An owner tuning
+  pass on the stat lines (and on Ancient Wanderer's 3-Gold step) is worth doing once they are reachable in play.
 
 - **Combat speed auto-ramp — SHIPPED 2026-08-18.** Each combat replay now holds at the Speed-slider value for
   an opening grace, eases up to a ceiling mid-fight, then eases back down for the finish (default ON, toggle

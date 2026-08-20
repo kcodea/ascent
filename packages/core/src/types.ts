@@ -604,7 +604,20 @@ export type EffectFactoryId =
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
   | 'rubyStatMultiplier' // Set 2 — Deepdelve Paragon: Rubies applied IN COMBAT are worth 2× (3× Gilded)
-  | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  | 'rubyCastConsumeShop' // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  // --- RUNE-ONLY minion batch (2026-08-20). Every one of these rides `token: true` (forge-only). ---
+  | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
+  | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
+  | 'buffCurrentShopOffers' // Night Market Horror: after a buy, the minions in THIS Shop row get +A/+H
+  | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
+  | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
+  | 'onBuyGrantSpellSameTier' // Ninefold Broker: after a buy, a random Shop spell OF THAT TIER — N charges per run
+  | 'endOfTurnCopyLeftmostHandCard' // Stonehorn Archivist: every N turns, a plain copy of your left-most HAND card
+  | 'endOfTurnTransformLeftTierUp' // Skybound Ascendant: End of Turn, the minion to its left becomes one tier higher
+  | 'spellCastConsumeShopRightmost' // Arcane Behemoth: every N Shop spells cast, Consume the right-most Shop minion
+  | 'onFriendDeathGainEcho' // Echo Mimic (combat): another friendly dies → this gains that minion's Echo for the fight
+  | 'avengeSummonAttackImproving' // Muster General (combat): Avenge summons an improving token that strikes at once
+  | 'rallyDoubleSelf'; // Evolving Abomination (combat): Rally doubles this minion's stats, capped per combat
 
 export interface EffectDef {
   on: GameEvent;

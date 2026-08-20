@@ -312,4 +312,45 @@ export const SET2_DEMONS: CardDef[] = [
     text: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
     goldenText: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
   },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // NIGHT MARKET HORROR - it doesn't buff YOUR board, it buffs the SHOP, so the payoff is a second purchase
+    // this turn. "The CURRENT Shop" is the exact vocabulary split Contract Butcher documents: this rides each
+    // offer's own stat line, so it survives a freeze and dies on a refresh - unlike the permanent
+    // `tavernBuyBonus` channel, which is what "minions in the Shop" (no qualifier) means.
+    //
+    // Subscribed to BOTH buy events: `onBuy` is minions-only by contract, and the card says "a card", so the
+    // spell-buy half rides `spellBought` rather than widening what every other buy watcher sees.
+    id: 'dm_nightmarket',
+    name: 'Night Market Horror',
+    tribe: 'demon',
+    tier: 5,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [
+      { on: 'onBuy', do: 'buffCurrentShopOffers', params: { attack: 2, health: 2 } },
+      { on: 'spellBought', do: 'buffCurrentShopOffers', params: { attack: 2, health: 2 } },
+    ],
+    text: 'After you buy a card, give minions in the **current Shop +2/+2**.',
+    goldenText: 'After you buy a card, give minions in the **current Shop +4/+4**.',
+  },
+  {
+    // ARCANE BEHEMOTH (rune-only, owner batch 2026-08-20) - the spell build's Demon: your casts feed it Shop
+    // minions. The meter is PER-INSTANCE (Mykel's `spellProgress`, remainder carried), so three spells means
+    // three since THIS body arrived - a Behemoth bought on turn 9 doesn't cash in the run's history the
+    // moment it lands.
+    id: 'dm_behemoth',
+    name: 'Arcane Behemoth',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'spellCast', do: 'spellCastConsumeShopRightmost', params: { every: 3 } }],
+    text: 'After you cast **3 Shop spells**, Consume the **right-most** minion in the Shop.',
+    goldenText: 'After you cast **3 Shop spells**, Consume the **2 right-most** minions in the Shop.',
+  },
 ];

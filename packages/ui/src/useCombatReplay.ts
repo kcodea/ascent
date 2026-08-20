@@ -811,11 +811,20 @@ export function useCombatReplay(
   // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
   const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
-  // The combat `beatIdx` was last reset for. During the ONE render after a new combat arrives — before the
-  // `[combat]` reset effect runs `resetTo(0)` — `beatIdx` still holds the previous fight's value, and this
-  // ref still holds the previous fight's `combat`. That single render is the stale one the `processedEnd`
-  // fallback and `beatIdxIsStale` below both exist to survive.
-  const seenCombatRef = useRef<typeof combat>(combat);
+  // Reset the replay index the instant a new combat arrives — DURING RENDER, not in the `[combat]` effect
+  // below. A set-function called during render is applied by React BEFORE it commits or renders children, so
+  // the FIRST committed render of a new fight already has `beatIdx === 0`. That closes the async gap the old
+  // `seenCombatRef` gate could not: the ref was written synchronously in the reset effect but `setBeatIdx(0)`
+  // was async, so one render saw the ref already say "new combat" while `beatIdx` still held the PREVIOUS
+  // fight's value — `processedEnd` then fell through to `events.length` and `triggeredQuests` fired every
+  // trigger of the whole fight at once (the Hatchery End-Turn burst spike, owner probe 2026-08-20). Resetting
+  // here makes that window impossible; the `[combat]` effect keeps the imperative cleanup (GSAP kills, roll
+  // cancellation, summon-hold release) it always did.
+  const [renderedCombat, setRenderedCombat] = useState(combat);
+  if (combat !== renderedCombat) {
+    setRenderedCombat(combat);
+    setBeatIdx(0);
+  }
   // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
   const beatIdxRef = useRef(0);
   beatIdxRef.current = beatIdx;
@@ -1118,12 +1127,11 @@ export function useCombatReplay(
     releaseAllSummons();
   }, [cancelPendingRolls]);
 
-  // A fresh combat resets the replay to the top (the hook persists across fights).
+  // A fresh combat resets the replay to the top (the hook persists across fights). `beatIdx` is already back
+  // to 0 from the during-render reset above; this effect does the IMPERATIVE half — cancel pending rolls,
+  // kill in-flight GSAP, drop withheld summons — which must run in an effect, not during render.
   useEffect(() => {
     resetTo(0);
-    // Mark that `beatIdx` now belongs to THIS combat. Read during render by `beatIdxIsStale` below — until
-    // this effect runs, one render sees the PREVIOUS fight's `beatIdx` (see the `processedEnd` note).
-    seenCombatRef.current = combat;
   }, [combat, resetTo]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
@@ -1895,15 +1903,12 @@ export function useCombatReplay(
   // `triggeredQuests` drives a ONE-SHOT rune-badge burst that cannot be un-fired — a spike there fired every
   // one of the fight's triggers at the instant combat began (owner report 2026-08-19: "it triggers many
   // times when I press End Turn"). Gate that one memo on this.
-  // TRUE on the one stale render after a new combat arrives. Two signals, because the ref alone is not
-  // enough: `seenCombatRef.current = combat` is a SYNCHRONOUS write in the reset effect, but `resetTo(0)`
-  // (setBeatIdx) is ASYNC — so between the effect and the state flush there is a render where the ref already
-  // says "this combat" yet `beatIdx` still holds the PREVIOUS fight's value. On that render the ref check is
-  // false but `beats[beatIdx - 1]` is undefined, so `processedEnd` fell back to `events.length` and would leak
-  // the whole fight's trigger set at once (owner probe 2026-08-20: Hatchery bursting `0→2→0` at every combat
-  // start). The second clause catches exactly that fallback, derived from the same render values `processedEnd`
-  // uses, so it cannot skew against the ref.
-  const beatIdxIsStale = seenCombatRef.current !== combat || (beatIdx !== 0 && beats[beatIdx - 1] === undefined);
+  // Defensive: `beatIdx` should never point past `beats` now that the during-render reset (top of the hook)
+  // snaps it to 0 the instant `combat` changes — `beats` and `beatIdx` update in the SAME render, so the stale
+  // window that used to fire `triggeredQuests` for the whole fight at combat start (the Hatchery End-Turn
+  // spike, owner probe 2026-08-20) no longer exists. Kept as cheap insurance so a future out-of-range `beatIdx`
+  // still can't leak the `events.length` fallback into the one-shot rune-badge burst.
+  const beatIdxIsStale = beatIdx !== 0 && beats[beatIdx - 1] === undefined;
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);

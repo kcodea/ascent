@@ -1171,6 +1171,10 @@ export interface RunState {
    *  (`runeLastingCadenceBeats` / `fireShopRally`). Was a Start-of-Combat combat flag until the Effect Arena's
    *  Rally family made a shop dispatch possible. */
   runeLastingCadence?: boolean;
+  /** Rune of Combat Prowess (Epic) — your Start of Combat effects ALSO trigger at End of Turn, one beat per
+   *  (body x effect) (`runeCombatProwessBeats` / `fireShopStartOfCombat`) — the second cross-phase dispatcher
+   *  rune, built on the Lasting Cadence pattern. */
+  runeCombatProwess?: boolean;
   /** Rune of Copies (Epic): copy a random board minion to hand at the start of every turn. */
   runeCopies?: boolean;
   /** Rune of Tempering: the FIRST Attachment (Magnetic) you play each turn also gives that minion Ward. */

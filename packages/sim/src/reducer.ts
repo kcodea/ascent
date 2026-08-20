@@ -5102,6 +5102,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeCrown': s.runeCrown = { per: r.per, attack: r.attack, health: r.health }; break;
     case 'runeLapidary': s.runeLapidary = true; break;
     case 'runeLastingCadence': s.runeLastingCadence = true; break;
+    case 'runeCombatProwess': s.runeCombatProwess = true; break;
     case 'runeDeep': s.runeDeep = r.tier; break;
     case 'runeGuidingCandle': s.runeGuidingCandle = { count: r.count, tier: r.tier, left: r.count }; break;
     case 'runeMuster': s.runeMuster = true; break;

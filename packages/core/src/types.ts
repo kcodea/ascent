@@ -1122,6 +1122,7 @@ export type QuestReward =
   | { kind: 'runeCrown'; per: number; attack: number; health: number } // after `per` casts, spells give +A/+H extra
   | { kind: 'runeLapidary' } // End of Turn: a Ruby on one friendly minion of each type
   | { kind: 'runeLastingCadence' } // End of Turn: trigger ALL your Rally effects (one beat each)
+  | { kind: 'runeCombatProwess' } // your Start of Combat effects also trigger at End of Turn (one beat per effect)
   | { kind: 'runeDeep'; tier: number } // each turn: a random minion of `tier`
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board

@@ -227,7 +227,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     summonToken: (id, opts) => {
       const kw = opts?.keywords ? ([...opts.keywords] as Keyword[]) : opts?.keyword ? [opts.keyword as Keyword] : undefined;
       const ov = opts?.attack !== undefined && opts.health !== undefined
-        ? { attack: opts.attack, health: opts.health, maxHealth: opts.health } : undefined;
+        ? {
+          attack: opts.attack, health: opts.health, maxHealth: opts.maxHealth ?? opts.health,
+          // SC FAMILY (Mirrorhide): the live flags ride the snapshot only when the caller states them —
+          // every earlier caller leaves them out, so its snapshot shape is unchanged byte-for-byte.
+          ...(opts.divineShield !== undefined ? { divineShield: opts.divineShield } : {}),
+          ...(opts.rebornAvailable !== undefined ? { rebornAvailable: opts.rebornAvailable } : {}),
+        } : undefined;
       // arg6 is the immediate-attack ("charge") queue — the Smith's token swings the moment it lands.
       return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, opts?.charge ?? false, ov);
     },
@@ -298,7 +304,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     stampKarwindFlash: () => {}, // combat FX ride the buff events
     stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => e.on !== 'onDeath'); },
     nameOf: (t) => (t as Minion).name,
-    narrate: (text) => ctx.log({ type: 'sc', source: self.uid, text }),
+    narrate: (text, cast) => ctx.log({ type: 'sc', source: self.uid, text, ...(cast ? { cast: true } : {}) }),
     activeTribes: () => ctx.activeTribesFor(self.side),
     castTribeAttackSpell: (tribe, amount) => {
       // One cast per repetition, so an extra-cast grant stacks the aura again rather than doubling one grant.
@@ -394,6 +400,59 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       for (const m of ctx.living(self.side)) if (m !== self && m.keywords.includes('M')) ctx.buff(m, a, h, self.uid);
       ctx.grantMagneticBuff(a, h, self.side);
     },
+
+    // ── START-OF-COMBAT FAMILY verbs (Step 3 item 4) ────────────────────────────────────────────────────
+    armBleed: (every, targets) => ctx.armBleed(self, every, targets),
+    grantSpellCastExtra: (extra) => ctx.grantSpellCastExtra?.(self.side, extra),
+    fodderConsumed: () => ctx.fodderConsumedFor(self.side),
+    alesLastTurn: () => ctx.alesLastTurnFor?.(self.side) ?? 0,
+    engraveNeighbours: (text) => {
+      // Taurus's legacy ritual, verbatim: BOARD-SLOT adjacency (the raw board, a dead immediate neighbour is
+      // skipped, not walked past), the golden `gainMult` doubling, one `sc` line only if anything landed.
+      const board = ctx.boards[self.side];
+      const i = board.indexOf(self);
+      if (i < 0) return;
+      const engrave = (m: Minion | undefined): boolean => {
+        if (!m || m.dead || m.health <= 0) return false;
+        if (!m.keywords.includes('EG')) m.keywords.push('EG'); // mutates the per-combat clone, never a shared CardDef
+        if (self.golden) m.gainMult = 2; // golden: this neighbor's combat stat-gains are doubled
+        return true;
+      };
+      const did = [engrave(board[i - 1]), engrave(board[i + 1])];
+      if (did.some(Boolean)) {
+        ctx.log({ type: 'sc', source: self.uid, text: text || `${self.name} engraves the line` });
+      }
+    },
+    engraveBoard: () => {
+      for (const m of ctx.boards[self.side]) {
+        if (m.dead || m.health <= 0) continue;
+        if (!m.keywords.includes('EG')) m.keywords.push('EG');
+      }
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} engraves the truth` });
+    },
+    castLeftmostHandSpellOnAdjacent: (tribe) => {
+      // Quil's legacy ritual, verbatim (see the retired body's comment block for the ruling history).
+      if (self.dead) return;
+      const id = ctx.leftmostHandSpellFor(self.side);
+      const def = id ? ctx.getCard(id) : undefined;
+      if (!def?.spell) return;
+      const board = ctx.living(self.side);
+      const i = board.indexOf(self);
+      if (i < 0) return;
+      const targets = [board[i - 1], board[i + 1]].filter((m): m is Minion =>
+        !!m && (m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe));
+      if (targets.length === 0 || !combatCastable(def)) return; // pure tavern work never even counts a cast
+      let announced = false;
+      castInCombat(ctx, self, () => {
+        // Resolved PER CAST, not hoisted: an escalating spell improves itself as it resolves.
+        const did = resolveCombatSpellCast(ctx, self, def, targets);
+        if (did && !announced) { ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` }); announced = true; }
+      });
+    },
+    echoEffectsOf: (t) => (t as Minion).effects
+      .filter((e) => e.on === 'onDeath')
+      .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
+
     rng: () => ctx.rng,
   };
 }
@@ -1134,26 +1193,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // --- Start of Combat (Dragons). Player SC resolves first, left→right (A.3). ---
 
   /** Deal `amount` to the leftmost / a random / every living enemy. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts; enemy-facing, so the shop half no-ops by membership.
   scDamage: (ctx, self, params) => {
-    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
-    const targets = ctx.living(foe);
-    if (targets.length === 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} strikes`, cast: true });
-    const amount = num(params.amount, 1) * mul(self);
-    const mode = str(params.target) || 'leftmost';
-    if (mode === 'all') {
-      for (const t of targets) ctx.damage(t, amount);
-    } else if (mode === 'random') {
-      ctx.damage(ctx.rng.pick(targets), amount);
-    } else {
-      ctx.damage(targets[0]!, amount);
-    }
+    ARENA_EFFECTS.scDamage(combatArena(ctx, self), params);
   },
 
   /** Bloodbinder: Start of Combat — arm Bleed. Marks `targets` enemies now (golden marks DOUBLE — 1 → 2); every
    *  `every` attacks made this combat (either side), deals this minion's Attack to those same marked enemies. */
+  // ARENA-MIGRATED (SC family): one body; the `armBleed` verb is a documented shop no-op (nothing to bleed).
   scArmBleed: (ctx, self, params) => {
-    ctx.armBleed(self, num(params.every, 4), num(params.targets, 1) * mul(self));
+    ARENA_EFFECTS.scArmBleed(combatArena(ctx, self), params);
   },
 
   /** Deal damage equal to self's Attack, as 1-damage hits split across random enemies. */
@@ -1192,20 +1241,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  clone-safe: the keyword lasts only this fight, and `ctx.buff` then accrues that minion's gains into
    *  `permaGain` → carried back by `playerPermaBuffs`. Taurus itself is not engraved. No-op for an absent
    *  neighbor (Taurus leftmost/rightmost). */
+  // ARENA-MIGRATED (SC family): one body; the whole engrave ritual lives on the adapter's
+  // `engraveNeighbours` verb (Engrave has no shop meaning — every shop gain is already permanent).
   scEngraveNeighbor: (ctx, self, params) => {
-    const board = ctx.boards[self.side];
-    const i = board.indexOf(self);
-    if (i < 0) return;
-    const engrave = (m: Minion | undefined): boolean => {
-      if (!m || m.dead || m.health <= 0) return false;
-      if (!m.keywords.includes('EG')) m.keywords.push('EG'); // mutates the per-combat clone, never a shared CardDef
-      if (self.golden) m.gainMult = 2; // golden: this neighbor's combat stat-gains are doubled
-      return true;
-    };
-    const did = [engrave(board[i - 1]), engrave(board[i + 1])];
-    if (did.some(Boolean)) {
-      ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} engraves the line` });
-    }
+    ARENA_EFFECTS.scEngraveNeighbor(combatArena(ctx, self), params);
   },
 
   /** TRANSCENDENCE (owner add 2026-08-14) — Start of Combat: Engrave the adjacent `tribe` minions (Dragons), then
@@ -1228,12 +1267,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its
    *  combat stat-gains (carried back via `playerPermaBuffs`). "Triggers first": it runs in a priority SoC pass
    *  before the others, so later Start-of-Combat buffs are engraved too. */
-  scEngraveAll: (ctx, self) => {
-    for (const m of ctx.boards[self.side]) {
-      if (m.dead || m.health <= 0) continue;
-      if (!m.keywords.includes('EG')) m.keywords.push('EG');
-    }
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} engraves the truth` });
+  // ARENA-MIGRATED (SC family): one body; same shop no-op rationale as scEngraveNeighbor.
+  scEngraveAll: (ctx, self, params) => {
+    ARENA_EFFECTS.scEngraveAll(combatArena(ctx, self), params);
   },
 
   // --- Undead (combat-time Deathrattle / on-death value) ---
@@ -1396,26 +1432,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * The stat family is covered below. Everything else — Discovers, refreshes, shop buffs, card grants — is
    * NOT yet combat-capable and is the next slice; see `combatCastableSpell` for the honest list.
    */
-  scCastLeftmostHandSpell: (ctx, self) => {
-    if (self.dead) return;
-    const id = ctx.leftmostHandSpellFor(self.side);
-    const def = id ? ctx.getCard(id) : undefined;
-    if (!def?.spell) return;
-    // "Adjacent" = the living neighbours either side, filtered to Beasts (Paragon's all-type counts).
-    const board = ctx.living(self.side);
-    const i = board.indexOf(self);
-    if (i < 0) return;
-    const targets = [board[i - 1], board[i + 1]].filter((m): m is Minion =>
-      !!m && (m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe));
-    if (targets.length === 0 || !combatCastable(def)) return; // pure tavern work never even counts a cast
-    let announced = false;
-    castInCombat(ctx, self, () => {
-      // Resolved PER CAST, not hoisted: an escalating spell improves itself as it resolves, so a second cast
-      // (golden Quil, or a Runebloom extra) grants the value the first cast just taught it. The narration only
-      // lands when the spell actually does something — a pure-tavern spell fizzles silently, per the ruling.
-      const did = resolveCombatSpellCast(ctx, self, def, targets);
-      if (did && !announced) { ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` }); announced = true; }
-    });
+  // ARENA-MIGRATED (SC family): one body; the whole cast ritual lives on the adapter's
+  // `castLeftmostHandSpellOnAdjacent` verb (combat: the legacy castInCombat + combat resolver, verbatim;
+  // shop: the resolver's stat family through `noteSpellCast` — pure tavern work fizzles uncounted there too).
+  scCastLeftmostHandSpell: (ctx, self, params) => {
+    ARENA_EFFECTS.scCastLeftmostHandSpell(combatArena(ctx, self), params);
   },
 
   /**
@@ -1923,14 +1944,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Grave Body (Start of Combat / on-summon): copy your LEFTMOST living friendly Echo — graft its Deathrattle
    *  (onDeath) effects onto this minion, so they fire when it dies. Skips self; no-op if no friend has an Echo. */
-  copyLeftmostEcho: (ctx, self) => {
+  // ARENA-MIGRATED (SC family): one body in arena.ts; the dead guard stays with dispatch. A SHOP graft
+  // rides `grantedEffects` and is permanent (the family's shop-permanence rule).
+  copyLeftmostEcho: (ctx, self, params) => {
     if (self.dead || self.health <= 0) return;
-    const lead = ctx.living(self.side).find((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'));
-    if (!lead) return;
-    const echoes = lead.effects
-      .filter((e) => e.on === 'onDeath')
-      .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
-    ctx.grantDeathrattle(self, echoes);
+    ARENA_EFFECTS.copyLeftmostEcho(combatArena(ctx, self), params);
   },
 
   /** Rally (Chorus Engine): when THIS minion attacks, buff your living Magnetic ("Attachment") minions +atk/+hp
@@ -1971,14 +1989,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Speed Demon — Start of Combat: give every OTHER friendly minion `pct`% of THIS minion's OWN stats
    *  (golden doubles the %, so 50% → 100%). Rounded down; a pure aura, nothing is consumed. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts serves both phases.
   scBuffAlliesPctSelf: (ctx, self, params) => {
-    const pct = num(params.pct, 50) * mul(self);
-    const ga = Math.floor((self.attack * pct) / 100);
-    const gh = Math.floor((self.health * pct) / 100);
-    if (ga <= 0 && gh <= 0) return;
-    for (const m of ctx.living(self.side)) {
-      if (m !== self) ctx.buff(m, ga, gh, self.uid);
-    }
+    ARENA_EFFECTS.scBuffAlliesPctSelf(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Start of Combat: "Play N Rubies on your [tribe] minions." Each eligible living friend gets `count`
@@ -2454,16 +2467,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * casts already promised, which is the same contract every other Start-of-Combat mode installs. It also
    * keeps the count a plain number rather than a per-cast board scan.
    */
+  // ARENA-MIGRATED (SC family): one body (incl. the Rune of the Matriarch +1, via `matriarchReps`); the
+  // grant is a combat-cast channel, so the shop verb no-ops rather than double-arming the fight to come.
   scGrantSpellCastExtra: (ctx, self, params) => {
-    // Rune of the Matriarch, retextured 2026-08-07: "trigger spells in combat an ADDITIONAL time" — the rune
-    // now ADDS one extra cast per Matriarch rather than doubling its whole contribution. Same number for a
-    // plain body (1→2 either way); a GOLDEN Matriarch pays 3 instead of the old 4, which is what the new
-    // wording actually promises.
-    const runeExtra = self.cardId === 'b2_runebloom' && ctx.matriarchRepsFor(self.side) > 1 ? 1 : 0;
-    const extra = num(params.extra, 1) * mul(self) + runeExtra;
-    if (extra <= 0) return;
-    ctx.grantSpellCastExtra?.(self.side, extra);
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: your Shop Spells cast ${extra} extra time${extra === 1 ? '' : 's'}` });
+    ARENA_EFFECTS.scGrantSpellCastExtra(combatArena(ctx, self), params);
   },
 
   // --- Mechs (Divine Shield walls + shield-break payoffs) ---
@@ -2481,33 +2488,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Twilight Sentinel (Celestial) — Start of Combat: THIS minion gains a keyword. The align-gated halves
    *  live in the card data, so a Dawn seat takes Flurry, a Dusk seat Ward, and an Eclipsed one takes both.
    *  Arms the live flags the way every other in-combat keyword grant does, and logs so the pill appears. */
+  // ARENA-MIGRATED (SC family): one body; `grantKeywordTo` arms the live flags + logs the pill, as before.
   scGainKeyword: (ctx, self, params) => {
-    const kw = str(params.keyword) as Keyword;
-    if (!kw || self.keywords.includes(kw)) return;
-    self.keywords.push(kw);
-    if (kw === 'DS') self.divineShield = true;
-    if (kw === 'R') self.rebornAvailable = true;
-    ctx.log({ type: 'keyword', target: self.uid, keyword: kw, source: self.uid });
+    ARENA_EFFECTS.scGainKeyword(combatArena(ctx, self), params);
   },
 
   /** Gravewarden — Start of Combat: give a friendly (optionally `tribe`) minion, other than self, Rise. Golden
    *  grants it to two. Mirrors the Deathrattle grant but fires at combat start; skips minions that already
    *  have — or have already spent — Rise. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts serves both phases.
   scGrantReborn: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    for (let i = 0; i < mul(self); i++) {
-      const candidates = ctx.living(self.side).filter((m) => {
-        if (m === self || m.rebornAvailable || m.keywords.includes('R')) return false;
-        if (!tribe) return true;
-        const def = ctx.getCard(m.cardId);
-        return m.tribe === tribe || m.tribe2 === tribe || !!def?.universalTribe;
-      });
-      if (candidates.length === 0) return;
-      const target = ctx.rng.pick(candidates);
-      target.keywords.push('R');
-      target.rebornAvailable = true;
-      ctx.log({ type: 'keyword', target: target.uid, keyword: 'R', source: self.uid });
-    }
+    ARENA_EFFECTS.scGrantReborn(combatArena(ctx, self), params);
   },
 
   /** Selfless Sentinel — Deathrattle: give a random other friend a Divine Shield (golden: TWO friends). */
@@ -2570,34 +2561,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Arena Heckler — Start of Combat: give the enemy's RIGHTMOST minion Taunt (golden: the two rightmost), so
    *  your side must chew through it first. No-op vs an empty enemy board; skips a minion that already Taunts. */
+  // ARENA-MIGRATED (SC family): one body (the OPPOSITE-index pick, owner change 2026-07-21, lives there);
+  // enemy-facing, so the shop half no-ops by membership before it can taunt a friendly.
   scGrantEnemyTaunt: (ctx, self, params) => {
-    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
-    const targets = ctx.living(foe);
-    if (targets.length === 0) return;
-    // The minion OPPOSITE this one — the enemy at the same board index (owner change 2026-07-21; it used to
-    // take the enemy's rightmost). Clamped, so a shorter enemy line still resolves to its last minion.
-    // Golden also taunts an ADJACENT minion: the one to the right, falling back to the left at the end.
-    const own = ctx.boards[self.side].filter((m) => !m.dead && m.health > 0);
-    const idx = Math.min(Math.max(own.indexOf(self), 0), targets.length - 1);
-    const picks = [targets[idx]!];
-    if (self.golden) {
-      const neighbour = targets[idx + 1] ?? targets[idx - 1];
-      if (neighbour) picks.push(neighbour);
-    }
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} works the crowd` });
-    for (const victim of picks) {
-      if (victim.keywords.includes('T')) continue;
-      victim.keywords.push('T');
-      ctx.log({ type: 'keyword', target: victim.uid, keyword: 'T', source: self.uid });
-    }
+    ARENA_EFFECTS.scGrantEnemyTaunt(combatArena(ctx, self), params);
   },
 
   /** Mirrorhide Rhino — Start of Combat: summon a copy of THIS minion's current body (stats + granted
    *  keywords). Golden summons two. Combat-summoned copies don't re-fire Start of Combat, so it never chains. */
   /** Celestial — Daybreak Acolyte: Start of Combat, THIS minion gains stats. Written as two align-gated
    *  halves on the card (Dawn +attack / Dusk +health); an Eclipsed body runs both. × golden. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts serves both phases.
   scBuffSelf: (ctx, self, params) => {
-    ctx.buff(self, num(params.attack, 0) * mul(self), num(params.health, 0) * mul(self), self.uid);
+    ARENA_EFFECTS.scBuffSelf(combatArena(ctx, self), params);
   },
 
   /** Celestial — Equinox Duelist (Dawn Rally): buff every friendly CELESTIAL (flagged card, not a tribe).
@@ -2614,19 +2590,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleBuffCelestials(combatArena(ctx, self), params);
   },
 
-  scSummonCopy: (ctx, self) => {
-    const card = ctx.getCard(self.cardId);
-    for (let i = 0; i < mul(self); i++) {
-      // An exact copy of this minion's CURRENT body: keywords (Flurry, Ward…), golden, and current stats —
-      // passed through `copyStats` so the summon snapshot (and the replay) shows the real values from frame 1.
-      ctx.summon(self.side, card, self.uid, [...self.keywords], self.golden, false, {
-        attack: self.attack,
-        health: self.health,
-        maxHealth: self.maxHealth,
-        divineShield: self.divineShield,
-        rebornAvailable: self.rebornAvailable,
-      });
-    }
+  // ARENA-MIGRATED (SC family): one body in arena.ts (the current-body copy incl. live flags rides the
+  // summonToken snapshot; a shop copy expresses Ward/Rise through its copied keywords instead).
+  scSummonCopy: (ctx, self, params) => {
+    ARENA_EFFECTS.scSummonCopy(combatArena(ctx, self), params);
   },
 
   /** Runescale Drake — Start of Combat: give your `tribe` +atk/+hp, improved by `perSpell` for each spell you
@@ -2665,21 +2632,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  base, improved by `step` for every `every` spells cast while THIS instance has been on the board
    *  (`self.spellProgress`, ticked by `spellCastImproveSelf`). Grant = rate × spells-this-turn. Golden doubles
    *  the whole grant. No spells this turn → no grant (the multiplier is 0). */
+  // ARENA-MIGRATED (SC family): one body in arena.ts serves both phases (spellsThisTurn is per-side there).
   scTribeBuffPerSpellImproving: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || 'dragon') as Tribe;
-    const step = num(params.step, 1);
-    const every = Math.max(1, num(params.every, 4));
-    const improve = step * Math.floor((self.spellProgress ?? 0) / every);
-    // Per-side: an enemy Runescale reads the OPPONENT's spells this turn. FLOORED at 1 (owner 2026-07-21) so a
-    // turn with no spells still pays the base rate rather than nothing at all.
-    const spells = Math.max(1, ctx.spellsThisTurnFor(self.side));
-    const a = (num(params.attack, 2) + improve) * spells * mul(self);
-    const h = (num(params.health, 2) + improve) * spells * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
-    for (const m of ctx.living(self.side)) {
-      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.scTribeBuffPerSpellImproving(combatArena(ctx, self), params);
   },
 
   /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) +atk/+hp, improved by `perPlayed` for each of
@@ -2705,18 +2660,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    * BUCKY (owner 2026-08-07) — Start of Combat: give your `tribe` +A/+H FOR EVERY Dwarven Ale cast last shop
    * turn. Zero Ales is a clean no-op rather than a 0/0 sweep, so the log stays quiet on a turn you didn't brew.
    */
+  // ARENA-MIGRATED (SC family): one body in arena.ts; the dead guard stays with dispatch.
   scTribeBuffPerAle: (ctx, self, params) => {
     if (self.dead) return;
-    const ales = ctx.alesLastTurnFor?.(self.side) ?? 0;
-    if (ales <= 0) return;
-    const tribe = (str(params.tribe) || 'dwarf') as Tribe;
-    const a = num(params.attack, 5) * ales * mul(self);
-    const h = num(params.health, 5) * ales * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} pours for ${ales} Ale${ales === 1 ? '' : 's'} (+${a}/+${h})` });
-    for (const m of ctx.living(self.side)) {
-      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.scTribeBuffPerAle(combatArena(ctx, self), params);
   },
 
   /** DRUNKEN OAF (owner add 2026-08-14) — Start of Combat: give A `tribe` minion +atk/+hp, and repeat that grant
@@ -2727,34 +2674,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  one body — the pick is a fresh `ctx.rng` draw per rep off the seeded combat RNG, and self is eligible.
    *  `alesLastTurnFor` is the shop phase that JUST ENDED, i.e. "this turn" from the player's chair (the same
    *  read Bucky uses; its name is historical). Golden doubles the per-rep grant, not the rep count. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts; the dead guard stays with dispatch.
   scBuffRandomTribePerAle: (ctx, self, params) => {
     if (self.dead) return;
-    const tribe = (str(params.tribe) || 'dwarf') as Tribe;
-    const targets = ctx.living(self.side).filter(
-      (m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe,
-    );
-    if (targets.length === 0) return;
-    const ales = ctx.alesLastTurnFor?.(self.side) ?? 0;
-    const reps = 1 + ales;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 2) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} buys ${reps} round${reps === 1 ? '' : 's'} (+${a}/+${h})` });
-    for (let n = 0; n < reps; n++) ctx.buff(ctx.rng.pick(targets), a, h, self.uid);
+    ARENA_EFFECTS.scBuffRandomTribePerAle(combatArena(ctx, self), params);
   },
 
+  // ARENA-MIGRATED (SC family): one body; `summonBonus` is the same permanent per-instance channel in both
+  // phases, so an End-of-Turn fire improves the grant exactly once, like a combat fire.
   scTribeBuffImproving: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || 'beast') as Tribe;
-    const base = num(params.attack, 2);
-    const step = num(params.step, 2);
-    const mag = (base + self.summonBonus) * mul(self);
-    if (mag > 0) {
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} leads the pack` });
-      for (const m of ctx.living(self.side)) {
-        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, mag, mag, self.uid);
-      }
-    }
-    self.summonBonus += step; // permanent +step/+step improve, carried back via playerSummonBonus
+    ARENA_EFFECTS.scTribeBuffImproving(combatArena(ctx, self), params);
   },
 
   // ─── New content batch factories ────────────────────────────────────────────
@@ -2770,14 +2699,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn (read from
    *  the CombatContext, per SIDE — the player's live run state or a served enemy's captured tally). Golden
    *  doubles everything. An enemy Horror now gains the ENEMY's consumed stats (0 if its board ate none). */
-  scGainFodderStats: (ctx, self, _params, _payload) => {
-    const fc = ctx.fodderConsumedFor(self.side);
-    const atk = fc.attack * mul(self);
-    const hp = fc.health * mul(self);
-    if (atk > 0 || hp > 0) {
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} absorbs the consumed essence` });
-      ctx.buff(self, atk, hp, self.uid);
-    }
+  // ARENA-MIGRATED (SC family): one body; `fodderConsumed` reads each phase's own tally of the same turn.
+  scGainFodderStats: (ctx, self, params) => {
+    ARENA_EFFECTS.scGainFodderStats(combatArena(ctx, self), params);
   },
 
   /** Thundering Abomination (Engraved) — when a friendly minion is summoned in combat, buff self
@@ -3130,24 +3054,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  rest-of-combat aura. The current Beasts are buffed now; any Beast summoned LATER this fight inherits it too
    *  (`addTribeAura`, applied in summonMinion). Self is a Beast, so it's included. Golden falls out of the triple
    *  combine (checkTriples folds the doubled magnitude into `summonBonus`), so — like buffOnSummon — no `mul`. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts (per-stat Avenge accrual, golden-doubles-the-whole-grant
+  // — see 2026-08-04's report there). The rest-of-combat aura half is a shop no-op by design (`addTribeAura`).
   scBeastAura: (ctx, self, params) => {
-    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
-    // The Avenge accrual (`summonBonus`) applies PER STAT: `stepAttack`/`stepHealth` scale how much of it each
-    // stat picks up, defaulting to 1 (the old symmetric behavior). Kennelmaster is Attack-only (step 1 / 0),
-    // so its Avenge improvements never leak into Health.
-    // GOLDEN DOUBLES THE WHOLE GRANT — base AND the accrual — matching `scTribeBuffImproving` (Pack Leader),
-    // both cards' own comments ("golden doubles both"), and `summonBuffText`, which has always PRINTED the
-    // doubled value. Without `mul` here a golden Kennelmaster / Thunderous Sovereign advertised twice what it
-    // actually granted, which reads as the buff being split across the tribe rather than given to each
-    // (owner report 2026-08-04). The text was right; the factory was the liar.
-    const a = (num(params.attack, 1) + self.summonBonus * num(params.stepAttack, 1)) * mul(self);
-    const h = (num(params.health, 1) + self.summonBonus * num(params.stepHealth, 1)) * mul(self);
-    if (a <= 0 && h <= 0) return;
-    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
-    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
-    for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
-    }
+    ARENA_EFFECTS.scBeastAura(combatArena(ctx, self), params);
   },
 
   /** Solaris Fang — Rally: when this attacks, give your Beasts +atk/+hp as a rest-of-combat aura (current
@@ -3267,12 +3177,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Set 2 — Spots (T6 Beast, Start of Combat): trigger your `count` (2) LEFT-MOST friendly Echoes, board order.
    *  Each stays alive. Golden doubles each trigger (via `triggerEcho`'s `mul(self)`). */
+  // ARENA-MIGRATED (SC family): one body; a SHOP fire routes through the recruit Echo ritual, so it pays
+  // `lastEchoFires` and the Echo quest tallies like every other shop-fired Echo (owner ruling 2026-08-20).
   scTriggerLeftmostEchoes: (ctx, self, params) => {
     if (self.dead) return;
-    const targets = ctx.living(self.side)
-      .filter((m) => m !== self && m.effects.some((e) => e.on === 'onDeath'))
-      .slice(0, num(params.count, 2));
-    for (const t of targets) triggerEcho(ctx, self, t);
+    ARENA_EFFECTS.scTriggerLeftmostEchoes(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Imp Wrangler (Start of Combat) / Errand Fiend (Rally): summon `count` Imps. `keyword` optionally
@@ -3530,16 +3439,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
    *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
    *  run board (see `applyRubyStats`); golden doubles `count`. */
+  // ARENA-MIGRATED (SC family): one body in arena.ts; the dead guard stays with dispatch.
   scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
     if (self.dead) return;
-    const per = num(params.count, 1) * mul(self);
-    const permanent = params.permanent === true;
-    const tribe = str(params.tribe);
-    playRubyOn(ctx, self, self, per, permanent);
-    for (const adj of livingNeighbours(ctx, self)) {
-      if (tribe && adj.tribe !== tribe && adj.tribe2 !== tribe && !ctx.getCard(adj.cardId)?.universalTribe) continue;
-      playRubyOn(ctx, self, adj, per, permanent);
-    }
+    ARENA_EFFECTS.scPlayRubiesSelfAndAdjacentTribe(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Boulderdash (Rally): each time THIS minion attacks, play `count` PERMANENT Rubies on itself.

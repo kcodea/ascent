@@ -1,5 +1,52 @@
 # ASCENT — development log
 
+## 2026-08-20 — Rune of Combat Prowess: the START-OF-COMBAT family migrates + the second cross-phase dispatcher
+
+**Rune of Combat Prowess** (Epic, 5 Gold): *"Your Start of Combat effects also trigger at End of Turn."* The
+second cross-phase dispatcher rune, built deliberately on the Rally family's motion (Lasting Cadence is the
+template; both presentation lessons from the owner's live pass are applied from day one).
+
+**Engine (Effect Arena Step 3 item 4 + Step 4).** All 21 `startOfCombat` bodies used by `CARD_INDEX` migrated
+into `ARENA_EFFECTS` (ratchet floor 100 → 121); every combat `FACTORIES` entry is now a one-line delegation —
+no duplicate bodies remain. 15 more `sc*` ids exist in the combat registry but are referenced by NO card in
+content (schema-whitelisted only) — left unmigrated per the on-demand rule. New arena verbs: `armBleed`,
+`grantSpellCastExtra`, `fodderConsumed`, `alesLastTurn`, `engraveNeighbours`, `engraveBoard`,
+`castLeftmostHandSpellOnAdjacent`, `echoEffectsOf`, plus `narrate(text, cast?)` and live-flag/maxHealth opts
+on `summonToken` (Mirrorhide's copy). Graceful no-ops, each documented on the shop adapter verb (the
+`addTribeAura` class, never a phase check in a body): Bleed marks (nothing to bleed), the extra-combat-cast
+grant (the real Start of Combat re-arms it moments later — arming at End of Turn too would double it), and
+both Engraves (every shop gain is already permanent — nothing to keep). Enemy-facing bodies (`scDamage`,
+`scGrantEnemyTaunt`) no-op by MEMBERSHIP — empty `enemies()` — with zero RNG-cursor drift. Quil's shop half
+mirrors the combat resolver's STAT family through real counted casts (`noteSpellCast`); pure tavern work
+fizzles uncounted there too, per the standing combat ruling.
+
+**Dispatcher.** `socBoardEffects` (eligibility: printed + grafted via `instanceEffects`, alignment-gated like
+the combat SC pass) → `fireShopStartOfCombat` (one body × effect per fire, nested `withRecruitTrigger` with
+the `factory:<do>:startOfCombat` identity + `discardIfEmpty`) → `fireStartOfCombats` (the batch). SC is a
+per-body trigger, so unlike `fireShopRally` there is no broadcast and no watcher guards. Snapshot rule kept:
+a body summoned mid-pass (Mirrorhide's copy) has no SC to fire. No per-pass counters — the family carries
+none.
+
+**The rune.** `rune_combat_prowess` in `EPIC_RUNES`; `RunState.runeCombatProwess` flag reward; ONE BEAT PER
+(body × effect) in `applyEndOfTurn`, sourced on the acting minion, classified
+`rune:rune_combat_prowess:endOfTurn` (ownBeat); `runeCombatProwessBeats` is THE single list shared by the
+commit, `projectEndOfTurnSteps` and `questEndOfTurnBeats`. Chronos/Parliament repeats apply like every other
+End-of-Turn effect. **Interaction rulings made here, flagged for review:** Rune of Twilight / Uron's SC
+multipliers are COMBAT flags and do NOT double the End-of-Turn replay (matches the Rally precedent — no
+Elderhorn extras in the shop); a shop-fired Spots pays `lastEchoFires` and the Echo quest tallies (the
+2026-08-20 quest-tally ruling) via the shared `triggerEchoOn` ritual; a Grave Body graft at End of Turn is
+PERMANENT (the family's shop-permanence rule).
+
+**Verification.** `socDispatch.test.ts` (24 tests, mirrored on `rallyDispatch.test.ts`): dispatcher fires
+every body once; unarmed fires nothing; enemy-facing no-ops with zero cursor drift; nested per-effect
+identities + no-empty-beat discard in the authoritative batch; the Wrangler's summon stamps committed index 1;
+Echo tallies advance; capture-on/off state identical; permanence across the action boundary. Red-checked: 11
+of them fail with the beat list disabled. Full suite green with ZERO golden updates (combat byte-identity),
+plus a live pass in the real UI (throwaway run, real End Turn control): four source-attributed beats play,
+the Imp lands adjacent from the committed index, Speed Demon / Kennelmaster / Lastlight-via-Spots grants all
+land as permanent labeled buffs. Gates: typecheck ✅ lint 0 errors ✅ 6200 tests / 378 files ✅ build:web ✅
+harness deterministic ✅.
+
 ## 2026-08-20 — shop-rally presentation: per-effect FX identities + summons land in their true slot
 
 Owner report on the live Lasting Cadence pass: mechanically right, but (1) "none of the minion animations

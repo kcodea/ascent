@@ -456,7 +456,15 @@ dispatch. 40 `onAttack` bodies migrated (ratchet floor 60 → 100, every combat 
 the choreographer allots it real animation time. Enemy-facing rallies no-op by MEMBERSHIP (`enemies()` is
 empty in the shop), not by a phase check. Details in the devlog.
 
-**Still unmigrated: End of Turn and Start of Combat** (spec Step 3 item 4's other two families) — same park
+**Progress 2026-08-20 (later) — the START-OF-COMBAT family + its Step-4 dispatcher shipped**, on demand for
+**Rune of Combat Prowess** (Epic 5g: "Your Start of Combat effects also trigger at End of Turn"). 21
+`startOfCombat` bodies migrated (ratchet floor 100 → 121, every combat duplicate deleted);
+`fireShopStartOfCombat` / `fireStartOfCombats` dispatch per (body × effect) — SC has no watchers, so no
+broadcast — one source-attributed beat per effect, nested `factory:<do>:startOfCombat` identities for the
+authored FX, summon indices stamped. Enemy-facing bodies no-op by membership; combat-only channels (Bleed,
+extra combat casts, Engrave) no-op on the adapter verb. Details in the devlog.
+
+**Still unmigrated: End of Turn** (spec Step 3 item 4's last family) — same park
 rule: migrate when a card or rune actually needs the cross-phase dispatch, using the Rally family's motion.
 
 **Progress 2026-08-04 (PRs #865–#867, #871):**

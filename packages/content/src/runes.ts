@@ -2521,6 +2521,18 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeLastingCadence' },
   },
   {
+    // The SECOND cross-phase dispatcher rune (2026-08-20), built on Lasting Cadence's motion: the Effect
+    // Arena's Start-of-Combat family (Step 3 item 4) put every SC body on one shared implementation, and
+    // `fireShopStartOfCombat` (Step 4) dispatches them from the shop at End of Turn — one BEAT PER EFFECT
+    // so each has room to animate. Combat behaviour is untouched: the real Start of Combat still fires.
+    id: 'rune_combat_prowess',
+    name: 'Rune of Combat Prowess',
+    cost: 5,
+    epic: true,
+    text: 'Your **Start of Combat** effects also trigger at **End of Turn**.',
+    reward: { kind: 'runeCombatProwess' },
+  },
+  {
     // RENAMED from the owner's "Rune of Living Geodes" (2026-08-20) - Rune of the Living Geode already exists
     // and is a different rune (the Geode Guardian grant). Engraving + Gemstorm in one Avenge.
     id: 'rune_deepening_vein',

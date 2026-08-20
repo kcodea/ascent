@@ -145,7 +145,16 @@ disruptable in both phases**, which is the owner's capability, shipped increment
      asking what phase it is in; and (b) the shop needs a per-instance effect list — `BoardCard.grantedEffects`
      (read via `instanceEffects`) is the shop's answer to combat's `Minion.effects`, which is what lets a
      GRAFTED trigger (Sunmane Herald) be as real in the shop as a printed one.
-   - **End of Turn / Start of Combat: still unmigrated**, same on-demand rule.
+   - **START OF COMBAT: DONE 2026-08-20.** 21 bodies migrated (ratchet floor 100 → 121), every combat
+     duplicate deleted, shipped WITH its Step-4 dispatcher (`socBoardEffects` / `fireShopStartOfCombat` /
+     `fireStartOfCombats`) and a real consumer — Rune of Combat Prowess. The Rally findings carried over
+     cleanly; two new ones for the next family: (a) SC is a PER-BODY trigger, so the dispatcher does NOT
+     broadcast — each fire is one (body × effect) offered to that body's own wrapper, and there are no
+     watcher guards to mirror; and (b) combat-only CHANNELS (Bleed marks, the extra-combat-cast grant,
+     Engrave) no-op on the ADAPTER VERB — the `addTribeAura` class — never via a phase check in a body, and
+     `discardIfEmpty` swallows the empty beat. Combat multipliers (Rune of Twilight, Uron) deliberately do
+     NOT apply to the End-of-Turn replay, matching the Rally precedent (no Elderhorn extras in the shop).
+   - **End of Turn: still unmigrated**, same on-demand rule.
 5. **Everything else** as touched, tracked by the ratchet.
 
 Estimate honestly: the full sweep is the largest line item, on the order of 2–3 weeks of PR-batched mechanical

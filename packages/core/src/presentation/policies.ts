@@ -555,6 +555,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Rune of Lasting Cadence: ONE BEAT PER RALLY (see `runeLastingCadenceBeats`) — each rally is a real
   // trigger sourced on the minion whose Rally fires, so it must own its window rather than fold into a cue.
   'rune:rune_lasting_cadence:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Rune of Combat Prowess: ONE BEAT PER Start-of-Combat effect (see `runeCombatProwessBeats`) — each fire
+  // is a real trigger sourced on the acting minion, so it owns its window rather than fold into a cue.
+  'rune:rune_combat_prowess:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_lassoing:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_last_call:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_last_word:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

@@ -50,6 +50,11 @@ export interface ArenaBody {
   /** RALLY FAMILY — Sunmane Herald's per-instance accrued rally Attack (what this body passes on when it
    *  rallies). The escalation IS this number; it carries with the body in both phases. */
   rallySpreadAtk?: number;
+  /** SC FAMILY — combat's live Ward flag (Mirrorhide's copy inherits it). Shop bodies carry the `DS`
+   *  keyword instead and leave this undefined; adapters that can't express it simply ignore it. */
+  divineShield?: boolean;
+  /** SC FAMILY — combat's live Rise flag (spent Rise ≠ the printed `R` keyword). Shop: undefined. */
+  rebornAvailable?: boolean;
 }
 
 export interface EffectArena {
@@ -77,7 +82,12 @@ export interface EffectArena {
   /** Summon ONE token, optionally with a keyword and/or explicit stats. Returns the body (undefined = board
    *  full). Explicit stats: combat folds them into the summon snapshot; the shop labels the above-base share
    *  as a Ruby buff and fires its onRubyPlayed watchers — each phase's legacy bookkeeping. */
-  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; keywords?: readonly string[]; golden?: boolean; charge?: boolean; rubyLabel?: boolean }): ArenaBody | undefined;
+  summonToken(tokenId: string, opts?: { attack?: number; health?: number; keyword?: string; keywords?: readonly string[]; golden?: boolean; charge?: boolean; rubyLabel?: boolean;
+    /** SC FAMILY (Mirrorhide's copy): a wounded body's separate max. Combat folds it into the summon
+     *  snapshot; the shop's printed Health IS its max, so the adapter ignores it. */
+    maxHealth?: number;
+    /** SC FAMILY: carry the live Ward/Rise FLAGS onto the copy (combat only — the shop reads keywords). */
+    divineShield?: boolean; rebornAvailable?: boolean }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -167,8 +177,9 @@ export interface EffectArena {
   stampKarwindFlash(t: ArenaBody): void;
   /** A display name for a body (combat: the live minion's; shop: the card def's). */
   nameOf(t: ArenaBody): string;
-  /** Narrate a beat into the combat log (`sc` text). A shop no-op — the shop has FX, not narration. */
-  narrate(text: string): void;
+  /** Narrate a beat into the combat log (`sc` text). A shop no-op — the shop has FX, not narration.
+   *  `cast` marks the line as a cast-styled moment (the legacy `cast: true` on scDamage's strike). */
+  narrate(text: string, cast?: boolean): void;
   /** The run's active tribes — the generation-pool filter for tier/tribe-scoped random grants. */
   activeTribes(): string[];
   /** Deal `amount` to every living body — combat: BOTH sides; shop: YOUR board (there is no enemy), and a
@@ -260,6 +271,39 @@ export interface EffectArena {
    *  Magnetics and stacks the run channel (welded/held copies inherit at settle); the shop buffs every
    *  Magnetic on board and in hand and stacks the same channel. */
   improveAttachments(attack: number, health: number): void;
+
+  // ── START-OF-COMBAT FAMILY (Step 3 item 4) ────────────────────────────────────────────────────────────
+  //
+  // The second family with cross-phase dispatch (Rune of Combat Prowess replays these at End of Turn). The
+  // Rally rules carry over: enemy-facing bodies no-op by MEMBERSHIP (`enemies()` is empty in the shop), and
+  // the verbs below that only mean anything mid-fight are documented shop no-ops — the same class as
+  // `addTribeAura` ("no rest-of-combat in a shop").
+  /** Bloodbinder's Bleed: mark `targets` enemies now; every `every` attacks they take this body's Attack.
+   *  A COMBAT mark on enemies that don't exist in a shop — the shop adapter no-ops (nothing to bleed). */
+  armBleed(every: number, targets: number): void;
+  /** Runebloom Matriarch's channel: your Shop Spells cast `extra` more times IN COMBAT. Pure combat-cast
+   *  bookkeeping — a shop End of Turn has no combat casts to multiply, and the real Start of Combat fires
+   *  moments later with the full grant, so the shop adapter no-ops rather than double-arming it. */
+  grantSpellCastExtra(extra: number): void;
+  /** Fodder consumed THIS TURN by this side (Abhorrent Horror's absorb). Combat reads the captured per-side
+   *  tally; the shop reads the live run tally — the same number, moments apart. */
+  fodderConsumed(): { attack: number; health: number };
+  /** Dwarven Ales cast last shop turn ("this turn" from the player's chair — Bucky / Drunken Oaf). */
+  alesLastTurn(): number;
+  /** Taurus: Engrave the two adjacent bodies (whole-ritual per phase — combat marks `EG` + the golden
+   *  `gainMult`, exactly the legacy board-slot reading). A shop no-op: Engrave means "keep your combat
+   *  gains", and every shop gain is already permanent — there is nothing to keep. */
+  engraveNeighbours(text?: string): void;
+  /** Taurus the Truth Bringer: Engrave EVERY friendly body. Same shop no-op rationale as above. */
+  engraveBoard(): void;
+  /** Quil: cast the LEFTMOST Shop Spell in hand on the adjacent `tribe` minions — a REAL cast (counted,
+   *  watcher-visible), whole-ritual per phase. Combat runs the legacy castInCombat + combat resolver; the
+   *  shop mirrors the resolver's STAT family (buffs + spell power) through `noteSpellCast`, and lets pure
+   *  tavern work fizzle without counting, exactly as the combat ruling has it. */
+  castLeftmostHandSpellOnAdjacent(tribe: string): void;
+  /** A body's Echo (onDeath) effects, param-cloned — the Grave Body copy source. Combat reads the live
+   *  instance list; the shop reads the printed def plus its grants. */
+  echoEffectsOf(t: ArenaBody): EffectDef[];
 
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
@@ -1484,5 +1528,267 @@ export const ARENA_EFFECTS = {
       arena.self.summonBonus = (arena.self.summonBonus ?? 0) + inc;
       arena.logImprove(inc);
     }
+  },
+
+  // ── START-OF-COMBAT FAMILY (Step 3 item 4) ─────────────────────────────────────────────────────────────
+  //
+  // Migrated for Rune of Combat Prowess ("your Start of Combat effects also trigger at End of Turn") — the
+  // second cross-phase dispatcher, built on the Rally family's motion. The standing rules, restated:
+  //
+  // PERMANENCE. A plain `arena.buff` is temporary in combat (each body's legacy behaviour, unchanged) and
+  // permanent in the shop, because a shop buff is permanent by definition. Run-channel grants (Rubies with
+  // `permanent`, the per-instance `summonBonus`/`spellProgress` accruals) keep writing their channel ONCE
+  // per fire, whichever phase fired them.
+  //
+  // ENEMY-FACING bodies (scDamage, scGrantEnemyTaunt) no-op in the shop by MEMBERSHIP: `enemies()` is empty
+  // there, so their own "nothing to hit" guard returns before any narration, state touch or RNG draw — the
+  // Rally family's `rallyDamageRandomEnemy` rule, applied unchanged.
+  //
+  // COMBAT-ONLY verbs (armBleed, grantSpellCastExtra, engrave*) are documented shop no-ops on the adapter —
+  // the `addTribeAura` class: the sentence has no shop meaning, so the fire changes nothing and the empty
+  // beat is discarded by the dispatcher's `discardIfEmpty`.
+
+  /** Deal `amount` to the leftmost / a random / every living enemy. ENEMY-FACING: returns on the empty
+   *  shop `enemies()` before it narrates or draws — no RNG-cursor drift at End of Turn. */
+  scDamage(arena: EffectArena, params: Record<string, unknown>): void {
+    const targets = arena.enemies();
+    if (targets.length === 0) return;
+    arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} strikes`, true);
+    const amount = num(params.amount, 1) * gold(arena);
+    const mode = str(params.target) || 'leftmost';
+    if (mode === 'all') {
+      for (const t of targets) arena.damage(t, amount);
+    } else if (mode === 'random') {
+      arena.damage(arena.rng().pick(targets), amount);
+    } else {
+      arena.damage(targets[0]!, amount);
+    }
+  },
+
+  /** Bloodbinder — arm Bleed on `targets` enemies (golden doubles the marks). A combat mark; the shop
+   *  adapter's verb no-ops (there is nobody to bleed, and no attacks will tick it). */
+  scArmBleed(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.armBleed(num(params.every, 4), num(params.targets, 1) * gold(arena));
+  },
+
+  /** Taurus — Engrave BOTH adjacent bodies (golden also doubles their combat stat-gains). Whole-ritual
+   *  verb: the shop no-ops (all shop gains are already permanent — nothing to keep). */
+  scEngraveNeighbor(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.engraveNeighbours(str(params.text) || undefined);
+  },
+
+  /** Taurus the Truth Bringer — Engrave EVERY friendly body ("triggers first" is the dispatcher's job,
+   *  not this body's). Same shop no-op rationale as the neighbour version. */
+  scEngraveAll(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.engraveBoard();
+  },
+
+  /** Quil — cast your LEFTMOST hand Shop Spell on the adjacent Beasts, as a REAL counted cast. */
+  scCastLeftmostHandSpell(arena: EffectArena, _params: Record<string, unknown>): void {
+    arena.castLeftmostHandSpellOnAdjacent('beast');
+  },
+
+  /** Speed Demon — give every OTHER friendly minion `pct`% of THIS body's own stats (golden doubles the
+   *  %), floored. A pure grant, phase-blind. */
+  scBuffAlliesPctSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const pct = num(params.pct, 50) * gold(arena);
+    const ga = Math.floor((arena.self.attack * pct) / 100);
+    const gh = Math.floor((arena.self.health * pct) / 100);
+    if (ga <= 0 && gh <= 0) return;
+    for (const m of arena.friends()) if (m.uid !== arena.self.uid) arena.buff(m, ga, gh);
+  },
+
+  /** Kobe — play `count` PERMANENT Rubies on itself and each adjacent same-`tribe` neighbour (× golden). */
+  scPlayRubiesSelfAndAdjacentTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const per = num(params.count, 1) * gold(arena);
+    const permanent = params.permanent === true;
+    const tribe = str(params.tribe);
+    arena.playRubiesOn(arena.self, per, permanent);
+    for (const adj of arena.neighboursOf(arena.self)) {
+      if (tribe && !arena.isTribe(adj, tribe)) continue;
+      arena.playRubiesOn(adj, per, permanent);
+    }
+  },
+
+  /** Runebloom Matriarch — your Shop Spells cast `extra` more times in combat (golden doubles; Rune of the
+   *  Matriarch adds one more). The grant is a COMBAT-cast channel: the shop verb no-ops (the real Start of
+   *  Combat re-fires with the full grant moments later — arming it at End of Turn too would double it). */
+  scGrantSpellCastExtra(arena: EffectArena, params: Record<string, unknown>): void {
+    const runeExtra = arena.self.cardId === 'b2_runebloom' && arena.matriarchReps() > 1 ? 1 : 0;
+    const extra = num(params.extra, 1) * gold(arena) + runeExtra;
+    if (extra <= 0) return;
+    arena.grantSpellCastExtra(extra);
+    arena.narrate(`${arena.nameOf(arena.self)}: your Shop Spells cast ${extra} extra time${extra === 1 ? '' : 's'}`);
+  },
+
+  /** Twilight Sentinel — THIS body gains a keyword (the align-gated halves live on the card). Re-granting
+   *  a keyword it already has is a no-op, so an End-of-Turn replay after the real Start of Combat (or a
+   *  second End of Turn) never stacks pills. */
+  scGainKeyword(arena: EffectArena, params: Record<string, unknown>): void {
+    const kw = str(params.keyword);
+    if (!kw || arena.self.keywords.includes(kw)) return;
+    arena.grantKeywordTo(arena.self, kw);
+  },
+
+  /** Gravewarden — give a friendly (optionally `tribe`) minion other than self Rise; golden grants two.
+   *  Skips bodies that already have — or in combat have already spent — Rise (`hasReborn` folds both). */
+  scGrantReborn(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe);
+    const rng = arena.rng();
+    for (let i = 0; i < gold(arena); i++) {
+      const candidates = arena.friends().filter((m) =>
+        m.uid !== arena.self.uid && !arena.hasReborn(m) && (!tribe || arena.isTribe(m, tribe)));
+      if (candidates.length === 0) return;
+      arena.grantReborn(rng.pick(candidates));
+    }
+  },
+
+  /** Arena Heckler — Taunt the enemy OPPOSITE this body (golden: an adjacent one too). ENEMY-FACING:
+   *  the empty shop `enemies()` returns before narration — nothing friendly is ever taunted. */
+  scGrantEnemyTaunt(arena: EffectArena, params: Record<string, unknown>): void {
+    const targets = arena.enemies();
+    if (targets.length === 0) return;
+    const own = arena.friends();
+    const idx = Math.min(Math.max(own.findIndex((m) => m.uid === arena.self.uid), 0), targets.length - 1);
+    const picks = [targets[idx]!];
+    if (arena.self.golden) {
+      const neighbour = targets[idx + 1] ?? targets[idx - 1];
+      if (neighbour) picks.push(neighbour);
+    }
+    arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} works the crowd`);
+    for (const victim of picks) {
+      if (victim.keywords.includes('T')) continue;
+      arena.grantKeywordTo(victim, 'T');
+    }
+  },
+
+  /** Daybreak Acolyte — THIS body gains stats (the align-gated halves live on the card; × golden). */
+  scBuffSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.buff(arena.self, num(params.attack, 0) * gold(arena), num(params.health, 0) * gold(arena));
+  },
+
+  /** Mirrorhide Rhino — summon a copy of THIS body's CURRENT self (stats, keywords, gild, live flags);
+   *  golden summons two. A combat-summoned copy never re-fires Start of Combat; a shop copy is off the
+   *  beat-list snapshot for the same reason — no chain either way. */
+  scSummonCopy(arena: EffectArena, _params: Record<string, unknown>): void {
+    for (let i = 0; i < gold(arena); i++) {
+      arena.summonToken(arena.self.cardId, {
+        attack: arena.self.attack, health: arena.self.health, maxHealth: arena.self.maxHealth,
+        keywords: [...arena.self.keywords], golden: arena.self.golden,
+        divineShield: arena.self.divineShield, rebornAvailable: arena.self.rebornAvailable,
+      });
+    }
+  },
+
+  /** Runescale Drake (2026-07-21 rework) — your `tribe` gains (base + improve) × spells-this-turn, the
+   *  per-spell rate improving by `step` per `every` spells cast while this instance is out. FLOORED at one
+   *  spell so a dry turn still pays the base rate. Golden doubles the whole grant. */
+  scTribeBuffPerSpellImproving(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'dragon';
+    const step = num(params.step, 1);
+    const every = Math.max(1, num(params.every, 4));
+    const improve = step * Math.floor((arena.self.spellProgress ?? 0) / every);
+    const spells = Math.max(1, arena.spellsThisTurn());
+    const g = gold(arena);
+    const a = (num(params.attack, 2) + improve) * spells * g;
+    const h = (num(params.health, 2) + improve) * spells * g;
+    if (a <= 0 && h <= 0) return;
+    arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} channels the runes`);
+    for (const m of arena.friends()) if (arena.isTribe(m, tribe)) arena.buff(m, a, h);
+  },
+
+  /** Bucky — give your `tribe` +A/+H PER Dwarven Ale cast last shop turn. Zero Ales is a clean no-op. */
+  scTribeBuffPerAle(arena: EffectArena, params: Record<string, unknown>): void {
+    const ales = arena.alesLastTurn();
+    if (ales <= 0) return;
+    const tribe = str(params.tribe) || 'dwarf';
+    const g = gold(arena);
+    const a = num(params.attack, 5) * ales * g;
+    const h = num(params.health, 5) * ales * g;
+    if (a <= 0 && h <= 0) return;
+    arena.narrate(`${arena.nameOf(arena.self)} pours for ${ales} Ale${ales === 1 ? '' : 's'} (+${a}/+${h})`);
+    for (const m of arena.friends()) if (arena.isTribe(m, tribe)) arena.buff(m, a, h);
+  },
+
+  /** Drunken Oaf — give A `tribe` minion +atk/+hp, repeated once more per Ale (reps = 1 + ales; the base
+   *  grant lands on a dry turn too). Each rep re-rolls its target; self is eligible. Golden doubles the
+   *  per-rep grant, never the rep count. */
+  scBuffRandomTribePerAle(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'dwarf';
+    const targets = arena.friends().filter((m) => arena.isTribe(m, tribe));
+    if (targets.length === 0) return;
+    const ales = arena.alesLastTurn();
+    const reps = 1 + ales;
+    const g = gold(arena);
+    const a = num(params.attack, 2) * g;
+    const h = num(params.health, 2) * g;
+    if (a <= 0 && h <= 0) return;
+    arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} buys ${reps} round${reps === 1 ? '' : 's'} (+${a}/+${h})`);
+    const rng = arena.rng();
+    for (let n = 0; n < reps; n++) arena.buff(rng.pick(targets), a, h);
+  },
+
+  /** Pack Leader — buff your `tribe` +M/+M (M = base + the permanently accrued `summonBonus`), then improve
+   *  the accrual by `step` FOR GOOD — a run channel, so an End-of-Turn fire advances it exactly once, like
+   *  a combat fire does. Golden doubles the applied grant, not the accrual. */
+  scTribeBuffImproving(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'beast';
+    const base = num(params.attack, 2);
+    const step = num(params.step, 2);
+    const mag = (base + (arena.self.summonBonus ?? 0)) * gold(arena);
+    if (mag > 0) {
+      arena.narrate(`${arena.nameOf(arena.self)} leads the pack`);
+      for (const m of arena.friends()) if (arena.isTribe(m, tribe)) arena.buff(m, mag, mag);
+    }
+    arena.self.summonBonus = (arena.self.summonBonus ?? 0) + step;
+  },
+
+  /** Abhorrent Horror — gain the Fodder stats consumed this turn (× golden). Reads the same tally in both
+   *  phases (combat's captured copy vs the live run field — the same number, moments apart). */
+  scGainFodderStats(arena: EffectArena, _params: Record<string, unknown>): void {
+    const fc = arena.fodderConsumed();
+    const g = gold(arena);
+    const atk = fc.attack * g;
+    const hp = fc.health * g;
+    if (atk > 0 || hp > 0) {
+      arena.narrate(`${arena.nameOf(arena.self)} absorbs the consumed essence`);
+      arena.buff(arena.self, atk, hp);
+    }
+  },
+
+  /** Kennelmaster / Thunderous Sovereign — buff your `tribe` now AND register the rest-of-combat aura for
+   *  later arrivals (a shop no-op by design — there is no rest-of-combat in a shop). The Avenge accrual
+   *  (`summonBonus`) applies per stat via `stepAttack`/`stepHealth`; golden doubles the whole grant. */
+  scBeastAura(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'beast';
+    const g = gold(arena);
+    const bonus = arena.self.summonBonus ?? 0;
+    const a = (num(params.attack, 1) + bonus * num(params.stepAttack, 1)) * g;
+    const h = (num(params.health, 1) + bonus * num(params.stepHealth, 1)) * g;
+    if (a <= 0 && h <= 0) return;
+    arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} rallies the pack`);
+    arena.addTribeAura(tribe, a, h);
+    for (const m of arena.friends()) {
+      if (tribe === 'any' || arena.isTribe(m, tribe)) arena.buff(m, a, h);
+    }
+  },
+
+  /** Spots — trigger your `count` LEFT-MOST other friendly Echoes (they stay alive). Routed through the
+   *  shared Echo ritual, so a SHOP fire pays the recruit Echo tallies (`lastEchoFires`, Aftershocks-class
+   *  payoffs) exactly as every other shop-fired Echo does — the owner's quest-tally ruling (2026-08-20). */
+  scTriggerLeftmostEchoes(arena: EffectArena, params: Record<string, unknown>): void {
+    const targets = arena.friends()
+      .filter((m) => m.uid !== arena.self.uid && arena.hasEcho(m))
+      .slice(0, num(params.count, 2));
+    for (const t of targets) arena.triggerEchoOn(t);
+  },
+
+  /** Grave Body — copy your LEFTMOST other friendly Echo: graft its onDeath effects onto THIS body. In the
+   *  shop the graft rides `grantedEffects` and is therefore PERMANENT (the Rally-family shop-permanence
+   *  rule; a combat graft lasts the fight — each phase's own legacy lifetime). */
+  copyLeftmostEcho(arena: EffectArena, _params: Record<string, unknown>): void {
+    const lead = arena.friends().find((m) => m.uid !== arena.self.uid && arena.hasEcho(m));
+    if (!lead) return;
+    for (const e of arena.echoEffectsOf(lead)) arena.graftEffect(arena.self, e);
   },
 } as const;

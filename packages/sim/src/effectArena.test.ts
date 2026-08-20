@@ -73,6 +73,15 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     grantRandomFromPool: () => {},
     grantNamedCard: () => {},
     grantRandomSpells: () => {},
+    // SC-family verbs (Step 3 item 4) — inert in this stub; coverage lives in socDispatch.test.ts.
+    armBleed: () => {},
+    grantSpellCastExtra: () => {},
+    fodderConsumed: () => ({ attack: 0, health: 0 }),
+    alesLastTurn: () => 0,
+    engraveNeighbours: () => {},
+    engraveBoard: () => {},
+    castLeftmostHandSpellOnAdjacent: () => {},
+    echoEffectsOf: () => [],
     // Rally-family verbs (Step 3 item 4) — inert in this stub; the family's own coverage lives in rally.test.ts.
     enemies: () => [],
     damage: () => {},
@@ -158,7 +167,7 @@ describe('the shop adapter', () => {
  * floor as effects migrate; lowering it is the one edit this test exists to make loud.
  */
 describe('the arena ratchet', () => {
-  const MIGRATED_FLOOR = 100; // 60 (Shout/Echo) + the whole RALLY family: 40 bodies, Step 3 item 4
+  const MIGRATED_FLOOR = 121; // 60 (Shout/Echo) + 40 Rally + the START-OF-COMBAT family: 21 bodies, Step 3 item 4
 
   it('the migrated count may only rise', () => {
     expect(Object.keys(ARENA_EFFECTS).length).toBeGreaterThanOrEqual(MIGRATED_FLOOR);

@@ -277,6 +277,46 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       state.magneticBuyAtk = (state.magneticBuyAtk ?? 0) + a;
       state.magneticBuyHp = (state.magneticBuyHp ?? 0) + h;
     },
+
+    // ── START-OF-COMBAT FAMILY verbs (Step 3 item 4) ────────────────────────────────────────────────────
+    //
+    // The combat-only concepts no-op HERE, on the verb, never inside a body — the `addTribeAura` class.
+    // Each no-op leaves the trigger's diff empty, so the dispatcher's `discardIfEmpty` drops the beat.
+    armBleed: () => {}, // a mark on enemies that don't exist, ticked by attacks that won't happen
+    grantSpellCastExtra: () => {}, // a combat-cast channel; the real Start of Combat re-arms it moments later
+    fodderConsumed: () => state.fodderConsumedThisTurn ?? { attack: 0, health: 0 },
+    alesLastTurn: () => state.alesCastThisTurn ?? 0,
+    engraveNeighbours: () => {}, // Engrave = "keep your combat gains"; every shop gain is already permanent
+    engraveBoard: () => {},
+    castLeftmostHandSpellOnAdjacent: (tribe) => {
+      // Quil's shop half: cast the leftmost hand Shop Spell on the adjacent `tribe` neighbours — the STAT
+      // family of the combat resolver, mirrored (buffs + spell power), each repetition a REAL counted cast
+      // through `noteSpellCast` so Guel / Spirit Pup / the spell runes all see it. Anything outside the stat
+      // family is pure tavern work from this body's seat and fizzles WITHOUT counting, exactly as the combat
+      // ruling has it. The hand card is not consumed in either phase.
+      const handSpell = state.hand.find((c) => CARD_INDEX[c.cardId]?.spell);
+      const def = handSpell ? CARD_INDEX[handSpell.cardId] : undefined;
+      if (!def?.spell) return;
+      const i = state.board.findIndex((c) => c.uid === self.uid);
+      if (i < 0) return;
+      const targets = [state.board[i - 1], state.board[i + 1]]
+        .filter((m): m is BoardCard => !!m && isTribe(m, tribe as Tribe));
+      if (targets.length === 0) return;
+      const eff = def.effects.find((e) => e.on === 'cast' && (e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
+      if (!eff) return;
+      const growthPlus = def.id === 'growth' ? (state.growthBonus ?? 0) : 0; // Rune of Living Growth, as combat folds it
+      for (let rep = 0; rep < (self.golden ? 2 : 1); rep++) {
+        noteSpellCast(state, def);
+        const a = num(eff.params?.attack, 0) + growthPlus + spellAttackBonus(state);
+        const h = num(eff.params?.health, 0) + growthPlus + spellHealthBonus(state);
+        const recipients = eff.do === 'spellBuffAll' ? state.board : targets;
+        for (const t of recipients) addBuff(t, def.name, a, h);
+      }
+    },
+    echoEffectsOf: (t) => instanceEffects(t as BoardCard)
+      .filter((e) => e.on === 'onDeath')
+      .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
+
     rng: () => cursorRng,
   };
 }
@@ -2088,6 +2128,80 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onAttackStripKeywords: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.onAttackStripKeywords(shopArena(ctx.state, self), params); // no defender here — inert
+  },
+
+  // ── START-OF-COMBAT FAMILY — the SHOP half (Step 3 item 4 + Step 4) ──────────────────────────────────
+  //
+  // One body each, shared with combat (`ARENA_EFFECTS`); these wrappers are dispatch only, fired by
+  // `fireShopStartOfCombat` under Rune of Combat Prowess. Start of Combat is a PER-BODY trigger (no
+  // watchers listen for "a Start of Combat happened"), so unlike the Rally broadcast there is no payload
+  // guard to keep — each wrapper fires its own card's effect and nothing else.
+  //
+  // The two ENEMY-FACING members (scDamage, scGrantEnemyTaunt) are wired like everything else and no-op by
+  // membership (`enemies()` is empty here); the combat-only channels (scArmBleed, scGrantSpellCastExtra,
+  // the Engraves) no-op on their VERB, leaving an empty diff the dispatcher discards.
+  scDamage: (ctx, self, params) => {
+    ARENA_EFFECTS.scDamage(shopArena(ctx.state, self), params); // no enemies here — inert, zero RNG drift
+  },
+  scArmBleed: (ctx, self, params) => {
+    ARENA_EFFECTS.scArmBleed(shopArena(ctx.state, self), params); // combat mark — the verb no-ops here
+  },
+  scEngraveNeighbor: (ctx, self, params) => {
+    ARENA_EFFECTS.scEngraveNeighbor(shopArena(ctx.state, self), params); // nothing to keep — shop gains are permanent
+  },
+  scEngraveAll: (ctx, self, params) => {
+    ARENA_EFFECTS.scEngraveAll(shopArena(ctx.state, self), params);
+  },
+  scCastLeftmostHandSpell: (ctx, self, params) => {
+    ARENA_EFFECTS.scCastLeftmostHandSpell(shopArena(ctx.state, self), params);
+  },
+  scBuffAlliesPctSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffAlliesPctSelf(shopArena(ctx.state, self), params);
+  },
+  scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.scPlayRubiesSelfAndAdjacentTribe(shopArena(ctx.state, self), params);
+  },
+  scGrantSpellCastExtra: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantSpellCastExtra(shopArena(ctx.state, self), params); // combat-cast channel — inert
+  },
+  scGainKeyword: (ctx, self, params) => {
+    ARENA_EFFECTS.scGainKeyword(shopArena(ctx.state, self), params);
+  },
+  scGrantReborn: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantReborn(shopArena(ctx.state, self), params);
+  },
+  scGrantEnemyTaunt: (ctx, self, params) => {
+    ARENA_EFFECTS.scGrantEnemyTaunt(shopArena(ctx.state, self), params); // no enemies here — inert
+  },
+  scBuffSelf: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffSelf(shopArena(ctx.state, self), params);
+  },
+  scSummonCopy: (ctx, self, params) => {
+    ARENA_EFFECTS.scSummonCopy(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffPerSpellImproving: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffPerSpellImproving(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffPerAle: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffPerAle(shopArena(ctx.state, self), params);
+  },
+  scBuffRandomTribePerAle: (ctx, self, params) => {
+    ARENA_EFFECTS.scBuffRandomTribePerAle(shopArena(ctx.state, self), params);
+  },
+  scTribeBuffImproving: (ctx, self, params) => {
+    ARENA_EFFECTS.scTribeBuffImproving(shopArena(ctx.state, self), params);
+  },
+  scGainFodderStats: (ctx, self, params) => {
+    ARENA_EFFECTS.scGainFodderStats(shopArena(ctx.state, self), params);
+  },
+  scBeastAura: (ctx, self, params) => {
+    ARENA_EFFECTS.scBeastAura(shopArena(ctx.state, self), params); // the later-arrivals aura half is combat-only
+  },
+  scTriggerLeftmostEchoes: (ctx, self, params) => {
+    ARENA_EFFECTS.scTriggerLeftmostEchoes(shopArena(ctx.state, self), params); // pays the recruit Echo tallies
+  },
+  copyLeftmostEcho: (ctx, self, params) => {
+    ARENA_EFFECTS.copyLeftmostEcho(shopArena(ctx.state, self), params); // the shop graft is permanent (family rule)
   },
   /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
@@ -8224,6 +8338,75 @@ export function clearRallyPassCounters(state: RunState): void {
   for (const c of state.board) { delete c.attackSeen; delete c.bredCount; }
 }
 
+/**
+ * ── THE SHOP-SIDE START-OF-COMBAT DISPATCHER (Effect Arena, Step 4) ────────────────────────────────────
+ *
+ * The Rally dispatcher's motion, applied to the second family. Start of Combat is a PER-BODY trigger — no
+ * card watches "a Start of Combat happened" — so unlike `fireShopRally` this does NOT broadcast: each fire
+ * is one (body × effect), offered to that body's own wrapper only.
+ *
+ * `socBoardEffects` is the eligibility scan: every `startOfCombat` effect a board INSTANCE carries
+ * (printed + grafted, via `instanceEffects`), alignment-gated exactly as the combat pass gates it, and
+ * filtered to effects a shop wrapper exists for (today that is all of them — the filter is the same
+ * no-hand-selection guard `fireShopRally` gets from the registry lookup). SNAPSHOTTED before anything
+ * fires: a body summoned mid-pass (Mirrorhide's copy) has not "had" a Start of Combat to fire — the same
+ * rule combat states by not re-firing SC on combat summons. The family carries no per-fight counters
+ * (`attackSeen`/`bredCount` are Rally's), so there is nothing to scope or clear here.
+ *
+ * COMBAT MULTIPLIERS DO NOT APPLY, deliberately (mirrors the Rally precedent — `fireShopRally` applies no
+ * Elderhorn hunt extras): Rune of Twilight ("trigger an additional time") and Uron's trigger multiplier are
+ * COMBAT flags consumed by `simulate()`; the End-of-Turn replay fires each effect once per Chronos repeat
+ * like every other End-of-Turn effect, and no more.
+ */
+export function socBoardEffects(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
+  const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
+  for (const card of state.board) {
+    const align = alignmentOf(state.board, card.uid); // CELESTIAL: gate aligned halves exactly as combat's SC pass does
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'startOfCombat') continue;
+      if (!alignAllows(effect, align)) continue;
+      if (!RECRUIT_FACTORIES[effect.do]) continue;
+      out.push({ card, effect });
+    }
+  }
+  return out;
+}
+
+/** Fire ONE board minion's ONE Start-of-Combat effect in the shop — the recruit twin of the combat SC pass. */
+export function fireShopStartOfCombat(state: RunState, card: BoardCard, effect: EffectDef): void {
+  if (!state.board.includes(card)) return; // removed since the snapshot — the beat still keeps its window
+  const ctx = makeContext(state);
+  const fn = RECRUIT_FACTORIES[effect.do];
+  if (!fn) return;
+  // PRESENTATION (the shop-rally lesson, 2026-08-20): the dispatch is its OWN nested trigger, sourced on the
+  // acting minion and carrying the effect's `factory:<do>:startOfCombat` registry identity — what the
+  // authored FX and pulses bind to. `discardIfEmpty` drops the scope when a guarded/inert body (an
+  // enemy-facing strike, a combat-only channel) changes nothing, so no bystander beat falsely pulses.
+  const source: TriggerSourceRef = { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name };
+  withRecruitTrigger(
+    ctx,
+    {
+      phase: 'endOfTurn',
+      source,
+      trigger: 'startOfCombat',
+      ...beatIdentity(`factory:${effect.do}:startOfCombat`),
+    },
+    () => fn(ctx, card, effect.params ?? {}, { minion: card }),
+    { discardIfEmpty: true },
+  );
+}
+
+/**
+ * Fire EVERY board Start-of-Combat effect once — Rune of Combat Prowess's payout, batched (for tests and
+ * any caller that wants the whole pass; `applyEndOfTurn` fires one per BEAT instead, so each effect is
+ * allotted its own animation window).
+ */
+export function fireStartOfCombats(state: RunState): void {
+  for (const { card, effect } of socBoardEffects(state)) {
+    fireShopStartOfCombat(state, card, effect);
+  }
+}
+
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
@@ -8359,9 +8542,46 @@ export function applyEndOfTurn(state: RunState): void {
     fires++;
   }
   if (state.runeLastingCadence) clearRallyPassCounters(state);
+  // RUNE OF COMBAT PROWESS — "your Start of Combat effects also trigger at End of Turn."
+  //
+  // The Lasting Cadence pattern, applied to the second family: ONE BEAT PER (body × effect), each an
+  // own-beat trigger sourced on the ACTING minion (owner's room-for-the-beat requirement), with the real
+  // per-effect identity emitted by the NESTED trigger `fireShopStartOfCombat` opens — a plain scope here
+  // (no consequence diff) for exactly the double-emission reason the Lasting Cadence block documents.
+  for (const { card, effect } of runeCombatProwessBeats(state)) {
+    const def = CARD_INDEX[card.cardId];
+    collector.withTrigger(
+      {
+        phase: 'endOfTurn',
+        source: beatSource('minion', card.cardId, def?.name ?? card.cardId, card.uid),
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_combat_prowess:endOfTurn'),
+      },
+      () => { procRuneId(state, 'rune_combat_prowess'); fireShopStartOfCombat(state, card, effect); },
+    );
+    fires++;
+  }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+}
+
+/**
+ * The Rune of Combat Prowess beat list: one entry per START-OF-COMBAT EFFECT THAT WILL FIRE, board order,
+ * repeated by Chronos/Parliament like every other End-of-Turn effect (combat's own multipliers — Rune of
+ * Twilight, Uron — are combat flags and deliberately do NOT apply here; see `socBoardEffects`).
+ *
+ * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the legacy projection)
+ * and `questEndOfTurnBeats` (the UI's beat sequence) — the Lasting Cadence single-list rule, so the three
+ * can never disagree about how many beats there are. Empty when the rune isn't armed. Snapshotted before
+ * anything fires: a body summoned mid-pass (Mirrorhide's copy) has no Start of Combat to fire.
+ */
+export function runeCombatProwessBeats(state: RunState): Array<{ card: BoardCard; effect: EffectDef }> {
+  if (!state.runeCombatProwess) return [];
+  const repeats = endOfTurnRepeats(state);
+  const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
+  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats; r++) out.push(entry);
+  return out;
 }
 
 /**
@@ -8833,6 +9053,11 @@ export function projectEndOfTurnSteps(state: RunState): {
     beat(card, () => fireShopRally(clone, card));
   }
   if (clone.runeLastingCadence) clearRallyPassCounters(clone);
+  // RUNE OF COMBAT PROWESS — one projected step PER (body × effect), matching `applyEndOfTurn` and
+  // `questEndOfTurnBeats` 1:1, sourced on the acting minion (the Lasting Cadence pattern).
+  for (const { card, effect } of runeCombatProwessBeats(clone)) {
+    beat(card, () => fireShopStartOfCombat(clone, card, effect));
+  }
   return { steps, fx };
 }
 
@@ -8857,6 +9082,11 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   // them — so each rally gets its own 760ms window on the legacy path too, sourced on the rallying minion.
   for (const card of runeLastingCadenceBeats(state)) {
     out.push({ effect: 'runeLastingCadence', label: 'Rune of Lasting Cadence', uid: card.uid });
+  }
+  // Rune of Combat Prowess: one beat per Start-of-Combat EFFECT, after the rallies, mirroring
+  // `applyEndOfTurn` + the projection — sourced on the acting minion for the pulse/flourish.
+  for (const { card } of runeCombatProwessBeats(state)) {
+    out.push({ effect: 'runeCombatProwess', label: 'Rune of Combat Prowess', uid: card.uid });
   }
   return out;
 }

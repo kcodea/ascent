@@ -2340,12 +2340,15 @@ body.modalup .app { z-index: auto; }
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
 /* z-index 500 keeps inspect above even the end-of-run overlay (z 400), so right-clicking a minion in
    the final warband to read its buffs works there too. */
-.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); backdrop-filter: blur(2px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
 .inspect-card { display: flex; align-items: center; gap: 10px; transform: scale(1.9); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
 .inspect-card .card { animation: none; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
+/* Reserve the plate overhang as margin (same as `.cardref .card.plated`) so the plate can't lap over the
+   buffs (left) or the keyword definitions (right) — the flex gap then sits clear of the plate, not the body. */
+.inspect-card .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
 /* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).
@@ -2361,11 +2364,11 @@ body.modalup .app { z-index: auto; }
 /* Keyword definition panel (KeywordDefs) — a column of word-led boxes beside the enlarged card on the hover
    reveal and the right-click Inspect. Mirrors the .inspect-buffs glass chrome so the two side panels read as
    one family. Static DOM only — no animated paint. */
-.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(240px, 42vw); max-height: min(72vh, 560px); overflow-y: auto; }
+.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(144px, 25vw); max-height: min(72vh, 560px); overflow-y: auto; }
 .kwdefs::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .kwbox { background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); }
-.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
-.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 10.5px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
+.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 9.5px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: #b7a98f; font-style: normal; font-weight: 600; font-size: 8.5px; }

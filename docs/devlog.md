@@ -29,6 +29,16 @@ typecheck, lint (no errors in `packages/ui/src`), `npm test`, and `build:web` �
 CI run). Scope discipline: the four pre-existing code→name maps (`Card.tsx`, `float.ts`, `questText.ts`,
 `UnitEditor.tsx`) were left as-is; folding them into the shared glossary is a separate follow-up.
 
+**Live-tuning polish (same session, owner eyeball):** four fixes after seeing it on a real board.
+(1) The Inspect card's PLATE laps ~25% wider than the card body and was overlapping the defs column — the
+hover reveal already reserves that overhang as margin (`.cardref .card.plated`), so the same rule now applies
+to `.inspect-card .card.plated` (also protects the buffs panel on the left). (2) The defs column got narrower
+(`max-width` 240→144px / 42→25vw) with slightly smaller text (name 12→11px, def 10.5→9.5px). (3) The Inspect
+backdrop blur went 2→8px (plus the `-webkit-` prefix) for a stronger focus. (4) The HOVER reveal's width
+estimate now folds in the defs column, so a card + referenced card + defs that won't fit to the right FLIPS to
+open on the left instead of lapping the hovered tile / right-side UI — and the defs render on the outward side
+when flipped so the column never lands back over the source.
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the

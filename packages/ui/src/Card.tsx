@@ -81,6 +81,7 @@ import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { KeywordDefs } from './KeywordDefs';
+import { detectCardKeywords } from './detectCardKeywords';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
@@ -677,7 +678,13 @@ export const Card = memo(function Card({
       // popups off the right edge and let tall ones run off the bottom.
       const plateScale = getCardPlateConfig().scale;
       const cardW = r.width * zoom * plateScale;
-      const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
+      // The keyword definition column (KeywordDefs) is part of the cluster too — up to `min(144px, 25vw)` wide,
+      // zoomed like the cards. Fold it into the width estimate so the flip/clamp keeps the WHOLE cluster on
+      // screen: without it a card + referenced card + defs runs off the right edge and laps the hovered tile
+      // and the right-side UI. 0 when the card references no keyword defs.
+      const nDefs = detectCardKeywords(card).length;
+      const defsW = nDefs > 0 ? gap + Math.min(144, window.innerWidth * 0.25) * zoom : 0;
+      const tipW = cardW * n + (n - 1) * gap + defsW; // cards laid left→right, plus the defs column
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
@@ -1183,10 +1190,14 @@ export const Card = memo(function Card({
       {refPos && hasPopup && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
+            {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
+                the defs go on the far (outward) side, so the column never laps back over the source. Opening
+                right, it's the reverse: cards first, defs on the far right. */}
+            {refPos.origin === 'right' && <KeywordDefs card={card} />}
             {popupCards.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
-            <KeywordDefs card={card} />
+            {refPos.origin === 'left' && <KeywordDefs card={card} />}
           </div>
         </div>,
         document.body,

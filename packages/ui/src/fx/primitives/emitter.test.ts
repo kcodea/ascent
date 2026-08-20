@@ -282,7 +282,10 @@ describe('emitter seeded randomness', () => {
   });
 
   it('builds exactly one seeded source per instance, falling back to a fresh seed when none is given', () => {
-    expect(EMITTER_SRC).toContain('this.rand = makeRng(ctx.seed ?? randomSeed())');
+    expect(EMITTER_SRC).toContain('const seed = ctx.seed ?? randomSeed()');
+    expect(EMITTER_SRC).toContain('this.rand = makeRng(seed)');
+    // Exactly one per-particle RNG in the PRIMITIVE — `fieldPhaseOffset`'s own stream lives in motion.ts, so
+    // it can't disturb this instance's frozen per-mote draw order.
     expect(codeOf(EMITTER_SRC).match(/makeRng\(/g)).toHaveLength(1);
   });
 

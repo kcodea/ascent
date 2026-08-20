@@ -16,6 +16,7 @@
         "gravity": -80,
         "turbulence": 20,
         "turbScale": 0.025,
+        "fieldPhase": 0.5,
         "shape": "circle",
         "size": 7,
         "sizeVar": 0.45,

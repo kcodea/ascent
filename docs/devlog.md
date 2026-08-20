@@ -183,6 +183,47 @@ sprite. Verified live in the browser: all three read **All** and all three arts 
 deliberately passing `tribe: 'neutral'` to prove the derivation rather than the input.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5915 tests / 369 files ✅ build:web ✅.
+## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
+
+Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a
+shop-buff aura hitting every unit). Diagnosis: two independent randomness layers, only one of which varied.
+Spawn jitter already differed per fire (each `playDef` builds its own seeded RNG, and the rune/aura defs are
+all unlocked → a fresh seed per fire). But the **turbulence field itself is not seeded** — `turbulenceX/Y`
+is a pure sine of `(local x, y, elapsed tSec)`, and every instance starts its field clock (`clockSec`) at 0,
+so simultaneous fires sample the same field at the same phase. Under strong turbulence the shared field
+dominates the motion and they read as identical; the same `clockSec` also drives the shader's animated
+texture noise (`uTime`), so that's in lockstep too.
+
+New knob **Field variation** (`fieldPhase`, Physics group, 0–1, default 0) on **burst / emitter / smoke** —
+every primitive that has turbulence. It seeds each instance's *starting* `clockSec` to a per-instance phase
+so the field (and the texture noise) begins at its own offset:
+
+- `motion.ts` gains `fieldPhaseOffset(seed, amount)` + `FIELD_PHASE_SPAN` (10s ≈ 2 periods of the base
+  turbulence sine). It derives the offset from a **separate** mulberry32 stream (`makeRng(seed ^ 0x9e3779b9)`),
+  never the primitive's per-particle `rand` — so the frozen per-mote draw order that saved seeds replay
+  against is untouched.
+- Each primitive resolves its seed once (`const seed = ctx.seed ?? randomSeed()`), seeds `this.rand` from it,
+  and sets `this.clockSec = fieldPhaseOffset(seed, params.fieldPhase)`.
+- **Default 0 is an exact no-op** (`clockSec` still starts at 0 — byte-identical to before), so every saved
+  def is unchanged. Because the offset is a pure function of the seed, an unlocked def gets a fresh phase per
+  fire (the decorrelation we want) while a locked def stays reproducible.
+
+Verified: new `fieldPhaseOffset` unit tests in `motion.test.ts` (no-op at 0, deterministic in the seed, 200
+distinct seeds → 200 distinct phases, linear in amount, bounded to `[0, SPAN)`); updated the three primitives'
+"exactly one seeded source per instance" source-text guards to the new two-line seed resolution (the
+per-primitive `makeRng` count is still 1 — `fieldPhaseOffset`'s stream lives in `motion.ts`). typecheck + lint
+(0 errors) + `npm test` (5916 passed) + build:web all green.
+
+**Migration — current defs opt in at 0.5.** A no-op default (0) means every existing turbulence effect would
+still swirl in lockstep until hand-edited, so a one-time pass set `fieldPhase: 0.5` (the halfway point) on
+every committed def layer that already runs `turbulence > 0` — 46 layers across 29 defs (rune-burst,
+epic-rune-burst, shop-buff-aura, rune-buff-unit, the ale/consume/spell-sparks stacks, ruby-gem-apply, …). The
+edit is purely additive (a surgical line-insert after each `turbScale`, so the JSON diff is 46 `+` lines and
+nothing reformatted); `defs.test.ts` + the full suite still pass, and the param default stays 0 so the engine
+invariant ("a default contributes exactly zero") is intact — NEW turbulence defs still start synced and opt in
+by raising the slider. Note this is not a strict no-op for the migrated defs: the ~half-dozen that fire
+many-at-once (runes, auras) now visibly decorrelate — which is the point — and the single-cast ones are
+unchanged to the eye (absolute field phase is invisible for one fire).
 
 ## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
 
@@ -217,6 +258,39 @@ plus a ceiling assertion against per-effect multiplication. **Verified RED befor
 four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+
+## 2026-08-20 — Fix the Hatchery End-Turn burst spike (reset beatIdx during render)
+
+Owner probe caught it cold: the rune-badge pulse oscillated `0 → 2 → 0` in ~10ms at every combat start,
+firing the fight's whole trigger set at the instant of the End-Turn click, then resetting — on top of the
+correct per-summon bursts during the replay. Two earlier fixes on this branch failed; a deeper probe of the
+`triggeredQuests` memo (logging `beatIdx / beats.length / processedEnd / stale / refEq` on every non-empty
+result) is what finally pinned the mechanism.
+
+Root cause is a classic async-state gap. When a new `combat` object arrives, `beats`/`events` recompute in the
+same render (their memo dep is `[combat]`), but `beatIdx` only resets to 0 via `resetTo(0)` inside the
+`[combat]` **effect** — which runs a render LATER. So the first render of a new fight ran with the new fight's
+`beats` but the PREVIOUS fight's `beatIdx` (e.g. 7). `processedEnd = beats[6].end = 9` — a perfectly in-bounds
+beat end — already spans the early `questTrigger` event, so `triggeredQuests` returned `{rune_hatchery: 2}` and
+the one-shot badge burst fired. Then `resetTo(0)` landed, `processedEnd` dropped to 0, the pulse fell back to 0,
+and the real per-beat burst fired later during the actual replay.
+
+Why the prior guard missed it: `beatIdxIsStale` tried to DETECT the stale render via proxies — a `seenCombatRef`
+equality check and `beats[beatIdx - 1] === undefined`. The probe disproved both: the ref was already updated
+(`refEq: true`) because it's written synchronously in the same effect, and the new fight was long enough that
+`beats[6]` was defined (`stale: false`). Neither proxy holds on the stale render, so detection is the wrong
+strategy.
+
+Fix: eliminate the stale window instead of detecting it. Reset `beatIdx` to 0 **during render** the instant
+`combat` changes (React's supported "adjust state on prop change" pattern — a set-function called during render
+is applied before the component commits or renders children), so the first COMMITTED render of a new fight
+always has `beatIdx === 0` and `processedEnd === 0`. The `seenCombatRef` and its effect write are gone;
+`beatIdxIsStale` is reduced to a cheap defensive bounds check that can no longer trigger. The `[combat]` effect
+keeps only its imperative cleanup (GSAP kills, roll cancellation, summon-hold release).
+
+Verified: typecheck + lint (0 errors) + `npm test` (5905 passed) + build:web green. Both temporary DEV probes
+(`ascent.runeFxProbe`, `ascent.triggerProbe`) removed.
+
 ## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
 
 A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.

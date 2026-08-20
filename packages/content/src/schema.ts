@@ -479,13 +479,13 @@ export const EffectFactoryIdSchema = z.enum([
   // --- RUNE-ONLY minion batch (2026-08-20) ---
   'onGetRubyDuplicate',           // Gem Sage
   'goldSpentScaleSelf',           // Ancient Wanderer
-  'buffCurrentShopOffers',        // Night Market Horror
+  'buffShopOffersThisTurn',       // Night Market Horror
   'onSellDiscoverSingleton',      // Traveling Salesman
   'onGainAleBuffSelf',            // Kegheart Dwarf
   'onBuyGrantSpellSameTier',      // Ninefold Broker
   'endOfTurnCopyLeftmostHandCard',// Stonehorn Archivist
   'endOfTurnTransformLeftTierUp', // Skybound Ascendant
-  'spellCastConsumeShopRightmost',// Arcane Behemoth
+  'minionSoldDemonGainStats',     // Arcane Behemoth
   'onFriendDeathGainEcho',        // Echo Mimic
   'avengeSummonAttackImproving',  // Muster General
   'rallyDoubleSelf',              // Evolving Abomination

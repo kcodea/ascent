@@ -1,5 +1,68 @@
 # ASCENT — development log
 
+## 2026-08-20 — the owner's correction pass on the Aug-20 batch: Night Market this TURN, Skybound in real time, a new Arcane Behemoth, tribe runes pay on purchase
+
+Four owner reports against the rune batch that shipped the same day. Each is a different kind of miss — wrong
+channel, invisible presentation, wrong effect, missing payout — so they are listed separately.
+
+**1. Night Market Horror buffs the shop for the TURN, not the ROW.** Owner text: *"After you buy a card, give
+minions in the shop **+2/+2 this turn**."* The shipped card wrote per-offer buffs via `addOfferBuff`, so the
+grant died on a refresh; the owner wants it to SURVIVE rolling and reset after combat. That is exactly
+`tavernBuyBonusTurn`, the per-turn shop channel built for Rune of the Merchant's Chorus — it accumulates
+across rolls, `offerBuyStats` reads it beside the permanent `tavernBuyBonus`, and `advanceCombat` clears it at
+the rollover. Reused rather than duplicated: the rune's `shopTurn` branch and the card now both go through one
+new `addTurnShopBuff` helper. Factory renamed `buffCurrentShopOffers` → `buffShopOffersThisTurn` (schema,
+`EffectFactoryId`, both policy keys) so no stale name survives.
+
+*A display gap surfaced doing this, and is fixed here:* the shop row's `shopView` was passed only
+`run.tavernBuyBonus`, never the per-turn layer — so Merchant's Chorus's buff had never rendered on the offers
+either. It now folds both, with the same Fodder exclusion `offerBuyStats` applies, so the row and the buy agree.
+
+**2. Skybound Ascendant transforms in REAL TIME, and the text stops over-promising.** (a) The End-of-Turn
+tier-up resolved invisibly inside the commit: `withRecruitTrigger`'s consequence diff produced a stat delta and
+nothing else, so nothing ever told the projection the body had BECOME another card, and the swap appeared only
+after the phase flipped. The diff now snapshots each board card's `cardId` and emits a `cardTransformed`
+consequence when one changes in place — the consequence type and its projection fold (`transformedCards`)
+already existed with no producer. The UI consumes it: `displayBoard` swaps the identity in the SAME slot for
+the beat (stats keep coming from `eotAnimStats`, so nothing double-counts), and the `cardTransformed` presenter
+blooms the ascend flash the commit-time watcher and combat already use. Its policy was already `ownBeat`, so
+the transform gets a real animation window. (b) The Tier-7 clamp was audited and is CORRECT as shipped —
+`hasTier7Access(state) ? 7 : maxTierFor(state.rift)`, verified red-checked — but the printed *text* promised
+"up to **Tier 7**" on every run, which most runs cannot deliver. `ascendantTierText` prints **Tier 6** unless
+the run actually has access (Beyond the Summit's `summitTierText` pattern), wired into `liveCardText` and —
+new — into the combat chain, by threading `tier7Access` through `Unit.tsx`.
+
+**3. Arcane Behemoth is a different card.** Old: *"After you cast 3 Shop spells, Consume the right-most minion
+in the Shop."* New (owner): *"When you sell a **Demon**, this gains its stats."* Built on `minionSold` — the
+WATCHER side of a sale (`fireOnMinionSold`), the Grevlin & Co. hook — rather than the sold card's own
+`onSell`, because the reactor is a bystander; it fires after the body has left the board. Membership is
+`isTribe`, the one test in the codebase, which is what makes a second tribe and a `universalTribe` ("All
+types") body count, per the owner's note. It eats the sold body's LIVE stat line, and Golden doubles the meal.
+**Deleted, not merely replaced:** the `spellCastConsumeShopRightmost` factory, its schema/`EffectFactoryId`
+entries, its policy row, and `behemothProgressText` + its `instView` chain slot and test (the new text has no
+moving number, so it needs no live-text helper). Stats/tier/tribe unchanged (Demon, T6, 6/10).
+
+**4. The ten tribe-faucet runes pay IMMEDIATELY.** Owner report: taking Rune of Basic/Epic
+Beasts/Demons/Dragons/Dwarves/Kobolds granted nothing until the next turn setup. Same rule Rune of Ruby
+Resonance already follows ("buying a rune mid-turn should not feel like buying nothing"). The turn-setup body
+was extracted to `payTribeDrip` and the `runeTribeDrip` reward case now calls it once at purchase on top of
+pushing the recurrence — ONE payout function, so the tier cap, tribe filter and count cannot drift between the
+immediate grant and the recurring one. No double-pay: the Runeforge opens during a shop turn, after that
+turn's faucet has already run.
+
+**Verification.** New `packages/sim/src/ownerPassAug20.test.ts` (25 cases): the transform's beat identity,
+source and `toCardId` matching the committed board, capture-on byte-identity with plain `reduce`, and all ten
+tribe runes paying once at purchase and again next turn without double-paying. `runeMinionsAug20.test.ts`
+rewritten for Night Market (per-turn channel, a rerolled offer inheriting it, death at the rollover through a
+real `faceOmen`/`resolveCombat`) and the Behemoth (a Demon's live stats, a Kobold paying nothing, a
+universal-tribe body counting, golden doubling), plus two new Skybound clamp cases (6 without access, 7 with).
+23 of them verified RED with the fixes removed. Live pass on a throwaway run at :5394: a buy arms +2/+2 and
+every REROLLED offer renders it; selling a 9/9 Demon takes the Behemoth 6/10 → 15/19; taking Rune of Basic
+Dragon / Epic Kobolds puts 1 / 2 cards in hand on the spot; and driving the real End Turn control, the
+neighbour renders as `d2_mirrorwing` at Tier 2 in its own slot at t=150ms while the committed board still says
+`k_chipwick` (commit lands ≈450ms later, identical). Gates: typecheck ✅ lint 0 errors ✅ 6284 tests / 384
+files ✅ build:web ✅ harness deterministic ✅.
+
 ## 2026-08-20 — the six live-pass rulings: Grim's membership, Twilight stacks, Elderhorn in the shop, rune SoC replays, blue Rebirth, Sunmane combat-only
 
 Six owner rulings from the live Rune of Combat Prowess + Lasting Cadence pass, plus the establishing

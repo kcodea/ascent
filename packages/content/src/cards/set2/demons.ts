@@ -315,9 +315,10 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
     // NIGHT MARKET HORROR - it doesn't buff YOUR board, it buffs the SHOP, so the payoff is a second purchase
-    // this turn. "The CURRENT Shop" is the exact vocabulary split Contract Butcher documents: this rides each
-    // offer's own stat line, so it survives a freeze and dies on a refresh - unlike the permanent
-    // `tavernBuyBonus` channel, which is what "minions in the Shop" (no qualifier) means.
+    // this turn. THIS TURN, not this ROW (owner correction 2026-08-20): the grant is banked in the per-turn
+    // shop-wide channel `tavernBuyBonusTurn` (Rune of the Merchant's Chorus's), so it survives ROLLING the
+    // shop - every fresh offer inherits it - and it is gone at the turn rollover, after combat. The permanent
+    // sibling is `tavernBuyBonus`, which is what "minions in the Shop" with no qualifier would mean.
     //
     // Subscribed to BOTH buy events: `onBuy` is minions-only by contract, and the card says "a card", so the
     // spell-buy half rides `spellBought` rather than widening what every other buy watcher sees.
@@ -330,17 +331,18 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune
     effects: [
-      { on: 'onBuy', do: 'buffCurrentShopOffers', params: { attack: 2, health: 2 } },
-      { on: 'spellBought', do: 'buffCurrentShopOffers', params: { attack: 2, health: 2 } },
+      { on: 'onBuy', do: 'buffShopOffersThisTurn', params: { attack: 2, health: 2 } },
+      { on: 'spellBought', do: 'buffShopOffersThisTurn', params: { attack: 2, health: 2 } },
     ],
-    text: 'After you buy a card, give minions in the **current Shop +2/+2**.',
-    goldenText: 'After you buy a card, give minions in the **current Shop +4/+4**.',
+    text: 'After you buy a card, give minions in the shop **+2/+2 this turn**.',
+    goldenText: 'After you buy a card, give minions in the shop **+4/+4 this turn**.',
   },
   {
-    // ARCANE BEHEMOTH (rune-only, owner batch 2026-08-20) - the spell build's Demon: your casts feed it Shop
-    // minions. The meter is PER-INSTANCE (Mykel's `spellProgress`, remainder carried), so three spells means
-    // three since THIS body arrived - a Behemoth bought on turn 9 doesn't cash in the run's history the
-    // moment it lands.
+    // ARCANE BEHEMOTH (rune-only, owner batch 2026-08-20; effect REPLACED by the owner 2026-08-20) - the
+    // Demon build's cash-out: every Demon you sell rides into it. The watcher side of the sale
+    // (`minionSold`, fired by `fireOnMinionSold` for every BOARD minion) rather than the sold card's own
+    // `onSell`, because the reactor is a bystander. "A Demon" is `isTribe`, the ONE membership test - so a
+    // second tribe and an "All types" body both count (owner: "this would work with all types as well").
     id: 'dm_behemoth',
     name: 'Arcane Behemoth',
     tribe: 'demon',
@@ -349,8 +351,8 @@ export const SET2_DEMONS: CardDef[] = [
     health: 10,
     keywords: [],
     token: true, // forge-only: Source = Rune
-    effects: [{ on: 'spellCast', do: 'spellCastConsumeShopRightmost', params: { every: 3 } }],
-    text: 'After you cast **3 Shop spells**, Consume the **right-most** minion in the Shop.',
-    goldenText: 'After you cast **3 Shop spells**, Consume the **2 right-most** minions in the Shop.',
+    effects: [{ on: 'minionSold', do: 'minionSoldDemonGainStats', params: { tribe: 'demon' } }],
+    text: 'When you sell a **Demon**, this gains its stats.',
+    goldenText: 'When you sell a **Demon**, this gains **double** its stats.',
   },
 ];

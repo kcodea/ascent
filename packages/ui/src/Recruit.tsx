@@ -107,6 +107,7 @@ gsap.registerPlugin(Flip);
 // A stable empty keyword-overlay map, so the End-of-Turn keyword projection has a referentially-constant idle
 // value (no new Map() each render when nothing is projected).
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
+const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
@@ -522,6 +523,11 @@ interface ShopViewOpts {
   magneticBuyHp?: number;
   /** How many times a spell offer will cast right now (Nimbus doubling / Yazzus) — drives the "×N" badge. */
   castMult?: number;
+  /** The run-wide shop buy-bonus a purchased minion inherits: the PERMANENT `tavernBuyBonus` PLUS the
+   *  per-turn `tavernBuyBonusTurn` layer (Rune of the Merchant's Chorus, Night Market Horror). Both are
+   *  folded by the caller, exactly as `offerBuyStats` folds them — the shop row and the buy must agree, and
+   *  omitting the per-turn half meant a shop that promised +2/+2 and rendered the printed base (owner report
+   *  2026-08-20). */
   tavernAtk?: number;
   tavernHp?: number;
   /** Run-wide Deathrattles triggered this game — so a tavern Grim offer shows its live scaling buff. */
@@ -1404,6 +1410,8 @@ export function Recruit() {
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
   // Keywords gained on board minions during End-of-Turn playback — overlaid so the pip shows on the beat.
   const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
+  // uid -> the card it BECAME this End of Turn (Skybound Ascendant's tier-up), so the swap renders on the beat.
+  const [eotTransforms, setEotTransforms] = useState<ReadonlyMap<string, string>>(EMPTY_TRANSFORMS);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -2317,7 +2325,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - (run.cadenceMinionOff ? 1 : 0)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -2330,7 +2338,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier],
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier],
   );
   const spellView = useMemo(
     () => {
@@ -2388,11 +2396,18 @@ export function Recruit() {
   // pip shows on the beat. GUARDED: with nothing projected this is `run.board` by identity, so normal play (and
   // the memo below) is byte-identical — the injection only activates during an EoT that summons / grants a kw.
   const displayBoard = useMemo<BoardCard[]>(() => {
-    if (!eotSummons.length && !eotKeywords.size) return run.board;
+    if (!eotSummons.length && !eotKeywords.size && !eotTransforms.size) return run.board;
     const withKw = run.board.map((m) => {
+      // TRANSFORMED THIS BEAT (Skybound Ascendant): swap the identity IN PLACE, keeping the uid and slot, so
+      // the new card is rendered from the frame its beat lands rather than snapping in at the commit. Stats
+      // are NOT taken from the new def — `eotAnimStats` already carries the projected absolute values (the
+      // base-stat change arrived as this beat's `statsChanged`), so reading them here would double-count.
+      const became = eotTransforms.get(m.uid);
+      const def = became && became !== m.cardId ? CARD_INDEX[became] : undefined;
+      const base = def ? { ...m, cardId: def.id, tribe: def.tribe, keywords: [...new Set([...m.keywords, ...def.keywords])] as Keyword[] } : m;
       const add = eotKeywords.get(m.uid);
-      if (!add || add.size === 0 || [...add].every((k) => m.keywords.includes(k as Keyword))) return m;
-      return { ...m, keywords: [...new Set([...m.keywords, ...add])] as Keyword[] };
+      if (!add || add.size === 0 || [...add].every((k) => base.keywords.includes(k as Keyword))) return base;
+      return { ...base, keywords: [...new Set([...base.keywords, ...add])] as Keyword[] };
     });
     // SPLICED at each summon's committed slot (an Imp arrives ADJACENT to its summoner) rather than appended —
     // appending flashed every arrival right-most, then the commit "corrected" it (owner report 2026-08-20).
@@ -2406,7 +2421,7 @@ export function Recruit() {
       out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
     }
     return out;
-  }, [run.board, eotSummons, eotKeywords]);
+  }, [run.board, eotSummons, eotKeywords, eotTransforms]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
@@ -4377,7 +4392,19 @@ export function Recruit() {
       shopBuffed: () => { /* the shop climb is driven by the projection's shopStats */ },
       resourceChanged: () => { /* HUD counters read the projection */ },
       counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
-      cardTransformed: () => { /* transforms render from the committed state */ },
+      cardTransformed: (uid, toCardId) => {
+        // CHOREOGRAPHER: a shop-phase transform now plays ON ITS BEAT (owner report 2026-08-20 — Skybound
+        // Ascendant's tier-up "should happen in real time"). The swap itself rides the projection
+        // (`eotTransforms` → `displayBoard`); this is the flourish, the SAME ascend flash the commit-time
+        // watcher and combat both bloom, anchored on the transforming slot.
+        const el = findEl(uid);
+        if (!el) return;
+        const r = (el.querySelector<HTMLElement>('.archbox') ?? el).getBoundingClientRect();
+        const cfg = ASCEND_PRESETS[ascendPreset(toCardId, CARD_INDEX[toCardId]?.tribe ?? 'neutral')];
+        pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, {
+          flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
+        });
+      },
       keywordChanged: () => { /* keyword pips render from the projection */ },
       // ── PR 6: the beat-level sequences, now event-derived rather than hardcoded per effect ──
       questTendril: (kind, sourceId, targetUid, index) => {
@@ -4452,6 +4479,7 @@ export function Recruit() {
         setEotGrants(p.grantedCards.filter((g) => g.zone === 'hand').map((g) => g.cardId));
         setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId, index: g.index })));
         setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
+        setEotTransforms(p.transformedCards.size ? new Map(p.transformedCards) : EMPTY_TRANSFORMS);
       },
       onComplete: () => {
         setEotProcUids(new Set());
@@ -4463,6 +4491,7 @@ export function Recruit() {
         setEotGrants([]);
         setEotSummons([]);       // the real summoned cards are on run.board after commit
         setEotKeywords(EMPTY_KW); // the real keywords are on run.board after commit
+        setEotTransforms(EMPTY_TRANSFORMS); // the real (transformed) cards are on run.board after commit
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
         commitPresentationAction();

@@ -21,6 +21,17 @@ plated All-type card can't fall back to a tribe plate either.
 Five cards are affected: **Lab Experiment**, **Paragon**, **Standard Bearer**, plus **Perfect Core** and
 **Chaos Attachment** (tokens the owner hadn't spotted, misreading the same way).
 
+**Follow-up the same day — ALL now sits on the PLATE GEM, where every other tribe prints.** The first pass
+made the label correct but left it in the wrong place: "★ All" rendered inside the text drawer while every
+neighbouring card printed its tribe on the plate's bottom diamond (owner: "why is the 'all' tribe not in the
+right spot?"). The cause was a `&& !universalTribe` exclusion on `tribePlated`, which existed ONLY because the
+gem printed `TRIBE_LABEL[card.tribe]` — reading NEUTRAL for exactly these cards. With the flag now derived,
+the gem prints **ALL** instead and the exclusion is obsolete, so an All-type card is plated like any other and
+its label sits where the eye already looks. Unplated surfaces keep the drawer pill, same as every tribe does.
+Verified live: Standard Bearer / Paragon / Lab Experiment read ALL on the gem with no drawer pill, while
+Gangplank, Arnold and Beardsley still read Dwarf / Dwarf / Beast — and Deepdelve Paragon (a different card
+whose name merely contains "Paragon") correctly stays Kobold.
+
 **Art wired**: `dw_arnold`, `summoningbulwark`, `mightofaeon` — the only live cards that were missing it. An
 audit of every card found just those three plus the Set-3 scaffold (`c3_*`, not shipped) and a test fixture.
 

@@ -720,7 +720,12 @@ export const Card = memo(function Card({
   // class instead of patching each site. The view still WINS when it sets the flag, which is what carries
   // the INSTANCE-level case (`allTribes` — an Anomaly-Reactor'd body, which no def knows about).
   const universalTribe = card.universalTribe ?? !!CARD_INDEX[card.cardId]?.universalTribe;
-  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !universalTribe;
+  // An All-type card is PLATED like any other (owner report 2026-08-20: its "ALL" sat in the drawer while
+  // every neighbouring card printed its tribe on the plate's bottom gem). The old `&& !universalTribe`
+  // exclusion existed only because the gem printed `TRIBE_LABEL[card.tribe]`, which reads NEUTRAL for these
+  // cards — the gem now prints ALL instead, so the exclusion is obsolete and the label sits where the eye
+  // already looks for it.
+  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike;
   const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
@@ -798,8 +803,14 @@ export const Card = memo(function Card({
               instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
           {tribePlated && (
             <div className="plate-tribe" aria-hidden="true">
-              {TRIBE_LABEL[card.tribe]}
-              {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+              {/* ALL replaces the printed tribe for an every-type card — NEUTRAL would say the opposite of
+                  what it does. Plain text, no icon, exactly like every other tribe on this gem. */}
+              {universalTribe ? 'ALL' : (
+                <>
+                  {TRIBE_LABEL[card.tribe]}
+                  {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+                </>
+              )}
             </div>
           )}
         </>

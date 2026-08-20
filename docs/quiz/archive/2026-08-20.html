@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #8 — 2026-08-20</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #8</h1>
+    <p>2026-08-20 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "<code>simulate()</code> in packages/core/src/combat/simulate.ts doesn't return just one number — it returns one object shaped like <code>{ events, result, playerDamage, initial }</code>. In plain English, what does bundling several results into a single returned object let a function do?",
+    choices: [
+      "Nothing different — a function can only ever return one value no matter what",
+      "Return multiple related pieces of information from a single call, so the caller gets everything it needs without calling the function again",
+      "Make the function stop being \"pure\", since only pure functions can return more than one thing",
+      "Turn the function into a class, since only classes can hold multiple fields"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> A function can only literally return one value, but that one value can be an object (or array) carrying several pieces of data at once — exactly what <code>{ events, result, playerDamage, initial }</code> does, so a single call to <code>simulate()</code> hands the UI the event log, the winner, the damage dealt, and the starting board all together. A is wrong — that's true of the raw mechanism, but it misses that the \"one value\" can itself hold many fields. C is backwards — purity is about depending only on inputs and causing no side effects, it has nothing to do with how many fields the return value has. D is wrong — grouping data doesn't require a class; a plain object does the job."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "<code>npm run harness</code> (packages/tools, called out in CLAUDE.md's Commands section) runs <code>simulate()</code> on the same seed and boards and proves it behaves deterministically. If two runs of the exact same <code>simulate()</code> call ever produced different event logs, what would that actually tell you?",
+    choices: [
+      "That's expected — every combat should look a little different for variety",
+      "Something in the engine is reading from an unpinned source of state — like <code>Math.random</code> or the wall clock — instead of only the seeded Rng and its declared inputs",
+      "The RNG's <code>fork()</code> method is broken and should be removed",
+      "The UI just animated the replay slightly differently that time"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> Determinism means \"same inputs → same outputs, always\" — that's why CLAUDE.md bans <code>Math.random</code> in core/content/sim and routes everything through the seeded Rng. If two identical calls diverge, something outside the sealed inputs leaked in. A is wrong — variety comes from using a <em>different</em> seed, not from the same seed behaving inconsistently. C is wrong — <code>fork()</code> would only matter if the seed given to the two runs actually differed. D is wrong — the UI never gets a vote here; <code>simulate()</code> finishes computing the whole event log before any animation happens."
+  },
+  {
+    topic: "seeded-rng",
+    question: "packages/core/src/rng.ts gives <code>Rng</code> a <code>fork()</code> method so, say, a combat and an enemy-board build each get their own independent stream, instead of both pulling in sequence from one shared Rng. Why does that isolation matter?",
+    choices: [
+      "<code>fork()</code> makes the child stream non-deterministic, which enemy boards need to feel random",
+      "If every subsystem shared one sequence, adding a single extra random draw anywhere (a bug fix, a new card effect) would shift every later draw and silently change outcomes elsewhere — <code>fork()</code> gives each subsystem its own sequence so that ripple can't happen",
+      "It's purely a speed optimization — forking avoids recomputing the mulberry32 algorithm",
+      "<code>fork()</code> is only ever used in packages/ui, never inside the engine itself"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> A shared sequence means one extra draw anywhere shifts every subsequent one, silently changing outcomes for subsystems that had nothing to do with the change — bad for reproducible replays and balance testing. <code>fork()</code> derives a fresh, still fully-deterministic, independent Rng, isolating each subsystem's draws. A is wrong — forked streams are still deterministic, just independent, not random. C is wrong — the point is isolation of outcomes, not raw speed. D is wrong — the file's own doc comment gives \"a single combat, an enemy-board build\" as exactly the in-engine use case."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "Per CLAUDE.md, the UI \"animates the event log on its own clock\" and \"never computes outcomes.\" If a combat's full event log plays out on screen over 2 real seconds with attacks landing one at a time, roughly how long did <code>simulate()</code> itself take to decide the entire outcome?",
+    choices: [
+      "Also about 2 seconds — the sim and the animation run in step with each other",
+      "It varies, but it's a normal, un-paced function call — done essentially instantly, computing the whole fight before any animation starts",
+      "Exactly as long as the single longest attack takes to animate",
+      "There's no way to know without profiling every combat individually"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> <code>simulate()</code> is a plain synchronous function — it computes the entire fight (every attack, death, effect) and returns the finished event log before a single frame of animation happens. The 2-second playback is a purely UI-side pacing choice, decoupled from computation speed — that's the whole point of the sim/UI split in CLAUDE.md's Architecture section. A and C wrongly assume the two clocks are linked. D is unnecessary — this follows from <code>simulate()</code> being ordinary synchronous code, not something artificially paced, so no profiling is needed to know it finishes fast."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "packages/core/package.json's <code>\"exports\"</code> field only lists <code>\".\"</code> pointing at <code>./src/index.ts</code> — there's no declared way to import an internal file like <code>combat/simulate.ts</code> directly. If packages/ui imported straight from that internal path instead of from <code>@game/core</code>, what would that violate?",
+    choices: [
+      "Nothing — Node.js requires importing the exact file path, so this is the only valid way to do it",
+      "The package boundary: ui is supposed to depend on the other packages only through their public entrypoint, and reaching into an internal file leaks implementation details the package never promised to keep stable",
+      "The Math.random ESLint ban, since simulate.ts uses the Rng",
+      "Nothing architectural — it's only slightly slower to import that way"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> The <code>exports</code> field declares a package's public surface — anything not listed (like the internal path to <code>simulate.ts</code>) isn't meant to be imported from outside. CLAUDE.md's Monorepo section says it directly: \"ui depends on the others through public package entrypoints only — importing an internal means the boundary leaked.\" Reaching past the entrypoint couples ui to core's internal file layout, so core can't freely reorganize without breaking ui. C is wrong — that's an unrelated lint rule about randomness. A and D understate it — this is an architectural coupling problem, not a hard technical impossibility or a minor speed nit."
+  },
+  {
+    topic: "pure-functions",
+    question: "<code>simulate()</code> clones every minion into a fresh <code>Minion</code> instance before combat, rather than ever changing the <code>BoardMinion[]</code> arrays it was passed. Suppose a future change instead had it push new minion objects directly into the <code>player</code> array argument as summons happened mid-fight. What would that break?",
+    choices: [
+      "Nothing — arrays are meant to be modified in place, that's what they're for",
+      "Purity: the function would now have a side effect on something outside itself — any other code holding that same array reference (say, the run's board state) would see it silently change underneath it",
+      "Determinism, since arrays can't be seeded the way the Rng can",
+      "Only the UI package would be affected, not the engine's own correctness"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> A pure function only computes a return value from its inputs — it doesn't reach outside and change anything the caller can observe. Mutating a caller-supplied array is a classic side effect: if that same reference lives elsewhere in the run's state, mutating it mid-combat corrupts that other view of the data. C is wrong — determinism is about reproducibility from a seed, unrelated to whether an array gets mutated. D is wrong — this would corrupt packages/sim's run state, which the engine itself depends on, well before rendering is involved. A misses that \"can be mutated\" isn't the same as \"should be\", especially for a value someone else still holds a reference to."
+  },
+  {
+    topic: "data-vs-code",
+    question: "packages/content/src/schema.ts defines <code>GameEventSchema</code> as a zod <code>.enum([...])</code> listing roughly 30 exact event-name strings a card effect is allowed to subscribe to (<code>onSummon</code>, <code>onDeath</code>, <code>cast</code>, ...). Why a fixed <code>.enum()</code> instead of just typing that field as <code>string</code>?",
+    choices: [
+      "Performance — enums parse faster than plain strings in JavaScript",
+      "It rejects any event name that isn't one the engine actually knows how to fire, catching a typo like <code>\"onDeth\"</code> at content-load time instead of a card silently never triggering in a real game",
+      "zod requires every field to be an enum; plain strings aren't supported",
+      "It's purely for editor autocomplete and has no effect on validation"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> This is \"cards are data\" in action — a card effect names the event it subscribes to as plain data, and that data is validated before it's trusted. <code>.enum([...])</code> makes zod actively reject anything that isn't one of the real dispatched event names, so a typo fails loudly at load time instead of silently doing nothing during a real combat. A is wrong — the win here is correctness, not speed. C is false — zod's <code>z.string()</code> works fine for free-form text elsewhere in the schema. D undersells it — autocomplete is a nice side effect, but the schema's actual job is runtime validation."
+  },
+  {
+    topic: "event-log-replay",
+    question: "<code>simulate()</code>'s returned <code>CombatResult</code> includes an <code>initial</code> field — a snapshot of both sides' starting board — alongside the <code>events</code> array. Why bother returning the starting snapshot at all, instead of just the list of things that happened?",
+    choices: [
+      "It's redundant leftover data that the UI ignores",
+      "The UI needs a concrete starting point to render before applying events — a sequence of \"diffs\" like \"this unit took damage\" is meaningless without first knowing what was on the board",
+      "It's required by the seeded Rng in order to reproduce the same combat later",
+      "It exists only for the determinism test harness, not for real gameplay"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> The event log is a list of changes over time — to paint anything on screen, the UI first needs to know the board's starting layout (which minions, in what order, what stats) before applying the first event to it. <code>initial</code> is that frame-zero state the whole replay builds from. A is wrong — it's load-bearing for rendering, not dead weight. C is wrong — the Rng's own seed is what makes a combat reproducible, unrelated to this snapshot. D is wrong — it's used in every real gameplay replay, not just the test harness."
+  },
+  {
+    topic: "eslint-rules",
+    question: "eslint.config.mjs bans <code>Math.random</code> with a <code>no-restricted-properties</code> rule that includes a custom <code>message</code>: <code>\"Determinism: use the seeded Rng (makeRng) instead of Math.random in core/content/sim.\"</code> Why bother writing that custom message instead of letting ESLint print its generic \"restricted property\" error?",
+    choices: [
+      "The custom message is required — ESLint refuses to run <code>no-restricted-properties</code> without one",
+      "It turns a bare lint failure into an explanation: whoever hits it — a future contributor, or an AI agent — immediately learns why it's banned and what to use instead, right at the point of the mistake",
+      "It changes the rule from an error into a warning, so the build still passes",
+      "It only affects the terminal output; the editor's inline squiggly stays generic either way"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> The rule could ban <code>Math.random</code> with zero explanation, but the custom message bakes the reason (determinism) and the fix (use <code>makeRng</code>) directly into the error, teaching the architecture rule at the exact moment someone would otherwise break it — valuable in a codebase touched by multiple humans and AI agents. A is wrong — <code>message</code> is an optional field in ESLint's rule options. C is wrong — severity is set separately by the leading <code>'error'</code>, unaffected by the message text. D is wrong — the custom message shows up in editor tooltips too, not just the terminal."
+  },
+  {
+    topic: "performance-memo",
+    question: "docs/performance.md explains that the perf HUD's <code>long</code>/<code>jank</code> frame thresholds used to be fixed numbers (33ms / 50ms) but are now derived from the display's actual detected refresh rate. Why did the fixed numbers \"silently encode an assumed refresh rate,\" and what went wrong because of it?",
+    choices: [
+      "Nothing went wrong — fixed thresholds are simpler, and refresh rate doesn't actually affect frame timing",
+      "33ms/50ms are really 2/3 dropped frame-intervals <em>at 60Hz</em>; on a 240Hz display a frame budget is only 4.17ms, so it took roughly 8–12 dropped frames before the HUD flagged anything — the game was dropping frames continuously while the HUD reported a clean session",
+      "The fixed thresholds actively caused the frame drops, rather than just measuring them wrong",
+      "It only affected the <code>fps</code> counter, not the <code>long</code>/<code>jank</code> counts"
+    ],
+    answer: 1,
+    explanation: "<strong>B is correct.</strong> 33ms and 50ms look like neutral \"slow frame\" numbers but are really just 2 and 3 missed frame-intervals assuming 60Hz (16.67ms each). At 240Hz a single frame's budget is 4.17ms, so those same thresholds only tripped after 8–12 real dropped frames — meaning felt stutter was happening on screen while <code>long</code>/<code>jank</code> stayed at zero. A understates it — this was a real, hit bug per the doc, not a harmless simplification. C is wrong — the thresholds didn't cause drops, dropped frames were a real underlying issue; the thresholds just failed to detect them. D is wrong — <code>fps</code> is a separate, simple frame count unrelated to these derived thresholds."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

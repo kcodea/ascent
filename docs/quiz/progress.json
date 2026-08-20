@@ -5,17 +5,17 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 7,
+  "totalQuizzes": 8,
   "recentScores": [],
   "topics": {
-    "what-is-a-function": { "asked": 3, "lastAsked": "2026-08-18" },
-    "deterministic-sim": { "asked": 3, "lastAsked": "2026-08-18" },
-    "seeded-rng": { "asked": 3, "lastAsked": "2026-08-18" },
-    "sim-ui-decoupling": { "asked": 3, "lastAsked": "2026-08-18" },
-    "monorepo-packages": { "asked": 3, "lastAsked": "2026-08-18" },
-    "pure-functions": { "asked": 3, "lastAsked": "2026-08-18" },
-    "data-vs-code": { "asked": 3, "lastAsked": "2026-08-18" },
-    "event-log-replay": { "asked": 3, "lastAsked": "2026-08-18" },
+    "what-is-a-function": { "asked": 4, "lastAsked": "2026-08-20" },
+    "deterministic-sim": { "asked": 4, "lastAsked": "2026-08-20" },
+    "seeded-rng": { "asked": 4, "lastAsked": "2026-08-20" },
+    "sim-ui-decoupling": { "asked": 4, "lastAsked": "2026-08-20" },
+    "monorepo-packages": { "asked": 4, "lastAsked": "2026-08-20" },
+    "pure-functions": { "asked": 4, "lastAsked": "2026-08-20" },
+    "data-vs-code": { "asked": 4, "lastAsked": "2026-08-20" },
+    "event-log-replay": { "asked": 4, "lastAsked": "2026-08-20" },
     "types-basics": { "asked": 3, "lastAsked": "2026-08-19" },
     "immutability": { "asked": 3, "lastAsked": "2026-08-19" },
     "reducer-run-state": { "asked": 3, "lastAsked": "2026-08-19" },
@@ -26,8 +26,8 @@
     "effects-as-subscriptions": { "asked": 3, "lastAsked": "2026-08-19" },
     "effect-timing-pipeline": { "asked": 3, "lastAsked": "2026-08-19" },
     "testing-vitest": { "asked": 3, "lastAsked": "2026-08-19" },
-    "eslint-rules": { "asked": 2, "lastAsked": "2026-08-18" },
-    "performance-memo": { "asked": 2, "lastAsked": "2026-08-18" }
+    "eslint-rules": { "asked": 3, "lastAsked": "2026-08-20" },
+    "performance-memo": { "asked": 3, "lastAsked": "2026-08-20" }
   },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
@@ -105,6 +105,14 @@
       "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-17, asked=2 — the same group quiz #3 and #5 previously covered) since eslint-rules/performance-memo (lastAsked 2026-08-18) are now more recent. Re-read the real source for each topic (types.ts's TriggerFamily union, the CLAUDE.md lastCombat-by-reference vs clone-CardDefs contrast, reducer.ts's Action->RunState shape, store.ts's imports from @game/sim, CombatBus.emit()'s handler-array snapshot, sets.ts's SET3_SHARED_SPELL_IDS throw-on-missing lookup, the package.json exports field, EffectFactoryIdSchema, the Battlecry-bakes-before-combat rationale, and poolDeterminism.test.ts) and checked the #3/#5 archived HTML first to ensure all 10 angles were genuinely new, not reworded repeats."
+    },
+    {
+      "date": "2026-08-20",
+      "quizNumber": 8,
+      "difficulty": 1,
+      "topics": ["what-is-a-function", "deterministic-sim", "seeded-rng", "sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay", "eslint-rules", "performance-memo"],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-18, asked=2-3 — the same group quiz #4 and #6 previously covered) since the types-basics/immutability/... group (lastAsked 2026-08-19) is now more recent. Re-read the real source for each topic (simulate()'s CombatResult return shape, npm run harness in packages/tools proving determinism, rng.ts's fork() doc comment on per-subsystem isolation, the sim/UI clock split in CLAUDE.md, core's package.json exports field, simulate()'s clone-not-mutate discipline, schema.ts's GameEventSchema enum, the initial snapshot in CombatResult, eslint.config.mjs's no-restricted-properties message field, and docs/performance.md's refresh-rate-derived long/jank thresholds) and checked the #4/#6 archived HTML first to ensure all 10 angles were genuinely new, not reworded repeats."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

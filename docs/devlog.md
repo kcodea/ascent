@@ -39,6 +39,16 @@ estimate now folds in the defs column, so a card + referenced card + defs that w
 open on the left instead of lapping the hovered tile / right-side UI — and the defs render on the outward side
 when flipped so the column never lands back over the source.
 
+**Inspect layout pass (owner-tuned live):** in the Inspect overlay the defs column is pulled OUT of the flex
+flow — `position: absolute; left: 100%` off the card — so the CARD itself stays perfectly centred on screen
+(before, the card+defs row was centred, shoving the card left). The column is top-anchored to the card
+(`top: -15%`, a fixed fraction of the card height, so the top box sits the same regardless of tooltip count)
+and rolls downward, past the card's bottom if needed. The whole group lifts ~15% (`translateY` on
+`.inspect-card`, with the `inspectpop` entrance keyframe updated to rest at the same spot so there's no snap).
+The hover reveal mirrors this — top-aligned, lifted a FIXED `-14px` (not a percent of the column's own height,
+which lifted taller 4-tip columns too far while 2-tip ones sat right). Column width 200px in Inspect; box text
+settled at name 10px / def 8.4px.
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the

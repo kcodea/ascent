@@ -2343,12 +2343,16 @@ body.modalup .app { z-index: auto; }
 .inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
-.inspect-card { display: flex; align-items: center; gap: 10px; transform: scale(1.9); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.inspect-card { position: relative; display: flex; align-items: center; gap: 10px; transform: scale(1.9) translateY(-15%); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
 .inspect-card .card { animation: none; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* Reserve the plate overhang as margin (same as `.cardref .card.plated`) so the plate can't lap over the
-   buffs (left) or the keyword definitions (right) — the flex gap then sits clear of the plate, not the body. */
+   buffs (left) or the keyword definitions (right) — the gap then sits clear of the plate, not the body. */
 .inspect-card .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+/* Keyword defs are pulled OUT of the flex flow (owner 2026-08-20) and pinned to the card's right edge, so the
+   CARD stays perfectly centred on screen instead of the card+defs row being centred (which shoved the card
+   left). Top-anchored to the card, growing DOWNWARD — it may roll past the card's bottom, which is fine. */
+.inspect-card .kwdefs { position: absolute; left: 100%; top: -15%; margin-left: 12px; width: 200px; max-width: none; max-height: none; overflow: visible; }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
 /* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).
@@ -2366,14 +2370,20 @@ body.modalup .app { z-index: auto; }
    one family. Static DOM only — no animated paint. */
 .kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(144px, 25vw); max-height: min(72vh, 560px); overflow-y: auto; }
 .kwdefs::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* Hover reveal: match the Inspect layout — top-align the defs to the card (not vertically centred) and lift
+   them a touch so they start just above the card top and cascade DOWN. The lift is a FIXED offset (not a % of
+   the defs column's own height) so it stays put no matter how many tooltips there are — a % lifted taller
+   columns further, pushing 4-tip cards up while 2-tip cards sat right. `transform` is visual-only, so the
+   reveal's width/flip math (which counts the defs column) is unaffected. */
+.cardref .kwdefs { align-self: flex-start; transform: translateY(-14px); }
 .kwbox { background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); }
-.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
-.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 9.5px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
+.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 8.4px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: #b7a98f; font-style: normal; font-weight: 600; font-size: 8.5px; }
 .ib-amt { font-family: var(--font-ui); font-weight: 800; color: #3fd68f; flex: 0 0 auto; } /* buff green, lightened for the dark fill */
-@keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
+@keyframes inspectpop { from { opacity: 0; transform: scale(1.45) translateY(-15%); } to { opacity: 1; transform: scale(1.9) translateY(-15%); } }
 
 /* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.
    No base transition — the card tracks the cursor 1:1 for a snappy feel (not floaty); .snap / .magslide

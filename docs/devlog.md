@@ -34,6 +34,61 @@ four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
 
+## 2026-08-19 — spell-power audit: two stat spells silently fizzled in combat (Beefy, Lantern Light)
+
+**Owner report:** "Beefy is not getting spell power buffs."
+
+**The recruit path was already correct.** Audited every `on: 'cast'` factory that grants stats to friendly board
+minions — `spellBuffTarget`, `spellBuffAll`, `spellBuffRandomFriendlies`, `spellBuffTargetAndNeighbours`,
+`spellBuffLeftmost`, `spellBuffTargetEscalating`, `spellBuffByTier`, `spellBuffRandomPerTribe`,
+`spellBuffPerDragonPlayed`, `spellBuffHealthGrantFlurryDragon`, `spellBuffTargetPerGold`. **All eleven fold
+`spellAttackBonus` / `spellHealthBonus`.** Verified empirically, not by reading: Beefy cast from hand pays
++13/+12 at +5/+4 spell power (base +8/+8), pays exactly +8/+8 with no power, and Arnold's End-of-Turn
+cast-on-self pays the same +13/+12 through `applyCastEffects`. The printed card text is live too
+(`spellDisplayText` → `{{+13/+12}}`).
+
+**What was actually broken is narrower and worse: Beefy had no case in the COMBAT spell resolver.** It was
+absent from `resolveCombatSpellCast`'s switch *and* from `COMBAT_CASTABLE_SPELL_DOS`, so a Beefy cast mid-fight
+— Sporebat's Echo, Steward of Spells, Recaller, Ryme, any hand-spell re-fire — **fizzled entirely** rather than
+under-paying. From the player's chair "did nothing" and "missed its spell power" look identical, which is why
+the report arrived as the latter. Exactly the same failure, and the same fix, as Reinforcing Ale on 2026-08-08.
+
+Added `spellBuffTargetAndNeighbours` to the resolver (target + `livingNeighbours`, which walks outward past dead
+bodies — the combat-correct reading of "its neighbours" mid-fight), plus both registries
+(`COMBAT_CASTABLE_SPELL_DOS`, `COMBAT_TARGETED_SPELL_DOS`).
+
+**The audit test then found a second one: Lantern Light** (`spellBuffByTier`, "+1/+1 per Tavern Tier") had the
+same hole. Added, reading `ctx.tierFor(side)` so a served enemy scales on ITS tier rather than the player's.
+
+`spellBuffTargetPerGold` (Patch Job) stays out **deliberately**: its magnitude is "Gold spent this turn" and
+`CombatSideState` carries no gold, so resolving it mid-fight needs new plumbing rather than a switch case. That
+exemption is named in the test so the gap stays visible instead of being rediscovered as a bug later.
+
+New `spellPowerAudit.test.ts` pins both halves — the fold on every path (hand cast, zero-power baseline,
+Arnold's End of Turn, printed text) and the castability sweep that scans ALL content for "grants board stats but
+`combatCastable` is false". That sweep is the part that generalises: it will catch the next card added with a
+new stat factory and no resolver case.
+
+**Fixture note for future tests:** three minions of the SAME card id triple-combine and silently destroy the
+board mid-test. The new tests use three distinct ids and say so — this cost real time to rediscover.
+
+### Also investigated: the "2× stats then correct themselves" report (NOT fixed — see below)
+
+Owner also reported Arnold applying double stats which then snap back, and something similar in Ruby
+interactions. **The simulation is provably not the cause:** `projectEndOfTurnSteps` and the committed
+`faceOmen` state agree exactly, for plain AND golden Arnold (golden legitimately casts twice: +16/+16, both
+projection and commit). So this is a render transient over correct state.
+
+Ruled out so far: the `instView` override is a replacement (`override?.attack ?? inst.attack`), not additive;
+the Undead-aura fold can't double-count because the projection snapshots raw `c.attack` and the aura is
+display-only (and Arnold is a Dwarf anyway). Remaining suspects, both shared by the Ruby path the owner also
+saw it on: `fx/statHold.ts` (a hold is a DELTA to subtract, and same-origin holds ACCUMULATE — a re-placed hold
+is the documented hazard `rubyStatHoldGuard.test.ts` already guards one case of), and the `eotAnimStats`
+stash-then-drain in `Recruit.tsx`. Not chased further this PR: it is presentation-layer, it needs a live repro
+to pin, and driving the End-Turn beat loop needs a displayed browser pane.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5786/5788 tests
+pass** (2 pre-existing skips).
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
 **Sixth follow-up: the owner's first real-run audit (2026-08-19 night) — four playback-feel fixes.**

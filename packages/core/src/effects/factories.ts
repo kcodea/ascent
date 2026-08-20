@@ -496,6 +496,31 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
         for (const t of alive()) ctx.buff(t, a + sp.attack, h + sp.health, self.uid);
         did = true; break;
       }
+      // BEEFY (owner report 2026-08-19: "not getting spell power buffs"). The id was simply MISSING here, so a
+      // Beefy cast in combat — Sporebat's Echo, Steward / Recaller, Ryme, any hand-spell re-fire — fizzled
+      // outright rather than under-paying. Same failure mode, and the same fix, as Reinforcing Ale above.
+      // Buffs the chosen target and its LIVING neighbours, mirroring the recruit factory (which finds the
+      // target's board index and takes i-1 / i / i+1). `livingNeighbours` walks outward past dead bodies,
+      // which is the combat-correct reading of "its neighbours" mid-fight.
+      // LANTERN LIGHT — found by the same audit, same failure: "+1/+1 per Tavern Tier" had no case here, so a
+      // combat re-fire did nothing. `tierFor` is per-side, so a served enemy scales on ITS tier, not the
+      // player's — matching how every other snapshot-backed scaler reads in combat.
+      case 'spellBuffByTier': {
+        const t = ctx.tierFor(side);
+        for (const m of chosen()) ctx.buff(m, t + sp.attack, t + sp.health, self.uid);
+        did = true; break;
+      }
+      case 'spellBuffTargetAndNeighbours': {
+        const seen = new Set<Minion>();
+        for (const t of chosen()) {
+          for (const m of [t, ...livingNeighbours(ctx, t)]) {
+            if (m.dead || m.health <= 0 || seen.has(m)) continue;
+            seen.add(m);
+            ctx.buff(m, a + sp.attack, h + sp.health, self.uid);
+          }
+        }
+        did = seen.size > 0; break;
+      }
       // Reinforcing Ale (owner report 2026-08-08: Sporebat's Echo cast it and nothing happened — the id was
       // simply missing here, so the cast fizzled). "Your most common type" resolves against this side's
       // LIVING board, both tribes counted, ties to the left-most seen — then the grant rides the same
@@ -590,7 +615,7 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
 
 /** The targeted spells `resolveCombatSpellCast` can actually execute — Badgington's random pool. Extend BOTH
  *  when a targeted family lands in the resolver. */
-const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEscalating', 'rubyStatGain']);
+const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEscalating', 'rubyStatGain', 'spellBuffTargetAndNeighbours', 'spellBuffByTier']);
 
 /** Every effect id the resolver's switch executes — the PURE half of the resolvability question, so a caller
  *  can decline to cast at all (and never count a cast) when the spell would fizzle. Kept beside the switch:
@@ -600,6 +625,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
   'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
+  'spellBuffTargetAndNeighbours', 'spellBuffByTier', // Beefy + Lantern Light (2026-08-19)
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,

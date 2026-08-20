@@ -56,3 +56,64 @@ describe('Rune of Aftershocks fires once per Echo TRIGGER', () => {
     expect(grants, 'the Matron observing a death is not an Echo trigger').toBe(0);
   });
 });
+
+/**
+ * FORCED Echo triggers count too (owner report 2026-08-20: "only triggering when an echo minion dies — it
+ * should trigger when an Echo is triggered, so things like echohorn, hawkus etc").
+ *
+ * The cause was structural: `triggerEcho` (the shared body behind Echohorn Stag / Hawkus / Spots) and two
+ * runes fired the target's `onDeath` factories DIRECTLY, so they never passed the `asEcho` chokepoint where
+ * this rune (and Rune of the Burrow) live. Nothing about the rune was wrong — it was simply never told.
+ * Each case below drives a real forced trigger with NO death and asserts the rune paid.
+ */
+describe('a FORCED Echo trigger pays the rune, with no death involved', () => {
+  // A wall that cannot kill anything and cannot die: every grant below therefore comes from a forced
+  // trigger, never from a death. `pack` (Wolf Pack) carries a real onDeath effect — it is the Echo body.
+  const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40000 }];
+  const grantsOf = (r: ReturnType<typeof sim>) =>
+    r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
+
+  it('ECHOHORN STAG — its Rally-proc’d Echo fires the rune', () => {
+    const board: BoardMinion[] = [
+      { cardId: 'b2_echohorn', attack: 4, health: 40000, keywords: ['RL'] },
+      { cardId: 'pack', attack: 0, health: 40000 },
+    ];
+    expect(grantsOf(sim(board, wall, { runeAftershocks: true })), 'the Stag’s forced Echo paid nothing').toBeGreaterThan(0);
+    expect(grantsOf(sim(board, wall, {})), 'unarmed pays nothing').toBe(0);
+  });
+
+  it('HAWKUS — an ally Rally forcing the left-most Echo fires the rune', () => {
+    const board: BoardMinion[] = [
+      { cardId: 'pack', attack: 0, health: 40000 },
+      { cardId: 'b2_hawkus', attack: 4, health: 40000 },
+      { cardId: 'sandbag', attack: 4, health: 40000, keywords: ['RL'] }, // the Rally that Hawkus watches
+    ];
+    expect(grantsOf(sim(board, wall, { runeAftershocks: true })), 'Hawkus’ forced Echo paid nothing').toBeGreaterThan(0);
+  });
+
+  it('SPOTS — its Start-of-Combat Echo triggers fire the rune', () => {
+    const board: BoardMinion[] = [
+      { cardId: 'pack', attack: 0, health: 40000 },
+      { cardId: 'b2_spots', attack: 0, health: 40000, keywords: ['SC'] },
+    ];
+    expect(grantsOf(sim(board, wall, { runeAftershocks: true })), 'Spots’ forced Echoes paid nothing').toBeGreaterThan(0);
+  });
+
+  it('RUNE OF THE HERALD — its board-wide Echo trigger fires the rune', () => {
+    const board: BoardMinion[] = [{ cardId: 'pack', attack: 0, health: 40000 }];
+    expect(grantsOf(sim(board, wall, { runeAftershocks: true, runeHerald: true })), 'the Herald’s Echoes paid nothing').toBeGreaterThan(0);
+    expect(grantsOf(sim(board, wall, { runeHerald: true })), 'the Herald alone grants no Aftershocks').toBe(0);
+  });
+
+  it('a forced trigger still grants ONCE per trigger — no per-effect multiplication', () => {
+    // The regression this rune has already had twice: one trigger of one body must be one grant per living
+    // minion, never one per Echo EFFECT on that body. Spots forces exactly the Echoes it names.
+    const board: BoardMinion[] = [
+      { cardId: 'pack', attack: 0, health: 40000 },
+      { cardId: 'b2_spots', attack: 0, health: 40000, keywords: ['SC'] },
+    ];
+    const grants = grantsOf(sim(board, wall, { runeAftershocks: true }));
+    // 2 living bodies × at most a couple of forced triggers — a hard ceiling far under a per-effect blowup.
+    expect(grants, `runaway: ${grants} grants from a Start-of-Combat forced trigger`).toBeLessThan(20);
+  });
+});

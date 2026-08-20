@@ -419,11 +419,21 @@ export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): v
   const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
   for (let r = 0; r < procs; r++) {
     ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-    ctx.countDeathrattle?.(target.side);
-    for (const effect of target.effects) {
-      if (effect.on !== 'onDeath') continue;
-      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-    }
+    // Route through the ECHO-TRIGGER chokepoint (`ctx.asEcho`), so the "an Echo fired" runes — Aftershocks
+    // (+4/+4 to the board), Burrow (a free refresh on a Beast Echo) — see a FORCED trigger exactly like a
+    // death-fired one. Owner report 2026-08-20: Aftershocks only fired on a real death, because this loop
+    // called the `onDeath` factories directly. ONE wrap per proc (a body with two Echo effects is still one
+    // trigger; each multiplier proc is its own). Falls back to a bare run when no chokepoint is supplied,
+    // so a context without it (tests, the recruit-phase arena) behaves exactly as before.
+    const fire = (): void => {
+      ctx.countDeathrattle?.(target.side);
+      for (const effect of target.effects) {
+        if (effect.on !== 'onDeath') continue;
+        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+      }
+    };
+    if (ctx.asEcho) ctx.asEcho(target.side, fire, target);
+    else fire();
   }
 }
 

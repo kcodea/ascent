@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-08-20 — Buffs panel: Veinstorm Stats row + "Tavern buys" renamed to "Shop Stats"
+
+UI-only, no engine change (`packages/ui/src/runBuffs.ts`). Owner ask 2026-08-20: reverses the earlier "Veinstorm
+has no row here" note — added a `{ key: 'veinstorm', label: 'Veinstorm Stats', value: '+atk/+hp' }` row that
+reads the banked Ruby stamp in `run.veinstormRubies` (the +atk/+hp every shop offer carries, re-landed on each
+fresh roll by `spellBuffShopByRuby`), guarded to non-zero like the panel's other rows. Also renamed the existing
+`tavern` row's label from `'Tavern buys'` to `'Shop Stats'` (its `key` is unchanged, so nothing downstream that
+matches on `key` breaks).
+
+Verified: new `runBuffsPanel.test.ts` cases (`Buffs panel — Veinstorm Stats + Shop Stats rename`) — row appears
+with the correct value when the bank is set, is absent when the bank is missing/zero, and the tavern row's label
+reads `'Shop Stats'`; confirmed red before the source edit, green after. Full gate green:
+`npm run typecheck && npm run lint && npm run build:web`.
+
 ## 2026-08-20 — Buffs panel: new default geometry (owner tuning pass)
 
 Owner feel pass via the 🧪 Buffs Panel tuner. Updated `BuffDrawerConfig` DEFAULTS

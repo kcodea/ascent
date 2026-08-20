@@ -1,8 +1,10 @@
 # ASCENT
 
-A single-player roguelike auto-battler. Build a board in a Battlegrounds-style shop, then fight a
-**17-round course** of enemy boards. The goal is to **cover the rating-driven Line**; clearing the whole
-course is a bonus achievement on top.
+A deterministic, **asynchronous auto-battler**. Build a 7-slot board in a Battlegrounds-style shop, then
+fight auto-resolved combats inside an **eight-seat elimination lobby**. Your opponents are other players'
+recorded runs (plus generated seats to fill the table) — so a lobby never needs two people online at once.
+Armor absorbs before Health, seats at zero are eliminated, and your **final placement** is what moves your
+ladder Rating.
 
 > **Rules & systems:** [`docs/GAME-RULES.md`](docs/GAME-RULES.md). **Content counts:**
 > [`docs/CONTENT.md`](docs/CONTENT.md). **Architecture & conventions:** [`CLAUDE.md`](CLAUDE.md).

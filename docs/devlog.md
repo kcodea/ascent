@@ -1,5 +1,35 @@
 # ASCENT — development log
 
+## 2026-08-20 — the agent contract stops describing a retired game
+
+`CLAUDE.md` still opened with "a **17-round course** of enemy boards — the central success contract is
+**covering the rating-driven Line**." The live `Play` route is the eight-seat elimination lobby and has been
+for weeks. That is not cosmetic: an agent reasoning from that sentence makes structurally wrong calls about
+matchmaking, scoring, replays and telemetry — the replay v2 spec had to re-derive "the only game mode is
+lobby" from scratch because the contract did not say it.
+
+Corrected, with every claim re-verified against code first:
+
+- **`CLAUDE.md`** opens on the lobby: 8 seats, seat 0 is the player, ONE authoritative `simulate()` per
+  encounter supplying both sides' damage, Armor before Resolve, placement drives Rating, asynchronous by
+  design. A standing ⚠️ block names the retired constants (`courseRounds`, `defaultLine`,
+  `calibrationRounds`, `metLine`) as LEGACY-BUT-LIVE — still read by tools, old replays and non-lobby modes —
+  with the rule "never infer current behaviour from a legacy symbol alone", and states that `maxRounds: 60`
+  is a stalemate backstop rather than a course length.
+- **`docs/GAME-RULES.md`** — the course + Line sections replaced by the verified lobby model
+  (`DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`).
+  Matchmaking now says plainly that a lobby faces the PAIRED SEAT, and that the pool-based `pickOpponent`
+  path serves only non-lobby modes — which is exactly why injecting served boards into a lobby replay
+  changed nothing. The loss-damage cap is restated without "the finale", since a long lobby is simply
+  uncapped past round 15.
+- **`README.md`** opening + **`package.json`** description. The description also carried a **mojibake
+  em-dash** (`â€”`, a UTF-8-as-latin1 round trip) that predates this change — now real UTF-8.
+
+Deliberately NOT done here: no code, no gameplay, no skills. Kept every hard-won specific in `CLAUDE.md`
+(the `kwglow` paint rule, `insertRectsRef`, the worktree `@game/*` symlink trap, `poolOf` vs `activeSet`,
+the org-level `verify` ruleset) — a rewrite that trades those for general principles would be more correct
+and less useful. Gates: typecheck ✅ lint 0 errors ✅ 6294 tests / 385 files ✅ build:web ✅.
+
 ## 2026-08-20 — Rune of Pillaging + Rune of Soul Taxes enabled and repriced
 
 Owner: "can we enable rune of the pillager and rune of soul taxes? those minions wont be in the shop, but it's

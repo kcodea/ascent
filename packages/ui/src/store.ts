@@ -166,6 +166,9 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       // A minion that arrives WITH Taunt (innate or self-granted on play) — fire the bulwark "thunk" as the
       // silver shield deploys behind it. (The board-wide grant check below skips it: it's new to the board.)
       if (next.board.find((m) => m.uid === action.uid)?.keywords.includes('T')) sfx.taunt();
+      // A minion that arrives WITH Ward ('DS') — play the same shield cue combat uses when Ward is applied, so
+      // playing a warded unit in the shop reads audibly too (owner ask 2026-08-19).
+      if (next.board.find((m) => m.uid === action.uid)?.keywords.includes('DS')) sfx.shield();
       break;
     }
     case 'sell': sfx.sell(); break;
@@ -174,7 +177,9 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
     case 'reposition': case 'reorderShop': sfx.reorder(); break;
     case 'upgrade': sfx.upgrade(); break;
     // hero power: the "pulse" cue plays on the button press (StatusBar), so no per-action sound here.
-    case 'discover': sfx.buy(); break;
+    // Committing a choice from ANY offer — a Discover pick, a Choose One option, a Rune bought — plays the one
+    // dedicated "select" cue (owner ask 2026-08-19).
+    case 'discover': case 'chooseOne': case 'buyRune': sfx.discoverSelect(); break;
     case 'faceOmen': sfx.combatStart(); break;
     default: break;
   }
@@ -188,6 +193,10 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
   // skips minions bought/played already-Taunt; only granted Taunt, e.g. Bulwark/a hero power, fires it).
   const wasTaunt = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('T')]));
   if (next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();
+  // A friendly minion was just GIVEN Ward ('DS') in the shop — it was on the board WITHOUT Ward and now has it
+  // (skips minions bought/played already-warded, handled on-play above). Plays the same shield cue as combat.
+  const wasWard = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('DS')]));
+  if (next.board.some((m) => m.keywords.includes('DS') && wasWard.get(m.uid) === false)) sfx.shield();
   if (countGolden(next) > countGolden(prev)) sfx.triple();
 }
 

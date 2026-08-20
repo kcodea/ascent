@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Choose One / offer polish** — Choose One options now wear the carved card plate; the outdated squared glow behind offer cards (Choose One / Discover / Scouted) is gone; hovering an option ticks once, not twice; committing any offer pick (Discover / rune / Choose One) plays a new "discover select" cue; and playing or being granted **Ward** in the shop now plays the combat shield sound.
+
 - **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.
 
 - **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.
@@ -53,6 +55,7 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Arnold** (T6 Dwarf who Beefies himself every turn), **Rune of the Embers** (each refresh doubles the right-most Shop minion's Health), and Gemline Martyr back to an End-of-Turn Veinstorm.
 - **Rune art wired (24 pieces)** plus the Baller's live "next payout" pill, reworks to the Wild Hunt, the Burrow and the Tip Jar, and a new **Summoning Bulwark** spell.
 - **Big rune batch — 6 reworks + 27 new runes.** Basic and Epic faucets for every tribe, plus Refraction, Ruby Resonance, Hoardflame, Glider, Drake Skull, Catacomb, Pendant, Ornate Clock, Herding Horn, Bubble Crown, War Drum, Baller, Wishbone (your Hero Power triggers twice — now doubling all 20 heroes on the roster, including Flash's mark paying out 2 copies), Deathtouched Apple, Held Strength, Chipper Sticker, Rising Echoes and Might. Reworks: Blart, Kindling, Infernal Ink, Merchant's Chorus, Reliquary. Also adds the **Might of Aeon** Shop Spell.
+
 - **End Turn gem glow matches the Freeze gem** — the End Turn diamond's hover glow now sits behind the gem and above the bronze base (a drop-shadow on the gem itself), copied from the Freeze gem, instead of floating over the housing on a separate layer.
 
 - **The locked third rune slot wears chains** — most runs only get 2 runes (forge turns 6 & 9), so the third slot shows chains from the start as "not possible yet." When a hero/rune unlocks a 3rd (Runesmith, Guardian, Rune of the Epic Forge, Rune of Duplication), the chains **shatter** 1000ms later with a burst-and-shockwave FX. Position/size tunable in the 💠 Rune Sheen tuner.

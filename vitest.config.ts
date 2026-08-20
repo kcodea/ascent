@@ -12,6 +12,11 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
     __BUILD_SHA__: JSON.stringify('test'),
   },
+  // Use the automatic JSX runtime (matches `apps/web/tsconfig.json`'s `jsx: react-jsx`) so a test that
+  // transitively imports a JSX-using UI module (e.g. the glossary drift test importing `MinionBook`, which
+  // pulls in `Icon.tsx`) doesn't crash on collection with `React is not defined`. Vitest's default esbuild
+  // JSX transform is the classic runtime, which needs a React global these leaf modules never import.
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       '@game/core': resolvePath('./packages/core/src/index.ts'),

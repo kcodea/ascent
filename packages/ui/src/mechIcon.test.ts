@@ -3,6 +3,7 @@ import { ALL_CARDS, CARD_INDEX } from '@game/content';
 import type { CardView } from './Card';
 import { resolveMechIcon } from './mechIcon';
 import { MECHANICS } from './mechanics';
+import { GLOSSARY_MECHANIC_IDS } from './MinionBook';
 
 // A minimal CardView from a real card def (the resolver only reads cardId, keywords, text).
 const view = (cardId: string): CardView => {
@@ -40,6 +41,13 @@ describe('resolveMechIcon', () => {
   });
   it('vanilla token → null (blank badge)', () => {
     expect(resolveMechIcon(view('pup'))).toBeNull();
+  });
+});
+
+describe('glossary ↔ registry (no drift)', () => {
+  it('every glossary mechanic row is backed by a MECHANICS entry', () => {
+    const ids = new Set(MECHANICS.map((m) => m.id));
+    for (const id of GLOSSARY_MECHANIC_IDS) expect(ids.has(id), `glossary row ${id}`).toBe(true);
   });
 });
 

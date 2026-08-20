@@ -42,6 +42,21 @@ table covers both phases.
 
 ## Papercuts
 
+### Saving from the workbench SILENTLY DROPS layer-level fields it has no control for (`bow`)
+**Hit:** 2026-08-20, tuning `fel-spike`. The def had `"bow": 0` on its ribbon layer (set by hand in the JSON —
+it makes the source→target beam run dead straight instead of the default curved arc). `bow` is a LAYER field
+(`FxLayer.bow`), not a `param`, and the workbench has no control for it — so when the owner re-tuned the def in
+the workbench and saved, the save wrote back only the fields the workbench knows about and `bow` vanished. The
+straight beam silently reverted to a curve. Same class of loss would hit any other hand-authored layer field.
+**Also seen the same save:** every `fieldPhase` (a real param, with a control) came back `0` — the owner's
+workbench buffer predated the value being set to `0.5`, so the save overwrote it. Both had to be re-applied by
+hand after the save.
+**Workaround:** diff the saved def against the committed one, and re-add the dropped fields.
+**Cost:** every workbench save is potentially lossy for anything not surfaced as a control; you only catch it by
+diffing. A wiring/authoring round-trip that looked done needed a manual patch.
+**Fix:** the save should PRESERVE unknown/unedited fields on the layer (merge over the loaded def, don't
+rewrite from the control set), and/or surface `bow` as a per-layer control so it round-trips like every param.
+
 ### The def-level ease control is much taller than the bar it sits in
 **Hit:** 2026-08-10, adding the ease dial. The control works — `CurveEditor` was exported and reused, so it
 behaves exactly like every per-param curve — but a curve editor is ~150px tall and the transport bar's other

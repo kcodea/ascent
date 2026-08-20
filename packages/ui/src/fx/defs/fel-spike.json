@@ -27,13 +27,13 @@
         "erode": 1.09,
         "gain": 1.6,
         "head": 0.05,
-        "tail": 1.4,
+        "tail": 0.3,
         "soft": 2.2,
         "length": 700,
         "width": 15,
         "alpha": 1,
         "headPinch": 0.05,
-        "tailFeather": 1.65,
+        "tailFeather": 0.55,
         "widthCurve": [
           [
             0,
@@ -64,7 +64,7 @@
         "count": 23,
         "interval": 100,
         "spread": 0.18,
-        "aimMode": "travel",
+        "aimMode": "sourceToTarget",
         "angle": -90,
         "speed": 625,
         "speedVar": 0.8,
@@ -163,10 +163,10 @@
       "at": 270,
       "travelMs": 10,
       "params": {
-        "count": 70,
+        "count": 97,
         "interval": 100,
         "spread": 0.1,
-        "aimMode": "travel",
+        "aimMode": "sourceToTarget",
         "angle": -90,
         "speed": 805,
         "speedVar": 0.8,
@@ -181,7 +181,7 @@
             1
           ]
         ],
-        "drag": 0.885,
+        "drag": 0.905,
         "gravity": 40,
         "pointGravity": 0,
         "life": 1500,
@@ -265,12 +265,12 @@
       "at": 270,
       "travelMs": 10,
       "params": {
-        "count": 42,
+        "count": 80,
         "interval": 100,
         "spread": 1,
         "aimMode": "fixed",
         "angle": -90,
-        "speed": 625,
+        "speed": 1445,
         "speedVar": 0.8,
         "reverse": false,
         "speedCurve": [

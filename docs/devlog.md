@@ -28,6 +28,12 @@ because a Deathrattle AoE is **sourceless and dead** by the time it lands — un
 
 The `fel-spike` def's ribbon gets `bow: 0` so the beam runs dead straight (owner: the arc read as a curve).
 
+Owner then tuned the def in the workbench (tighter ribbon tail/feather, `aimMode: sourceToTarget` on the source
++ first target burst, denser/faster target bursts). That save silently DROPPED the hand-authored `bow: 0` (a
+layer field with no workbench control) and reset every `fieldPhase` to 0 — both re-applied by hand over the
+owner's tuning; logged in [`docs/fx-workbench-friction.md`](fx-workbench-friction.md) (workbench save should
+preserve fields it has no control for).
+
 Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'struck' } }`. The `struck` fan-out is new — like
 `damaged`, but it also fires at a unit whose **Ward absorbed the hit** (a `shield` pop, no `dmg`): the spike
 connects and the Ward shatters even though no damage landed (owner ruling 2026-08-20). It shares one code path

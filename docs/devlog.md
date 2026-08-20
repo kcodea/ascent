@@ -17,10 +17,16 @@ because a Deathrattle AoE is **sourceless and dead** by the time it lands — un
   event tests are unaffected. Added `momentUnits` fallback in the score's `fxDef` channel: a wave can LEAD with a
   sourceless Divine-Shield pop, so when the primary has no source it recovers the dealer from the first `dmg`
   event's own `source`.
-- **The dying body is kept on screen for its own eruption.** Fel Spikes leaves the board the beat before its
-  Echo fires, so the volley's origin anchor would resolve to nothing. `computeFrame` now retains a dead unit for
-  the beat window in which it is still the SOURCE of damage — it lingers exactly for its volley and is gone the
-  next beat. Sourceless damage retains nothing, so ordinary trades and the resting end-frame are untouched.
+- **The dead body's SLOT is held for its own eruption — but the body stays invisible.** Fel Spikes leaves the
+  board the beat before its Echo fires, so the volley's origin anchor would resolve to nothing. `computeFrame`
+  now retains a dead unit for the beat window in which it is still the SOURCE of damage, flagged `ghost`:
+  `Unit` renders a ghost with `visibility: hidden`, so it keeps its layout box (the volley launches from its
+  slot and the board doesn't reflow into the gap) while the corpse itself is NOT redrawn — it plays its death
+  fade once and stays gone, instead of vanishing and re-emerging (owner report 2026-08-20). It lingers exactly
+  for its volley and is gone the next beat; sourceless damage retains nothing, so ordinary trades and the
+  resting end-frame are untouched.
+
+The `fel-spike` def's ribbon gets `bow: 0` so the beam runs dead straight (owner: the arc read as a curve).
 
 Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'struck' } }`. The `struck` fan-out is new — like
 `damaged`, but it also fires at a unit whose **Ward absorbed the hit** (a `shield` pop, no `dmg`): the spike

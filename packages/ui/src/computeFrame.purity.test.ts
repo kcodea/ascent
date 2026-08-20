@@ -71,10 +71,12 @@ describe('computeFrame retains a dead unit while its own damage is landing', () 
     { type: 'attack', attacker: 'ally', defender: 'victim', step: 3 },                          // 2: a later, unrelated beat
   ] as unknown as CombatEvent[];
 
-  it('keeps the dead dealer on screen for the beat its Echo damage lands', () => {
+  it('keeps the dead dealer on screen — as an invisible ghost — for the beat its Echo damage lands', () => {
     // Beat window [beatStart 1, upto 2): the death (index 0) is already past, so `fs` is `gone` — but it is the
-    // source of the damage in this window, so it is retained.
-    expect(computeFrame(boards, echo, 2, 1, names).player.map((u) => u.uid)).toContain('fs');
+    // source of the damage in this window, so it is retained, flagged `ghost` (rendered invisible, holds slot).
+    const fs = computeFrame(boards, echo, 2, 1, names).player.find((u) => u.uid === 'fs');
+    expect(fs).toBeDefined();
+    expect(fs!.ghost).toBe(true);
   });
 
   it('drops it the next beat, once it is no longer dealing damage', () => {

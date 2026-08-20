@@ -128,6 +128,11 @@ export interface UnitFrame {
   keywords: Keyword[];
   divineShield: boolean;
   alive: boolean;
+  /** A DEAD unit kept on the board ONLY to anchor its own still-playing FX (a Deathrattle whose Echo fires a
+   *  beat after the body left — Fel Spikes' spike volley). Rendered INVISIBLE, but it holds its slot so the
+   *  board doesn't reflow into the gap until the effect finishes. Set by `computeFrame`'s damage-source
+   *  retention; never on a live unit. */
+  ghost?: boolean;
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
@@ -431,7 +436,11 @@ export function computeFrame(
     const e = events[i];
     if (e?.type === 'dmg' && typeof e.source === 'string') dealingSources.add(e.source);
   }
-  const keep = (u: UnitFrame): boolean => !gone.has(u.uid) || dealingSources.has(u.uid);
+  const keep = (u: UnitFrame): boolean => {
+    if (!gone.has(u.uid)) return true;
+    if (dealingSources.has(u.uid)) { u.ghost = true; return true; } // kept ONLY to anchor its own FX → invisible
+    return false;
+  };
   return { player: player.filter(keep), enemy: enemy.filter(keep) };
 }
 

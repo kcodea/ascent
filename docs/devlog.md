@@ -1,4 +1,10 @@
-# ASCENT — development log
+# ASCENT — development log (ARCHIVE through 2026-08-20)
+
+> **Do not add entries here.** New entries are one file each in **[`devlog/`](devlog/)** —
+> see [`devlog/README.md`](devlog/README.md). Prepending to this file is what made every concurrent
+> session conflict on the same line; the split exists to end that. This archive stays as-is for reading,
+> newest first.
+
 
 ## 2026-08-20 — the agent contract stops describing a retired game
 

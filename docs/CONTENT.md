@@ -1,55 +1,47 @@
-# ASCENT — Content Snapshot
+# ASCENT — Content Reports (generated, never hand-maintained)
 
-**⚠️ This is a point-in-time snapshot (verified 2026-07-15). These counts drift as content is
-added or removed — do not treat them as current without re-checking.** The **source of truth** is the
-card / quest / rune arrays under `packages/content/src/`, not this file:
+**There are no counts in this file, on purpose.** Every previous version of it was a point-in-time table that
+went stale within days — the last one claimed **30 basic / 31 epic runes** while the arrays held **141 / 138**,
+and its file paths still described a flat `cards/` layout that has been set-scoped (`cards/set1/`,
+`cards/set2/`, `cards/set3/`) for a long time. A number in a document is a number nobody re-verifies.
 
-- Minions: `packages/content/src/cards/{beasts,dragons,undead,mechs,demons,neutral}.ts`
-- Spells: `packages/content/src/cards/spells.ts`
-- Tokens (never in the shop): `packages/content/src/cards/tokens.ts`
-- Enemy-only filler (never in the shop): `packages/content/src/cards/enemy.ts`
-- Quests: `packages/content/src/quests.ts` (`QUEST_DEFS`)
-- Runes: `packages/content/src/runes.ts` (`RUNES` + `EPIC_RUNES`)
-- Heroes: `packages/sim/src/heroes.ts` (`HEROES`)
+Generate what you need instead. These read the live arrays, so they cannot drift:
 
-Aggregated, shop-filtered views live in `packages/content/src/index.ts`:
-`BUYABLE_CARDS` (shop minions = non-token, non-spell) and `SPELL_CARDS` (shop spells = spell,
-non-token). "Shop" counts below **exclude** `token: true` cards and the enemy-only pool.
+| Want | Run |
+| --- | --- |
+| A full card reference (ids, tiers, stats, text) | `npm run dump-cards` |
+| Content sanity audit (bad refs, orphans, schema) | `npm run audit` |
+| Live-text audit (scaling cards printing stale values) | `npm run text:audit` |
+| Beat/event coverage | `npm run beats:audit` |
+| Balance export from real runs | `npm run report:export` |
 
----
+For a one-off count, query the exports directly rather than trusting any doc:
 
-## Counts (verified)
+```bash
+npx tsx -e "import {RUNES,EPIC_RUNES,ARCHIVED_RUNES,CARD_INDEX,poolFor} from '@game/content';
+console.log('runes basic/epic/archived:', RUNES.length, EPIC_RUNES.length, ARCHIVED_RUNES.length);
+console.log('cards in index:', Object.keys(CARD_INDEX).length);
+console.log('set2 buyable:', poolFor('set2').buyable.length);"
+```
 
-| Content | Count | Source |
-| --- | ---: | --- |
-| Shop minions (`BUYABLE_CARDS`) | **128** | `cards/{beasts,dragons,undead,mechs,demons,neutral}.ts` |
-| Shop spells (`SPELL_CARDS`) | **37** | `cards/spells.ts` |
-| Quests (`QUEST_DEFS`) | **77** | `quests.ts` |
-| Basic runes (`RUNES`) | **30** | `runes.ts` |
-| Epic runes (`EPIC_RUNES`) | **31** | `runes.ts` |
-| Runes total | **61** | `runes.ts` |
-| Heroes defined (`HEROES`) | **27** | `heroes.ts` |
-| Heroes selectable (non-`wip`) | **24** | `heroes.ts` (filter `HEROES.filter(h => !h.wip)`) |
-| Tribes | **6** | Beasts, Dragons, Undead, Mechs, Demons + Neutral glue |
+## Where content actually lives
 
-Shop-minion breakdown by tribe file (non-token, non-spell): Beasts 21 · Dragons 18 · Undead 20 ·
-Mechs 19 · Demons 18 · Neutral 23 = **119**.
+- **Cards** — `packages/content/src/cards/<set>/` (`set1`, `set2`, `set3`), split by tribe plus `spells.ts`,
+  `tokens.ts`, `neutral.ts`. Shared: `cards/archive.ts` (retired), `cards/henchmen.ts`.
+- **Set manifests** — `packages/content/src/sets.ts`. A set declares its `tribes` and which card arrays it
+  `own`s. `activeSet()` is first-enabled-wins; a run **pins** its set at creation.
+- **Runes** — `packages/content/src/runes.ts` (`RUNES`, `EPIC_RUNES`, `ARCHIVED_RUNES`). Pool membership is
+  **array membership**, not the `epic` flag — that flag is only the card's kicker. A `sets: [...]` field gates
+  a rune to particular sets; omit it for "every set".
+- **Quests** — `packages/content/src/quests.ts` (`QUEST_DEFS`), same `sets` gating.
+- **Heroes** — `packages/sim/src/heroes.ts` (`HEROES`).
+- **Global id→def resolution** — `CARD_INDEX` is global by design, so an out-of-set card granted by a rune
+  still resolves. Draw pools come from the run's pinned set via `poolOf(state)` / `poolFor(setId)`.
 
-Full card pool (`ALL_CARDS`, everything incl. tokens/spells/enemy) = **207**.
+`token: true` marks a card that resolves but is never drawable — reward-only and generated cards. Those are
+excluded from the buyable pools.
 
-Three heroes are withheld from the picker via `wip: true` (Warden, Myra, Chaos), leaving **24 of 27**
-selectable.
+## If you keep a snapshot anyway
 
----
-
-## Regenerating these numbers
-
-- **`npm run dump-cards`** → writes `docs/cards.csv`, the canonical card reference, straight from
-  `CARD_INDEX` (always accurate; re-run after card changes). `packages/tools/src/dump-cards.ts`.
-- **`npm run audit`** → card audit / sanity report. `packages/tools/src/card-audit.ts`.
-- **`npm run balance`** / **`npm run report`** → the headless balance runner + report over the
-  counter matrix. `packages/tools/src/balance.ts`, `balance-report.ts`.
-
-To recount programmatically, import the exported arrays from `@game/content`
-(`BUYABLE_CARDS`, `SPELL_CARDS`, `QUEST_DEFS`, `RUNES`, `EPIC_RUNES`) and `@game/sim` (`HEROES`) and
-read `.length` / filter by `.token` / `.spell` / `.wip`.
+Generate it, and stamp it with the command and the commit SHA that produced it. An unstamped table is
+indistinguishable from a stale one.

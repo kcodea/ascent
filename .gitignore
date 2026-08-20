@@ -13,7 +13,10 @@ ascent-itch*.zip
 .idea/
 # installed agent-skill packages (npx skills add) — keep .claude/launch.json tracked
 .agents/
-.claude/skills/
+.claude/skills/*
+# ...but OUR OWN repo skills are source and ARE tracked. (A bare `.claude/skills/` would make git
+# skip the directory entirely, so re-inclusion of a subfolder is impossible — hence `/*` + negation.)
+!.claude/skills/ascent-*/
 skills-lock.json
 
 # Superpowers brainstorming scratch

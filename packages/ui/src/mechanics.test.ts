@@ -40,3 +40,22 @@ describe('MECHANICS detection', () => {
     for (const m of MECHANICS) { expect(m.glyph).toBeTruthy(); expect(m.term).toBeTruthy(); expect(m.def).toBeTruthy(); }
   });
 });
+
+describe('Watcher', () => {
+  const isW = (id: string) => {
+    const def = CARD_INDEX[id]!;
+    return MECHANICS.find((m) => m.id === 'watcher')!.detect(toMechInput(def));
+  };
+  it('is a watcher: onSummon, ally-attack, and reaction cards', () => {
+    expect(isW('mamabear')).toBe(true);   // onSummon
+    expect(isW('raptor')).toBe(true);     // ally onAttack, no RL keyword
+    expect(isW('karwind')).toBe(true);    // battlecryTriggered — reacts to Shouts
+  });
+  it('is NOT a watcher: a real Shout, or a self-attack Rally', () => {
+    expect(isW('havendrake')).toBe(false);       // onPlay only
+    expect(isW('b2_echohorn')).toBe(false);      // RL keyword → self-attack, not a watcher
+  });
+  it('has the eye glyph', () => {
+    expect(MECHANICS.find((m) => m.id === 'watcher')!.glyph).toBe('eye');
+  });
+});

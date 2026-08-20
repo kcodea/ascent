@@ -55,6 +55,52 @@ const hasOn = (on: EffectDef['on']) => (m: MechInput): boolean => m.effects.some
 const hasDo = (re: RegExp) => (m: MechInput): boolean => m.effects.some((e) => re.test(e.do));
 
 /**
+ * WATCHER — effect triggers that fire in REACTION to another minion or one of your actions, rather than on
+ * this card's OWN play/death/turn/avenge/consume (those are their own mechanics) or its own economy events
+ * (`onBuy`/`onSell`/`startOfTurn`, deliberately left unclassified for now). Enumerated from the full
+ * `GameEvent` union in `packages/core/src/types.ts`; keep in sync when a new reactive trigger is added.
+ * `onAttack`/`onKill` are NOT here — they're split by keyword below (ally = watch, self = Rally/Slaughter).
+ */
+const REACTIVE_ON = new Set<EffectDef['on']>([
+  // combat reactions to another unit / an external buff
+  'orbit',                     // a card was played adjacent to this minion (Celestial)
+  'orbitFired',                // any Orbit on your board resolved (board-wide Celestial watcher)
+  'onSummon',                  // another minion was summoned (Mama Bear, Thundering Abomination)
+  'onGainAttack',              // this minion's Attack rose from an external buff (Hunter, Sergeant)
+  'onDamaged',                 // this minion took a hit (Gryphon, Target Dummy)
+  'friendlyDemonDealtDamage',  // a friendly Demon dealt combat damage (Impossible Todd / Leech / Axeman)
+  'onLoseDivineShield',        // this minion's Ward was broken by an incoming hit (no live users yet)
+  'battlecryTriggered',        // another minion's Battlecry resolved (Karwind)
+  'minionSold',                // another minion was sold (Voicekeeper)
+  'spellCastOnThis',           // a targeted spell resolved on this minion (Mirrorwing, Runefire)
+  // recruit-phase reactions to your actions
+  'spellCast',                 // you cast any spell (Runescale Drake, Spirit Worgen)
+  'summonOverflow',            // a summon couldn't fit the full board (Flowing Monk)
+  'goldSpent',                 // you spent Gold — per threshold (Acid, Banksly, Koron)
+  'cardsBought',               // you bought a card — per threshold (Korok, Banksly)
+  'cardsPlayed',               // you played a card — per threshold (Mountainbond)
+  'onGainCard',                // a card was added to your hand (Gangplank)
+  'onRubyPlayed',              // a Ruby was played on this minion (Ruby Broker, Resonance Idol)
+  'rubyPlayedAnywhere',        // a Ruby was played on any friendly minion (Candle Conduit — passive marker)
+  'onGetRuby',                 // you gained a Ruby (Candle Conduit)
+  'rubyCast',                  // a Ruby was cast — per threshold (Gemgorge Fiend)
+  'shopRefreshed',             // you rolled the tavern (Hellrider)
+  'spellBought',               // you purchased a Shop Spell (Moonhowl Mentor)
+]);
+
+/** A Watcher REACTS: a reactive trigger, OR an ally-attack (`onAttack` without the self-attack keyword `RL`)
+ *  / ally-kill (`onKill` without the self-kill keyword `SL`). A card's OWN Rally/Slaughter is not a watch. */
+function isWatcher(m: MechInput): boolean {
+  const kw = new Set(m.keywords);
+  return m.effects.some((e) => {
+    if (e.on && REACTIVE_ON.has(e.on)) return true;
+    if (e.on === 'onAttack' && !kw.has('RL')) return true; // watches an ALLY attack (self-attack = Rally)
+    if (e.on === 'onKill' && !kw.has('SL')) return true;   // watches an ALLY kill (self-kill = Slaughter)
+    return false;
+  });
+}
+
+/**
  * The registry. `order` is only consulted for the rare card whose several own-mechanics have no text term;
  * lower wins. Triggers are ordered ahead of passive keywords. Watcher is appended in Task 2.
  */
@@ -85,4 +131,6 @@ export const MECHANICS: Mechanic[] = [
   { id: 'fodder', term: 'Fodder', glyph: 'fodder', def: 'A cheap token your minions consume for stats.', detect: kwMatch('FD'), kw: 'FD', termRe: /\bfodder\b/i, order: 42 },
   { id: 'engraved', term: 'Engraved', glyph: 'engrave', def: 'Stat gains during combat carry back to your board.', detect: kwMatch('EG'), kw: 'EG', termRe: /engraved?/i, order: 43 },
   { id: 'discover', term: 'Discover', glyph: 'star', def: 'Peek at three cards and add one to your hand.', detect: hasDo(/discover/i), termRe: /\bdiscover\b/i, order: 44 },
+  // — Watcher (reacts to OTHER minions / your actions; no clean text term, so it sorts last via order) —
+  { id: 'watcher', term: 'Watcher', glyph: 'eye', def: 'Reacts to your other minions and actions — e.g. when another minion is summoned or attacks.', detect: isWatcher, order: 50 },
 ];

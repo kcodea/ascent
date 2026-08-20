@@ -8185,6 +8185,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-num { letter-spacing: 0.03em; }
 .roundrail-head { padding: 4px 8px; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+/* PARTIAL recording banner — sits above the Round header and states the recorded range. Static paint only
+   (no animation): it renders once per replay and must never cost a frame. */
+.roundrail-partial { display: flex; flex-direction: column; gap: 1px; margin: 0 0 4px; padding: 5px 8px;
+  border-radius: 7px; background: rgba(232, 138, 122, 0.14); box-shadow: inset 0 0 0 1px rgba(232, 138, 122, 0.35); }
+.roundrail-partial-tag { font-weight: 800; font-size: 10px; line-height: 13px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #e8a99c; }
+.roundrail-partial-range { font-weight: 700; font-size: 11px; line-height: 14px; color: rgba(255, 255, 255, 0.72); }
 .roundrail-verdict { font-weight: 800; text-align: center; }
 .roundrail-verdict.win { color: #9fd98a; }
 .roundrail-verdict.loss { color: #e88a7a; }

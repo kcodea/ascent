@@ -42,6 +42,13 @@ against *today's* code, so any content change silently breaks every old replay.
   step, never restart it.
 - Frames carry a summon's committed board index; a projection that appends instead renders arrivals in the
   wrong slot and then snaps.
+- Frames are persisted **per round to IndexedDB**, never to `ascent.save` (localStorage is synchronous and far
+  too small). A chunk keyed `[runId, wave]` is written when the round closes and REPLACES its predecessor, so
+  a mid-round flush converges instead of duplicating. Capture is best-effort: a storage failure downgrades the
+  recording to `partial` and the run plays on. On resume, the restored rounds are spliced in front and the new
+  session's frames are shifted along the cumulative clock — real time away must never become a replay pause.
+- `partial` means "does not begin at round 1", not "was resumed". A partial recording must state its recorded
+  RANGE up front; a rail that silently starts at R7 reads as filtering, not as missing capture.
 
 Spec: `docs/replay-v2-handoff.md`.
 

@@ -31,6 +31,11 @@ export interface CareerView {
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { DRAG_CAUSES, takeDragTrace } from './replay/dragTrace';
+import {
+  DRAFT_STALE_MS, RESUME_GAP_MS, REPLAY_DRAFT_SCHEMA, draftRunId, firstRecordedWave, lastRecordedTMs,
+  mergeDraftChunks, replayDrafts, runRecordsDraft, shiftFrames, shiftInspect, splitIntoChunks, trimToBaseline,
+  type ReplayDraftMeta,
+} from './replay/replayDraft';
 
 /** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
  *  plus a Deathrattle/Echo total). Drives the quest nodes' live-tick. */
@@ -221,6 +226,10 @@ export interface ReplaySession {
   authorName?: string;
   /** Playback has reached the final frame — the transport bar reads "Final" and stops advancing. */
   ended?: boolean;
+  /** Set only when the recording does NOT begin at round 1 (draft persistence missing or failed). The rail
+   *  states the recorded RANGE up front, because the alternative — a rail that simply starts at R7 — reads as
+   *  "the earlier rounds were filtered out" rather than "they were never recorded". */
+  partial?: { firstWave: number; lastWave: number };
 }
 
 interface GameStore {
@@ -308,11 +317,13 @@ interface GameStore {
   replayActions: Action[];
   /** REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md): the run's recorded frames. One deep-cloned
    *  ShopFrame per state-changing recruit action (plus a `turnStart` frame at each shop opening), one
-   *  CombatFrame per fight. Reset on every new run; NOT persisted in the autosave (far too large for
-   *  localStorage — a resumed run uploads its v2 marked `partial`). Uploaded inside `replay` jsonb at run end. */
+   *  CombatFrame per fight. Reset on every new run. NOT in the `ascent.save` payload — far too large for
+   *  localStorage — but persisted per ROUND to IndexedDB since 2026-08-20 (`replay/replayDraft.ts`), so a
+   *  quit/reload no longer amputates the recording. Uploaded inside `replay` jsonb at run end. */
   replayFrames: ReplayFrame[];
-  /** True when the live run was RESUMED from a save: its pre-reload frames are gone, so the v2 replay it
-   *  uploads is marked `partial`. Cleared by every run-creation path. */
+  /** True when the recording does NOT reach back to wave 1. Set at boot for a restored save and CLEARED by a
+   *  successful draft hydration (the common case since 2026-08-20) — so it now means "the earlier rounds were
+   *  genuinely lost", not merely "this run was resumed". Cleared by every run-creation path. */
   replayPartial: boolean;
   /** REPLAY VIEWER (Phase B — playback) — true while a recorded run is playing back. The `run` on the store is
    *  a SYNTHETIC render target driven by `replay/replayPlayer.ts` (state replay: no reduce, no simulate), and
@@ -655,6 +666,139 @@ function seedReplayFrames(run: RunState): ReplayFrame[] {
   return [first];
 }
 
+// ── REPLAY V2 (draft persistence — resume durability) ─────────────────────────────────────────────────────
+// Frames are written per ROUND to IndexedDB so a quit/reload/tab-discard no longer amputates the recording.
+// See `replay/replayDraft.ts` for the storage contract; everything here is the orchestration that owns the
+// module-level clock and so cannot live in that module.
+//
+// All of it is BEST-EFFORT: every path swallows its own failure, downgrades the recording, and plays on.
+
+/** The run whose draft the capture layer is currently writing (`draftRunId`), or null when not recording. */
+let replayDraftId: string | null = null;
+/** Highest wave already written to the draft — the round-boundary flush only writes what closed since. */
+let replayPersistedWave = 0;
+/** Why the current recording is short, when it is. Read at run end into the uploaded `ReplayV2`. */
+let replayPartialReason: ReplayV2['partialReason'] | undefined;
+/** Set once the boot hydration has settled, so a mid-run write can't race ahead of the restore and persist a
+ *  wave chunk containing only the post-resume half of a round. */
+let replayDraftReady = true;
+
+function draftMeta(run: RunState): ReplayDraftMeta {
+  const now = Date.now();
+  return {
+    runId: draftRunId(run), seed: run.seed, heroId: run.heroId, mode: run.mode ?? 'lobby',
+    createdAtMs: now, updatedAtMs: now, currentWave: run.wave, schemaVersion: REPLAY_DRAFT_SCHEMA,
+  };
+}
+
+/** Begin (or restart) a draft for a freshly created run, and garbage-collect stale ones. */
+function startReplayDraft(run: RunState): void {
+  replayPartialReason = undefined;
+  replayDraftReady = true;
+  replayPersistedWave = 0;
+  if (!runRecordsDraft(run)) { replayDraftId = null; return; }
+  replayDraftId = draftRunId(run);
+  // A new run under a seed that already has a draft (a re-rolled seed, or a run discarded and restarted)
+  // must not inherit the old one's rounds.
+  void replayDrafts.remove(replayDraftId);
+  void replayDrafts.gc(Date.now() - DRAFT_STALE_MS, replayDraftId);
+}
+
+/**
+ * Persist the frames of one wave. Called at each round boundary for the wave that just CLOSED (immutable
+ * from then on), and from `flushSave` for the wave in progress — the chunk REPLACES its predecessor, so the
+ * partial flush is superseded rather than duplicated.
+ *
+ * Off the interaction path by construction: it is called once per round (and on hide/quit), never per action,
+ * and the IndexedDB write itself is asynchronous.
+ */
+function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[], wave: number): void {
+  if (!replayDraftId || !replayDraftReady) return;
+  const chunk = splitIntoChunks(replayDraftId, frames, trail).find((c) => c.wave === wave);
+  if (!chunk) return;
+  const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: run.wave };
+  void replayDrafts.putChunk(meta, chunk).catch(() => { replayPartialReason ??= 'storage_failure'; });
+}
+
+/** Drop the draft once its recording has been assembled for upload — or when the run is discarded. */
+function discardReplayDraft(): void {
+  const id = replayDraftId;
+  replayDraftId = null;
+  if (id) void replayDrafts.remove(id);
+}
+
+/** THE run-creation entry point for capture: reset the clock + seed the first frame (`seedReplayFrames`) and
+ *  open this run's draft. Every `newRun` / `newLobbyRun` / tutorial / sandbox path goes through here, so a
+ *  new mode can never be added that records frames but forgets to persist them. */
+function beginReplayCapture(run: RunState): ReplayFrame[] {
+  const frames = seedReplayFrames(run);
+  startReplayDraft(run);
+  return frames;
+}
+
+/**
+ * ROUND BOUNDARY: write every wave that has closed since the last write.
+ *
+ * A closed wave is immutable — the only late mutation a frame receives is the combat frame's `resolveLost`
+ * patch, which lands on the settle action DURING combat, i.e. before the flip to the next shop. So one write
+ * per round, of a chunk that never has to be revisited.
+ */
+function persistClosedWaves(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[]): void {
+  if (!replayDraftId || !replayDraftReady) return;
+  const open = run.wave; // the wave now in progress — still mutable, written by `flushSave` instead
+  const chunks = splitIntoChunks(replayDraftId, frames, trail);
+  const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: open };
+  for (const chunk of chunks) {
+    if (chunk.wave >= open || chunk.wave <= replayPersistedWave) continue;
+    void replayDrafts.putChunk(meta, chunk).catch(() => { replayPartialReason ??= 'storage_failure'; });
+    replayPersistedWave = Math.max(replayPersistedWave, chunk.wave);
+  }
+}
+
+/**
+ * BOOT: restore a resumed run's earlier frames.
+ *
+ * `seedReplayFrames(BOOT_SAVE.run)` has already placed a `turnStart` keyframe at tMs 0 for the wave the
+ * player is coming back on. This loads the persisted rounds and splices them IN FRONT of it, shifting the new
+ * session's frames along the cumulative clock so the two halves form one monotonic timeline with a single
+ * human-sized beat (`RESUME_GAP_MS`) at the seam — never the real hours the tab was closed.
+ *
+ * Deliberately tolerant of arriving late: the shift is applied to whatever is in memory at that moment, so a
+ * player who somehow acted before the read completed keeps their frames, correctly placed.
+ */
+async function hydrateReplayDraft(run: RunState): Promise<void> {
+  if (!runRecordsDraft(run)) { replayDraftId = null; return; }
+  const runId = draftRunId(run);
+  replayDraftId = runId;
+  replayDraftReady = false;
+  replayPersistedWave = 0;
+  try {
+    const draft = await replayDrafts.load(runId);
+    const restored = draft ? mergeDraftChunks(draft.chunks) : { frames: [], inspectTrail: [] };
+    const frames = trimToBaseline(restored.frames);
+    if (frames.length === 0) {
+      // Nothing usable: a pre-persistence run, a cleared browser store, or a draft that failed validation.
+      replayPartialReason = 'resumed_without_frames';
+      return;
+    }
+    const offset = lastRecordedTMs(frames, restored.inspectTrail) + RESUME_GAP_MS;
+    replayElapsedMs += offset; // the live clock continues from where the recording left off
+    replayInspectTrail = [...restored.inspectTrail, ...shiftInspect(replayInspectTrail, offset)];
+    useGame.setState((st) => ({
+      replayFrames: [...frames, ...shiftFrames(st.replayFrames, offset)],
+      // The recording now reaches back to its earliest persisted round. It is only still `partial` if that
+      // round is not wave 1 — i.e. part of the history predates persistence or was lost.
+      replayPartial: (firstRecordedWave(frames) ?? run.wave) > 1,
+    }));
+    if ((firstRecordedWave(frames) ?? 1) > 1) replayPartialReason = 'resumed_without_frames';
+    replayPersistedWave = Math.max(0, run.wave - 1); // the restored rounds are already written
+  } catch {
+    replayPartialReason = 'storage_failure';
+  } finally {
+    replayDraftReady = true;
+  }
+}
+
 /**
  * Build the lobby's opponent drivers during the OPENING SHOP PHASE, one seat per idle slice.
  *
@@ -845,6 +989,9 @@ function commitResolvedAction(
         const frame = shopFrameOf(next, 'turnStart', tMs);
         replayLastShopView = frame.view;
         replayFrames = [...replayFrames, frame];
+        // …and the round that just closed is now immutable → write it to the draft. One IndexedDB write per
+        // round, at the one moment of the loop the player is not mid-interaction.
+        persistClosedWaves(next, replayFrames, replayInspectTrail);
       } else if (next.phase === 'recruit' && s.run.phase === 'recruit') {
         // DRAG PATH (owner ask 2026-08-19, "1:1 hands"): when this action was drag-driven (a drop dispatched
         // it), attach the recorded pointer path so playback can ghost the card along it. Take-and-clear with
@@ -961,8 +1108,16 @@ function commitResolvedAction(
           seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
           author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
           createdAtMs: Date.now(),
-          // A resumed run lost its pre-reload frames (frames aren't autosaved — see `replayFrames`).
-          ...(s.replayPartial ? { partial: true as const } : {}),
+          // A recording that does not reach back to wave 1 — draft persistence missing or failed. Carry the
+          // RANGE and the REASON, so a viewer can say "rounds 7-18 recorded" instead of implying the earlier
+          // rounds were filtered out.
+          ...(s.replayPartial
+            ? {
+                partial: true as const,
+                ...(firstRecordedWave(replayFrames) != null ? { firstRecordedWave: firstRecordedWave(replayFrames)! } : {}),
+                partialReason: replayPartialReason ?? 'resumed_without_frames',
+              }
+            : {}),
           frames: replayFrames,
           // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
           ...(inspectTrail.length ? { inspectTrail } : {}),
@@ -974,6 +1129,10 @@ function commitResolvedAction(
           },
         };
         set({ lastReplay: v2 });
+        // The recording is assembled and now lives on the store (and inside the upload closure below), so the
+        // on-disk draft has done its job. Dropping it here is what keeps IndexedDB from accumulating one
+        // several-hundred-KB draft per finished run.
+        discardReplayDraft();
         // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
         // a career follows the PLAYER instead of the browser.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
@@ -1125,6 +1284,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
     clearSave();
+    discardReplayDraft(); // the in-progress recording goes with the run it was recording
     dropBoardFx();
     const fresh = createRun(randomSeed());
     set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
@@ -1138,7 +1298,16 @@ export const useGame = create<GameStore>((set, get) => ({
     if (s.replaying) return;
     if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
     if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
-    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog);
+    // EVERY accumulator the turn-boundary autosave persists must be persisted here too. `writeSave` only
+    // serializes what it is handed, so an omitted argument does not merely skip an update — it REWRITES the
+    // save without that field, and the boot fallback then restarts the accumulator at the resumed wave.
+    // `deriveState` was missing here until 2026-08-20, which silently truncated the balance telemetry of
+    // every run that was ever quit or tab-hidden (found in a public row whose offers/combats began at wave 7).
+    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState);
+    // The Replay V2 frames are far too large for that localStorage payload — they persist to IndexedDB
+    // instead, and this is the one place the CURRENT (still open) round gets written. Without it, quitting
+    // mid-shop would lose every action taken since the round opened.
+    persistReplayWave(s.run, s.replayFrames, replayInspectTrail, s.run.wave);
     set({ savedRun: s.run });
   },
   heroArmed: false,
@@ -1210,8 +1379,10 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ combatRampUp: on });
   },
   replayActions: BOOT_SAVE?.actions ?? [],
-  // REPLAY V2: a restored save lost its pre-reload frames (they're never persisted — see `replayFrames`),
-  // so its recording restarts at the resume point and its uploaded v2 is marked partial.
+  // REPLAY V2: seed the resume point synchronously (the store must be constructible without awaiting storage),
+  // then splice the persisted earlier rounds in front of it as soon as IndexedDB answers — see
+  // `hydrateReplayDraft`, kicked off just below the store. `partial` starts TRUE and is cleared by a
+  // successful hydration, so the pessimistic label is the one that survives a failure.
   replayFrames: BOOT_SAVE ? seedReplayFrames(BOOT_SAVE.run) : [], // no save → the dormant throwaway run, never uploaded
   replayPartial: BOOT_SAVE != null,
   replaying: false,
@@ -1344,7 +1515,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
   newRun: (seed, heroId) => {
@@ -1352,7 +1523,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
@@ -1384,7 +1555,7 @@ export const useGame = create<GameStore>((set, get) => ({
       const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget);
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id) => {
@@ -1396,7 +1567,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
       // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
       const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: seedReplayFrames(run), replayPartial: false, sandboxReplay: false };
+      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, sandboxReplay: false };
     });
   },
   sbEditMode: false,
@@ -1529,6 +1700,13 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+
+// REPLAY V2 (resume durability): a restored save's earlier rounds live in IndexedDB, not in `ascent.save`.
+// Read them back and splice them in front of the resume keyframe. Fired here — at module init, while the
+// player is still on the title screen with a Continue button to press — so the read has settled long before
+// the first live action; `hydrateReplayDraft` is nevertheless written to be correct if it arrives late.
+// Fire-and-forget by contract: replay capture must never gate the app booting.
+if (BOOT_SAVE) void hydrateReplayDraft(BOOT_SAVE.run);
 
 // CHOREOGRAPHER PR 21: hand the LIVE Beat-Lab draft to combat pacing through a provider — the clock module
 // cannot import the store (cycle through the combat-timeline composition). DEV-only, like the draft itself.

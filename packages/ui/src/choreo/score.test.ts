@@ -685,6 +685,18 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     expect(ctx.onDamageFx).not.toHaveBeenCalled(); // both units claimed → stock burst suppressed
   });
 
+  // A melee attack's impact is ALSO a `damage` moment sourced by the attacker; the volley must NOT fire on
+  // Fel Spikes' own swing (owner report 2026-08-20) — only on its Echo spray, which is not an attack.
+  it('does NOT fire on the unit\'s own melee swing (the impact is a damage moment with a meleePair)', () => {
+    const events: CombatEvent[] = [
+      { type: 'dmg', target: 'e1', amount: 4, remainingHp: 1, source: 'fs', step: 3 } as CombatEvent, // fs hits e1
+      { type: 'dmg', target: 'fs', amount: 2, remainingHp: 1, source: 'e1', step: 3 } as CombatEvent, // e1 retaliates
+    ];
+    const ctx = baseCtx(events, { ...withCard('fs', 'dm_felspikes'), meleePair: { attacker: 'fs', defender: 'e1' } });
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
   // The wave can LEAD with a sourceless Divine Shield pop (first target had a Ward). `momentUnits` reads no
   // source off that primary, so the fallback scan of the moment's `dmg` events recovers the dealer — and with
   // `struck` the spike flies at the WARDED unit too (the spike connects, the Ward shatters), not only the

@@ -28,6 +28,12 @@ because a Deathrattle AoE is **sourceless and dead** by the time it lands — un
 
 The `fel-spike` def's ribbon gets `bow: 0` so the beam runs dead straight (owner: the arc read as a curve).
 
+**Fix — the volley fired on Fel Spikes' own SWING, not just its Echo.** A melee attack's impact is also a
+`damage` moment (sourced by the attacker), and stamping `dmg.source` made it attributable — so the binding
+fired every time Fel Spikes attacked. The `struck`/`damaged` fan-out now drops the `meleePair` (attacker +
+defender) exactly as the stock `damageFx` cue does; the Echo wave is not an attack (`meleePair` null), so its
+victims are untouched. (owner report 2026-08-20)
+
 Owner then tuned the def in the workbench (tighter ribbon tail/feather, `aimMode: sourceToTarget` on the source
 + first target burst, denser/faster target bursts). That save silently DROPPED the hand-authored `bow: 0` (a
 layer field with no workbench control) and reset every `fieldPhase` to 0 — both re-applied by hand over the

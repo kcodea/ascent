@@ -586,21 +586,30 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // `struck` also covers a WARD-blocked victim (Fel Spikes' spike flies at it and the Ward shatters);
         // those carry a `shield` event, not a `dmg`, so they never had a stock burst to suppress — claiming
         // them is a harmless no-op that keeps one code path for both fan-outs.
-        const claimed = binding.fanOut === 'struck'
+        const hitUids = binding.fanOut === 'struck'
           ? struckUidsIn(ctx.events, moment.start, moment.end)
           : damagedUidsIn(ctx.events, moment.start, moment.end);
+        // Drop the MELEE PAIR (attacker + defender). A melee attack's impact is ALSO a `damage` moment, so a
+        // source→target binding on `damage` — Fel Spikes' Echo volley — would otherwise fire every time the
+        // unit SWINGS, not only on its Echo spray (owner report 2026-08-20). The stock `damageFx` cue drops the
+        // same pair for the same reason (the lunge's impact channel owns their hit FX). The Echo wave is not an
+        // attack, so its `meleePair` is null and every victim survives the filter.
+        const claimed = ctx.meleePair
+          ? hitUids.filter((u) => u !== ctx.meleePair!.attacker && u !== ctx.meleePair!.defender)
+          : hitUids;
         claimDamageFx(moment.primary.step, claimed);
         // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
         // silent — the effect simply doesn't appear and the stock burst does, which is indistinguishable
         // from "the binding isn't wired". A binding that matched but found no targets is the specific bug
-        // that already happened once (searching the wrong moment), so it gets a warning, not a log line.
+        // that already happened once (searching the wrong moment), so it gets a warning, not a log line — but
+        // NOT when the melee-pair filter emptied a non-empty hit set (that is the expected "own swing" case).
         if (import.meta.env.DEV) {
-          if (claimed.length === 0) {
+          if (hitUids.length === 0) {
             console.warn(
               `[fx] '${cardId ?? moment.kind}' → '${binding.def}' matched at '${moment.kind}' but found NO ` +
                 `target units in step ${String(moment.primary.step)} — nothing will play.`,
             );
-          } else {
+          } else if (claimed.length > 0) {
             console.info(`[fx] '${cardId ?? moment.kind}' → '${binding.def}' ×${claimed.length}`, claimed);
           }
         }

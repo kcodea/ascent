@@ -44,14 +44,12 @@ describe('the "All types" cards are flagged in DATA', () => {
  * files and share no naming convention; an explicit list is also the thing that shrinks as art lands, so the
  * exclusion can't quietly outlive the reason for it. Delete an entry the moment its art is wired.
  */
-const ART_PENDING = new Set([
-  'n2_deepchef', 'k_gemsage', 'n2_wanderer', 'n2_clockwork', 'dm_nightmarket', 'n2_muckslinger',
-  'n2_salesman', 'dw_kegheart', 'n2_ninefold', 'n2_echomimic', 'n2_muster', 'n2_trooper',
-  'b2_stonehorn', 'd2_ascendant', 'n2_abomination', 'dm_behemoth',
-]);
+// Every live card is arted as of 2026-08-20 — this stays as the seam for the NEXT batch: add an id here
+// when its card ships ahead of its artwork, and delete it the moment the art lands.
+const ART_PENDING = new Set<string>([]);
 
 describe('art coverage for live cards', () => {
-  it('every non-token live card has art (Set 3 scaffold + the 2026-08-20 rune batch excluded — not shipped yet)', () => {
+  it('every non-token live card has art (Set 3 scaffold excluded — not shipped yet)', () => {
     const wired = (d: string) => (existsSync(d) ? new Set(readdirSync(d).map((f) => f.replace(/\.(webp|png|jpe?g)$/i, ''))) : new Set<string>());
     const minions = wired('packages/ui/src/art/minions');
     const spells = wired('packages/ui/src/art/spells');

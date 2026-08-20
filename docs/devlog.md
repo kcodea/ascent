@@ -33,6 +33,39 @@ plus a ceiling assertion against per-effect multiplication. **Verified RED befor
 four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+
+## 2026-08-20 — Fix the Hatchery End-Turn burst spike (reset beatIdx during render)
+
+Owner probe caught it cold: the rune-badge pulse oscillated `0 → 2 → 0` in ~10ms at every combat start,
+firing the fight's whole trigger set at the instant of the End-Turn click, then resetting — on top of the
+correct per-summon bursts during the replay. Two earlier fixes on this branch failed; a deeper probe of the
+`triggeredQuests` memo (logging `beatIdx / beats.length / processedEnd / stale / refEq` on every non-empty
+result) is what finally pinned the mechanism.
+
+Root cause is a classic async-state gap. When a new `combat` object arrives, `beats`/`events` recompute in the
+same render (their memo dep is `[combat]`), but `beatIdx` only resets to 0 via `resetTo(0)` inside the
+`[combat]` **effect** — which runs a render LATER. So the first render of a new fight ran with the new fight's
+`beats` but the PREVIOUS fight's `beatIdx` (e.g. 7). `processedEnd = beats[6].end = 9` — a perfectly in-bounds
+beat end — already spans the early `questTrigger` event, so `triggeredQuests` returned `{rune_hatchery: 2}` and
+the one-shot badge burst fired. Then `resetTo(0)` landed, `processedEnd` dropped to 0, the pulse fell back to 0,
+and the real per-beat burst fired later during the actual replay.
+
+Why the prior guard missed it: `beatIdxIsStale` tried to DETECT the stale render via proxies — a `seenCombatRef`
+equality check and `beats[beatIdx - 1] === undefined`. The probe disproved both: the ref was already updated
+(`refEq: true`) because it's written synchronously in the same effect, and the new fight was long enough that
+`beats[6]` was defined (`stale: false`). Neither proxy holds on the stale render, so detection is the wrong
+strategy.
+
+Fix: eliminate the stale window instead of detecting it. Reset `beatIdx` to 0 **during render** the instant
+`combat` changes (React's supported "adjust state on prop change" pattern — a set-function called during render
+is applied before the component commits or renders children), so the first COMMITTED render of a new fight
+always has `beatIdx === 0` and `processedEnd === 0`. The `seenCombatRef` and its effect write are gone;
+`beatIdxIsStale` is reduced to a cheap defensive bounds check that can no longer trigger. The `[combat]` effect
+keeps only its imperative cleanup (GSAP kills, roll cancellation, summon-hold release).
+
+Verified: typecheck + lint (0 errors) + `npm test` (5905 passed) + build:web green. Both temporary DEV probes
+(`ascent.runeFxProbe`, `ascent.triggerProbe`) removed.
+
 ## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
 
 A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.

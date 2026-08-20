@@ -1,5 +1,47 @@
 # ASCENT — development log
 
+## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
+
+Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a
+shop-buff aura hitting every unit). Diagnosis: two independent randomness layers, only one of which varied.
+Spawn jitter already differed per fire (each `playDef` builds its own seeded RNG, and the rune/aura defs are
+all unlocked → a fresh seed per fire). But the **turbulence field itself is not seeded** — `turbulenceX/Y`
+is a pure sine of `(local x, y, elapsed tSec)`, and every instance starts its field clock (`clockSec`) at 0,
+so simultaneous fires sample the same field at the same phase. Under strong turbulence the shared field
+dominates the motion and they read as identical; the same `clockSec` also drives the shader's animated
+texture noise (`uTime`), so that's in lockstep too.
+
+New knob **Field variation** (`fieldPhase`, Physics group, 0–1, default 0) on **burst / emitter / smoke** —
+every primitive that has turbulence. It seeds each instance's *starting* `clockSec` to a per-instance phase
+so the field (and the texture noise) begins at its own offset:
+
+- `motion.ts` gains `fieldPhaseOffset(seed, amount)` + `FIELD_PHASE_SPAN` (10s ≈ 2 periods of the base
+  turbulence sine). It derives the offset from a **separate** mulberry32 stream (`makeRng(seed ^ 0x9e3779b9)`),
+  never the primitive's per-particle `rand` — so the frozen per-mote draw order that saved seeds replay
+  against is untouched.
+- Each primitive resolves its seed once (`const seed = ctx.seed ?? randomSeed()`), seeds `this.rand` from it,
+  and sets `this.clockSec = fieldPhaseOffset(seed, params.fieldPhase)`.
+- **Default 0 is an exact no-op** (`clockSec` still starts at 0 — byte-identical to before), so every saved
+  def is unchanged. Because the offset is a pure function of the seed, an unlocked def gets a fresh phase per
+  fire (the decorrelation we want) while a locked def stays reproducible.
+
+Verified: new `fieldPhaseOffset` unit tests in `motion.test.ts` (no-op at 0, deterministic in the seed, 200
+distinct seeds → 200 distinct phases, linear in amount, bounded to `[0, SPAN)`); updated the three primitives'
+"exactly one seeded source per instance" source-text guards to the new two-line seed resolution (the
+per-primitive `makeRng` count is still 1 — `fieldPhaseOffset`'s stream lives in `motion.ts`). typecheck + lint
+(0 errors) + `npm test` (5916 passed) + build:web all green.
+
+**Migration — current defs opt in at 0.5.** A no-op default (0) means every existing turbulence effect would
+still swirl in lockstep until hand-edited, so a one-time pass set `fieldPhase: 0.5` (the halfway point) on
+every committed def layer that already runs `turbulence > 0` — 46 layers across 29 defs (rune-burst,
+epic-rune-burst, shop-buff-aura, rune-buff-unit, the ale/consume/spell-sparks stacks, ruby-gem-apply, …). The
+edit is purely additive (a surgical line-insert after each `turbScale`, so the JSON diff is 46 `+` lines and
+nothing reformatted); `defs.test.ts` + the full suite still pass, and the param default stays 0 so the engine
+invariant ("a default contributes exactly zero") is intact — NEW turbulence defs still start synced and opt in
+by raising the slider. Note this is not a strict no-op for the migrated defs: the ~half-dozen that fire
+many-at-once (runes, auras) now visibly decorrelate — which is the point — and the single-cast ones are
+unchanged to the eye (absolute field phase is invisible for one fire).
+
 ## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
 
 Owner report: "rune of aftershocks is only triggering when an echo minion dies. it should trigger when an echo

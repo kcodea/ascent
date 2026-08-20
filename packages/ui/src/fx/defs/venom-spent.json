@@ -19,6 +19,7 @@
         "spinVar": 0.6,
         "turbulence": 70,
         "turbScale": 0.02,
+        "fieldPhase": 0.5,
         "emitShape": "disc",
         "emitRadius": 14,
         "shape": "circle",

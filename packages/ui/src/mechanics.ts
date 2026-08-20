@@ -64,10 +64,10 @@ export const MECHANICS: Mechanic[] = [
   { id: 'echo', term: 'Echo', glyph: 'echo', def: 'Fires when this minion dies.', detect: hasOn('onDeath'), termRe: /deathrattles?|echoe?s?/i, order: 11 },
   { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', def: 'Fires once, the moment the battle begins.', detect: kwMatch('SC'), kw: 'SC', termRe: /start of combat/i, order: 12 },
   { id: 'endTurn', term: 'End of Turn', glyph: 'sc', def: 'Fires at the end of each recruit turn, before you fight.', detect: hasOn('endOfTurn'), termRe: /end of turn/i, order: 13 },
-  { id: 'avenge', term: 'Avenge', glyph: 'skull', def: 'Fires after every N of your minions die in a combat.', detect: hasOn('avenge'), termRe: /\bavenge\b/i, order: 14 },
+  { id: 'avenge', term: 'Avenge (N)', glyph: 'skull', def: 'Fires after every N of your minions die in a combat.', detect: hasOn('avenge'), termRe: /\bavenge\b/i, order: 14 },
   { id: 'rally', term: 'Rally', glyph: 'sword', def: 'Fires each time this minion attacks.', detect: kwMatch('RL'), kw: 'RL', termRe: /\brally\b|\brallies\b/i, order: 15 },
   { id: 'slaughter', term: 'Slaughter', glyph: 'slaughter', def: 'Fires each time this minion kills an enemy minion.', detect: kwMatch('SL'), kw: 'SL', termRe: /\bslaughters?\b/i, order: 16 },
-  { id: 'bleed', term: 'Bleed', glyph: 'poison', def: "Marks enemies at Start of Combat; every few attacks, they each take this minion's Attack.", detect: hasDo(/^scArmBleed$/), termRe: /\bbleed\b/i, order: 17 },
+  { id: 'bleed', term: 'Bleed', glyph: 'poison', def: "Marks enemies at Start of Combat; every few attacks in the fight, they each take this minion's Attack.", detect: hasDo(/^scArmBleed$/), termRe: /\bbleed\b/i, order: 17 },
   { id: 'chooseOne', term: 'Choose One', glyph: 'choose1', def: 'Pick one of two effects as you play the minion.', detect: (m) => !!m.chooseOne, termRe: /choose one/i, order: 18 },
   // — Combat keywords —
   { id: 'taunt', term: 'Taunt', glyph: 'taunt', def: 'Enemies must attack this minion first.', detect: kwMatch('T'), kw: 'T', termRe: /\btaunt\b/i, order: 30 },

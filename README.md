@@ -72,6 +72,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
 
+- **Runes burst when they trigger, and spells have a real cast effect** — a rune's own flourish now fires on its badge whenever its effect goes off, in the shop as well as in combat, and every tavern spell without a bespoke effect gets `spell-sparks` at the cursor.
+
 - **Ring FX can be nudged off their anchor** — the workbench's ring (shockwave) layers get **Offset X / Offset Y** sliders, matching the pair burst effects already had. Placement only: it moves where a ring sits without touching its size, shape or expansion.
 
 - **The board keeps its furniture during combat** — the Freeze gem, Reroll crystal and Gold pill no longer vanish when the fight starts. They stay up as passive readouts (inert, but at full strength) alongside the Tavern Up stone, which already worked this way.

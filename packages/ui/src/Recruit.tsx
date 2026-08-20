@@ -1166,6 +1166,25 @@ export function Recruit() {
     // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
     // so without it here the shop-wide aura would never fire.
   }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
+  // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
+  // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
+  // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
+  // the card, so its box is only trustworthy after layout. Combat + End-of-Turn rune buffs ride their own paths.
+  useEffect(() => {
+    const uids = run.runeBuffFxUnits;
+    if (!uids || uids.length === 0 || !canPlayDefs()) return;
+    const raf = requestAnimationFrame(() => {
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      for (const uid of uids) {
+        const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+        const at = el ? restingCenterOf(el) : null;
+        if (!at) continue; // minion left the DOM (sold/tripled) before paint
+        playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+    // Only the seq — depending on the uid array would re-run on unrelated renders.
+  }, [run.runeBuffFxSeq]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -4705,6 +4724,17 @@ export function Recruit() {
               onLand: () => sfx.gemApply(),
             },
           );
+        }
+        // RUNE-BUFF-UNIT this beat (Spending, Action, Lassoing, …): the sparkle on each minion a rune buffed
+        // at End of Turn, on the beat — like the gems, the action-level cue can't (the board is gone once
+        // `faceOmen` commits). `bfx.runeBuffUnits` is the sim's per-beat source-label diff.
+        if (bfx.runeBuffUnits?.length && canPlayDefs()) {
+          const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          for (const uid of bfx.runeBuffUnits) {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+            const at = el ? restingCenterOf(el) : null;
+            if (at) playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+          }
         }
         // The RUN-WIDE shop buff this beat produced (Soul Defiler, Display Curator) — the shop-wide aura, on
         // the beat, for the same reason the gems are here: the action-level cue only advances once `faceOmen`

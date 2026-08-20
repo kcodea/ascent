@@ -119,11 +119,12 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   });
 
   // Everything dynamic today is the binding path. If that stops being true the note the by-event lens prints
-  // ("the rest is the binding path, already listed above") becomes false. TWO resolvers since 2026-08-08 —
-  // `score.ts` for combat moments and `recruitCues.ts` for shop ones — which is the same path, twice, not a
-  // new kind of caller.
+  // ("the rest is the binding path, already listed above") becomes false. THREE resolvers now — `score.ts`
+  // for combat moments, `recruitCues.ts` for shop ones, and `runeTriggerFx.ts` for the HUD (a rune badge,
+  // which the score cannot anchor to — see that file's header). Same path, three times, not a new kind of
+  // caller: each resolves a binding and plays its `def`.
   it('has no dynamic call site outside the binding resolvers', () => {
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['choreo/recruitCues.ts', 'choreo/score.ts']);
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
@@ -134,7 +135,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     expect(directCallDefIds()).toEqual([
       'ale-bubbles', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
-      'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'watcher-pulse',
+      'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'watcher-pulse',
     ]);
   });
 

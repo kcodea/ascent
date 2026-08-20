@@ -45,7 +45,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'flurry', name: 'Flurry', aliases: ['Windfury'], badge: 'W', def: 'Attacks twice each combat turn.' },
   { id: 'rise', name: 'Rise', aliases: ['Reborn'], badge: 'R', def: 'The first time it dies, it returns with 1 Health.' },
   { id: 'cleave', name: 'Cleave', aliases: [], badge: 'C', def: 'Its attack also strikes the minions beside its target.' },
-  { id: 'crit', name: 'Crit', aliases: ['Critical'], badge: 'CR', def: 'Its attack has a chance to deal double damage.' },
+  { id: 'crit', name: 'Critical Strike', aliases: ['Crit', 'Critical'], badge: 'CR', def: 'Its attack has a chance to deal double damage.' },
   { id: 'attachment', name: 'Attachment', aliases: ['Magnetic', 'Magnetize', 'Attach'], badge: 'M', def: 'When played, can fuse onto a friendly minion, adding its stats and keywords.' },
   { id: 'immune', name: 'Immune', aliases: [], badge: 'IMM', def: 'Takes no damage.' },
   { id: 'stealth', name: 'Stealth', aliases: [], badge: 'ST', def: "Can't be attacked or targeted until it attacks." },

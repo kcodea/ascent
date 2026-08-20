@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, RUNES, EPIC_RUNES } from '@game/content';
 import { createRun, reduce, type RunState } from './index';
 import { defIsTribe } from './recruit';
 
@@ -57,5 +57,30 @@ describe("Quillen's Archive pays out for a tribe the set does not carry", () => 
     const picks = next.discover ?? [];
     const universal = picks.filter((id) => CARD_INDEX[id]?.universalTribe);
     expect(universal.length, `no All-types card in ${picks.join(', ')} — the Undead slot found nothing`).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('Rune of Pillaging + Rune of Soul Taxes are drawable again (owner 2026-08-20)', () => {
+  // Both were `sets: ['set1']` — and set 1 is `enabled: false`, so the forge filter
+  // (`!rn.sets || rn.sets.includes(runSet)`) hid them from every live run. Ungating + repricing.
+  const find = (id: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.id === id)!;
+
+  it('neither is set-gated any more, so a set-2 run can offer them', () => {
+    for (const id of ['rune_pillaging', 'rune_soul_taxes']) {
+      expect(find(id).sets, `${id} must not be gated to a disabled set`).toBeUndefined();
+    }
+  });
+
+  it('ship at the owner’s costs', () => {
+    expect(find('rune_pillaging').cost).toBe(4);
+    expect(find('rune_soul_taxes').cost).toBe(3);
+  });
+
+  it('their granted bodies resolve even though they are out-of-set Undead', () => {
+    // The acceptance the owner stated: not in the shop, fine as a reward. CARD_INDEX is global by design.
+    for (const id of ['pillager', 'soulsman']) {
+      expect(CARD_INDEX[id], `${id} must resolve for the grant`).toBeDefined();
+      expect(CARD_INDEX[id]!.tribe).toBe('undead');
+    }
   });
 });

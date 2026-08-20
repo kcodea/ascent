@@ -1,5 +1,23 @@
 # ASCENT — development log
 
+## 2026-08-20 — Rune of Pillaging + Rune of Soul Taxes enabled and repriced
+
+Owner: "can we enable rune of the pillager and rune of soul taxes? those minions wont be in the shop, but it's
+fine if they are given as rewards" — then Pillaging → **4g**, Soul Taxes → **3g**.
+
+They were never archived: both carried `sets: ['set1']`, and set 1 is `enabled: false`, so the forge filter
+(`!rn.sets || rn.sets.includes(runSet)`) hid them from every live run. Ungated (no `sets` field = every set)
+and repriced. Their granted bodies — **Pillager** and **Souls Man**, both set-1 UNDEAD — resolve fine because
+`CARD_INDEX` is global by design; they simply aren't drawable in the shop, which is exactly the trade the owner
+accepted.
+
+**Flagged:** Rune of Pillaging's second clause ("your **Gold Pouches** are worth 2 Gold") is **INERT outside
+set 1** — `emberpouch` does not exist in set 2, so in a live run the rune is the Pillager grant alone. The
+6→4 reprice roughly matches that, but the printed text still promises the dead half. Owner's call whether to
+cut the clause or leave it for a future set that carries Gold Pouches.
+
+Gates: typecheck ✅ lint 0 errors ✅ 6291 tests / 385 files ✅ build:web ✅.
+
 ## 2026-08-20 — Quillen's Archive sees All-types cards (owner report)
 
 "i ate an undead, beast, and dwarf and this was my discover at tier 5" — and only TWO cards came back.

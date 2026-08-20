@@ -509,7 +509,7 @@ export function simulate(
     // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
     // rather than at each Rally site so it counts exactly what the `rally` quest objective counts — every
     // fire, doubler re-fires included — instead of drifting from the game's own definition of "a Rally".
-    if (modsFor('player').runeHerdingHorn) ctx.grantFreeRolls(n, 'player');
+    if (modsFor('player').runeHerdingHorn) { fireTrigger('runeHerdingHorn', 'player'); ctx.grantFreeRolls(n, 'player'); }
     checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
@@ -852,6 +852,10 @@ export function simulate(
       if (side !== 'player') return; // enemies have no economy
       bonusGoldGain += amount;
     },
+    // The echo-trigger chokepoint, exposed so the FORCED-trigger factories (Echohorn / Hawkus / Spots)
+    // pay the same "an Echo fired" runes a real death does. Lazily referenced — `asEcho` is declared below
+    // this literal and is only ever invoked long after.
+    asEcho: (side, fn, source) => { asEcho(side, fn, source); },
     grantFreeRolls: (count, side) => {
       if (side !== 'player') return; // enemies have no shop
       freeRollGrants += count;
@@ -981,6 +985,7 @@ export function simulate(
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read. (owner 2026-08-11)
       if (modsFor(side).runeEnchantment) {
+        fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 6, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
@@ -1135,6 +1140,7 @@ export function simulate(
     // grants Ward on the same "summoned in combat" scope).
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
+      fireTrigger('runeHatchery', side); // owner call 2026-08-19: a continuous modifier bursts on each body it buffs
       minion.attack += hatch.attack;
       minion.health += hatch.health;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
@@ -1149,6 +1155,7 @@ export function simulate(
     // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
     // already on the board and already snapshotted, and the old version was tribe-gated besides.
     if (modsFor(side).runePackcraft) {
+      fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
       minion.attack += 6;
       minion.health += 6;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
@@ -1182,11 +1189,13 @@ export function simulate(
     // TAKE a Ward: a summon that already had one costs nothing from the allowance.
     const undertow = modsFor(side).runeUndertow;
     if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
+      fireTrigger('runeUndertow', side);
       undertowUsed[side] += 1;
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
     }
     if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
+      fireTrigger('runeLivingTreasure', side);
       // Rune of Living Treasure grafts the EXACT-COPY Echo (Exgalloper's), not Rise. It shipped as Rise on the
       // theory that "Rise IS summon an exact copy" — but Rise resummons the PRINTED body, so a 7/3 shard came
       // back a 1/1 (owner report 2026-07-31); the Echo copies current stats. Being a real `onDeath` effect
@@ -1208,6 +1217,8 @@ export function simulate(
       const wardOnly = card.id === 'gemheart-shard' && summoner?.cardId === 'k_geode';
       const wardTaunt = card.id === 'impscrap' && summoner?.cardId === 'dm_wrangler';
       if (wardOnly || wardTaunt) {
+        // Two runes share this guard; attribute by which one actually granted, so the right badge bursts.
+        fireTrigger(wardTaunt ? 'runeWrangler' : 'runeLivingGeode', side);
         minion.divineShield = true;
         if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
         if (wardTaunt && !minion.keywords.includes('T')) minion.keywords.push('T');
@@ -1412,9 +1423,13 @@ export function simulate(
     {
       run();
       // RUNE OF THE BURROW (owner rework 2026-08-19): triggering a BEAST's Echo banks a free Shop refresh.
-      // It rides the echo chokepoint rather than the death site, so an Echo fired by Hawkus / Spots / the
-      // Reliquary — no death involved — pays exactly like one that came from dying.
-      if (source && modsFor(side).runeBurrow && isBeast(source)) ctx.grantFreeRolls(1, side);
+      // It rides the echo chokepoint rather than the death site, so an Echo forced by Echohorn / Hawkus /
+      // Spots / Rune of the Herald — no death involved — pays exactly like one that came from dying. (Those
+      // forced paths reached this chokepoint only from 2026-08-20; before that they fired the `onDeath`
+      // factories directly. The Reliquary is NOT among them — its trigger is an End-of-Turn recruit effect,
+      // and this rune, like Aftershocks, is combat-scoped.) `fireTrigger` bursts the rune's badge (#1102) —
+      // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
+      if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -1426,6 +1441,7 @@ export function simulate(
       // bake +4/+4 into Echo-summoned bodies instead). Fires after the Echo resolves, so a body it summoned is
       // already on the board and shares the grant. Per side; a nested Echo is its own trigger.
       if (modsFor(side).runeAftershocks) {
+        fireTrigger('runeAftershocks', side); // pulse the rune's badge when its Echo grant fires
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 4, 'Rune of Aftershocks');
       }
     }
@@ -1563,6 +1579,9 @@ export function simulate(
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
+        // Fury modifies OTHER runes' Avenges, so its badge pops beside theirs — it genuinely caused the
+        // second trigger, and without this the extra fire has no attribution at all.
+        fireTrigger('runeFury', minion.side);
         fn(ctx, minion, effect.params ?? {}, payload);
       }
       // The Sealed Vault: the FIRST Avenge each combat triggers twice — tracked per side, so a served enemy
@@ -1667,7 +1686,7 @@ export function simulate(
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
-    if (first > 0 && !firstEchoDone[minion.side]) { bonus += first; firstEchoDone[minion.side] = true; }
+    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); bonus += first; firstEchoDone[minion.side] = true; }
     return bonus;
   }
 
@@ -1684,8 +1703,9 @@ export function simulate(
     if (mods.tribeRallySlaughterExtra && isTribeOf(attacker, mods.tribeRallySlaughterExtra, cards)) extra += 1;
     if (attacker.side === 'player' && playerRallyDouble) extra += 1; // Rallying Offensive is a player-only one-fight override
     extra += mods.rallyExtraAlways ?? 0;
+    if (mods.rallyExtraAlways) fireTrigger('runeAdventuring', attacker.side);
     const first = mods.rallyFirstEachCombat ?? 0;
-    if (first > 0 && !firstRallyDone[attacker.side]) { extra += first; firstRallyDone[attacker.side] = true; }
+    if (first > 0 && !firstRallyDone[attacker.side]) { fireTrigger('runeStampede', attacker.side); extra += first; firstRallyDone[attacker.side] = true; }
     return extra;
   }
 
@@ -1805,6 +1825,7 @@ export function simulate(
         if (!minion.keywords.includes('R')) minion.keywords.push('R');
         minion.rebornAvailable = true;
         emit({ type: 'keyword', target: minion.uid, keyword: 'R' });
+        fireTrigger('runeDeathtouchedApple', minion.side);
       }
       // Granted blessings shed with the granted keywords: a golden-Taurus ×2 (`gainMult`) doesn't survive
       // the Rise — the EG it came with is already gone, and a lingering multiplier would double gains the
@@ -2078,6 +2099,7 @@ export function simulate(
     const finalImps = modsFor(side).runeFinality ?? 0;
     if (finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
       finalityDone[side] = true;
+      fireTrigger('runeFinality', side);
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < finalImps; i++) summonMinion(side, imp, undefined, ['DS']); }
     }
@@ -2159,6 +2181,7 @@ export function simulate(
       // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
       // body that is Engraved, which is the standing rule for every combat stat gain.
       if (modsFor(poisoner.side).runeRuins) {
+        fireTrigger('runeRuins', poisoner.side);
         for (const m of living(poisoner.side)) ctx.buff(m, RUNE_RUINS_BUFF, RUNE_RUINS_BUFF, 'Rune of Ruins');
       }
     }
@@ -2383,6 +2406,7 @@ export function simulate(
       if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
         ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
+        fireTrigger('runeWildHunt', attacker.side);
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
@@ -2565,6 +2589,7 @@ export function simulate(
               // of the first minion you kill each combat"). Player-only (a served enemy has no run to receive it).
               // Conjured fresh from the card def at settle, so the copy is plain — none of the victim's buffs.
               if (kmods.runeTrophy && slaughterCopyId === undefined) {
+                fireTrigger('runeTrophy', 'player'); // the first kill claims the copy — pulse the badge on it
                 slaughterCopyId = m.cardId;
                 // Fly the copy to hand as a live VISUAL only, on the kill beat — the real plain copy is still
                 // conjured at settle from `slaughterCopyId` (a bare `toHand` is presentation, NOT a
@@ -3024,11 +3049,15 @@ export function simulate(
         for (const target of echoes) {
           const procs = 1 + (rside === 'player' ? playerEchoExtras(target) : 0);
           for (let r = 0; r < procs; r++) {
-            ctx.countDeathrattle?.(target.side);
-            for (const effect of target.effects) {
-              if (effect.on !== 'onDeath') continue;
-              withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
-            }
+            // ONE wrap per proc: each re-fire is its own Echo TRIGGER, and everything hanging off `asEcho`
+            // (Aftershocks, Burrow) must see a Herald-forced Echo exactly like a death-fired one.
+            asEcho(rside, () => {
+              ctx.countDeathrattle?.(target.side);
+              for (const effect of target.effects) {
+                if (effect.on !== 'onDeath') continue;
+                withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
+              }
+            }, target);
           }
         }
       }
@@ -3037,7 +3066,10 @@ export function simulate(
     if (rmods.runeDawnclaw) {
       for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'b2_dawnclaw')) {
         nextStep(); fireTrigger('runeDawnclaw', rside);
-        FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+        // A Dawnclaw firing its own Echo without dying is still an Echo TRIGGER (see `asEcho`).
+        asEcho(rside, () => {
+          FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+        }, m);
       }
     }
     // Rune of Sylus: your Sylus double their own Health at Start of Combat.
@@ -3305,7 +3337,7 @@ export function simulate(
       const idx = boards[side].indexOf(minion);
       if (idx < 0 || boards[side].slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
-      if (right) ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance');
+      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance'); }
     });
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
@@ -3325,6 +3357,7 @@ export function simulate(
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
   if (playerState.questMods.runeSalvage) {
+    fireTrigger('runeSalvage', 'player'); // pulse the badge when the Attachment is actually banked
     const magnetics = ctx.poolCards('player').filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
@@ -3524,6 +3557,7 @@ export function simulate(
   // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip.
   const reinvest = modsFor('player').runeReinvestment ?? 0;
   if (reinvest > 0 && playerSummonCount > 0) {
+    fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
     tavernBuyGain.attack += reinvest * playerSummonCount;
     tavernBuyGain.health += reinvest * playerSummonCount;
   }

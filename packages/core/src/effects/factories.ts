@@ -85,7 +85,12 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // RUNE OF ENGRAVING GEMS: every Ruby applied in combat carries back to the run board. Forced at this single
   // chokepoint (like Battle Refraction above), so EVERY combat Ruby source becomes permanent together rather
   // than each caller having to opt in — a per-source opt-in is exactly how one would get missed.
-  const engraved = permanent || !!ctx.rubiesPermanentFor?.(self.side);
+  const runeEngraved = !permanent && !!ctx.rubiesPermanentFor?.(self.side);
+  const engraved = permanent || runeEngraved;
+  // Rune of Engraving Gems bursts on the badge when IT is why this combat Ruby became permanent (not when the
+  // Ruby was already permanent for another reason). `ctx.log` of a questTrigger is the factories-side
+  // equivalent of `fireTrigger` — same channel, no new context hook (see the runeFloodedVault stamp).
+  if (runeEngraved) ctx.log({ type: 'questTrigger', flag: 'runeEngravingGems', side: self.side });
   applyRubyStats(ctx, self, target, a, h, engraved);
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
@@ -419,11 +424,21 @@ export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): v
   const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
   for (let r = 0; r < procs; r++) {
     ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-    ctx.countDeathrattle?.(target.side);
-    for (const effect of target.effects) {
-      if (effect.on !== 'onDeath') continue;
-      FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-    }
+    // Route through the ECHO-TRIGGER chokepoint (`ctx.asEcho`), so the "an Echo fired" runes — Aftershocks
+    // (+4/+4 to the board), Burrow (a free refresh on a Beast Echo) — see a FORCED trigger exactly like a
+    // death-fired one. Owner report 2026-08-20: Aftershocks only fired on a real death, because this loop
+    // called the `onDeath` factories directly. ONE wrap per proc (a body with two Echo effects is still one
+    // trigger; each multiplier proc is its own). Falls back to a bare run when no chokepoint is supplied,
+    // so a context without it (tests, the recruit-phase arena) behaves exactly as before.
+    const fire = (): void => {
+      ctx.countDeathrattle?.(target.side);
+      for (const effect of target.effects) {
+        if (effect.on !== 'onDeath') continue;
+        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+      }
+    };
+    if (ctx.asEcho) ctx.asEcho(target.side, fire, target);
+    else fire();
   }
 }
 
@@ -1604,6 +1619,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (ctx.floodedVaultFor?.(self.side)) {
       const def = ctx.getCard(id);
       if (def?.spell && combatCastable(def)) {
+        // Pulse the rune's badge. Emitted through `ctx.log` rather than through a new context hook: a
+        // `questTrigger` IS a `CombatEvent`, so this needs no widening of the effect context — and it lands
+        // on the same channel every other rune trigger uses, so the badge treats it identically.
+        ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
           const pool = ctx.living(self.side);
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;

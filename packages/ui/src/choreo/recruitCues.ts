@@ -205,8 +205,16 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
   if (!binding || !pt) return () => {};
   const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
   const src = moment.sourceCardId ?? null;
-  // No targets → a single fire at the release point (Golden / Reinforcing).
-  if (moment.recipients.length === 0) {
+  // Fanning out is OPT-IN, via the binding's own `fanOut: 'buffed'` — the same field and the same word combat
+  // uses for "once per unit this source buffed". It used to be implicit: any cast carrying recipients fanned.
+  // That was right while the five ales were the only bound casts, and wrong the moment `spellCast` gained a
+  // KIND-level default (`spell-sparks`): a fanning default would fire a 122-particle burst once per buffed
+  // minion for every spell in the game, and land it ON those minions rather than where the player cast it.
+  // The ales declare `fanOut` explicitly and keep their cursor→minion volley unchanged.
+  const fansOut = binding.fanOut === 'buffed' && moment.recipients.length > 0;
+  // The single fire is at the RELEASE POINT — the cursor. `target` is deliberately the cursor too, not a
+  // minion, so a `target`-anchored layer lands where the spell was actually cast (owner call 2026-08-19).
+  if (!fansOut) {
     playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
     if (binding.sfx !== undefined) sfx[binding.sfx]?.();
     return () => {};

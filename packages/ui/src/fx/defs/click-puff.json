@@ -40,6 +40,7 @@
         "orientToVelocity": false,
         "turbulence": 95,
         "turbScale": 0.093,
+        "fieldPhase": 0.5,
         "emitShape": "point",
         "emitRadius": 0,
         "squashX": 1,

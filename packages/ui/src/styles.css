@@ -2296,16 +2296,16 @@ body.modalup .app { z-index: auto; }
 .questbadge.runebadge { border: none; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 calc(10 * var(--u)) rgba(140, 190, 230, 0.35), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--gl-accent, #a8d8ef); }
-/* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
-   The resting (weakest) glow sits STATICALLY on the slot; the brighter crest lives on a ::before whose
-   OPACITY breathes via kwglow — an animated box-shadow repainted the slot every frame (see performance.md). */
-.disc-slot { position: relative; display: inline-flex; border-radius: var(--arch-radius);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
-.disc-slot::before {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent);
-  animation: kwglow 2s ease-in-out infinite; will-change: opacity;
-}
+/* The slot is a pure layout wrapper now. Its old tribe-coloured ring + bloom (a static box-shadow plus a
+   kwglow-animated `::before`) read as an outdated squared glow behind the offer cards and is removed across
+   ALL offer overlays — Choose One, Discover, Scouted (owner ask 2026-08-19). A card carries its own affordance
+   (plated cards glow on their plate silhouette on hover); the slot no longer paints anything. */
+.disc-slot { position: relative; display: inline-flex; border-radius: var(--arch-radius); }
+/* A PLATED Choose One / Discover option (owner ask 2026-08-19) is wider than its frame — the carved plate
+   overhangs — and that overhang is invisible to the flex row, so two plates would eat through the gap and
+   overlap. Reserve the overhang as margin, exactly as `.cardref` and `.book-grid` do, so the flex gap stays
+   real separation. */
+.disc-slot .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 /* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
    slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),
@@ -3805,14 +3805,14 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */
-.lossdmg { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.lossdmg { position: fixed; z-index: 2000; pointer-events: none; transform: translate(-50%, -50%); text-align: center; animation: lossdmgin 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); } /* z 2000: above the board furniture + replay bar (the freeze gem etc. now stay up in combat and were covering it), matching the lobby damage float; still below the dev menu (owner report 2026-08-19) */
 .lossdmg-n { font-family: var(--font-ui); font-weight: 900; font-size: 72px; line-height: 1; color: #fff; text-shadow: 0 0 10px var(--threat), 0 0 22px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5); }
 .lossdmg-l { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px; }
 .lossdmg.launch { animation: lossdmglaunch 0.34s ease-in forwards; } /* the DOM number hands off to the Pixi bolt */
 @keyframes lossdmgin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes lossdmglaunch { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.55); } }
 /* A tier number flying from its enemy card (or the opponent intel frame) up into the damage counter. */
-.lossfly { position: fixed; z-index: 31; pointer-events: none; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
+.lossfly { position: fixed; z-index: 2001; pointer-events: none; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55); animation: lossflyto 0.43s ease-in forwards; }
 .lossfly.opp { color: #ffe6a8; text-shadow: 0 0 8px #d6a83e, 0 2px 5px rgba(0, 0, 0, 0.55); } /* the opponent's tavern tier reads gold */
 @keyframes lossflyto {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
@@ -4595,20 +4595,6 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 .titleversion { position: absolute; right: 22px; bottom: 16px; font-family: var(--font-ui); font-weight: 700; font-size: 13px;
   letter-spacing: 0.05em; color: rgba(236, 220, 178, 0.6); }
-/* Announcement banner — a glass card TOP-CENTER of the title screen (the Set 2 launch note; owner sizing
-   2026-07-31: centered, top, larger). One-shot entrance; nothing loops. */
-.titlebanner {
-  zoom: var(--ui-zoom); position: absolute; left: 50%; top: 26px; transform: translateX(-50%); z-index: 2;
-  width: min(560px, 60vw); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-  padding: 26px 32px; border-radius: 22px; background: linear-gradient(180deg, rgba(36, 26, 19, 0.92), rgba(23, 17, 12, 0.92));
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 18px 46px -14px rgba(0, 0, 0, 0.7);
-  animation: bannerpop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.titlebanner-emoji { font-size: 40px; line-height: 1; }
-.titlebanner-title { font-family: var(--font-title, var(--font-ui)), sans-serif; font-weight: 800; font-size: 30px; line-height: 1.2; color: var(--acc, #ff9d4d); }
-.titlebanner-sub { font-family: var(--font-ui), sans-serif; font-weight: 600; font-size: 17px; line-height: 1.5; color: #f4ecdb; }
-@keyframes bannerpop { 0% { opacity: 0; transform: translateX(-50%) scale(0.9); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
-@media (max-width: 900px) { .titlebanner { display: none; } }
 /* Won headline: vertical gold gradient (mockup 2026-07-16) — drop-shadow instead of text-shadow because the
    fill is transparent (background-clip: text); static one-element filter, not animated (perf rule respected). */
 .endscreen.won .hstitle { background: linear-gradient(180deg, #ffeebc 12%, #ffd98a 45%, #eda94f 90%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px rgba(255, 200, 110, 0.3)); }

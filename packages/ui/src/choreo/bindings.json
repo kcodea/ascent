@@ -54,6 +54,15 @@
     },
     "shopBuffAll": {
       "def": "shop-buff-aura"
+    },
+    "runeTriggered": {
+      "def": "rune-burst"
+    },
+    "spellCast": {
+      "def": "spell-sparks"
+    },
+    "epicRuneTriggered": {
+      "def": "epic-rune-burst"
     }
   },
   "cards": {
@@ -102,27 +111,32 @@
     },
     "wo_attack": {
       "spellCast": {
-        "def": "bloody-ale"
+        "def": "bloody-ale",
+        "fanOut": "buffed"
       }
     },
     "wo_champion": {
       "spellCast": {
-        "def": "champions-ale"
+        "def": "champions-ale",
+        "fanOut": "buffed"
       }
     },
     "wo_health": {
       "spellCast": {
-        "def": "defensive-ale"
+        "def": "defensive-ale",
+        "fanOut": "buffed"
       }
     },
     "wo_mine": {
       "spellCast": {
-        "def": "coin-ale"
+        "def": "coin-ale",
+        "fanOut": "buffed"
       }
     },
     "wo_reinforcement": {
       "spellCast": {
-        "def": "reinforcing-ale"
+        "def": "reinforcing-ale",
+        "fanOut": "buffed"
       }
     }
   }

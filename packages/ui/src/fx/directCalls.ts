@@ -43,6 +43,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
   'ruby-gem-apply': ['choreo/score.ts'],
+  'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
   'shop-buff-aura': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
@@ -66,6 +67,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), and the `spellCast` cast-FX
   // resolver `runSpellCastFire`'s point-only fire plus its per-target fire.
   'choreo/recruitCues.ts': 5,
+  // The HUD's binding path — one `playDef(binding.def, …)` firing a rune's flourish on its own badge. Not a
+  // moment cue: the combat score can only anchor to board units, so a rune badge is unreachable from it (see
+  // `runeTriggerFx.ts`'s header) and this resolves its binding directly instead.
+  'runeTriggerFx.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

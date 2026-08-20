@@ -33,6 +33,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
   { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },
   { file: 'QuestBadges.tsx', id: 'rune-slot-break', why: 'fires at the locked 3rd rune slot in the HUD badge row, not a unit' },
+  { file: 'runeTriggerFx.ts', id: '<dynamic>', why: 'fires on a rune BADGE in the status bar — a HUD node, not a unit, so there is no uid to pass' },
 ];
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
@@ -66,6 +67,14 @@ function callsIn(src: string): string[] {
   return calls;
 }
 
+/** The def id a call names, or the `<dynamic>` sentinel when it is an expression (a resolved `binding.def`).
+ *  Shared by BOTH checks below on purpose: they derived it two different ways — one parsing the literal, one
+ *  substring-testing for it — so a dynamic call could satisfy the offender check and simultaneously look
+ *  stale to the other. One derivation, one answer. */
+function idOf(call: string): string {
+  return /playDef\(\s*'([^']+)'/.exec(call)?.[1] ?? '<dynamic>';
+}
+
 describe('every playDef call at a unit passes its uid', () => {
   it('has no unit-aimed call missing `uids`', () => {
     const offenders: string[] = [];
@@ -75,7 +84,7 @@ describe('every playDef call at a unit passes its uid', () => {
       const short = file.split(/[\\/]/).pop() ?? file;
       for (const call of callsIn(readFileSync(file, 'utf8'))) {
         if (call.includes('uids')) continue;
-        const id = /playDef\(\s*'([^']+)'/.exec(call)?.[1] ?? '<dynamic>';
+        const id = idOf(call);
         if (UNIT_LESS.some((u) => u.file === short && u.id === id)) continue;
         offenders.push(`${short}: playDef('${id}') — pass uids, or add it to UNIT_LESS with a reason`);
       }
@@ -90,7 +99,7 @@ describe('every playDef call at a unit passes its uid', () => {
       return callsIn(readFileSync(f, 'utf8')).map((c) => ({ short, call: c }));
     });
     const stale = UNIT_LESS.filter(
-      (u) => !all.some(({ short, call }) => short === u.file && call.includes(`'${u.id}'`) && !call.includes('uids')),
+      (u) => !all.some(({ short, call }) => short === u.file && idOf(call) === u.id && !call.includes('uids')),
     );
     expect(stale.map((s) => `${s.file}: ${s.id}`), 'UNIT_LESS entries matching nothing').toEqual([]);
   });

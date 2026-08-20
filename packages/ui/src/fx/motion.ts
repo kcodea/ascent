@@ -8,6 +8,33 @@
  * `point`), preserving the existing look byte-for-byte until a knob is turned.
  */
 
+import { makeRng } from './rng';
+
+/**
+ * A per-instance STARTING phase (seconds) for a primitive's field clock — the same `clockSec` that drives
+ * both the pseudo-turbulence field (`turbulenceX/Y`'s `tSec`) and the shader's animated texture noise
+ * (`uTime`). Its whole job is to break the "many copies fired at once swirl in lockstep" look: every
+ * instance otherwise starts its clock at 0, so simultaneous fires sample the SAME field at the SAME phase and
+ * only the seeded spawn jitter separates them — under strong turbulence the shared field dominates and they
+ * read as identical.
+ *
+ * Derived from the instance's own seed via a SEPARATE mulberry32 stream (a fixed golden-ratio XOR of the
+ * seed), never the primitive's per-particle `rand` — so the frozen per-mote draw order that saved seeds
+ * replay against is untouched. Because the offset is a pure function of the seed, a def that LOCKS its seed
+ * gets a reproducible offset too; an unlocked def (fresh seed per fire) gets a fresh offset per fire, which
+ * is exactly the decorrelation we want.
+ *
+ * `amount` 0 → 0 (an exact no-op: `clockSec` still starts at 0, byte-identical to before this existed).
+ * `amount` 1 → up to `FIELD_PHASE_SPAN` seconds — ~2 periods of the turbulence base sine (2π/1.3 ≈ 4.8s),
+ * enough to fully decorrelate two instances. Absolute phase is invisible to a single fire (a noise/scroll
+ * field looks the same at any start time); only the RELATIVE offset between instances matters.
+ */
+export const FIELD_PHASE_SPAN = 10;
+export function fieldPhaseOffset(seed: number, amount: number): number {
+  if (!(amount > 0)) return 0;
+  return makeRng((seed ^ 0x9e3779b9) | 0)() * FIELD_PHASE_SPAN * amount;
+}
+
 /**
  * Cheap layered-sine pseudo-turbulence — no noise library, no hashing, just two sines per axis. Deterministic
  * given `(x, y, tSec)` and bounded to roughly `[-1.5, 1.5]` (amplitudes 1 + 0.5). `turbulenceX` reads the

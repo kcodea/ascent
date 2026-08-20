@@ -195,13 +195,46 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(sum('health') - hBefore, 'two recipients × +5 Health').toBe(10);
   });
 
-  it('Gangplank: a card conjured to hand buffs the left-most friendly Dwarf +1/+2', () => {
+  it('Gangplank: a card conjured to hand buffs a friendly Dwarf +1/+2', () => {
     const s = recruit({ board: [recruitBody('dw_brunni', 'd1'), recruitBody('dw_gangplank', 'gp')], hand: [], shop: [] });
-    const d1 = s.board.find((c) => c.uid === 'd1')!;
-    const [aBefore, hBefore] = [d1.attack, d1.health];
+    const before = s.board.map((c) => c.attack + c.health).reduce((a, b) => a + b, 0);
     conjureToHand(s, [CARD_INDEX['veinstorm']!], 1); // fires onGainCard once
-    const after = s.board.find((c) => c.uid === 'd1')!;
-    expect([after.attack - aBefore, after.health - hBefore], 'the left-most Dwarf gained +1/+2').toEqual([1, 2]);
+    const after = s.board.map((c) => c.attack + c.health).reduce((a, b) => a + b, 0);
+    expect(after - before, 'exactly one Dwarf gained +1/+2').toBe(3);
+  });
+
+  it('Gangplank picks a RANDOM Dwarf, not always the left-most (owner report 2026-08-20)', () => {
+    // It used to `.find(...)` the first match, so the left-most body soaked every grant for the whole run —
+    // a seating decision the card never claimed to make. Drive many conjures across a Dwarf line and assert
+    // the grants actually SPREAD; the left-most soaking all of them is the exact bug.
+    const s = recruit({
+      board: [
+        recruitBody('dw_brunni', 'd1'), recruitBody('dw_brunni', 'd2'),
+        recruitBody('dw_brunni', 'd3'), recruitBody('dw_gangplank', 'gp'),
+      ],
+      hand: [], shop: [],
+    });
+    const start = new Map(s.board.map((c) => [c.uid, c.attack + c.health]));
+    for (let i = 0; i < 40; i++) { s.hand = []; conjureToHand(s, [CARD_INDEX['veinstorm']!], 1); }
+    const gained = s.board.filter((c) => (c.attack + c.health) > (start.get(c.uid) ?? 0));
+    expect(gained.length, 'every grant landed on ONE body — still left-most-only').toBeGreaterThan(1);
+    const d1 = s.board.find((c) => c.uid === 'd1')!;
+    expect(d1.attack + d1.health - (start.get('d1') ?? 0), 'the left-most must not soak all 40 grants').toBeLessThan(40 * 3);
+  });
+
+  it('…and the random pick is SEEDED — the same run state replays identically', () => {
+    const build = () => recruit({
+      board: [
+        recruitBody('dw_brunni', 'd1'), recruitBody('dw_brunni', 'd2'),
+        recruitBody('dw_brunni', 'd3'), recruitBody('dw_gangplank', 'gp'),
+      ],
+      hand: [], shop: [],
+    });
+    const run = (st: ReturnType<typeof build>) => {
+      for (let i = 0; i < 12; i++) { st.hand = []; conjureToHand(st, [CARD_INDEX['veinstorm']!], 1); }
+      return st.board.map((c) => `${c.uid}:${c.attack}/${c.health}`).join('|');
+    };
+    expect(run(build()), 'the pick must consume the seeded run cursor, not Math.random').toBe(run(build()));
   });
 
   it('Mountainbond: every 8 Gold spent plays a Ruby on ALL your minions (Kobold and not)', () => {

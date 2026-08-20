@@ -2,6 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExt
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import type { StepProgress } from './cardText';
 import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
@@ -712,7 +713,14 @@ export const Card = memo(function Card({
   // A plated card whose PRIMARY tribe has its own plate: drop the in-drawer tribe icon+label and print the
   // tribe name on the plate's bottom gem instead (owner 2026-07-25). Only on the plate itself (hand / drag),
   // never on an unplated board card, a spell, or the "All"-tribe case.
-  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !card.universalTribe;
+  // "ALL TYPES" is a property of the CARD DEF, so derive it here rather than trusting each projection to
+  // carry it (owner report 2026-08-20: Lab Experiment / Paragon / Standard Bearer read "Neutral"). SIX
+  // CardView builders dropped the flag — the Compendium, Career, Leaderboard, quest- and rune-reward
+  // previews, and the sandbox editor — and any future one could forget again. Reading the def closes the
+  // class instead of patching each site. The view still WINS when it sets the flag, which is what carries
+  // the INSTANCE-level case (`allTribes` — an Anomaly-Reactor'd body, which no def knows about).
+  const universalTribe = card.universalTribe ?? !!CARD_INDEX[card.cardId]?.universalTribe;
+  const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike && !universalTribe;
   const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
@@ -1092,7 +1100,7 @@ export const Card = memo(function Card({
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}
-            {card.universalTribe ? (
+            {universalTribe ? (
               <><Icon name="star" /> All</>
             ) : (
               <>

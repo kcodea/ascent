@@ -1,5 +1,37 @@
 # ASCENT — development log
 
+## 2026-08-20 — "All types" cards print ALL, not Neutral; art for Arnold + the two new spells
+
+Owner report: "lab experiment, paragon, and standard bearer are 'all types' not neutral — their tribe pill
+should say 'All'."
+
+**The pill logic was already right; six projections dropped the flag.** An All-type card carries
+`tribe: 'neutral'` in DATA with `universalTribe: true` beside it, and `Card.tsx` prints ALL when the CardView
+says so — but the flag has to survive the trip. Six builders never passed it: the **Compendium**
+(`MinionBook.toView`), **Career**, **Leaderboard**, the **quest-** and **rune-reward previews**, and the
+sandbox editor. Recruit and `instView` did, which is why the board looked fine and the browsing surfaces did
+not.
+
+Rather than patch six call sites and let the seventh forget again, `Card` now DERIVES it:
+`card.universalTribe ?? CARD_INDEX[card.cardId]?.universalTribe`. Any projection — present or future — renders
+ALL by construction. The view still WINS when it sets the flag, which preserves the INSTANCE-level case
+(`allTribes`, an Anomaly-Reactor'd body no def knows about). The same derived value feeds `tribePlated`, so a
+plated All-type card can't fall back to a tribe plate either.
+
+Five cards are affected: **Lab Experiment**, **Paragon**, **Standard Bearer**, plus **Perfect Core** and
+**Chaos Attachment** (tokens the owner hadn't spotted, misreading the same way).
+
+**Art wired**: `dw_arnold`, `summoningbulwark`, `mightofaeon` — the only live cards that were missing it. An
+audit of every card found just those three plus the Set-3 scaffold (`c3_*`, not shipped) and a test fixture.
+
+Coverage: a new `allTypesPill.test.ts` pins that the three named cards carry the flag and that EVERY
+universal-tribe card is `neutral` in data (which is exactly why the pill matters — Neutral implies the
+opposite of what the card does), plus an art-coverage test asserting no live card falls back to the tribe
+sprite. Verified live in the browser: all three read **All** and all three arts load, with the probe
+deliberately passing `tribe: 'neutral'` to prove the derivation rather than the input.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5915 tests / 369 files ✅ build:web ✅.
+
 ## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
 
 Owner report: "rune of aftershocks is only triggering when an echo minion dies. it should trigger when an echo

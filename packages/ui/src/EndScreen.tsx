@@ -98,7 +98,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
  */
 function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () => void }): JSX.Element {
   return (
-    <div className="heroselect endscreen won">
+    <div className="heroselect endscreen won tutgrad">
       <div className="hsbox endbox">
         <h1 className="disp hstitle">Tutorial Complete</h1>
         <div className="endboard">

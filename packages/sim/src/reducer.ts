@@ -3,7 +3,7 @@ import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
+import { CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -2185,8 +2185,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // (and no charge spent) on a missing target or an already-golden minion.
         if (!card || card.golden) return state;
         gildMinion(card);
-        // Indy: arm the recharge — the charge comes back after 40 more Gold is spent (see `spendGold`).
-        s.indyGildRearmAt = (s.goldSpent ?? 0) + 75; // owner rebalance 2026-08-07: was 40
+        // Indy: arm the recharge — the charge comes back after INDY_GILD_RECHARGE_GOLD more Gold is spent.
+        s.indyGildRearmAt = (s.goldSpent ?? 0) + INDY_GILD_RECHARGE_GOLD;
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.

@@ -68,6 +68,15 @@ export const CONFIG = {
 export const KESHI_CROWN_THRESHOLD = 25;
 
 /**
+ * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.
+ *
+ * Exported because the reducer arms the recharge and the StatusBar prints the meter, and those two drifted —
+ * the value was rebalanced 40 → 75 on 2026-08-07 in the reducer only, so the pill read "0/40g" while the
+ * charge actually needed 75 (owner report 2026-08-20). One constant, both readers.
+ */
+export const INDY_GILD_RECHARGE_GOLD = 75;
+
+/**
  * ── Rifts ──────────────────────────────────────────────────────────────────────────────────────────────
  * A limited-time "rift" is a **global rule bent for fun for a while, then switched back off** — think
  * seasonal / weekend modifiers. This is the extensible spine for them: add a new entry to `RIFTS`, give

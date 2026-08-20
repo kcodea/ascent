@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Tutorial coaching pass** — every buy/play step now draws the drag it is asking for, steps that mention Health light it up, the Discover overlay is inside its own spotlight, and a hero-power reminder sits before every combat. Fixed: a positioning step that could be completed by clicking, a highlight that measured a card mid-animation, and the next step being readable below the board during combat. **Hero select** gained a difficulty pill + strategy tip under each portrait that crossfades to the hero-power text on hover.
+
 - **Minion medallion icons no longer fall back to the tribe symbol.** The glyph on a minion's card now comes
   from a shared registry that reads the card's real mechanics (was: a brittle text check that showed a generic
   tribe icon on 64% of minions). New eye glyph for reactive **Watcher** effects, and Stealth/Engraved/Choose

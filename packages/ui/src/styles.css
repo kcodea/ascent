@@ -4144,9 +4144,36 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   white-space: nowrap; font-size: 21px; padding: 3px 18px; background: linear-gradient(180deg, #fff, #f3ead4);
   border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
 }
+/* The area under the portrait holds TWO faces that crossfade (owner ask 2026-08-20): the resting face is the
+   difficulty pill + strategy tip, the hover face is the hero-power text. `.hcbelow` owns the reserved height
+   and both faces are absolutely positioned inside it, so swapping between them can never reflow the row —
+   the same "reserve the height once" trick the power text used on its own before. */
+.herocard.big .hcbelow { position: relative; min-height: 92px; width: 100%; }
+.herocard.big .hcbelow > * { position: absolute; inset: 0; }
+/* Resting face — visible until the card is hovered. */
+.herocard.big .hcmeta {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  opacity: 1; transition: opacity 0.28s ease;
+}
+.herocard.big:hover .hcmeta { opacity: 0; }
+.hcdiff {
+  display: inline-block; padding: 2px 13px 3px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase;
+  border: 2px solid currentColor; background: rgba(8, 6, 14, 0.55);
+}
+/* Difficulty is a THREE-STEP scale, so it gets three unambiguous hues rather than one accent at three
+   opacities — the pill has to be readable at a glance across a row of cards. */
+.hcdiff.d-easy { color: #7fd18a; }
+.hcdiff.d-medium { color: #e8c15e; }
+.hcdiff.d-hard { color: #e8836b; }
+.hctip {
+  font-size: 15px; font-weight: 600; line-height: 1.32; color: #efe6d4;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9);
+  padding: 0 4px;
+}
 /* Power text — fades in with the power art, LIGHT on the bare board background (no cream card behind it
-   any more); reserved height so the card never jumps on hover. */
-.herocard.big .hcpw { min-height: 92px; opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
+   any more). Height is now reserved by `.hcbelow` above. */
+.herocard.big .hcpw { opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
 .herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; background: rgba(0, 0, 0, 0.35); }
@@ -4187,6 +4214,11 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* End screen sized up ~2.5× and forced to single rows (pips + warband never wrap). */
 .endscreen .eyebrow { font-size: 26px; letter-spacing: 0.32em; }
 .endscreen .hstitle { margin: 12px 0 0; font-size: 116px; }
+/* GRADUATION screen: no `.endboardlabel` sits between the title and the board here, so the title's zero
+   bottom margin let the final warband ride up over it (owner report 2026-08-20). Give the title its own
+   breathing room and shrink it a little — 116px is sized for the full end screen's taller layout. */
+.tutgrad .hstitle { font-size: clamp(56px, 7vw, 92px); margin: 4px 0 30px; }
+.tutgrad .endboard { margin-top: 6px; }
 .endsub { font-family: var(--font-ui); font-weight: 800; font-size: 32px; letter-spacing: 0.18em; text-transform: uppercase; color: #f2ead9; margin-top: 16px; }
 /* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
 .endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -6065,7 +6097,7 @@ svg { width: 18px; height: 18px; }
 
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */
-.modecard.mclocked { cursor: default; opacity: 0.5; }
+.modecard.mclocked { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; opacity: 0.5; }
 .modecard.mclocked:hover { transform: none; }
 .modecard.mclocked .mcname { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
 

@@ -15,6 +15,7 @@ import {
   expandFrames, rollupRounds, roundMarks,
   type CombatFrame, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
 import type { CardView } from '../Card';
 import { useGame } from '../store';
 import { synthRunFromShopView } from './synthRun';
@@ -220,6 +221,9 @@ function nearestShopView(i: number): ShopView | null {
 /** Render frame `i` into the store. Shop frame → synthetic recruit run; combat frame → the surrounding shop
  *  world flipped to `phase: 'combat'` with the recorded fight as `lastCombat` (the arena animates it verbatim). */
 function renderFrame(i: number): void {
+  stepElapsedSourceMs = 0; // a rendered frame starts a fresh step for the ledger
+  stepArmedAtReal = null;
+  if (frames[i]?.kind === 'combat') combatShownAtReal = performance.now();
   ghostLandPending = false; // any render supersedes an in-flight ghost (frameResets clears the layer too)
   const f = frames[i];
   if (!f) return;
@@ -262,8 +266,53 @@ export function playableDragPath(d: DragPath | undefined): DragPath | null {
   return d;
 }
 
+/** The CardView the drag ghost renders — the REAL card plate, looked up in the PREVIOUS frame's recorded
+ *  view so the ghost carries the stats/golden state the card actually had when the player grabbed it (owner
+ *  report 2026-08-19: the first ghost was a tiny generic tile, "not what the card actually looks like").
+ *  Falls back to the printed base card when the id isn't found (edge of coalescing / a consumed offer). */
+function ghostCardView(prevView: ShopView | null, cardId: string): CardView | undefined {
+  const def = CARD_INDEX[cardId];
+  if (!def) return undefined;
+  const base: CardView = {
+    name: def.name, cardId: def.id, tribe: def.tribe, tribe2: def.tribe2,
+    attack: def.attack, health: def.health, keywords: [...def.keywords], text: def.text,
+    goldenText: def.goldenText, tier: def.tier, spell: def.spell, cost: def.cost,
+    baseAttack: def.attack, baseHealth: def.health,
+  };
+  if (!prevView) return base;
+  const offer = prevView.shop?.find((o) => o?.cardId === cardId);
+  if (offer) {
+    return { ...base, attack: def.attack + (offer.atk ?? 0), health: def.health + (offer.hp ?? 0), golden: offer.golden };
+  }
+  const inst = prevView.hand?.find((c) => c.cardId === cardId) ?? prevView.board?.find((c) => c.cardId === cardId);
+  if (inst) {
+    return { ...base, attack: inst.attack, health: inst.health, golden: inst.golden, keywords: [...inst.keywords] };
+  }
+  return base;
+}
+
 /** Monotonic key so back-to-back ghosts retrigger the layer's animation. */
 let ghostKey = 0;
+
+// THE STEP-PROGRESS LEDGER (owner report 2026-08-19: "the speed mod definitely breaks"). The clock used to
+// re-arm the CURRENT step from zero on every speed change and every pause/resume. Under literal 1:1 pacing a
+// step can be a 30-second think, so dragging the slider through five notches re-armed the full think five
+// times and playback appeared frozen. The ledger tracks how much of the current step's SOURCE time has
+// actually elapsed, so a re-arm continues from where it was.
+let stepElapsedSourceMs = 0;
+let stepArmedAtReal: number | null = null;
+let speedAtArm = 1;
+/** Bank the source-time progress of the in-flight step (call before any clearPending re-arm). */
+function markStepProgress(): void {
+  if (stepArmedAtReal !== null) {
+    stepElapsedSourceMs += Math.max(0, performance.now() - stepArmedAtReal) * speedAtArm;
+    stepArmedAtReal = null;
+  }
+}
+/** When the CURRENT combat frame's arena started (real clock). The recorded fight-to-settle gap is honored
+ *  on top of it (owner report 2026-08-19: "ending combat seems a bit fast" was accurate - playback advanced
+ *  500ms after the arena finished, discarding the recorded watch/settle time). */
+let combatShownAtReal = 0;
 /** True while a ghost is flying and its frame has NOT landed yet — a pause mid-ghost lands the frame
  *  immediately (the ghost dissolves with it), so the paused world is never stuck one frame behind. */
 let ghostLandPending = false;
@@ -280,10 +329,11 @@ function advance(myToken: number): void {
     // frame lands when the ghost does. The step's own delta already elapsed to get here; the ghost's durMs
     // is the literal 1:1 addition (the live drag took exactly that long between the two states too). Seeks
     // never come through `advance`, so they skip ghosts entirely.
+    const prevView = frames[idx]?.kind === 'shop' ? (frames[idx] as ShopFrame).view : null;
     idx += 1;
     ghostKey += 1;
     ghostLandPending = true;
-    useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey } });
+    useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey, view: ghostCardView(prevView, drag.cardId) } });
     timer = setTimeout(() => {
       if (myToken !== token) return;
       ghostLandPending = false;
@@ -309,7 +359,15 @@ function scheduleNext(myToken: number): void {
     // after it fires — with a safety timeout so one stalled fight can't hang the whole replay.
     const onDone = (): void => {
       clearPending();
-      timer = setTimeout(() => advance(myToken), POST_COMBAT_BEAT_MS / speed);
+      // Honor the RECORDED fight-to-settle gap, not just a fixed beat: the live player watched this fight
+      // (and its summary) for recordedGap ms; the viewer's arena may play faster or slower (their own
+      // combat-speed setting drives it), so wait out whatever of the recorded gap remains, floored at the
+      // old post-combat beat so a slower arena never yields a negative pause.
+      const nextF = frames[idx + 1];
+      const recordedGap = nextF ? Math.max(0, nextF.tMs - f.tMs) : 0;
+      const elapsedSource = Math.max(0, performance.now() - combatShownAtReal) * speed;
+      const waitMs = Math.max(POST_COMBAT_BEAT_MS, recordedGap - elapsedSource) / speed;
+      timer = setTimeout(() => advance(myToken), waitMs);
     };
     if (useGame.getState().combatReplayDone) { onDone(); return; }
     unsubCombat = useGame.subscribe((st) => { if (st.combatReplayDone && myToken === token) onDone(); });
@@ -325,8 +383,19 @@ function scheduleNext(myToken: number): void {
     // Recorded hovers replay at their literal in-step offsets (the panel closes with the next frame's
     // render, exactly as the live action closed it). Combat steps schedule none — inspect is a recruit-only
     // surface, so no trail event can fall inside a fight.
-    scheduleInspects(myToken, f.tMs, next.tMs);
-    timer = setTimeout(() => advance(myToken), paceStepMs(next.tMs - f.tMs) / speed);
+    // A step INTO a drag frame is armed SHORT by the drag's duration - the recorded delta CONTAINS the
+    // drag (the player was dragging during that gap), and the ghost flight plays that remainder; step +
+    // flight = the literal recorded delta, never delta-plus-durMs twice over. The ledger offset keeps a
+    // resumed/re-armed step from re-firing hovers that already showed.
+    const stepDrag = next.kind === 'shop' ? playableDragPath(next.drag) : null;
+    const paced = paceStepMs(next.tMs - f.tMs);
+    const total = Math.max(0, paced - (stepDrag ? Math.min(stepDrag.durMs, paced) : 0));
+    const remaining = Math.max(0, total - stepElapsedSourceMs);
+    scheduleInspects(myToken, f.tMs + stepElapsedSourceMs, next.tMs);
+    stepArmedAtReal = performance.now();
+    speedAtArm = speed;
+    patchSession({ stepEndsAtReal: performance.now() + remaining / speed });
+    timer = setTimeout(() => advance(myToken), remaining / speed);
   }
 }
 
@@ -374,7 +443,9 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
 export function pauseReplay(): void {
   if (!snapshot) return;
   playing = false;
+  markStepProgress(); // bank the in-flight step so resume continues it rather than restarting it
   clearPending();
+  patchSession({ stepEndsAtReal: null }); // the bar holds while paused
   // Pausing mid-ghost lands the ghost's frame NOW (and dissolves the ghost) — otherwise the paused world
   // would sit one frame behind the transport position and resume would skip the landing entirely.
   if (ghostLandPending) renderFrame(idx);
@@ -392,6 +463,7 @@ export function resumeReplay(): void {
 
 export function setReplaySpeed(v: number): void {
   if (!snapshot) return;
+  markStepProgress(); // bank at the OLD speed first - the ledger converts real elapsed to source elapsed
   speed = Math.max(0.5, Math.min(5, v)); // owner ruling 2026-08-19: the replay speed range is 0.5–5×
   patchSession({ speed });
   // Re-arm the current step at the new speed (a full step, not the remainder — a simplification that costs

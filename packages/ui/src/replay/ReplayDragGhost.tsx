@@ -11,8 +11,7 @@
  * Self-gates on `replayDragGhost` (null outside a flight) and never intercepts pointer events.
  */
 import React, { useLayoutEffect, useRef } from 'react';
-import { CARD_INDEX } from '@game/content';
-import { artFor } from '../art';
+import { Card } from '../Card';
 import { useGame } from '../store';
 
 // BASE_URL-relative, NOT root-absolute — itch serves the game from a CDN sub-path where '/cursors/…' 404s.
@@ -47,15 +46,17 @@ export function ReplayDragGhost(): React.ReactElement | null {
   }, [ghost]);
 
   if (!ghost) return null;
-  const art = artFor(ghost.cardId);
-  const name = CARD_INDEX[ghost.cardId]?.name ?? '';
   return (
     <div className="replay-dragghost" aria-hidden="true">
       <div className="ghostmover" ref={moverRef} key={ghost.key}>
-        <div className="ghostcard">
-          {art ? <img className="ghostart" src={art} alt="" draggable={false} /> : null}
-          {name ? <div className="ghostname">{name}</div> : null}
-        </div>
+        {/* The REAL card plate at in-game size (the wrapper defines the same --cw/--ch every zone uses), so
+            the ghost is literally what the player was holding (owner report 2026-08-19 - the first version
+            was a tiny generic tile). Falls back to nothing rather than a wrong plate when no view resolved. */}
+        {ghost.view ? (
+          <div className="ghostcardwrap">
+            <Card card={ghost.view} suppressPop />
+          </div>
+        ) : null}
         <img className="ghostfist" src={FIST_SRC} alt="" draggable={false} />
       </div>
     </div>

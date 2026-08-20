@@ -8098,7 +8098,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; min-width: 38px; height: 34px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
 .replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
 .replayprog { position: relative; width: 260px; height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: hidden; }
-.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gl-accent, #a8d8ef); border-radius: 5px; }
+.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; background: var(--gl-accent, #a8d8ef); border-radius: 5px; will-change: transform; }
 .replayround { font-weight: 700; font-size: 13px; min-width: 70px; text-align: center; }
 .replayspeed { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--gl-value, #e6b45a); }
 .replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
@@ -8164,13 +8164,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    a CHILD transform so the mover's WAAPI transform stays a pure translation. */
 .replay-dragghost { position: fixed; inset: 0; z-index: 540; pointer-events: none; }
 .replay-dragghost .ghostmover { position: absolute; left: 0; top: 0; will-change: transform; }
-.replay-dragghost .ghostcard { position: absolute; transform: translate(-50%, -50%); width: 92px; padding: 6px 6px 5px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 10px;
-  background: linear-gradient(180deg, rgba(46, 56, 72, 0.92), rgba(20, 25, 34, 0.95));
-  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  opacity: 0.92; }
-.replay-dragghost .ghostart { width: 80px; height: 58px; object-fit: cover; border-radius: 6px; }
-.replay-dragghost .ghostname { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: rgba(255, 255, 255, 0.85); font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 1.15; }
+.replay-dragghost .ghostcardwrap { position: absolute; transform: translate(-50%, -58%);
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.5)); }
 .replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
   transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }

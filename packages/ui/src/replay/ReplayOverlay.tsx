@@ -18,6 +18,12 @@ export function ReplayOverlay(): JSX.Element | null {
   const duration = times.length > 0 ? times[times.length - 1]! : 0;
   const cur = times[Math.min(s.index, times.length - 1)] ?? 0;
   const pct = s.ended ? 100 : duration > 0 ? (cur / duration) * 100 : 0;
+  // The fill GLIDES to the next frame's position over exactly the armed step's remaining window (a long
+  // literal think used to park the bar dead, which read as broken — owner report 2026-08-19). scaleX with a
+  // linear transition: compositor-only, re-derived whenever the session object changes (arm/seek/pause).
+  const nextPct = duration > 0 ? ((times[Math.min(s.index + 1, times.length - 1)] ?? cur) / duration) * 100 : 0;
+  const glideMs = s.playing && s.stepEndsAtReal != null ? Math.max(0, s.stepEndsAtReal - performance.now()) : 0;
+  const fillPct = s.ended ? 100 : glideMs > 0 ? nextPct : pct;
   const seekFromClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     const r = e.currentTarget.getBoundingClientRect();
     const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -45,7 +51,13 @@ export function ReplayOverlay(): JSX.Element | null {
       </button>
 
       <div className="replayprog" onClick={seekFromClick} role="slider" aria-label="Seek" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} title="Click to seek">
-        <div className="replayprog-fill" style={{ width: `${pct}%` }} />
+        <div
+          className="replayprog-fill"
+          style={{
+            transform: `scaleX(${fillPct / 100})`,
+            transition: glideMs > 0 ? `transform ${Math.round(glideMs)}ms linear` : 'none',
+          }}
+        />
       </div>
 
       <span className="replayround">{s.authorName ? `${s.authorName} · ` : ''}{s.ended ? 'Final' : `Round ${s.round}`}</span>

@@ -204,6 +204,10 @@ export interface ReplaySession {
   speed: number;
   /** The run round (`wave`) currently shown — for the progress label + the round rail's highlight. */
   round: number;
+  /** REAL-clock timestamp when the currently-armed shop step lands (null while paused, in combat, or mid-
+   *  ghost). The transport bar glides its fill to the next frame over exactly this window, so a long literal
+   *  think reads as visible progress instead of a parked bar (owner report 2026-08-19). */
+  stepEndsAtReal?: number | null;
   /** WHOSE run this is — the spectated player's display name (StatusBar shows it in place of your own). */
   authorName?: string;
   /** Playback has reached the final frame — the transport bar reads "Final" and stops advancing. */
@@ -314,7 +318,7 @@ interface GameStore {
   /** REPLAY VIEWER — the drag ghost currently in flight: a recorded DragPath the ghost layer animates over
    *  `durMs` (already speed-adjusted by the player) before the frame it produced lands. `key` retriggers the
    *  animation across consecutive ghosts. Null whenever no ghost is flying; meaningless outside `replaying`. */
-  replayDragGhost: (DragPath & { key: number }) | null;
+  replayDragGhost: (DragPath & { key: number; view?: CardView }) | null;
   /** The last FINISHED run's v2 state replay, stashed at run end so "Rewatch last game" has something to play. */
   lastReplay: ReplayV2 | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit

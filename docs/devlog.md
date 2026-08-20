@@ -2,6 +2,34 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Sixth follow-up: the owner's first real-run audit (2026-08-19 night) — four playback-feel fixes.**
+
+- **"Ending combat seems a bit fast" — accurate, fixed.** Playback advanced 500 ms after the arena finished,
+  discarding the recorded watch/settle gap. The combat exit now waits out whatever of the RECORDED
+  fight-to-settle gap remains after the viewer's arena finishes (their own combat-speed setting drives the
+  arena, so the remainder absorbs the difference), floored at the old beat.
+- **The speed slider froze playback — fixed with a step-progress LEDGER.** Every speed change (and
+  pause/resume) re-armed the current step from zero; under literal pacing a step can be a 30-second think, so
+  dragging the slider through five notches restarted the full think five times. The ledger banks elapsed
+  SOURCE time and every re-arm continues from the remainder. Pinned by two fake-timer tests (speed change
+  mid-step; pause+resume).
+- **Drag time was double-counted.** The recorded step delta already CONTAINS the drag; the ghost flew durMs on
+  top of the full delta. The step is now armed short by the drag's duration — step + flight = the literal
+  recorded delta.
+- **The drag ghost is now the REAL card** (owner: "very small / not what the card actually looks like") — the
+  actual `Card` component at in-game size (`--cw`/`--ch` recipe), with the stats/golden state looked up in the
+  PREVIOUS frame's recorded view, the fist cursor riding it. Verified in-page: the plate renders at true card
+  width with the right card.
+- **The scrub bar GLIDES.** A long literal think used to park the fill dead (which read as broken); the fill
+  now glides to the next frame's position over exactly the armed step's remaining window — `scaleX` with a
+  linear transition, compositor-only, driven by a `stepEndsAtReal` stamp on the session.
+- **Esc menu during a replay shows "Leave replay"** — ends the playback THEN opens the title (owner report:
+  "Quit back to main menu" left the rail/dock/transport floating over the title screen).
+
+Session note: the primary checkout was switched to another session's branch mid-work, so these fixes were
+built in a dedicated worktree (`ascent-replay`) off the PR branch, per docs/concurrency.md — own install, own
+dev server. Gates: typecheck ✅ lint 0 errors ✅ 5868 tests / 363 files ✅ build:web ✅.
+
 **Fifth follow-up (same day): DRAG PATHS — the last gap in the 1:1 vision.**
 
 Every drag (buy / play / sell / reposition / reorder shop / reorder hand) now records its pointer path and

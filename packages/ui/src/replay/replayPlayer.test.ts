@@ -11,7 +11,7 @@ import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
   SHOP_VIEW_EXCLUDED_KEYS, type DragPath, type InspectEvent, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, pauseReplay, playableDragPath, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
+import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, pauseReplay, playableDragPath, seekReplay, startReplay , effectiveTimesOf, setReplaySpeed, resumeReplay} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -325,9 +325,9 @@ describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
       expect(useGame.getState().replaySession?.index).toBe(0);
       expect(useGame.getState().replayDragGhost).toBeNull();
 
-      // The step's recorded delta (800 ms, 1:1 paced) elapses → the clock advances INTO the drag frame:
-      // the GHOST launches, but the frame itself has NOT landed.
-      vi.advanceTimersByTime(800);
+      // The recorded delta CONTAINS the drag, so the step is armed SHORT by durMs (800 − 400 = 400 ms):
+      // at 400 ms the clock advances INTO the drag frame — the GHOST launches, the frame has NOT landed.
+      vi.advanceTimersByTime(400);
       const ghost = useGame.getState().replayDragGhost;
       expect(ghost).not.toBeNull();
       expect(ghost?.cardId).toBe('imp');
@@ -336,7 +336,8 @@ describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
       expect(useGame.getState().run, 'the world is still the PREVIOUS frame under the ghost').toBe(worldAtFrame0);
       expect(useGame.getState().replaySession?.index, 'the session still shows the pre-landing frame').toBe(0);
 
-      // The ghost completes after the REAL recorded drag duration → the frame lands, ghost dissolves.
+      // The ghost completes after the REAL recorded drag duration → the frame lands at exactly the
+      // recorded 800 ms delta (step + flight = delta, never delta + durMs twice over).
       vi.advanceTimersByTime(400);
       expect(useGame.getState().replayDragGhost).toBeNull();
       expect(useGame.getState().replaySession?.index).toBe(1);
@@ -351,7 +352,9 @@ describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
     vi.useFakeTimers();
     try {
       startReplay(makeDragReplay(undefined));
-      vi.advanceTimersByTime(800);
+      vi.advanceTimersByTime(400);
+      expect(useGame.getState().replaySession?.index, 'no drag → the full 800ms delta applies').toBe(0);
+      vi.advanceTimersByTime(400);
       expect(useGame.getState().replayDragGhost).toBeNull();
       expect(useGame.getState().replaySession?.index).toBe(1);
     } finally {
@@ -377,7 +380,7 @@ describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
     vi.useFakeTimers();
     try {
       startReplay(makeDragReplay(dragPath));
-      vi.advanceTimersByTime(800); // ghost in flight
+      vi.advanceTimersByTime(400); // ghost in flight
       expect(useGame.getState().replayDragGhost).not.toBeNull();
       pauseReplay();
       expect(useGame.getState().replayDragGhost).toBeNull();
@@ -392,10 +395,56 @@ describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
     vi.useFakeTimers();
     try {
       startReplay(makeDragReplay(dragPath));
-      vi.advanceTimersByTime(800);
+      vi.advanceTimersByTime(400);
       expect(useGame.getState().replayDragGhost).not.toBeNull();
       endReplay();
       expect(useGame.getState().replayDragGhost).toBeNull();
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('the step-progress ledger (owner report 2026-08-19: "the speed mod definitely breaks")', () => {
+  it('a speed change mid-step resumes the REMAINDER — it never restarts the step from zero', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+    try {
+      const source = createRun(21, 'brackus');
+      const f0 = shopFrameOf(source, 'turnStart', 0);
+      const after = reduce(source, { type: 'roll' });
+      const d = deltaShopFrameOf(f0.view, after, 'roll', 10_000); // a 10s think
+      startReplay({ version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby', author: 'x', patch: 't',
+        frames: [f0, d.frame], result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null } });
+      vi.advanceTimersByTime(6_000);            // 6s of the 10s think has played at 1×
+      setReplaySpeed(2);                        // the old bug re-armed the FULL 10s here (5s more at 2×)
+      vi.advanceTimersByTime(1_999);
+      expect(useGame.getState().replaySession?.index, '4s source remain → 2s at 2×, not 5s').toBe(0);
+      vi.advanceTimersByTime(2);
+      expect(useGame.getState().replaySession?.index).toBe(1);
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+
+  it('pause + resume continues the step where it left off', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+    try {
+      const source = createRun(22, 'brackus');
+      const f0 = shopFrameOf(source, 'turnStart', 0);
+      const after = reduce(source, { type: 'roll' });
+      const d = deltaShopFrameOf(f0.view, after, 'roll', 4_000);
+      startReplay({ version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby', author: 'x', patch: 't',
+        frames: [f0, d.frame], result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null } });
+      vi.advanceTimersByTime(3_000);
+      pauseReplay();
+      vi.advanceTimersByTime(60_000); // paused time never counts
+      resumeReplay();
+      vi.advanceTimersByTime(999);
+      expect(useGame.getState().replaySession?.index, '1s of the 4s step remained').toBe(0);
+      vi.advanceTimersByTime(2);
+      expect(useGame.getState().replaySession?.index).toBe(1);
     } finally {
       endReplay();
       vi.useRealTimers();

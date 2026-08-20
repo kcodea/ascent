@@ -21,6 +21,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Re-check the Aug-20 batch in play after the correction pass** (Night Market's per-turn shop buff, Skybound's real-time transform, the new sell-a-Demon Arcane Behemoth, the ten tribe runes paying on purchase — all shipped, see the devlog). What is left is the owner's eyes on whether the four now FEEL right, and whether the Behemoth's new payoff needs a cost/stat adjustment now that it scales off your own sales.
+
 - **The 16 rune-only minions now have their Runeforge entries — ART is what is left** (rune batch built
   2026-08-20, see the devlog). The 30 runes that hand them out shipped, so every one of those bodies is
   reachable in play. Remaining: (1) art for all 16 — they are the current contents of `ART_PENDING` in
@@ -430,6 +432,26 @@ sit slightly differently, so they'd want a re-tune pass (`--board-fill` / `--boa
 offsets in `styles.css`).
 
 ## Next
+
+- **Decide: should ALL-TYPES cards appear in every tribe-grant pool?** (raised 2026-08-20) Quillen's Archive
+  now counts `universalTribe` cards via the new `defIsTribe`, which is what makes an off-set archive (Undead /
+  Mech) pay out at all. But ~10 OTHER def-level pool filters still use the blind `c.tribe === t || c.tribe2
+  === t` pair — "get a random Beast", the tribe-faucet runes, Discover-by-tribe, etc. Routing them through
+  `defIsTribe` too would be consistent, but it also means Paragon / Standard Bearer become possible results of
+  every tribal grant in the game, diluting each tribe's pool. Bug fix vs balance change — owner's call.
+
+- **The itch WEB zip now exceeds itch.io's 1000-file cap — DEPRIORITISED by the owner 2026-08-20** ("not an
+  important factor as we will likely use the exe repack from now on"). Recorded so nobody re-discovers it as a
+  mystery; revisit only if the browser build becomes a distribution target again.
+  A real `build:web` dist ships **1168 files** and `package-itch.ps1` zips the whole thing. The last packaged
+  `ascent-itch.zip` held **929** entries (built before the recent art waves); the next package would hold
+  ~1168. Art is 992 of those, but frames (86) + fx (23) + cursors/js/css/manifest make up the rest, so
+  trimming art alone will not fix it for long. Options, cheapest first: **(a)** pack card art into sprite
+  ATLASES (one file per tribe/set instead of one per card — also fewer HTTP requests); **(b)** host art
+  off-zip on a CDN and load by URL (itch allows external fetches, but it breaks offline/desktop parity);
+  **(c)** ship art only for the active set and lazy-load the rest. The desktop/Electron package is unaffected
+  (no file cap). `artNoRedundantMasters.test.ts` now documents the true arithmetic and is a trend tripwire
+  only — it does NOT prove a package will upload.
 
 - **Minion mechanic-icon (medallion `mechIcon` glyph) fixes — PR-1 SHIPPED 2026-08-19.** The resolver is
   rewritten: a shared `packages/ui/src/mechanics.ts` registry (structured detection over effect data +

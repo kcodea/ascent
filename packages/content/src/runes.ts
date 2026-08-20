@@ -69,10 +69,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
+    // Owner 2026-08-20: ENABLED in every set (the `sets: ['set1']` gate is why it never appeared — set 1 is
+    // `enabled: false`), and repriced 6 -> 4. Its Pillager is an out-of-set UNDEAD body; the owner accepted
+    // that ("those minions won't be in the shop, but it's fine if they are given as rewards") — CARD_INDEX is
+    // global, so the grant resolves. NOTE: the Gold-Pouch half is INERT outside set 1 (no `emberpouch` there).
     id: 'rune_pillaging',
-    sets: ['set1'],
     name: 'Rune of Pillaging',
-    cost: 6,
+    cost: 4,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
     previewCards: ['emberpouch'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
@@ -1327,10 +1330,11 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', grantGolden: ['yazzus'], cards: ['fronttoback'] },
   },
   {
+    // Owner 2026-08-20: ENABLED in every set (was gated to the disabled set 1) and repriced 4 -> 3. Souls Man
+    // is an out-of-set UNDEAD body, granted rather than drawn — same acceptance as Rune of Pillaging.
     id: 'rune_soul_taxes',
-    sets: ['set1'],
     name: 'Rune of Soul Taxes',
-    cost: 4,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },

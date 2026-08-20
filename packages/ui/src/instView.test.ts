@@ -52,13 +52,17 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('n2_wanderer', { ...base, golden: true, goldSpentRun: 9 }).text).toContain('{{+6/+6}}');
   });
 
-  it('Muster General prints its Trooper’s CURRENT stat line, and Arcane Behemoth its countdown', () => {
+  it('Muster General prints its Trooper’s CURRENT stat line, and Skybound Ascendant the tier it can reach', () => {
     // Two more from the same batch whose printed numbers move with state: the General's token is 1/1 only until
-    // its first Avenge (the improve rides `summonBonus`), and the Behemoth is a threshold card.
+    // its first Avenge (the improve rides `summonBonus`), and the Ascendant's ceiling is the RUN's.
     expect(liveCardText('n2_muster', { ...base, summonBonus: 3 }).text).toContain('{{4/4}} Trooper');
     expect(liveCardText('n2_muster', base).text, 'no Avenge yet → the printed 1/1 is accurate').toBe(CARD_INDEX['n2_muster']!.text);
-    expect(liveCardText('dm_behemoth', { ...base, spellProgress: 2 }).text).toContain('{{1 more Shop spell}}');
-    expect(liveCardText('dm_behemoth', { ...base, spellProgress: 1 }).text).toContain('{{2 more Shop spells}}');
+    // Without Tier-7 access the printed promise is a lie — it prints the honest six instead.
+    expect(liveCardText('d2_ascendant', base).text).toContain('{{Tier 6}}');
+    expect(liveCardText('d2_ascendant', { ...base, tier7Access: true }).text, 'with access the printed 7 stands')
+      .toBe(CARD_INDEX['d2_ascendant']!.text);
+    expect(liveCardText('d2_ascendant', { ...base, golden: true }).text, 'the golden variant is clamped too')
+      .toContain('{{Tier 6}}');
   });
 
   it('folds in Ritualist’s per-tick grant + the run-wide Eternal Knight tally (metric append) in one call', () => {

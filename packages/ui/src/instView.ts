@@ -6,7 +6,7 @@ import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
-  ancientWandererText, behemothProgressText, musterTrooperText,
+  ancientWandererText, ascendantTierText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
 
@@ -157,7 +157,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             ancientWandererText(c.id, p.goldSpentRun ?? 0, p.golden) ?? // Ancient Wanderer: the +A/+H it HAS right now
             musterTrooperText(c.id, p.summonBonus ?? 0, p.golden) ?? // Muster General: the Trooper's live stat line
-            behemothProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // Arcane Behemoth: spells left until it eats
+            ascendantTierText(c.id, p.golden, p.tier7Access ?? false) ?? // Skybound Ascendant: the tier it can ACTUALLY reach
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
             castSpellPerGoldText(c.id, p.goldSpent ?? 0, p.golden) ?? // Rope Wrangler: live Lasso cast count
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played

@@ -494,6 +494,22 @@ export function captureBuffFx(
  * tribe; the second lives on the CardDef, so this consults `CARD_INDEX`. The DRY form of the
  * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
  */
+/**
+ * The DEF-level twin of `isTribe` — "does this CARD DEFINITION count as `tribe`?" — for the pool filters that
+ * pick from `poolOf(state).buyable` before any instance exists.
+ *
+ * The rule that matters: an **All-types** card (`universalTribe` — Paragon, Standard Bearer) counts as EVERY
+ * tribe, exactly as `isTribe` already says for instances. The hand-rolled `c.tribe === t || c.tribe2 === t`
+ * filters scattered across the pool pickers all missed that, which is why Quillen's Archive on an off-set
+ * tribe (Undead / Mech) silently returned NOTHING instead of offering the two cards that genuinely count as
+ * those types (owner report 2026-08-20: "i ate an undead, beast, and dwarf" → only two picks came back).
+ */
+export function defIsTribe(def: CardDef | undefined, tribe: Tribe): boolean {
+  if (!def) return false;
+  if (tribe !== 'neutral' && def.universalTribe) return true;
+  return def.tribe === tribe || def.tribe2 === tribe;
+}
+
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && (CARD_INDEX[card.cardId]?.universalTribe || card.allTribes)) return true; // Anomaly Reactor: "All" types
   if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;
@@ -1237,6 +1253,20 @@ export function dragonflameCasts(state: RunState): number {
  * through that channel rather than the buy-buff, so skipping it would silently exclude Fodder from every
  * shop-buff quest.
  */
+/**
+ * THE PER-TURN SHOP-WIDE ENCHANT (`tavernBuyBonusTurn`) — "minions in the shop get +A/+H **this turn**".
+ *
+ * The one channel with those exact semantics, and the reason it is a helper rather than two copies: it
+ * ACCUMULATES across every refresh you make this turn (so a rerolled row inherits it — `offerBuyStats` reads
+ * it beside the permanent `tavernBuyBonus`), and it is cleared at the turn ROLLOVER in `advanceCombat`, i.e.
+ * after combat. Built for Rune of the Merchant's Chorus; Night Market Horror is the second caller.
+ */
+export function addTurnShopBuff(state: RunState, attack: number, health: number): void {
+  if (attack === 0 && health === 0) return;
+  const cur = state.tavernBuyBonusTurn ?? { atk: 0, hp: 0 };
+  state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
+}
+
 export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string): void {
   if (attack <= 0 && health <= 0) return;
   state.tavernBuyBonus.atk += attack;
@@ -1372,10 +1402,7 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
   // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
   // across every roll this turn and is gone at the rollover. Not `applyRunShopBuff`, which is permanent.
-  else if (b.target === 'shopTurn') {
-    const cur = (state.tavernBuyBonusTurn ??= { atk: 0, hp: 0 });
-    state.tavernBuyBonusTurn = { atk: cur.atk + b.attack, hp: cur.hp + b.health };
-  }
+  else if (b.target === 'shopTurn') addTurnShopBuff(state, b.attack, b.health);
   else {
     // `shopRightmost` (Rune of the Showcase) is now PERMANENT across refreshes (owner 2026-08-11): accumulate
     // into state.rightmostSlotBuff — the same running total Market Tormentor uses — and land the increment on
@@ -6181,21 +6208,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     syncGoldSpentScaler(ctx.state, self, params);
   },
 
-  /** NIGHT MARKET HORROR — "After you buy a card, give minions in the CURRENT Shop +2/+2."
+  /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *
-   *  THIS shop, not every future one: `addOfferBuff` rides each offer's own `atk`/`hp`, so the gift survives a
-   *  freeze and dies on a refresh. That's the exact vocabulary split Contract Butcher's note spells out — "the
-   *  Shop" is the permanent `tavernBuyBonus` channel, "the CURRENT Shop" is the row in front of you.
-   *  Spells and Rubies in the row are skipped: they have no stat line to raise. Golden doubles. */
-  buffCurrentShopOffers: (ctx, self, params) => {
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 2) * gold(self);
-    if (a === 0 && h === 0) return;
-    for (const offer of ctx.state.shop) {
-      const d = CARD_INDEX[offer.cardId];
-      if (!d || d.spell || d.ruby) continue;
-      addOfferBuff(offer, nameOf(self), a, h);
-    }
+   *  A per-TURN shop-wide enchant, not a one-shot gift to the offers standing there (owner correction
+   *  2026-08-20). Banked in `tavernBuyBonusTurn` — the ONE channel with these semantics (built for Rune of
+   *  the Merchant's Chorus): it accumulates across every refresh you make this turn, so a REROLLED row
+   *  inherits it, and it is cleared at the turn rollover in `advanceCombat`, i.e. after combat. The
+   *  permanent sibling is `tavernBuyBonus` ("minions in the Shop", no qualifier), which this must not touch.
+   *  Golden doubles. */
+  buffShopOffersThisTurn: (ctx, self, params) => {
+    addTurnShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
   },
 
   /** TRAVELING SALESMAN — "When you SELL this, Discover a minion you control EXACTLY ONE copy of."
@@ -6309,25 +6331,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** ARCANE BEHEMOTH — "After you cast 3 Shop spells, Consume the RIGHT-MOST minion in the Shop."
+  /** ARCANE BEHEMOTH — "When you sell a Demon, this gains its stats." (owner rework 2026-08-20)
    *
-   *  Mykel's per-instance spell meter (`spellProgress`, carrying the remainder past each payout) driving Bob
-   *  Blart's eat. Per-instance is deliberate and is the house ruling for these meters: three spells means
-   *  three since THIS body arrived, so a Behemoth bought on turn 9 doesn't immediately cash in the run's
-   *  history. Golden eats two. */
-  spellCastConsumeShopRightmost: (ctx, self, params) => {
-    const every = Math.max(1, num(params.every, 3));
-    const me = ctx.state.board.find((c) => c.uid === self.uid);
-    if (!me) return;
-    me.spellProgress = (me.spellProgress ?? 0) + 1;
-    while ((me.spellProgress ?? 0) >= every) {
-      me.spellProgress = (me.spellProgress ?? 0) - every;
-      for (let e = 0; e < gold(self); e++) {
-        const i = rightmostShopMinion(ctx.state);
-        if (i < 0) break;
-        consumeShopMinion(ctx.state, me, i, 1);
-      }
-    }
+   *  The WATCHER side of a sale (`minionSold`), so the reactor is a bystander rather than the card leaving —
+   *  `fireOnMinionSold` hands every board minion the sold body as `payload.target`, and it fires AFTER the
+   *  card has left the board, so a Behemoth selling ITSELF can't pay itself.
+   *
+   *  "A Demon" is `isTribe`, the one membership test in the codebase — which is what makes a second tribe and
+   *  a `universalTribe` ("All types") body count, per the owner's note. The stats gained are the sold body's
+   *  LIVE stats (buffs included), not its printed base: what you sell is what it eats. Golden doubles the
+   *  meal, the house convention for a "gains its stats" payoff. */
+  minionSoldDemonGainStats: (ctx, self, params, payload) => {
+    const sold = payload.target;
+    if (!sold || sold.uid === self.uid) return;
+    const tribe = (typeof params.tribe === 'string' ? params.tribe : 'demon') as Tribe;
+    if (!isTribe(sold, tribe)) return;
+    const a = Math.max(0, sold.attack) * gold(self);
+    const h = Math.max(0, sold.health) * gold(self);
+    if (a === 0 && h === 0) return;
+    addBuff(self, nameOf(self), a, h);
   },
 };
 
@@ -9591,6 +9613,7 @@ function withRecruitTrigger(
   const handBefore = new Set(state.hand.map((c) => c.uid));
   const boardBefore = new Set(state.board.map((c) => c.uid));
   const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
+  const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
   const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
   const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
   const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
@@ -9639,6 +9662,16 @@ function withRecruitTrigger(
         if (boardBefore.has(c.uid)) return;
         collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
       });
+      // Bodies this trigger TRANSFORMED IN PLACE — same uid, new cardId (Skybound Ascendant's End-of-Turn
+      // tier-up). Without this the only trace of a transform in the batch was a stat delta with the NEW
+      // cardId on it, so the card visibly changed only when the phase committed: the effect resolved
+      // invisibly inside the End-of-Turn commit instead of animating on its own beat (owner report
+      // 2026-08-20). The projection already speaks `cardTransformed`; nothing was emitting it.
+      for (const c of state.board) {
+        const wasId = cardIdBefore.get(c.uid);
+        if (wasId === undefined || wasId === c.cardId) continue;
+        collector.emit({ type: 'cardTransformed', target: { zone: 'board', uid: c.uid, cardId: wasId, side: 'player' }, toCardId: c.cardId });
+      }
       // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
       // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
       for (const c of state.board) {

@@ -12,7 +12,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -2379,7 +2379,10 @@ function reduceCore(state: RunState, action: Action): RunState {
           // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
           // clear-everything for an undoubled Quillen, which can never bank more than 3.
           for (const tribe of banked.slice(0, 3)) {
-            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
+            // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
+            // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
+            // rather than silently returning nothing (owner report 2026-08-20).
+            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe));
             if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
           }
           s.rngCursor = rng.state();
@@ -4093,17 +4096,10 @@ function advanceCombat(s: RunState): void {
     const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
     if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, 1, true); }
   }
-  // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier and
-  // capped at the tavern tier (a rune must not hand you a card the shop couldn't). `overflow` so an earned
-  // grant is never dropped to a full hand, matching every other rune grant.
-  for (const drip of s.runeTribeDrip ?? []) {
-    const pool = poolOf(s).all.filter((c) =>
-      !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
-    if (pool.length > 0) {
-      conjureToHand(s, pool, drip.count, true);
-      procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
-    }
-  }
+  // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier.
+  // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
+  // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
+  for (const drip of s.runeTribeDrip ?? []) payTribeDrip(s, drip);
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
   if (s.runePendant) {
@@ -4565,6 +4561,24 @@ function withQuestRewardBeat(s: RunState, key: string | undefined, label: string
   );
 }
 
+
+/**
+ * ONE tribe-faucet payout (Rune of Basic/Epic Beasts/Demons/Dragons/Dwarves/Kobolds).
+ *
+ * Capped at the TAVERN tier (a rune must not hand you a card the shop couldn't offer) and filtered on either
+ * printed tribe. `overflow` so an earned grant is never dropped to a full hand, matching every other rune
+ * grant. Extracted (2026-08-20) because the rune now pays TWICE from two call sites — once immediately when
+ * it is taken and once at every following turn setup — and the owner's report was exactly the drift a second
+ * copy invites: taking the rune granted nothing at all until the next turn.
+ */
+function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void {
+  const pool = poolOf(s).all.filter((c) =>
+    !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
+  if (pool.length === 0) return;
+  conjureToHand(s, pool, drip.count, true);
+  procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
+}
+
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {
   const collector = currentCollector();
   if (collector.enabled) {
@@ -4647,10 +4661,17 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       }
       break;
     // ── 2026-08-19 owner rune batch ──────────────────────────────────────────────────────────────────────
-    case 'runeTribeDrip':
+    case 'runeTribeDrip': {
       // Rune of Basic/Epic <tribe>: a per-turn tribe faucet. PUSHED (not assigned) so two tribe runes both pay.
-      (s.runeTribeDrip ??= []).push({ tribe: r.tribe, count: r.count });
+      const drip = { tribe: r.tribe, count: r.count };
+      (s.runeTribeDrip ??= []).push(drip);
+      // …and it pays ONCE IMMEDIATELY on top of the recurrence (owner report 2026-08-20: taking the rune
+      // granted nothing until the next turn). Same rule Rune of Ruby Resonance follows above — buying a rune
+      // mid-turn must not feel like buying nothing. The Runeforge opens DURING a shop turn, after that turn's
+      // setup faucet has already run, so this can't double-pay on the turn it is taken.
+      payTribeDrip(s, drip);
       break;
+    }
     case 'runeSpellDouble':
       // Rune of Hoardflame / Dragon Breath: this spell id casts an extra time. Pushed so a duplicated rune
       // stacks (`spellCasts` multiplies once per entry), matching how the other multicast sources behave.

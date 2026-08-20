@@ -1,5 +1,106 @@
 # ASCENT — development log
 
+## 2026-08-20 — Rune of Pillaging + Rune of Soul Taxes enabled and repriced
+
+Owner: "can we enable rune of the pillager and rune of soul taxes? those minions wont be in the shop, but it's
+fine if they are given as rewards" — then Pillaging → **4g**, Soul Taxes → **3g**.
+
+They were never archived: both carried `sets: ['set1']`, and set 1 is `enabled: false`, so the forge filter
+(`!rn.sets || rn.sets.includes(runSet)`) hid them from every live run. Ungated (no `sets` field = every set)
+and repriced. Their granted bodies — **Pillager** and **Souls Man**, both set-1 UNDEAD — resolve fine because
+`CARD_INDEX` is global by design; they simply aren't drawable in the shop, which is exactly the trade the owner
+accepted.
+
+**Flagged:** Rune of Pillaging's second clause ("your **Gold Pouches** are worth 2 Gold") is **INERT outside
+set 1** — `emberpouch` does not exist in set 2, so in a live run the rune is the Pillager grant alone. The
+6→4 reprice roughly matches that, but the printed text still promises the dead half. Owner's call whether to
+cut the clause or leave it for a future set that carries Gold Pouches.
+
+Gates: typecheck ✅ lint 0 errors ✅ 6291 tests / 385 files ✅ build:web ✅.
+
+## 2026-08-20 — Quillen's Archive sees All-types cards (owner report)
+
+"i ate an undead, beast, and dwarf and this was my discover at tier 5" — and only TWO cards came back.
+
+Archive banks each archived minion's TYPE and pays one Discover per banked type, filtering the pool with a
+hand-rolled `c.tribe === t || c.tribe2 === t`. That check **cannot see an ALL-TYPES card**. Set 2 carries no
+Undead and no Mech, so an off-set archive matched nothing at all and its pick silently vanished — while
+Paragon (T5) and Standard Bearer (T3), which genuinely count as every type, sat in the pool unreachable.
+
+Fixed with a shared `defIsTribe(def, tribe)` in `recruit.ts` — the DEF-level twin of the existing instance-level
+`isTribe`, carrying the same `universalTribe` rule — and routed Archive's filter through it.
+
+**This is a CLASS bug, only partly fixed.** ~10 other pool filters across `recruit.ts` / `reducer.ts` use the
+same hand-rolled pair and are equally blind (`boardFeatures.ts` is the one place that already got it right).
+The rest were deliberately NOT changed here, because making every tribe-grant able to hand out Paragon /
+Standard Bearer is a BALANCE decision, not a bug fix — owner's call, listed in the roadmap.
+
+Coverage: `quillenAllTypes.test.ts` reproduces the owner's exact board (two banked types + an archived Undead
+at Tier 5) and asserts three picks with at least one All-types card. All four cases verified RED before the fix.
+Gates: typecheck ✅ lint 0 errors ✅ 6288 tests / 385 files ✅ build:web ✅.
+
+## 2026-08-20 — the owner's correction pass on the Aug-20 batch: Night Market this TURN, Skybound in real time, a new Arcane Behemoth, tribe runes pay on purchase
+
+Four owner reports against the rune batch that shipped the same day. Each is a different kind of miss — wrong
+channel, invisible presentation, wrong effect, missing payout — so they are listed separately.
+
+**1. Night Market Horror buffs the shop for the TURN, not the ROW.** Owner text: *"After you buy a card, give
+minions in the shop **+2/+2 this turn**."* The shipped card wrote per-offer buffs via `addOfferBuff`, so the
+grant died on a refresh; the owner wants it to SURVIVE rolling and reset after combat. That is exactly
+`tavernBuyBonusTurn`, the per-turn shop channel built for Rune of the Merchant's Chorus — it accumulates
+across rolls, `offerBuyStats` reads it beside the permanent `tavernBuyBonus`, and `advanceCombat` clears it at
+the rollover. Reused rather than duplicated: the rune's `shopTurn` branch and the card now both go through one
+new `addTurnShopBuff` helper. Factory renamed `buffCurrentShopOffers` → `buffShopOffersThisTurn` (schema,
+`EffectFactoryId`, both policy keys) so no stale name survives.
+
+*A display gap surfaced doing this, and is fixed here:* the shop row's `shopView` was passed only
+`run.tavernBuyBonus`, never the per-turn layer — so Merchant's Chorus's buff had never rendered on the offers
+either. It now folds both, with the same Fodder exclusion `offerBuyStats` applies, so the row and the buy agree.
+
+**2. Skybound Ascendant transforms in REAL TIME, and the text stops over-promising.** (a) The End-of-Turn
+tier-up resolved invisibly inside the commit: `withRecruitTrigger`'s consequence diff produced a stat delta and
+nothing else, so nothing ever told the projection the body had BECOME another card, and the swap appeared only
+after the phase flipped. The diff now snapshots each board card's `cardId` and emits a `cardTransformed`
+consequence when one changes in place — the consequence type and its projection fold (`transformedCards`)
+already existed with no producer. The UI consumes it: `displayBoard` swaps the identity in the SAME slot for
+the beat (stats keep coming from `eotAnimStats`, so nothing double-counts), and the `cardTransformed` presenter
+blooms the ascend flash the commit-time watcher and combat already use. Its policy was already `ownBeat`, so
+the transform gets a real animation window. (b) The Tier-7 clamp was audited and is CORRECT as shipped —
+`hasTier7Access(state) ? 7 : maxTierFor(state.rift)`, verified red-checked — but the printed *text* promised
+"up to **Tier 7**" on every run, which most runs cannot deliver. `ascendantTierText` prints **Tier 6** unless
+the run actually has access (Beyond the Summit's `summitTierText` pattern), wired into `liveCardText` and —
+new — into the combat chain, by threading `tier7Access` through `Unit.tsx`.
+
+**3. Arcane Behemoth is a different card.** Old: *"After you cast 3 Shop spells, Consume the right-most minion
+in the Shop."* New (owner): *"When you sell a **Demon**, this gains its stats."* Built on `minionSold` — the
+WATCHER side of a sale (`fireOnMinionSold`), the Grevlin & Co. hook — rather than the sold card's own
+`onSell`, because the reactor is a bystander; it fires after the body has left the board. Membership is
+`isTribe`, the one test in the codebase, which is what makes a second tribe and a `universalTribe` ("All
+types") body count, per the owner's note. It eats the sold body's LIVE stat line, and Golden doubles the meal.
+**Deleted, not merely replaced:** the `spellCastConsumeShopRightmost` factory, its schema/`EffectFactoryId`
+entries, its policy row, and `behemothProgressText` + its `instView` chain slot and test (the new text has no
+moving number, so it needs no live-text helper). Stats/tier/tribe unchanged (Demon, T6, 6/10).
+
+**4. The ten tribe-faucet runes pay IMMEDIATELY.** Owner report: taking Rune of Basic/Epic
+Beasts/Demons/Dragons/Dwarves/Kobolds granted nothing until the next turn setup. Same rule Rune of Ruby
+Resonance already follows ("buying a rune mid-turn should not feel like buying nothing"). The turn-setup body
+was extracted to `payTribeDrip` and the `runeTribeDrip` reward case now calls it once at purchase on top of
+pushing the recurrence — ONE payout function, so the tier cap, tribe filter and count cannot drift between the
+immediate grant and the recurring one. No double-pay: the Runeforge opens during a shop turn, after that
+turn's faucet has already run.
+
+**Verification.** New `packages/sim/src/ownerPassAug20.test.ts` (25 cases): the transform's beat identity,
+source and `toCardId` matching the committed board, capture-on byte-identity with plain `reduce`, and all ten
+tribe runes paying once at purchase and again next turn without double-paying. `runeMinionsAug20.test.ts`
+rewritten for Night Market (per-turn channel, a rerolled offer inheriting it, death at the rollover through a
+real `faceOmen`/`resolveCombat`) and the Behemoth (a Demon's live stats, a Kobold paying nothing, a
+universal-tribe body counting, golden doubling), plus two new Skybound clamp cases (6 without access, 7 with).
+23 of them verified RED with the fixes removed. Live pass on a throwaway run at :5394: a buy arms +2/+2 and
+every REROLLED offer renders it; selling a 9/9 Demon takes the Behemoth 6/10 → 15/19; taking Rune of Basic
+Dragon / Epic Kobolds puts 1 / 2 cards in hand on the spot; and driving the real End Turn control, the
+neighbour renders as `d2_mirrorwing` at Tier 2 in its own slot at t=150ms while the committed board still says
+`k_chipwick` (commit lands ≈450ms later, identical). Gates: typecheck ✅ lint 0 errors ✅ 6284 tests / 384
+files ✅ build:web ✅ harness deterministic ✅.
 ## 2026-08-20 — Pin the board at its tuned size + re-anchor the hero panel to the art
 
 Owner ask: the board must stop shifting when the window is resized. Two changes make it hold:

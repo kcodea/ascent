@@ -183,6 +183,20 @@ export function summitTierText(cardId: string, tier7Access: boolean): string | n
 }
 
 /**
+ * SKYBOUND ASCENDANT — its "(up to Tier 7)" is the same PROMISE Beyond the Summit makes, and the transform
+ * is clamped to the run's real ceiling (`hasTier7Access`), so on an ordinary run the honest number is SIX.
+ * Printed live on both chains rather than left as a static 7 (the hard live-value rule + owner 2026-08-20:
+ * text says what the card does).
+ */
+export function ascendantTierText(cardId: string, golden: boolean, tier7Access: boolean): string | null {
+  if (cardId !== 'd2_ascendant' || tier7Access) return null; // with access the printed "Tier 7" is already true
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const base = (golden && def.goldenText) || def.text;
+  return base.replace('**Tier 7**', '**{{Tier 6}}**');
+}
+
+/**
  * Menagerie Mammoth (`onSummonTribeBuffImproveSelf`) — an Attack-only grant that climbs by `step` every time it
  * pays out, permanently. Same contract as `summonImproveText`, but the printed magnitude is "**+N Attack**"
  * rather than a "+N/+N" pair, so it needs its own replace.
@@ -539,21 +553,6 @@ export function musterTrooperText(cardId: string, summonBonus: number, golden = 
   const n = 1 + summonBonus;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace('**1/1 Trooper**', `**{{${n}/${n}}} Trooper**`);
-}
-
-/**
- * ARCANE BEHEMOTH — a threshold card, so it prints the COUNTDOWN rather than the static "3 Shop spells"
- * (Mykel's rule, and its `spellProgress` meter). Cast magnitude never changes, only the distance to it.
- */
-export function behemothProgressText(cardId: string, golden: boolean, spellProgress: number): string | null {
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'spellCastConsumeShopRightmost');
-  if (!def || !eff) return null;
-  const every = Math.max(1, Number((eff.params as { every?: number })?.every ?? 3));
-  const toNext = every - (spellProgress % every);
-  const base = (golden && def.goldenText) || def.text;
-  // PLAIN-string replace, deliberately — see the crash note on `spellThresholdText` below.
-  return base.replace(`**${every} Shop spells**`, `**{{${toNext} more Shop spell${toNext === 1 ? '' : 's'}}}**`);
 }
 
 export function spellThresholdText(cardId: string, golden: boolean, spellProgress: number): string | null {

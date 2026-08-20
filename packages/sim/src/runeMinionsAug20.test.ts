@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { hasTier7Access } from './config';
 import {
-  applyEndOfTurn, applyGoldSpent, conjureToHand, mintRubies, noteSpellCast, syncGoldSpentScalers,
+  applyEndOfTurn, applyGoldSpent, conjureToHand, mintRubies, noteSpellCast, offerBuyStats, syncGoldSpentScalers,
   goldSpentScalerValue,
 } from './recruit';
 
@@ -144,16 +145,40 @@ describe('rune-only minions — recruit effects', () => {
     expect(s.discover!.every((id) => CARD_INDEX[id]!.tier === 6)).toBe(true);
   });
 
-  it('Night Market Horror: buying a card pumps the minions left in THIS Shop row', () => {
+  it('Night Market Horror: buying a card gives the shop +2/+2 THIS TURN — and a reroll inherits it', () => {
     let s = recruit({
       board: [recruitBody('dm_nightmarket', 'nm')],
       shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'k_chipwick' }],
     });
+    const printed = CARD_INDEX['k_chipwick']!;
     s = reduce(s, { type: 'buy', uid: 's0' });
+    expect([s.tavernBuyBonusTurn?.atk, s.tavernBuyBonusTurn?.hp], 'banked in the PER-TURN shop channel').toEqual([2, 2]);
     const left = s.shop.find((o) => o.uid === 's1')!;
-    expect([left.atk ?? 0, left.hp ?? 0], 'the surviving offer got the per-offer +2/+2').toEqual([2, 2]);
-    // It is the CURRENT row, not the permanent tavern channel — that distinction is the card's whole text.
+    expect(offerBuyStats(s, left), 'the offer standing there reads +2/+2')
+      .toEqual({ attack: printed.attack + 2, health: printed.health + 2 });
+    // THE POINT of the rework: it is a per-TURN enchant, so a FRESH offer (what a reroll produces) inherits it.
+    const rerolled = { uid: 'r0', cardId: 'k_chipwick' };
+    s.shop = [rerolled];
+    expect(offerBuyStats(s, rerolled), 'a rerolled offer inherits the turn buff')
+      .toEqual({ attack: printed.attack + 2, health: printed.health + 2 });
+    // …and it is NOT the permanent channel - that distinction is the card's whole text.
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'nothing leaked into the run-wide buy bonus').toEqual([0, 0]);
+  });
+
+  it('…and the shop buff DIES at the turn rollover (after combat)', () => {
+    let s = recruit({
+      wave: 1, resolve: 999, maxResolve: 999, armor: 999, hand: [],
+      board: [
+        recruitBody('dm_nightmarket', 'nm'),
+        { uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false } as BoardCard,
+      ],
+      shop: [{ uid: 's0', cardId: 'sandbag' }],
+    });
+    s = reduce(s, { type: 'buy', uid: 's0' });
+    expect(s.tavernBuyBonusTurn, 'armed this turn').toBeTruthy();
+    s = reduce(s, { type: 'faceOmen' }) as RunState;
+    s = reduce(s, { type: 'resolveCombat' }) as RunState;
+    expect(s.tavernBuyBonusTurn, 'gone at the rollover — "this turn" means this turn').toBeFalsy();
   });
 
   it('Muckslinger: its Shout conjures a minion that actually has a Shout', () => {
@@ -231,6 +256,25 @@ describe('rune-only minions — recruit effects', () => {
     expect(CARD_INDEX[after.cardId]!.tier, 'exactly one Tier higher').toBe(fromTier + 1);
   });
 
+  it('…and it CLAMPS at the run ceiling: no Tier 7 without Tier-7 access', () => {
+    // A Tier-6 neighbour on an ordinary run re-rolls at SIX. Tier 7 is reachable only through the Summit
+    // path (`hasTier7Access`), and a transform must not be a back door into it.
+    const six = Object.values(CARD_INDEX).find((d) => d.tier === 6 && !d.spell && !d.ruby && !d.token && d.tribe === 'dragon')!;
+    const s = recruit({ tier: 6, board: [recruitBody(six.id, 'nb'), recruitBody('d2_ascendant', 'sk')] });
+    expect(hasTier7Access(s), 'the fixture run has no Tier-7 access').toBe(false);
+    applyEndOfTurn(s);
+    const after = s.board.find((c) => c.uid === 'nb')!;
+    expect(CARD_INDEX[after.cardId]!.tier, 'clamped to the run ceiling').toBe(6);
+  });
+
+  it('…and WITH Tier-7 access it reaches seven', () => {
+    const six = Object.values(CARD_INDEX).find((d) => d.tier === 6 && !d.spell && !d.ruby && !d.token && d.tribe === 'dragon')!;
+    const s = recruit({ tier: 6, tier7Access: true, board: [recruitBody(six.id, 'nb'), recruitBody('d2_ascendant', 'sk')] });
+    applyEndOfTurn(s);
+    const after = s.board.find((c) => c.uid === 'nb')!;
+    expect(CARD_INDEX[after.cardId]!.tier, 'the Summit path opens Tier 7').toBe(7);
+  });
+
   it('…and the transform keeps whatever the body had gained above its base', () => {
     const s = recruit({ tier: 6, board: [recruitBody('k_chipwick', 'nb'), recruitBody('d2_ascendant', 'sk')] });
     const nb = s.board.find((c) => c.uid === 'nb')!;
@@ -241,18 +285,30 @@ describe('rune-only minions — recruit effects', () => {
     expect([after.attack - base.attack, after.health - base.health], 'the +10/+10 rode along').toEqual([10, 10]);
   });
 
-  it('Arcane Behemoth: the THIRD Shop spell eats the right-most Shop minion', () => {
-    const s = recruit({
-      board: [recruitBody('dm_behemoth', 'bh')],
-      shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'k_chipwick' }],
+  it('Arcane Behemoth: selling a DEMON feeds it that body’s live stats — selling anything else does not', () => {
+    let s = recruit({
+      board: [recruitBody('dm_behemoth', 'bh'), recruitBody('k_chipwick', 'kb'), recruitBody('dm_nightmarket', 'dm')],
     });
-    const before = statOf(s, 'bh');
-    noteSpellCast(s, CARD_INDEX['veinstorm']!);
-    noteSpellCast(s, CARD_INDEX['veinstorm']!);
-    expect(s.shop.length, 'nothing eaten on casts 1-2').toBe(2);
-    noteSpellCast(s, CARD_INDEX['veinstorm']!);
-    expect(s.shop.map((o) => o.uid), 'the RIGHT-most offer was consumed').toEqual(['s0']);
-    expect(statOf(s, 'bh')[0], 'the Behemoth grew on the meal').toBeGreaterThan(before[0]);
+    const base = statOf(s, 'bh');
+    s = reduce(s, { type: 'sell', uid: 'kb' });
+    expect(statOf(s, 'bh'), 'a Kobold is not a Demon').toEqual(base);
+    // The Demon is buffed first: what it eats is the LIVE stat line, not the printed base.
+    const dm = s.board.find((c) => c.uid === 'dm')!;
+    dm.attack += 5; dm.health += 5;
+    const da = dm.attack, dh = dm.health;
+    s = reduce(s, { type: 'sell', uid: 'dm' });
+    expect(statOf(s, 'bh'), 'it gained the sold Demon’s whole stat line').toEqual([base[0] + da, base[1] + dh]);
+  });
+
+  it('…a universal-tribe ("All types") body counts as a Demon, and Golden doubles the meal', () => {
+    const allTribes = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && !d.ruby)!;
+    let s = recruit({ board: [recruitBody('dm_behemoth', 'bh', true), recruitBody(allTribes.id, 'ut')] });
+    const base = statOf(s, 'bh');
+    const ut = s.board.find((c) => c.uid === 'ut')!;
+    const ua = ut.attack, uh = ut.health;
+    s = reduce(s, { type: 'sell', uid: 'ut' });
+    expect(statOf(s, 'bh'), 'ALL types is a Demon here, and the golden ate double')
+      .toEqual([base[0] + ua * 2, base[1] + uh * 2]);
   });
 });
 

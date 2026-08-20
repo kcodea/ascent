@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { hasTier7Access, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -102,6 +102,10 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         lastSpellThisTurnName: foe ? undefined : (run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined),
         // Rune-modified card rules read live in COMBAT too (owner audit 2026-08-02) — player-side only.
         runeMammoth: foe ? undefined : !!run.questFlags?.runeMammoth,
+        // Tier-7 ACCESS, live in combat too (the hard live-value rule): Skybound Ascendant's "(up to Tier 7)"
+        // is a promise only a Summit / Rune-of-the-Summit run can keep, so a served body reads Tier 6.
+        // Player-side only — an enemy snapshot carries no run, the same fallback every run-scoped input takes.
+        tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
         runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },

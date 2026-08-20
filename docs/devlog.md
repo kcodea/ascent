@@ -1,5 +1,15 @@
 # ASCENT — development log
 
+## 2026-08-19 — Remove the Set 2 launch banner from the title screen
+
+Owner ask: pull the "Welcome to Set 2's Launch!" glass card off the title screen entirely. Deleted the
+`<aside className="titlebanner">` block in Title.tsx (title/sub copy + the rift-patch sub-line) and its CSS in
+styles.css (the `.titlebanner*` rules, the `bannerpop` entrance keyframe, and the max-width:900px hide). The
+`activeRift()` import stays — it is still used to gate the Rift mode card on the same screen.
+
+Verified: typecheck + lint (Title.tsx clean) + test (364 files, 5875 passing) + build:web green; no `titlebanner`
+/ `bannerpop` / launch-copy references remain anywhere in packages or apps.
+
 ## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
 
 Extends the shop-path sparkle to the remaining phases the owner asked for, so a rune buffing a minion sparkles
@@ -264,9 +274,6 @@ counts twice). Four existing invariants caught the wiring and were updated — t
 frozen kind→def table, the dynamic call-site census, and `playDefUids`, whose two halves derived a call's def
 id two different ways so a dynamic call could pass one and look stale to the other; they now share one
 derivation.
-
-
-
 
 ## 2026-08-19 — spell-power audit: two stat spells silently fizzled in combat (Beefy, Lantern Light)
 

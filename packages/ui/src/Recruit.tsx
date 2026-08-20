@@ -4725,6 +4725,17 @@ export function Recruit() {
             },
           );
         }
+        // RUNE-BUFF-UNIT this beat (Spending, Action, Lassoing, …): the sparkle on each minion a rune buffed
+        // at End of Turn, on the beat — like the gems, the action-level cue can't (the board is gone once
+        // `faceOmen` commits). `bfx.runeBuffUnits` is the sim's per-beat source-label diff.
+        if (bfx.runeBuffUnits?.length && canPlayDefs()) {
+          const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          for (const uid of bfx.runeBuffUnits) {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+            const at = el ? restingCenterOf(el) : null;
+            if (at) playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+          }
+        }
         // The RUN-WIDE shop buff this beat produced (Soul Defiler, Display Curator) — the shop-wide aura, on
         // the beat, for the same reason the gems are here: the action-level cue only advances once `faceOmen`
         // commits, by which time the phase has flipped and the shop is gone. `shopBuffAll` is the

@@ -35,6 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -1440,6 +1441,21 @@ export function useCombatReplay(
       if (!a) continue;
       const { cx, cy, h } = a; // SLOT, not the live rect — the proccer may be mid-lunge
       pixiFx.procCritText(cx, cy - h * 0.45, `${e.mult}x`);
+    }
+    // RUNE-BUFF-UNIT (owner ask 2026-08-19): any minion a RUNE buffs this beat gets the sparkle, on the unit.
+    // Combat rune buffs (Ruins, Aftershocks, Wild Hunt, Inheritance, Hatchery's stat grant, …) carry a rune
+    // SOURCE LABEL on the buff event (`'Rune of Ruins'`, etc.), not a source uid, so this fires independently
+    // of the tendril grouping (which keys on a living source). Both sides — an enemy's rune buff sparkles on
+    // its own minion, which is correct.
+    if (canPlayDefs()) {
+      const rbCamera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (!e || e.type !== 'buff' || !isRuneBuffSource(e.source)) continue;
+        const a = anchorOf(e.target);
+        if (!a) continue;
+        playDef('rune-buff-unit', { target: { x: a.cx, y: a.cy }, camera: rbCamera }, { uids: { target: e.target } });
+      }
     }
     // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
     // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in

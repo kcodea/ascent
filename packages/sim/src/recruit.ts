@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
@@ -2420,7 +2420,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const mag = (base + (self.summonBonus ?? 0)) * gold(self);
     addBuff(minion, nameOf(self), mag, mag);
     // Rune of the Den Mother: she also buffs HERSELF by the same amount when she buffs another Beast.
-    if (ctx.state.runeDenMother) { procRuneId(ctx.state, 'rune_den_mother'); addBuff(self, nameOf(self), mag, mag); }
+    if (ctx.state.runeDenMother) { procRuneId(ctx.state, 'rune_den_mother'); addBuff(self, 'Rune of the Den Mother', mag, mag); }
     self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
@@ -3193,7 +3193,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         const rng = makeRng(ctx.state.rngCursor);
         const target = neighbours[rng.int(neighbours.length)]!;
         ctx.state.rngCursor = rng.state();
-        addBuff(target, nameOf(self), grant, grant);
+        addBuff(target, 'Rune of the Vaultkeeper', grant, grant);
       }
     }
   },
@@ -7926,6 +7926,9 @@ export interface EotStepFx {
    *  is what separates the shop-wide aura from a Moira-re-fired Market Tormentor growing one offer. Mirrors
    *  the reducer's action-level `shopBuffAllFx` so the recruit-phase and End-of-Turn paths agree. */
   shopBuffAll?: { attack: number; health: number };
+  /** Board/hand uids a RUNE buffed this beat — the UI plays `rune-buff-unit` on each. Same source-label diff
+   *  (`runeBuffMagnitude`) the reducer's shop path uses, so any End-of-Turn rune buff animates unwired. */
+  runeBuffUnits?: string[];
   /** RUBIES this beat played onto board minions (Rune of the Lapidary — owner report 2026-08-12: they applied
    *  silently after the phase flipped). Same `{uid, count}` shape as the reducer boundary's `rubyLandedFx`, so
    *  the End-of-Turn beat can fire the SAME gem cascade the shop plays. Diffed from the 'Ruby' buff counts, so
@@ -7986,6 +7989,9 @@ export function projectEndOfTurnSteps(state: RunState): {
     const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
       c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
     const rubyBefore = new Map(clone.board.map((c) => [c.uid, rubyCountOf(c)]));
+    // Rune-buff magnitude before the beat (board + hand), so a rune buffing a unit at End of Turn (Spending,
+    // Action, Lassoing, …) fires `rune-buff-unit` on it, on the beat — the same source-label diff the shop uses.
+    const runeBuffBefore = new Map([...clone.board, ...clone.hand].map((c) => [c.uid, runeBuffMagnitude(c)]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -8028,6 +8034,9 @@ export function projectEndOfTurnSteps(state: RunState): {
       const n = rubyCountOf(c) - (rubyBefore.get(c.uid) ?? 0);
       if (n > 0) ruby.push({ uid: c.uid, count: n });
     }
+    // Units a RUNE buffed this beat — the rune-buff-magnitude diff, board + hand.
+    const runeBuffUnits: string[] = [];
+    for (const c of [...clone.board, ...clone.hand]) if (runeBuffMagnitude(c) > (runeBuffBefore.get(c.uid) ?? 0)) runeBuffUnits.push(c.uid);
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -8039,6 +8048,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       ...(shopBuff.length ? { shopBuff } : {}),
       ...(shopAllDelta.attack > 0 || shopAllDelta.health > 0 ? { shopBuffAll: shopAllDelta } : {}),
       ...(ruby.length ? { ruby } : {}),
+      ...(runeBuffUnits.length ? { runeBuffUnits } : {}),
     });
   };
   for (const card of [...clone.board]) {

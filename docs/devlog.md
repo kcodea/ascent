@@ -1,5 +1,27 @@
 # ASCENT — development log
 
+## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
+
+Extends the shop-path sparkle to the remaining phases the owner asked for, so a rune buffing a minion sparkles
+on it wherever it happens.
+
+- **Combat**: a per-beat pass in `useCombatReplay` fires `rune-buff-unit` on the target of every `buff` event
+  whose SOURCE LABEL is a rune's (`isRuneBuffSource`). Combat rune buffs carry a label (`'Rune of Ruins'`), not
+  a source uid, so this rides beside the existing spell-power / ruby-power / proc-crit per-beat passes rather
+  than the tendril grouping (which keys on a living source). Both sides.
+- **End of Turn**: `projectEndOfTurnSteps` now diffs each beat's rune-buff magnitude (board + hand) into a
+  per-beat `runeBuffUnits`, and the recruit beat handler plays the def on each — on the beat, like the gems,
+  because the action-level cue can't reach the board once `faceOmen` has flipped to combat.
+- **Label gaps**: two factory runes labelled their buff with the minion's own name (`nameOf(self)`) instead of
+  `'Rune …'`, so the source test missed them — Den Mother's self-buff and the Vaultkeeper's adjacent-Dragon
+  grant now use `'Rune of the Den Mother'` / `'Rune of the Vaultkeeper'` (more accurate: the rune is what causes
+  those buffs, and tests key on the minion NAME, not the buff label). Blart already used `'Rune of Blart'`.
+
+That's all four phases. `isRuneBuffSource` is exported from `@game/sim` for the combat consumer.
+
+Verified: typecheck + lint (0 errors) + `npm test` (5809 passed) + build. Direct-call census updated for the
+second literal `playDef` site (`useCombatReplay.ts`).
+
 ## 2026-08-19 — `rune-buff-unit`: a sparkle on any minion a rune buffs (shop path)
 
 Owner-authored def (burst + shockwave, both `target`-anchored) that plays ON a minion whenever a rune buffs

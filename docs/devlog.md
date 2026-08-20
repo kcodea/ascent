@@ -1,5 +1,18 @@
 # ASCENT — development log
 
+## 2026-08-20 — Play-mode screen: bake the owner's tuned card/title positions
+
+Owner Play-Mode-Screen tuner values baked into the shipped defaults. Five knobs moved from where they sat:
+the three mode cards drop/rise (Play Y 115->18, Learn Y 187->82, Practice Y -170->-266) and the MODE title
+grows and lifts (scale 1->1.23, Y 59->-30). Everything else already matched the shipped look.
+
+Same convention as the other tuners: `MODEPICK_VARS` `def`s in `modePickConfig.ts` are the source of truth, and
+the `.mcframe[data-mp=...]` / `.mptitle` `var(--mp-*, <fallback>)` values in styles.css MUST mirror them (they
+are the production paint — the tuner is dev-only). Both halves moved together for all five, verified against the
+owner's JSON (all 27 knobs match). Presentation-only.
+
+Verified: typecheck + build:web green.
+
 ## 2026-08-19 — Audit: minion mechanic-icon (medallion `mechIcon` glyph)
 
 Investigation only — no code change. Full findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md),

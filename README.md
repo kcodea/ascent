@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Play-mode screen repositioned** — the Play / Learn / Practice mode cards and the MODE title sit at the owner's tuned positions (cards re-seated vertically, title larger and lifted).
+
 - **Keyword definitions beside a card** — hovering or inspecting a card now shows a box for each keyword it uses (Ward, Echo, Slaughter, Choose One…), word on top and a one-line definition below.
 
 - **Minion medallion icons no longer fall back to the tribe symbol.** The glyph on a minion's card now comes

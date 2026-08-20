@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.
+
 - **Fixed: two stat spells did nothing when cast in combat** — **Beefy** and **Lantern Light** had no case in the combat spell resolver, so any mid-fight re-fire (Sporebat, Steward, Recaller, Ryme) fizzled silently. Audited all eleven stat-granting spells; the rest already fold spell power correctly on every path.
 
 - **Replay system (v2, state replay).** Watch any player's full game back — exact by construction (playback renders recorded frames, never re-simulates). Round rail on the left (click a round, jump to its shop opening), a slide-out drawer with per-round Gold spent / Actions / Shop tier, play/pause/speed/scrub, ▶ Watch buttons on the leaderboard + Recent Games, and Rewatch Last Game on the end screen.
@@ -71,6 +73,8 @@ _The latest highlights only. Full history, newest first, lives in [`docs/devlog.
 
 - **Learn Ascent — the full 12-round tutorial.** A coached first game from the ground up: shop → build → position → win, then Echo / Freeze / Shout / Start-of-Combat / position-and-board-space synergy, then the two build-defining systems (**gilding/triples** + the **Triple Reward Discover**, and **spells**), then three rounds of supervised independence, ending on a **GRADUATED** hand-off into the real game. Tutorial-only levers keep real runs untouched. (A dedicated Runeforge round is deferred pending rune-design sign-off.)
 - **The shop-wide buff aura** — when a spell or unit buffs the stats of *every* shop minion (Staff of Guel, Contract Butcher, Soul Defiler), a new full-screen aura sweeps the tavern. Ruby/gem effects keep their own separate gem volley.
+
+- **Runes burst when they trigger, and spells have a real cast effect** — a rune's own flourish now fires on its badge whenever its effect goes off, in the shop as well as in combat, and every tavern spell without a bespoke effect gets `spell-sparks` at the cursor.
 
 - **Ring FX can be nudged off their anchor** — the workbench's ring (shockwave) layers get **Offset X / Offset Y** sliders, matching the pair burst effects already had. Placement only: it moves where a ring sits without touching its size, shape or expansion.
 

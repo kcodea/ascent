@@ -388,6 +388,55 @@ export type CommissionKind = 'discover' | 'gold' | 'spell' | 'citadel' | 'fortre
 /** An ACTIVE commission: what was picked and the wave it matures on. Only ever one at a time. */
 export interface Commission { kind: CommissionKind; dueWave: number; }
 
+/**
+ * Mark a RUNE as having fired, for its badge's burst + bounce (`runeTriggerFx.ts`).
+ *
+ * Named by REWARD KIND rather than by rune id because that is what a trigger site actually knows: it has just
+ * read a boolean like `s.runeBrew`, which does not remember which rune set it. `runeIdByKind`, recorded at
+ * purchase, closes that gap — so a site is one line and cannot name a rune the player does not own.
+ *
+ * A no-op when the kind was never installed, so calling it unconditionally at a trigger site is safe.
+ * Display only: nothing in the sim branches on `runeProcs`.
+ */
+export function procRune(s: RunState, kind: string, times = 1): void {
+  const id = s.runeIdByKind?.[kind];
+  if (!id) return;
+  procRuneId(s, id, times);
+}
+
+/**
+ * The same mark, by rune ID directly — for sites that already know which rune they are.
+ *
+ * `runeThreshold` is why this exists and is not a nicety: EIGHT different runes share that one reward kind
+ * (Chorus, Overtime, Infernal Ink, Cindergem, Showcase, Merchant's Chorus, Empty Plate, Gem Dividend), and a
+ * player can own several at once. `runeIdByKind` holds one id per kind, so routing them through `procRune`
+ * would credit every threshold payout to whichever of them was bought LAST. They are stored as a list, each
+ * entry carrying its own `sourceId`, so the id is right there — one stamp at the payout chokepoint covers all
+ * eight, correctly attributed.
+ */
+/** Is this buff `source` label a RUNE's? Rune buffs almost all label themselves `'Rune …'`; the handful that
+ *  use a flavor label are listed explicitly. Used to drive the `rune-buff-unit` FX on any minion a rune buffs
+ *  (owner ask 2026-08-19). Cheap string test — buffs carry their source label on `card.buffs`. */
+export function isRuneBuffSource(source: string): boolean {
+  return source.startsWith('Rune') || source === 'Twin Sun Oath';
+}
+
+/** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what
+ *  tells the UI a rune just buffed the minion. */
+export function runeBuffMagnitude(card: { buffs?: { source: string; attack: number; health: number }[] }): number {
+  let m = 0;
+  for (const b of card.buffs ?? []) if (isRuneBuffSource(b.source)) m += b.attack + b.health;
+  return m;
+}
+
+export function procRuneId(s: RunState, id: string | undefined, times = 1): void {
+  // `id` is optional because a threshold entry restored from an older save may predate `sourceId`; an
+  // unattributable proc is simply not stamped rather than crashing the shop.
+  if (!id || times <= 0) return;
+  s.runeProcs = { ...(s.runeProcs ?? {}) };
+  s.runeProcs[id] = (s.runeProcs[id] ?? 0) + times;
+}
+
 export interface RunState {
   seed: number;
   /** Game mode — see `RunMode`.
@@ -1066,6 +1115,16 @@ export interface RunState {
   runeEmpowerment?: boolean;
   /** Rune of Scale (Epic): every Gold-spend gives `count` random board minions +attack/+health. */
   runeScale?: { count: number; attack: number; health: number; per?: number; tick?: number };
+  /** Reward KIND → the rune id that installed it, recorded at purchase. This is what lets a trigger site deep
+   *  in the reducer stamp `runeProcs` with a one-line `procRune(s, 'runeBrew')` instead of re-deriving which
+   *  rune owns the flag it just read — the flags are booleans scattered across `RunState` and none of them
+   *  remembers where it came from. One entry per kind is enough: a kind is installed by exactly one rune. */
+  runeIdByKind?: Record<string, string>;
+  /** Cumulative payout count per rune id — "how many times has this rune's effect actually fired". Purely a
+   *  display signal (the badge burst + bounce read it); the sim never branches on it. Cumulative rather than
+   *  a one-shot flag so the UI can edge-detect without a seq, and so a payout that pays TWICE in one action
+   *  (Bulk Order banking 10 Gold at 5-per) still reads as two fires. */
+  runeProcs?: Record<string, number>;
   /** Rune of Copies (Epic): copy a random board minion to hand at the start of every turn. */
   runeCopies?: boolean;
   /** Rune of Tempering: the FIRST Attachment (Magnetic) you play each turn also gives that minion Ward. */
@@ -1250,6 +1309,11 @@ export interface RunState {
    *  by diffing the channel, so any future card or quest that raises it animates with no extra wiring. */
   shopBuffAllFx?: ShopBuffAllFx;
   shopBuffAllFxSeq?: number;
+  /** Board/hand uids a RUNE buffed this action (shop phase) — the UI plays `rune-buff-unit` on each. Diffed
+   *  from `runeBuffMagnitude` so any rune buff, from any of the ~30 sites, animates with no per-site wiring.
+   *  Seq-gated like the other FX payloads. Combat + End-of-Turn rune buffs ride their own channels. */
+  runeBuffFxUnits?: string[];
+  runeBuffFxSeq?: number;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

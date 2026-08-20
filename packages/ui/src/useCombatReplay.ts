@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
-import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
+import { CARD_INDEX } from '@game/content';
+import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
@@ -34,6 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -809,6 +811,11 @@ export function useCombatReplay(
   // that composition, not `replayOrder` alone, is the seam the proc harness must also call.
   const beats = useMemo(() => replayBeats(combat?.events ?? []), [combat]);
   const [beatIdx, setBeatIdx] = useState(0);
+  // The combat `beatIdx` was last reset for. During the ONE render after a new combat arrives — before the
+  // `[combat]` reset effect runs `resetTo(0)` — `beatIdx` still holds the previous fight's value, and this
+  // ref still holds the previous fight's `combat`. That single render is the stale one the `processedEnd`
+  // fallback and `beatIdxIsStale` below both exist to survive.
+  const seenCombatRef = useRef<typeof combat>(combat);
   // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
   const beatIdxRef = useRef(0);
   beatIdxRef.current = beatIdx;
@@ -1114,6 +1121,9 @@ export function useCombatReplay(
   // A fresh combat resets the replay to the top (the hook persists across fights).
   useEffect(() => {
     resetTo(0);
+    // Mark that `beatIdx` now belongs to THIS combat. Read during render by `beatIdxIsStale` below — until
+    // this effect runs, one render sees the PREVIOUS fight's `beatIdx` (see the `processedEnd` note).
+    seenCombatRef.current = combat;
   }, [combat, resetTo]);
 
   // uid → cardId for the whole fight (initial boards + everything summoned) — used to spot which dying
@@ -1431,6 +1441,21 @@ export function useCombatReplay(
       if (!a) continue;
       const { cx, cy, h } = a; // SLOT, not the live rect — the proccer may be mid-lunge
       pixiFx.procCritText(cx, cy - h * 0.45, `${e.mult}x`);
+    }
+    // RUNE-BUFF-UNIT (owner ask 2026-08-19): any minion a RUNE buffs this beat gets the sparkle, on the unit.
+    // Combat rune buffs (Ruins, Aftershocks, Wild Hunt, Inheritance, Hatchery's stat grant, …) carry a rune
+    // SOURCE LABEL on the buff event (`'Rune of Ruins'`, etc.), not a source uid, so this fires independently
+    // of the tendril grouping (which keys on a living source). Both sides — an enemy's rune buff sparkles on
+    // its own minion, which is correct.
+    if (canPlayDefs()) {
+      const rbCamera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (!e || e.type !== 'buff' || !isRuneBuffSource(e.source)) continue;
+        const a = anchorOf(e.target);
+        if (!a) continue;
+        playDef('rune-buff-unit', { target: { x: a.cx, y: a.cy }, camera: rbCamera }, { uids: { target: e.target } });
+      }
     }
     // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the
     // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
@@ -1864,6 +1889,13 @@ export function useCombatReplay(
   // instead of reading `.end`/`.start` off an out-of-range (undefined) beat — which threw, and with no
   // error boundary crash-looped the whole app into a hard lock (a long fight followed by a shorter one).
   const processedEnd = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  // TRUE only on that one stale render: `beatIdx` is from the previous fight, so `processedEnd` fell back to
+  // `events.length` and every derived "…so far this fight" count would briefly read the WHOLE new fight at
+  // once. Harmless for the self-correcting live-tick displays (they fix on the very next render), but
+  // `triggeredQuests` drives a ONE-SHOT rune-badge burst that cannot be un-fired — a spike there fired every
+  // one of the fight's triggers at the instant combat began (owner report 2026-08-19: "it triggers many
+  // times when I press End Turn"). Gate that one memo on this.
+  const beatIdxIsStale = seenCombatRef.current !== combat;
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
@@ -2096,17 +2128,10 @@ export function useCombatReplay(
   // Quest/rune badges whose COMBAT effect has fired so far this fight (player side): each `questTrigger` event's
   // `flag` resolves to its badge id (via content). The node glows the moment its trigger is REPLAYED (up-to-the-
   // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
-  const triggeredQuests = useMemo(() => {
-    const counts: Record<string, number> = {};
-    if (processedEnd <= 0) return counts;
-    const curStep = events[processedEnd - 1]?.step ?? Infinity;
-    for (const e of events) {
-      if (e.type !== 'questTrigger' || e.side !== 'player' || (e.step ?? 0) > curStep) continue;
-      const id = badgeIdForCombatFlag(e.flag);
-      if (id) counts[id] = (counts[id] ?? 0) + 1; // how many times it has fired so far — a fresh one-shot pulse per bump
-    }
-    return counts;
-  }, [events, processedEnd]);
+  const triggeredQuests = useMemo(
+    () => triggerCounts(events, processedEnd, beatIdxIsStale),
+    [events, processedEnd, beatIdxIsStale],
+  );
 
   // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
   // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after

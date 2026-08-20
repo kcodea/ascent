@@ -33,6 +33,280 @@ plus a ceiling assertion against per-effect multiplication. **Verified RED befor
 four fail on the old code and pass on the new.
 
 Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+## 2026-08-19 — Remove the Set 2 launch banner from the title screen
+
+Owner ask: pull the "Welcome to Set 2's Launch!" glass card off the title screen entirely. Deleted the
+`<aside className="titlebanner">` block in Title.tsx (title/sub copy + the rift-patch sub-line) and its CSS in
+styles.css (the `.titlebanner*` rules, the `bannerpop` entrance keyframe, and the max-width:900px hide). The
+`activeRift()` import stays — it is still used to gate the Rift mode card on the same screen.
+
+Verified: typecheck + lint (Title.tsx clean) + test (364 files, 5875 passing) + build:web green; no `titlebanner`
+/ `bannerpop` / launch-copy references remain anywhere in packages or apps.
+
+## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
+
+Extends the shop-path sparkle to the remaining phases the owner asked for, so a rune buffing a minion sparkles
+on it wherever it happens.
+
+- **Combat**: a per-beat pass in `useCombatReplay` fires `rune-buff-unit` on the target of every `buff` event
+  whose SOURCE LABEL is a rune's (`isRuneBuffSource`). Combat rune buffs carry a label (`'Rune of Ruins'`), not
+  a source uid, so this rides beside the existing spell-power / ruby-power / proc-crit per-beat passes rather
+  than the tendril grouping (which keys on a living source). Both sides.
+- **End of Turn**: `projectEndOfTurnSteps` now diffs each beat's rune-buff magnitude (board + hand) into a
+  per-beat `runeBuffUnits`, and the recruit beat handler plays the def on each — on the beat, like the gems,
+  because the action-level cue can't reach the board once `faceOmen` has flipped to combat.
+- **Label gaps**: two factory runes labelled their buff with the minion's own name (`nameOf(self)`) instead of
+  `'Rune …'`, so the source test missed them — Den Mother's self-buff and the Vaultkeeper's adjacent-Dragon
+  grant now use `'Rune of the Den Mother'` / `'Rune of the Vaultkeeper'` (more accurate: the rune is what causes
+  those buffs, and tests key on the minion NAME, not the buff label). Blart already used `'Rune of Blart'`.
+
+That's all four phases. `isRuneBuffSource` is exported from `@game/sim` for the combat consumer.
+
+Verified: typecheck + lint (0 errors) + `npm test` (5809 passed) + build. Direct-call census updated for the
+second literal `playDef` site (`useCombatReplay.ts`).
+
+## 2026-08-19 — `rune-buff-unit`: a sparkle on any minion a rune buffs (shop path)
+
+Owner-authored def (burst + shockwave, both `target`-anchored) that plays ON a minion whenever a rune buffs
+it. Shop/Start-of-Turn path wired here; combat and End-of-Turn are the next two hooks.
+
+The signal needs no per-rune wiring: every buff records its SOURCE label on `card.buffs`, and rune buffs label
+themselves `'Rune …'` (plus the one flavor label `'Twin Sun Oath'`). So the reducer's post-action block diffs
+each board/hand minion's `runeBuffMagnitude` (Σ of rune-sourced buff stats) and lists any that ROSE into
+`runeBuffFxUnits` + a seq. One place covers all ~30 rune-buff sites. Gated to recruit→recruit so a
+combat-earned buff carried back at settle (animates in the fight) and an End-of-Turn buff (its own beat) don't
+double here.
+
+The UI fires `playDef('rune-buff-unit')` on each listed unit's DOM centre on the next frame (post-layout, like
+every other on-unit cue).
+
+Known gaps in this pass: three factory runes label their buff with the minion's own name rather than
+`'Rune …'` (Den Mother, Vaultkeeper, Blart), so they aren't caught by the source test — a follow-up can relabel
+them or extend the predicate. Combat rune buffs (Ruins, Aftershocks, Wild Hunt, Inheritance, Hatchery's stat
+grant) and End-of-Turn rune buffs (Spending, Action, Lassoing) need their own hooks — coming next.
+
+Verified: typecheck + lint (0 errors) + `npm test` (5809 passed) + build. New `runeBuffUnitFx.test.ts` covers
+the predicate, the magnitude sum, and the sell-triggered Seller's Market diff. The direct-call census + its
+frozen id list were updated for the new literal `playDef` site.
+
+## 2026-08-19 — The last three End-of-Turn runes burst (Recollection, Quick Study, Recurrence)
+
+The non-unit-targeting `recurringEndOfTurn` runes the quest-tendril path misses, now stamped: Recollection
+(copyFirstSpell), Quick Study (quickStudy), Recurrence (recastFirstSpell) — each a `procRuneId` past its own
+gate (Recollection/Recurrence only when a spell was actually cast this turn). Sits in a branch
+`projectEndOfTurnSteps` runs on a clone, so the preview bump is discarded and only the real commit bursts.
+
+Verified: typecheck + lint (0 errors) + the sim/choreo suites green (5805 across the full run earlier). This
+closes the recurring-EoT gap; every rune with a discrete trigger now bursts.
+
+## 2026-08-19 — Comprehensive rune-trigger FX: ~60 more runes now burst on their badge
+
+Swept the ENTIRE rune roster (six parallel research agents over 104 uncovered runes) and wired the burst on
+every rune that has a real trigger moment, in both phases. This closes the long tail the earlier passes only
+sampled.
+
+**Attribution rules, hardened against the multi-rune collision the earlier bugs came from:**
+- COMBAT runes emit `fireTrigger('<flag>', side)` (or `ctx.log({type:'questTrigger'})` from `factories.ts`,
+  which has no `fireTrigger` closure). `combatFlag`-kind runes map to their badge automatically; the
+  rally/echo-kind combat runes (Stampede, Adventuring, Catacomb) carry no `combatFlag`, so `questFlags.ts`
+  gained an explicit `EXTRA_COMBAT_FLAG_TO_ID` supplement.
+- SHOP runes stamp `procRuneId(state, '<literal_rune_id>')` — NEVER `procRune(state, '<kind>')` for a shared
+  kind. The literal id is unambiguous, sidestepping the `multi`/`tribeDrip` collision that no-op'd four stamps
+  earlier today.
+- The load-bearing safety property: **a badge only renders (and so only bursts) for a rune the player owns.**
+  So a stamp on a state field shared with a quest or another rune is harmless when that rune isn't held —
+  which is why shared-field runes (Motherlode, Choir, Wheel, the whole `runeThreshold`/`tribeDrip` families,
+  the `grantAles` cluster) can be stamped safely without per-source disambiguation.
+
+**Shared sites collapsed to one stamp each:** the ten tribe-drip runes share one Start-of-Turn grant loop
+(the id derived from the `{tribe, count}` entry — `rune_${count>=2?'epic':'basic'}_${tribe}`); the eight
+threshold runes were already covered via `payRuneThreshold`; `grantAles`/`grantAles3` distinguishes First
+Round from Double Fisting.
+
+Every End-of-Turn stamp was verified to sit in a branch that `projectEndOfTurnSteps` runs on a
+`structuredClone` — so the preview bumps a throwaway `runeProcs` and only the real commit bursts.
+
+Correctly LEFT silent (no discrete moment): pure passive value/rule modifiers (Thrift, Twin Gilding, Crown,
+Mastery, Conductor, Zoo, Pillaging, Blasting Voices, Rising Echoes) and one-shot purchase grants (Menagerie,
+Top Hat, Tip Jar, Second Path, Champion, Evolution, Held Strength, the various "Get an X" runes).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (360 files, **5805 passed** — determinism and golden
+combat green, confirming zero logic change: `procRuneId` only touches the cosmetic `runeProcs`, `fireTrigger`
+emits a cosmetic event) + `build:web`.
+
+Follow-up noted: a handful of NON-unit-targeting `recurringEndOfTurn` runes (Recollection/copyFirstSpell,
+Quick Study, Hunger) aren't covered by the quest-tendril path either and want the same treatment; First Round
+and Double Fisting were done here as part of the `grantAles` cluster.
+
+## 2026-08-19 — Enchantment bursts, 4 broken multi-rune stamps fixed, stale-render guard proven
+
+Owner report: Rune of Enchantment did not burst on a Shop-spell cast. It had NO stamp — a miss in the earlier
+sweep. Both halves fixed: the shop cast (`procRune`) and the combat cast (`fireTrigger`).
+
+Hunting that down, a wider audit (every rune cross-checked against the actual stamped keys, accounting for the
+`runeAvenge` dynamic-flag path) surfaced a class of bug I had SHIPPED: four `multi`-kind runes — Display Case,
+Full Measure, Open Appetite, Unbroken Vein — stamped with `procRune(state, 'runeXxx')`. But `procRune` resolves
+through `runeIdByKind`, which keys `multi` runes by the SHARED kind `multi` (many runes have it), so
+`runeIdByKind['runeXxx']` was undefined and every one of those stamps silently no-op'd. They never burst.
+Fixed by stamping with the literal rune id via `procRuneId` (the same escape hatch the threshold runes use).
+`combatFlag` stamps were never affected — that kind is keyed by flag, and the flag name matches what the site
+passes.
+
+Also: the stale-render guard from the End-Turn-spike fix is now PROVEN. Its logic — `triggeredQuests` holding
+empty while `beatIdx` is stale — was extracted into a pure `triggerCounts(events, processedEnd, isStale)` and
+unit-tested (`triggerCounts(events, events.length, true) === {}`), since the live path could not be exercised
+headlessly (the Browser pane runs hidden, so the animated replay never advances `beatIdx`).
+
+**Known-incomplete, stated plainly:** the full rune roster is far larger than the earlier passes covered. A
+cross-check finds ~100 runes still with no burst — a mix of shop runes with genuine triggers, a handful of
+combat runes that fire their flag through a path not yet stamped, and passive/one-shot `multi` runes that have
+no discrete moment. Enumerated for a focused follow-up rather than stamped blindly (blind stamping is exactly
+what produced the four no-op bugs above).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5805 passed) + `build:web` green.
+
+## 2026-08-19 — The End-Turn rune-burst spike, and a distinct epic-rune burst
+
+**Root-caused the "it triggers many times when I press End Turn" report.** It was NOT in the rune-FX hook —
+it was the documented stale render in `useCombatReplay`. When a new fight's `combat` object arrives, `beatIdx`
+holds the PREVIOUS fight's value for exactly one render before the `[combat]` reset effect runs `resetTo(0)`.
+During that render `beats[beatIdx - 1]` is undefined, so `processedEnd` falls back to `events.length` (a guard
+that exists to avoid a crash) — which makes `triggeredQuests` report the WHOLE new fight's trigger set at once.
+The badge BOUNCE tolerated this (it self-corrects on the next render), but the new rune-burst is a one-shot
+that cannot be un-fired, so every one of the fight's triggers burst at the instant combat began.
+
+Fixed at the source with `beatIdxIsStale` — a ref, set in the reset effect, that is true only on that one
+stale render. `triggeredQuests` holds at empty while stale, so the real per-trigger progression plays from 0
+as the replay advances. The guard is an exact no-op on every non-stale render, so nothing else changes.
+
+Verification honesty: the earlier hook fixes (re-render-safe burst queue, delta-as-count, increase-only) were
+confirmed by driving the LIVE hook through every transition (0->1, 1->2, 0->2, 2->0 reset). This stale-render
+fix is proven by code-tracing the documented transient — it could NOT be reproduced in the headless harness
+because the Browser pane runs hidden (`document.hidden`), which throttles the beat clock so the animated replay
+never advances `beatIdx` past 0, and the stale render requires `beatIdx > 0` from a prior fight. Owner to
+confirm in a focused tab.
+
+**Epic runes get their own burst.** A second HUD binding kind, `epicRuneTriggered` -> `epic-rune-burst`,
+resolved PER SLOT by the rune's `epic` flag (`RUNE_INDEX[id].epic`) — a board holding both an epic and a
+common rune bursts each in its own colour. Both bindings are workbench-editable; either being unbound simply
+means that class of rune does not burst.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5800 passed) + `build:web` green.
+
+## 2026-08-19 — Category 2: the continuous-modifier runes burst too (owner ruling)
+
+Walked the eleven runes that have no trigger of their own — they modify what something ELSE does — and the
+owner's call was **yes on all eleven, on every occurrence**. So each now bursts at the moment it actually
+changes an outcome:
+
+| Rune | Bursts on |
+|---|---|
+| Hatchery / Packcraft | each combat summon they buff (owning both pops both badges — both really acted) |
+| Fury | each Avenge it doubles, beside that Avenge rune's own burst |
+| Bartering | each Shout minion sold |
+| Distillation | each spell it duplicates onto the left-most minion |
+| Display Case | each extra left-most Shop enchant |
+| Full Measure | each Attack grant it adds |
+| Open Appetite | each off-type target it enables |
+| Unbroken Vein | each doubled Choose One |
+| Living Geode / Wrangler | each Golem / Imp they grant keywords to |
+
+**Two of these could not be stamped where the flag is read.** `sellValueOf` (Bartering) and
+`effectiveTargetTribe` (Open Appetite) are pure QUERIES — the sell float, the aim UI, the can-target probe and
+the auto-pick pool all call them, so a stamp there would fire on hover and on every re-render rather than on
+the action. Bartering is stamped at the real sale in the reducer, re-testing the rune's own
+`hasBattlecry` condition; Open Appetite is stamped where the Agent's feed resolves, and only when the eaten
+target is off-type for the card's declared `targetTribe` — which is precisely "the rune enabled this pick".
+
+Living Geode and Wrangler share a single guard in `simulate.ts`; the stamp picks the badge by which of the two
+actually granted, so the right rune bursts.
+
+Every stamp sits past the gate: Full Measure stays silent on a zero grant, Distillation on a cast that took no
+lead minion, Bartering on a non-Shout sale.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (357 files, 5668 passed) + `build:web` green. This
+closes the rune-FX sweep — every rune that can be said to "trigger" now bursts on its badge, in both phases.
+Only the one-shot purchase rewards (Scout, Small Fortune, the Pair, …) stay silent, having no repeat moment.
+
+## 2026-08-19 — Every rune with a real trigger now bursts (category 3 cleared)
+
+Follow-up to the entry below: the remaining unstamped rune triggers are wired, in both phases. Two of them
+turned out to be attribution BUGS waiting to happen rather than missing one-liners.
+
+**`runeThreshold` is one reward kind shared by EIGHT runes** (Chorus, Overtime, Infernal Ink, Cindergem,
+Showcase, Merchant's Chorus, Empty Plate, Gem Dividend), and a player can own several at once. `runeIdByKind`
+holds one id per kind, so routing those through `procRune` would have credited every threshold payout to
+whichever was bought LAST. They are stored as a list, each entry carrying its own `sourceId` — so `procRuneId`
+takes the id directly and ONE stamp at `payRuneThreshold` (the shared payout chokepoint) covers all eight,
+each correctly attributed.
+
+**`combatFlag` is worse: 29 runes share it.** Fixed at the source — a `combatFlag` reward is now keyed in
+`runeIdByKind` by its FLAG rather than by the kind. Flags are `runeXxx` and reward kinds are distinct names,
+so both live in one map without colliding. Both collisions are now pinned by tests.
+
+Newly firing — shop: Transcription, Refrain (on the 25% roll HITTING, not on the roll), Vault, Duplication,
+Treasure Map (when the countdown reaches zero, not while it ticks), Summit (every 3rd shop, not the two
+between), Strange Caravan, Tempering, Summoning, Golden Splinter, plus all eight threshold runes. Combat:
+Slaying (one per 6-kill payout, so 12 kills is two fires), Ashen Payroll, Reinvestment, and Flooded Vault.
+
+Flooded Vault is worth a note: it fires from `effects/factories.ts`, which has no trigger emitter on its
+context. Rather than widen `EffectContext` (a shared-boundary type) for one rune, it emits through `ctx.log`
+— a `questTrigger` IS a `CombatEvent`, so it lands on the same channel every other rune trigger uses and the
+badge treats it identically.
+
+The stamps sit past every gate, so banking is never a fire: below a threshold, a missed Refrain roll, and a
+Summit tick that is not the third all stay silent.
+
+Still deliberately silent: the continuous modifiers (Fury, Hatchery, Packcraft, Bartering, Distillation, and
+the "your X also does Y" runes) have no moment to burst on, and the one-shot purchase rewards fire once at buy
+and never again. Owner review of that group is the next step.
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5614 passed) + `build:web` green.
+
+## 2026-08-19 — Rune triggers burst on their badge; `spell-sparks` is the default spell cast
+
+**Three owner-authored defs land, and one long-standing dead binding is documented.**
+
+**`rune-burst` — a rune's own flourish, on its badge.** Deliberately NOT hung on `questTrigger`: that kind
+has been bound to `quest-trigger` in `bindings.json` for ages and has never played a particle. The combat
+score anchors to board UNITS, and a `questTrigger` event names a `flag`/`questId` and a side — so
+`anchorsForUnits(null, null)` returns null and the def is skipped silently (the note above `questTrigger` in
+`score.ts` says exactly this). A rune is a HUD badge, so it is unreachable from the score by construction.
+The anchor comes from the badge's own DOM instead (`runeTriggerFx.ts`), hung on the SAME counters
+`QuestBadges` already bounces on, so the burst and the bounce can never disagree. `HudBindingKind` is a third
+binding namespace beside combat and recruit kinds, for keys that have neither a combat cue row nor a recruit
+emitter.
+
+**Owner report: Rune of Bulk Order never burst — and it was one of ~30.** Its payout is a shop-phase
+threshold ("every 5 Gold you spend"), which is neither a combat trigger nor an End-of-Turn recurring proc —
+the only two signals the badge knew about. Rather than fix that rune, this adds the general channel:
+`runeProcs` (cumulative count per rune id) plus `procRune(state, kind)`. Sites name a REWARD KIND, not a rune
+id, because a kind is what a trigger site actually knows — it has just read a boolean like `s.runeBrew`, which
+does not remember which rune set it; `runeIdByKind`, recorded at purchase, closes that gap and makes each site
+one line. **18 shop-phase rune triggers now stamp it.**
+
+**A correction worth recording.** The first audit of "which combat runes never fire a trigger" said 14, by
+scanning for literal `fireTrigger('…')` calls. That missed `runeAvenge`, which fires with the flag as a
+VARIABLE (`simulate.ts:3117`) — so every Avenge rune (Last Call, Hunting Bell, Engraving, Carrion Coin, …) was
+already working. The real count was 10, of which three (Fury, Hatchery, Packcraft) are continuous modifiers
+with no moment to burst on. Three discrete ones are now wired (Aftershocks, Trophy, Salvage); Slaying,
+Reinvestment, Ashen Payroll and Flooded Vault remain.
+
+**`spell-sparks` — the default tavern-spell cast.** `kinds.spellCast` had no default, so every spell without
+a card binding fell through to CSS. Setting one exposed that the cue FANNED OUT implicitly whenever a cast
+carried recipients — fine while the five ales were the only bound casts, wrong for a default (a 122-particle
+burst per buffed minion, landing on the minions rather than where the player cast). Fan-out is now opt-in via
+the binding's own `fanOut: 'buffed'`; the ales declare it and are unchanged, and the default fires ONCE at the
+cursor, with `target` pointed at the cursor too so the def's `target`-anchored layers land at the cast point
+(owner call).
+
+Verified: `typecheck` + `lint` (0 errors) + `npm test` (5591 passed) + `build:web` green. New tests cover the
+proc edge-detection (first paint never detonates; a duplicated rune is two independent badges; a counter RESET
+still reads as a fire) and the threshold semantics (counts on the crossing, not the banking; 10 Gold at 5-per
+counts twice). Four existing invariants caught the wiring and were updated — the binding-key validator, the
+frozen kind→def table, the dynamic call-site census, and `playDefUids`, whose two halves derived a call's def
+id two different ways so a dynamic call could pass one and look stale to the other; they now share one
+derivation.
 
 ## 2026-08-19 — spell-power audit: two stat spells silently fizzled in combat (Beefy, Lantern Light)
 

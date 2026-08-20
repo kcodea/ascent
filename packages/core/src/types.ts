@@ -1843,6 +1843,22 @@ export interface BoardMinion {
   text?: string;
   /** DISPLAY-ONLY: the golden variant of `text`, baked alongside it (see `text`). */
   goldenText?: string;
+  /**
+   * DISPLAY-ONLY: the card's NAME and TRIBE at capture time, baked in beside `text` for the same reason —
+   * a stored board must not depend on the viewing build still having the card.
+   *
+   * Added 2026-08-20 after boards in the Career rendered as `d2_transcendence` / NEUTRAL with placeholder art.
+   * Career + Leaderboard history is fetched from the SERVER, so a row can be written by one build and read by
+   * another (two devs on divergent content branches share one database, and a packaged build lags the branch
+   * that played the run). The reader resolved name/tribe from its own `CARD_INDEX` and fell back to the raw
+   * id, which leaked an internal id into the UI. `text` was already baked, which is exactly why those cards
+   * showed correct rule text under a wrong name — the tell that identified the bug.
+   *
+   * Art cannot be fixed this way: it is a local asset keyed by card id, so an unknown card still shows the
+   * placeholder. Absent on pool/combat snapshots and on rows written before this shipped.
+   */
+  name?: string;
+  tribe?: Tribe;
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */

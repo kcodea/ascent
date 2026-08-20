@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CARD_INDEX } from '@game/content';
-import type { BoardMinion } from '@game/core';
 import { getHero, isCalibrationRound } from '@game/sim';
-import { Card, type CardView } from './Card';
+import { Card } from './Card';
+import { storedCardView } from './storedBoardView';
 import { RunTrophies } from './RunTrophies';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -10,23 +9,6 @@ import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchBoardStats, fetchVictories, remoteEnabled, type BoardWinStats, type VictoryRow } from './remoteBoards';
 
-/** A read-only card view from a stored snapshot minion (the rest comes from the card def) — mirrors the
- *  end screen's final-warband render so the cards read identically (incl. full-text-on-hover). */
-function cardViewOf(m: BoardMinion): CardView {
-  const def = CARD_INDEX[m.cardId];
-  return {
-    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral',
-    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== (def?.tribe ?? 'neutral')), // Anomaly Reactor: show the spell-added tribe badge
-    attack: m.attack, health: m.health, keywords: m.keywords ?? [],
-    // Prefer the LIVE end-of-run text baked into the snapshot (a maxed Sergeant's real grant, etc.); older
-    // snapshots without it fall back to the printed card text.
-    text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
-    tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health,
-    // Per-source buff breakdown (captured in the snapshot) → shown in the right-click inspect panel. Older
-    // snapshots (captured before this shipped) carry none, so the panel just doesn't appear for them.
-    buffs: m.buffs,
-  };
-}
 
 /**
  * Leaderboard — a full "Hall of Champions" PAGE (not a modal): the latest 20 VICTORY runs from the shared
@@ -152,7 +134,7 @@ export function Leaderboard() {
                 </div>
                 {r.board && r.board.minions.length > 0 && (
                   <div className="lbwarband">
-                    {r.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
+                    {r.board.minions.map((m, j) => <Card key={j} card={storedCardView(m)} suppressPop />)}
                   </div>
                 )}
                 <RunTrophies quests={r.board?.quests} runes={r.board?.runes} />

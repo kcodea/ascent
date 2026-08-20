@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_INDEX } from '@game/content';
-import type { BoardMinion, Tribe } from '@game/core';
+import type { Tribe } from '@game/core';
 import { getHero, TAG_INFO } from '@game/sim';
-import { Card, type CardView } from './Card';
+import { Card } from './Card';
+import { storedCardView } from './storedBoardView';
 import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
 import { Icon } from './Icon';
@@ -12,18 +12,6 @@ import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type Ru
 import { fetchRunHistory, fetchReplayForSeed, historyEntryWatchable } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 
-/** Read-only card view from a stored snapshot minion — mirrors the leaderboard / end screen. */
-function cardViewOf(m: BoardMinion): CardView {
-  const def = CARD_INDEX[m.cardId];
-  return {
-    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral',
-    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== (def?.tribe ?? 'neutral')), // Anomaly Reactor: show the spell-added tribe badge
-    attack: m.attack, health: m.health, keywords: m.keywords ?? [],
-    // Prefer the live end-of-run text baked into the final-board snapshot; older entries fall back to printed.
-    text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
-    tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health, buffs: m.buffs,
-  };
-}
 
 /** "When this run was played" for the match row. Prefers the full `at` datetime (date + time); falls back to
  *  the day-only `date` on older entries (no time then). Empty string if neither parses. */
@@ -408,7 +396,7 @@ export function Career() {
                               <div className="carmatch-boardcol">
                                 {e.board && e.board.minions.length > 0 && (
                                   <div className="lbwarband">
-                                    {e.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
+                                    {e.board.minions.map((m, j) => <Card key={j} card={storedCardView(m)} suppressPop />)}
                                   </div>
                                 )}
                                 <RunTrophies quests={e.board?.quests} runes={e.board?.runes} />

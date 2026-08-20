@@ -6511,12 +6511,12 @@ button.frzwrap.frzwrap:focus-visible {
   position: relative; pointer-events: none;
   /* Tuner offset/scale ride the INDEPENDENT translate/scale; `transform` is free for the open/close slide.
      Origin bottom-left so scaling keeps the panel seated above the portrait as it grows up. */
-  translate: calc(var(--bfd-body-x, 0) * var(--u)) calc(var(--bfd-body-y, 0) * var(--u));
-  scale: var(--bfd-body-s, 0.9);
+  translate: calc(var(--bfd-body-x, 8) * var(--u)) calc(var(--bfd-body-y, -37) * var(--u));
+  scale: var(--bfd-body-s, 0.47);
   transform-origin: bottom left;
   padding: calc(8 * var(--u)) calc(12 * var(--u));
   display: flex; flex-direction: column; gap: calc(3 * var(--u));
-  min-width: calc(var(--bfd-min-w, 122) * var(--u));
+  min-width: calc(var(--bfd-min-w, 120) * var(--u));
   background: linear-gradient(180deg, #241a13f2, #17110cf2);
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
@@ -6536,15 +6536,15 @@ button.frzwrap.frzwrap:focus-visible {
 }
 
 
-.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
+.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 13) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
 .herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 /* Size the label + value directly: `.buff-row .buff-label/.buff-val` (lines ~339) set a fixed font-size, and a
    direct rule beats the row's inherited size — so the tuner's `--bfd-text-s` must land on these, not the row. */
 /* Leader line bridging name → amount: flex-grows to fill the gap, vertically centred, a thin muted hairline
    (darker than the white text so it stays quiet). */
 .herobuffs-body .buff-lead { flex: 1 1 auto; align-self: center; min-width: calc(12 * var(--u)); height: 0; border-top: 1px solid color-mix(in srgb, var(--gold) 45%, #000); }
-.herobuffs-body .buff-label { color: #fff; font-weight: 600; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
-.herobuffs-body .buff-val { color: #fff; font-weight: 900; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
+.herobuffs-body .buff-label { color: #fff; font-weight: 600; font-size: calc(var(--bfd-text-s, 10.5) * var(--u)); }
+.herobuffs-body .buff-val { color: #fff; font-weight: 900; font-size: calc(var(--bfd-text-s, 10.5) * var(--u)); }
 /* Mid-drag nothing in the strip may eat a drop aimed at the corner (mirrors the hero/Embers rule above). The
    container is already `none`; disable the interactive children too so a dragged card drops straight through. */
 body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: none; }

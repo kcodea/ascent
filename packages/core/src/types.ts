@@ -2411,6 +2411,15 @@ export interface CombatContext {
    *  NOTE: this CONSUMES the once-per-combat first-Echo bonus, which is correct — a proc'd Echo is an Echo
    *  firing — so call it once per proc batch, not speculatively. */
   echoExtras?(minion: Minion): number;
+  /** Run `fn` as ONE ECHO TRIGGER, through the same chokepoint a real death uses. Every "an Echo fired"
+   *  payoff hangs off this — Rune of Aftershocks (+4/+4 to the board), Rune of the Burrow (a free refresh on
+   *  a Beast Echo) — so a FORCED trigger (Echohorn Stag / Hawkus / Spots, Rune of the Herald, Rune of
+   *  Dawnclaw) pays exactly like a death-fired one. Owner report 2026-08-20: Aftershocks only ever fired on
+   *  a real death, because those forced paths called the `onDeath` factories directly and never came
+   *  through here. Wrap ONE TRIGGER — never one effect (a body with two Echo effects is still one trigger)
+   *  and never one watcher; each extra proc from a multiplier IS its own trigger. `source` is the body whose
+   *  Echo it is (Burrow reads its tribe). */
+  asEcho?(side: Side, fn: () => void, source?: Minion): void;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;

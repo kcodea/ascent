@@ -5727,6 +5727,9 @@ export function Recruit() {
                       // drawer is optional detail you can hover for, but here the two texts ARE the decision —
                       // a Choose One with both drawers collapsed is two identical portraits.
                       forceFull
+                      // `plated` so the option wears the same carved stone plate it has in hand / the Compendium
+                      // (owner ask 2026-08-19) — a Choose One is picking the real card, so it should look like one.
+                      plated
                       onClick={() => dispatch({ type: 'chooseOne', index: i })}
                     />
                   </div>

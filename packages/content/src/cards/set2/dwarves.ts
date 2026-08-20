@@ -296,7 +296,8 @@ export const SET2_DWARVES: CardDef[] = [
   },
   {
     // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
-    // granted minion, a minted Ruby) buffs your left-most Dwarf. Golden doubles the grant.
+    // granted minion, a minted Ruby) buffs a RANDOM friendly Dwarf. Golden doubles the grant.
+    // (Owner fix 2026-08-20: it used to take the left-most match — a seating decision the card never claimed.)
     id: 'dw_gangplank',
     name: 'Gangplank',
     tribe: 'dwarf',
@@ -305,8 +306,8 @@ export const SET2_DWARVES: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onGainCard', do: 'onGainCardBuffTribe', params: { tribe: 'dwarf', attack: 1, health: 2 } }],
-    text: 'When a card is added to your hand, give a friendly **Dwarf +1/+2**.',
-    goldenText: 'When a card is added to your hand, give a friendly **Dwarf +2/+4**.',
+    text: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
+    goldenText: 'When a card is added to your hand, give a **random** friendly **Dwarf +2/+4**.',
   },
 ];
 

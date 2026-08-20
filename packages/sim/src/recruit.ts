@@ -2126,8 +2126,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  it). Fired by `fireOnGainCard` off the conjure/grant path; golden doubles the grant. */
   onGainCardBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const target = ctx.state.board.find((c) => !tribe || isTribe(c, tribe as never));
-    if (!target) return;
+    // RANDOM among the eligible bodies (owner report 2026-08-20: Gangplank "is only targeting left-most
+    // dwarf... it should be random"). It was `.find(...)`, i.e. always the left-most match — a seating
+    // decision the card never claimed to make. Seeded off the run cursor like every other random recruit
+    // pick (Rune of the Glider, the Chipper Sticker), so it stays deterministic and replayable.
+    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const target = pool[rng.int(pool.length)]!;
+    ctx.state.rngCursor = rng.state();
     addBuff(target, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self));
   },
 

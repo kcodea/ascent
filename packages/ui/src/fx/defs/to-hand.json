@@ -16,6 +16,7 @@
         "gravity": -60,
         "turbulence": 25,
         "turbScale": 0.03,
+        "fieldPhase": 0.5,
         "shape": "star",
         "size": 6,
         "sizeVar": 0.5,

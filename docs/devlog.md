@@ -56,6 +56,140 @@ mech", Ruby/Ale as Kobold/Dwarf spells). Names/aliases unchanged, so detection +
 unaffected. Note: Avenge reads "once (x) friendly minions die" with a literal `(x)` — a static glossary
 placeholder, not a live count.
 
+## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
+
+Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a
+shop-buff aura hitting every unit). Diagnosis: two independent randomness layers, only one of which varied.
+Spawn jitter already differed per fire (each `playDef` builds its own seeded RNG, and the rune/aura defs are
+all unlocked → a fresh seed per fire). But the **turbulence field itself is not seeded** — `turbulenceX/Y`
+is a pure sine of `(local x, y, elapsed tSec)`, and every instance starts its field clock (`clockSec`) at 0,
+so simultaneous fires sample the same field at the same phase. Under strong turbulence the shared field
+dominates the motion and they read as identical; the same `clockSec` also drives the shader's animated
+texture noise (`uTime`), so that's in lockstep too.
+
+New knob **Field variation** (`fieldPhase`, Physics group, 0–1, default 0) on **burst / emitter / smoke** —
+every primitive that has turbulence. It seeds each instance's *starting* `clockSec` to a per-instance phase
+so the field (and the texture noise) begins at its own offset:
+
+- `motion.ts` gains `fieldPhaseOffset(seed, amount)` + `FIELD_PHASE_SPAN` (10s ≈ 2 periods of the base
+  turbulence sine). It derives the offset from a **separate** mulberry32 stream (`makeRng(seed ^ 0x9e3779b9)`),
+  never the primitive's per-particle `rand` — so the frozen per-mote draw order that saved seeds replay
+  against is untouched.
+- Each primitive resolves its seed once (`const seed = ctx.seed ?? randomSeed()`), seeds `this.rand` from it,
+  and sets `this.clockSec = fieldPhaseOffset(seed, params.fieldPhase)`.
+- **Default 0 is an exact no-op** (`clockSec` still starts at 0 — byte-identical to before), so every saved
+  def is unchanged. Because the offset is a pure function of the seed, an unlocked def gets a fresh phase per
+  fire (the decorrelation we want) while a locked def stays reproducible.
+
+Verified: new `fieldPhaseOffset` unit tests in `motion.test.ts` (no-op at 0, deterministic in the seed, 200
+distinct seeds → 200 distinct phases, linear in amount, bounded to `[0, SPAN)`); updated the three primitives'
+"exactly one seeded source per instance" source-text guards to the new two-line seed resolution (the
+per-primitive `makeRng` count is still 1 — `fieldPhaseOffset`'s stream lives in `motion.ts`). typecheck + lint
+(0 errors) + `npm test` (5916 passed) + build:web all green.
+
+**Migration — current defs opt in at 0.5.** A no-op default (0) means every existing turbulence effect would
+still swirl in lockstep until hand-edited, so a one-time pass set `fieldPhase: 0.5` (the halfway point) on
+every committed def layer that already runs `turbulence > 0` — 46 layers across 29 defs (rune-burst,
+epic-rune-burst, shop-buff-aura, rune-buff-unit, the ale/consume/spell-sparks stacks, ruby-gem-apply, …). The
+edit is purely additive (a surgical line-insert after each `turbScale`, so the JSON diff is 46 `+` lines and
+nothing reformatted); `defs.test.ts` + the full suite still pass, and the param default stays 0 so the engine
+invariant ("a default contributes exactly zero") is intact — NEW turbulence defs still start synced and opt in
+by raising the slider. Note this is not a strict no-op for the migrated defs: the ~half-dozen that fire
+many-at-once (runes, auras) now visibly decorrelate — which is the point — and the single-cast ones are
+unchanged to the eye (absolute field phase is invisible for one fire).
+
+## 2026-08-20 — Rune of Aftershocks: a FORCED Echo trigger now pays, not just a death
+
+Owner report: "rune of aftershocks is only triggering when an echo minion dies. it should trigger when an echo
+is triggered, so things like echohorn, hawkus etc."
+
+Nothing was wrong with the rune — it was never told. `asEcho` in `simulate.ts` is the echo-TRIGGER chokepoint
+(Aftershocks' +4/+4 and Rune of the Burrow's free refresh both hang off it), and a real death reaches it four
+ways. But every FORCED trigger fired the target's `onDeath` factories **directly** and bypassed it entirely:
+
+- **`triggerEcho`** in `effects/factories.ts` — the shared body behind **Echohorn Stag / Hawkus / Spots**.
+- **Rune of the Herald** — its own inline board-wide loop in `simulate.ts`.
+- **Rune of Dawnclaw** — fires a Dawnclaw's adjacent-Shout Echo directly.
+
+(The Bone Throne and Echoing Coop were already fine — they route through `fireOwnDeathrattles`, which wraps.)
+
+**The fix is one chokepoint, not four patches.** `CombatContext` gained `asEcho?(side, fn, source)`; `simulate`
+publishes its own `asEcho` on the ctx, and all three bypassing sites now route through it — wrapping ONE
+TRIGGER each (never one effect: a body with two Echo effects is still one trigger, the exact multiplication
+this rune shipped twice before). `triggerEcho` falls back to a bare run when no chokepoint is supplied, so a
+context without one behaves as it always did.
+
+**Rune of the Burrow is fixed by the same change** — its "a Beast Echo banks a free refresh" had the identical
+hole. Its comment claimed Hawkus/Spots/the Reliquary already paid; that was wrong on both counts and is now
+corrected in place: the forced paths only reach the chokepoint as of today, and the **Reliquary is not among
+them at all** — its trigger is an End-of-Turn RECRUIT effect, while both runes are combat-scoped ("this
+combat").
+
+Coverage: five new cases in `runeAftershocks.test.ts` drive a real forced trigger with an unkillable 0-attack
+wall (so every grant is provably from a trigger, never a death) for Echohorn, Hawkus, Spots and the Herald,
+plus a ceiling assertion against per-effect multiplication. **Verified RED before the fix** — exactly those
+four fail on the old code and pass on the new.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5873 tests / 363 files ✅ build:web ✅ harness determinism ✅.
+
+## 2026-08-20 — Fix the Hatchery End-Turn burst spike (reset beatIdx during render)
+
+Owner probe caught it cold: the rune-badge pulse oscillated `0 → 2 → 0` in ~10ms at every combat start,
+firing the fight's whole trigger set at the instant of the End-Turn click, then resetting — on top of the
+correct per-summon bursts during the replay. Two earlier fixes on this branch failed; a deeper probe of the
+`triggeredQuests` memo (logging `beatIdx / beats.length / processedEnd / stale / refEq` on every non-empty
+result) is what finally pinned the mechanism.
+
+Root cause is a classic async-state gap. When a new `combat` object arrives, `beats`/`events` recompute in the
+same render (their memo dep is `[combat]`), but `beatIdx` only resets to 0 via `resetTo(0)` inside the
+`[combat]` **effect** — which runs a render LATER. So the first render of a new fight ran with the new fight's
+`beats` but the PREVIOUS fight's `beatIdx` (e.g. 7). `processedEnd = beats[6].end = 9` — a perfectly in-bounds
+beat end — already spans the early `questTrigger` event, so `triggeredQuests` returned `{rune_hatchery: 2}` and
+the one-shot badge burst fired. Then `resetTo(0)` landed, `processedEnd` dropped to 0, the pulse fell back to 0,
+and the real per-beat burst fired later during the actual replay.
+
+Why the prior guard missed it: `beatIdxIsStale` tried to DETECT the stale render via proxies — a `seenCombatRef`
+equality check and `beats[beatIdx - 1] === undefined`. The probe disproved both: the ref was already updated
+(`refEq: true`) because it's written synchronously in the same effect, and the new fight was long enough that
+`beats[6]` was defined (`stale: false`). Neither proxy holds on the stale render, so detection is the wrong
+strategy.
+
+Fix: eliminate the stale window instead of detecting it. Reset `beatIdx` to 0 **during render** the instant
+`combat` changes (React's supported "adjust state on prop change" pattern — a set-function called during render
+is applied before the component commits or renders children), so the first COMMITTED render of a new fight
+always has `beatIdx === 0` and `processedEnd === 0`. The `seenCombatRef` and its effect write are gone;
+`beatIdxIsStale` is reduced to a cheap defensive bounds check that can no longer trigger. The `[combat]` effect
+keeps only its imperative cleanup (GSAP kills, roll cancellation, summon-hold release).
+
+Verified: typecheck + lint (0 errors) + `npm test` (5905 passed) + build:web green. Both temporary DEV probes
+(`ascent.runeFxProbe`, `ascent.triggerProbe`) removed.
+
+## 2026-08-19 — Choose One / offer polish: plates, glow removal, one hover tick, and two sound tweaks
+
+A batch of owner-requested polish on the offer overlays (Choose One / Discover / Scouted) plus two audio asks.
+
+- **Choose One options wear the card plate.** The Choose One picker rendered its two `<Card>`s without `plated`,
+  so they showed the bare oval frame instead of the carved stone plate they have in hand / the Compendium. Pass
+  `plated`, and reserve the plate's overhang as margin in the `.disc-slot` flex row (same allowance `.cardref`
+  and `.book-grid` make) so the wider plated cards don't overlap.
+- **Removed the outdated offer-slot glow.** The tribe-coloured ring + `kwglow`-animated bloom on `.disc-slot`
+  read as a squared glow behind the cards (worse behind a plate, whose silhouette it doesn't match). Stripped it
+  from ALL offer overlays (Choose One, Discover, Scouted); a plated card keeps its own plate-shaped hover glow.
+- **One hover tick per offer card.** The card's plate img is `pointer-events:none`, so hovering its overhang
+  resolved to the `.disc-slot` while the frame resolved to the inner `.card[role="button"]` — both match the
+  hover-SFX selector, so crossing between them double-ticked. The delegated `pointerover` handler now collapses
+  any match inside a `.disc-slot` to the slot, so each option ticks once.
+- **New "discover select" cue.** Committing a choice from any offer — a Discover pick, a Rune bought, a Choose
+  One option — plays a dedicated `discover-select` clip (new `discoverSelect` mixer category, bus ui, gain
+  0.375). Wired once in the reducer's action switch (`discover` / `chooseOne` / `buyRune`), replacing the old
+  `sfx.buy()` on the Discover pick.
+- **Ward plays the shield cue in the shop.** Mirroring the Taunt handling: a minion that arrives WITH Ward
+  (`'DS'`) on play, or is GIVEN Ward on the board in the shop, now fires the same `sfx.shield()` combat uses
+  when Ward is applied.
+
+Verified: typecheck + full test suite + build:web green; live on the dev server (plate/glow/hover confirmed by
+the owner; sounds owner-listened, select cue dropped 25% to taste).
+
 ## 2026-08-19 — The loss-damage number reads above the board furniture
 
 The combat loss-damage tally (`.lossdmg` / its `.lossfly` tier flyers) sat at `z-index: 30/31`, below the
@@ -63,6 +197,7 @@ StatusBar and board furniture (`z-index: 40`). Since the Freeze gem / Reroll / G
 the gem was covering the big damage number (owner report). Raised the tally to `z-index: 2000/2001` — the same
 tier as the sibling lobby damage float, above the board + replay bar but still below the dev menu (9990). CSS
 only.
+
 ## 2026-08-19 — Remove the Set 2 launch banner from the title screen
 
 Owner ask: pull the "Welcome to Set 2's Launch!" glass card off the title screen entirely. Deleted the
@@ -72,6 +207,28 @@ styles.css (the `.titlebanner*` rules, the `bannerpop` entrance keyframe, and th
 
 Verified: typecheck + lint (Title.tsx clean) + test (364 files, 5875 passing) + build:web green; no `titlebanner`
 / `bannerpop` / launch-copy references remain anywhere in packages or apps.
+## 2026-08-20 — Gangplank picks a RANDOM Dwarf, not the left-most
+
+Owner report: "gangplank is only targeting left-most dwarf for some reason when it should be random."
+
+Confirmed — `onGainCardBuffTribe` selected with `.find(...)`, which is the first match in board order. So the
+left-most Dwarf soaked EVERY grant for the entire run: a seating decision the card never claimed to make, and
+one that quietly turned a spread-the-love buff into a single-target snowball. Now a seeded random pick over the
+eligible bodies, using the run-cursor pattern every other random recruit pick uses (Rune of the Glider, the
+Chipper Sticker), so it stays deterministic and replayable — no `Math.random`, which is ESLint-banned in `sim`
+anyway.
+
+Gangplank is the ONLY consumer of this factory, so the change is contained to it.
+
+**Card text updated to match** (the hard rule — text says what the card does): "give a **random** friendly
+**Dwarf** +1/+2", golden likewise.
+
+Coverage: the existing left-most assertion was rewritten to measure the board TOTAL (one Dwarf gains +1/+2,
+without asserting which), plus two new cases — 40 conjures across a three-Dwarf line must SPREAD (the left-most
+soaking all of them is precisely the bug), and the same starting state replayed twice must produce an identical
+board (proving the pick consumes the seeded cursor). **Verified RED before the fix.**
+
+Gates: typecheck ✅ lint 0 errors ✅ 5907 tests / 368 files ✅ build:web ✅.
 
 ## 2026-08-19 — `rune-buff-unit`: combat + End-of-Turn paths, and the label gaps closed
 
@@ -810,6 +967,7 @@ rather than shipping a duplicate.
 the Chorus buff stacking across rolls but never touching the permanent bonus and vanishing at the rollover, the
 1-vs-2 tribe drip, the card-scoped multicast (named spell doubles, others untouched), the Glider's no-op with no
 Dragon out, and Blasting Voices resolving to +2 triggers through the real buy path.
+
 ## 2026-08-19 — End Turn gem glow copied from the Freeze gem (and re-seated below the gem)
 
 Owner ask: the End Turn diamond's hover glow floated over the bronze housing on its own top layer, unlike the

@@ -79,6 +79,16 @@ export function RoundRail(): JSX.Element | null {
   return (
     <div className="roundrail-wrap">
       <nav className="roundrail" aria-label="Replay rounds">
+        {/* PARTIAL recording: state the recorded range BEFORE playback rather than letting a rail that starts
+            at R7 read as "rounds were filtered out". Since draft persistence shipped (2026-08-20) an ordinary
+            quit-and-resume records in full, so this is the honest label for the cases that failed anyway —
+            a pre-persistence recording, or storage that refused. */}
+        {session.partial && (
+          <div className="roundrail-partial" title="This recording does not cover the whole run — the earlier rounds were never captured.">
+            <span className="roundrail-partial-tag">Partial replay</span>
+            <span className="roundrail-partial-range">Rounds {session.partial.firstWave}–{session.partial.lastWave} recorded</span>
+          </div>
+        )}
         {/* The header row is IN FLOW in both grids (an earlier absolutely-positioned header was clipped by
             the dock's overflow) — the rail gets a matching cell so data rows stay level across the seam. */}
         <div className="roundrail-head">Round</div>

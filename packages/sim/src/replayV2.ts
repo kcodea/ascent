@@ -138,9 +138,17 @@ export interface ReplayV2 {
   patch: string;
   /** Stamped on upload; capture scripts can't be trusted with Date.now(). */
   createdAtMs?: number;
-  /** A resumed run whose pre-reload frames were lost — frames are NOT persisted in the autosave
-   *  (localStorage is far too small for them; see the capture layer). Viewers may hide or badge these. */
+  /** A recording that does NOT begin at wave 1. Since 2026-08-20 the capture layer persists frames per round
+   *  to IndexedDB, so an ordinary quit-and-resume produces a COMPLETE replay; this is now reserved for the
+   *  cases where that failed (see `partialReason`). Viewers must label the recorded range rather than imply
+   *  the missing rounds were filtered out. */
   partial?: true;
+  /** The earliest wave the recording actually contains — what a partial replay advertises up front. */
+  firstRecordedWave?: number;
+  /** Why the recording is short. `resumed_without_frames` = resumed before draft persistence existed, or the
+   *  draft was missing; `storage_failure` = IndexedDB refused/failed mid-run; `legacy_capture` = recorded by
+   *  a build that never persisted drafts at all. */
+  partialReason?: 'resumed_without_frames' | 'storage_failure' | 'legacy_capture';
   /** Wall-clock order. */
   frames: ReplayFrame[];
   /** Open/close events of the card-inspect overlay (right-click), on the SAME clock as `frames[].tMs` —

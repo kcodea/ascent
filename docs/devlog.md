@@ -1,5 +1,13 @@
 # ASCENT — development log
 
+## 2026-08-20 — Buffs panel: new default geometry (owner tuning pass)
+
+Owner feel pass via the 🧪 Buffs Panel tuner. Updated `BuffDrawerConfig` DEFAULTS
+(`packages/ui/src/buffDrawerConfig.ts`): `bodyX` 2→8, `bodyY` 0→**-37**, `bodyS` 0.9→**0.47**, `textS` 11→10.5,
+`titleS` 11→13, `minW` 122→120 — a smaller panel lifted up off the portrait. Mirrored the six `--bfd-*`
+fallbacks in `styles.css` to match (the file's stated invariant), which also corrects a pre-existing
+`--bfd-body-x` fallback that read `0` while the default was `2`. Defaults + CSS-fallback change only — no logic.
+
 ## 2026-08-20 — stored boards are now self-describing (Career/Leaderboard showed raw card ids + NEUTRAL)
 
 **Owner report:** Career boards rendering as `d2_transcendence`, tribe NEUTRAL, placeholder art — "why are these

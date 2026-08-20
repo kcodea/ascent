@@ -55,6 +55,24 @@ export type ShopView = Omit<RunState, ShopViewExcludedKey> & {
   nextFoe?: BoardSnapshot | null;
 };
 
+/**
+ * The recorded PATH of the card drag that produced a frame's action (owner ask 2026-08-19: "1:1 hands" —
+ * the replay viewer sees a ghost of the card travel the same path over the same duration, ending where the
+ * drop landed, instead of the result snapping in). Rides ON the frame because the drop IS the action that
+ * produced it — unlike the inspect trail, which has no frame to ride and so carries its own clock ticks.
+ *
+ * `pts` are VIEWPORT-FRACTION coordinates ([0..1] of window width/height, 3-decimal precision), first point
+ * = the grab, last = the drop — fractions, not pixels, so a replay watched at another resolution still
+ * tracks the layout (the game is a fullscreen anchored layout). The UI capture samples ~30 Hz, simplifies
+ * (near-collinear points dropped) and caps the count before attaching, so a frame costs tens of points, not
+ * hundreds. `durMs` is the REAL drag duration — playback spends exactly that long on the ghost (÷ speed).
+ */
+export interface DragPath {
+  cardId: string;
+  durMs: number;
+  pts: [number, number][];
+}
+
 export interface ShopFrame {
   kind: 'shop';
   wave: number;
@@ -63,6 +81,8 @@ export interface ShopFrame {
   cause: ActionCause;
   /** FULL visible recruit-phase state AFTER this action. Deep-cloned at capture. */
   view: ShopView;
+  /** The drag that produced this action, when it was drag-driven (buy/play/sell/reorder/reposition). */
+  drag?: DragPath;
 }
 
 /**
@@ -100,6 +120,8 @@ export interface ShopDeltaFrame {
   cause: ActionCause;
   changed: Partial<ShopView>;
   removed: string[];
+  /** The drag that produced this action, when it was drag-driven — see `ShopFrame.drag`. */
+  drag?: DragPath;
 }
 
 export type ReplayFrame = ShopFrame | ShopDeltaFrame | CombatFrame;
@@ -210,7 +232,8 @@ export function expandFrames(frames: readonly ReplayFrame[]): (ShopFrame | Comba
     const next = { ...cur, ...f.changed } as ShopView;
     for (const k of f.removed) delete (next as unknown as Record<string, unknown>)[k];
     cur = next;
-    out.push({ kind: 'shop', wave: f.wave, tMs: f.tMs, cause: f.cause, view: next });
+    // `drag` carries through expansion — the playback ghost reads it off the expanded frame.
+    out.push({ kind: 'shop', wave: f.wave, tMs: f.tMs, cause: f.cause, view: next, ...(f.drag ? { drag: f.drag } : {}) });
   }
   return out;
 }

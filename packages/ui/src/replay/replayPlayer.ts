@@ -13,7 +13,7 @@
 import type { CombatResult } from '@game/core';
 import {
   expandFrames, rollupRounds, roundMarks,
-  type CombatFrame, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
+  type CombatFrame, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
 import type { CardView } from '../Card';
 import { useGame } from '../store';
@@ -193,6 +193,7 @@ function frameResets(): Partial<StoreState> {
     heroArmed: false,
     endTurnAnimating: false,
     inspect: null,
+    replayDragGhost: null,
     combatEnemyDeaths: 0,
     combatBuffs: null,
     combatQuestDelta: null,
@@ -219,6 +220,7 @@ function nearestShopView(i: number): ShopView | null {
 /** Render frame `i` into the store. Shop frame → synthetic recruit run; combat frame → the surrounding shop
  *  world flipped to `phase: 'combat'` with the recorded fight as `lastCombat` (the arena animates it verbatim). */
 function renderFrame(i: number): void {
+  ghostLandPending = false; // any render supersedes an in-flight ghost (frameResets clears the layer too)
   const f = frames[i];
   if (!f) return;
   if (f.kind === 'shop') {
@@ -253,9 +255,43 @@ function finish(): void {
   timer = setTimeout(() => { if (myToken === token) endReplay(); }, TERMINAL_LINGER_MS);
 }
 
+/** A recorded drag path playback can actually ghost: at least two points and a real duration. A malformed
+ *  path (0/1 points, non-positive duration) skips the ghost and the frame lands normally. Pure — tested. */
+export function playableDragPath(d: DragPath | undefined): DragPath | null {
+  if (!d || !Array.isArray(d.pts) || d.pts.length < 2 || !(d.durMs > 0)) return null;
+  return d;
+}
+
+/** Monotonic key so back-to-back ghosts retrigger the layer's animation. */
+let ghostKey = 0;
+/** True while a ghost is flying and its frame has NOT landed yet — a pause mid-ghost lands the frame
+ *  immediately (the ghost dissolves with it), so the paused world is never stuck one frame behind. */
+let ghostLandPending = false;
+
 function advance(myToken: number): void {
   if (myToken !== token) return;
   if (idx >= frames.length - 1) { finish(); return; }
+  const nf = frames[idx + 1];
+  const drag = nf && nf.kind === 'shop' ? playableDragPath(nf.drag) : null;
+  if (drag) {
+    // DRAG GHOST (owner ask 2026-08-19, "1:1 hands"): the clock has advanced INTO a frame produced by a
+    // drag. Instead of the result snapping in, replay the hand first — a ghost of the card flies the
+    // recorded path over the REAL recorded drag duration (÷ speed), over the PREVIOUS frame's world, and the
+    // frame lands when the ghost does. The step's own delta already elapsed to get here; the ghost's durMs
+    // is the literal 1:1 addition (the live drag took exactly that long between the two states too). Seeks
+    // never come through `advance`, so they skip ghosts entirely.
+    idx += 1;
+    ghostKey += 1;
+    ghostLandPending = true;
+    useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey } });
+    timer = setTimeout(() => {
+      if (myToken !== token) return;
+      ghostLandPending = false;
+      renderFrame(idx); // frameResets clears the ghost in the same set
+      scheduleNext(myToken);
+    }, drag.durMs / speed);
+    return;
+  }
   idx += 1;
   renderFrame(idx);
   scheduleNext(myToken);
@@ -339,6 +375,9 @@ export function pauseReplay(): void {
   if (!snapshot) return;
   playing = false;
   clearPending();
+  // Pausing mid-ghost lands the ghost's frame NOW (and dissolves the ghost) — otherwise the paused world
+  // would sit one frame behind the transport position and resume would skip the landing entirely.
+  if (ghostLandPending) renderFrame(idx);
   patchSession({ playing: false });
 }
 
@@ -356,7 +395,9 @@ export function setReplaySpeed(v: number): void {
   speed = Math.max(0.5, Math.min(5, v)); // owner ruling 2026-08-19: the replay speed range is 0.5–5×
   patchSession({ speed });
   // Re-arm the current step at the new speed (a full step, not the remainder — a simplification that costs
-  // at most one step of drift, invisible against the clamped pacing).
+  // at most one step of drift, invisible against the clamped pacing). A speed change mid-ghost lands the
+  // ghost's frame first — `scheduleNext` arms the NEXT step, so the landing must not be skipped.
+  if (ghostLandPending) renderFrame(idx);
   if (playing) scheduleNext(token);
 }
 
@@ -438,10 +479,12 @@ export function endReplay(): void {
   effTimes = [];
   inspectTrail = [];
   playing = false;
+  ghostLandPending = false;
   useGame.setState({
     ...restore,
     replaying: false,
     replaySession: null,
+    replayDragGhost: null, // the ghost layer unmounts with the replay — never outlives it
     combatReplayDone: false,
     replaySeekEpoch: 0, // back to the idle epoch — also remounts Recruit onto the restored run
   });

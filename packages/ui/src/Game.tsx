@@ -27,6 +27,7 @@ import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ReplayOverlay } from './replay/ReplayOverlay';
+import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
@@ -279,6 +280,9 @@ export function Game() {
       <AccountPanel />
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;
           the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
+      {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the
+          transport chrome — a recorded hand replaying must never cover the viewer's controls. */}
+      <ReplayDragGhost />
       <RoundRail />
       <ReplayOverlay />
       {/* Tutorial coaching overlay — self-gates on a `tutorial`-mode run; renders nothing otherwise. Mounted

@@ -374,3 +374,27 @@ describe('a key cleared to undefined survives the JSON round trip (Runeforge bug
     expect(v1.view.runeforgeOffer, 'CLOSED after the pick').toBeUndefined();
   });
 });
+
+describe('drag paths ride the frame (owner ask 2026-08-19: "1:1 hands")', () => {
+  it('a shopDelta frame\'s drag survives expandFrames — the playback ghost reads the expanded frame', () => {
+    const run = createRun(4242);
+    const f0 = shopFrameOf(run, 'turnStart', 0);
+    const after = reduce(run, { type: 'roll' });
+    const d = deltaShopFrameOf(f0.view, after, 'buy', 900);
+    d.frame.drag = { cardId: 'imp', durMs: 640, pts: [[0.612, 0.804], [0.43, 0.51], [0.402, 0.633]] };
+    const expanded = expandFrames([f0, d.frame]);
+    expect(expanded).toHaveLength(2);
+    const landed = expanded[1]!;
+    if (landed.kind !== 'shop') throw new Error('expected a shop frame');
+    expect(landed.drag).toEqual(d.frame.drag);
+    expect(expanded[0]!.kind === 'shop' && expanded[0]!.drag, 'the keyframe carries none').toBeFalsy();
+  });
+
+  it('drag is JSON-safe on both frame kinds (the upload is jsonb)', () => {
+    const run = createRun(4243);
+    const f0 = shopFrameOf(run, 'turnStart', 0);
+    f0.drag = { cardId: 'imp', durMs: 500, pts: [[0.1, 0.2], [0.3, 0.4]] };
+    const roundTrip = JSON.parse(JSON.stringify(f0)) as typeof f0;
+    expect(roundTrip.drag).toEqual(f0.drag);
+  });
+});

@@ -6,12 +6,12 @@
  * plumbing is try/caught), because "watching a replay leaves your live run untouched" is the one guarantee
  * that must never regress.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
-  SHOP_VIEW_EXCLUDED_KEYS, type InspectEvent, type ReplayFrame, type ReplayV2, type RunState,
+  SHOP_VIEW_EXCLUDED_KEYS, type DragPath, type InspectEvent, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
+import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, pauseReplay, playableDragPath, seekReplay, startReplay , effectiveTimesOf} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -289,5 +289,116 @@ describe('mid-step scrub restores an open inspect (found live 2026-08-19)', () =
     // At/after the close boundary: closed.
     expect(latestInspectAt(trail as never, 29811)).toBe(1);
     expect(latestInspectAt(trail as never, 14229), 'before the open — nothing').toBe(-1);
+  });
+});
+
+describe('the drag ghost (owner ask 2026-08-19: "1:1 hands")', () => {
+  const dragPath: DragPath = { cardId: 'imp', durMs: 400, pts: [[0.1, 0.2], [0.3, 0.3], [0.5, 0.5]] };
+
+  function makeDragReplay(drag: DragPath | undefined): ReplayV2 {
+    const source = createRun(781);
+    const f0 = shopFrameOf(source, 'turnStart', 0);
+    const after = reduce(source, { type: 'roll' });
+    const d = deltaShopFrameOf(f0.view, after, 'buy', 800);
+    if (drag) d.frame.drag = drag;
+    return {
+      version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby',
+      author: 'brackus', patch: 'test',
+      frames: [f0, d.frame],
+      result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null },
+    };
+  }
+
+  it('playableDragPath — malformed paths (0/1 points, no duration) skip the ghost', () => {
+    expect(playableDragPath(undefined)).toBeNull();
+    expect(playableDragPath({ cardId: 'imp', durMs: 400, pts: [] })).toBeNull();
+    expect(playableDragPath({ cardId: 'imp', durMs: 400, pts: [[0.5, 0.5]] })).toBeNull();
+    expect(playableDragPath({ cardId: 'imp', durMs: 0, pts: [[0.1, 0.1], [0.5, 0.5]] })).toBeNull();
+    expect(playableDragPath(dragPath)).toBe(dragPath);
+  });
+
+  it('a frame with `drag` delays its render by durMs — the ghost flies over the previous world first', () => {
+    vi.useFakeTimers();
+    try {
+      startReplay(makeDragReplay(dragPath));
+      const worldAtFrame0 = useGame.getState().run;
+      expect(useGame.getState().replaySession?.index).toBe(0);
+      expect(useGame.getState().replayDragGhost).toBeNull();
+
+      // The step's recorded delta (800 ms, 1:1 paced) elapses → the clock advances INTO the drag frame:
+      // the GHOST launches, but the frame itself has NOT landed.
+      vi.advanceTimersByTime(800);
+      const ghost = useGame.getState().replayDragGhost;
+      expect(ghost).not.toBeNull();
+      expect(ghost?.cardId).toBe('imp');
+      expect(ghost?.durMs).toBe(400); // speed 1× — the literal recorded drag duration
+      expect(ghost?.pts).toEqual(dragPath.pts);
+      expect(useGame.getState().run, 'the world is still the PREVIOUS frame under the ghost').toBe(worldAtFrame0);
+      expect(useGame.getState().replaySession?.index, 'the session still shows the pre-landing frame').toBe(0);
+
+      // The ghost completes after the REAL recorded drag duration → the frame lands, ghost dissolves.
+      vi.advanceTimersByTime(400);
+      expect(useGame.getState().replayDragGhost).toBeNull();
+      expect(useGame.getState().replaySession?.index).toBe(1);
+      expect(useGame.getState().run).not.toBe(worldAtFrame0);
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+
+  it('a frame WITHOUT drag renders at its step boundary — no added time', () => {
+    vi.useFakeTimers();
+    try {
+      startReplay(makeDragReplay(undefined));
+      vi.advanceTimersByTime(800);
+      expect(useGame.getState().replayDragGhost).toBeNull();
+      expect(useGame.getState().replaySession?.index).toBe(1);
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+
+  it('a SEEK skips the ghost entirely and renders the target frame immediately', () => {
+    vi.useFakeTimers();
+    try {
+      startReplay(makeDragReplay(dragPath));
+      seekReplay(800);
+      expect(useGame.getState().replaySession?.index).toBe(1);
+      expect(useGame.getState().replayDragGhost).toBeNull();
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+
+  it('pausing mid-ghost lands the frame immediately (the paused world is never one frame behind)', () => {
+    vi.useFakeTimers();
+    try {
+      startReplay(makeDragReplay(dragPath));
+      vi.advanceTimersByTime(800); // ghost in flight
+      expect(useGame.getState().replayDragGhost).not.toBeNull();
+      pauseReplay();
+      expect(useGame.getState().replayDragGhost).toBeNull();
+      expect(useGame.getState().replaySession?.index).toBe(1);
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
+  });
+
+  it('endReplay mid-ghost clears the ghost slice — the layer never outlives the replay', () => {
+    vi.useFakeTimers();
+    try {
+      startReplay(makeDragReplay(dragPath));
+      vi.advanceTimersByTime(800);
+      expect(useGame.getState().replayDragGhost).not.toBeNull();
+      endReplay();
+      expect(useGame.getState().replayDragGhost).toBeNull();
+    } finally {
+      endReplay();
+      vi.useRealTimers();
+    }
   });
 });

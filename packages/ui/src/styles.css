@@ -8156,3 +8156,21 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: left 180ms ease-out; }
 .rounddock-handle.open { left: calc(100% - 4px + var(--rrl-dock-w, 128px)); border-radius: 0 8px 8px 0; }
 .rounddock-handle:hover { color: #fff; }
+
+/* Drag ghost — the recorded card drag replayed as a floating card + closed-fist cursor (owner ask 2026-08-19:
+   "1:1 hands"). The .ghostmover rides ONE Web-Animations transform along the recorded path (compositor-only —
+   the perf rule: never a looping paint-property animation; the flight is a one-shot transform). The layer sits
+   under the transport bar (560) and never intercepts pointer events. The card is centred on the path point via
+   a CHILD transform so the mover's WAAPI transform stays a pure translation. */
+.replay-dragghost { position: fixed; inset: 0; z-index: 540; pointer-events: none; }
+.replay-dragghost .ghostmover { position: absolute; left: 0; top: 0; will-change: transform; }
+.replay-dragghost .ghostcard { position: absolute; transform: translate(-50%, -50%); width: 92px; padding: 6px 6px 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(46, 56, 72, 0.92), rgba(20, 25, 34, 0.95));
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  opacity: 0.92; }
+.replay-dragghost .ghostart { width: 80px; height: 58px; object-fit: cover; border-radius: 6px; }
+.replay-dragghost .ghostname { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: rgba(255, 255, 255, 0.85); font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 1.15; }
+.replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
+  transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }

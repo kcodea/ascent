@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -30,6 +30,7 @@ export interface CareerView {
 
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
+import { DRAG_CAUSES, takeDragTrace } from './replay/dragTrace';
 
 /** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
  *  plus a Deathrattle/Echo total). Drives the quest nodes' live-tick. */
@@ -310,6 +311,10 @@ interface GameStore {
   /** The live transport state of the running replay (frame index / count, playing, speed, current round) —
    *  read by the replay overlay + round rail; driven by `replay/replayPlayer.ts`. Null when not replaying. */
   replaySession: ReplaySession | null;
+  /** REPLAY VIEWER — the drag ghost currently in flight: a recorded DragPath the ghost layer animates over
+   *  `durMs` (already speed-adjusted by the player) before the frame it produced lands. `key` retriggers the
+   *  animation across consecutive ghosts. Null whenever no ghost is flying; meaningless outside `replaying`. */
+  replayDragGhost: (DragPath & { key: number }) | null;
   /** The last FINISHED run's v2 state replay, stashed at run end so "Rewatch last game" has something to play. */
   lastReplay: ReplayV2 | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
@@ -806,14 +811,20 @@ function commitResolvedAction(
         replayLastShopView = frame.view;
         replayFrames = [...replayFrames, frame];
       } else if (next.phase === 'recruit' && s.run.phase === 'recruit') {
+        // DRAG PATH (owner ask 2026-08-19, "1:1 hands"): when this action was drag-driven (a drop dispatched
+        // it), attach the recorded pointer path so playback can ghost the card along it. Take-and-clear with
+        // a staleness window, so an aborted drag never mislabels a later same-typed action.
+        const dragPath: DragPath | null = DRAG_CAUSES.has(action.type) ? takeDragTrace() : null;
         // An ordinary recruit action: a DELTA against the previous frame's view (§8 — measured: full views
         // are ~7 KB and a human run takes ~250 actions; deltas keep the payload in the hundreds of KB).
         if (replayLastShopView) {
           const d = deltaShopFrameOf(replayLastShopView, next, action.type, tMs);
+          if (dragPath) d.frame.drag = dragPath;
           replayLastShopView = d.view;
           replayFrames = [...replayFrames, d.frame];
         } else {
           const frame = shopFrameOf(next, action.type, tMs); // no baseline (shouldn't happen) → keyframe
+          if (dragPath) frame.drag = dragPath;
           replayLastShopView = frame.view;
           replayFrames = [...replayFrames, frame];
         }
@@ -1171,6 +1182,7 @@ export const useGame = create<GameStore>((set, get) => ({
   replaying: false,
   combatReplayDone: false,
   replaySession: null,
+  replayDragGhost: null,
   lastReplay: null,
   replaySeekEpoch: 0,
   latestBatch: null,

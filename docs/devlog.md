@@ -2,6 +2,23 @@
 
 ## 2026-08-19 — Replay v2 SHIPPED: state replay + round rail + metrics drawer + Watch entry points
 
+**Fifth follow-up (same day): DRAG PATHS — the last gap in the 1:1 vision.**
+
+Every drag (buy / play / sell / reposition / reorder shop / reorder hand) now records its pointer path and
+replays as a GHOST: the dragged card's art + name on a small plate, with the game's closed-gauntlet cursor
+pinned at its hotspot, flying the recorded path over exactly the recorded duration before the frame lands —
+so each drag adds precisely its real time to the literal timeline. Capture hooks ride the REAL drag lifecycle
+in Recruit.tsx (pointerdown → 30 Hz move samples → release), RDP-simplified to viewport-FRACTION coordinates
+(a replay watched at another resolution still tracks the layout): a typical drag is **~100–320 bytes**. The
+path attaches to the frame its drop produced (take-and-clear, 300 ms staleness so an aborted drag can't
+mislabel an unrelated action — the magnetic-merge slide's 260 ms deferral fits inside). The ghost is one WAAPI
+transform animation (compositor-only), never intercepts pointers, and seeks skip it entirely; pause mid-ghost
+lands the frame immediately so the paused world is never a frame behind.
+
+Live-verified with a REAL mouse drag driven in the browser: the buy's path captured onto its frame (cardId +
+duration + simplified points), survived the JSON upload round-trip, and the ghost rendered mid-flight in the
+replayed turn. Gates: typecheck ✅ lint 0 errors ✅ 5866 tests / 363 files ✅ build:web ✅.
+
 **Fourth follow-up (same day): dock header + a REAL wire-format bug (the stuck Runeforge).**
 
 - **The dock has a labeled header** — "Gold / Acts / Tier" as an in-flow row, with a matching "Round" cell on

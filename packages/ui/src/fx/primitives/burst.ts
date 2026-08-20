@@ -16,7 +16,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
-import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES } from '../motion';
+import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES, fieldPhaseOffset } from '../motion';
 import { makeRng, randomSeed, type FxRandom } from '../rng';
 import { registerPrimitive } from '../registry';
 
@@ -282,6 +282,11 @@ const SPECS = {
     enabledWhen: { param: 'turbulence', above: 0 },
     help: 'How tight the wandering is — low values give broad lazy drifts, high values a small nervous wiggle. Does nothing while Turbulence is 0.',
   },
+  fieldPhase: {
+    kind: 'slider', label: 'Field variation', group: 'Physics', min: 0, max: 1, step: 0.01, default: 0,
+    enabledWhen: { param: 'turbulence', above: 0 },
+    help: 'Per-cast variation in the turbulence field (and the animated texture noise). At 0 every copy of this effect swirls in lockstep, so many firing at once look identical; raise it and each fire starts the field at its own seeded phase, so a crowd of casts decorrelates. Reproducible when the def locks a seed. Does nothing while Turbulence is 0.',
+  },
   emitShape: {
     kind: 'enum', label: 'Emit shape', group: 'Physics', options: EMIT_SHAPES, default: 'point', essential: true,
     help: 'Where shards are born relative to the anchor: all from one spot, off the edge of a ring, anywhere inside a disc, or anywhere in a box. Does nothing while Emit radius is 0 — every shape collapses to a single spot there.',
@@ -531,7 +536,12 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.params = params;
     this.renderer = ctx.renderer;
     this.oneShot = ctx.oneShot === true;
-    this.rand = makeRng(ctx.seed ?? randomSeed());
+    const seed = ctx.seed ?? randomSeed();
+    this.rand = makeRng(seed);
+    // Start the field clock (turbulence + shader texture noise) at a per-instance seeded phase so many casts
+    // firing at once don't animate in lockstep — from a SEPARATE stream off `seed`, never `this.rand`, so the
+    // frozen per-shard draw order is untouched. `fieldPhase` 0 → offset 0 → clockSec starts at 0 as before.
+    this.clockSec = fieldPhaseOffset(seed, params.fieldPhase);
     this.texture = getShapeTextureById(ctx.renderer, params.shape);
     // Pooled, not constructed: building a fresh Shader here re-compiled and re-linked the GLSL on every fire
     // — a ~68 ms main-thread block per collision. See `particleLayerPool.ts`'s header.

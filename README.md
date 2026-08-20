@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _The latest highlights only. Full history, newest first, lives in [`docs/devlog.md`](docs/devlog.md)._
 
+- **FX workbench: "Field variation" knob** — a new Physics slider (burst / emitter / smoke) that gives each cast its own seeded turbulence-field phase, so many copies of an effect firing at once no longer swirl in lockstep. Defaults to 0 (a no-op that leaves every saved effect unchanged).
+
 - **Choose One / offer polish** — Choose One options now wear the carved card plate; the outdated squared glow behind offer cards (Choose One / Discover / Scouted) is gone; hovering an option ticks once, not twice; committing any offer pick (Discover / rune / Choose One) plays a new "discover select" cue; and playing or being granted **Ward** in the shop now plays the combat shield sound.
 
 - **Set 2 launch banner removed** — the "Welcome to Set 2's Launch!" card is gone from the title screen.

@@ -46,18 +46,33 @@ A single module — **`packages/ui/src/mechanics.ts`** (new) — is the one sour
 vocabulary. Each entry:
 
 ```ts
+/** The card fields a predicate needs. Both a full CardDef and a (CardView + its def) satisfy it. */
+interface MechInput {
+  keywords: Keyword[];              // LIVE keywords (granted keywords included, in combat)
+  effects: EffectDef[];
+  chooseOne?: CardDef['chooseOne'];
+  text: string;
+}
 interface Mechanic {
   id: string;                       // stable key, e.g. 'shout', 'watcher', 'engraved'
   term: string;                     // player-facing name shown in the glossary (e.g. 'Shout')
   glyph: string;                    // Icon.tsx name (e.g. 'battlecry')
-  def: string;                     // one-line rule text for the glossary
-  detect: (c: CardDef) => boolean;  // structural predicate (effect data / keywords / chooseOne)
+  def: string;                      // one-line rule text for the glossary
+  detect: (m: MechInput) => boolean;// structural predicate (effect data / keywords / chooseOne)
+  termRe?: RegExp;                  // term(s) as they appear in text (both raw + renamed) — ORDERING only
   order: number;                    // tiebreak when text position can't order (see Ordering)
 }
 export const MECHANICS: Mechanic[];
 ```
 
-It absorbs the glossary's current `kwMatch` / `grantsKeyword` / `FIXED_GRANT` helpers and its `match`
+**Why `MechInput` and not `CardDef`:** `CardView` (what `Card` receives, in shop AND combat) carries
+`keywords` + `text` but **not** `effects`/`chooseOne`. So the medallion resolver looks up the full def via
+`CARD_INDEX[view.cardId]` (a public `@game/content` export already used in the UI) for the effect/chooseOne
+checks, while taking `keywords` from the **live view** (so a granted Ward still reads as Ward). It assembles a
+`MechInput` and runs the predicates on it. The glossary passes a `CardDef` directly (it structurally *is* a
+`MechInput`). This keeps one predicate set for both callers.
+
+The module absorbs the glossary's current `kwMatch` / `grantsKeyword` / `FIXED_GRANT` helpers and its `match`
 predicates. Both consumers below read `MECHANICS` — they cannot drift:
 
 - **`packages/ui/src/mechIcon.ts`** (new): `resolveMechIcon(card: CardDef): string | null` — the medallion.
@@ -67,13 +82,20 @@ predicates. Both consumers below read `MECHANICS` — they cannot drift:
 ### The resolver
 
 ```ts
-export function resolveMechIcon(card: CardDef): string | null {
-  const owned = MECHANICS.filter((m) => m.detect(card));   // mechanics the card ITSELF has
+export function resolveMechIcon(view: CardView): string | null {
+  const def = CARD_INDEX[view.cardId];
+  const input: MechInput = {
+    keywords: view.keywords,                 // live (granted keywords included)
+    effects: def?.effects ?? [],
+    chooseOne: def?.chooseOne,
+    text: view.text ?? '',
+  };
+  const owned = MECHANICS.filter((m) => m.detect(input));  // mechanics the card ITSELF has
   if (owned.length === 0) return null;                     // → blank badge
   if (owned.length === 1) return owned[0].glyph;
   // Multiple: the one MENTIONED FIRST in the card's text wins; fall back to `order` when a mechanic
   // has no text term (keyword-only / watcher clauses).
-  const pos = (m: Mechanic): number => firstMentionIndex(card.text ?? '', m);   // -1 if absent
+  const pos = (m: Mechanic): number => firstMentionIndex(input.text, m);   // -1 if absent
   return owned.slice().sort((a, b) => {
     const pa = pos(a), pb = pos(b);
     if (pa !== -1 && pb !== -1) return pa - pb;             // both mentioned → text order

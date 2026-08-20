@@ -419,6 +419,20 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Minion mechanic-icon (medallion `mechIcon` glyph) fixes — PR-1 SHIPPED 2026-08-19.** The resolver is
+  rewritten: a shared `packages/ui/src/mechanics.ts` registry (structured detection over effect data +
+  keywords + `chooseOne`, one entry per mechanic) drives both the medallion (`resolveMechIcon`, first-mentioned
+  own mechanic wins) and the Compendium glossary, so they can't drift. **No tribe fallback, ever** — an
+  unrecognised mechanic renders a blank badge instead of the old 64%-of-minions tribe-symbol bug. New: a
+  **Watcher** mechanic (eye) for reactive/on-attack/on-summon effects, **Stealth**'s own glyph (off the eye),
+  **Engraved**'s own runic glyph (off the anvil), and **Choose One** now shows on the medallion. Verified by a
+  no-tribe-glyph invariant sweep + a glossary↔registry drift test; full suite 5894 pass. Details in the devlog.
+  Deferred, queued here:
+  - Glyphs for **Orbit / Start of Turn / Improve / Rush / Ascend / spend-Gold** — none exist yet.
+  - **Re-tag Engraved cards missing the `EG` keyword** (Tara/Taragosa) so the `engraved` predicate catches them.
+  - **Owner live-pass**: tune the placeholder `engrave`/`stealth` glyph art against the real board, and rule on
+    whether trigger-multiplier auras (Sylus, Uron) and a few borderline reactive triggers deserve the eye.
+
 ### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
 Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
 steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared

@@ -99,6 +99,20 @@ apps/web/          Vite app wiring ui + sim
 `ui` depends on the others **through public package entrypoints only** — importing an internal means the
 boundary leaked.
 
+### Repo skills (`.claude/skills/ascent-*`)
+
+Four skills carry the depth this file deliberately leaves out — they load only when the work matches, so this
+file stays short:
+
+- **`ascent-gameplay`** — effects, keywords, hero powers, reducer/simulator paths, and especially **effect
+  wiring** (one ability fired through another's trigger), with the interaction matrix.
+- **`ascent-content`** — authoring cards/runes/quests/heroes, pool + set membership, art wiring.
+- **`ascent-lobby`** — the 8-seat lobby, pairing, placement/Rating, snapshots, and replay v2.
+- **`ascent-choreography`** — beats, the Choreographer, Pixi FX, and consequence timing.
+
+They are **source, tracked in git**, unlike installed skill packages (which `.gitignore` still excludes). When
+a rule in a skill stops being true, fix it in the same PR as the behaviour change.
+
 ## Commands
 
 - `npm install` — install workspace deps

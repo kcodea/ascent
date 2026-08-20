@@ -48,7 +48,8 @@ other shop-related rows and directly below the renamed "Shop Stats" row.
 
 ## Testing
 
-- **Unit test** (`packages/ui/src/runBuffs.test.ts`, extend or create): call `gatherRunBuffs` on a `RunState`
+- **Unit test** (extend the existing `packages/ui/src/runBuffsPanel.test.ts` — the home for `gatherRunBuffs`
+  row tests; reuse its `run(over)` helper): call `gatherRunBuffs` on a `RunState`
   with `veinstormRubies: { atk: 2, hp: 2 }` and assert a row `{ key: 'veinstorm', label: 'Veinstorm Stats',
   value: '+2/+2' }` is present; with `veinstormRubies` absent/zero, assert no such row. Assert the tavern row
   (`tavernBuyBonus: { atk: 1, hp: 1 }`) now renders `label: 'Shop Stats'`.
@@ -69,5 +70,5 @@ other shop-related rows and directly below the renamed "Shop Stats" row.
 ## Files touched
 
 - `packages/ui/src/runBuffs.ts` — the label rename + the new row.
-- `packages/ui/src/runBuffs.test.ts` — new/extended unit test.
+- `packages/ui/src/runBuffsPanel.test.ts` — extended unit test.
 - `docs/devlog.md` — a dated entry (README/roadmap unchanged for a minor UI row).

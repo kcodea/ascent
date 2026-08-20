@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-08-20 — Layout Lab bake: shop/warband spacing + shop-controls seat
+
+Owner-tuned Layout Lab values baked into the shipped defaults. Moved from where they sat: shop card gap 20->16
+and warband gap 20->16 (tighter rows), shop row Y 62->65 and X 9->8, warband Y -144->-155, and the shop
+controls tray Y -45->-6. Everything else already matched.
+
+Same convention as the other Layout Lab bakes: the `def`s in `layoutConfig.ts` are the source of truth and the
+`styles.css` `var(--z-*, <fallback>)` values mirror them (production renders from the fallbacks; the Lab is
+dev-gated). Both halves moved together; all 46 knobs verified against the owner's config. Presentation-only.
+
+Verified: typecheck + build:web green.
+
 ## 2026-08-20 — Buffs panel: new default geometry (owner tuning pass)
 
 Owner feel pass via the 🧪 Buffs Panel tuner. Updated `BuffDrawerConfig` DEFAULTS

@@ -571,12 +571,18 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
+    /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
+    grantCards?: string[];
+    /** Rune of the Gilded Ledger: cast that many random stat-granting Shop spells when the meter trips. */
+    castStatSpell?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
     rubyAll?: boolean;
-    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells'; attack: number; health: number };
+    /** `step` (Compounding Wages) ESCALATES the payout: the grant grows by `step` after every payout, so the
+     *  buff written here is mutated in place and the badge prints the CURRENT size. */
+    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
     /** Bubble Crown: a ONE-SHOT threshold — `once` declares it, `spent` records that it has paid. */
     once?: boolean; spent?: boolean;
@@ -979,7 +985,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeLastingCadence?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -1044,6 +1050,29 @@ export interface RunState {
   discoverKeywords?: Keyword[];
   /** Rune of the Chipper Sticker: playing a Demon makes another friendly Demon eat a Shop minion. */
   runeChipperSticker?: boolean;
+  // ── 2026-08-20 owner rune batch ──────────────────────────────────────────────────────────────────────
+  /** Cadenced twin of `questRecurringGrants` — a card handed over every `everyTurns` turn setups instead of
+   *  every one (Clockwork Promotion / the Muckbroker / Rare Goods). `tick` counts turn setups since the last
+   *  payout; `sourceId` lets the badge show its x/N countdown. A LIST, so several can be held at once. */
+  runeCadenceGrants?: { cardId: string; everyTurns: number; tick: number; sourceId?: string }[];
+  /** Rune of Living Magic (`uses: 1`) / Perfect Recall (`uses: 2`): after you cast a Shop spell, a copy lands
+   *  in hand — `uses` times per turn. ONE budget for both runes: holding both raises the ceiling rather than
+   *  the two firing independently, exactly like the Mage-Pup teach cap. `used` resets at the rollover. */
+  runeSpellEcho?: { uses: number; used: number };
+  /** Rune of Draconic Curiosity: taking a Dragon from a Discover hands over a random Shop spell. */
+  runeDraconicCuriosity?: boolean;
+  /** Rune of the Seasoned Ledger: every minion played gains +attack/+health, improving by the same after every
+   *  `per` minions. `played` is the running count — the badge prints both the live grant and the countdown. */
+  runeSeasonedLedger?: { attack: number; health: number; per: number; played: number };
+  /** Rune of Echoed Arrival: every `per`-th ECHO minion played triggers its Echo. `tick` is the live count. */
+  runeEchoedArrival?: { per: number; tick: number };
+  /** Rune of Shared Spoils: a stat gain on the left-most Dwarf is mirrored onto the right-most Dwarf. */
+  runeSharedSpoils?: boolean;
+  /** Rune of Heavy Payroll: a Dwarf arriving in hand pays your left-most minion. */
+  runeHeavyPayroll?: { attack: number; health: number };
+  /** Rune of Shifting Facets: how many turn setups have passed since it was taken. Even = Health (the printed
+   *  starting axis), odd = Attack — so the axis in force is derived, never separately stored. */
+  runeShiftingFacetsTick?: number;
   /** Rune of Might: every Shop spell you cast also casts Might of Aeon. */
   runeMight?: boolean;
   /** Re-entry latch for the above — the triggered cast must not re-trigger the hook that cast it. */

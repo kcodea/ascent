@@ -896,7 +896,14 @@ export type QuestReward =
   // (Pack Mentality: +3/+1, improve every 5 Beasts summoned in combat). Growth is tallied in settleCombat.
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
-  | { kind: 'recurringGrant'; cards: string[] }
+  /**
+   * `everyTurns` (2026-08-20) is the general CADENCE field the recurring rewards were missing: absent = every
+   * turn (what every existing user wants), `2` = every OTHER turn. Added because three runes in the 2026-08-20
+   * batch are "every 2 turns, get a <minion>" and the alternative was three bespoke flags. NB: `turns` on
+   * `recurringEndOfTurn` means something DIFFERENT (how many times it fires before stopping), which is exactly
+   * why the cadence needed its own name rather than overloading that one.
+   */
+  | { kind: 'recurringGrant'; cards: string[]; everyTurns?: number }
   // ── 2026-08-19 owner rune batch ────────────────────────────────────────────────────────────────────────
   /** Rune of Basic/Epic <tribe>: every turn setup, conjure `count` random minions of `tribe` (the `runeDeep`
    *  shape, tribe-filtered instead of tier-filtered). Basic grants 1, Epic 2. */
@@ -925,6 +932,26 @@ export type QuestReward =
   /** Rune of the Chipper Sticker: playing a Demon makes ANOTHER friendly Demon eat a Shop minion. A RECRUIT
    *  effect (the play happens in the shop), so it is its own reward rather than a `combatFlag`. */
   | { kind: 'runeChipperSticker' }
+  // ── 2026-08-20 owner rune batch ────────────────────────────────────────────────────────────────────────
+  /**
+   * Rune of Living Magic (`uses: 1`) / Rune of Perfect Recall (`uses: 2`): after you cast a Shop spell, a COPY
+   * of it lands in your hand — `uses` times per turn. ONE budget, parameterised: the two runes are the same
+   * mechanism at different sizes, and holding both simply raises the ceiling.
+   */
+  | { kind: 'runeSpellEcho'; uses: number }
+  /** Rune of Draconic Curiosity: taking a DRAGON out of a Discover hands you a random Shop spell. */
+  | { kind: 'runeDraconicCuriosity' }
+  /**
+   * Rune of the Seasoned Ledger: every minion you PLAY from hand gains +attack/+health, and the grant itself
+   * improves by the same amount every `per` minions played. The live magnitude is what the badge prints.
+   */
+  | { kind: 'runeSeasonedLedger'; attack: number; health: number; per: number }
+  /** Rune of Echoed Arrival: every `per`-th Echo (Deathrattle) minion you play triggers its Echo on arrival. */
+  | { kind: 'runeEchoedArrival'; per: number }
+  /** Rune of Shared Spoils: a stat gain on your left-most Dwarf is mirrored onto your right-most Dwarf. */
+  | { kind: 'runeSharedSpoils' }
+  /** Rune of Heavy Payroll: whenever a DWARF arrives in your hand, your left-most minion gains +A/+H. */
+  | { kind: 'runeHeavyPayroll'; attack: number; health: number }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -973,9 +1000,16 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells'; attack: number; health: number };
+      /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
+       *  `cards`, on a meter). Overflow-safe like every other earned reward. */
+      grantCards?: string[];
+      /** Rune of the Gilded Ledger: CAST that many random stat-granting Shop spells when the meter trips. */
+      castStatSpell?: number;
+      /** `tribe` targets a tribe wherever it is (board + hand) — Compounding Wages' Dwarves. `step` makes the
+       *  payout ESCALATE: every payout adds `step` to the grant, so the rune improves itself. */
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
       /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -1288,7 +1322,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rune of Overflow: a summon that does not fit permanently buffs your whole warband.
   | 'runeOverflow'
   // Rune of Counterpoint: a friendly death sends your left-most minion in for a free swing.
-  | 'runeCounterpoint';
+  | 'runeCounterpoint'
+  // ── 2026-08-20 rune batch ──
+  // returningPack = every 6 Beasts you summon in combat hands you a random Beast next shop;
+  // graveRefreshment = every 2 friendly Echoes triggered banks a free Shop refresh;
+  // shiftingFacets = Avenge (3) improves your Rubies on ONE axis, alternating every turn;
+  // deepeningVein = Avenge (3) improves your Rubies +1/+1 AND plays a Ruby on every friendly Kobold;
+  // lastingCadence = Start of Combat, every rally-capable body fires its Rally once.
+  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein' | 'runeLastingCadence';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1439,6 +1480,20 @@ export interface QuestCombatMods {
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
   runeCounterpoint?: boolean;
+  // ── 2026-08-20 rune batch ──
+  /** Rune of the Returning Pack: every N Beasts summoned this combat hands over a random Beast. The number
+   *  IS the threshold, so a duplicate rune can't express "more" and the flag stays a plain count. */
+  runeReturningPack?: number;
+  /** Rune of Grave Refreshment: every N friendly Echoes triggered this combat banks a free Shop refresh. */
+  runeGraveRefreshment?: number;
+  /** Rune of Shifting Facets: Avenge (3) improves the side's Rubies on ONE axis. Which axis alternates every
+   *  turn, so the value carried in is the axis in force for THIS fight — not a boolean. */
+  runeShiftingFacets?: 'attack' | 'health';
+  /** Rune of the Deepening Vein: Avenge (3) improves Rubies +1/+1 and plays a Ruby on every friendly Kobold. */
+  runeDeepeningVein?: boolean;
+  /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
+   *  board-wide sibling of `runeRallying`, which fires only the left-most). */
+  runeLastingCadence?: boolean;
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */

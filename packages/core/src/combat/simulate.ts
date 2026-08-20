@@ -130,6 +130,11 @@ export function simulate(
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
+  /** Rune of Grave Refreshment's per-side Echo counter. Combat-local: the rune reads "in combat", so the
+   *  remainder is deliberately NOT banked across fights. */
+  const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
+  const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
@@ -1360,6 +1365,19 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
+    // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
+    // Counted at this single summon chokepoint, so a token, a Rise and a resummon each count exactly once —
+    // the same contract the Remains / Reinvestment counters above rely on. Player-only: `grantRandomMinion`
+    // rides `playerHandGrants`, and a served enemy has no hand.
+    const packN = side === 'player' ? (modsFor('player').runeReturningPack ?? 0) : 0;
+    if (packN > 0 && minion.side === 'player'
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      packSummonTick.player += 1;
+      if (packSummonTick.player % packN === 0) {
+        fireTrigger('runeReturningPack', 'player');
+        ctx.grantRandomMinion(1, 'beast', 'player', undefined, minion.uid);
+      }
+    }
     // RUNE OF EMBERLINE, the paying half: the next Imp to arrive inherits the banked stats, once per combat.
     if (modsFor(side).runeEmberline && !emberlinePaid[side] && emberlineBank[side] && cards[minion.cardId]?.imp
         && !minion.dead) {
@@ -1430,6 +1448,15 @@ export function simulate(
       // and this rune, like Aftershocks, is combat-scoped.) `fireTrigger` bursts the rune's badge (#1102) —
       // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
+      // RUNE OF GRAVE REFRESHMENT: every Nth friendly Echo TRIGGER banks a free Shop refresh for next turn.
+      // The same chokepoint as the Burrow above (not the death site), so a forced Echo — Echohorn, Hawkus,
+      // Spots, the Herald — counts exactly like one that came from dying. The meter is combat-local: it
+      // measures "in combat", so it starts fresh each fight rather than banking a remainder across the course.
+      const graveN = modsFor(side).runeGraveRefreshment ?? 0;
+      if (graveN > 0) {
+        echoRefreshTick[side] += 1;
+        if (echoRefreshTick[side] % graveN === 0) { fireTrigger('runeGraveRefreshment', side); ctx.grantFreeRolls(1, side); }
+      }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -3181,6 +3208,18 @@ export function simulate(
         fireFreeRally(first, rside);
       }
     }
+    // RUNE OF LASTING CADENCE: the board-wide sibling of Rune of Rallying — EVERY rally-capable body fires its
+    // Rally once, through the same `fireFreeRally` primitive (so the Rally tally, the Author's Hand and the
+    // welded Better Bot / Perfect Core rallies all behave exactly as they do on an attack). Snapshotted before
+    // firing: a Rally may summon, and a body that arrives mid-pass has not "had" a Rally to trigger.
+    if (rmods.runeLastingCadence) {
+      const ralliers = [...boards[rside]].filter((m) => canRally(m));
+      if (ralliers.length > 0) {
+        nextStep();
+        fireTrigger('runeLastingCadence', rside);
+        for (const m of ralliers) if (!m.dead && m.health > 0) fireFreeRally(m, rside);
+      }
+    }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
     // Previously the first friendly death summoned a Gravebody. The grant rides the body (not the position),
     // so it dies with that minion rather than sliding onto whoever is leftmost later.
@@ -3298,6 +3337,25 @@ export function simulate(
     // permanent carry-back all ride for free.
     nextStep();
     ctx.gainRubyBonus(0, 1, side, undefined);
+  });
+  // RUNE OF SHIFTING FACETS: the Engraving's Avenge with a MOVING axis. The axis in force is decided in the
+  // shop (it alternates at every turn setup) and rides in on the mod, so a fight always resolves the half the
+  // rune card was advertising. Same `gainRubyBonus` channel, so the narration, flourish and carry-back are free.
+  runeAvenge(3, 'runeShiftingFacets', (m) => !!m.runeShiftingFacets, (side) => {
+    const axis = modsFor(side).runeShiftingFacets;
+    if (!axis) return;
+    nextStep();
+    ctx.gainRubyBonus(axis === 'attack' ? 1 : 0, axis === 'health' ? 1 : 0, side, undefined);
+  });
+  // RUNE OF THE DEEPENING VEIN: Engraving + Gemstorm in one Avenge — improve Rubies on BOTH axes, then play a
+  // real Ruby on every friendly Kobold (the `playRubyOn` primitive, so the Paragon multiplier, the target's
+  // on-Ruby watchers and the Spellstone cast-count all fire). Improving FIRST is deliberate: the Rubies it
+  // plays are worth the new, larger line.
+  runeAvenge(3, 'runeDeepeningVein', (m) => !!m.runeDeepeningVein, (side) => {
+    nextStep();
+    ctx.gainRubyBonus(1, 1, side, undefined);
+    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold' || !!cards[m.cardId]?.universalTribe));
+    for (const k of kobolds) playRubyOn(ctx, k, k, 1);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
     // "PLAY 2 Rubies", so it goes through the real Ruby-play primitive — which folds in the side's Ruby

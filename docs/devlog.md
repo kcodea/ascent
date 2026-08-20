@@ -1,5 +1,76 @@
 # ASCENT — development log
 
+## 2026-08-20 — 30 RUNES for the Aug-20 batch (the forge entries for the 16 rune-only minions)
+
+The other half of the batch above: twenty Basic runes and ten Epic ones, `RUNES.length` 121 → 141. Fifteen of
+them exist purely to hand over one of yesterday's forge-only bodies, so they are bare `grant` rewards and the
+Runeforge hover comes free. The other fifteen needed machinery — and the shape of this entry is which of them
+DIDN'T.
+
+**Three renames (owner decision).** "Rune of the Muster", "Rune of Living Geodes" and "Rune of Evolution" are
+already taken by three live, unrelated runes (`rune_muster`, `rune_living_geode`, `rune_evolution`), and
+`validateRunes` rejects a duplicate name inside a set. The new ones ship as **Rune of the Muster General**,
+**Rune of the Deepening Vein** and **Rune of the Abomination**; the existing three are untouched, and the test
+file pins both halves of each pair so a future rename can't quietly swap them.
+
+**Reuse first, and it went further than expected.** Eleven of the fifteen "get a X" runes are `grant`. Five
+more ride the **existing `runeThreshold` engine**, which now takes four small knobs rather than five new
+reward kinds: `grantCards` (the Deep Feast's "every 25 Gold, a Deepwater Chef" — a named body was the one
+payout the palette couldn't express), `castStatSpell` (the Gilded Ledger CASTS rather than grants, so spell
+power and every on-cast watcher see it), a `playDragon` meter (the Dragon's Pantry — "progress carries between
+turns" is just what a banked threshold already does), and `buff.target: 'tribe'` + `buff.step` (Compounding
+Wages' "give your Dwarves +1/+1 and improve this by +1/+1" — escalation as data). The x/N badge came free for
+all five, and the escalating one prints its CURRENT grant beside the meter per the live-value rule.
+
+**The every-2-turns cadence is ONE field, not three flags.** `recurringGrant` gained `everyTurns`; absent means
+every turn, which is what every existing user wants. NB it could not reuse `recurringEndOfTurn`'s `turns`,
+which means something else entirely (how many times before it stops) — overloading that name was the trap.
+Armed rewards land in a new `runeCadenceGrants` list beside the flat one, each carrying its own tick, so
+Clockwork Promotion, the Muckbroker and Rare Goods share one reader and each gets its own countdown badge.
+
+**Living Magic and Perfect Recall are one budget.** They are the same mechanism at 1 vs 2 uses per turn, so
+they ship as one parameterised reward (`runeSpellEcho { uses }`) writing into one shared `{ uses, used }`
+counter — holding both raises the ceiling to 3 rather than firing two independent budgets, the same rule the
+Mage-Pup teach cap uses. It rides `noteSpellCast`, so the `token` early-return there already keeps reward
+cards (Goldcrafter, Implosion, the Triple Reward) uncopyable, and `NO_COPY_SPELLS` covers the rest.
+
+**Rune of Shared Spoils rides `addBuff`.** "Whenever your left-most Dwarf gains stats" needed the one
+chokepoint every recruit-phase stat gain passes through — the same stateless hook Sable's Soulbind uses, with
+the same one-hop re-entrancy guard and the same "stamp from the post-clone draft" rule. Wiring it into the
+dozen sites that grant stats would have guaranteed missing one.
+
+**Five new combat flags, each on an existing dispatcher.** The Returning Pack counts Beast summons at the
+single `summonEntryEffects` chokepoint and pays through `grantRandomMinion` → `playerHandGrants`; Grave
+Refreshment counts Echo TRIGGERS at the `asEcho` chokepoint (so a forced Echo pays like a death) and banks
+through `ctx.grantFreeRolls` → `playerFreeRolls` — both carry-backs that already existed. Shifting Facets and
+the Deepening Vein are registrations on `runeAvenge`, reusing `gainRubyBonus` and `playRubyOn`. Lasting
+Cadence is Rune of Rallying's `fireFreeRally` block, board-wide instead of left-most-only.
+
+For both threshold flags the reward's `amount` is a THRESHOLD, not a magnitude, so a duplicate copy assigns
+rather than accumulates — two Returning Packs meaning "every 12 Beasts" would be strictly worse than one.
+
+**Shifting Facets carries a value, not a boolean.** "Avenge (3): improve your Rubies by +1 Health, alternating
+each turn" means the axis in force has to reach combat, so `QuestCombatMods.runeShiftingFacets` is
+`'attack' | 'health'`, derived from the parity of a turn-setup tick rather than separately stored — nothing can
+drift out of step with what the badge is advertising.
+
+**One judgement call, flagged.** The owner's sheet gave Lasting Cadence as "End of Turn: trigger ALL your Rally
+effects". There is no recruit-phase Rally dispatch in the engine — Rally is an `onAttack` COMBAT trigger, and
+firing `onAttack` through `RECRUIT_FACTORIES` would have found almost nothing implemented — so it fires at the
+very next moment instead, Start of Combat, and the printed text says so rather than promising a shop payout
+that could never render. Easy to move if the owner wants the literal wording.
+
+Verified: `packages/sim/src/runeBatchAug20.test.ts` (96 cases — pool membership + `epic` flag + cost for all
+30, every grant landing its body, every meter paying at its threshold and NOT before, the escalators
+escalating, the per-turn caps capping and refilling, and the three renames not displacing their namesakes),
+plus the existing rune audits: `runeWiringAudit` (every flag has a reader and is threaded into the mods),
+`runePreview` (every named card is on the hover), `presentationPolicies` (30 new registry entries, no ghosts)
+and `tallyCoverage` (every new meter has a badge or a documented exemption). `npm run typecheck`,
+`npm run lint`, `npm test` and `npm run build:web` all green.
+
+**Follow-ups:** owner balance pass on the 30 costs; art for the bodies they hand out (still pending from the
+minion batch).
+
 ## 2026-08-20 — 16 RUNE-ONLY minions (the Runeforge batch)
 
 Owner add: sixteen new minions, every one of them **forge-only** — `token: true`, the `dw_baal` treatment, so

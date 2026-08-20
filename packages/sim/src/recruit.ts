@@ -259,6 +259,22 @@ export function stampSableBond(state: RunState): void {
   SABLE_MIRRORING = false;
 }
 
+/**
+ * RUNE OF SHARED SPOILS (2026-08-20): "whenever your LEFT-MOST Dwarf gains stats, give your RIGHT-MOST Dwarf
+ * the same stats." Stamped exactly like Sable's bond above, and for the same reason: `addBuff` is the ONE
+ * chokepoint every recruit-phase stat gain passes through, and it has no state in scope. Wiring the rune into
+ * the dozen sites that grant stats instead would guarantee missing one.
+ *
+ * Which body is left/right-most is resolved AT THE GAIN, not stamped, so re-ordering the board mid-action is
+ * honoured. `MIRRORING` is the same one-hop guard — the mirrored grant re-enters `addBuff`.
+ */
+let SPOILS: BoardCard[] | null = null;
+let SPOILS_MIRRORING = false;
+export function stampSharedSpoils(state: RunState): void {
+  SPOILS = state.runeSharedSpoils ? state.board : null;
+  SPOILS_MIRRORING = false;
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
@@ -270,6 +286,17 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     if (partner) {
       SABLE_MIRRORING = true;
       try { addBuff(partner, 'Soulbind', attack, health, count); } finally { SABLE_MIRRORING = false; }
+    }
+  }
+  // Rune of Shared Spoils: the LEFT-most Dwarf's gain is copied onto the RIGHT-most Dwarf. Same one-hop shape
+  // as the bond above; a single Dwarf on the board is both ends, so it must not pay itself.
+  if (SPOILS && !SPOILS_MIRRORING && (attack !== 0 || health !== 0)) {
+    const dwarves = SPOILS.filter((c) => isTribe(c, 'dwarf'));
+    const head = dwarves[0];
+    const tail = dwarves[dwarves.length - 1];
+    if (head && tail && head.uid !== tail.uid && card.uid === head.uid) {
+      SPOILS_MIRRORING = true;
+      try { addBuff(tail, 'Rune of Shared Spoils', attack, health, count); } finally { SPOILS_MIRRORING = false; }
     }
   }
   // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
@@ -1147,7 +1174,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1175,6 +1202,24 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
+  // a full hand — the same rule every quest/rune grant follows.
+  for (const id of t.grantCards ?? []) {
+    const def = CARD_INDEX[id];
+    if (def) grantMinionToHandOrBoard(state, def, false, true);
+  }
+  // Rune of the Gilded Ledger: CAST a random stat-granting Shop spell — a real cast, so spell power, the cast
+  // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
+  // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
+  if (t.castStatSpell) {
+    const pool = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      castSpell(state, pick, undefined);
+    }
+  }
   // Rune of the Gem Dividend: Gold banked into NEXT turn's opening rather than paid now — the sheet's
   // "gain 3 Gold next turn". Rides the same channel Bounty Bot's next-shop Gold uses.
   if (t.grantGoldNextTurn) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + t.grantGoldNextTurn;
@@ -1190,7 +1235,21 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   }
   const b = t.buff;
   if (!b) return;
-  if (b.target === 'imps') buffImpsRunWide(state, b.attack, b.health, 'Rune');
+  // ESCALATION (Rune of Compounding Wages): the payout improves itself. Applied AFTER this payout so the
+  // printed "give +1/+1 and improve this by +1/+1" pays 1, then 2, then 3 — not 2 on the first trip. The
+  // buff object is the run's own clone (see the reducer), so growing it never writes through to the rune def.
+  const grow = (): void => { if (b.step) { b.attack += b.step.attack; b.health += b.step.health; } };
+  if (b.target === 'imps') { buffImpsRunWide(state, b.attack, b.health, 'Rune'); grow(); }
+  // `tribe`: "your <tribe> +A/+H" wherever they are (board + hand) — the Flagship/Scales shape on a meter.
+  else if (b.target === 'tribe') {
+    const tribe = b.tribe;
+    if (tribe) {
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const c of [...state.board, ...state.hand]) if (isTribe(c, tribe)) addBuff(c, 'Rune', b.attack, b.health);
+      });
+    }
+    grow();
+  }
   // `spells` (Bubble Crown): raise the run's SPELL POWER, the same channel Cinderwing Matron feeds — so every
   // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
   else if (b.target === 'spells') {
@@ -1335,11 +1394,17 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
-  // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change),
-  // and "gives stats" = the buff family — the same set the combat resolver calls the stat family.
-  if (state.runeThrift && def?.effects.some((e) => e.on === 'cast' &&
-    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do))) n += 2;
+  // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
+  if (state.runeThrift && isStatSpell(def)) n += 2;
   return n;
+}
+
+/** "Gives stats" — the buff family, the same set the combat resolver calls the stat family. Shared by Rune of
+ *  Thrift (which discounts them) and Rune of the Gilded Ledger (which casts one), so the two can never
+ *  disagree about what a stat spell IS. */
+export function isStatSpell(def: CardDef | undefined): boolean {
+  return !!def?.effects.some((e) => e.on === 'cast' &&
+    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do));
 }
 
 /**
@@ -6669,6 +6734,15 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * reacts to. Watcher effects add no card, so this can't recurse.
  */
 export function fireOnGainCard(state: RunState, cardId?: string): void {
+  // RUNE OF HEAVY PAYROLL: a DWARF arriving in hand pays your left-most minion. Rides this chokepoint — the
+  // shared "a card was granted to hand" hook — rather than the buy path, because "get" is the grant verb in
+  // this game (a conjured / rewarded / drip-fed Dwarf all count; a purchase is `applyOnBuy`).
+  const payroll = state.runeHeavyPayroll;
+  const gained = cardId ? CARD_INDEX[cardId] : undefined;
+  if (payroll && gained && (gained.tribe === 'dwarf' || gained.tribe2 === 'dwarf' || gained.universalTribe) && state.board.length > 0) {
+    procRuneId(state, 'rune_heavy_payroll');
+    captureBuffFx(state, undefined, 'spell', () => addBuff(state.board[0]!, 'Rune of Heavy Payroll', payroll.attack, payroll.health));
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def || !def.effects.some((e) => e.on === 'onGainCard')) continue;
@@ -7686,6 +7760,17 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  // RUNE OF LIVING MAGIC (1 use) / RUNE OF PERFECT RECALL (2 uses): after a Shop-spell cast, a COPY lands in
+  // hand. ONE budget for both runes — holding both raises the ceiling to 3 rather than the two firing
+  // independently, the same way the Mage-Pup teach cap is shared. The budget is spent BEFORE the conjure so a
+  // copy that itself gets cast this turn can only draw from what is left. `NO_COPY_SPELLS` and the `token`
+  // early-return above are what keep an uncopyable spell (or a reward token) out of the loop.
+  const echo = state.runeSpellEcho;
+  if (echo && echo.used < echo.uses && !NO_COPY_SPELLS.has(spellDef.id)) {
+    echo.used += 1;
+    procRuneId(state, echo.uses >= 2 ? 'rune_perfect_recall' : 'rune_living_magic');
+    conjureToHand(state, [spellDef], 1);
+  }
   // RUNESNOUT ARCHIVIST's journal: the FIRST Shop spell of each turn, and only on turns an Archivist is
   // actually on the board — so the card records what it witnessed rather than inheriting a history that
   // predates it. `rememberedThisTurn` is the once-per-turn latch (cleared at `faceOmen` with the other
@@ -8701,6 +8786,36 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
 export function playCard(state: RunState, played: BoardCard): void {
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
+  // ── 2026-08-20 rune batch: the three PLAY-A-MINION runes. All fired here, the single "played from hand"
+  // chokepoint, so a summoned token / a welded Magnetic / a Discover pick sitting in hand can't trip them.
+  //
+  // SEASONED LEDGER: the played body gains the current grant, then the grant improves every `per` plays. The
+  // buff lands BEFORE the Shout fires, so a Shout that reads its own stats reads the buffed line.
+  const ledger = state.runeSeasonedLedger;
+  if (ledger && (ledger.attack > 0 || ledger.health > 0)) {
+    procRuneId(state, 'rune_seasoned_ledger');
+    addBuff(played, 'Rune of the Seasoned Ledger', ledger.attack, ledger.health);
+    ledger.played += 1;
+    if (ledger.per > 0 && ledger.played % ledger.per === 0) {
+      const step = improveReps(state); // "Improves" — ×2 under Rune of Mastery, like every other Improve
+      ledger.attack += step;
+      ledger.health += step;
+    }
+  }
+  // DRAGON'S PANTRY: a Dragon played is one tick of the `playDragon` meter. The threshold engine owns the
+  // banking, so "progress carries between turns" is free.
+  if (isTribe(played, 'dragon')) advanceRuneThresholds(state, 'playDragon', 1);
+  // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not
+  // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
+  // Gravetwin / the Reliquary use, so nothing about it is bespoke.
+  const arrival = state.runeEchoedArrival;
+  if (arrival && CARD_INDEX[played.cardId]?.effects.some((e) => e.on === 'onDeath')) {
+    arrival.tick += 1;
+    if (arrival.per > 0 && arrival.tick % arrival.per === 0) {
+      procRuneId(state, 'rune_echoed_arrival');
+      fireRecruitDeathrattles(makeContext(state), played);
+    }
+  }
   fire(ctx, 'onSummon', { minion: played });
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you

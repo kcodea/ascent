@@ -54,6 +54,10 @@ const NOT_A_METER: Record<string, string> = {
   rune_brew: 'fires on EVERY Gold spend; the digits are the +4/+3 grant',
   rune_golden_splinter: 'a one-shot latch (reach 15 Gold) — the Gold counter IS the meter',
   rune_enchantment: 'fires on EVERY Shop spell; the digits are the +1/+1 grant and its combat +2/+2',
+  // ── the 2026-08-20 batch ──
+  rune_returning_pack: 'combat-local — the Beast-summon count ticks during the replay, not across turns',
+  rune_grave_refreshment: 'combat-local — the Echo count ticks during the replay, not across turns',
+  rune_heavy_payroll: 'fires on EVERY Dwarf gained; the digits are the +12/+12 grant, not a count-up',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */
@@ -77,6 +81,15 @@ const armedRun = (): RunState => ({
   runeSummitTick: 1,
   runeCollector: true,
   typesBoughtThisTurn: [],
+  // The 2026-08-20 batch keeps three meters outside `runeThresholds` too — the cadenced grants (a per-rune
+  // turn countdown), the Seasoned Ledger's escalating grant and Echoed Arrival's Echo count.
+  runeCadenceGrants: [
+    { cardId: 'n2_clockwork', everyTurns: 2, tick: 1, sourceId: 'rune_clockwork_promotion' },
+    { cardId: 'n2_muckslinger', everyTurns: 2, tick: 1, sourceId: 'rune_muckbroker' },
+    { cardId: 'n2_salesman', everyTurns: 2, tick: 1, sourceId: 'rune_rare_goods' },
+  ],
+  runeSeasonedLedger: { attack: 1, health: 1, per: 5, played: 2 },
+  runeEchoedArrival: { per: 5, tick: 2 },
   runeThresholds: [],
 } as unknown as RunState);
 

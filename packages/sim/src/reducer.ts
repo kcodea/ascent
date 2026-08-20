@@ -12,7 +12,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
@@ -445,6 +445,13 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
+  }
+  // RUNE OF DRACONIC CURIOSITY: taking a DRAGON out of a Discover hands over a random Shop spell. Fired on the
+  // PICK (here) rather than on the offer, so it pays for what you actually took — and outside the hand-cap
+  // branch above, because a Discover into a full hand still cost you the pick.
+  if (s.runeDraconicCuriosity && (def.tribe === 'dragon' || def.tribe2 === 'dragon' || def.universalTribe)) {
+    procRuneId(s, 'rune_draconic_curiosity');
+    conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id)), 1, true);
   }
   return true;
 }
@@ -1035,6 +1042,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // and the pre-clone board is thrown away by the `structuredClone` directly above. Stamping it earlier meant
   // every mirrored buff landed on a discarded object, so the bond silently did nothing (owner report 2026-08-16).
   stampSableBond(s);
+  stampSharedSpoils(s); // Rune of Shared Spoils rides the same stateless addBuff hook, from the same draft
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
@@ -3869,6 +3877,7 @@ function advanceCombat(s: RunState): void {
   s.contrabandAleUsed = undefined;
   s.gemscriptSpellUsed = undefined; // Rune of Gemscript's two first-each-turn latches
   s.gemscriptRubyUsed = undefined;
+  if (s.runeSpellEcho) s.runeSpellEcho = { ...s.runeSpellEcho, used: 0 }; // Living Magic / Perfect Recall refill
   // Set 2 — Living Grimoire RE-ARMS at the start of each turn, which is what makes its printed rule ("the
   // first spell you cast EACH TURN casts twice") true. It used to arm only on play and via the 3-Shout reset,
   // so on any later turn where you hadn't triggered 3 Shouts the card silently did nothing — the owner read
@@ -4054,6 +4063,21 @@ function advanceCombat(s: RunState): void {
       if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
     }
   }
+  // The CADENCED twin of the list above (Clockwork Promotion / the Muckbroker / Rare Goods): a card every
+  // `everyTurns` turn setups instead of every one. `tick` counts setups since the last payout, so the badge's
+  // x/N countdown and the payout read the same number. `overflow` for the same reason as every earned grant.
+  for (const g of s.runeCadenceGrants ?? []) {
+    g.tick += 1;
+    if (g.tick < g.everyTurns) continue;
+    g.tick = 0;
+    const def2 = CARD_INDEX[g.cardId];
+    if (!def2) continue;
+    conjureToHand(s, [def2], 1, true);
+    procRuneId(s, g.sourceId);
+  }
+  // Rune of Shifting Facets: one tick per turn setup is the whole alternation — the axis is DERIVED from its
+  // parity (see `questCombatMods`), so nothing can drift out of step with the printed side.
+  if (s.questFlags?.runeShiftingFacets) s.runeShiftingFacetsTick = (s.runeShiftingFacetsTick ?? 0) + 1;
   // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier. `overflow` so an earned
   // reward is never dropped to a full hand, matching the quest/rune grant rule.
   if (s.runeDeep) {
@@ -4605,7 +4629,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     case 'recurringGrant':
       // Feed the Alpha: conjure these cards to hand at the end of every turn for the rest of the run.
-      (s.questRecurringGrants ??= []).push(...r.cards);
+      // `everyTurns` (2026-08-20) is the CADENCE: absent = every turn (the flat list); set = the cadenced list,
+      // which carries its own tick so the badge can count down. One field, one reader — not three rune flags.
+      if ((r.everyTurns ?? 1) > 1) {
+        for (const cardId of r.cards) (s.runeCadenceGrants ??= []).push({ cardId, everyTurns: r.everyTurns!, tick: 0, sourceId: def.id });
+      } else {
+        (s.questRecurringGrants ??= []).push(...r.cards);
+      }
       break;
     // ── 2026-08-19 owner rune batch ──────────────────────────────────────────────────────────────────────
     case 'runeTribeDrip':
@@ -4643,6 +4673,38 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     case 'runeChipperSticker':
       s.runeChipperSticker = true;
+      break;
+    // ── 2026-08-20 owner rune batch ──────────────────────────────────────────────────────────────────
+    case 'runeSpellEcho':
+      // ONE budget shared by Living Magic (1) and Perfect Recall (2): holding both raises the per-turn ceiling
+      // to 3 rather than the two firing independently. `used` is preserved so a mid-turn purchase doesn't
+      // silently refund a copy already spent this turn.
+      s.runeSpellEcho = { uses: (s.runeSpellEcho?.uses ?? 0) + r.uses, used: s.runeSpellEcho?.used ?? 0 };
+      break;
+    case 'runeDraconicCuriosity':
+      s.runeDraconicCuriosity = true;
+      break;
+    case 'runeSeasonedLedger':
+      // Accumulates: a second copy makes every play pay both grants, and the shared `played` count keeps one
+      // countdown rather than two drifting ones.
+      s.runeSeasonedLedger = {
+        attack: (s.runeSeasonedLedger?.attack ?? 0) + r.attack,
+        health: (s.runeSeasonedLedger?.health ?? 0) + r.health,
+        per: r.per,
+        played: s.runeSeasonedLedger?.played ?? 0,
+      };
+      break;
+    case 'runeEchoedArrival':
+      s.runeEchoedArrival = { per: r.per, tick: s.runeEchoedArrival?.tick ?? 0 };
+      break;
+    case 'runeSharedSpoils':
+      s.runeSharedSpoils = true;
+      break;
+    case 'runeHeavyPayroll':
+      s.runeHeavyPayroll = {
+        attack: (s.runeHeavyPayroll?.attack ?? 0) + r.attack,
+        health: (s.runeHeavyPayroll?.health ?? 0) + r.health,
+      };
       break;
     case 'runeHeldStrength': {
       // A ONE-SHOT on acquire: the ends take the stats of whatever is left-most in hand right now. Read once
@@ -4711,6 +4773,11 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
       else if (r.flag === 'runeUndertow') s.questFlags.runeUndertow = add(typeof s.questFlags.runeUndertow === 'number' ? s.questFlags.runeUndertow : 0, r.amount ?? 4); // amount = the Ward budget
       else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
+      // The 2026-08-20 pair: `amount` is a THRESHOLD, not a magnitude, so a second copy must NOT accumulate it
+      // (two Returning Packs would mean "every 12 Beasts" — strictly worse than one). Assigned, and the copy
+      // count below is what makes the dispatcher pay twice per trip.
+      else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 6;   // amount = Beasts per payout
+      else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
@@ -4787,7 +4854,10 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, buff: r.buff, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
+      // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
+      // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
+      // grow the printed rune for every future run in the process.
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
       break;
     case 'motherlode':
       s.motherlode = { count: r.count, tribe: r.tribe };
@@ -5435,6 +5505,14 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
     runeMastery: s.runeMastery, // Rune of Mastery: your Improve steps apply twice (combat half)
     runeSpellstone: s.runeSpellstone, // Rune of the Spellstone: combat Rubies also count as spell casts
+    // ── 2026-08-20 rune batch ──
+    runeReturningPack: f?.runeReturningPack || undefined,       // every N Beasts summoned → a random Beast next shop
+    runeGraveRefreshment: f?.runeGraveRefreshment || undefined, // every N friendly Echoes → a free refresh next turn
+    // Rune of Shifting Facets: the AXIS in force this turn rides in, not a boolean — even turn-ticks are the
+    // printed Health half, odd are Attack, so the fight resolves whatever the shop was advertising.
+    runeShiftingFacets: f?.runeShiftingFacets ? ((s.runeShiftingFacetsTick ?? 0) % 2 === 0 ? 'health' : 'attack') : undefined,
+    runeDeepeningVein: f?.runeDeepeningVein,   // Avenge (3): Rubies +1/+1 and a Ruby on every friendly Kobold
+    runeLastingCadence: f?.runeLastingCadence, // Start of Combat: every rally-capable friendly fires its Rally
   };
 }
 

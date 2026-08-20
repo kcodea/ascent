@@ -1,11 +1,21 @@
 # ASCENT
 
-Single-player roguelike auto-battler. Battlegrounds-style loop: a shop phase (recruit + build a board)
-alternating with auto-resolved combats against a **17-round course** of enemy boards. The central success
-contract is **covering the rating-driven Line**; surviving the whole course is an additional achievement.
+Deterministic, **asynchronous auto-battler**. Battlegrounds-style loop: a shop phase (recruit + build a
+7-slot board) alternating with auto-resolved combats — inside an **eight-seat elimination lobby**. Seat 0 is
+the live player; the other seats are independently developed runs (recorded player snapshots, generated
+hybrids, bots, or authored tutorial seats). Surviving seats are paired each round, **one authoritative
+`simulate()` resolves each encounter and supplies BOTH sides' damage**, Armor absorbs before Resolve, and a
+seat at zero is eliminated. **Final placement drives the ladder Rating.** Asynchronous by design: it never
+requires two players online at once.
 
-> **This file is the engineering + agent-workflow contract only.** The game's *rules* (course structure,
-> Line/rating, Resolve, quests, runes, matchmaking, terminology) live in
+> ⚠️ **The 17-round course and the Line/Oath success contract are RETIRED.** `CONFIG.courseRounds`,
+> `defaultLine`, `calibrationRounds`, `metLine` and friends still exist and are still read by tools, older
+> replays and non-lobby modes — but the lobby has no course clock (`advanceCombat`'s victory branch excludes
+> lobby mode) and no Line verdict. **Never infer current behaviour from a legacy symbol alone.** The lobby's
+> `maxRounds: 60` is a stalemate backstop, not a course length.
+
+> **This file is the engineering + agent-workflow contract only.** The game's *rules* (lobby structure,
+> placement/rating, Resolve, quests, runes, matchmaking, terminology) live in
 > [`docs/GAME-RULES.md`](docs/GAME-RULES.md); current content counts in [`docs/CONTENT.md`](docs/CONTENT.md);
 > the forward queue in [`docs/roadmap.md`](docs/roadmap.md); the detailed history in
 > [`docs/devlog.md`](docs/devlog.md). Keep game-design facts *out* of this file so it can't go stale.

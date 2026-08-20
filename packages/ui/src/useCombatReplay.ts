@@ -1381,16 +1381,21 @@ export function useCombatReplay(
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
     // reads, not on top of it.
     const atkUid = attackerOfImpact(beats, beatIdx - 1);
-    // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
-    // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
-    const lead = Math.max(
-      deathConsequenceLead(shown, next, events, cardIds, atkUid),
-      pulledHomeAttackerHold(shown, atkUid, events, cardIds),
-      // A Fel-Spikes-style Echo whose spike volley launched from the death in `shown`: HOLD its damage beat
-      // for the beam's travel, so the numbers/health/kills land as the spikes connect (owner ask 2026-08-20).
-      echoDeliveryLead(shown, next, events, cardIds),
-    );
-    if (lead) d += lead / combatSpeedRef.current;
+    // A Fel-Spikes-style Echo: the death holds for EXACTLY the volley's launch + travel — REPLACING the base
+    // hold, not adding to it — so the damage numbers land ON the spike's strike, not a base-hold later (owner:
+    // the damage felt late). The launch+travel is already ample death-read time, so nothing is lost.
+    const echoHold = echoDeliveryLead(shown, next, events, cardIds);
+    if (echoHold > 0) {
+      d = echoHold / combatSpeedRef.current;
+    } else {
+      // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a
+      // plain attacker being pulled home to die in its slot. Max: a Rise/DR lead already covers its pull.
+      const lead = Math.max(
+        deathConsequenceLead(shown, next, events, cardIds, atkUid),
+        pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+      );
+      if (lead) d += lead / combatSpeedRef.current;
+    }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
     // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever

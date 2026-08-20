@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "id": "cia-hp",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "emitter",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rate": 90,
+        "life": 3800,
+        "spread": 0.03,
+        "speed": 55,
+        "speedVar": 0,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "gravity": 10,
+        "orientToVelocity": false,
+        "turbulence": 0,
+        "turbScale": 0.02,
+        "fieldPhase": 0.69,
+        "emitShape": "ring",
+        "emitRadius": 74,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 0.84,
+        "squashY": 1.12,
+        "offsetX": 0,
+        "offsetY": 0,
+        "inheritVel": 0,
+        "shape": "diamond",
+        "size": 8,
+        "sizeVar": 0.47,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0.5,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bands": 3,
+        "plateau": 0.3,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "fadeIn": 0.1,
+        "palette": [
+          11731006,
+          16747181,
+          15769855,
+          16777215
+        ],
+        "blendMode": "normal",
+        "glow": 0,
+        "noiseScale": 0.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0.78,
+        "gain": 2
+      }
+    }
+  ]
+}

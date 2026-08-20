@@ -1,5 +1,12 @@
 # ASCENT — development log
 
+## 2026-08-20 — Fel Spikes' Echo: land the damage ON the spike's strike (not a base-hold later)
+
+Owner: the numbers showed up a sizable beat after the spike connected. The Echo lead was being ADDED to the
+beat's base hold, so the damage landed `baseHold` ms past the strike. The Echo now REPLACES the base hold with
+exactly the volley's launch + travel (`echoDeliveryLead`), so the numbers land on the connect. The
+launch+travel is already ample death-read time, so nothing is lost. typecheck + lint + build green.
+
 ## 2026-08-20 — Fel Spikes' Echo: 100ms skull→volley gap, golden double-tap, attacker-death launch
 
 Three follow-ups on the projectile re-choreography, from owner eyeball:
